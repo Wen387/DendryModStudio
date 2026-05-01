@@ -9,6 +9,7 @@ const VIEWER_HTML = path.join(ROOT, 'viewer', 'index.html');
 const VIEWER_CSS = path.join(ROOT, 'viewer', 'styles.css');
 const WIZARD_UI = path.join(ROOT, 'viewer', 'wizard_ui.js');
 const CARD_UI = path.join(ROOT, 'viewer', 'card_ui.js');
+const ENTRY_UI = path.join(ROOT, 'viewer', 'entry_sidebar_ui.js');
 const INSTALL_UI = path.join(ROOT, 'viewer', 'install_assistant_ui.js');
 const DRAFT_WORKSPACE_UI = path.join(ROOT, 'viewer', 'draft_workspace_ui.js');
 const I18N_UI = path.join(ROOT, 'viewer', 'i18n.js');
@@ -55,6 +56,7 @@ const html = fs.readFileSync(VIEWER_HTML, 'utf8');
 const css = fs.readFileSync(VIEWER_CSS, 'utf8');
 const wizardUi = fs.readFileSync(WIZARD_UI, 'utf8');
 const cardUi = fs.readFileSync(CARD_UI, 'utf8');
+const entryUi = fs.readFileSync(ENTRY_UI, 'utf8');
 const installUi = fs.readFileSync(INSTALL_UI, 'utf8');
 const draftWorkspaceUi = fs.readFileSync(DRAFT_WORKSPACE_UI, 'utf8');
 const i18nUi = fs.readFileSync(I18N_UI, 'utf8');
@@ -82,10 +84,13 @@ assert(html.includes('data-preview-panel="migration"'), 'Output panels should in
 assert(html.includes('data-preview-panel="install"'), 'Output panels should include install notes actions');
 assert(html.includes('../authoring/asset_model.js'), 'viewer should load shared AssetModel before PreviewModel');
 assert(html.includes('../authoring/existing_scene_edit_model.js'), 'viewer should load Existing Scene Edit model');
+assert(html.includes('../authoring/entry_sidebar_draft.js'), 'viewer should load Entry & Sidebar draft core');
 assert(html.includes('id="existing-scene-editor-host"'), 'Create mode should expose an Existing Scene Editor host');
 assert(html.includes('existing_scene_edit_ui.js'), 'viewer should load Existing Scene Editor UI');
+assert(html.includes('entry_sidebar_ui.js'), 'viewer should load Entry & Sidebar UI');
 assert(html.includes('data-create-template="card"'), 'Create template switch should include Card');
 assert(html.includes('data-create-template="surface"'), 'Create template switch should include Surface Text');
+assert(html.includes('data-create-template="entry"'), 'Create template switch should include Entry & Sidebar');
 assert(html.includes('data-view="surfaceText"'), 'Explore navigation should include Surface Text');
 assert(html.includes('data-mode="design"'), 'Direction C Design mode should be exposed in the top-level mode switch');
 assert(html.includes('design-search-shell'), 'Design mode should place search in the Atelier topbar');
@@ -93,6 +98,7 @@ assert(html.includes('id="design-graph-canvas"'), 'Design mode should use a grap
 assert(html.includes('id="design-status-bar"'), 'Design mode should include a persistent Atelier status bar');
 assert(html.includes('id="card-wizard-form"'), 'Create mode should expose the Card Wizard form');
 assert(html.includes('id="surface-text-form"'), 'Create mode should expose the Surface Text proposal form');
+assert(html.includes('id="entry-sidebar-form"'), 'Create mode should expose the Entry & Sidebar form');
 assert(html.includes('id="studio-tutorial-library"'), 'viewer should expose an in-app Tutorial Library dialog');
 assert(html.includes('id="studio-open-tutorial-library"'), 'More menu should expose Tutorial Library');
 assert(html.includes('id="onboarding-open-tutorial-library"'), 'Quick Start should offer Tutorial Library');
@@ -104,9 +110,11 @@ assert(html.includes('update_notice_ui.js'), 'viewer should load Update Notice U
 assert(html.includes('wizard-field-help'), 'Create forms should explain what important fields change');
 assert(html.includes('id="wizard-variable-assistant"'), 'Event editor should expose semantic variable candidates');
 assert(html.includes('id="card-variable-assistant"'), 'Card editor should expose semantic variable candidates');
+assert(html.includes('id="entry-variable-assistant"'), 'Entry editor should expose semantic variable candidates');
 assert(html.includes('data-i18n="create.guidance.event"'), 'Event editor should explain the editing intent before raw fields');
 assert(html.includes('data-i18n="create.guidance.card"'), 'Card editor should explain card routing and draw behavior before raw fields');
 assert(html.includes('data-i18n="create.guidance.surface"'), 'Text editor should explain source evidence before raw fields');
+assert(html.includes('data-i18n="create.guidance.entry"'), 'Entry editor should explain source evidence and safe apply boundaries before raw fields');
 assert(html.includes('data-i18n="create.help.cardFrequency"'), 'Card frequency should explain its gameplay effect');
 assert(html.includes('data-i18n="create.help.surfaceEditability"'), 'Text editability should explain whether the field can apply changes');
 assert(html.includes('wizard-action-primary'), 'Create output actions should separate the recommended next step');
@@ -118,6 +126,7 @@ assert(html.includes('id="install-runtime-preview"'), 'Install Assistant should 
 assert(html.includes('id="install-runtime-preview-result"'), 'Install Assistant should render Runtime Preview results');
 assert(i18nUi.includes("'draftWorkspace.title': '我的修改'"), 'zh-Hant copy should rename Draft Workspace to 我的修改');
 assert(i18nUi.includes("'draftWorkspace.review': '審查與套用'"), 'saved changes should route to Review & Apply copy');
+assert(i18nUi.includes("'draftWorkspace.template.entry'"), 'saved changes should label Entry & Sidebar drafts');
 assert(i18nUi.includes("'install.runtimePreview'"), 'Runtime Preview action should be localized');
 assert(i18nUi.includes("'existingScene.editExisting'"), 'Edit existing action should be localized');
 assert(i18nUi.includes("'existingScene.copyAsNew'"), 'Copy as new proposal action should be localized');
@@ -176,6 +185,9 @@ assert(wizardUi.includes('initPreviewTabs'), 'wizard UI should initialize previe
 assert(wizardUi.includes('ProjectMapVariableSuggestions'), 'Event wizard should use semantic variable suggestions');
 assert(wizardUi.includes('data-preview-tab'), 'wizard UI should query preview tab buttons');
 assert(wizardUi.includes('data-preview-panel'), 'wizard UI should query preview panels');
+assert(entryUi.includes('ProjectMapEntrySidebarDraft'), 'Entry & Sidebar UI should use the shared draft model');
+assert(entryUi.includes('ProjectMapVariableSuggestions'), 'Entry & Sidebar UI should use semantic variable suggestions');
+assert(entryUi.includes('ProjectMapWizard'), 'Entry & Sidebar UI should seed the first playable event shortcut');
 
 assert(installUi.includes('renderHumanChecklist'), 'Install should render a human checklist before raw technical details');
 assert(installUi.includes('install.human.safeApply'), 'Install should translate safe_apply into player-facing labels');
@@ -202,6 +214,7 @@ assert(draftWorkspaceUi.includes('draft-workspace-item-preview'), 'saved changes
 assert(draftWorkspaceUi.includes('draftWorkspace.noInstallPlanShort'), 'saved changes without install plans should explain that review is unavailable');
 assert(draftWorkspaceUi.includes('reviewButton.disabled = !item.installPlan'), 'saved changes without install plans should not switch to Install review');
 assert(draftWorkspaceUi.includes('ProjectMapExistingSceneEditor'), 'saved existing-scene edits should reopen into the Existing Scene Editor');
+assert(draftWorkspaceUi.includes('ProjectMapEntrySidebarWizard'), 'saved Entry & Sidebar drafts should reopen into the Entry wizard');
 assert(i18nUi.includes('existingScene.eventChain'), 'i18n should label guarded event-chain condition editing');
 assert(css.includes('.existing-scene-condition-note'), 'CSS should style Existing Scene Editor condition guidance');
 assert(html.includes('studio_contracts.js'), 'viewer should load shared Studio contracts before UI modules');

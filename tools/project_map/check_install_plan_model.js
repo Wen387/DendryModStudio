@@ -95,7 +95,17 @@ fs.writeFileSync(
 );
 fs.writeFileSync(
   path.join(tmpRoot, 'source', 'scenes', 'root.scene.dry'),
-  'ROOT_LABEL\n// ====== U. EVENT SEEN FLAGS ======\nQ.existing_seen = 0;\n',
+  [
+    'title: Old Root',
+    'ROOT_LABEL',
+    '= Old Start Menu',
+    '',
+    'Old start body.',
+    '- @main: Enter project',
+    '// ====== U. EVENT SEEN FLAGS ======',
+    'Q.existing_seen = 0;',
+    ''
+  ].join('\n'),
   'utf8'
 );
 fs.writeFileSync(
@@ -112,6 +122,16 @@ fs.mkdirSync(path.join(tmpRoot, 'source', 'scenes', 'events'), {recursive: true}
 fs.writeFileSync(
   path.join(tmpRoot, 'source', 'scenes', 'events', 'event_text.scene.dry'),
   'title: Event Text\n\nOriginal player-facing paragraph.\n',
+  'utf8'
+);
+fs.writeFileSync(
+  path.join(tmpRoot, 'source', 'scenes', 'events', 'section_text.scene.dry'),
+  'title: Section Text\n\n= Old Section\n\nOld section body.\nTail stays put.\n',
+  'utf8'
+);
+fs.writeFileSync(
+  path.join(tmpRoot, 'source', 'scenes', 'events', 'section_ambiguous.scene.dry'),
+  'title: Ambiguous Section\n\n= Old Section\n\nOld section body.\n= Old Section\n',
   'utf8'
 );
 const index = syntheticIndex(tmpRoot);
@@ -152,6 +172,9 @@ assert(installPlan.operationSummary(cardBundle.installPlan).manualReview === 0, 
 assert(surfaceBundle.installPlan.operations.some((op) => op.type === 'replace_text'), 'surface plan should include a safe text replacement operation');
 assert(schema.properties.schemaVersion.const === '0.1', 'install-plan schema should describe v0.1');
 assert(schema.properties.operations.items.properties.type.enum.includes('insert_text'), 'install-plan schema should allow structured insert_text operations');
+assert(schema.properties.operations.items.properties.type.enum.includes('replace_section'), 'install-plan schema should allow structured replace_section operations');
+assert(schema.properties.operations.items.properties.startLine, 'install-plan schema should describe replace_section startLine evidence');
+assert(schema.properties.operations.items.properties.endLine, 'install-plan schema should describe replace_section endLine evidence');
 assert(schema.properties.operations.items.properties.type.enum.includes('copy_asset_file'), 'install-plan schema should allow asset file install proposals');
 
 const eventAssetBundle = eventDraft.buildExportBundle(Object.assign({}, readJson(SAMPLE_EVENT), {
@@ -253,6 +276,219 @@ assert(newsDryRun.operationSummary.guardedApply === 1, 'news dry-run should coun
 const newsApply = installPlan.applyInstallPlan(newsBundle.installPlan, {projectRoot: tmpRoot, dryRun: false});
 assert(newsApply.ok, 'news apply should insert anchored post_event_news snippet: ' + JSON.stringify(newsApply));
 assert(fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'post_event_news.scene.dry'), 'utf8').includes('// NewsDraft: sample_dated_news'), 'news apply should insert the generated NewsDraft snippet');
+
+const replaceSectionPlan = installPlan.buildInstallPlan({
+  id: 'replace_section_guarded',
+  draftKind: 'test',
+  operations: [
+    {
+      id: 'replace_section_guarded',
+      type: 'replace_section',
+      path: 'source/scenes/events/section_text.scene.dry',
+      anchorText: '= Old Section',
+      endAnchorText: 'Old section body.',
+      content: '= New Section\n\nNew section body.\n',
+      dedupeSearch: 'New section body.',
+      safety: 'guarded_apply',
+      description: 'Replace a source-backed scene section between exact anchors.'
+    }
+  ]
+});
+assert(installPlan.classifyOperation(replaceSectionPlan.operations[0]).status === 'guarded_apply', 'replace_section with source anchors should be guarded installable');
+assert(installPlan.renderOperationChecklist(replaceSectionPlan).includes('replace_section'), 'operation checklist should name replace_section');
+assert(installPlan.renderPatchPreview(replaceSectionPlan).includes('@@ replace section'), 'patch preview should render replace_section hunks');
+const replaceSectionDryRun = installPlan.applyInstallPlan(replaceSectionPlan, {projectRoot: tmpRoot, dryRun: true});
+assert(replaceSectionDryRun.ok, 'replace_section dry-run should succeed: ' + JSON.stringify(replaceSectionDryRun));
+assert(replaceSectionDryRun.results[0].status === 'would_apply', 'replace_section dry-run should report would_apply');
+assert(fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'events', 'section_text.scene.dry'), 'utf8').includes('Old section body.'), 'replace_section dry-run must not mutate source');
+const replaceSectionApply = installPlan.applyInstallPlan(replaceSectionPlan, {projectRoot: tmpRoot, dryRun: false});
+assert(replaceSectionApply.ok, 'replace_section apply should succeed: ' + JSON.stringify(replaceSectionApply));
+const replacedSectionText = fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'events', 'section_text.scene.dry'), 'utf8');
+assert(replacedSectionText.includes('New section body.'), 'replace_section apply should write replacement content');
+assert(replacedSectionText.includes('Tail stays put.'), 'replace_section apply should preserve content after the end anchor');
+assert(!replacedSectionText.includes('Old section body.'), 'replace_section apply should remove the old inclusive anchor range');
+const replaceSectionAgain = installPlan.applyInstallPlan(replaceSectionPlan, {projectRoot: tmpRoot, dryRun: false});
+assert(replaceSectionAgain.ok && replaceSectionAgain.results[0].status === 'already_applied', 'replace_section should be idempotent when dedupe text is present');
+
+const ambiguousSectionPlan = installPlan.buildInstallPlan({
+  id: 'replace_section_ambiguous',
+  draftKind: 'test',
+  operations: [
+    {
+      id: 'replace_section_ambiguous',
+      type: 'replace_section',
+      path: 'source/scenes/events/section_ambiguous.scene.dry',
+      anchorText: '= Old Section',
+      endAnchorText: 'Old section body.',
+      content: '= New Section\n',
+      dedupeSearch: 'New Section',
+      safety: 'guarded_apply'
+    }
+  ]
+});
+const ambiguousSectionResult = installPlan.applyInstallPlan(ambiguousSectionPlan, {projectRoot: tmpRoot, dryRun: false});
+assert(!ambiguousSectionResult.ok, 'replace_section should refuse ambiguous start anchors');
+assert(ambiguousSectionResult.diagnostics.some((diag) => diag.code === 'install_plan.section_ambiguous_anchor'), 'ambiguous replace_section should report section_ambiguous_anchor');
+
+const missingEndSectionPlan = installPlan.buildInstallPlan({
+  id: 'replace_section_missing_end',
+  draftKind: 'test',
+  operations: [
+    {
+      id: 'replace_section_missing_end',
+      type: 'replace_section',
+      path: 'source/scenes/events/section_ambiguous.scene.dry',
+      anchorText: 'title: Ambiguous Section',
+      endAnchorText: 'Missing end anchor',
+      content: 'title: Replacement\n',
+      dedupeSearch: 'title: Replacement',
+      safety: 'guarded_apply'
+    }
+  ]
+});
+const missingEndSectionResult = installPlan.applyInstallPlan(missingEndSectionPlan, {projectRoot: tmpRoot, dryRun: false});
+assert(!missingEndSectionResult.ok, 'replace_section should refuse missing end anchors');
+assert(missingEndSectionResult.diagnostics.some((diag) => diag.code === 'install_plan.section_end_anchor_missing'), 'missing end anchor should report section_end_anchor_missing');
+
+const rootEntrySectionPlan = installPlan.buildInstallPlan({
+  id: 'root_entry_section',
+  draftKind: 'entry_sidebar',
+  operations: [
+    {
+      id: 'root_entry_section',
+      type: 'replace_section',
+      path: 'source/scenes/root.scene.dry',
+      anchorText: '= Old Start Menu',
+      endAnchorText: 'Old start body.',
+      content: '= New Start Menu\n\nNew start body.\n',
+      dedupeSearch: 'New start body.',
+      startLine: 3,
+      endLine: 5,
+      safety: 'guarded_apply',
+      role: 'entry_sidebar.heading'
+    }
+  ]
+});
+assert(installPlan.classifyOperation(rootEntrySectionPlan.operations[0]).status === 'guarded_apply', 'Entry/Sidebar root opening replacement should be guarded with exact anchors');
+const rootEntrySectionApply = installPlan.applyInstallPlan(rootEntrySectionPlan, {projectRoot: tmpRoot, dryRun: false});
+assert(rootEntrySectionApply.ok, 'Entry/Sidebar root opening replacement should apply: ' + JSON.stringify(rootEntrySectionApply));
+assert(fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'root.scene.dry'), 'utf8').includes('New start body.'), 'Entry/Sidebar root opening replacement should mutate root opening text');
+
+const rootBadSectionPlan = installPlan.buildInstallPlan({
+  id: 'root_bad_section',
+  draftKind: 'entry_sidebar',
+  operations: [
+    {
+      id: 'root_bad_section',
+      type: 'replace_section',
+      path: 'source/scenes/root.scene.dry',
+      anchorText: 'title: Old Root',
+      endAnchorText: '- @main: Enter project',
+      content: '= New Start Menu\n\nNew start body.\n',
+      dedupeSearch: 'New start body.',
+      startLine: 1,
+      endLine: 6,
+      safety: 'guarded_apply',
+      role: 'entry_sidebar.heading'
+    }
+  ]
+});
+assert(installPlan.classifyOperation(rootBadSectionPlan.operations[0]).status === 'refused', 'Entry/Sidebar root replace_section must not cover metadata/init/routes');
+
+const rootEntryRoutePlan = installPlan.buildInstallPlan({
+  id: 'root_entry_route',
+  draftKind: 'entry_sidebar',
+  operations: [
+    {
+      id: 'root_entry_route',
+      type: 'replace_text',
+      path: 'source/scenes/root.scene.dry',
+      line: 6,
+      search: '- @main: Enter project',
+      replace: '- @main: Start project',
+      safety: 'guarded_apply',
+      role: 'entry_sidebar.option_label'
+    }
+  ]
+});
+assert(installPlan.classifyOperation(rootEntryRoutePlan.operations[0]).status === 'guarded_apply', 'Entry/Sidebar root option label replacement should be guarded with exact line evidence');
+const rootEntryRouteApply = installPlan.applyInstallPlan(rootEntryRoutePlan, {projectRoot: tmpRoot, dryRun: false});
+assert(rootEntryRouteApply.ok, 'Entry/Sidebar root option label replacement should apply: ' + JSON.stringify(rootEntryRouteApply));
+assert(fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'root.scene.dry'), 'utf8').includes('- @main: Start project'), 'Entry/Sidebar root option label replacement should mutate only the route label line');
+
+const rootMetadataReplacePlan = installPlan.buildInstallPlan({
+  id: 'root_metadata_replace_refused',
+  draftKind: 'entry_sidebar',
+  operations: [
+    {
+      id: 'root_metadata_replace_refused',
+      type: 'replace_text',
+      path: 'source/scenes/root.scene.dry',
+      line: 2,
+      search: 'ROOT_LABEL',
+      replace: 'ROOT_LABEL_CHANGED',
+      safety: 'guarded_apply',
+      role: 'entry_sidebar.option_label'
+    }
+  ]
+});
+assert(installPlan.classifyOperation(rootMetadataReplacePlan.operations[0]).status === 'refused', 'Entry/Sidebar guarded root replacement must only cover title or option route lines');
+
+const rootJsRefusedPlan = installPlan.buildInstallPlan({
+  id: 'root_js_refused',
+  draftKind: 'entry_sidebar',
+  operations: [
+    {
+      id: 'root_js_refused',
+      type: 'replace_text',
+      path: 'source/scenes/root.scene.dry',
+      line: 9,
+      search: 'Q.existing_seen = 0;',
+      replace: 'Q.existing_seen = 1;',
+      safety: 'guarded_apply',
+      role: 'entry_sidebar.option_label'
+    }
+  ]
+});
+assert(installPlan.classifyOperation(rootJsRefusedPlan.operations[0]).status === 'refused', 'Entry/Sidebar guarded root replacement must not cover JS/init lines');
+
+const protectedRouterSectionPlan = installPlan.buildInstallPlan({
+  id: 'post_event_section_refused',
+  draftKind: 'test',
+  operations: [
+    {
+      id: 'post_event_section_refused',
+      type: 'replace_section',
+      path: 'source/scenes/post_event.scene.dry',
+      anchorText: 'POST_EVENT_LABEL',
+      endAnchorText: 'POST_EVENT_LABEL',
+      content: 'POST_EVENT_CHANGED\n',
+      dedupeSearch: 'POST_EVENT_CHANGED',
+      safety: 'guarded_apply',
+      role: 'entry_sidebar.heading'
+    }
+  ]
+});
+assert(installPlan.classifyOperation(protectedRouterSectionPlan.operations[0]).status === 'refused', 'replace_section should not guarded-apply protected post_event routers');
+
+const statusCreatePlan = installPlan.buildInstallPlan({
+  id: 'status_create',
+  draftKind: 'entry_sidebar',
+  operations: [
+    {
+      id: 'status_create',
+      type: 'create_file',
+      path: 'source/scenes/status_extra.scene.dry',
+      content: 'title: Extra Status\n\n= Extra Status\n',
+      safety: 'safe_apply',
+      role: 'entry_sidebar.sidebar'
+    }
+  ]
+});
+assert(installPlan.classifyOperation(statusCreatePlan.operations[0]).status === 'safe_apply', 'status_*.scene.dry creation should be safe apply');
+const statusCreateDryRun = installPlan.applyInstallPlan(statusCreatePlan, {projectRoot: tmpRoot, dryRun: true});
+assert(statusCreateDryRun.ok && statusCreateDryRun.results[0].status === 'would_apply', 'status_*.scene.dry dry-run should be installable');
+assert(!fs.existsSync(path.join(tmpRoot, 'source', 'scenes', 'status_extra.scene.dry')), 'status_*.scene.dry dry-run must not write files');
 
 const guardedTextPlan = installPlan.surfaceTextInstallPlan({
   id: 'rewrite_event_body',

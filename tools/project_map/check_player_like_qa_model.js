@@ -33,6 +33,8 @@ function read(filePath) {
   path.join(SCENARIO_DIR, 'explore_design_existing_edit.md'),
   path.join(SCENARIO_DIR, 'draft_persistence_restart.md'),
   path.join(SCENARIO_DIR, 'load_bundled_demo_template.md'),
+  path.join(SCENARIO_DIR, 'justice_party_template_mod.md'),
+  path.join(SCENARIO_DIR, 'runtime_preview_entry_flow.md'),
   path.join(QA_FIXTURE, 'source', 'info.dry'),
   path.join(QA_FIXTURE, 'source', 'scenes', 'root.scene.dry'),
   path.join(QA_FIXTURE, 'source', 'scenes', 'generic_intro.scene.dry'),
@@ -46,6 +48,8 @@ const readme = read(README);
 const existingScenarioCard = read(path.join(SCENARIO_DIR, 'explore_design_existing_edit.md'));
 const persistenceScenarioCard = read(path.join(SCENARIO_DIR, 'draft_persistence_restart.md'));
 const demoScenarioCard = read(path.join(SCENARIO_DIR, 'load_bundled_demo_template.md'));
+const justicePartyScenarioCard = read(path.join(SCENARIO_DIR, 'justice_party_template_mod.md'));
+const runtimePreviewScenarioCard = read(path.join(SCENARIO_DIR, 'runtime_preview_entry_flow.md'));
 const rootScene = read(path.join(QA_FIXTURE, 'source', 'scenes', 'root.scene.dry'));
 const postEvent = read(path.join(QA_FIXTURE, 'source', 'scenes', 'post_event.scene.dry'));
 
@@ -58,10 +62,23 @@ const postEvent = read(path.join(QA_FIXTURE, 'source', 'scenes', 'post_event.sce
   'explore_design_existing_edit',
   'draft_persistence_restart',
   'load_bundled_demo_template',
+  'justice_party_template_mod',
+  'runtime_preview_entry_flow',
+  'Runtime preview support is visible',
+  'waitForGameText',
+  'demo_support',
+  'justice_party_ticker_news',
+  'Entry & Sidebar',
+  'entry_sidebar',
+  'entry-create-first-event',
+  'waitForEntryOutput',
+  'post_event_news',
   'ProjectMapInstallAssistant',
   'data-design-edit-existing',
   'reloadStudioWindow',
   'dendry:open-starter-demo',
+  'dendry:update-notice-check',
+  'guided_ui_qa_offline',
   'A Small Campaign Office',
   'qa_persistent_event',
   'install_plan.project_mismatch',
@@ -78,6 +95,8 @@ const postEvent = read(path.join(QA_FIXTURE, 'source', 'scenes', 'post_event.sce
   'explore_design_existing_edit',
   'draft_persistence_restart',
   'load_bundled_demo_template',
+  'justice_party_template_mod',
+  'runtime_preview_entry_flow',
   'project_mismatch',
   'test dialog adapter',
   'Do not treat these runs as full manual QA'
@@ -121,9 +140,24 @@ assert(
   demoScenarioCard.includes('Persona:') && demoScenarioCard.includes('Required checkpoints:') && demoScenarioCard.includes('Allowed shortcut:'),
   'bundled demo scenario card should be written as a player journey'
 );
+assert(
+  justicePartyScenarioCard.includes('Persona:') &&
+    justicePartyScenarioCard.includes('Required checkpoints:') &&
+    justicePartyScenarioCard.includes('Entry & Sidebar') &&
+    justicePartyScenarioCard.includes('Variable recommendation') &&
+    justicePartyScenarioCard.includes('two news systems'),
+  'Justice Party scenario card should cover variable recommendations and both news systems'
+);
+assert(
+  runtimePreviewScenarioCard.includes('Persona:') &&
+    runtimePreviewScenarioCard.includes('Required checkpoints:') &&
+    runtimePreviewScenarioCard.includes('Runtime Preview') &&
+    runtimePreviewScenarioCard.includes('Runtime preview support is visible'),
+  'Runtime Preview scenario card should cover first route click and sidebar/status change'
+);
 
 process.stdout.write(JSON.stringify({
   ok: true,
-  scenarioCount: 4,
+  scenarioCount: 6,
   runner: path.relative(REPO, RUNNER)
 }, null, 2) + '\n');

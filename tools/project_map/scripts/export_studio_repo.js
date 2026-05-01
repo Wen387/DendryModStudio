@@ -228,6 +228,15 @@ function publicGitignore() {
     '.env.*',
     '*.log',
     '.DS_Store',
+    '',
+    '# Local agent/session notes',
+    '.studio-local/',
+    '.codex',
+    '.claude',
+    'LLM',
+    'HANDOVER.md',
+    'SESSION_LOG.md',
+    '*.local.md',
     ''
   ].join('\n');
 }
@@ -562,6 +571,7 @@ function publicPackageJson() {
         'node tools/project_map/check_localization_surface.js',
         'node tools/project_map/check_studio_surface.js',
         'node tools/project_map/check_update_notice_model.js',
+        'node tools/project_map/check_entry_sidebar_model.js',
         'node tools/project_map/check_starter_demo_model.js',
         'node tools/project_map/check_player_like_qa_model.js',
         'node tools/project_map/check_release_links_model.js'

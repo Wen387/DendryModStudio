@@ -97,6 +97,37 @@ const newsItem = workspace.makeDraftItem({
 });
 assert(newsItem.template === 'news', 'news_item should normalize to news template');
 
+const entryItem = workspace.makeDraftItem({
+  draft: {
+    schemaVersion: '0.1',
+    kind: 'entry_sidebar',
+    id: 'entry_sidebar_update',
+    title: 'Entry Update',
+    rootHeading: 'Justice Party Campaign Office',
+    firstTargetId: 'justice_party_opening'
+  },
+  output: {
+    playerPreview: 'Justice Party Campaign Office',
+    installPlan: {
+      schemaVersion: '0.1',
+      draftKind: 'entry_sidebar',
+      operations: [{
+        id: 'entry_opening_section',
+        type: 'replace_section',
+        safety: 'guarded_apply',
+        path: 'source/scenes/root.scene.dry',
+        anchorText: '= Old',
+        endAnchorText: 'Old body',
+        content: '= New\n',
+        dedupeSearch: 'New'
+      }]
+    }
+  }
+});
+assert(entryItem.template === 'entry', 'entry_sidebar should normalize to entry template');
+assert(entryItem.subtitle.includes('justice_party_opening'), 'entry draft subtitle should identify the first playable target');
+assert(entryItem.previewText.includes('Justice Party'), 'entry draft preview should be captured');
+
 const existingSceneItem = workspace.makeDraftItem({
   template: 'existing',
   draft: {
@@ -331,5 +362,5 @@ assert(uiSmoke.installClicks === 1, 'enabled Review should switch to Install');
 console.log(JSON.stringify({
   ok: true,
   itemId: item.workspaceId,
-  templates: ['event', newsItem.template]
+  templates: ['event', newsItem.template, entryItem.template]
 }, null, 2));

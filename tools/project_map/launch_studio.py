@@ -25,9 +25,12 @@ from typing import NamedTuple
 SCRIPT_DIR = Path(__file__).resolve().parent
 INDEXER = SCRIPT_DIR / "build_project_map.py"
 VIEWER_DIR = SCRIPT_DIR / "viewer"
+AUTHORING_DIR = SCRIPT_DIR / "authoring"
 DEFAULT_OUT_DIR = Path("/tmp/dendry_project_map")
 MAX_EXCERPT_CONTEXT_LINES = 5
 ASSET_BASE_ROUTE = "/_project_asset"
+AUTHORING_ROUTE = "/authoring"
+ALLOWED_AUTHORING_EXTENSIONS = {".js"}
 ALLOWED_PROJECT_ASSET_EXTENSIONS = {
     ".png",
     ".jpg",
@@ -50,6 +53,7 @@ class LaunchPlan(NamedTuple):
     index_route: str
     asset_base_route: str
     viewer_dir: Path
+    authoring_dir: Path
     url: str
     index_args: list[str]
     host: str
@@ -162,6 +166,7 @@ def build_launch_plan(
         index_route=index_route,
         asset_base_route=ASSET_BASE_ROUTE,
         viewer_dir=VIEWER_DIR,
+        authoring_dir=AUTHORING_DIR,
         url=url,
         index_args=index_args,
         host=host,
@@ -179,6 +184,7 @@ def plan_as_json(plan: LaunchPlan, mode: str) -> str:
         "indexRoute": plan.index_route,
         "assetBaseRoute": plan.asset_base_route,
         "viewerDir": str(plan.viewer_dir),
+        "authoringDir": str(plan.authoring_dir),
         "url": plan.url,
         "indexCommand": plan.index_args,
         "includeExcerpts": plan.include_excerpts,
@@ -213,6 +219,25 @@ def resolve_project_asset_path(root: Path, asset_base_route: str, request_path: 
         raise PermissionError("Project asset path escapes the project root.") from exc
     if candidate.suffix.lower() not in ALLOWED_PROJECT_ASSET_EXTENSIONS:
         raise PermissionError("Project asset route only serves image and audio files.")
+    return candidate
+
+
+def resolve_authoring_file_path(authoring_dir: Path, request_path: str) -> Path | None:
+    prefix = AUTHORING_ROUTE.rstrip("/") + "/"
+    if not request_path.startswith(prefix):
+        return None
+    relative_url = request_path[len(prefix):]
+    relative_path = urllib.parse.unquote(relative_url).replace("\\", "/").lstrip("/")
+    if not relative_path:
+        return None
+    candidate = (authoring_dir / relative_path).resolve()
+    authoring_dir = authoring_dir.resolve()
+    try:
+        candidate.relative_to(authoring_dir)
+    except ValueError as exc:
+        raise PermissionError("Authoring module path escapes the Studio authoring directory.") from exc
+    if candidate.suffix.lower() not in ALLOWED_AUTHORING_EXTENSIONS:
+        raise PermissionError("Authoring module route only serves JavaScript files.")
     return candidate
 
 
@@ -257,6 +282,27 @@ def serve_viewer(plan: LaunchPlan) -> None:
                 self.send_header("Content-Type", content_type)
                 self.send_header("Content-Length", str(len(data)))
                 self.send_header("Accept-Ranges", "bytes")
+                self.end_headers()
+                self.write_response_bytes(data)
+                return
+            if request_path.startswith(AUTHORING_ROUTE.rstrip("/") + "/"):
+                try:
+                    authoring_path = resolve_authoring_file_path(plan.authoring_dir, request_path)
+                except PermissionError as exc:
+                    self.send_error(403, str(exc))
+                    return
+                if not authoring_path or not authoring_path.is_file():
+                    self.send_error(404, "Authoring module not found")
+                    return
+                try:
+                    data = authoring_path.read_bytes()
+                except OSError:
+                    self.send_error(404, "Authoring module not found")
+                    return
+                content_type = mimetypes.guess_type(authoring_path.name)[0] or "text/javascript"
+                self.send_response(200)
+                self.send_header("Content-Type", content_type)
+                self.send_header("Content-Length", str(len(data)))
                 self.end_headers()
                 self.write_response_bytes(data)
                 return

@@ -84,6 +84,7 @@
     value.search = value.search === undefined || value.search === null ? '' : String(value.search);
     value.replace = value.replace === undefined || value.replace === null ? '' : String(value.replace);
     value.anchorText = value.anchorText === undefined || value.anchorText === null ? '' : String(value.anchorText);
+    value.endAnchorText = value.endAnchorText === undefined || value.endAnchorText === null ? '' : String(value.endAnchorText);
     value.position = String(value.position || 'after').trim() === 'before' ? 'before' : 'after';
     value.dedupeSearch = value.dedupeSearch === undefined || value.dedupeSearch === null ? '' : String(value.dedupeSearch);
     value.sourceName = value.sourceName === undefined || value.sourceName === null ? '' : String(value.sourceName);
@@ -97,6 +98,8 @@
     } else {
       value.line = null;
     }
+    value.startLine = numberOrNull(value.startLine);
+    value.endLine = numberOrNull(value.endLine);
     return value;
   }
 
@@ -541,6 +544,17 @@
         prefixLines('+', operation.content || '')
       ].join('\n') + '\n';
     }
+    if (operation.type === 'replace_section') {
+      return [
+        'diff --git a/' + pathLabel + ' b/' + pathLabel,
+        '--- a/' + pathLabel,
+        '+++ b/' + pathLabel,
+        '@@ replace section',
+        ' ' + (operation.anchorText || '(missing start anchor)'),
+        ' ' + (operation.endAnchorText || '(missing end anchor)'),
+        prefixLines('+', operation.content || '')
+      ].join('\n') + '\n';
+    }
     if (operation.type === 'copy_asset_file') {
       return [
         'diff --git a/' + pathLabel + ' b/' + pathLabel,
@@ -637,6 +651,10 @@
       }
       if (operation.type === 'insert_text') {
         results.push(applyInsertText(fs, target.path, operation, dryRun, diagnostics));
+        return;
+      }
+      if (operation.type === 'replace_section') {
+        results.push(applyReplaceSection(fs, target.path, operation, dryRun, diagnostics));
         return;
       }
       if (operation.type === 'copy_asset_file') {
@@ -747,6 +765,22 @@
       ) {
         return {ok: true, message: 'Guarded insert_text is allowed with an exact anchor and dedupe evidence.'};
       }
+      if (
+        operation.type === 'replace_text' &&
+        safety === 'guarded_apply' &&
+        rel === 'source/scenes/root.scene.dry' &&
+        isEntrySidebarProtectedReplace(operation)
+      ) {
+        return {ok: true, message: 'Guarded Entry/Sidebar replacement is allowed with exact root line evidence.'};
+      }
+      if (
+        operation.type === 'replace_section' &&
+        safety === 'guarded_apply' &&
+        rel === 'source/scenes/root.scene.dry' &&
+        isEntrySidebarProtectedSection(operation)
+      ) {
+        return {ok: true, message: 'Guarded Entry/Sidebar section replacement is allowed with exact root anchors.'};
+      }
       return {ok: false, message: 'Operation path is manual-review only: ' + rel};
     }
     if (operation.type === 'create_file') {
@@ -760,7 +794,10 @@
       ) {
         return {ok: true};
       }
-      return {ok: false, message: 'create_file safe apply is limited to event/card scene proposal directories: ' + rel};
+      if (rel === 'source/scenes/status.scene.dry' || /^source\/scenes\/status_[A-Za-z0-9_.-]+\.scene\.dry$/.test(rel)) {
+        return {ok: true, message: 'Safe create_file may add a source-backed status/sidebar scene.'};
+      }
+      return {ok: false, message: 'create_file safe apply is limited to event/card/status scene proposal directories: ' + rel};
     }
     if (operation.type === 'replace_text') {
       if (safety === 'advanced_apply') {
@@ -772,6 +809,9 @@
       if (safety === 'guarded_apply') {
         if (rel.startsWith('source/scenes/') && rel.endsWith('.scene.dry') && !isProtectedRouterPath(rel)) {
           return {ok: true, message: 'Guarded scene text replacement with source evidence.'};
+        }
+        if (rel === 'source/scenes/root.scene.dry' && isEntrySidebarProtectedReplace(operation)) {
+          return {ok: true, message: 'Guarded Entry/Sidebar replacement with exact root line evidence.'};
         }
         return {ok: false, message: 'guarded replace_text is limited to non-router source scene files: ' + rel};
       }
@@ -788,6 +828,21 @@
         return {ok: true, message: 'Guarded source insert with anchor and dedupe evidence.'};
       }
       return {ok: false, message: 'insert_text requires guarded source scene evidence: ' + rel};
+    }
+    if (operation.type === 'replace_section') {
+      if (
+        safety === 'guarded_apply' &&
+        rel.startsWith('source/scenes/') &&
+        rel.endsWith('.scene.dry') &&
+        operation.anchorText &&
+        operation.endAnchorText &&
+        operation.content &&
+        operation.dedupeSearch &&
+        (!isProtectedRouterPath(rel) || (rel === 'source/scenes/root.scene.dry' && isEntrySidebarProtectedSection(operation)))
+      ) {
+        return {ok: true, message: 'Guarded source section replacement with exact start/end anchors and dedupe evidence.'};
+      }
+      return {ok: false, message: 'replace_section requires guarded source scene anchors and dedupe evidence: ' + rel};
     }
     if (operation.type === 'copy_asset_file') {
       if (safety !== 'guarded_apply') {
@@ -877,6 +932,26 @@
     }
     if (!dryRun) {
       fs.writeFileSync(target, inserted.text, 'utf8');
+    }
+    return {id: operation.id, type: operation.type, path: operation.path, status: dryRun ? 'would_apply' : 'applied'};
+  }
+
+  function applyReplaceSection(fs, target, operation, dryRun, diagnostics) {
+    if (!fs.existsSync(target)) {
+      diagnostics.push(diagnostic('error', 'install_plan.section_missing_file', 'Target file does not exist: ' + operation.path, operation));
+      return {id: operation.id, type: operation.type, path: operation.path, status: 'failed'};
+    }
+    const before = fs.readFileSync(target, 'utf8');
+    const section = replaceSection(before, operation);
+    if (!section.ok) {
+      diagnostics.push(diagnostic('error', section.code, section.message, operation));
+      return {id: operation.id, type: operation.type, path: operation.path, status: 'failed'};
+    }
+    if (section.alreadyApplied) {
+      return {id: operation.id, type: operation.type, path: operation.path, status: 'already_applied'};
+    }
+    if (!dryRun) {
+      fs.writeFileSync(target, section.text, 'utf8');
     }
     return {id: operation.id, type: operation.type, path: operation.path, status: dryRun ? 'would_apply' : 'applied'};
   }
@@ -981,6 +1056,158 @@
     const insertAt = operation.position === 'before' ? matches[0] : matches[0] + 1;
     const nextLines = lines.slice(0, insertAt).concat(insertLines, lines.slice(insertAt));
     return {ok: true, text: nextLines.join('\n') + (hadFinalNewline ? '\n' : '')};
+  }
+
+  function replaceSection(text, operation) {
+    const anchor = operation.anchorText || '';
+    const endAnchor = operation.endAnchorText || '';
+    const content = operation.content || '';
+    if (!anchor) {
+      return {ok: false, code: 'install_plan.section_empty_anchor', message: 'Section start anchor text is empty.'};
+    }
+    if (!endAnchor) {
+      return {ok: false, code: 'install_plan.section_empty_end_anchor', message: 'Section end anchor text is empty.'};
+    }
+    if (!content) {
+      return {ok: false, code: 'install_plan.section_empty_content', message: 'Section replacement content is empty.'};
+    }
+    const dedupe = operation.dedupeSearch || content.trim();
+    const hadFinalNewline = text.endsWith('\n');
+    const lines = hadFinalNewline ? text.slice(0, -1).split('\n') : text.split('\n');
+    const starts = [];
+    const ends = [];
+    lines.forEach((line, index) => {
+      if (line === anchor) {
+        starts.push(index);
+      }
+      if (line === endAnchor) {
+        ends.push(index);
+      }
+    });
+    if (starts.length !== 1) {
+      if (starts.length === 0 && dedupe && text.includes(dedupe)) {
+        return {ok: true, alreadyApplied: true, text};
+      }
+      return {
+        ok: false,
+        code: starts.length ? 'install_plan.section_ambiguous_anchor' : 'install_plan.section_anchor_missing',
+        message: 'Expected exactly one section start anchor match, found ' + starts.length + '.'
+      };
+    }
+    const start = starts[0];
+    const matchingEnds = ends.filter((index) => index >= start);
+    if (matchingEnds.length !== 1) {
+      return {
+        ok: false,
+        code: matchingEnds.length ? 'install_plan.section_ambiguous_end_anchor' : 'install_plan.section_end_anchor_missing',
+        message: 'Expected exactly one section end anchor match after the start anchor, found ' + matchingEnds.length + '.'
+      };
+    }
+    const end = matchingEnds[0];
+    if (operation.startLine && start + 1 !== operation.startLine) {
+      return {
+        ok: false,
+        code: 'install_plan.section_start_line_mismatch',
+        message: 'Section start anchor matched line ' + (start + 1) + ', expected line ' + operation.startLine + '.'
+      };
+    }
+    if (operation.endLine && end + 1 !== operation.endLine) {
+      return {
+        ok: false,
+        code: 'install_plan.section_end_line_mismatch',
+        message: 'Section end anchor matched line ' + (end + 1) + ', expected line ' + operation.endLine + '.'
+      };
+    }
+    const replacementLines = content.replace(/\n$/, '').split('\n');
+    const nextLines = lines.slice(0, start).concat(replacementLines, lines.slice(end + 1));
+    return {ok: true, text: nextLines.join('\n') + (hadFinalNewline ? '\n' : '')};
+  }
+
+  function isEntrySidebarProtectedReplace(operation) {
+    const role = String(operation && (operation.role || operation.workflow || operation.label) || '');
+    const line = Number(operation && operation.line || 0);
+    const search = String(operation && operation.search || '');
+    const replace = String(operation && operation.replace || '');
+    if (!Number.isInteger(line) || line <= 0 || !search.trim() || !replace.trim()) {
+      return false;
+    }
+    if (/[\r\n{};]/.test(search + replace)) {
+      return false;
+    }
+    if (/^entry_sidebar\.title$/i.test(role)) {
+      return /^title:\s+\S.*$/.test(search) && /^title:\s+\S.*$/.test(replace);
+    }
+    if (/^entry_sidebar\.(option_label|first_route)$/i.test(role)) {
+      return isEntryRouteLine(search) && isEntryRouteLine(replace);
+    }
+    return false;
+  }
+
+  function isEntrySidebarProtectedSection(operation) {
+    const role = String(operation && (operation.role || operation.workflow || operation.label) || '');
+    const allowedRole = /^entry_sidebar\.(heading|opening_section|opening)$/i.test(role);
+    const anchor = String(operation && operation.anchorText || '');
+    const endAnchor = String(operation && operation.endAnchorText || '');
+    const content = String(operation && operation.content || '');
+    const dedupe = String(operation && operation.dedupeSearch || '');
+    const startLine = Number(operation && operation.startLine || 0);
+    const endLine = Number(operation && operation.endLine || 0);
+    return allowedRole &&
+      Number.isInteger(startLine) &&
+      Number.isInteger(endLine) &&
+      startLine > 0 &&
+      endLine >= startLine &&
+      anchor.trim() &&
+      endAnchor.trim() &&
+      content.trim() &&
+      dedupe.trim() &&
+      isEntryHeadingLine(anchor) &&
+      isEntryProseEndAnchor(endAnchor) &&
+      isSafeEntrySectionContent(content);
+  }
+
+  function isEntryRouteLine(value) {
+    return /^\s*-\s+@[A-Za-z0-9_.-]+\s*:\s+\S.*$/.test(String(value || '').trim());
+  }
+
+  function isEntryHeadingLine(value) {
+    return /^\s*=\s+\S/.test(String(value || '').trim());
+  }
+
+  function isEntryProseEndAnchor(value) {
+    const text = String(value || '').trim();
+    if (!text) {
+      return false;
+    }
+    if (/^(?:title|new-page|on-arrival|tags|view-if|choose-if|go-to|set-root)\s*:/i.test(text)) {
+      return false;
+    }
+    if (/^(?:[-@#]|=|\/\/|\{!|!})/.test(text)) {
+      return false;
+    }
+    return !/[{};]/.test(text);
+  }
+
+  function isSafeEntrySectionContent(value) {
+    const text = String(value || '');
+    if (!text.trim() || /[{};]/.test(text)) {
+      return false;
+    }
+    const lines = text.replace(/\n$/, '').split('\n');
+    if (!isEntryHeadingLine(lines[0] || '')) {
+      return false;
+    }
+    return !lines.some((line, index) => {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        return false;
+      }
+      if (index === 0) {
+        return false;
+      }
+      return /^(?:[-@#]|=|\/\/|\{!|!})/.test(trimmed) ||
+        /^(?:title|new-page|on-arrival|tags|view-if|choose-if|go-to|set-root)\s*:/i.test(trimmed);
+    });
   }
 
   function diagnostic(severity, code, message, operation) {

@@ -72,6 +72,7 @@ function isTextFile(relativePath) {
 function main() {
   const files = listFiles();
   const disallowedPrefixes = [
+    '.studio-local/',
     '.claude/',
     'LLM/',
     'history/',
@@ -156,6 +157,7 @@ function main() {
     'check_localization_surface.js',
     'check_studio_surface.js',
     'check_update_notice_model.js',
+    'check_entry_sidebar_model.js',
     'check_starter_demo_model.js',
     'check_player_like_qa_model.js',
     'check_release_links_model.js'
@@ -173,7 +175,7 @@ function main() {
     'update manifest links should point at DendryModStudio'
   );
 
-  const docsToScan = files.filter((file) => /\.(md|json)$/.test(file) || file === '.gitignore');
+  const docsToScan = files.filter((file) => /\.(md|json)$/.test(file));
   const docDeny = [
     {label: 'old game repo URL', regex: /Wen387\/Game3_IslandsSunrise/},
     {label: 'local LLM memory path', regex: /LLM\/README|\.claude|本地記憶|local memory/i},

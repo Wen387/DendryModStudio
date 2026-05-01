@@ -1838,6 +1838,12 @@ def extract_text_corpus_from_scene(root: Path, scene: dict[str, Any]) -> list[di
         value = compact_visible_text(text)
         if not value:
             return
+        source_end_line = end_line or line_num
+        source = source_range_ref(rel, line_num, source_end_line)
+        if 1 <= line_num <= len(lines):
+            source["anchorText"] = lines[line_num - 1].strip()
+        if 1 <= source_end_line <= len(lines):
+            source["endAnchorText"] = lines[source_end_line - 1].strip()
         payload: dict[str, Any] = {
             "id": stable_text_id(rel, line_num, role, value),
             "role": role,
@@ -1848,7 +1854,7 @@ def extract_text_corpus_from_scene(root: Path, scene: dict[str, Any]) -> list[di
                 "sectionId": section.get("id", "") if section else "",
                 "sceneType": scene.get("type", "scene"),
             },
-            "source": source_range_ref(rel, line_num, end_line or line_num),
+            "source": source,
             "confidence": CONF_STATIC,
             "editability": text_item_editability(scene, role),
         }

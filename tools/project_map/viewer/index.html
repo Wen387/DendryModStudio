@@ -420,6 +420,7 @@
           <button class="template-button" type="button" role="tab" aria-selected="false" data-create-template="news" data-i18n="create.news">News</button>
           <button class="template-button" type="button" role="tab" aria-selected="false" data-create-template="card" data-i18n="create.card">Card</button>
           <button class="template-button" type="button" role="tab" aria-selected="false" data-create-template="surface" data-i18n="create.editText">Edit Text</button>
+          <button class="template-button" type="button" role="tab" aria-selected="false" data-create-template="entry" data-i18n="create.entrySidebar">Entry &amp; Sidebar</button>
         </div>
       </section>
 
@@ -1558,6 +1559,176 @@ media_reach += 1</textarea>
           </details>
         </div>
       </aside>
+
+      <section class="wizard-form-panel hidden" aria-labelledby="entry-heading-label" data-create-template-panel="entry">
+        <div class="wizard-title-row">
+          <div>
+            <h1 id="entry-heading-label" class="wizard-title" data-i18n="create.entrySidebarWizard">Entry &amp; Sidebar</h1>
+            <div id="entry-core-status" class="wizard-status" data-i18n="create.status.entryCorePending">EntrySidebarDraft core pending.</div>
+          </div>
+          <div class="wizard-status-stack">
+            <label class="draft-file-picker">
+              <span data-i18n="create.loadEntryDraftJson">Load entry/sidebar JSON</span>
+              <input id="entry-draft-file" type="file" accept="application/json,.json">
+            </label>
+            <div id="entry-draft-status" class="wizard-index-status" data-i18n="create.status.noEntryDraftLoaded">No entry/sidebar draft loaded.</div>
+            <div id="entry-index-status" class="wizard-index-status" data-i18n="create.status.noIndexLoaded">No index loaded.</div>
+          </div>
+        </div>
+
+        <form id="entry-sidebar-form" class="wizard-form">
+          <div class="wizard-guidance" data-i18n="create.guidance.entry">
+            Edit the start menu, sidebar/status display, and first playable route using source evidence when Studio can prove it.
+          </div>
+          <fieldset class="wizard-section">
+            <legend data-i18n="create.section.entryDraft">Draft</legend>
+            <div class="field-grid">
+              <label>
+                <span data-i18n="create.field.id">id</span>
+                <input id="entry-id" name="id" type="text" value="entry_sidebar_update" autocomplete="off">
+                <small class="wizard-field-help" data-i18n="create.help.id">Internal file-safe name; players do not see it, but install plans use it.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.title">title</span>
+                <input id="entry-title" name="title" type="text" value="Entry & Sidebar Update" data-i18n-value="create.sample.entryTitle">
+                <small class="wizard-field-help" data-i18n="create.help.title">Short editor label for finding this proposal later.</small>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="wizard-section">
+            <legend data-i18n="create.section.startMenu">Start Menu</legend>
+            <div class="field-grid">
+              <label>
+                <span data-i18n="create.field.rootTitle">root title</span>
+                <input id="entry-root-title" name="rootTitle" type="text" value="Start">
+                <small class="wizard-field-help" data-i18n="create.help.rootTitle">Source title for the root entry scene.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.firstTarget">first playable target</span>
+                <select id="entry-first-target" name="firstTargetId"></select>
+                <small class="wizard-field-help" data-i18n="create.help.firstTarget">Scene or event opened by the first playable menu option.</small>
+              </label>
+            </div>
+            <label class="wide-field">
+              <span data-i18n="create.field.rootHeading">entry heading</span>
+              <input id="entry-root-heading" name="rootHeading" type="text" value="Start">
+              <small class="wizard-field-help" data-i18n="create.help.rootHeading">Large heading players see on the first screen.</small>
+            </label>
+            <label class="wide-field">
+              <span data-i18n="create.field.rootIntro">opening text</span>
+              <textarea id="entry-root-intro" name="rootIntro" rows="5"></textarea>
+              <small class="wizard-field-help" data-i18n="create.help.rootIntro">Introductory text shown before the first menu choices.</small>
+            </label>
+            <label class="wide-field">
+              <span data-i18n="create.field.firstOptionTitle">first option text</span>
+              <input id="entry-first-option-title" name="firstOptionTitle" type="text" value="Start">
+              <small class="wizard-field-help" data-i18n="create.help.firstOptionTitle">Button text players click to enter the first playable scene.</small>
+            </label>
+            <div class="wizard-actions">
+              <button id="entry-create-first-event" type="button" data-i18n="create.createFirstEvent">Create first event</button>
+            </div>
+          </fieldset>
+
+          <fieldset class="wizard-section">
+            <legend data-i18n="create.section.sidebar">Sidebar</legend>
+            <div class="field-grid">
+              <label>
+                <span data-i18n="create.field.sidebarTitle">sidebar title</span>
+                <input id="entry-sidebar-title" name="sidebarTitle" type="text" value="Status">
+                <small class="wizard-field-help" data-i18n="create.help.sidebarTitle">Source title for the status/sidebar scene.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.sidebarHeading">sidebar heading</span>
+                <input id="entry-sidebar-heading" name="sidebarHeading" type="text" value="Status">
+                <small class="wizard-field-help" data-i18n="create.help.sidebarHeading">Heading shown in the player sidebar/status area.</small>
+              </label>
+            </div>
+            <label class="wide-field">
+              <span data-i18n="create.field.sidebarBody">sidebar body</span>
+              <textarea id="entry-sidebar-body" name="sidebarBody" rows="4"></textarea>
+              <small class="wizard-field-help" data-i18n="create.help.sidebarBody">Static sidebar/status text shown before conditional lines.</small>
+            </label>
+            <label class="wide-field">
+              <span data-i18n="create.field.sidebarStatusLines">conditional status lines</span>
+              <textarea id="entry-sidebar-status-lines" name="sidebarStatusLines" rows="5"></textarea>
+              <small class="wizard-field-help" data-i18n="create.help.sidebarStatusLines">Optional Dendry conditional lines that react to variables.</small>
+            </label>
+            <section id="entry-variable-assistant" class="variable-assistant" aria-label="Variable candidates" data-i18n-aria-label="variableAssistant.aria">
+              <div class="variable-assistant-head">
+                <div>
+                  <strong data-i18n="variableAssistant.title">Variable candidates</strong>
+                  <p data-i18n="variableAssistant.entryHelp">Search existing variables and add a conditional sidebar/status line.</p>
+                </div>
+                <label>
+                  <span data-i18n="variableAssistant.search">Search variables</span>
+                  <input id="entry-variable-search" type="search" placeholder="support, month, resources..." data-i18n-placeholder="variableAssistant.entryPlaceholder">
+                </label>
+              </div>
+              <div id="entry-variable-candidates" class="variable-candidate-list"></div>
+            </section>
+          </fieldset>
+        </form>
+      </section>
+
+      <aside class="wizard-preview-panel hidden" aria-label="Entry and sidebar previews" data-i18n-aria-label="create.entryPreviewAria" data-create-template-panel="entry">
+        <section class="wizard-diagnostics">
+          <div class="preview-heading" data-i18n="create.diagnostics">Diagnostics</div>
+          <div id="entry-diagnostics"></div>
+        </section>
+
+        <section class="preview-drawer" aria-label="Entry and sidebar output" data-i18n-aria-label="create.entryOutputAria">
+          <div class="preview-heading output-heading" data-i18n="create.output">Output</div>
+          <div class="output-tabs" role="tablist" aria-label="Generated entry and sidebar output" data-i18n-aria-label="create.generatedEntryOutputAria">
+            <button class="output-tab is-active" type="button" role="tab" aria-selected="true" data-entry-preview-tab="preview" data-i18n="create.preview">player-facing preview</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-entry-preview-tab="draft" data-i18n="create.draftJson">Draft JSON</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-entry-preview-tab="patch" data-i18n="create.patchPreview">Patch preview</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-entry-preview-tab="install" data-i18n="create.install">Install</button>
+          </div>
+
+          <section class="preview-block is-active" data-entry-preview-panel="preview">
+            <div class="preview-heading" data-i18n="create.preview">player-facing preview</div>
+            <pre id="entry-player-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block" data-entry-preview-panel="draft" hidden>
+            <div class="preview-heading" data-i18n="create.entryDraftJson">entry/sidebar draft JSON</div>
+            <pre id="entry-json-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block" data-entry-preview-panel="install" hidden>
+            <div class="preview-heading" data-i18n="create.installNotes">install notes</div>
+            <pre id="entry-install-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block" data-entry-preview-panel="patch" hidden>
+            <div class="preview-heading" data-i18n="create.patchPreview">patch preview</div>
+            <pre id="entry-patch-preview" class="code-preview"></pre>
+          </section>
+        </section>
+
+        <div class="wizard-actions">
+          <div class="wizard-action-group wizard-action-primary">
+            <div class="wizard-action-copy">
+              <strong data-i18n="create.action.recommendedNext">Recommended next step</strong>
+              <span data-i18n="create.action.reviewHelp">Review what can be applied, what needs checking, and what remains manual.</span>
+            </div>
+            <button id="entry-review-install" class="primary-action" type="button" data-i18n="create.reviewInstall">Review &amp; Apply</button>
+          </div>
+          <details class="wizard-action-group wizard-action-advanced">
+            <summary>
+              <span data-i18n="create.action.advancedDownloads">Advanced downloads</span>
+              <small data-i18n="create.action.advancedHelp">Draft JSON, install notes, install plan, patch preview, and router snippets.</small>
+            </summary>
+            <div class="wizard-action-row">
+              <button id="entry-download-json" type="button" data-i18n="create.saveEntryDraftJson">Save entry/sidebar draft JSON</button>
+              <button id="entry-download-notes" type="button" data-i18n="create.downloadInstallNotes">Download install notes</button>
+              <button id="entry-download-plan" type="button" data-i18n="create.downloadInstallPlan">Download install plan</button>
+              <button id="entry-download-patch" type="button" data-i18n="create.downloadPatchPreview">Download patch preview</button>
+            </div>
+          </details>
+        </div>
+      </aside>
     </main>
   </div>
 
@@ -1566,6 +1737,7 @@ media_reach += 1</textarea>
   <script src="../authoring/news_draft.js"></script>
   <script src="../authoring/card_draft.js"></script>
   <script src="../authoring/surface_text_draft.js"></script>
+  <script src="../authoring/entry_sidebar_draft.js"></script>
   <script src="../authoring/draft_extract.js"></script>
   <script src="../authoring/existing_scene_edit_model.js"></script>
   <script src="../authoring/variable_suggestions.js"></script>
@@ -1584,6 +1756,7 @@ media_reach += 1</textarea>
   <script src="news_ui.js"></script>
   <script src="card_ui.js"></script>
   <script src="surface_text_ui.js"></script>
+  <script src="entry_sidebar_ui.js"></script>
   <script src="install_assistant_ui.js"></script>
   <script src="draft_workspace_ui.js"></script>
   <script src="existing_scene_edit_ui.js"></script>

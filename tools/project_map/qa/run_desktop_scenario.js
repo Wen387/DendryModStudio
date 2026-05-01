@@ -83,6 +83,44 @@ const SCENARIOS = {
     shortcuts: [
       'uses the packaged starter template instead of a native folder picker'
     ]
+  },
+  justice_party_template_mod: {
+    title: 'Player starts from the template and drafts a Justice Party mod with variables and both news paths.',
+    run: scenarioJusticePartyTemplateMod,
+    artifactBase: path.join(REPO_ROOT, '.studio-local', 'playtests', 'justice-party-template-mod'),
+    dialogRoots: [],
+    playerLike: [
+      'loads the bundled demo template',
+      'edits the start menu, sidebar, and first playable route through Entry & Sidebar',
+      'uses the Create first event shortcut from Entry & Sidebar',
+      'uses automatic variable recommendations to reuse template support state',
+      'creates a Justice Party campaign event proposal',
+      'creates a traditional monthly-popup style news beat as a World Event',
+      'creates an Island-style ticker news proposal through News Wizard',
+      'saves each proposal to My Changes',
+      'reviews and dry-runs traditional event/news and Island-style news install plans'
+    ],
+    shortcuts: [
+      'uses the packaged starter template instead of a native folder picker',
+      'uses deterministic DOM interaction in Electron instead of manual typing'
+    ]
+  },
+  runtime_preview_entry_flow: {
+    title: 'Runtime Preview opens the starter route, clicks the first event, and verifies sidebar state changes.',
+    run: scenarioRuntimePreviewEntryFlow,
+    artifactBase: path.join(REPO_ROOT, '.studio-local', 'playtests', 'runtime-preview-entry-flow'),
+    dialogRoots: [],
+    playerLike: [
+      'starts from the bundled demo template',
+      'creates a desktop Runtime Preview sandbox',
+      'opens the modified game preview in a BrowserWindow',
+      'clicks the root start option',
+      'clicks a player choice',
+      'verifies the sidebar/status text changes after the choice'
+    ],
+    shortcuts: [
+      'uses the packaged starter template and Electron DOM automation instead of manual clicking'
+    ]
   }
 };
 
@@ -92,6 +130,7 @@ function parseArgs(argv) {
     projectRoot: DEFAULT_PROJECT_ROOT,
     wrongProjectRoot: DEFAULT_WRONG_PROJECT_ROOT,
     headed: false,
+    stepDelayMs: 0,
     timeoutMs: 30000,
     list: false
   };
@@ -105,7 +144,7 @@ function parseArgs(argv) {
       args.headed = true;
       continue;
     }
-    if (arg === '--scenario' || arg === '--project-root' || arg === '--wrong-project-root' || arg === '--artifact-dir' || arg === '--timeout-ms') {
+    if (arg === '--scenario' || arg === '--project-root' || arg === '--wrong-project-root' || arg === '--artifact-dir' || arg === '--timeout-ms' || arg === '--step-delay-ms') {
       const value = argv[index + 1];
       if (!value || value.startsWith('--')) {
         throw new Error(arg + ' requires a value.');
@@ -121,6 +160,8 @@ function parseArgs(argv) {
         args.artifactDir = path.resolve(value);
       } else if (arg === '--timeout-ms') {
         args.timeoutMs = Number(value);
+      } else if (arg === '--step-delay-ms') {
+        args.stepDelayMs = Number(value);
       }
       continue;
     }
@@ -132,6 +173,9 @@ function parseArgs(argv) {
   }
   if (!Number.isFinite(args.timeoutMs) || args.timeoutMs < 5000) {
     args.timeoutMs = 30000;
+  }
+  if (!Number.isFinite(args.stepDelayMs) || args.stepDelayMs < 0) {
+    args.stepDelayMs = 0;
   }
   return args;
 }
@@ -149,6 +193,7 @@ function usage() {
     '  --wrong-project-root <path>    Valid but different project for provenance refusal.',
     '  --artifact-dir <path>          Directory for screenshots, logs, and QA ledger.',
     '  --timeout-ms <number>          Per-wait timeout. Defaults to 30000.',
+    '  --step-delay-ms <number>       Slow visible scenario playback after key steps.',
     '  --headed                       Show the Electron window instead of headless mode.'
   ].join('\n');
 }
@@ -211,6 +256,14 @@ function timestamp() {
   return new Date().toISOString().replace(/[:.]/g, '-');
 }
 
+function defaultArtifactDir(args, runId) {
+  const scenario = SCENARIOS[args.scenario] || {};
+  if (scenario.artifactBase) {
+    return path.join(scenario.artifactBase, runId);
+  }
+  return path.join(os.tmpdir(), 'dendry_mod_studio_qa', runId);
+}
+
 function ensureDir(dir) {
   fs.mkdirSync(dir, {recursive: true});
   return dir;
@@ -232,7 +285,7 @@ function electronEntry() {
   const core = require(path.join(DESKTOP_DIR, 'studio_core.js'));
   const args = parseArgs(process.argv.slice(2));
   const runId = timestamp() + '-' + args.scenario;
-  const artifactDir = ensureDir(args.artifactDir || path.join(os.tmpdir(), 'dendry_mod_studio_qa', runId));
+  const artifactDir = ensureDir(args.artifactDir || defaultArtifactDir(args, runId));
   const transcript = [];
   const consoleMessages = [];
   const dialogSelections = [];
@@ -352,6 +405,15 @@ function electronEntry() {
     message: 'Runtime Preview is outside the current guided UI smoke path.'
   }));
   ipcMain.handle('dendry:runtime-preview-history', async (event, options) => options || {});
+  ipcMain.handle('dendry:update-notice-check', async () => ({
+    ok: true,
+    configured: true,
+    disabled: true,
+    shouldNotify: false,
+    currentVersion: '0.9.2',
+    reason: 'guided_ui_qa_offline'
+  }));
+  ipcMain.handle('dendry:open-external-url', async () => ({ok: true, opened: false, reason: 'guided_ui_qa_offline'}));
 
   app.whenReady().then(async () => {
     let windowRef = null;
@@ -376,11 +438,11 @@ function electronEntry() {
       await windowRef.loadFile(path.join(PROJECT_MAP_DIR, 'viewer', 'index.html'));
       await waitForPageReady(windowRef, args.timeoutMs);
       await runScenario(args.scenario, windowRef, args, artifactDir, log);
-      await writeArtifacts(artifactDir, args, transcript, consoleMessages, dialogSelections, true);
+      await writeArtifacts(artifactDir, args, transcript, consoleMessages, dialogSelections, true, lastProject);
       await app.quit();
     } catch (err) {
       log('scenario failure', 'FAIL', err && err.stack ? err.stack : String(err));
-      await writeArtifacts(artifactDir, args, transcript, consoleMessages, dialogSelections, false);
+      await writeArtifacts(artifactDir, args, transcript, consoleMessages, dialogSelections, false, lastProject);
       if (windowRef && !windowRef.isDestroyed()) {
         await screenshot(windowRef, artifactDir, 'failure');
       }
@@ -392,7 +454,7 @@ function electronEntry() {
   });
 }
 
-async function writeArtifacts(artifactDir, args, transcript, consoleMessages, dialogSelections, ok) {
+async function writeArtifacts(artifactDir, args, transcript, consoleMessages, dialogSelections, ok, currentProject) {
   writeJson(path.join(artifactDir, 'transcript.json'), {ok, args, transcript, consoleMessages, dialogSelections});
   const rows = transcript.map((entry) => ({
     step: escapeMd(entry.step),
@@ -405,7 +467,8 @@ async function writeArtifacts(artifactDir, args, transcript, consoleMessages, di
     '',
     '- Scenario: `' + args.scenario + '`',
     '- Result: ' + (ok ? 'PASS' : 'FAIL'),
-    '- Project root: `' + args.projectRoot + '`',
+    '- Configured project root: `' + args.projectRoot + '`',
+    '- Loaded project root: `' + (currentProject && currentProject.root || '') + '`',
     '- Wrong-project root: `' + args.wrongProjectRoot + '`',
     '- Artifact directory: `' + artifactDir + '`',
     '- Player-like actions: ' + (scenario.playerLike || []).map((item) => '`' + item + '`').join('; '),
@@ -718,6 +781,310 @@ async function scenarioLoadBundledDemoTemplate(win, args, artifactDir, log) {
   log('Variables show demo effect state', 'PASS', '04-demo-variable-inspector.png');
 }
 
+async function scenarioRuntimePreviewEntryFlow(_win, args, artifactDir, log) {
+  const {BrowserWindow} = require('electron');
+  const core = require(path.join(DESKTOP_DIR, 'studio_core.js'));
+  const workspaceRoot = ensureDir(path.join(artifactDir, 'starter-workspace'));
+  const scratchRoot = ensureDir(path.join(artifactDir, 'project-indexes'));
+  const sessionsRoot = ensureDir(path.join(artifactDir, 'runtime-sessions'));
+  const prepared = core.prepareStarterDemo({
+    desktopDir: DESKTOP_DIR,
+    workspaceRoot
+  });
+  if (!prepared.ok) {
+    throw new Error('Could not prepare starter demo: ' + JSON.stringify(prepared));
+  }
+  log('Prepared starter demo copy', 'PASS', prepared.root);
+
+  const indexed = await core.buildProjectIndex({
+    root: prepared.root,
+    outDir: scratchRoot,
+    includeExcerpts: false
+  });
+  if (!indexed.ok) {
+    throw new Error('Could not index starter demo for runtime preview: ' + JSON.stringify(indexed.error || indexed));
+  }
+  log('Built starter demo ProjectIndex', 'PASS', JSON.stringify(indexed.summary || {}));
+
+  const entrySidebar = require(path.join(PROJECT_MAP_DIR, 'authoring', 'entry_sidebar_draft.js'));
+  const draft = entrySidebar.defaultDraft(indexed.index);
+  draft.id = 'runtime_preview_entry_flow';
+  draft.title = 'Runtime Preview Entry Flow';
+  draft.rootHeading = 'Runtime Preview Edited Entry';
+  draft.rootIntro = 'Runtime Preview is testing an Entry & Sidebar edit before the first playable event.';
+  draft.firstOptionTitle = 'Enter the runtime preview event';
+  draft.sidebarHeading = 'Runtime Preview Status';
+  draft.sidebarBody = 'This sidebar text came from the Entry & Sidebar workflow.';
+  draft.sidebarStatusLines = '[? if demo_support > 0 : Runtime preview support is visible. ?]';
+  const plan = entrySidebar.buildInstallPlan(draft, indexed.index);
+  const preview = await core.createRuntimePreview({
+    projectRoot: prepared.root,
+    sessionsRoot,
+    plan,
+    projectIndex: indexed.index
+  });
+  if (!preview.ok) {
+    throw new Error('Runtime Preview failed: ' + JSON.stringify(preview.diagnostics || preview));
+  }
+  if (!preview.installResult || preview.installResult.ok !== true) {
+    throw new Error('Runtime Preview Entry/Sidebar install failed: ' + JSON.stringify(preview.installResult || {}));
+  }
+  log('Runtime Preview sandbox created', 'PASS', preview.modifiedUrl);
+
+  const gameWin = new BrowserWindow({
+    width: 1280,
+    height: 820,
+    show: Boolean(args.headed),
+    backgroundColor: '#20230d'
+  });
+  try {
+    await gameWin.loadURL(preview.modifiedUrl);
+    await waitFor(gameWin, () => evalInPage(gameWin, () => {
+      const text = document.body && (document.body.textContent || document.body.innerText) || '';
+      return Boolean(text.trim().length > 0);
+    }), 'Runtime Preview game should render body text', args.timeoutMs);
+    const initialBody = await evalInPage(gameWin, () => {
+      return String(document.body && (document.body.textContent || document.body.innerText) || '').slice(0, 500);
+    });
+    log('Runtime Preview game initial body text', 'PASS', initialBody.replace(/\s+/g, ' ').trim());
+    await waitForGameText(gameWin, 'Runtime Preview Edited Entry', args.timeoutMs);
+    await waitForGameText(gameWin, 'Enter the runtime preview event', args.timeoutMs);
+    await screenshot(gameWin, artifactDir, '01-runtime-root');
+    await clickGameText(gameWin, 'Enter the runtime preview event');
+    await waitForGameText(gameWin, 'A Small Campaign Office', args.timeoutMs);
+    await screenshot(gameWin, artifactDir, '02-runtime-first-event');
+    await clickGameText(gameWin, 'Organize volunteers');
+    await waitForGameText(gameWin, 'This is result text', args.timeoutMs);
+    await waitForGameText(gameWin, 'Runtime preview support is visible.', args.timeoutMs);
+    await screenshot(gameWin, artifactDir, '03-runtime-sidebar-changed');
+    log('Runtime Preview clicked root choice, first event choice, and observed sidebar change', 'PASS', '03-runtime-sidebar-changed.png');
+  } finally {
+    if (!gameWin.isDestroyed()) {
+      gameWin.destroy();
+    }
+  }
+}
+
+async function scenarioJusticePartyTemplateMod(win, args, artifactDir, log) {
+  await expectVisible(win, '#studio-onboarding', 'Quick Start overlay should be visible on first launch');
+  await expectVisible(win, '#onboarding-load-demo', 'Quick Start should expose bundled demo template action');
+  await screenshot(win, artifactDir, '01-quick-start-template');
+  log('Quick Start offers template start', 'PASS', '01-quick-start-template.png');
+  await observeStep(args);
+
+  await click(win, '#onboarding-load-demo');
+  await waitForHidden(win, '#studio-onboarding', 'Quick Start should close after loading demo template');
+  const loaded = await waitForProjectNamed(win, 'Dendry Mod Studio Starter Demo', args.timeoutMs);
+  fs.accessSync(loaded.root, fs.constants.W_OK);
+  await screenshot(win, artifactDir, '02-template-loaded');
+  log('Bundled template opens as writable playtest project', 'PASS', JSON.stringify(loaded.summary || {}));
+  await observeStep(args);
+
+  await click(win, '#mode-explore');
+  await click(win, '[data-view="events"]');
+  await fill(win, '#search', 'Small Campaign');
+  await clickRowContaining(win, '#list [data-row-key]', 'A Small Campaign Office');
+  await expectText(win, '#inspector', 'demo_support');
+  await screenshot(win, artifactDir, '03-template-event-reference');
+  log('Player inspects the template event before drafting', 'PASS', '03-template-event-reference.png');
+  await observeStep(args);
+
+  await click(win, '#mode-create');
+  await click(win, '[data-create-template="entry"]');
+  await fillJusticeEntrySidebar(win);
+  await fill(win, '#entry-variable-search', 'support');
+  await clickEntryVariableCandidateAction(win, 'demo_support');
+  await expectFieldContains(win, '#entry-sidebar-status-lines', 'demo_support > 0');
+  await waitForEntryOutput(win, 'justice_party_template_mod');
+  await screenshot(win, artifactDir, '04-entry-sidebar-edited');
+  log('Entry & Sidebar edits the start menu, status display, and variable-backed sidebar line', 'PASS', '04-entry-sidebar-edited.png');
+  await observeStep(args);
+
+  await click(win, '#entry-create-first-event');
+  await expectValue(win, '#wizard-id', 'justice_party_template_mod_first_event');
+  await screenshot(win, artifactDir, '05-first-event-shortcut');
+  log('Create first event shortcut seeds the World Event Wizard', 'PASS', '05-first-event-shortcut.png');
+  await observeStep(args);
+
+  await fillJusticeCampaignEvent(win, 'justice_party_template_mod_first_event');
+  await waitForEventOutput(win, 'justice_party_template_mod_first_event');
+  await screenshot(win, artifactDir, '06-variable-assisted-campaign-event');
+  log('Justice Party first playable event uses the seeded target and custom effects', 'PASS', '06-variable-assisted-campaign-event.png');
+  await observeStep(args);
+
+  await click(win, '#draft-workspace-save');
+  await expectText(win, '#draft-workspace-list', 'Justice Party campaign office');
+  await screenshot(win, artifactDir, '07-campaign-event-saved');
+  log('Campaign event saves to My Changes', 'PASS', '07-campaign-event-saved.png');
+  await observeStep(args);
+
+  await click(win, '[data-create-template="entry"]');
+  await waitForEntryOutput(win, 'justice_party_template_mod');
+  await click(win, '#draft-workspace-save');
+  await expectText(win, '#draft-workspace-list', 'Justice Party start menu');
+  await clickDraftActionContaining(win, 'Justice Party start menu', 'review');
+  await expectText(win, '#install-checklist', 'replace_section');
+  await click(win, '#install-dry-run');
+  const entryResult = await waitForInstallResult(win, (result) => {
+    const rows = Array.isArray(result && result.results) ? result.results : [];
+    return Boolean(result && result.ok === true &&
+      rows.some((item) => item.id === 'entry_opening_section' && item.status === 'would_apply') &&
+      rows.some((item) => item.id === 'sidebar_section' && item.status === 'would_apply') &&
+      !rows.some((item) => item.status === 'failed'));
+  }, 'Entry & Sidebar dry-run should include guarded replace_section operations');
+  await screenshot(win, artifactDir, '08-entry-sidebar-dry-run');
+  log('Entry & Sidebar Review & Apply dry-run succeeds', 'PASS', JSON.stringify(statusSummary(entryResult)));
+  await observeStep(args);
+
+  await click(win, '#mode-create');
+  await click(win, '[data-create-template="event"]');
+  await fillJusticeCampaignEvent(win, 'justice_party_campaign_office');
+  await fill(win, '#wizard-requires', '');
+  await focus(win, '#wizard-requires');
+  await fill(win, '#wizard-variable-search', 'support');
+  await clickVariableCandidateAction(win, 'demo_support', 'insert-condition');
+  await expectValue(win, '#wizard-requires', 'demo_support = 1');
+  await clickVariableCandidateAction(win, 'demo_support', 'use-effect');
+  await fill(win, '#wizard-effect-target', 'option:0');
+  await fill(win, '#wizard-effect-op', '+=');
+  await fill(win, '#wizard-effect-value', '1');
+  await click(win, '#wizard-effect-append');
+  await appendToField(win, '#wizard-option-0-effects', 'justice_party_support += 1\nlabor_green_alliance += 1');
+  await appendToField(win, '#wizard-option-1-effects', 'parliamentary_strategy += 1\ngrassroots_energy -= 1');
+  await waitForEventOutput(win, 'justice_party_campaign_office');
+  await screenshot(win, artifactDir, '09-variable-assisted-campaign-event');
+  log('Justice Party event uses variable recommendations and custom effects', 'PASS', '09-variable-assisted-campaign-event.png');
+  await observeStep(args);
+
+  await click(win, '#draft-workspace-save');
+  await expectText(win, '#draft-workspace-list', 'Justice Party campaign office');
+  await screenshot(win, artifactDir, '10-campaign-event-saved');
+  log('Campaign event saves to My Changes', 'PASS', '10-campaign-event-saved.png');
+  await observeStep(args);
+
+  await click(win, '[data-create-template="event"]');
+  await fillTraditionalJusticeNewsEvent(win);
+  await waitForEventOutput(win, 'justice_party_monthly_popup');
+  await screenshot(win, artifactDir, '11-traditional-news-event');
+  log('Traditional monthly-popup news is drafted as a World Event', 'PASS', '11-traditional-news-event.png');
+  await observeStep(args);
+
+  await click(win, '#draft-workspace-save');
+  await expectText(win, '#draft-workspace-list', 'Justice Party monthly popup');
+  log('Traditional news-style event saves to My Changes', 'PASS', 'My Changes contains Justice Party monthly popup');
+
+  await clickDraftActionContaining(win, 'Justice Party monthly popup', 'review');
+  await expectText(win, '#install-checklist', 'Create the exported world event scene');
+  await click(win, '#install-dry-run');
+  const traditionalResult = await waitForInstallResult(win, (result) => {
+    return Boolean(result && result.results && result.results.some((item) => item.id === 'create_scene' && item.status === 'would_apply'));
+  }, 'Traditional monthly-popup event dry-run should create a world-event scene');
+  await screenshot(win, artifactDir, '12-traditional-news-dry-run');
+  log('Traditional monthly-popup event dry-run succeeds', 'PASS', JSON.stringify(statusSummary(traditionalResult)));
+  await observeStep(args);
+
+  await click(win, '#mode-create');
+  await click(win, '[data-create-template="news"]');
+  await fillIslandStyleJusticeNews(win);
+  await waitForNewsOutput(win, 'justice_party_ticker_news');
+  await screenshot(win, artifactDir, '13-island-style-news');
+  log('Island-style ticker news draft renders a post_event_news snippet', 'PASS', '13-island-style-news.png');
+  await observeStep(args);
+
+  await click(win, '#draft-workspace-save');
+  await expectText(win, '#draft-workspace-list', 'Justice Party tests a labor-green pact');
+  await clickDraftActionContaining(win, 'Justice Party tests a labor-green pact', 'review');
+  await expectText(win, '#install-checklist', 'post_event_news');
+  await click(win, '#install-dry-run');
+  const islandResult = await waitForInstallResult(win, (result) => {
+    return Boolean(result && result.ok === true && result.results && result.results.some((item) => {
+      return item.path === 'source/scenes/post_event_news.scene.dry' &&
+        (item.status === 'manual_review' || item.status === 'would_apply');
+    }));
+  }, 'Island-style news dry-run should preserve post_event_news manual/guarded boundary');
+  await screenshot(win, artifactDir, '14-island-style-news-dry-run');
+  log('Island-style news dry-run exposes post_event_news boundary', 'PASS', JSON.stringify(statusSummary(islandResult)));
+  await observeStep(args);
+
+  await click(win, '#mode-create');
+  await expectText(win, '#draft-workspace-list', 'Justice Party start menu');
+  await expectText(win, '#draft-workspace-list', 'Justice Party campaign office');
+  await expectText(win, '#draft-workspace-list', 'Justice Party monthly popup');
+  await expectText(win, '#draft-workspace-list', 'Justice Party tests a labor-green pact');
+  await screenshot(win, artifactDir, '15-mod-draft-set');
+  log('Justice Party mod draft set remains available in My Changes', 'PASS', '15-mod-draft-set.png');
+  await observeStep(args);
+}
+
+async function fillJusticeEntrySidebar(win) {
+  await fill(win, '#entry-id', 'justice_party_template_mod');
+  await fill(win, '#entry-title', 'Justice Party start menu');
+  await fill(win, '#entry-root-title', 'Justice Party Campaign');
+  await fill(win, '#entry-root-heading', 'Justice Party Campaign Office');
+  await fill(win, '#entry-root-intro', 'A small Justice Party team opens the first month of organizing with labor, climate, and local democracy all competing for attention.');
+  await fill(win, '#entry-first-option-title', 'Begin the Justice Party opening');
+  await fill(win, '#entry-sidebar-title', 'Justice Party Status');
+  await fill(win, '#entry-sidebar-heading', 'Campaign Status');
+  await fill(win, '#entry-sidebar-body', 'Track whether the new office has turned the template into a playable campaign route.');
+  await fill(win, '#entry-sidebar-status-lines', '');
+}
+
+async function fillJusticeCampaignEvent(win, eventId) {
+  await fill(win, '#wizard-id', eventId || 'justice_party_campaign_office');
+  await fill(win, '#wizard-title', 'Justice Party campaign office');
+  await fill(win, '#wizard-heading', 'A Justice Party office opens its doors');
+  await fill(win, '#wizard-year', '2025');
+  await fill(win, '#wizard-month-start', '3');
+  await fill(win, '#wizard-month-end', '5');
+  await fill(win, '#wizard-priority', '1');
+  await fill(win, '#wizard-trigger-effects', 'justice_party_campaign_seen = 1');
+  await fill(win, '#wizard-intro', 'A small Justice Party office tries to turn labor rights, climate policy, and neighborhood frustration into a playable campaign path.');
+  await fill(win, '#wizard-option-0-id', 'build_labor_green_pact');
+  await fill(win, '#wizard-option-0-title', 'Build a labor-green pact');
+  await fill(win, '#wizard-option-0-subtitle', 'Put workers and climate organizers in the same room.');
+  await fill(win, '#wizard-option-0-effects', '');
+  await fill(win, '#wizard-option-0-body', 'Organizers map workplaces, tenant groups, and climate campaigns onto one shared calendar. The office gains momentum because the coalition feels concrete rather than symbolic.');
+  await fill(win, '#wizard-option-1-id', 'prioritize_assembly_talks');
+  await fill(win, '#wizard-option-1-title', 'Prioritize assembly talks');
+  await fill(win, '#wizard-option-1-subtitle', 'Trade street energy for a more careful parliamentary route.');
+  await fill(win, '#wizard-option-1-effects', '');
+  await fill(win, '#wizard-option-1-body', 'The campaign desk calls sympathetic lawmakers first. The move opens institutional doors, but volunteers worry the new party is already learning to speak too softly.');
+}
+
+async function fillTraditionalJusticeNewsEvent(win) {
+  await fill(win, '#wizard-id', 'justice_party_monthly_popup');
+  await fill(win, '#wizard-title', 'Justice Party monthly popup');
+  await fill(win, '#wizard-heading', 'Justice Party organizers claim a new opening');
+  await fill(win, '#wizard-year', '2025');
+  await fill(win, '#wizard-month-start', '6');
+  await fill(win, '#wizard-month-end', '6');
+  await fill(win, '#wizard-requires', 'justice_party_support = 1');
+  await fill(win, '#wizard-priority', '2');
+  await fill(win, '#wizard-trigger-effects', 'justice_party_news_seen = 1');
+  await fill(win, '#wizard-intro', 'Monthly reports frame the Justice Party office as a small but visible challenge to older center-left habits. This is news to the player, but structurally it behaves like a routed event popup.');
+  await fill(win, '#wizard-option-0-id', 'treat_as_momentum');
+  await fill(win, '#wizard-option-0-title', 'Treat it as momentum');
+  await fill(win, '#wizard-option-0-subtitle', 'Let the popup become organizing energy.');
+  await fill(win, '#wizard-option-0-effects', 'justice_party_support += 1\nmedia_attention += 1');
+  await fill(win, '#wizard-option-0-body', 'The office clips the report, shares it with allied unions, and turns a short burst of attention into another weekend of calls.');
+  await fill(win, '#wizard-option-1-id', 'keep_message_local');
+  await fill(win, '#wizard-option-1-title', 'Keep the message local');
+  await fill(win, '#wizard-option-1-subtitle', 'Avoid overclaiming a fragile breakthrough.');
+  await fill(win, '#wizard-option-1-effects', 'grassroots_energy += 1\nmedia_attention -= 1');
+  await fill(win, '#wizard-option-1-body', 'The campaign thanks supporters but refuses to declare victory. Local organizers appreciate the restraint, even as the national story moves on.');
+}
+
+async function fillIslandStyleJusticeNews(win) {
+  await fill(win, '#news-id', 'justice_party_ticker_news');
+  await fill(win, '#news-delivery', 'dated');
+  await fill(win, '#news-headline', '[Politics] Justice Party tests a labor-green pact');
+  await fill(win, '#news-year', '2025');
+  await fill(win, '#news-month', '7');
+  await fill(win, '#news-slot', '1');
+  await fill(win, '#news-dated-requires-js', 'Q.justice_party_support >= 1');
+  await fill(win, '#news-description', 'A Justice Party local office invites labor organizers and climate groups into a joint campaign committee, testing whether a small party can turn issue overlap into durable support.');
+}
+
 async function fillPersistentWorldEventDraft(win) {
   await fill(win, '#wizard-id', 'qa_persistent_event');
   await fill(win, '#wizard-title', 'QA persistent event');
@@ -812,6 +1179,198 @@ async function fill(win, selector, value) {
   }
 }
 
+async function focus(win, selector) {
+  const ok = await evalInPage(win, (targetSelector) => {
+    const element = document.querySelector(targetSelector);
+    if (!element) {
+      return false;
+    }
+    element.scrollIntoView({block: 'center', inline: 'center'});
+    element.focus();
+    return true;
+  }, selector);
+  if (!ok) {
+    throw new Error('Could not focus selector: ' + selector);
+  }
+}
+
+async function appendToField(win, selector, value) {
+  const ok = await evalInPage(win, (targetSelector, nextValue) => {
+    const element = document.querySelector(targetSelector);
+    if (!element) {
+      return false;
+    }
+    const current = String(element.value || '').trim();
+    element.scrollIntoView({block: 'center', inline: 'center'});
+    element.value = current ? current + '\n' + String(nextValue || '').trim() : String(nextValue || '').trim();
+    element.dispatchEvent(new Event('input', {bubbles: true}));
+    element.dispatchEvent(new Event('change', {bubbles: true}));
+    return true;
+  }, selector, value);
+  if (!ok) {
+    throw new Error('Could not append to selector: ' + selector);
+  }
+}
+
+async function clickVariableCandidateAction(win, variableName, action) {
+  await waitFor(win, () => evalInPage(win, (name, wantedAction) => {
+    return Array.from(document.querySelectorAll('#wizard-variable-candidates [data-variable-action]')).some((button) => {
+      return button.dataset.variableName === name && button.dataset.variableAction === wantedAction;
+    });
+  }, variableName, action), 'Expected variable candidate action ' + action + ' for ' + variableName);
+  const ok = await evalInPage(win, (name, wantedAction) => {
+    const button = Array.from(document.querySelectorAll('#wizard-variable-candidates [data-variable-action]')).find((candidate) => {
+      return candidate.dataset.variableName === name && candidate.dataset.variableAction === wantedAction;
+    });
+    if (!button) {
+      return false;
+    }
+    button.scrollIntoView({block: 'center', inline: 'center'});
+    button.click();
+    return true;
+  }, variableName, action);
+  if (!ok) {
+    throw new Error('Could not click variable action ' + action + ' for ' + variableName);
+  }
+}
+
+async function clickEntryVariableCandidateAction(win, variableName) {
+  await waitFor(win, () => evalInPage(win, (name) => {
+    return Array.from(document.querySelectorAll('#entry-variable-candidates [data-variable-action="entry-status-line"]')).some((button) => {
+      return button.dataset.variableName === name;
+    });
+  }, variableName), 'Expected Entry variable candidate for ' + variableName);
+  const ok = await evalInPage(win, (name) => {
+    const button = Array.from(document.querySelectorAll('#entry-variable-candidates [data-variable-action="entry-status-line"]')).find((candidate) => {
+      return candidate.dataset.variableName === name;
+    });
+    if (!button) {
+      return false;
+    }
+    button.scrollIntoView({block: 'center', inline: 'center'});
+    button.click();
+    return true;
+  }, variableName);
+  if (!ok) {
+    throw new Error('Could not click Entry variable candidate for ' + variableName);
+  }
+}
+
+async function clickDraftActionContaining(win, title, action) {
+  await waitFor(win, () => evalInPage(win, (expectedTitle, wantedAction) => {
+    return Array.from(document.querySelectorAll('#draft-workspace-list .draft-workspace-item')).some((item) => {
+      return item.textContent && item.textContent.includes(expectedTitle) && item.querySelector('[data-draft-action="' + wantedAction + '"]');
+    });
+  }, title, action), 'Expected saved draft "' + title + '" with action ' + action);
+  const ok = await evalInPage(win, (expectedTitle, wantedAction) => {
+    const item = Array.from(document.querySelectorAll('#draft-workspace-list .draft-workspace-item')).find((candidate) => {
+      return candidate.textContent && candidate.textContent.includes(expectedTitle);
+    });
+    const button = item && item.querySelector('[data-draft-action="' + wantedAction + '"]');
+    if (!button || button.disabled) {
+      return false;
+    }
+    button.scrollIntoView({block: 'center', inline: 'center'});
+    button.click();
+    return true;
+  }, title, action);
+  if (!ok) {
+    throw new Error('Could not click draft action ' + action + ' for ' + title);
+  }
+}
+
+async function waitForEventOutput(win, expectedId) {
+  await waitFor(win, () => evalInPage(win, (id) => {
+    const wizard = window.ProjectMapWizard;
+    const output = wizard && wizard.getOutput && wizard.getOutput();
+    const draft = wizard && wizard.getDraft && wizard.getDraft();
+    return Boolean(
+      draft && draft.id === id &&
+      output && output.installPlanJson && output.patchPreview &&
+      String(output.scene || output.sceneDry || '').includes('tags: event, world')
+    );
+  }, expectedId), 'Event output should produce scene, install plan, and tags:event preview for ' + expectedId);
+}
+
+async function waitForNewsOutput(win, expectedId) {
+  await waitFor(win, () => evalInPage(win, (id) => {
+    const wizard = window.ProjectMapNewsWizard;
+    const output = wizard && wizard.getOutput && wizard.getOutput();
+    const draft = wizard && wizard.getDraft && wizard.getDraft();
+    return Boolean(
+      draft && draft.id === id &&
+      output && output.installPlanJson && output.patchPreview &&
+      String(output.snippet || '').includes(id) &&
+      String(output.installPlanJson || '').includes('post_event_news')
+    );
+  }, expectedId), 'News output should produce post_event_news snippet and install plan for ' + expectedId);
+}
+
+async function waitForGameText(win, expectedText, timeoutMs) {
+  await waitFor(win, () => evalInPage(win, (text) => {
+    const bodyText = String(document.body && (document.body.textContent || document.body.innerText) || '');
+    return bodyText.includes(text);
+  }, expectedText), 'Runtime Preview game should show "' + expectedText + '"', timeoutMs);
+}
+
+async function clickGameText(win, expectedText) {
+  const ok = await evalInPage(win, (text) => {
+    const elements = Array.from(document.querySelectorAll('a, button, input[type="button"], input[type="submit"]'));
+    const target = elements.find((element) => {
+      const label = element.value || element.textContent || '';
+      return String(label).includes(text);
+    });
+    if (!target) {
+      return false;
+    }
+    target.scrollIntoView({block: 'center', inline: 'center'});
+    target.click();
+    return true;
+  }, expectedText);
+  if (!ok) {
+    throw new Error('Runtime Preview could not click player option: ' + expectedText);
+  }
+}
+
+async function waitForEntryOutput(win, expectedId) {
+  await waitFor(win, () => evalInPage(win, (id) => {
+    const wizard = window.ProjectMapEntrySidebarWizard;
+    const output = wizard && wizard.getOutput && wizard.getOutput();
+    const draft = wizard && wizard.getDraft && wizard.getDraft();
+    return Boolean(
+      draft && draft.id === id &&
+      output && output.installPlanJson && output.patchPreview &&
+      String(output.installPlanJson || '').includes('entry_sidebar') &&
+      String(output.patchPreview || '').includes('replace section')
+    );
+  }, expectedId), 'Entry & Sidebar output should produce an install plan and patch preview for ' + expectedId);
+}
+
+async function waitForInstallResult(win, predicate, message) {
+  let latest = null;
+  await waitFor(win, async () => {
+    latest = await evalInPage(win, () => {
+      const state = window.ProjectMapInstallAssistant && window.ProjectMapInstallAssistant.getState();
+      return state && state.lastResult;
+    });
+    return Boolean(latest && (!predicate || predicate(latest)));
+  }, message || 'Install Assistant should produce a dry-run result');
+  return latest;
+}
+
+function statusSummary(result) {
+  const rows = Array.isArray(result && result.results) ? result.results : [];
+  return rows.map((item) => [item.id, item.type, item.status].filter(Boolean).join(':')).join(', ');
+}
+
+async function observeStep(args) {
+  const delay = Number(args && args.stepDelayMs || 0);
+  if (!delay) {
+    return;
+  }
+  await new Promise((resolve) => setTimeout(resolve, delay));
+}
+
 async function expectValue(win, selector, expected) {
   await waitFor(win, () => evalInPage(win, (targetSelector, expectedValue) => {
     const element = document.querySelector(targetSelector);
@@ -839,6 +1398,13 @@ async function clickRowContaining(win, selector, text) {
   if (!ok) {
     throw new Error('Could not click row containing "' + text + '" in ' + selector);
   }
+}
+
+async function expectFieldContains(win, selector, expected) {
+  await waitFor(win, () => evalInPage(win, (targetSelector, expectedText) => {
+    const element = document.querySelector(targetSelector);
+    return Boolean(element && String(element.value || '').includes(expectedText));
+  }, selector, expected), 'Expected field ' + selector + ' to contain "' + expected + '"');
 }
 
 async function replaceExistingFieldByOriginal(win, original, replacement) {

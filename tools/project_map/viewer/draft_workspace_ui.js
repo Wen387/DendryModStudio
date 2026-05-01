@@ -6,6 +6,7 @@
     news: 'News',
     card: 'Card',
     surface: 'Text',
+    entry: 'Entry & Sidebar',
     existing: 'Existing edit'
   };
 
@@ -273,6 +274,7 @@
       news: global.ProjectMapNewsWizard,
       card: global.ProjectMapCardWizard,
       surface: global.ProjectMapSurfaceTextWizard,
+      entry: global.ProjectMapEntrySidebarWizard,
       existing: global.ProjectMapExistingSceneEditor
     }[template] || null;
   }

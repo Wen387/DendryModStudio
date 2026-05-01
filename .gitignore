@@ -18,3 +18,12 @@ __pycache__/
 .env.*
 *.log
 .DS_Store
+
+# Local agent/session notes
+.studio-local/
+.codex
+.claude
+LLM
+HANDOVER.md
+SESSION_LOG.md
+*.local.md

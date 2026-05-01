@@ -12,6 +12,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 LAUNCHER = REPO_ROOT / "tools" / "project_map" / "launch_studio.py"
+PROJECT_ROOT = REPO_ROOT / "tools" / "project_map" / "templates" / "starter-demo"
 
 
 def fail(message: str) -> None:
@@ -36,8 +37,8 @@ def load_launcher():
 def main() -> int:
     launcher = load_launcher()
 
-    root = launcher.find_project_root(REPO_ROOT)
-    assert_true(root == REPO_ROOT, "launcher should resolve this repo root")
+    root = launcher.find_project_root(PROJECT_ROOT)
+    assert_true(root == PROJECT_ROOT, "launcher should resolve the starter demo project root")
 
     plan = launcher.build_launch_plan(
         root=root,
@@ -51,6 +52,7 @@ def main() -> int:
     )
     assert_true(plan.index_path == Path("/tmp/dendry_project_map/project-index.json"), "default index path should be in /tmp")
     assert_true(plan.viewer_dir == REPO_ROOT / "tools" / "project_map" / "viewer", "viewer directory should be resolved")
+    assert_true(plan.authoring_dir == REPO_ROOT / "tools" / "project_map" / "authoring", "authoring directory should be resolved")
     assert_true("127.0.0.1" in plan.url, "launcher URL should use the requested host")
     assert_true("?index=/project-index.json" in plan.url, "launcher URL should auto-load the generated index")
     assert_true("assetBase=/_project_asset" in plan.url, "launcher URL should pass the read-only project asset route")
@@ -88,7 +90,7 @@ def main() -> int:
             sys.executable,
             str(LAUNCHER),
             "--root",
-            str(REPO_ROOT),
+            str(PROJECT_ROOT),
             "--dry-run",
             "--no-open",
             "--port",
@@ -103,6 +105,7 @@ def main() -> int:
     assert_true(result.returncode == 0, "dry-run launcher should exit 0: " + result.stderr)
     dry_run = json.loads(result.stdout)
     assert_true(dry_run["indexPath"] == "/tmp/dendry_project_map/project-index.json", "dry-run should report default index path")
+    assert_true(dry_run["authoringDir"].endswith("tools/project_map/authoring"), "dry-run should report authoring module path")
     assert_true("/index.html?index=/project-index.json" in dry_run["url"], "dry-run URL should include autoload query")
     assert_true(dry_run["assetBaseRoute"] == "/_project_asset", "dry-run should report the read-only asset route")
     assert_true(dry_run["mode"] == "dry-run", "dry-run should report mode")
@@ -110,6 +113,15 @@ def main() -> int:
 
     viewer_app = (REPO_ROOT / "tools" / "project_map" / "viewer" / "app.js").read_text(encoding="utf-8")
     assert_true("loadProjectIndexUrl" in viewer_app, "viewer should support launcher URL autoload")
+
+    authoring_path = launcher.resolve_authoring_file_path(plan.authoring_dir, "/authoring/news_draft.js")
+    assert_true(authoring_path == plan.authoring_dir / "news_draft.js", "launcher should serve viewer authoring modules")
+    try:
+        launcher.resolve_authoring_file_path(plan.authoring_dir, "/authoring/../launch_studio.py")
+    except PermissionError:
+        pass
+    else:
+        fail("launcher should reject authoring module path traversal")
 
     print(json.dumps({"ok": True, "launcher": str(LAUNCHER)}, indent=2))
     return 0

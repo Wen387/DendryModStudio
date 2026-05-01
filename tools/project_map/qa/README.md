@@ -11,6 +11,8 @@ node tools/project_map/qa/run_desktop_scenario.js --scenario first_time_user
 node tools/project_map/qa/run_desktop_scenario.js --scenario explore_design_existing_edit
 node tools/project_map/qa/run_desktop_scenario.js --scenario draft_persistence_restart
 node tools/project_map/qa/run_desktop_scenario.js --scenario load_bundled_demo_template
+node tools/project_map/qa/run_desktop_scenario.js --scenario justice_party_template_mod
+node tools/project_map/qa/run_desktop_scenario.js --scenario runtime_preview_entry_flow
 ```
 
 By default it writes artifacts under `/tmp/dendry_mod_studio_qa/<run-id>/`.
@@ -65,6 +67,32 @@ Each run contains:
 5. The event inspector shows source-backed player text and demo variables.
 6. The Variables view can find `demo_support`, the state changed by one option.
 
+`justice_party_template_mod` covers a fuller player-authored mod prototype:
+
+1. Quick Start loads the bundled Demo Template as a writable project copy.
+2. Explore inspects `A Small Campaign Office` as the player's template example.
+3. Entry & Sidebar changes the start menu, status sidebar, and first playable
+   route.
+4. Create first event seeds the World Event Wizard from that first playable
+   route.
+5. Create uses Variable candidates to insert `demo_support` into a condition
+   and the effect helper.
+6. The player drafts a Korean Justice Party campaign event and saves it.
+7. The player drafts traditional monthly-popup style news as a World Event.
+8. The player drafts Island-style ticker news through News Wizard.
+9. Review & Apply dry-runs the Entry & Sidebar and traditional event/news plans.
+10. Review & Apply keeps the Island-style `post_event_news` operation guarded or
+   manual-review when the template lacks a matching Island news router.
+
+`runtime_preview_entry_flow` covers the in-app game preview path:
+
+1. A writable Starter Demo copy is prepared.
+2. Desktop Runtime Preview builds baseline and modified sandboxes.
+3. The modified game preview opens in Electron.
+4. Automation clicks the root start option.
+5. Automation clicks a player choice in the first event.
+6. The preview shows changed sidebar/status text after the choice.
+
 ## Shortcuts
 
 The runner uses a deterministic test dialog adapter for native folder
@@ -82,6 +110,14 @@ user data.
 copy path directly. It proves the first-run Demo button can produce a writable
 project, but it is still not a fresh package relaunch test.
 
+`justice_party_template_mod` also writes its default artifacts under
+`.studio-local/playtests/justice-party-template-mod/` so the temporary project
+copy, screenshots, and ledger can be inspected locally without entering git.
+
+`runtime_preview_entry_flow` writes under
+`.studio-local/playtests/runtime-preview-entry-flow/` and uses the packaged
+Starter Demo plus Electron DOM automation to check the real generated game UI.
+
 Do not treat these runs as full manual QA. They are repeatable smoke paths that
 find UI/runtime regressions before a human spends time on fresh package QA.
 
@@ -94,6 +130,7 @@ journey.
 ```bash
 node tools/project_map/qa/run_desktop_scenario.js --list
 node tools/project_map/qa/run_desktop_scenario.js --scenario first_time_user --headed
+node tools/project_map/qa/run_desktop_scenario.js --scenario justice_party_template_mod --headed --step-delay-ms 1200
 node tools/project_map/qa/run_desktop_scenario.js --artifact-dir /tmp/my-dms-qa
 ```
 

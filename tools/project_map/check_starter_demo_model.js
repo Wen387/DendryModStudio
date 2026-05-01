@@ -32,6 +32,7 @@ async function main() {
     'package.json',
     'source/info.dry',
     'source/scenes/root.scene.dry',
+    'source/scenes/status.scene.dry',
     'source/scenes/demo_opening.scene.dry',
     'source/scenes/post_event.scene.dry'
   ].forEach((relativePath) => {
@@ -41,6 +42,7 @@ async function main() {
   const info = read('source/info.dry');
   const packageJson = JSON.parse(read('package.json'));
   const root = read('source/scenes/root.scene.dry');
+  const status = read('source/scenes/status.scene.dry');
   const opening = read('source/scenes/demo_opening.scene.dry');
   const postEvent = read('source/scenes/post_event.scene.dry');
 
@@ -51,6 +53,8 @@ async function main() {
   assert(root.includes('// ====== U. EVENT SEEN FLAGS ======'), 'starter demo root should expose world-event install anchor');
   assert(root.includes('@.demo_opening.demo_status'), 'starter demo root should link to the cross-scene status section with an absolute id');
   assert(root.includes('@.demo_opening.support_followup'), 'starter demo root should link to the cross-scene follow-up section with an absolute id');
+  assert(status.includes('Campaign Status'), 'starter demo should include a status sidebar scene for the default Dendry HTML shell');
+  assert(status.includes('demo_support') && status.includes('demo_conflict'), 'starter demo status sidebar should reflect demo variables');
   assert(opening.includes('tags: event'), 'starter demo should include an event-like scene');
   assert(opening.includes('Option result text'), 'starter demo should demonstrate option result text');
   assert(opening.includes('view-if: demo_support > 0'), 'starter demo should demonstrate a condition');

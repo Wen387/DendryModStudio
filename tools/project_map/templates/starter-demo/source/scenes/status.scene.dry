@@ -1,0 +1,10 @@
+title: Demo Status
+
+= Campaign Status
+
+This sidebar belongs to the bundled demo template. It keeps the default Dendry
+HTML shell from blocking player choices, and gives the preview a small state
+surface while the player tests the event flow.
+
+[? if demo_support > 0 : Volunteer support is active. ?]
+[? if demo_conflict > 0 : Observation pressure is active. ?]

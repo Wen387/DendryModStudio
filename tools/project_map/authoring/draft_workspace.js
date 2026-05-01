@@ -130,6 +130,9 @@
     if (text === 'surface_text' || text === 'surface' || text === 'text') {
       return 'surface';
     }
+    if (text === 'entry' || text === 'entry_sidebar' || text === 'entry_sidebar_model') {
+      return 'entry';
+    }
     if (text === 'existing_scene_edit' || text === 'existing' || text === 'scene_edit') {
       return 'existing';
     }
@@ -160,6 +163,9 @@
     }
     if (template === 'surface') {
       return [draft.area, draft.editability].filter(Boolean).join(' / ');
+    }
+    if (template === 'entry') {
+      return [draft.rootHeading || draft.rootTitle, draft.firstTargetId].filter(Boolean).join(' / ');
     }
     if (template === 'existing') {
       return [draft.sceneKind || 'scene', draft.sceneId, draft.sourcePath].filter(Boolean).join(' / ');
@@ -235,6 +241,7 @@
       news: 'News Draft',
       card: 'Card Draft',
       surface: 'Text Proposal',
+      entry: 'Entry & Sidebar Draft',
       existing: 'Existing Scene Edit'
     }[template] || 'Draft';
   }

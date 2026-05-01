@@ -11,6 +11,7 @@ const VIEWER_HTML = path.join(ROOT, 'viewer', 'index.html');
 const VIEWER_CSS = path.join(ROOT, 'viewer', 'styles.css');
 const WIZARD_UI = path.join(ROOT, 'viewer', 'wizard_ui.js');
 const CARD_UI = path.join(ROOT, 'viewer', 'card_ui.js');
+const ENTRY_UI = path.join(ROOT, 'viewer', 'entry_sidebar_ui.js');
 
 function fail(message) {
   process.stderr.write('FAIL: ' + message + '\n');
@@ -83,10 +84,12 @@ const html = fs.readFileSync(VIEWER_HTML, 'utf8');
 const css = fs.readFileSync(VIEWER_CSS, 'utf8');
 const wizardUi = fs.readFileSync(WIZARD_UI, 'utf8');
 const cardUi = fs.readFileSync(CARD_UI, 'utf8');
+const entryUi = fs.readFileSync(ENTRY_UI, 'utf8');
 
 assert(html.includes('../authoring/variable_suggestions.js'), 'viewer should load variable suggestion model');
 assert(html.includes('id="wizard-variable-assistant"'), 'Event wizard should expose a variable assistant');
 assert(html.includes('id="card-variable-assistant"'), 'Card wizard should expose a variable assistant');
+assert(html.includes('id="entry-variable-assistant"'), 'Entry wizard should expose a variable assistant');
 assert(css.includes('.variable-assistant'), 'CSS should style the variable assistant');
 assert(css.includes('.variable-candidate-list'), 'CSS should style variable candidate results');
 assert(wizardUi.includes('ProjectMapVariableSuggestions'), 'Event wizard should use the shared suggestion model');
@@ -97,6 +100,8 @@ assert(wizardUi.includes('use-effect'), 'Event candidate cards should support ef
 assert(cardUi.includes('ProjectMapVariableSuggestions'), 'Card wizard should use the shared suggestion model');
 assert(cardUi.includes('lastConditionFieldId'), 'Card wizard should remember the focused condition field');
 assert(cardUi.includes('data-variable-action'), 'Card candidate cards should support variable actions');
+assert(entryUi.includes('ProjectMapVariableSuggestions'), 'Entry wizard should use the shared suggestion model');
+assert(entryUi.includes('entry-status-line'), 'Entry candidate cards should support status line insertion');
 
 process.stdout.write(JSON.stringify({
   ok: true,
