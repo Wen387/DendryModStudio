@@ -21,20 +21,14 @@ This file is the standalone Studio workflow for the public/exported repository. 
 
 ## Pre-Push Checks
 
-Install root dependencies once before parser-backed checks:
+Install root dependencies once:
 
 ```bash
 npm install
 ```
 
 ```bash
-node tools/project_map/check_public_export.js
-node tools/check_studio_contract.js --fixture-only
-node tools/project_map/check_localization_surface.js
-node tools/project_map/check_studio_surface.js
-node tools/project_map/check_update_notice_model.js
-node tools/project_map/check_starter_demo_model.js
-node tools/project_map/check_player_like_qa_model.js
+npm run check:ci
 ```
 
 Desktop checks after `npm install` in `tools/project_map/desktop`:

@@ -16,10 +16,12 @@ node tools/project_map/scripts/export_studio_repo.js --out /tmp/DendryModStudio-
 
 The export includes `tools/project_map/`, `studio_contract/`, and
 `tools/check_studio_contract.js`, then writes public root docs and update URLs
-for `Wen387/DendryModStudio`. It excludes game source, generated runtime output,
-local project memory, session/handover notes, historical work notes, ignored
-desktop artifacts, and local fixture checkouts. Run the public gate inside the
-export before pushing:
+for `Wen387/DendryModStudio`. It also generates `.github/workflows/ci.yml` so
+the standalone repo runs public-export / localization / Studio surface / update
+notice / starter demo / compatibility checks on push and pull request. It
+excludes game source, generated runtime output, local project memory,
+session/handover notes, historical work notes, ignored desktop artifacts, and
+local fixture checkouts. Run the public gate inside the export before pushing:
 
 ```bash
 cd /tmp/DendryModStudio-export

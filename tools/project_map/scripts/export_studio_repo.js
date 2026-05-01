@@ -169,7 +169,9 @@ function sanitizeExport(destRoot, commit) {
   }
 
   writeText(path.join(destRoot, '.gitignore'), publicGitignore());
+  writeText(path.join(destRoot, 'LICENSE'), publicLicense());
   writeJson(path.join(destRoot, 'package.json'), publicPackageJson());
+  writeText(path.join(destRoot, '.github/workflows/ci.yml'), publicCiWorkflow());
   writeText(path.join(destRoot, 'README.md'), publicReadme());
   writeText(path.join(destRoot, 'tools/project_map/WORKFLOW.md'), publicWorkflow());
   writeJson(path.join(destRoot, 'PUBLIC_EXPORT_MANIFEST.json'), {
@@ -226,9 +228,15 @@ function publicReadme() {
   return [
     '# Dendry Mod Studio',
     '',
-    'Dendry Mod Studio is a local authoring and review tool for Dendry / DendryNexus projects. It can scan a project, show Explore and Design views, create proposal-first edits, review install plans, and run desktop-only guarded dry-runs for supported changes.',
+    'Dendry Mod Studio is a local authoring and review tool for Dendry and DendryNexus projects. It can scan a project, show Explore and Design views, create proposal-first edits, review install plans, and run desktop-only guarded dry-runs for supported changes.',
     '',
-    'This repository is a clean standalone export of the Studio code. It intentionally does not include the IslandSunrise game source, local LLM memory, session logs, generated runtime output, package artifacts, or the previous game repository Git history.',
+    'This repository is a clean standalone export of the Studio code. It intentionally does not include the IslandSunrise game source, private project notes, session logs, generated runtime output, package artifacts, or the previous game repository Git history.',
+    '',
+    '## Status',
+    '',
+    'The current build is a `v0.9.2` developer preview. It is useful for local testing, authoring-flow review, and invitee QA, but it is not a signed public desktop release yet.',
+    '',
+    'The code in this standalone Studio export is released under the MIT license.',
     '',
     '## Layout',
     '',
@@ -236,13 +244,23 @@ function publicReadme() {
     '- `studio_contract/` contains the current IslandSunrise compatibility contract and parser fixture used by Studio compatibility checks.',
     '- `PUBLIC_EXPORT_MANIFEST.json` records what was included and which private roots were excluded.',
     '',
-    '## Local Use',
+    '## Quick Start',
+    '',
+    'Install the root dependencies once:',
+    '',
+    '```bash',
+    'npm install',
+    '```',
+    '',
+    'Launch the browser viewer against a local project:',
     '',
     '```bash',
     'python3 tools/project_map/launch_studio.py --no-open',
     '```',
     '',
-    'For the desktop shell:',
+    'Then open the printed local URL in your browser.',
+    '',
+    'For the Electron desktop shell:',
     '',
     '```bash',
     'cd tools/project_map/desktop',
@@ -250,29 +268,43 @@ function publicReadme() {
     'npm run start',
     '```',
     '',
-    '## Public Export Gate',
+    'First-time users can choose the bundled Demo Template from Quick Start. The desktop app copies that template into app data before opening it, so the packaged demo can be edited without mutating application resources.',
     '',
-    'Install root dependencies before running parser-backed checks:',
+    '## Safety Model',
+    '',
+    '- Browser mode is review-only.',
+    '- Desktop mode can dry-run or apply only operations classified as safe, guarded, or explicitly advanced.',
+    '- Manual-review and refused operations are not applied.',
+    '- Runtime Preview builds temporary baseline/modified copies and does not patch the real project folder.',
+    '- Generated runtime output such as `out/html`, `out/game.json`, and `.git` is protected from automatic edits.',
+    '',
+    '## Update Notices',
+    '',
+    'The desktop app reads `tools/project_map/desktop/update_manifest.json` through a static raw GitHub URL. This is an announcement/update notice system, not a silent auto-updater. It opens release/download links only when the user clicks them.',
+    '',
+    '## Useful Checks',
     '',
     '```bash',
-    'npm install',
+    'npm run check:ci',
     '```',
+    '',
+    'The GitHub Actions workflow runs the same core checks on every push and pull request.',
+    '',
+    '## Public Export Gate',
     '',
     'Before pushing or making this repository public, run:',
     '',
     '```bash',
-    'node tools/project_map/check_public_export.js',
-    'node tools/check_studio_contract.js --fixture-only',
-    'node tools/project_map/check_localization_surface.js',
-    'node tools/project_map/check_studio_surface.js',
-    'node tools/project_map/check_update_notice_model.js',
-    'node tools/project_map/check_starter_demo_model.js',
-    'node tools/project_map/check_player_like_qa_model.js',
+    'npm run check:ci',
     'git status --short',
     'git log --oneline --max-count=3',
     '```',
     '',
     'The first public commit should be a fresh initial Studio commit. Do not import the old game repository history.',
+    '',
+    '## Reporting Issues',
+    '',
+    'When reporting a problem, include the Studio version, operating system, whether you used browser or desktop mode, and the action you were trying to complete. Do not upload private project notes, access tokens, SSH private keys, or full game save data unless you have reviewed them first.',
     ''
   ].join('\n');
 }
@@ -302,20 +334,14 @@ function publicWorkflow() {
     '',
     '## Pre-Push Checks',
     '',
-    'Install root dependencies once before parser-backed checks:',
+    'Install root dependencies once:',
     '',
     '```bash',
     'npm install',
     '```',
     '',
     '```bash',
-    'node tools/project_map/check_public_export.js',
-    'node tools/check_studio_contract.js --fixture-only',
-    'node tools/project_map/check_localization_surface.js',
-    'node tools/project_map/check_studio_surface.js',
-    'node tools/project_map/check_update_notice_model.js',
-    'node tools/project_map/check_starter_demo_model.js',
-    'node tools/project_map/check_player_like_qa_model.js',
+    'npm run check:ci',
     '```',
     '',
     'Desktop checks after `npm install` in `tools/project_map/desktop`:',
@@ -324,6 +350,33 @@ function publicWorkflow() {
     'npm run doctor',
     'npm run smoke',
     '```',
+    ''
+  ].join('\n');
+}
+
+function publicLicense() {
+  return [
+    'MIT License',
+    '',
+    'Copyright (c) 2026 Wen387',
+    '',
+    'Permission is hereby granted, free of charge, to any person obtaining a copy',
+    'of this software and associated documentation files (the "Software"), to deal',
+    'in the Software without restriction, including without limitation the rights',
+    'to use, copy, modify, merge, publish, distribute, sublicense, and/or sell',
+    'copies of the Software, and to permit persons to whom the Software is',
+    'furnished to do so, subject to the following conditions:',
+    '',
+    'The above copyright notice and this permission notice shall be included in all',
+    'copies or substantial portions of the Software.',
+    '',
+    'THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR',
+    'IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,',
+    'FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE',
+    'AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER',
+    'LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,',
+    'OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE',
+    'SOFTWARE.',
     ''
   ].join('\n');
 }
@@ -338,13 +391,57 @@ function publicPackageJson() {
       'check:public': 'node tools/project_map/check_public_export.js',
       'check:contract': 'node tools/check_studio_contract.js --fixture-only',
       'check:surface': 'node tools/project_map/check_studio_surface.js',
-      'check:localization': 'node tools/project_map/check_localization_surface.js'
+      'check:localization': 'node tools/project_map/check_localization_surface.js',
+      'check:ci': [
+        'node tools/project_map/check_public_export.js',
+        'node tools/check_studio_contract.js --fixture-only',
+        'node tools/project_map/check_localization_surface.js',
+        'node tools/project_map/check_studio_surface.js',
+        'node tools/project_map/check_update_notice_model.js',
+        'node tools/project_map/check_starter_demo_model.js',
+        'node tools/project_map/check_player_like_qa_model.js'
+      ].join(' && ')
     },
     dependencies: {
-      dendrynexus: 'github:aucchen/dendrynexus',
+      dendrynexus: 'https://github.com/aucchen/dendrynexus/archive/aa4287ed2c03940c52b190c0a8c102b795ac1c79.tar.gz',
       'parliament-svg': '^3.0.0'
     }
   };
+}
+
+function publicCiWorkflow() {
+  return [
+    'name: Public Export Checks',
+    '',
+    'on:',
+    '  push:',
+    '    branches: [main]',
+    '  pull_request:',
+    '',
+    'jobs:',
+    '  checks:',
+    '    runs-on: ubuntu-latest',
+    '    steps:',
+    '      - name: Check out repository',
+    '        uses: actions/checkout@v4',
+    '',
+    '      - name: Set up Node.js',
+    '        uses: actions/setup-node@v4',
+    '        with:',
+    '          node-version: "20"',
+    '',
+    '      - name: Set up Python',
+    '        uses: actions/setup-python@v5',
+    '        with:',
+    '          python-version: "3.12"',
+    '',
+    '      - name: Install root dependencies',
+    '        run: npm install --ignore-scripts',
+    '',
+    '      - name: Run public export checks',
+    '        run: npm run check:ci',
+    ''
+  ].join('\n');
 }
 
 function initGit(destRoot) {

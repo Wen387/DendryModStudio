@@ -103,6 +103,8 @@ function main() {
   [
     'README.md',
     '.gitignore',
+    '.github/workflows/ci.yml',
+    'LICENSE',
     'package.json',
     'PUBLIC_EXPORT_MANIFEST.json',
     'tools/project_map/README.md',
@@ -121,9 +123,23 @@ function main() {
 
   const packageJson = JSON.parse(read('tools/project_map/desktop/package.json'));
   const rootPackageJson = JSON.parse(read('package.json'));
+  const ciWorkflow = read('.github/workflows/ci.yml');
   const updateManifest = JSON.parse(read('tools/project_map/desktop/update_manifest.json'));
   assert(rootPackageJson.name === 'dendry-mod-studio', 'root package.json should identify Dendry Mod Studio');
   assert(rootPackageJson.dependencies && rootPackageJson.dependencies.dendrynexus, 'root package.json should declare dendrynexus dependency');
+  assert(rootPackageJson.scripts && rootPackageJson.scripts['check:ci'], 'root package.json should define check:ci');
+  [
+    'check_public_export.js',
+    'check_studio_contract.js --fixture-only',
+    'check_localization_surface.js',
+    'check_studio_surface.js',
+    'check_update_notice_model.js',
+    'check_starter_demo_model.js',
+    'check_player_like_qa_model.js'
+  ].forEach((needle) => {
+    assert(rootPackageJson.scripts['check:ci'].includes(needle), 'check:ci should run ' + needle);
+    assert(ciWorkflow.includes(needle) || ciWorkflow.includes('npm run check:ci'), 'CI workflow should cover ' + needle);
+  });
   assert(
     /Wen387\/DendryModStudio/.test(packageJson.dendryModStudio.updateManifestUrl || ''),
     'desktop update manifest URL should point at DendryModStudio'
