@@ -170,6 +170,10 @@ async function main() {
 
   const parser = require('./parse_dry_project.js');
   assert(typeof parser.parseProject === 'function', 'parse_dry_project.js should export parseProject');
+  assert(
+    parser.toPosixPath('source\\scenes\\root.scene.dry') === 'source/scenes/root.scene.dry',
+    'parse_dry_project should normalize Windows separators before calling DendryNexus'
+  );
 
   const core = require(corePath);
   [

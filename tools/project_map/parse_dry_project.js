@@ -91,7 +91,11 @@ function parseArgs(argv) {
 }
 
 function toPosixPath(value) {
-  return value.split(path.sep).join('/');
+  return String(value).replace(/\\/g, '/').split(path.sep).join('/');
+}
+
+function parserFilename(root, filename) {
+  return toPosixPath(path.relative(root, filename));
 }
 
 function sourceDir(root) {
@@ -348,7 +352,7 @@ async function parseProject(rootArg) {
   const files = listSceneFiles(root);
 
   for (const filename of files) {
-    const relativePath = toPosixPath(path.relative(root, filename));
+    const relativePath = parserFilename(root, filename);
     if (relativePath === POST_EVENT_REL) {
       continue;
     }
@@ -364,14 +368,14 @@ async function parseProject(rootArg) {
     const lineCount = content.split(/\n/).length;
     let rawDry;
     try {
-      rawDry = await parseDry(filename, content);
+      rawDry = await parseDry(relativePath, content);
     } catch (err) {
       diagnostics.push(diagnostic(relativePath, 'dry', err));
       continue;
     }
 
     try {
-      await parseScene(filename, content);
+      await parseScene(relativePath, content);
     } catch (err) {
       diagnostics.push(diagnostic(relativePath, 'scene', err));
     }
@@ -415,6 +419,7 @@ module.exports = {
   parseProject,
   parseArgs,
   listSceneFiles,
+  parserFilename,
   toPosixPath
 };
 
