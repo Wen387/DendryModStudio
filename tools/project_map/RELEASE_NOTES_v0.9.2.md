@@ -8,13 +8,16 @@ v0.9.2 is a developer-facing dev preview for Dendry Mod Studio. It is suitable
 for local testing, mod-author workflow review, and invitee QA, but it is not a
 signed public release yet.
 
-Current local artifacts, when built in this workspace, use these names:
+Release artifacts use these names:
 
-- `tools/project_map/desktop/dist/DendryModStudio-linux-x64.tar.gz`
-- `tools/project_map/desktop/dist/dendry-mod-studio_0.9.2_amd64.deb`
+- `DendryModStudio-win-x64.exe`
+- `DendryModStudio-linux-x64.AppImage`
+- `DendryModStudio-linux-x64.deb`
 
-These files are ignored local outputs. Rebuild and retest them before sharing a
-package outside the development machine.
+GitHub Actions builds all three through the `Desktop Release` workflow. A local
+Linux build writes AppImage and Deb files under
+`tools/project_map/desktop/dist-builder/`; these are ignored local outputs and
+must be rebuilt and retested before sharing.
 
 ## What This Preview Includes
 
@@ -87,15 +90,11 @@ does not match the currently opened project root.
 Run the automated checks from the repository root:
 
 ```bash
-node tools/project_map/check_public_export.js
-node tools/project_map/check_update_notice_model.js
-node tools/project_map/check_starter_demo_model.js
-node tools/project_map/check_player_like_qa_model.js
+npm run check:ci
 node tools/project_map/qa/run_desktop_scenario.js --scenario first_time_user
 node tools/project_map/qa/run_desktop_scenario.js --scenario explore_design_existing_edit
 node tools/project_map/qa/run_desktop_scenario.js --scenario draft_persistence_restart
 node tools/project_map/qa/run_desktop_scenario.js --scenario load_bundled_demo_template
-bash tools/build_and_validate.sh --skip-build --errors-only
 ```
 
 The guided UI QA scenarios write screenshots, `transcript.json`, and
@@ -112,15 +111,14 @@ Run the desktop checks from the desktop package directory:
 
 ```bash
 cd tools/project_map/desktop
-npm run doctor
 npm run smoke
-npm run package:portable
-npm run package:deb
+npm run doctor
+npm run dist:linux
 ```
 
 Then manually test the rebuilt package. The minimum manual path is:
 
-1. Open the app from a clean portable or `.deb` install.
+1. Open the app from a clean AppImage, `.deb`, or Windows installer.
 2. Use Quick Start and Tutorial Library.
 3. Load the bundled Demo Template once, then open an Island's Sunrise or
    SDAAH-style project.

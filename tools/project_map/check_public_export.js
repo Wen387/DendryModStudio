@@ -104,6 +104,7 @@ function main() {
   assert(pathViolations.length === 0, 'repository package contains disallowed private or generated paths', {pathViolations});
 
   [
+    'AGENTS.md',
     'README.md',
     '.gitignore',
     '.github/workflows/ci.yml',
@@ -133,9 +134,14 @@ function main() {
   const ciWorkflow = read('.github/workflows/ci.yml');
   const releaseWorkflow = read('.github/workflows/release.yml');
   const updateManifest = JSON.parse(read('tools/project_map/desktop/update_manifest.json'));
+  const agentGuide = read('AGENTS.md');
   assert(rootPackageJson.name === 'dendry-mod-studio', 'root package.json should identify Dendry Mod Studio');
   assert(rootPackageJson.dependencies && rootPackageJson.dependencies.dendrynexus, 'root package.json should declare dendrynexus dependency');
   assert(rootPackageJson.scripts && rootPackageJson.scripts['check:ci'], 'root package.json should define check:ci');
+  assert(agentGuide.includes('source of truth for Dendry Mod Studio'), 'AGENTS.md should identify the Studio repo as source of truth');
+  assert(agentGuide.includes('npm run check:ci'), 'AGENTS.md should document the repository check');
+  assert(agentGuide.includes('npm run smoke') && agentGuide.includes('npm run doctor'), 'AGENTS.md should document desktop checks');
+  assert(agentGuide.includes('DMS_SDAAH_FIXTURE_ROOT'), 'AGENTS.md should explain optional external SDAAH fixture use');
   assert(ciWorkflow.includes('npm ci --ignore-scripts'), 'CI workflow should use npm ci with the committed lockfile');
   assert(releaseWorkflow.includes('dist:linux') && releaseWorkflow.includes('dist:win'), 'release workflow should build Linux and Windows desktop artifacts');
   assert(releaseWorkflow.includes('*.deb'), 'release workflow should upload Linux Deb artifacts');
@@ -203,6 +209,7 @@ function main() {
 
   const manifest = JSON.parse(read('PUBLIC_EXPORT_MANIFEST.json'));
   assert(manifest && manifest.manifestKind === 'dendry-mod-studio-repository-manifest', 'PUBLIC_EXPORT_MANIFEST.json should identify repository manifest kind');
+  assert(Array.isArray(manifest.includedRoots) && manifest.includedRoots.includes('AGENTS.md'), 'PUBLIC_EXPORT_MANIFEST.json should include AGENTS.md');
   assert(Array.isArray(manifest.excludedAreas), 'PUBLIC_EXPORT_MANIFEST.json should record excluded areas');
 
   process.stdout.write(JSON.stringify({

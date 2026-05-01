@@ -4,6 +4,7 @@
   "sourceCommit": "f9350e7",
   "generatedAt": "2026-05-01T06:25:15.020Z",
   "includedRoots": [
+    "AGENTS.md",
     ".github/workflows/",
     "docs/",
     "package-lock.json",
