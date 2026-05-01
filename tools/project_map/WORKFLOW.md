@@ -24,7 +24,7 @@ This file is the standalone Studio workflow for the public/exported repository. 
 Install root dependencies once:
 
 ```bash
-npm install
+npm ci --ignore-scripts
 ```
 
 ```bash

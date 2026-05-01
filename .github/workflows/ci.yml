@@ -23,7 +23,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install root dependencies
-        run: npm install --ignore-scripts
+        run: npm ci --ignore-scripts
 
       - name: Run public export checks
         run: npm run check:ci

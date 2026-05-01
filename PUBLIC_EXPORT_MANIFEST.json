@@ -4,6 +4,9 @@
   "sourceCommit": "f9350e7",
   "generatedAt": "2026-05-01T06:25:15.020Z",
   "includedRoots": [
+    ".github/workflows/",
+    "docs/",
+    "package-lock.json",
     "tools/project_map/",
     "studio_contract/",
     "tools/check_studio_contract.js"
@@ -18,6 +21,7 @@
   ],
   "notes": [
     "This export is intended to be committed as a fresh repository history.",
-    "Do not push the source game repository history to the Studio repository."
+    "Do not push the source game repository history to the Studio repository.",
+    "The root package-lock.json is tracked so CI and fresh clones can use npm ci."
   ]
 }

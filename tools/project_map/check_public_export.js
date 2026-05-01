@@ -106,7 +106,9 @@ function main() {
     '.github/workflows/ci.yml',
     'LICENSE',
     'package.json',
+    'package-lock.json',
     'PUBLIC_EXPORT_MANIFEST.json',
+    'docs/releases/v0.9.2-dev-preview.md',
     'tools/project_map/README.md',
     'tools/project_map/WORKFLOW.md',
     'tools/project_map/check_public_export.js',
@@ -128,6 +130,7 @@ function main() {
   assert(rootPackageJson.name === 'dendry-mod-studio', 'root package.json should identify Dendry Mod Studio');
   assert(rootPackageJson.dependencies && rootPackageJson.dependencies.dendrynexus, 'root package.json should declare dendrynexus dependency');
   assert(rootPackageJson.scripts && rootPackageJson.scripts['check:ci'], 'root package.json should define check:ci');
+  assert(ciWorkflow.includes('npm ci --ignore-scripts'), 'CI workflow should use npm ci with the committed lockfile');
   [
     'check_public_export.js',
     'check_studio_contract.js --fixture-only',

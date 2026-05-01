@@ -21,7 +21,7 @@ The code in this standalone Studio export is released under the MIT license.
 Install the root dependencies once:
 
 ```bash
-npm install
+npm ci
 ```
 
 Launch the browser viewer against a local project:
@@ -61,6 +61,7 @@ npm run check:ci
 ```
 
 The GitHub Actions workflow runs the same core checks on every push and pull request.
+Release preparation notes live in `docs/releases/v0.9.2-dev-preview.md`.
 
 ## Public Export Gate
 
