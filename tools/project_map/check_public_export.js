@@ -118,6 +118,7 @@ function main() {
     'tools/project_map/README.md',
     'tools/project_map/WORKFLOW.md',
     'tools/project_map/check_public_export.js',
+    'tools/project_map/check_release_links_model.js',
     'tools/project_map/viewer/index.html',
     'tools/project_map/desktop/package.json',
     'tools/project_map/desktop/update_manifest.json',
@@ -156,7 +157,8 @@ function main() {
     'check_studio_surface.js',
     'check_update_notice_model.js',
     'check_starter_demo_model.js',
-    'check_player_like_qa_model.js'
+    'check_player_like_qa_model.js',
+    'check_release_links_model.js'
   ].forEach((needle) => {
     assert(rootPackageJson.scripts['check:ci'].includes(needle), 'check:ci should run ' + needle);
     assert(ciWorkflow.includes(needle) || ciWorkflow.includes('npm run check:ci'), 'CI workflow should cover ' + needle);

@@ -563,7 +563,8 @@ function publicPackageJson() {
         'node tools/project_map/check_studio_surface.js',
         'node tools/project_map/check_update_notice_model.js',
         'node tools/project_map/check_starter_demo_model.js',
-        'node tools/project_map/check_player_like_qa_model.js'
+        'node tools/project_map/check_player_like_qa_model.js',
+        'node tools/project_map/check_release_links_model.js'
       ].join(' && ')
     },
     dependencies: {
