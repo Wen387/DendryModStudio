@@ -179,7 +179,7 @@ Until then, the recommended test path is:
 
 ```bash
 cd tools/project_map/desktop
+npm run smoke
 npm run doctor
-npm run package:portable
-npm run package:deb
+npm run dist:linux
 ```

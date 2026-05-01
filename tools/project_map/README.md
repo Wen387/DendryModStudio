@@ -154,21 +154,21 @@ The desktop shell:
   temporary copies are built separately, the install plan is applied only to the
   modified copy, and a `127.0.0.1` compare page shows original versus modified.
 
-Current v0.8 limits:
+Current v0.9.2 limits:
 
 - system Python 3 is still required;
-- public release installers still need update/backup/release-channel hardening;
+- public release installers are unsigned and still need clean-machine QA,
+  backup guidance, signing, and full release-channel hardening;
 - update notices are static manifest polling only. The default manifest URL is
   configured in `desktop/package.json` and can be overridden with
   `DMS_UPDATE_MANIFEST_URL`; `DMS_UPDATE_NOTICE_DISABLED=1` disables the check.
   This is not an auto-updater or silent install channel.
-- `package:dir` creates an unpacked local app under ignored `dist/`;
-- `package:portable` creates an ignored Linux-friendly `.tar.gz` feasibility
-  archive, not a signed installer;
-- `package:deb` creates an ignored Linux `.deb` feasibility package that
-  declares `Depends: python3` plus common Electron desktop runtime libraries;
-- `package:deb` leaves only the final current `.deb` by default; use
-  `npm run package:deb -- --keep-workdirs` only when debugging package staging;
+- `npm run dist:linux` creates unsigned AppImage and Deb artifacts under
+  ignored `dist-builder/`;
+- `npm run dist:win` creates an unsigned Windows NSIS installer under
+  `dist-builder/` when run on Windows or GitHub Actions;
+- the older `package:dir`, `package:portable`, and `package:deb` helpers remain
+  useful for local packaging diagnostics under ignored `dist/`;
 - the shell does not write `source/`, `out/game.json`, or `out/html/`;
 - export bundles now include install plans and patch previews; router / wiring
   work only becomes installable when a plan has explicit anchor and dedupe evidence.
@@ -226,9 +226,7 @@ npm run smoke
 npm run doctor
 node ../check_update_notice_model.js
 node ../check_starter_demo_model.js
-npm run package:dir
-npm run package:portable
-npm run package:deb
+npm run dist:linux
 ```
 
 Guided UI QA:
@@ -599,9 +597,7 @@ node tools/project_map/check_asset_model.js
 node tools/project_map/check_preview_model.js
 cd tools/project_map/desktop && npm run smoke
 cd tools/project_map/desktop && npm run doctor
-cd tools/project_map/desktop && npm run package:portable
-cd tools/project_map/desktop && npm run package:deb
-bash tools/build_and_validate.sh --skip-build --errors-only
+cd tools/project_map/desktop && npm run dist:linux
 ```
 
 Expected-failure guard checks:
