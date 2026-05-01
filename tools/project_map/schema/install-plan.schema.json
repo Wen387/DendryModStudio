@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dendry-mod-studio.local/schema/install-plan.schema.json",
+  "title": "Dendry Mod Studio InstallPlan v0.1",
+  "type": "object",
+  "required": ["schemaVersion", "kind", "id", "draftKind", "status", "operations"],
+  "properties": {
+    "schemaVersion": {"const": "0.1"},
+    "kind": {"const": "dendry_mod_studio_install_plan"},
+    "id": {"type": "string"},
+    "draftKind": {"type": "string"},
+    "title": {"type": "string"},
+    "status": {"const": "proposal_only"},
+    "validationCommand": {"type": "string"},
+    "project": {
+      "type": ["object", "null"],
+      "properties": {
+        "name": {"type": "string"},
+        "root": {"type": "string"},
+        "schemaVersion": {"type": "string"},
+        "profileIds": {
+          "type": "array",
+          "items": {"type": "string"}
+        }
+      },
+      "additionalProperties": true
+    },
+    "operations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "type", "path", "safety"],
+        "properties": {
+          "id": {"type": "string"},
+          "type": {"enum": ["create_file", "replace_text", "insert_text", "manual_snippet", "copy_asset_file"]},
+          "path": {"type": "string"},
+          "line": {"type": ["integer", "null"], "minimum": 1},
+          "description": {"type": "string"},
+          "safety": {"enum": ["safe_apply", "guarded_apply", "advanced_apply", "manual_review"]},
+          "content": {"type": "string"},
+          "search": {"type": "string"},
+          "replace": {"type": "string"},
+          "anchorText": {"type": "string"},
+          "position": {"enum": ["before", "after"]},
+          "dedupeSearch": {"type": "string"},
+          "sourceName": {"type": "string"},
+          "sourcePath": {"type": "string"},
+          "assetType": {"type": "string"},
+          "role": {"type": "string"}
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

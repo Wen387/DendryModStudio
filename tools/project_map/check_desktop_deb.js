@@ -1,0 +1,121 @@
+#!/usr/bin/env node
+'use strict';
+
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const {spawnSync} = require('child_process');
+
+const PROJECT_MAP_DIR = __dirname;
+const DESKTOP_DIR = path.join(PROJECT_MAP_DIR, 'desktop');
+
+function fail(message) {
+  process.stderr.write('FAIL: ' + message + '\n');
+  process.exit(1);
+}
+
+function assert(condition, message) {
+  if (!condition) {
+    fail(message);
+  }
+}
+
+function readJson(filePath) {
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+function run(command, args, options) {
+  const stdoutPath = path.join(os.tmpdir(), 'dendry-deb-smoke-stdout-' + process.pid + '-' + Math.random().toString(36).slice(2));
+  const stderrPath = path.join(os.tmpdir(), 'dendry-deb-smoke-stderr-' + process.pid + '-' + Math.random().toString(36).slice(2));
+  const stdoutFd = fs.openSync(stdoutPath, 'w');
+  const stderrFd = fs.openSync(stderrPath, 'w');
+  let result;
+  try {
+    result = spawnSync(command, args, Object.assign({}, options || {}, {
+      encoding: 'utf8',
+      stdio: ['ignore', stdoutFd, stderrFd]
+    }));
+  } finally {
+    fs.closeSync(stdoutFd);
+    fs.closeSync(stderrFd);
+  }
+  const stdout = fs.readFileSync(stdoutPath, 'utf8');
+  const stderr = fs.readFileSync(stderrPath, 'utf8');
+  fs.rmSync(stdoutPath, {force: true});
+  fs.rmSync(stderrPath, {force: true});
+  assert(result.status === 0, command + ' ' + args.join(' ') + ' failed: ' + (stderr || stdout));
+  return Object.assign({}, result, {stdout, stderr});
+}
+
+function main() {
+  const pkg = readJson(path.join(DESKTOP_DIR, 'package.json'));
+  assert(pkg.version === '0.9.2', 'desktop package version should be 0.9.2');
+  assert(pkg.scripts && pkg.scripts['package:deb'], 'desktop package should expose npm run package:deb');
+  assert(fs.existsSync(path.join(DESKTOP_DIR, 'scripts', 'package_deb.js')), 'package_deb.js should exist');
+
+  const notes = fs.readFileSync(path.join(DESKTOP_DIR, 'PACKAGING_NOTES.md'), 'utf8');
+  assert(notes.includes('v0.9.2'), 'packaging notes should mention v0.9.2');
+  assert(notes.includes('Depends: python3'), 'packaging notes should document Python deb dependency');
+  assert(notes.includes('cleans temporary packaging work directories'), 'packaging notes should document package:deb cleanup');
+  assert(notes.includes('not bundle Python'), 'packaging notes should say the deb does not bundle Python');
+
+  const packageRun = run('node', [path.join('scripts', 'package_deb.js')], {cwd: DESKTOP_DIR});
+  const match = packageRun.stdout.match(/\{[\s\S]*\}\s*$/);
+  assert(match, 'package:deb should print JSON summary');
+  const summary = JSON.parse(match[0]);
+  assert(summary.ok === true, 'deb package summary should be ok');
+  assert(summary.debPath && summary.debPath.endsWith('.deb'), 'package:deb should produce a .deb');
+  assert(fs.existsSync(summary.debPath), 'deb artifact should exist');
+  assert(summary.packageName === 'dendry-mod-studio', 'deb package name should be stable');
+  assert(summary.depends && summary.depends.includes('python3'), 'deb summary should include python3 dependency');
+  assert(summary.depends.includes('libgtk-3-0'), 'deb summary should include GTK runtime dependency');
+  assert(summary.depends.includes('libnss3'), 'deb summary should include NSS runtime dependency');
+  assert(summary.depends.includes('libxss1'), 'deb summary should include XSS runtime dependency');
+  assert(summary.workDirsCleaned === true, 'package:deb should clean temporary work directories by default');
+  assert(!fs.existsSync(path.join(DESKTOP_DIR, 'dist', 'deb-staging')), 'package:deb should not leave deb-staging by default');
+  assert(!fs.existsSync(path.join(DESKTOP_DIR, 'dist', 'DendryModStudio-linux-x64')), 'package:deb should not leave unpacked app by default');
+  const staleDebs = fs.readdirSync(path.join(DESKTOP_DIR, 'dist'))
+    .filter((name) => /^dendry-mod-studio_.*_(amd64|arm64)\.deb$/.test(name))
+    .filter((name) => name !== path.basename(summary.debPath));
+  assert(staleDebs.length === 0, 'package:deb should remove stale deb artifacts: ' + staleDebs.join(', '));
+
+  const info = run('dpkg-deb', ['--info', summary.debPath]).stdout;
+  assert(/Package:\s*dendry-mod-studio/.test(info), 'deb control should include package name');
+  assert(/Version:\s*0\.9\.2/.test(info), 'deb control should include version');
+  assert(/Depends:\s*.*python3/.test(info), 'deb control should depend on python3');
+  assert(/Depends:\s*.*libgtk-3-0/.test(info), 'deb control should include GTK dependency');
+
+  const contents = run('dpkg-deb', ['--contents', summary.debPath]).stdout;
+  assert(contents.includes('./opt/dendry-mod-studio/electron'), 'deb should include Electron executable');
+  assert(contents.includes('./opt/dendry-mod-studio/resources/app/project_map/viewer/index.html'), 'deb should include viewer');
+  assert(
+    contents.includes('./opt/dendry-mod-studio/resources/app/project_map/templates/starter-demo/source/info.dry'),
+    'deb should include bundled starter demo template'
+  );
+  assert(
+    contents.includes('./opt/dendry-mod-studio/resources/app/project_map/templates/starter-demo/package.json'),
+    'deb should include bundled starter demo package.json for Runtime Preview builds'
+  );
+  assert(contents.includes('./opt/dendry-mod-studio/resources/app/project_map/build_project_map.py'), 'deb should include Python indexer');
+  assert(contents.includes('./opt/dendry-mod-studio/resources/app/scripts/doctor.js'), 'deb should include doctor script');
+  assert(contents.includes('./opt/dendry-mod-studio/resources/app/runtime_preview.js'), 'deb should include Runtime Preview core');
+  assert(contents.includes('./opt/dendry-mod-studio/resources/app/update_notice.js'), 'deb should include Update Notice core');
+  assert(contents.includes('./opt/dendry-mod-studio/resources/app/update_manifest.json'), 'deb should include bundled Update Notice manifest');
+  assert(
+    contents.includes('./opt/dendry-mod-studio/resources/app/runtime_preview_debug_bridge.js'),
+    'deb should include Runtime Preview debug bridge'
+  );
+  assert(contents.includes('./usr/bin/dendry-mod-studio'), 'deb should include launcher wrapper');
+  assert(contents.includes('./usr/share/applications/dendry-mod-studio.desktop'), 'deb should include desktop file');
+  assert(contents.includes('./usr/share/icons/hicolor/scalable/apps/dendry-mod-studio.svg'), 'deb should include app icon');
+
+  console.log(JSON.stringify({
+    ok: true,
+    debPath: summary.debPath,
+    packageName: summary.packageName,
+    version: summary.version,
+    depends: summary.depends
+  }, null, 2));
+}
+
+main();

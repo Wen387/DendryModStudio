@@ -1,0 +1,197 @@
+{
+  "profileVersion": "0.1",
+  "id": "islands-sunrise",
+  "name": "Island's Sunrise",
+  "priority": 50,
+  "extends": "sdaah-style",
+  "uiLabels": {
+    "advisorLikeSingular": "Circle",
+    "advisorLikePlural": "Circles"
+  },
+  "detection": {
+    "pathHints": [
+      {
+        "kind": "projectContract",
+        "pattern": "studio_contract/contract.json",
+        "weight": 0.25
+      },
+      {
+        "kind": "projectRules",
+        "pattern": "INVARIANTS.md",
+        "weight": 0.1
+      },
+      {
+        "kind": "sceneRoot",
+        "pattern": "source/scenes/**/*.scene.dry",
+        "weight": 0.05
+      }
+    ],
+    "fileNameHints": [
+      {
+        "pattern": "collective_graph.scene.dry",
+        "weight": 0.15
+      },
+      {
+        "pattern": "election_algorithm.scene.dry",
+        "weight": 0.15
+      },
+      {
+        "pattern": "founding_deliberation_path_manifest.json",
+        "weight": 0.1
+      }
+    ],
+    "contentHints": [
+      {
+        "regex": "Island'?s Sunrise|社民黨|太陽花|台灣",
+        "weight": 0.25
+      },
+      {
+        "regex": "\\b(local_county|district_|collective_|cov_R|profile_sdp)\\b",
+        "weight": 0.25
+      },
+      {
+        "regex": "islands-sunrise|Island'?s Sunrise|社民黨|太陽花|台灣",
+        "weight": 0.25
+      }
+    ]
+  },
+  "classificationRules": {
+    "sceneTypes": [
+      {
+        "type": "founding_deliberation",
+        "pathRegex": "(^|/)founding/.*\\.scene\\.dry$",
+        "nameRegex": "^founding_"
+      },
+      {
+        "type": "circle",
+        "pathRegex": "(^|/)circle.*\\.scene\\.dry$|circle_",
+        "nameRegex": "circle"
+      },
+      {
+        "type": "district_election",
+        "pathRegex": "district|election_algorithm",
+        "nameRegex": "district|legislative"
+      },
+      {
+        "type": "local_result",
+        "pathRegex": "local_|political_terrain",
+        "nameRegex": "local|county"
+      },
+      {
+        "type": "diplomatic",
+        "pathRegex": "diplomatic|china|defense|crisis",
+        "nameRegex": "diplomatic|china|defense|crisis"
+      },
+      {
+        "type": "legislative",
+        "pathRegex": "legislative|bill|opposition_bill",
+        "nameRegex": "bill|legislative"
+      }
+    ],
+    "semanticSystems": [
+      {
+        "system": "district_v3",
+        "pathRegex": "district|election_algorithm|political_terrain",
+        "variableRegex": "^(district_|.*_seats_v3|local_county_)"
+      },
+      {
+        "system": "local_governance",
+        "pathRegex": "local_governance|local_|county",
+        "variableRegex": "^(local_governance|local_county_governance|local_base|local_capacity)"
+      },
+      {
+        "system": "collective_v2",
+        "pathRegex": "collective|coverage",
+        "variableRegex": "^(collective_|edge_|tag_|cov_R|apathy_|mobilization_|party_capture_)"
+      },
+      {
+        "system": "identity_profile",
+        "pathRegex": "identity|profile|ideology",
+        "variableRegex": "^(identity_|profile_|ideology_|left_independence|progressive_taiwanese|democratic_socialism)"
+      },
+      {
+        "system": "founding_deliberation",
+        "pathRegex": "founding|deliberation",
+        "variableRegex": "^founding_"
+      },
+      {
+        "system": "circle",
+        "pathRegex": "circle",
+        "variableRegex": "^(circle_|democratic_infra_)"
+      },
+      {
+        "system": "strategic_sidebar",
+        "pathRegex": "strategy|diplomatic|defense|china",
+        "variableRegex": "^(diplomatic_|china_|defense_|crisis_)"
+      }
+    ],
+    "protectedBoundaries": [
+      {
+        "boundary": "coverage_region_granularity",
+        "forbidWriteVariableRegex": "^(cov_|pop_R)",
+        "fromPathRegex": "district|county|local_county"
+      },
+      {
+        "boundary": "district_result_read_only",
+        "forbidWriteVariableRegex": "^(district_winner_|district_share_|.*_seats_v3)",
+        "fromPathRegex": "local_governance"
+      },
+      {
+        "boundary": "post_event_targeted_reads_only",
+        "pathRegex": "(^|/)post_event\\.scene\\.dry$",
+        "note": "Indexers should collect targeted sections and avoid whole-file workflows."
+      }
+    ],
+    "variableFamilies": [
+      {
+        "family": "local_county_result",
+        "nameRegex": "^local_county_(result_year|mayor_holder_|sdp_council_|sdp_mayor_)"
+      },
+      {
+        "family": "local_county_governance",
+        "nameRegex": "^local_county_governance_"
+      },
+      {
+        "family": "district_v3",
+        "nameRegex": "^(district_|.*_seats_v3)"
+      },
+      {
+        "family": "collective_graph",
+        "nameRegex": "^(collective_[0-9]+_|edge_[0-9]+_[0-9]+_|tag_)"
+      },
+      {
+        "family": "coverage_v2",
+        "nameRegex": "^(cov_R[0-9]+_|apathy_|mobilization_|party_capture_|identity_|profile_)"
+      },
+      {
+        "family": "founding_hooks",
+        "nameRegex": "^founding_"
+      },
+      {
+        "family": "party_factions",
+        "nameRegex": "^(dpp_new_tide|dpp_justice_alliance|dpp_independence|kmt_)"
+      }
+    ],
+    "diagnosticHints": [
+      {
+        "code": "islands.no-chinese-condition-comparison",
+        "severity": "error",
+        "regex": "(view-if|choose-if|\\[\\?\\s*if)[^\\n]*['\"][^'\"\\n]*[\\u4e00-\\u9fff][^'\"\\n]*['\"]"
+      },
+      {
+        "code": "islands.new-variable-needs-init-and-migration",
+        "severity": "warning",
+        "variableNameRegex": "^[A-Za-z_][A-Za-z0-9_]*$",
+        "requiredPaths": [
+          "source/scenes/root.scene.dry",
+          "source/scenes/post_event.scene.dry"
+        ]
+      },
+      {
+        "code": "islands.protected-html-build-restore",
+        "severity": "warning",
+        "pathRegex": "^out/html/(game|core|political-terrain|local-resolver|districts|coverage|sidebar|header|cards|motion|radio|strategy).*\\.(js|css|html)$"
+      }
+    ]
+  }
+}

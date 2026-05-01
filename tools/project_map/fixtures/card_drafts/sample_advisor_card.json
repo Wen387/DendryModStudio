@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "0.1",
+  "kind": "card",
+  "id": "studio_sample_advisor_card",
+  "title": "Studio Sample Advisor",
+  "cardKind": "advisor_like",
+  "tags": ["circle"],
+  "viewIf": "community_circle_active = 1",
+  "maxVisits": 1,
+  "heading": "Studio sample advisor",
+  "subtitle": "A profile-aware advisor-like card.",
+  "introParagraphs": [
+    "This draft represents the advisor-like lane. Island's Sunrise labels this family as Circles."
+  ],
+  "options": [
+    {
+      "id": "ask_for_help",
+      "label": "Ask for organizing help",
+      "chooseIf": "advisor_action_timer <= 0",
+      "unavailableText": "顧問本月已行動。",
+      "effects": [
+        {"variable": "community_circle_strength", "op": "+=", "value": 1}
+      ],
+      "narrativeParagraphs": [
+        "The group contributes a little organizing infrastructure."
+      ]
+    },
+    {
+      "id": "wait",
+      "label": "Wait for now",
+      "effects": [],
+      "narrativeParagraphs": [
+        "The group keeps listening before committing capacity."
+      ]
+    }
+  ]
+}

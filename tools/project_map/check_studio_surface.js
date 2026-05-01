@@ -1,0 +1,275 @@
+#!/usr/bin/env node
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+
+const ROOT = __dirname;
+const VIEWER_HTML = path.join(ROOT, 'viewer', 'index.html');
+const VIEWER_CSS = path.join(ROOT, 'viewer', 'styles.css');
+const WIZARD_UI = path.join(ROOT, 'viewer', 'wizard_ui.js');
+const CARD_UI = path.join(ROOT, 'viewer', 'card_ui.js');
+const INSTALL_UI = path.join(ROOT, 'viewer', 'install_assistant_ui.js');
+const DRAFT_WORKSPACE_UI = path.join(ROOT, 'viewer', 'draft_workspace_ui.js');
+const I18N_UI = path.join(ROOT, 'viewer', 'i18n.js');
+const UPDATE_NOTICE_UI = path.join(ROOT, 'viewer', 'update_notice_ui.js');
+const APP_UI = path.join(ROOT, 'viewer', 'app.js');
+const DESIGN_UI = path.join(ROOT, 'viewer', 'design_ui.js');
+const DESKTOP_MAIN = path.join(ROOT, 'desktop', 'main.js');
+const DESKTOP_PRELOAD = path.join(ROOT, 'desktop', 'preload.js');
+const DESKTOP_CORE = path.join(ROOT, 'desktop', 'studio_core.js');
+const DESKTOP_RUNTIME_PREVIEW = path.join(ROOT, 'desktop', 'runtime_preview.js');
+
+function fail(message) {
+  process.stderr.write('FAIL: ' + message + '\n');
+  process.exit(1);
+}
+
+function assert(condition, message) {
+  if (!condition) {
+    fail(message);
+  }
+}
+
+function mediaBlock(source, marker) {
+  const start = source.indexOf(marker);
+  assert(start >= 0, 'CSS should include ' + marker);
+  const open = source.indexOf('{', start);
+  assert(open >= 0, 'CSS media block should open for ' + marker);
+  let depth = 0;
+  for (let index = open; index < source.length; index += 1) {
+    const char = source[index];
+    if (char === '{') {
+      depth += 1;
+    } else if (char === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        return source.slice(open + 1, index);
+      }
+    }
+  }
+  fail('CSS media block should close for ' + marker);
+}
+
+const html = fs.readFileSync(VIEWER_HTML, 'utf8');
+const css = fs.readFileSync(VIEWER_CSS, 'utf8');
+const wizardUi = fs.readFileSync(WIZARD_UI, 'utf8');
+const cardUi = fs.readFileSync(CARD_UI, 'utf8');
+const installUi = fs.readFileSync(INSTALL_UI, 'utf8');
+const draftWorkspaceUi = fs.readFileSync(DRAFT_WORKSPACE_UI, 'utf8');
+const i18nUi = fs.readFileSync(I18N_UI, 'utf8');
+const updateNoticeUi = fs.readFileSync(UPDATE_NOTICE_UI, 'utf8');
+const appUi = fs.readFileSync(APP_UI, 'utf8');
+const designUi = fs.readFileSync(DESIGN_UI, 'utf8');
+const desktopMain = fs.readFileSync(DESKTOP_MAIN, 'utf8');
+const desktopPreload = fs.readFileSync(DESKTOP_PRELOAD, 'utf8');
+const desktopCore = fs.readFileSync(DESKTOP_CORE, 'utf8');
+const desktopRuntimePreview = fs.readFileSync(DESKTOP_RUNTIME_PREVIEW, 'utf8');
+
+assert(html.includes('data-studio-surface="direction-b"'), 'viewer should mark Direction B Studio as the active surface');
+assert(html.includes('brand-mark branch-mark'), 'viewer should expose a Branch brand mark');
+assert(html.includes('Dendry <span>Mod Studio</span>'), 'viewer should emphasize Mod Studio in the wordmark');
+assert(html.includes('Dendry Mod Studio v0.9.2 dev preview'), 'topbar should expose the Studio version for testers');
+assert(html.includes('https://github.com/Wen387'), 'topbar should link the author GitHub profile');
+assert(html.includes('nav-group-title'), 'Explore navigation should be grouped by authoring purpose');
+assert(html.includes('Story content'), 'Explore navigation should include a Story content group');
+assert(html.includes('Quality'), 'Explore navigation should include a Quality group');
+assert(html.includes('sidebar-confidence'), 'Explore navigation should anchor the confidence legend in the sidebar');
+assert(html.includes('output-tabs'), 'Create preview should use a tabbed Output surface');
+assert(html.includes('data-preview-tab="scene"'), 'Output tabs should include the scene preview');
+assert(html.includes('data-preview-tab="draft"'), 'Output tabs should include the draft JSON preview');
+assert(html.includes('data-preview-panel="migration"'), 'Output panels should include migration snippet output');
+assert(html.includes('data-preview-panel="install"'), 'Output panels should include install notes actions');
+assert(html.includes('../authoring/asset_model.js'), 'viewer should load shared AssetModel before PreviewModel');
+assert(html.includes('../authoring/existing_scene_edit_model.js'), 'viewer should load Existing Scene Edit model');
+assert(html.includes('id="existing-scene-editor-host"'), 'Create mode should expose an Existing Scene Editor host');
+assert(html.includes('existing_scene_edit_ui.js'), 'viewer should load Existing Scene Editor UI');
+assert(html.includes('data-create-template="card"'), 'Create template switch should include Card');
+assert(html.includes('data-create-template="surface"'), 'Create template switch should include Surface Text');
+assert(html.includes('data-view="surfaceText"'), 'Explore navigation should include Surface Text');
+assert(html.includes('data-mode="design"'), 'Direction C Design mode should be exposed in the top-level mode switch');
+assert(html.includes('design-search-shell'), 'Design mode should place search in the Atelier topbar');
+assert(html.includes('id="design-graph-canvas"'), 'Design mode should use a graph canvas surface');
+assert(html.includes('id="design-status-bar"'), 'Design mode should include a persistent Atelier status bar');
+assert(html.includes('id="card-wizard-form"'), 'Create mode should expose the Card Wizard form');
+assert(html.includes('id="surface-text-form"'), 'Create mode should expose the Surface Text proposal form');
+assert(html.includes('id="studio-tutorial-library"'), 'viewer should expose an in-app Tutorial Library dialog');
+assert(html.includes('id="studio-open-tutorial-library"'), 'More menu should expose Tutorial Library');
+assert(html.includes('id="onboarding-open-tutorial-library"'), 'Quick Start should offer Tutorial Library');
+assert(html.includes('id="onboarding-load-demo"'), 'Quick Start should offer the bundled Demo Template');
+assert(html.includes('id="studio-check-updates"'), 'More menu should expose Check for Updates in desktop mode');
+assert(html.includes('id="update-notice-banner"'), 'viewer should expose the Update Notice banner');
+assert(html.includes('tutorial_library_ui.js'), 'viewer should load Tutorial Library UI');
+assert(html.includes('update_notice_ui.js'), 'viewer should load Update Notice UI');
+assert(html.includes('wizard-field-help'), 'Create forms should explain what important fields change');
+assert(html.includes('id="wizard-variable-assistant"'), 'Event editor should expose semantic variable candidates');
+assert(html.includes('id="card-variable-assistant"'), 'Card editor should expose semantic variable candidates');
+assert(html.includes('data-i18n="create.guidance.event"'), 'Event editor should explain the editing intent before raw fields');
+assert(html.includes('data-i18n="create.guidance.card"'), 'Card editor should explain card routing and draw behavior before raw fields');
+assert(html.includes('data-i18n="create.guidance.surface"'), 'Text editor should explain source evidence before raw fields');
+assert(html.includes('data-i18n="create.help.cardFrequency"'), 'Card frequency should explain its gameplay effect');
+assert(html.includes('data-i18n="create.help.surfaceEditability"'), 'Text editability should explain whether the field can apply changes');
+assert(html.includes('wizard-action-primary'), 'Create output actions should separate the recommended next step');
+assert(html.includes('wizard-action-advanced'), 'Create output actions should hide technical downloads behind an advanced group');
+assert(html.includes('data-i18n="create.action.recommendedNext"'), 'Create actions should label the recommended next step');
+assert(html.includes('id="wizard-review-install" class="primary-action"'), 'Event Review & Apply should be the primary output action');
+assert(html.includes('My Changes'), 'Create mode should frame saved drafts as My Changes');
+assert(html.includes('id="install-runtime-preview"'), 'Install Assistant should expose a Runtime Preview action');
+assert(html.includes('id="install-runtime-preview-result"'), 'Install Assistant should render Runtime Preview results');
+assert(i18nUi.includes("'draftWorkspace.title': '我的修改'"), 'zh-Hant copy should rename Draft Workspace to 我的修改');
+assert(i18nUi.includes("'draftWorkspace.review': '審查與套用'"), 'saved changes should route to Review & Apply copy');
+assert(i18nUi.includes("'install.runtimePreview'"), 'Runtime Preview action should be localized');
+assert(i18nUi.includes("'existingScene.editExisting'"), 'Edit existing action should be localized');
+assert(i18nUi.includes("'existingScene.copyAsNew'"), 'Copy as new proposal action should be localized');
+assert(!i18nUi.includes('人話分類'), 'Text replacement area helper should avoid unclear 人話 jargon');
+assert(i18nUi.includes('用來標記這段文字在遊戲裡大概出現的位置'), 'Text replacement area helper should explain the area field in plain language');
+
+assert(css.includes('--studio-accent'), 'CSS should define Studio design tokens');
+assert(css.includes('--studio-paper'), 'CSS should define a warm Studio paper token');
+assert(css.includes('.brand-mark'), 'CSS should style the Branch brand mark');
+assert(css.includes('.wordmark span'), 'CSS should style Mod Studio as the functional emphasis');
+assert(css.includes('.brand-meta'), 'CSS should style version and author metadata');
+assert(css.includes('.nav-group-title'), 'CSS should style grouped navigation labels');
+assert(css.includes('.output-tabs'), 'CSS should style Output tabs');
+assert(css.includes('.preview-block.is-active'), 'CSS should expose the active preview panel');
+assert(css.includes('.effect-helper button') && css.includes('grid-column: 1 / -1'), 'effect helper add button should stay inside the helper grid');
+assert(css.includes('.effect-helper button') && css.includes('overflow-wrap: anywhere'), 'effect helper add button label should wrap instead of overflowing');
+assert(css.includes('.tutorial-library-dialog'), 'CSS should style Tutorial Library dialog');
+assert(css.includes('.tutorial-library-nav'), 'CSS should style Tutorial Library navigation');
+assert(css.includes('.tutorial-library-article'), 'CSS should style Tutorial Library articles');
+assert(css.includes('.update-notice-banner'), 'CSS should style the Update Notice banner');
+assert(css.includes('.update-notice-actions'), 'CSS should style Update Notice actions');
+assert(css.includes('.wizard-field-help'), 'CSS should style Create field help text');
+assert(css.includes('.wizard-action-group'), 'CSS should style grouped Create output actions');
+assert(css.includes('.wizard-action-advanced'), 'CSS should style advanced Create downloads');
+assert(css.includes('.variable-assistant'), 'CSS should style semantic variable candidates');
+assert(css.includes('.runtime-preview-report'), 'CSS should style Runtime Preview result cards');
+assert(css.includes('.asset-gallery-grid'), 'CSS should style the Assets gallery surface');
+assert(css.includes('.asset-preview-frame'), 'CSS should style asset preview frames');
+assert(css.includes('.meaning-asset-list'), 'CSS should style asset references inside player previews');
+assert(css.includes('.event-workbench-collapsible'), 'CSS should style collapsible Event Workbench sections');
+assert(css.includes('.meaning-collapsible'), 'CSS should style collapsible Preview sections');
+assert(css.includes('.section-count'), 'CSS should style section count badges');
+assert(css.includes('body[data-mode="create"]'), 'CSS should support mode-aware create styling');
+assert(css.includes('.design-graph-canvas'), 'CSS should style the Design graph canvas');
+assert(css.includes('.design-status-bar'), 'CSS should style the Design status bar');
+assert(html.includes('id="explore-inspector-resizer"'), 'Explore workspace should expose a resizer before the inspector');
+assert(css.includes('--explore-inspector-width'), 'Explore workspace should use a persisted inspector width token');
+assert(css.includes('.explore-inspector-resizer'), 'CSS should style the Explore inspector resizer');
+assert(css.includes('.workspace.is-resizing-inspector'), 'Explore resize should disable selection while dragging');
+assert(appUi.includes('EXPLORE_INSPECTOR_WIDTH_KEY'), 'Explore inspector width should persist between sessions');
+assert(appUi.includes('beginExploreInspectorResize'), 'Explore should handle inspector resize pointerdown');
+assert(appUi.includes('moveExploreInspectorResize'), 'Explore should handle inspector resize pointermove');
+assert(appUi.includes('asset-usage-source'), 'Asset usage rows should wrap source paths in a dedicated column');
+assert(css.includes('grid-template-columns: minmax(62px, max-content) minmax(0, 1fr) minmax(0, 1fr)'), 'Asset usage rows should reserve responsive columns for kind, label, and source');
+assert(css.includes('.asset-usage-source .source-button'), 'Asset usage source buttons should be styled against narrow inspector overflow');
+assert(css.includes('.nav-count'), 'Explore sidebar should style Direction B count badges');
+assert(css.includes('.design-search-shell'), 'CSS should style the Atelier topbar search');
+assert(css.includes('.desktop-progress-overlay'), 'Desktop progress should stay as a centered overlay');
+assert(!css.includes('body[data-mode="design"] .topbar'), 'Design mode should not darken the global Studio topbar');
+assert(!css.includes('.design-stage-header'), 'Design mode should not use the old Studio lane header');
+assert(mediaBlock(css, '@media (max-width: 1050px)').includes('.create-template-header'), '1050px media block should contain create template responsive rules');
+assert(!css.includes('.sidebar {\n    display: flex;'), 'Explore sidebar should not collapse into the old horizontal mobile rail');
+assert(mediaBlock(css, '@media (max-width: 720px)').includes('grid-template-columns: repeat(auto-fit'), 'mobile sidebar should reflow without a blank vertical rail');
+
+assert(wizardUi.includes('initPreviewTabs'), 'wizard UI should initialize preview tab behavior');
+assert(wizardUi.includes('ProjectMapVariableSuggestions'), 'Event wizard should use semantic variable suggestions');
+assert(wizardUi.includes('data-preview-tab'), 'wizard UI should query preview tab buttons');
+assert(wizardUi.includes('data-preview-panel'), 'wizard UI should query preview panels');
+
+assert(installUi.includes('renderHumanChecklist'), 'Install should render a human checklist before raw technical details');
+assert(installUi.includes('install.human.safeApply'), 'Install should translate safe_apply into player-facing labels');
+assert(installUi.includes('install.report.wouldApplyHuman'), 'Install result report should avoid raw would_apply labels in the main summary');
+assert(installUi.includes('createRuntimePreview'), 'Install Assistant should call the desktop Runtime Preview API');
+assert(installUi.includes('renderRuntimePreviewResult'), 'Install Assistant should render Runtime Preview results');
+assert(installUi.includes('state.projectIndex'), 'Install Assistant should keep ProjectIndex for Runtime Preview debug controls');
+assert(installUi.includes('projectIndex: state.projectIndex'), 'Runtime Preview should pass ProjectIndex to desktop for debug controls');
+assert(desktopMain.includes('dendry:runtime-preview-create'), 'desktop main should expose Runtime Preview IPC');
+assert(desktopMain.includes('dendry:runtime-preview-history'), 'desktop main should expose runtime preview history IPC');
+assert(desktopMain.includes('dendry:update-notice-check'), 'desktop main should expose Update Notice IPC');
+assert(desktopMain.includes('dendry:open-external-url'), 'desktop main should expose safe external URL IPC');
+assert(desktopPreload.includes('createRuntimePreview'), 'desktop preload should expose Runtime Preview to the viewer');
+assert(desktopPreload.includes('recordRuntimePreviewHistory'), 'desktop preload should expose runtime preview history recording');
+assert(desktopPreload.includes('checkUpdateNotice'), 'desktop preload should expose Update Notice checks');
+assert(desktopPreload.includes('openExternalUrl'), 'desktop preload should expose safe external URL opens');
+assert(desktopCore.includes('createRuntimePreview'), 'desktop core should delegate Runtime Preview creation');
+assert(desktopCore.includes('recordRuntimePreviewHistory'), 'desktop core should expose runtime preview history recording');
+assert(desktopRuntimePreview.includes('runtime_preview_debug_bridge'), 'Runtime Preview should import the debug bridge');
+assert(desktopRuntimePreview.includes('runtime_preview_debug_model'), 'Runtime Preview should import the debug control model');
+assert(desktopRuntimePreview.includes('createDebugSession'), 'Runtime Preview should create debug sessions');
+assert(desktopRuntimePreview.includes('recordDebugCommandHistory'), 'Runtime Preview should record debug command history');
+assert(draftWorkspaceUi.includes('draft-workspace-item-preview'), 'saved changes should render a player-facing preview excerpt');
+assert(draftWorkspaceUi.includes('draftWorkspace.noInstallPlanShort'), 'saved changes without install plans should explain that review is unavailable');
+assert(draftWorkspaceUi.includes('reviewButton.disabled = !item.installPlan'), 'saved changes without install plans should not switch to Install review');
+assert(draftWorkspaceUi.includes('ProjectMapExistingSceneEditor'), 'saved existing-scene edits should reopen into the Existing Scene Editor');
+assert(i18nUi.includes('existingScene.eventChain'), 'i18n should label guarded event-chain condition editing');
+assert(css.includes('.existing-scene-condition-note'), 'CSS should style Existing Scene Editor condition guidance');
+assert(html.includes('studio_contracts.js'), 'viewer should load shared Studio contracts before UI modules');
+assert(appUi.includes('data-edit-existing'), 'Explore inspector should expose Edit existing');
+assert(appUi.includes('Copy as new proposal'), 'Explore inspector should keep copy-as-new proposal wording');
+assert(appUi.includes('ProjectMapExistingSceneEditor'), 'Explore should call Existing Scene Editor when editing existing Events/Cards');
+assert(designUi.includes('data-design-edit-existing'), 'Design inspector should expose Edit existing');
+assert(designUi.includes('Copy as new proposal'), 'Design inspector should keep copy-as-new proposal wording');
+assert(appUi.includes("t('textRevision.actionButton'"), 'Text Corpus revision panel should own a localized Edit Text action');
+assert(appUi.includes("t('textProposal.notesTitle'"), 'Text proposal diagnostics should use localized section labels');
+assert(appUi.includes('renderAssetGallery'), 'Assets view should render a gallery surface');
+assert(appUi.includes('renderAssetInspector'), 'Assets view should render a richer asset inspector');
+assert(appUi.includes('renderAssetReferenceHelper'), 'Assets inspector should expose a reusable asset reference helper');
+assert(appUi.includes('asset-reference-helper'), 'Assets inspector should render the reference helper surface');
+assert(appUi.includes('asset-use-actions'), 'Assets inspector should render draft reference actions');
+assert(appUi.includes('handleAssetDraftAction'), 'Assets inspector should handle use/copy reference actions');
+assert(appUi.includes('ProjectMap:asset-reference-selected'), 'Assets inspector should dispatch selected references to Create wizards');
+assert(appUi.includes('renderAssetRepairActions'), 'Assets inspector should expose missing-file repair actions');
+assert(appUi.includes('handleAssetRepairFileSelection'), 'Assets inspector should turn replacement file picks into asset install requests');
+assert(appUi.includes('ProjectMap:asset-install-request-selected'), 'Assets inspector should dispatch asset install requests to Create wizards');
+assert(appUi.includes('Missing asset reference'), 'Preview assets should surface missing asset reference diagnostics');
+assert(html.includes('id="wizard-asset-refs"'), 'Event wizard should expose an assetRefs editor');
+assert(html.includes('id="card-asset-refs"'), 'Card wizard should expose an assetRefs editor');
+assert(html.includes('id="wizard-draft-asset-panel"'), 'Event wizard should expose a visual draft asset panel');
+assert(html.includes('id="card-draft-asset-panel"'), 'Card wizard should expose a visual draft asset panel');
+assert(html.includes('class="asset-advanced-panel"'), 'raw asset text editors should be demoted into an advanced panel');
+assert(html.includes('id="wizard-asset-picker"'), 'Event wizard should expose an asset picker');
+assert(html.includes('id="card-asset-picker"'), 'Card wizard should expose an asset picker');
+assert(html.includes('id="wizard-asset-manifest"'), 'Event wizard should expose an asset manifest surface');
+assert(html.includes('id="card-asset-manifest"'), 'Card wizard should expose an asset manifest surface');
+assert(html.includes('id="wizard-asset-file"'), 'Event wizard should expose a graphical asset file picker');
+assert(html.includes('id="card-asset-file"'), 'Card wizard should expose a graphical asset file picker');
+assert(html.includes('id="wizard-asset-install-requests"'), 'Event wizard should expose asset install request review');
+assert(html.includes('id="card-asset-install-requests"'), 'Card wizard should expose asset install request review');
+assert(i18nUi.includes("'assets.useInEventDraft'"), 'asset use-in-event action should be localized');
+assert(i18nUi.includes("'assets.useInCardDraft'"), 'asset use-in-card action should be localized');
+assert(i18nUi.includes("'assets.picker'"), 'asset picker heading should be localized');
+assert(i18nUi.includes("'assets.manifest'"), 'asset manifest heading should be localized');
+assert(i18nUi.includes("'assets.installPicker'"), 'asset install picker heading should be localized');
+assert(i18nUi.includes("'assets.draftPanel'"), 'draft asset panel heading should be localized');
+assert(i18nUi.includes("'assets.slots'"), 'asset slot panel heading should be localized');
+assert(i18nUi.includes("'assets.repairMissingFile'"), 'missing asset repair action should be localized');
+assert(i18nUi.includes("'assets.advancedRawData'"), 'advanced raw asset editors should be localized');
+assert(i18nUi.includes("'create.help.assetInstallRequests'"), 'asset install request helper copy should be localized');
+assert(i18nUi.includes("'assets.role.event_illustration'"), 'asset role labels should be localized');
+assert(i18nUi.includes("'create.help.assetRefs'"), 'assetRefs helper copy should be localized');
+assert(css.includes('.asset-use-actions'), 'CSS should style asset draft action buttons');
+assert(css.includes('.asset-ref-editor'), 'CSS should style assetRefs editor fields');
+assert(css.includes('.asset-install-picker'), 'CSS should style asset install picker controls');
+assert(css.includes('.draft-asset-panel'), 'CSS should style draft asset panels');
+assert(css.includes('.asset-slot-grid'), 'CSS should style role-based asset slots');
+assert(css.includes('.asset-repair-actions'), 'CSS should style missing asset repair actions');
+assert(css.includes('.asset-advanced-panel'), 'CSS should style advanced raw asset panels');
+assert(css.includes('.asset-picker'), 'CSS should style embedded asset pickers');
+assert(css.includes('.asset-manifest'), 'CSS should style asset manifest surfaces');
+assert(wizardUi.includes('handleAssetFileSelection'), 'Event wizard should convert selected files into asset install requests');
+assert(cardUi.includes('handleAssetFileSelection'), 'Card wizard should convert selected files into asset install requests');
+assert(wizardUi.includes('parseAssetInstallRequestsText'), 'Event wizard should parse asset install request review text');
+assert(cardUi.includes('parseAssetInstallRequestsText'), 'Card wizard should parse asset install request review text');
+assert(wizardUi.includes('renderDraftAssetPanel'), 'Event wizard should render the visual draft asset panel');
+assert(cardUi.includes('renderDraftAssetPanel'), 'Card wizard should render the visual draft asset panel');
+assert(wizardUi.includes('ProjectMap:asset-install-request-selected'), 'Event wizard should accept repair install requests from Assets');
+assert(cardUi.includes('ProjectMap:asset-install-request-selected'), 'Card wizard should accept repair install requests from Assets');
+assert(appUi.includes('textCorpusRoleLabel(row.role'), 'Text Corpus context rows should show human role labels');
+assert(appUi.includes('textCorpusRoleLabel(item.role'), 'Text Corpus inspector should show human role labels');
+assert(!appUi.includes('>Edit Text Proposal</button>'), 'Text proposal CTA should not be hardcoded English');
+assert(updateNoticeUi.includes('checkUpdateNotice'), 'Update Notice UI should call the desktop check API');
+assert(updateNoticeUi.includes('dendry-mod-studio-update-notice-dismissed'), 'Update Notice UI should persist dismissed notice IDs');
+assert(updateNoticeUi.includes('openExternalUrl'), 'Update Notice UI should open update links through desktop IPC');
+
+process.stdout.write('studio surface ok\n');

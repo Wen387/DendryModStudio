@@ -1,0 +1,56 @@
+{
+  "profileVersion": "0.1",
+  "id": "sdaah-style",
+  "name": "SDAAH-style Dendry Project",
+  "priority": 30,
+  "extends": "generic-dendry",
+  "uiLabels": {
+    "advisorLikeSingular": "Advisor",
+    "advisorLikePlural": "Advisors"
+  },
+  "detection": {
+    "pathHints": [
+      { "kind": "sceneRoot", "pattern": "source/scenes/**/*.scene.dry", "weight": 0.05 },
+      { "kind": "docs", "pattern": "docs/**/*.md", "weight": 0.1 }
+    ],
+    "fileNameHints": [
+      { "pattern": "election_algorithm.scene.dry", "weight": 0.2 },
+      { "pattern": "political_terrain.scene.dry", "weight": 0.15 },
+      { "pattern": "STATE_MAP.md", "weight": 0.1 }
+    ],
+    "contentHints": [
+      { "regex": "\\bparty\\b|\\belection\\b|\\bcampaign\\b", "weight": 0.15 },
+      { "regex": "\\bcoverage\\b|\\bcollective\\b|\\bdistrict\\b", "weight": 0.15 },
+      { "regex": "\\bQ\\.(year|month|party|strength|dissent)\\b", "weight": 0.1 }
+    ]
+  },
+  "classificationRules": {
+    "sceneTypes": [
+      { "type": "election", "pathRegex": "(^|/)(events/)?election_[0-9]{4}\\.scene\\.dry$|election_algorithm\\.scene\\.dry$" },
+      { "type": "party_affairs", "pathRegex": "(^|/)party_affairs/.*\\.scene\\.dry$" },
+      { "type": "local_governance", "pathRegex": "(^|/)local_governance/.*\\.scene\\.dry$" },
+      { "type": "status", "pathRegex": "(^|/)status[^/]*\\.scene\\.dry$" },
+      { "type": "map_or_dashboard", "pathRegex": "(^|/)(political_terrain|election_simulation|strategy).*\\.scene\\.dry$" },
+      { "type": "event", "pathRegex": "(^|/)events/.*\\.scene\\.dry$" }
+    ],
+    "semanticSystems": [
+      { "system": "election", "pathRegex": "election|presidential|campaign", "nameRegex": "election|presidential|campaign" },
+      { "system": "party", "pathRegex": "party_affairs|party_congress|ideology|circle", "nameRegex": "party|congress|ideology|circle" },
+      { "system": "local", "pathRegex": "local_|county|district|political_terrain", "nameRegex": "local|county|district" },
+      { "system": "collective", "pathRegex": "collective|coverage", "nameRegex": "collective|coverage" },
+      { "system": "narrative", "pathRegex": "founding|events|news", "nameRegex": "founding|news" }
+    ],
+    "variableFamilies": [
+      { "family": "time", "nameRegex": "^(year|month|turn)$" },
+      { "family": "party_state", "nameRegex": "^(sdp|dpp|kmt|tpp|tsu)_" },
+      { "family": "election", "nameRegex": "(election|president|candidate|votes|seats)" },
+      { "family": "local", "nameRegex": "^(local|county|district)_" },
+      { "family": "coverage", "nameRegex": "^(cov|apathy|mobilization|party_capture|identity|profile)_" },
+      { "family": "collective", "nameRegex": "^(collective|edge|tag)_" }
+    ],
+    "diagnosticGroups": [
+      { "group": "state_init", "variableNameRegex": "^[A-Za-z_][A-Za-z0-9_]*$", "expectedDefinitionPathRegex": "(^|/)root\\.scene\\.dry$" },
+      { "group": "save_migration", "variableNameRegex": "^[A-Za-z_][A-Za-z0-9_]*$", "expectedDefinitionPathRegex": "(^|/)post_event\\.scene\\.dry$" }
+    ]
+  }
+}

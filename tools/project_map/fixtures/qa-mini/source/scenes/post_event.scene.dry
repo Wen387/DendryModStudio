@@ -1,0 +1,11 @@
+title: Post Event
+tags: router
+on-arrival: {!
+// Save compatibility: post_event split (post_event_news)
+!}
+
+= Post Event
+
+This router fixture exists so Studio can test guarded migration inserts.
+
+- @root: Continue

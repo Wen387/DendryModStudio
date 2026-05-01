@@ -1,0 +1,14 @@
+title: 2016 Election Campaign
+tags: event
+on-arrival: {!
+Q.year = 2016;
+Q.month = 1;
+Q.strength = (Q.strength || 0) + 2;
+Q.dissent = Q.dissent || 0;
+!}
+
+= 2016 Election Campaign
+
+The party enters a small campaign fixture.
+
+- @election_algorithm: Count votes

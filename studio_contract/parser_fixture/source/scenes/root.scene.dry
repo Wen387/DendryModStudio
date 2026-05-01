@@ -1,0 +1,38 @@
+title: Contract Root
+new-page: true
+on-arrival: {!
+Q.year = 2014;
+Q.month = 1;
+Q.sdp_founded = 1;
+Q.profile_sdp_sovereignty = 0;
+Q.profile_sdp_left = 0;
+Q.local_county_result_year = 2014;
+Q.local_county_governance_demo = 0;
+Q.district_demo_seats_v3 = 0;
+Q.collective_1_stage = 1;
+Q.edge_1_2_exists = 0;
+Q.tag_labor = 0;
+Q.cov_R1_labor_d = 0.2;
+Q.apathy_R1_labor_state = 0;
+Q.mobilization_R1_labor = 0.1;
+Q.party_capture_R1_labor_sdp = 0.1;
+Q.circle_labor_trust = 1;
+Q.democratic_infra_branches = 0;
+Q.founding_committee = 1;
+Q.diplomatic_pressure = 0;
+Q.china_pressure = 0;
+Q.defense_readiness = 0;
+Q.crisis_alert = 0;
+Q.contract_demo_seen = 0;
+!}
+
+= Island's Sunrise Contract Fixture
+
+This fixture mentions Island's Sunrise, 社民黨, 太陽花, 台灣, local_county, district_, collective_, cov_R, and profile_sdp so Studio can detect the project-specific profile without loading the full game.
+
+- @contract_event: Open a contract event
+- @election_algorithm: Review district election fixture
+- @sdp_circle: Review Circle fixture
+- @local_governance_menu: Review local governance fixture
+- @collective_graph: Review collective fixture
+- @status: Review status fixture

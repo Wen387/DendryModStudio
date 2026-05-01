@@ -1,0 +1,12 @@
+title: Root Scene
+new-page: true
+on-arrival: {!
+Q.generic_score = 0;
+// ====== U. EVENT SEEN FLAGS ======
+!}
+
+= QA Mini
+
+A small fixture for player-like Studio QA.
+
+- @generic_intro: Begin

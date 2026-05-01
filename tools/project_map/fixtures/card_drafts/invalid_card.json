@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "0.1",
+  "kind": "card",
+  "id": "root",
+  "title": "",
+  "cardKind": "action_card",
+  "options": [
+    {
+      "id": "only_choice",
+      "label": "Only choice",
+      "effects": [
+        {"variable": "not_in_index_var", "op": "+=", "value": 1}
+      ]
+    }
+  ]
+}

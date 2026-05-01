@@ -1,0 +1,44 @@
+{
+  "schemaVersion": "0.1",
+  "kind": "card",
+  "id": "studio_sample_action_card",
+  "title": "Studio Sample Action",
+  "cardKind": "action_card",
+  "tags": ["party_affairs"],
+  "viewIf": "media_timer <= 0",
+  "frequency": 200,
+  "priority": 0,
+  "maxVisits": 1,
+  "heading": "Studio sample action",
+  "subtitle": "A small action card created by the Studio.",
+  "introParagraphs": [
+    "The party can spend a little capacity to test whether this authoring path produces a usable card."
+  ],
+  "options": [
+    {
+      "id": "spend_resources",
+      "label": "Spend resources on outreach",
+      "subtitle": "Use resources to increase media reach.",
+      "chooseIf": "resources >= 1",
+      "unavailableText": "資源不足。",
+      "effects": [
+        {"variable": "resources", "op": "-=", "value": 1},
+        {"variable": "media_reach", "op": "+=", "value": 2}
+      ],
+      "narrativeParagraphs": [
+        "A small media team packages the issue into posts, clips, and short explanations."
+      ]
+    },
+    {
+      "id": "save_capacity",
+      "label": "Save capacity",
+      "subtitle": "Do not spend resources this month.",
+      "effects": [
+        {"variable": "resources", "op": "+=", "value": 1}
+      ],
+      "narrativeParagraphs": [
+        "The organization keeps its limited capacity available for another fight."
+      ]
+    }
+  ]
+}

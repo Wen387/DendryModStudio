@@ -1,0 +1,16 @@
+{
+  "name": "dendry-mod-studio",
+  "version": "0.9.2",
+  "private": true,
+  "description": "Standalone public export of Dendry Mod Studio.",
+  "scripts": {
+    "check:public": "node tools/project_map/check_public_export.js",
+    "check:contract": "node tools/check_studio_contract.js --fixture-only",
+    "check:surface": "node tools/project_map/check_studio_surface.js",
+    "check:localization": "node tools/project_map/check_localization_surface.js"
+  },
+  "dependencies": {
+    "dendrynexus": "github:aucchen/dendrynexus",
+    "parliament-svg": "^3.0.0"
+  }
+}

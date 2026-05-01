@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "0.1",
+  "kind": "world_event",
+  "id": "four_choice_world_event",
+  "title": "Four Choice World Event",
+  "heading": "Four paths enter review",
+  "when": {
+    "year": 2024,
+    "monthStart": 4,
+    "monthEnd": 6,
+    "requires": "founding_complete = 1",
+    "priority": 0
+  },
+  "introParagraphs": [
+    "A larger authoring fixture keeps four choices visible without leaving export-only mode."
+  ],
+  "options": [
+    {
+      "id": "public_line",
+      "label": "Take a public line.",
+      "effects": [
+        { "variable": "media_reach", "op": "+=", "value": 1 }
+      ],
+      "narrativeParagraphs": ["The event becomes public-facing."]
+    },
+    {
+      "id": "organizing_line",
+      "label": "Prioritize organizing.",
+      "effects": [
+        { "variable": "resources", "op": "-=", "value": 1 }
+      ],
+      "narrativeParagraphs": ["The event becomes organizing work."]
+    },
+    {
+      "id": "coalition_line",
+      "label": "Call coalition partners.",
+      "effects": [
+        { "variable": "civil_society_trust", "op": "+=", "value": 1 }
+      ],
+      "narrativeParagraphs": ["The event becomes a coalition test."]
+    },
+    {
+      "id": "observe_line",
+      "label": "Observe first.",
+      "effects": [
+        { "variable": "resources", "op": "+=", "value": 1 }
+      ],
+      "narrativeParagraphs": ["The event stays under review."]
+    }
+  ]
+}

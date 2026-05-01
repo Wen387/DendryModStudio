@@ -1,0 +1,51 @@
+{
+  "schemaVersion": "0.1",
+  "kind": "world_event",
+  "id": "sample_world_event",
+  "title": "Sample World Event",
+  "heading": "A Sample Event",
+  "when": {
+    "year": 2024,
+    "monthStart": 1,
+    "monthEnd": 3,
+    "requires": "founding_complete = 1",
+    "priority": 0
+  },
+  "introParagraphs": [
+    "A small authoring fixture demonstrates the generated scene structure."
+  ],
+  "options": [
+    {
+      "id": "organize",
+      "label": "Organize a public response.",
+      "subtitle": "-1 resources, +2 media reach",
+      "chooseIf": "resources >= 1",
+      "unavailableText": "Resources are too low.",
+      "effects": [
+        { "variable": "resources", "op": "-=", "value": 1 },
+        { "variable": "media_reach", "op": "+=", "value": 2 }
+      ],
+      "narrativeParagraphs": [
+        "The organization puts a clear response into public circulation."
+      ],
+      "variants": [
+        {
+          "condition": "media_reach >= 5",
+          "text": "Existing media relationships make the response travel farther."
+        }
+      ]
+    },
+    {
+      "id": "observe",
+      "label": "Observe and conserve energy.",
+      "subtitle": "+1 resources, -1 media reach",
+      "effects": [
+        { "variable": "resources", "op": "+=", "value": 1 },
+        { "variable": "media_reach", "op": "-=", "value": 1 }
+      ],
+      "narrativeParagraphs": [
+        "The organization saves energy, but gives up the chance to define the issue."
+      ]
+    }
+  ]
+}

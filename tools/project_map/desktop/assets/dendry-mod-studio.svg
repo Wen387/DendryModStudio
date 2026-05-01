@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Dendry Mod Studio">
+  <rect width="128" height="128" rx="24" fill="#24353b"/>
+  <path d="M28 76c0-24 15-43 36-43s36 19 36 43" fill="none" stroke="#e8d8a5" stroke-width="9" stroke-linecap="round"/>
+  <path d="M64 32v64M42 50l22 18 22-18M36 78h56" fill="none" stroke="#e7f1ea" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="64" cy="96" r="8" fill="#c95f4b"/>
+</svg>

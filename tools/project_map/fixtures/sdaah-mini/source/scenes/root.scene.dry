@@ -1,0 +1,15 @@
+title: Root Scene
+new-page: true
+on-arrival: {!
+Q.year = 2016;
+Q.month = 1;
+Q.party = 'sdaah';
+Q.strength = 1;
+Q.dissent = 0;
+!}
+
+= Social Democracy Alternate History Mini
+
+A small SDAAH-style fixture about party organization and an election campaign.
+
+- @election_2016: Start campaign

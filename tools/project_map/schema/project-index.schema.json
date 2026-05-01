@@ -1,0 +1,350 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dendry-mod-studio.local/schemas/project-index.v0.1.schema.json",
+  "title": "ProjectIndex v0.1",
+  "type": "object",
+  "required": ["schemaVersion", "project", "profiles", "scenes", "edges", "variables", "semantic", "diagnostics", "summary"],
+  "properties": {
+    "schemaVersion": {
+      "const": "0.1"
+    },
+    "generatedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "project": {
+      "type": "object",
+      "required": ["name", "root"],
+      "properties": {
+        "name": { "type": "string" },
+        "root": { "type": "string" },
+        "engine": { "type": "string" },
+        "profileIds": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "sourceRoots": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "profiles": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/profileRef" }
+    },
+    "scenes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/scene" }
+    },
+    "edges": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/edge" }
+    },
+    "variables": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/variable" }
+    },
+    "semantic": {
+      "type": "object",
+      "properties": {
+        "systems": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/semanticBucket" }
+        },
+        "groups": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/semanticBucket" }
+        },
+        "labels": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/semanticLabel" }
+        },
+        "events": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sceneRef" }
+        },
+        "cards": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sceneRef" }
+        },
+        "hands": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sceneRef" }
+        },
+        "decks": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sceneRef" }
+        },
+        "pinnedCards": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sceneRef" }
+        },
+        "news": {
+          "type": "object",
+          "properties": {
+            "sources": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "items": {
+              "type": "array",
+              "items": { "type": "object", "additionalProperties": true }
+            },
+            "eventPopups": {
+              "type": "array",
+              "items": { "type": "object", "additionalProperties": true }
+            },
+            "confidence": { "type": "string" }
+          },
+          "additionalProperties": true
+        },
+        "surfaceText": {
+          "type": "object",
+          "properties": {
+            "sources": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "items": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/surfaceTextItem" }
+            },
+            "confidence": { "type": "string" }
+          },
+          "additionalProperties": true
+        },
+        "textCorpus": {
+          "type": "object",
+          "properties": {
+            "sources": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "items": {
+              "type": "array",
+              "items": { "type": "object", "additionalProperties": true }
+            },
+            "confidence": { "type": "string" },
+            "truncated": { "type": "boolean" }
+          },
+          "additionalProperties": true
+        },
+        "assets": {
+          "type": "object",
+          "properties": {
+            "items": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/assetItem" }
+            },
+            "confidence": { "type": "string" }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "diagnostics": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/diagnostic" }
+    },
+    "summary": {
+      "type": "object",
+      "properties": {
+        "sceneCount": { "type": "integer", "minimum": 0 },
+        "edgeCount": { "type": "integer", "minimum": 0 },
+        "variableCount": { "type": "integer", "minimum": 0 },
+        "diagnosticCount": { "type": "integer", "minimum": 0 },
+        "eventPopupCount": { "type": "integer", "minimum": 0 },
+        "textCorpusCount": { "type": "integer", "minimum": 0 },
+        "assetCount": { "type": "integer", "minimum": 0 },
+        "imageAssetCount": { "type": "integer", "minimum": 0 },
+        "audioAssetCount": { "type": "integer", "minimum": 0 },
+        "bySceneType": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        },
+        "byVariableScope": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "profileRef": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "additionalProperties": true
+    },
+    "scene": {
+      "type": "object",
+      "required": ["id", "path"],
+      "properties": {
+        "id": { "type": "string" },
+        "path": { "type": "string" },
+        "name": { "type": "string" },
+        "title": { "type": "string" },
+        "type": { "type": "string" },
+        "profileId": { "type": "string" },
+        "entry": { "type": "boolean" },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "edge": {
+      "type": "object",
+      "required": ["from", "to", "kind"],
+      "properties": {
+        "from": { "type": "string" },
+        "to": { "type": "string" },
+        "kind": { "type": "string" },
+        "label": { "type": "string" },
+        "condition": { "type": "string" },
+        "source": { "$ref": "#/$defs/sourceRef" }
+      },
+      "additionalProperties": true
+    },
+    "variable": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string" },
+        "scope": { "type": "string" },
+        "type": { "type": "string" },
+        "default": true,
+        "definedIn": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sourceRef" }
+        },
+        "reads": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sourceRef" }
+        },
+        "writes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sourceRef" }
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "semanticBucket": {
+      "type": "object",
+      "required": ["id", "label"],
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "type": "string" },
+        "description": { "type": "string" },
+        "members": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "semanticLabel": {
+      "type": "object",
+      "required": ["target", "label"],
+      "properties": {
+        "target": { "type": "string" },
+        "label": { "type": "string" },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "evidence": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "sceneRef": {
+      "type": "object",
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string" },
+        "confidence": { "type": "string" },
+        "source": { "$ref": "#/$defs/sourceRef" }
+      },
+      "additionalProperties": true
+    },
+    "surfaceTextItem": {
+      "type": "object",
+      "required": ["id", "label", "area", "source", "confidence", "editability"],
+      "properties": {
+        "id": { "type": "string" },
+        "label": { "type": "string" },
+        "area": { "type": "string" },
+        "variableName": { "type": "string" },
+        "source": { "$ref": "#/$defs/sourceRef" },
+        "confidence": { "type": "string" },
+        "editability": { "enum": ["draft_exportable", "ide_escape_hatch"] },
+        "reason": { "type": "string" },
+        "originalText": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "diagnostic": {
+      "type": "object",
+      "required": ["severity", "code", "message"],
+      "properties": {
+        "severity": {
+          "type": "string",
+          "enum": ["info", "warning", "error"]
+        },
+        "code": { "type": "string" },
+        "message": { "type": "string" },
+        "path": { "type": "string" },
+        "sceneId": { "type": "string" },
+        "source": { "$ref": "#/$defs/sourceRef" }
+      },
+      "additionalProperties": true
+    },
+    "sourceRef": {
+      "type": "object",
+      "properties": {
+        "path": { "type": "string" },
+        "line": { "type": "integer", "minimum": 1 },
+        "column": { "type": "integer", "minimum": 1 },
+        "excerpt": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "assetItem": {
+      "type": "object",
+      "required": ["id", "name", "type", "path"],
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "enum": ["image", "audio"] },
+        "path": { "type": "string" },
+        "extension": { "type": "string" },
+        "sourceKind": { "type": "string" },
+        "editability": { "type": "string" },
+        "sizeBytes": { "type": "integer", "minimum": 0 },
+        "source": { "$ref": "#/$defs/sourceRef" },
+        "confidence": { "type": "string" }
+      },
+      "additionalProperties": true
+    }
+  }
+}

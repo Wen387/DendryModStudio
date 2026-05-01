@@ -1,0 +1,1595 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dendry Mod Studio Project Map</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-studio-surface="direction-b">
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark branch-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" focusable="false">
+            <path d="M12 21V5"></path>
+            <path d="M12 10c0-2 2-3 5-3"></path>
+            <path d="M12 15c0-2-2-3-5-3"></path>
+            <circle cx="12" cy="4" r="2"></circle>
+            <circle cx="17" cy="7" r="2"></circle>
+            <circle cx="7" cy="12" r="2"></circle>
+          </svg>
+        </div>
+        <div class="brand-copy">
+          <div class="wordmark">Dendry <span>Mod Studio</span></div>
+          <div class="brand-meta">
+            <span data-i18n="topbar.version">Dendry Mod Studio v0.9.2 dev preview</span>
+            <a href="https://github.com/Wen387" target="_blank" rel="noreferrer" data-i18n="topbar.author">by Wenmo</a>
+          </div>
+          <div id="brand-subtitle" class="brand-subtitle" data-i18n="topbar.subtitle.default">Studio workspace for branching Dendry projects</div>
+        </div>
+      </div>
+      <div class="mode-switch" role="tablist" aria-label="Mode" data-i18n-aria-label="aria.modeSwitch">
+        <button id="mode-explore" class="mode-button is-active" type="button" role="tab" aria-selected="true" data-mode="explore" data-i18n="mode.explore">Explore</button>
+        <button id="mode-design" class="mode-button" type="button" role="tab" aria-selected="false" data-mode="design" data-i18n="mode.design">Design</button>
+        <button id="mode-create" class="mode-button" type="button" role="tab" aria-selected="false" data-mode="create" data-i18n="mode.create">Create</button>
+        <button id="mode-install" class="mode-button" type="button" role="tab" aria-selected="false" data-mode="install" data-i18n="mode.install">Install</button>
+      </div>
+      <div class="topbar-actions">
+        <label class="locale-switch topbar-locale-switch">
+          <span data-i18n="topbar.language">Language</span>
+          <select id="locale-select" aria-label="Language" data-i18n-aria-label="aria.language">
+            <option value="zh-Hant">繁中</option>
+            <option value="en">English</option>
+          </select>
+        </label>
+        <div id="desktop-controls" class="desktop-controls hidden">
+          <button id="desktop-open-project" class="desktop-open-button" type="button" data-i18n="topbar.openProject">Open Project Folder</button>
+          <div id="desktop-status" class="desktop-status" data-i18n="topbar.noProject">No project opened.</div>
+        </div>
+        <details id="topbar-more" class="topbar-more">
+          <summary><span data-i18n="topbar.more">More</span></summary>
+          <div class="topbar-more-menu">
+            <button id="studio-open-onboarding" class="desktop-secondary-button" type="button" data-i18n="topbar.quickStart">Quick Start</button>
+            <button id="studio-open-tutorial-library" class="desktop-secondary-button" type="button" data-i18n="topbar.tutorialLibrary">Tutorial Library</button>
+            <button id="studio-check-updates" class="desktop-secondary-button desktop-only-control hidden" type="button" data-i18n="topbar.checkUpdates">Check for Updates</button>
+            <button id="desktop-run-doctor" class="desktop-secondary-button desktop-only-control hidden" type="button" data-i18n="topbar.checkSetup">Check Setup</button>
+            <label class="desktop-excerpt-toggle desktop-only-control hidden">
+              <input id="desktop-include-excerpts" type="checkbox">
+              <span data-i18n="topbar.includeExcerpts">Include source excerpts</span>
+            </label>
+            <label id="index-drop-target" class="file-picker drop-target">
+              <span class="file-picker-label" data-i18n="topbar.projectIndexJson">Project index JSON</span>
+              <input id="index-file" type="file" accept="application/json,.json">
+            </label>
+          </div>
+        </details>
+      </div>
+    </header>
+
+    <section id="update-notice-banner" class="update-notice-banner hidden" aria-live="polite">
+      <div class="update-notice-copy">
+        <div id="update-notice-kicker" class="update-notice-kicker" data-i18n="updateNotice.kicker">Update notice</div>
+        <h2 id="update-notice-title" data-i18n="updateNotice.titleFallback">Dendry Mod Studio notice</h2>
+        <p id="update-notice-body"></p>
+      </div>
+      <div class="update-notice-actions">
+        <button id="update-notice-download" class="primary-action" type="button" data-i18n="updateNotice.download">Download update</button>
+        <button id="update-notice-release-notes" type="button" data-i18n="updateNotice.releaseNotes">Release notes</button>
+        <button id="update-notice-later" type="button" data-i18n="updateNotice.later">Later</button>
+        <button id="update-notice-dismiss" type="button" data-i18n="updateNotice.dismiss">Dismiss</button>
+      </div>
+    </section>
+
+    <div id="desktop-progress" class="desktop-progress desktop-progress-overlay hidden" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-live="polite">
+      <div class="desktop-progress-card">
+        <div class="desktop-progress-title" data-i18n="topbar.readingProject">Reading project</div>
+        <div class="desktop-progress-track" aria-hidden="true">
+          <div id="desktop-progress-bar" class="desktop-progress-bar"></div>
+        </div>
+        <div id="desktop-progress-label" class="desktop-progress-label" data-i18n="topbar.idle">Idle</div>
+      </div>
+    </div>
+
+    <div id="studio-onboarding" class="onboarding-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
+      <section class="onboarding-dialog">
+        <button class="onboarding-close" type="button" data-onboarding-close="true" aria-label="Close" data-i18n-aria-label="onboarding.dismiss">×</button>
+        <div class="onboarding-copy">
+          <p class="onboarding-eyebrow" data-i18n="topbar.quickStart">Quick Start</p>
+          <h1 id="onboarding-title" data-i18n="onboarding.title">Make your first safe mod proposal</h1>
+          <p data-i18n="onboarding.subtitle">Studio helps you find player-facing content, draft changes, save them as My Changes, and review what can be applied safely.</p>
+        </div>
+        <div class="onboarding-steps" aria-label="Quick Start steps" data-i18n-aria-label="onboarding.stepsLabel">
+          <article>
+            <span>1</span>
+            <h2 data-i18n="onboarding.step.open.title">Open or load a project</h2>
+            <p data-i18n="onboarding.step.open.body">Desktop users open a Dendry project folder. Browser users load a ProjectIndex JSON.</p>
+          </article>
+          <article>
+            <span>2</span>
+            <h2 data-i18n="onboarding.step.find.title">Find what to change</h2>
+            <p data-i18n="onboarding.step.find.body">Use Design for player flow, or Explore for searchable lists and source evidence.</p>
+          </article>
+          <article>
+            <span>3</span>
+            <h2 data-i18n="onboarding.step.create.title">Create a proposal</h2>
+            <p data-i18n="onboarding.step.create.body">Seed an existing Event, Card, News, or Text proposal, or start from a blank Create template.</p>
+          </article>
+          <article>
+            <span>4</span>
+            <h2 data-i18n="onboarding.step.save.title">Save to My Changes</h2>
+            <p data-i18n="onboarding.step.save.body">Saved proposals are drafts. They do not edit source until reviewed and applied.</p>
+          </article>
+          <article>
+            <span>5</span>
+            <h2 data-i18n="onboarding.step.review.title">Review & Apply</h2>
+            <p data-i18n="onboarding.step.review.body">Browser mode reviews plans. Desktop mode can dry-run and apply safe or guarded operations.</p>
+          </article>
+        </div>
+        <div class="onboarding-actions">
+          <button id="onboarding-primary" class="primary-action" type="button" data-onboarding-primary="true" data-i18n="onboarding.primary.browser">Load ProjectIndex JSON</button>
+          <button id="onboarding-load-demo" class="demo-action desktop-only-control hidden" type="button" data-i18n="onboarding.loadDemo">Load Demo Template</button>
+          <button id="onboarding-open-tutorial-library" type="button" data-i18n="onboarding.openTutorialLibrary">Open Tutorial Library</button>
+          <button type="button" data-onboarding-close="true" data-i18n="onboarding.secondary">Start in Studio</button>
+        </div>
+        <p class="onboarding-demo-note desktop-only-control hidden" data-i18n="onboarding.demoNote">The demo opens as a writable copy in your app data, so you can experiment without touching a real project.</p>
+        <p class="onboarding-note" data-i18n="onboarding.reopenLabel">You can reopen Quick Start from More.</p>
+      </section>
+    </div>
+
+    <div id="studio-tutorial-library" class="tutorial-library-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="tutorial-library-title">
+      <section class="tutorial-library-dialog">
+        <button class="tutorial-library-close" type="button" data-tutorial-close="true" aria-label="Close" data-i18n-aria-label="tutorial.close">×</button>
+        <header class="tutorial-library-header">
+          <p class="onboarding-eyebrow" data-i18n="topbar.tutorialLibrary">Tutorial Library</p>
+          <h1 id="tutorial-library-title" data-i18n="tutorial.title">Tutorial Library</h1>
+          <p data-i18n="tutorial.subtitle">Short explanations for Studio concepts, SDAAH-style projects, install limits, and where to look when something breaks.</p>
+        </header>
+        <div class="tutorial-library-layout">
+          <nav id="tutorial-library-nav" class="tutorial-library-nav" aria-label="Tutorial topics" data-i18n-aria-label="tutorial.navLabel"></nav>
+          <article id="tutorial-library-article" class="tutorial-library-article"></article>
+        </div>
+      </section>
+    </div>
+
+    <main id="explore-pane" class="workspace mode-pane">
+      <nav class="sidebar" aria-label="Project map views" data-i18n-aria-label="aria.projectMapViews">
+        <div class="nav-group">
+          <div class="nav-group-title" data-i18n="nav.project">Project</div>
+          <button class="nav-item is-active" type="button" data-view="overview"><span data-i18n="nav.overview">Overview</span></button>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-title" data-i18n="nav.storyContent">Story content</div>
+          <button class="nav-item" type="button" data-view="scenes"><span data-i18n="nav.scenes">Scenes</span></button>
+          <button class="nav-item" type="button" data-view="events"><span data-i18n="nav.events">Events</span></button>
+          <button class="nav-item" type="button" data-view="cards"><span data-i18n="nav.cards">Cards</span></button>
+          <button class="nav-item" type="button" data-view="news"><span data-i18n="nav.news">News</span></button>
+          <button class="nav-item" type="button" data-view="textCorpus"><span data-i18n="nav.textCorpus">Text</span></button>
+          <button class="nav-item" type="button" data-view="assets"><span data-i18n="nav.assets">Assets</span></button>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-title" data-i18n="nav.mechanics">Mechanics</div>
+          <button class="nav-item" type="button" data-view="variables"><span data-i18n="nav.variables">Variables</span></button>
+          <button class="nav-item" type="button" data-view="surfaceText"><span data-i18n="nav.surfaceText">Surface Text</span></button>
+        </div>
+        <div class="nav-group">
+          <div class="nav-group-title" data-i18n="nav.quality">Quality</div>
+          <button class="nav-item" type="button" data-view="coverage"><span data-i18n="nav.coverage">Coverage Map</span></button>
+          <button class="nav-item" type="button" data-view="diagnostics"><span data-i18n="nav.diagnostics">Diagnostics</span></button>
+        </div>
+        <div class="sidebar-confidence" aria-label="Confidence legend" data-i18n-aria-label="aria.confidenceLegend">
+          <div class="sidebar-confidence-title" data-i18n="nav.confidence">Confidence</div>
+          <div><b class="dot exact"></b><span data-i18n="confidence.matched">matched</span></div>
+          <div><b class="dot static_inferred"></b><span data-i18n="confidence.inferred">inferred</span></div>
+          <div><b class="dot profile_heuristic"></b><span data-i18n="confidence.guessed">guessed</span></div>
+          <div><b class="dot opaque"></b><span data-i18n="confidence.unknown">unknown</span></div>
+          <small data-i18n="confidence.help">Matched comes from parser evidence; inferred/guessed are progressively less certain.</small>
+        </div>
+      </nav>
+
+      <section class="main-panel" aria-live="polite">
+        <div id="status" class="status-line">
+          <span data-i18n="explore.status.initial">Generate an index, then choose</span> <code>/tmp/dendry_project_map/project-index.json</code>.
+        </div>
+
+        <section id="overview" class="overview"></section>
+
+        <section class="browser-panel">
+          <div class="toolbar">
+            <label class="search-box">
+              <span data-i18n="explore.search">Search</span>
+              <input id="search" type="search" placeholder="Filter current view" data-i18n-placeholder="explore.searchPlaceholder">
+            </label>
+            <label class="sort-box">
+              <span data-i18n="explore.sort">Sort</span>
+              <select id="sort-field"></select>
+            </label>
+            <button id="sort-dir" class="icon-button" type="button" title="Toggle sort direction" aria-label="Toggle sort direction" data-i18n-title="explore.sortDirection" data-i18n-aria-label="explore.sortDirection">A-Z</button>
+          </div>
+          <div id="list" class="list" tabindex="0"></div>
+        </section>
+      </section>
+
+      <div id="explore-inspector-resizer" class="explore-inspector-resizer" role="separator" aria-orientation="vertical" aria-label="Resize Explore inspector" data-i18n-aria-label="explore.resizeInspector"></div>
+      <aside class="inspector" aria-label="Inspector" data-i18n-aria-label="aria.inspector">
+        <div id="inspector" class="inspector-inner">
+          <div class="empty-state" data-i18n="explore.inspectorEmpty">Select an item to inspect source spans, confidence, edges, and variable usage.</div>
+        </div>
+      </aside>
+    </main>
+
+    <main id="design-pane" class="design-workspace mode-pane hidden" aria-live="polite">
+      <section class="design-atelier" aria-label="Direction C graph design workspace" data-i18n-aria-label="aria.designWorkspace">
+        <div class="design-atelier-topbar">
+          <div class="atelier-wordmark" aria-label="Dendry Mod Studio">
+            <span>Dendry</span>
+            <strong>Mod Studio</strong>
+          </div>
+          <div class="atelier-project-meta">
+            <span data-i18n="design.project">project</span>
+            <strong id="design-project-name">ProjectIndex</strong>
+            <code>schema 0.1</code>
+          </div>
+          <label class="design-search-shell" aria-label="Search Design graph" data-i18n-aria-label="design.searchAria">
+            <span>⌕</span>
+            <input id="design-search" type="search" placeholder="find scene, event, variable..." data-i18n-placeholder="design.searchPlaceholder">
+            <kbd>⌘K</kbd>
+          </label>
+          <div id="design-status" class="design-status" data-i18n="design.status.initial">Load a ProjectIndex to build the graph design view.</div>
+        </div>
+
+        <div class="design-toolbar">
+          <div class="design-view-tabs" aria-label="Design view" data-i18n-aria-label="design.viewTabs">
+            <button class="is-active" type="button" data-design-view="graph" data-i18n="design.view.graph">Graph</button>
+            <button type="button" data-design-view="list" data-i18n="design.view.list">List</button>
+            <button type="button" data-design-view="timeline" data-i18n="design.view.timeline">Timeline</button>
+          </div>
+
+          <button id="design-help-toggle" class="design-toolbar-button" type="button" data-i18n="design.help">Help</button>
+          <button id="design-show-all" class="design-toolbar-button" type="button" data-i18n="design.backToAll">Back to all</button>
+          <button id="design-reset-layout" class="design-toolbar-button" type="button" data-i18n="design.resetLayout">Reset layout</button>
+
+          <div class="design-field design-field-inline design-scope-field">
+            <span data-i18n="design.scope">Scope</span>
+            <div id="design-scope-filter" class="design-scope-toggle" role="group" aria-label="Design scope" data-i18n-aria-label="design.scopeAria">
+              <button class="is-active" type="button" data-design-scope="all" aria-pressed="true" data-i18n="design.scope.all">All content</button>
+              <button type="button" data-design-scope="focus" aria-pressed="false" data-i18n="design.scope.focus">Focused selection</button>
+            </div>
+          </div>
+
+          <label class="design-field design-field-inline">
+            <span data-i18n="design.lane">Lane</span>
+            <select id="design-lane-filter">
+              <option value="all" data-i18n="design.lane.all">All lanes</option>
+            </select>
+          </label>
+
+          <label class="design-field design-field-inline">
+            <span data-i18n="design.type">Type</span>
+            <select id="design-kind-filter">
+              <option value="all" data-i18n="design.type.all">All types</option>
+              <option value="event" data-i18n="design.type.events">Events</option>
+              <option value="card" data-i18n="design.type.cards">Cards</option>
+              <option value="advisor_like" data-i18n="design.type.advisorLike">Advisor-like</option>
+              <option value="news" data-i18n="design.type.news">News</option>
+              <option value="monthly_popup" data-i18n="design.type.monthlyPopup">Monthly Popup</option>
+              <option value="surface_text" data-i18n="design.type.surfaceText">Surface Text</option>
+            </select>
+          </label>
+
+          <label class="design-field design-field-inline">
+            <span data-i18n="design.authoring">Authoring</span>
+            <select id="design-authoring-filter">
+              <option value="all" data-i18n="design.authoring.all">All authoring states</option>
+              <option value="editable" data-i18n="design.authoring.editable">Edit as Draft</option>
+              <option value="manual" data-i18n="design.authoring.manual">Manual review</option>
+              <option value="escape_hatch" data-i18n="design.authoring.escape">IDE escape hatch</option>
+            </select>
+          </label>
+
+          <label class="design-field design-field-inline">
+            <span data-i18n="design.severity">Severity</span>
+            <select id="design-severity-filter">
+              <option value="all" data-i18n="design.severity.all">All severities</option>
+              <option value="error" data-i18n="design.severity.error">Errors</option>
+              <option value="warning" data-i18n="design.severity.warning">Warnings</option>
+              <option value="info" data-i18n="design.severity.info">Info</option>
+              <option value="none" data-i18n="design.severity.none">No diagnostics</option>
+            </select>
+          </label>
+
+          <label class="design-field design-field-inline">
+            <span data-i18n="design.compare">Compare</span>
+            <select id="design-compare-filter">
+              <option value="all" data-i18n="design.compare.all">All compare states</option>
+              <option value="no_baseline" data-i18n="design.compare.noBaseline">No baseline</option>
+              <option value="same" data-i18n="design.compare.same">Same</option>
+              <option value="changed" data-i18n="design.compare.changed">Changed</option>
+              <option value="added" data-i18n="design.compare.added">Added</option>
+              <option value="missing_from_current" data-i18n="design.compare.missing">Missing from current</option>
+              <option value="unknown" data-i18n="design.compare.unknown">Unknown</option>
+            </select>
+          </label>
+
+          <label class="design-baseline-picker">
+            <span data-i18n="design.baseline">Baseline ProjectIndex</span>
+            <input id="design-baseline-file" type="file" accept="application/json,.json">
+          </label>
+          <div id="design-baseline-status" class="design-baseline-status" data-i18n="design.noBaseline">No baseline loaded.</div>
+        </div>
+
+        <div class="design-graph-layout">
+          <section class="design-graph-panel" aria-label="Design graph" data-i18n-aria-label="design.graphAria">
+            <div id="design-starter" class="design-starter"></div>
+            <div id="design-breadcrumb" class="design-breadcrumb"></div>
+            <div id="design-summary" class="design-summary-grid"></div>
+            <div id="design-graph-canvas" class="design-graph-canvas" tabindex="0">
+              <svg id="design-graph-edges" class="design-graph-edges" aria-hidden="true"></svg>
+              <div id="design-flow-board" class="design-flow-board"></div>
+              <div class="design-confidence-legend" aria-label="Confidence legend" data-i18n-aria-label="aria.confidenceLegend">
+                <span data-i18n="design.confidence">Confidence</span>
+                <b class="dot exact"></b> <span data-i18n="confidence.matched">matched</span>
+                <b class="dot static_inferred"></b> <span data-i18n="confidence.inferred">inferred</span>
+                <b class="dot profile_heuristic"></b> <span data-i18n="confidence.guessed">guessed</span>
+                <b class="dot opaque"></b> <span data-i18n="confidence.unknown">unknown</span>
+              </div>
+              <div class="design-zoom-controls" aria-label="Canvas zoom" data-i18n-aria-label="design.zoomControls">
+                <button type="button" data-design-zoom="out" aria-label="Zoom out" data-i18n-aria-label="design.zoomOut">−</button>
+                <span id="design-zoom-label">100%</span>
+                <button type="button" data-design-zoom="in" aria-label="Zoom in" data-i18n-aria-label="design.zoomIn">+</button>
+                <button type="button" data-design-zoom="fit" data-i18n="design.zoomFit">Fit</button>
+              </div>
+            </div>
+            <div id="design-status-bar" class="design-status-bar">
+              <span id="design-status-count">No ProjectIndex loaded</span>
+              <span id="design-status-diagnostics">0 errors · 0 warnings · 0 info</span>
+              <span id="design-status-schema">schema 0.1</span>
+            </div>
+          </section>
+
+          <div id="design-inspector-resizer" class="design-inspector-resizer" role="separator" aria-orientation="vertical" aria-label="Resize Design inspector" data-i18n-aria-label="design.resizeInspector"></div>
+          <aside class="design-inspector" aria-label="Design inspector" data-i18n-aria-label="design.inspectorAria">
+            <div id="design-inspector" class="design-inspector-inner">
+              <div class="empty-state" data-i18n="design.selectNode">Select a graph node to inspect authoring status, compare state, source, edges, and variables.</div>
+            </div>
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <main id="install-pane" class="install-workspace mode-pane hidden" aria-live="polite">
+      <section class="install-assistant-panel">
+        <div class="wizard-title-row">
+          <div>
+            <div class="template-eyebrow" data-i18n="install.assistant">Install Assistant</div>
+            <h1 class="wizard-title" data-i18n="install.reviewPlan">Review & Apply</h1>
+          </div>
+          <div class="wizard-status-stack">
+            <label class="draft-file-picker">
+              <span data-i18n="install.loadPlan">Load change plan</span>
+              <input id="install-plan-file" type="file" accept="application/json,.json">
+            </label>
+            <div id="install-status" class="wizard-index-status" data-i18n="install.noPlan">No install plan loaded.</div>
+            <div id="install-project-status" class="wizard-index-status" data-i18n="install.projectMissing">Open or load a project index first.</div>
+          </div>
+        </div>
+
+        <div id="install-summary" class="install-summary-grid"></div>
+        <div id="install-readiness" class="install-readiness"></div>
+
+        <section class="preview-drawer" aria-label="Install operation review" data-i18n-aria-label="install.operationReviewAria">
+          <div class="preview-heading output-heading" data-i18n="install.operationChecklist">Change summary</div>
+          <div id="install-checklist" class="install-human-checklist"></div>
+        </section>
+
+        <section class="preview-drawer" aria-label="Install patch preview" data-i18n-aria-label="install.patchPreviewAria">
+          <div class="preview-heading output-heading" data-i18n="install.patchPreview">Patch preview</div>
+          <pre id="install-patch-preview" class="code-preview"></pre>
+        </section>
+
+        <div class="wizard-actions">
+          <button id="install-dry-run" class="primary-action" type="button" data-i18n="install.dryRunInstallable">Dry run installable operations</button>
+          <button id="install-apply" type="button" data-i18n="install.applyReviewed">Apply safe + guarded</button>
+          <button id="install-runtime-preview" type="button" data-i18n="install.runtimePreview">Runtime Preview</button>
+          <label class="install-advanced-toggle">
+            <input id="install-allow-advanced" type="checkbox">
+            <span data-i18n="install.includeAdvanced">Include advanced risky operations</span>
+          </label>
+        </div>
+
+        <section class="preview-drawer" aria-label="Runtime preview" data-i18n-aria-label="install.runtimePreviewAria">
+          <div class="preview-heading output-heading" data-i18n="install.runtimePreviewResult">Runtime preview</div>
+          <div id="install-runtime-preview-result" class="runtime-preview-report" aria-live="polite"></div>
+        </section>
+
+        <section class="preview-drawer" aria-label="Install result" data-i18n-aria-label="install.resultAria">
+          <div class="preview-heading output-heading" data-i18n="install.result">Result</div>
+          <pre id="install-result" class="code-preview"></pre>
+        </section>
+      </section>
+    </main>
+
+    <main id="create-pane" class="create-workspace mode-pane hidden" aria-live="polite">
+      <section class="create-template-header" aria-label="Create template" data-i18n-aria-label="create.templateAria">
+        <div>
+          <div class="template-eyebrow" data-i18n="create.heading">Create</div>
+          <h1 class="wizard-title" data-i18n="create.heading">Authoring Studio</h1>
+        </div>
+        <div class="template-switch" role="tablist" aria-label="Create template" data-i18n-aria-label="create.templateAria">
+          <button class="template-button is-active" type="button" role="tab" aria-selected="true" data-create-template="event" data-i18n="create.worldEvent">World Event</button>
+          <button class="template-button" type="button" role="tab" aria-selected="false" data-create-template="news" data-i18n="create.news">News</button>
+          <button class="template-button" type="button" role="tab" aria-selected="false" data-create-template="card" data-i18n="create.card">Card</button>
+          <button class="template-button" type="button" role="tab" aria-selected="false" data-create-template="surface" data-i18n="create.editText">Edit Text</button>
+        </div>
+      </section>
+
+      <section class="draft-workspace-panel" aria-label="My Changes saved change proposals" data-i18n-aria-label="draftWorkspace.panelAria">
+        <div class="draft-workspace-copy">
+          <div class="template-eyebrow" data-i18n="draftWorkspace.eyebrow">My Changes</div>
+          <h2 data-i18n="draftWorkspace.title">My Changes</h2>
+          <p data-i18n="draftWorkspace.body">Save Event / News / Card / Text change proposals here, reopen them later, or send them to Review & Apply. Saved proposals are not applied to source files automatically.</p>
+        </div>
+        <div class="draft-workspace-actions">
+          <button id="draft-workspace-save" class="primary-action" type="button" data-i18n="draftWorkspace.saveCurrent">Save current change</button>
+          <button id="draft-workspace-export" type="button" data-i18n="draftWorkspace.exportAll">Export change list</button>
+        </div>
+        <div id="draft-workspace-status" class="wizard-index-status" data-i18n="draftWorkspace.empty">No saved change proposals yet.</div>
+        <div id="draft-workspace-list" class="draft-workspace-list"></div>
+      </section>
+
+      <section id="existing-scene-editor-host" class="existing-scene-editor-host hidden" aria-label="Existing Scene Editor" data-i18n-aria-label="existingScene.editorAria" hidden></section>
+
+      <section class="wizard-form-panel" aria-labelledby="wizard-heading-label" data-create-template-panel="event">
+        <div class="wizard-title-row">
+          <div>
+            <h1 id="wizard-heading-label" class="wizard-title" data-i18n="create.eventWizard">World Event Wizard</h1>
+            <div id="wizard-core-status" class="wizard-status" data-i18n="create.status.eventCorePending">EventDraft core pending.</div>
+          </div>
+          <div class="wizard-status-stack">
+            <label class="draft-file-picker">
+              <span data-i18n="create.loadDraftJson">Load draft JSON</span>
+              <input id="wizard-draft-file" type="file" accept="application/json,.json">
+            </label>
+            <div id="wizard-draft-status" class="wizard-index-status" data-i18n="create.status.noDraftLoaded">No draft loaded.</div>
+            <div id="wizard-index-status" class="wizard-index-status" data-i18n="create.status.noIndexLoaded">No index loaded.</div>
+          </div>
+        </div>
+
+        <form id="event-wizard-form" class="wizard-form">
+          <div class="wizard-guidance" data-i18n="create.guidance.event">
+            Build a player-facing event proposal: when it appears, what players read, what choices they get, and what changes after those choices.
+          </div>
+          <fieldset class="wizard-section">
+            <legend data-i18n="create.section.event">Event</legend>
+            <div class="field-grid">
+              <label>
+                <span data-i18n="create.field.id">id</span>
+                <input id="wizard-id" name="id" type="text" value="new_world_event" autocomplete="off">
+                <small class="wizard-field-help" data-i18n="create.help.id">Internal file-safe name; players do not see it, but install plans use it.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.title">title</span>
+                <input id="wizard-title" name="title" type="text" value="New world event" data-i18n-value="create.sample.eventTitle">
+                <small class="wizard-field-help" data-i18n="create.help.title">Short editor label for finding this proposal later.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.heading">heading</span>
+                <input id="wizard-heading" name="heading" type="text" value="A new pressure enters the room" data-i18n-value="create.sample.eventHeading">
+                <small class="wizard-field-help" data-i18n="create.help.heading">Main title shown in the player preview.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.year">year</span>
+                <input id="wizard-year" name="year" type="number" min="2014" max="2035" value="2021">
+                <small class="wizard-field-help" data-i18n="create.help.eventYear">Year when this event can first appear.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.monthStart">monthStart</span>
+                <input id="wizard-month-start" name="monthStart" type="number" min="1" max="12" value="5">
+                <small class="wizard-field-help" data-i18n="create.help.monthStart">First month in the event window.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.monthEnd">monthEnd</span>
+                <input id="wizard-month-end" name="monthEnd" type="number" min="1" max="12" value="7">
+                <small class="wizard-field-help" data-i18n="create.help.monthEnd">Last month in the event window.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.requires">requires</span>
+                <input id="wizard-requires" name="requires" type="text" value="founding_complete = 1">
+                <small class="wizard-field-help" data-i18n="create.help.eventRequires">Extra condition required before the event is eligible.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.priority">priority</span>
+                <input id="wizard-priority" name="priority" type="number" step="1" value="0">
+                <small class="wizard-field-help" data-i18n="create.help.priority">Tie-breaker when several eligible events compete.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.choices">choices</span>
+                <select id="wizard-option-count" name="optionCount">
+                  <option value="2" selected data-i18n="create.optionCount.2">2 choices</option>
+                  <option value="3" data-i18n="create.optionCount.3">3 choices</option>
+                  <option value="4" data-i18n="create.optionCount.4">4 choices</option>
+                </select>
+                <small class="wizard-field-help" data-i18n="create.help.choices">How many buttons the player can choose from.</small>
+              </label>
+            </div>
+            <label class="wide-field">
+              <span data-i18n="create.field.intro">intro</span>
+              <textarea id="wizard-intro" name="intro" rows="5" data-i18n-value="create.sample.eventIntro">A public event creates a short window where institutions, movements, and party strategy all pull on the same question.</textarea>
+              <small class="wizard-field-help" data-i18n="create.help.intro">Opening prose players read before choosing.</small>
+            </label>
+            <section id="wizard-variable-assistant" class="variable-assistant" aria-label="Variable candidates" data-i18n-aria-label="variableAssistant.aria">
+              <div class="variable-assistant-head">
+                <div>
+                  <strong data-i18n="variableAssistant.title">Variable candidates</strong>
+                  <p data-i18n="variableAssistant.eventHelp">Search the ProjectIndex for existing variables. Insert a condition into the focused condition field, or use the variable in the effect helper.</p>
+                </div>
+                <label>
+                  <span data-i18n="variableAssistant.search">Search variables</span>
+                  <input id="wizard-variable-search" type="search" placeholder="resource, event flag, unrest..." data-i18n-placeholder="variableAssistant.placeholder">
+                </label>
+              </div>
+              <div id="wizard-variable-candidates" class="variable-candidate-list"></div>
+            </section>
+            <div id="wizard-draft-asset-panel" class="draft-asset-panel-host"></div>
+            <div class="asset-install-picker">
+              <label>
+                <span data-i18n="assets.installPicker">Asset file to install</span>
+                <input id="wizard-asset-file" name="assetFile" type="file" accept="image/*,audio/*" multiple>
+                <small class="wizard-field-help" data-i18n="create.help.assetInstallPicker">Select local image/audio files to create install proposals and matching assetRefs.</small>
+              </label>
+            </div>
+            <div id="wizard-asset-picker" class="asset-picker-host"></div>
+            <div id="wizard-asset-manifest" class="asset-manifest-host"></div>
+            <details class="asset-advanced-panel">
+              <summary data-i18n="assets.advancedRawData">Advanced asset data</summary>
+              <label class="wide-field asset-ref-editor">
+                <span data-i18n="create.field.assetRefs">assetRefs</span>
+                <textarea id="wizard-asset-refs" name="assetRefs" rows="3" placeholder="assets/portraits/example.png | image | Event portrait" data-i18n-placeholder="create.sample.eventAssetRefs"></textarea>
+                <small class="wizard-field-help" data-i18n="create.help.assetRefs">Optional image/audio references for authoring preview. Studio does not copy or install asset files.</small>
+              </label>
+              <label class="wide-field asset-ref-editor">
+                <span data-i18n="assets.installRequests">Asset install proposals</span>
+                <textarea id="wizard-asset-install-requests" name="assetInstallRequests" rows="3" placeholder="Portrait Hero.PNG | assets/studio/events/new_world_event/portrait-hero.png | image | Portrait Hero | event_illustration" data-i18n-placeholder="create.sample.eventAssetInstallRequest"></textarea>
+                <small class="wizard-field-help" data-i18n="create.help.assetInstallRequests">Review selected local files and their project-relative targets. This slice still does not copy files automatically.</small>
+              </label>
+            </details>
+            <details id="wizard-event-advanced" class="advanced-panel">
+              <summary data-i18n="create.advanced">Advanced</summary>
+              <div class="field-grid">
+                <label>
+                  <span data-i18n="create.field.seenFlag">seenFlag</span>
+                  <input id="wizard-seen-flag" name="seenFlag" type="text" value="">
+                  <small class="wizard-field-help" data-i18n="create.help.seenFlag">Variable used to avoid showing the same event repeatedly.</small>
+                </label>
+              </div>
+              <label class="wide-field">
+                <span data-i18n="create.field.effectsOnTrigger">effectsOnTrigger</span>
+                <textarea id="wizard-trigger-effects" name="effectsOnTrigger" rows="3"></textarea>
+                <small class="wizard-field-help" data-i18n="create.help.effectsOnTrigger">Variable changes applied as soon as the event opens.</small>
+              </label>
+            </details>
+          </fieldset>
+
+          <fieldset class="wizard-section">
+            <legend data-i18n="create.section.options">Options</legend>
+            <p class="wizard-section-help" data-i18n="create.help.eventOptions">Options are the player buttons. Their effects change variables; their body text explains the result.</p>
+            <div class="effect-helper">
+              <label>
+                <span data-i18n="create.field.target">target</span>
+                <select id="wizard-effect-target">
+                  <option value="trigger" data-i18n="create.effect.target.trigger">Trigger</option>
+                  <option value="option:0" data-i18n="create.option.a">Option A</option>
+                  <option value="option:1" data-i18n="create.option.b">Option B</option>
+                  <option value="option:2" data-i18n="create.option.c">Option C</option>
+                  <option value="option:3" data-i18n="create.option.d">Option D</option>
+                </select>
+              </label>
+              <label>
+                <span data-i18n="create.field.variable">variable</span>
+                <input id="wizard-effect-variable" type="text" list="wizard-effect-variable-options" autocomplete="off">
+                <datalist id="wizard-effect-variable-options"></datalist>
+              </label>
+              <label>
+                <span data-i18n="create.field.op">op</span>
+                <select id="wizard-effect-op">
+                  <option value="+=">+=</option>
+                  <option value="-=">-=</option>
+                  <option value="=">=</option>
+                </select>
+              </label>
+              <label>
+                <span data-i18n="create.field.value">value</span>
+                <input id="wizard-effect-value" type="text" value="1">
+              </label>
+              <button id="wizard-effect-append" type="button" data-i18n="create.addEffect">Add effect</button>
+            </div>
+            <div class="option-grid">
+              <section class="option-block" data-option-index="0">
+                <h2 data-i18n="create.option.a">Option A</h2>
+                <label>
+                  <span data-i18n="create.field.id">id</span>
+                  <input id="wizard-option-0-id" type="text" value="respond_publicly">
+                </label>
+                <label>
+                  <span data-i18n="create.field.title">title</span>
+                  <input id="wizard-option-0-title" type="text" value="Respond publicly" data-i18n-value="create.sample.eventOption0Title">
+                </label>
+                <label>
+                  <span data-i18n="create.field.subtitle">subtitle</span>
+                  <input id="wizard-option-0-subtitle" type="text" value="Spend capacity to define the issue." data-i18n-value="create.sample.eventOption0Subtitle">
+                </label>
+                <label>
+                  <span data-i18n="create.field.effects">effects</span>
+                  <textarea id="wizard-option-0-effects" rows="4">resources -= 1
+media_reach += 2</textarea>
+                </label>
+                <label>
+                  <span data-i18n="create.field.body">body</span>
+                  <textarea id="wizard-option-0-body" rows="5" data-i18n-value="create.sample.eventOption0Body">The party turns the event into a public argument. Reporters ask for a clearer line; allied groups watch whether the response has enough substance to carry beyond one news cycle.</textarea>
+                </label>
+                <details id="wizard-option-0-advanced" class="advanced-panel" data-option-advanced-index="0">
+                  <summary data-i18n="create.advanced">Advanced</summary>
+                  <label>
+                    <span data-i18n="create.field.chooseIf">chooseIf</span>
+                    <input id="wizard-option-0-choose-if" type="text">
+                  </label>
+                  <label>
+                    <span data-i18n="create.field.unavailableText">unavailableText</span>
+                    <input id="wizard-option-0-unavailable" type="text">
+                  </label>
+                  <label>
+                    <span data-i18n="create.field.variants">variants</span>
+                    <textarea id="wizard-option-0-variants" rows="3"></textarea>
+                  </label>
+                  <label>
+                    <span data-i18n="create.field.gotoAfter">gotoAfter</span>
+                    <input id="wizard-option-0-goto-after" type="text">
+                  </label>
+                </details>
+              </section>
+
+              <section class="option-block" data-option-index="1">
+                <h2 data-i18n="create.option.b">Option B</h2>
+                <label>
+                  <span data-i18n="create.field.id">id</span>
+                  <input id="wizard-option-1-id" type="text" value="build_quietly">
+                </label>
+                <label>
+                  <span data-i18n="create.field.title">title</span>
+                  <input id="wizard-option-1-title" type="text" value="Build quietly" data-i18n-value="create.sample.eventOption1Title">
+                </label>
+                <label>
+                  <span data-i18n="create.field.subtitle">subtitle</span>
+                  <input id="wizard-option-1-subtitle" type="text" value="Trade visibility for organizing depth." data-i18n-value="create.sample.eventOption1Subtitle">
+                </label>
+                <label>
+                  <span data-i18n="create.field.effects">effects</span>
+                  <textarea id="wizard-option-1-effects" rows="4">media_reach -= 1
+civil_society_trust += 1</textarea>
+                </label>
+                <label>
+                  <span data-i18n="create.field.body">body</span>
+                  <textarea id="wizard-option-1-body" rows="5" data-i18n-value="create.sample.eventOption1Body">The public line stays modest while organizers gather testimony and map the coalition around the issue. The choice buys time, but the larger media frame moves without waiting.</textarea>
+                </label>
+                <details id="wizard-option-1-advanced" class="advanced-panel" data-option-advanced-index="1">
+                  <summary data-i18n="create.advanced">Advanced</summary>
+                  <label>
+                    <span data-i18n="create.field.chooseIf">chooseIf</span>
+                    <input id="wizard-option-1-choose-if" type="text">
+                  </label>
+                  <label>
+                    <span data-i18n="create.field.unavailableText">unavailableText</span>
+                    <input id="wizard-option-1-unavailable" type="text">
+                  </label>
+                  <label>
+                    <span data-i18n="create.field.variants">variants</span>
+                    <textarea id="wizard-option-1-variants" rows="3"></textarea>
+                  </label>
+                  <label>
+                    <span data-i18n="create.field.gotoAfter">gotoAfter</span>
+                    <input id="wizard-option-1-goto-after" type="text">
+                  </label>
+                </details>
+              </section>
+
+              <section class="option-block hidden" data-option-index="2">
+                <h2 data-i18n="create.option.c">Option C</h2>
+                <label>
+                  <span data-i18n="create.field.id">id</span>
+                  <input id="wizard-option-2-id" type="text" value="call_coalition">
+                </label>
+                <label>
+                  <span data-i18n="create.field.title">title</span>
+                  <input id="wizard-option-2-title" type="text" value="Call coalition partners" data-i18n-value="create.sample.eventOption2Title">
+                </label>
+                <label>
+                  <span data-i18n="create.field.subtitle">subtitle</span>
+                  <input id="wizard-option-2-subtitle" type="text" value="Trade speed for trust." data-i18n-value="create.sample.eventOption2Subtitle">
+                </label>
+                <label>
+                  <span data-i18n="create.field.effects">effects</span>
+                  <textarea id="wizard-option-2-effects" rows="4">civil_society_trust += 1</textarea>
+                </label>
+                <label>
+                  <span data-i18n="create.field.body">body</span>
+                  <textarea id="wizard-option-2-body" rows="5" data-i18n-value="create.sample.eventOption2Body">The party slows the response long enough to call partners into the room. The public line becomes less sharp, but less lonely.</textarea>
+                </label>
+                <details id="wizard-option-2-advanced" class="advanced-panel" data-option-advanced-index="2">
+                  <summary data-i18n="create.advanced">Advanced</summary>
+                  <label>
+                    <span data-i18n="create.field.chooseIf">chooseIf</span>
+                    <input id="wizard-option-2-choose-if" type="text">
+                  </label>
+                  <label>
+                    <span data-i18n="create.field.unavailableText">unavailableText</span>
+                    <input id="wizard-option-2-unavailable" type="text">
+                  </label>
+                  <label>
+                    <span data-i18n="create.field.variants">variants</span>
+                    <textarea id="wizard-option-2-variants" rows="3"></textarea>
+                  </label>
+                  <label>
+                    <span data-i18n="create.field.gotoAfter">gotoAfter</span>
+                    <input id="wizard-option-2-goto-after" type="text">
+                  </label>
+                </details>
+              </section>
+
+              <section class="option-block hidden" data-option-index="3">
+                <h2 data-i18n="create.option.d">Option D</h2>
+                <label>
+                  <span data-i18n="create.field.id">id</span>
+                  <input id="wizard-option-3-id" type="text" value="observe_first">
+                </label>
+                <label>
+                  <span data-i18n="create.field.title">title</span>
+                  <input id="wizard-option-3-title" type="text" value="Observe first" data-i18n-value="create.sample.eventOption3Title">
+                </label>
+                <label>
+                  <span data-i18n="create.field.subtitle">subtitle</span>
+                  <input id="wizard-option-3-subtitle" type="text" value="Keep capacity unspent." data-i18n-value="create.sample.eventOption3Subtitle">
+                </label>
+                <label>
+                  <span data-i18n="create.field.effects">effects</span>
+                  <textarea id="wizard-option-3-effects" rows="4">resources += 1</textarea>
+                </label>
+                <label>
+                  <span data-i18n="create.field.body">body</span>
+                  <textarea id="wizard-option-3-body" rows="5" data-i18n-value="create.sample.eventOption3Body">The organization waits for the first wave to settle. It preserves capacity, but gives others more room to frame the event.</textarea>
+                </label>
+                <details id="wizard-option-3-advanced" class="advanced-panel" data-option-advanced-index="3">
+                  <summary data-i18n="create.advanced">Advanced</summary>
+                  <label>
+                    <span data-i18n="create.field.chooseIf">chooseIf</span>
+                    <input id="wizard-option-3-choose-if" type="text">
+                  </label>
+                  <label>
+                    <span data-i18n="create.field.unavailableText">unavailableText</span>
+                    <input id="wizard-option-3-unavailable" type="text">
+                  </label>
+                  <label>
+                    <span data-i18n="create.field.variants">variants</span>
+                    <textarea id="wizard-option-3-variants" rows="3"></textarea>
+                  </label>
+                  <label>
+                    <span data-i18n="create.field.gotoAfter">gotoAfter</span>
+                    <input id="wizard-option-3-goto-after" type="text">
+                  </label>
+                </details>
+              </section>
+            </div>
+          </fieldset>
+        </form>
+      </section>
+
+      <aside class="wizard-preview-panel" aria-label="World event draft previews" data-i18n-aria-label="create.eventPreviewAria" data-create-template-panel="event">
+        <section class="wizard-diagnostics">
+          <div class="preview-heading" data-i18n="create.diagnostics">Diagnostics</div>
+          <div id="wizard-diagnostics"></div>
+        </section>
+
+        <section class="preview-drawer" aria-label="Output" data-i18n-aria-label="create.outputAria">
+          <div class="preview-heading output-heading" data-i18n="create.output">Output</div>
+          <div class="output-tabs" role="tablist" aria-label="Generated event output" data-i18n-aria-label="create.generatedEventOutputAria">
+            <button class="output-tab is-active" type="button" role="tab" aria-selected="true" data-preview-tab="scene" data-i18n="create.scene">Scene</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-preview-tab="draft" data-i18n="create.draftJson">Draft JSON</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-preview-tab="root" data-i18n="create.rootInit">Root init</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-preview-tab="migration" data-i18n="create.migration">Migration</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-preview-tab="patch" data-i18n="create.patchPreview">Patch preview</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-preview-tab="install" data-i18n="create.install">Install</button>
+          </div>
+
+          <section class="preview-block is-active" data-preview-panel="scene">
+            <div class="preview-heading" data-i18n="create.preview">player-facing preview</div>
+            <div id="wizard-player-preview" class="player-preview"></div>
+            <div class="preview-heading" data-i18n="create.sceneDryPreview">.scene.dry preview</div>
+            <pre id="wizard-scene-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block" data-preview-panel="draft" hidden>
+            <div class="preview-heading" data-i18n="create.draftJsonPreview">draft JSON preview</div>
+            <pre id="wizard-json-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block" data-preview-panel="root" hidden>
+            <div class="preview-heading" data-i18n="create.rootInitSnippet">root init snippet</div>
+            <pre id="wizard-root-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block" data-preview-panel="migration" hidden>
+            <div class="preview-heading" data-i18n="create.migrationSnippet">post_event migration snippet</div>
+            <pre id="wizard-migration-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block install-panel" data-preview-panel="install" hidden>
+            <div class="preview-heading" data-i18n="create.installNotes">install notes</div>
+            <pre id="wizard-install-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block" data-preview-panel="patch" hidden>
+            <div class="preview-heading" data-i18n="create.patchPreview">patch preview</div>
+            <pre id="wizard-patch-preview" class="code-preview"></pre>
+          </section>
+        </section>
+
+        <div class="wizard-actions">
+          <div class="wizard-action-group wizard-action-primary">
+            <div class="wizard-action-copy">
+              <strong data-i18n="create.action.recommendedNext">Recommended next step</strong>
+              <span data-i18n="create.action.reviewHelp">Review what can be applied, what needs checking, and what remains manual.</span>
+            </div>
+            <button id="wizard-review-install" class="primary-action" type="button" data-i18n="create.reviewInstall">Review &amp; Apply</button>
+          </div>
+          <div class="wizard-action-group wizard-action-secondary">
+            <div class="wizard-action-copy">
+              <strong data-i18n="create.action.sourceFile">Generated source file</strong>
+              <span data-i18n="create.action.sourceFileHelp">Download the playable scene file if you are handing files to someone else.</span>
+            </div>
+            <button id="wizard-download-scene" type="button" data-i18n="create.downloadScene">Download .scene.dry</button>
+          </div>
+          <details class="wizard-action-group wizard-action-advanced">
+            <summary>
+              <span data-i18n="create.action.advancedDownloads">Advanced downloads</span>
+              <small data-i18n="create.action.advancedHelp">Draft JSON, install notes, install plan, patch preview, and router snippets.</small>
+            </summary>
+            <div class="wizard-action-row">
+              <button id="wizard-download-json" type="button" data-i18n="create.saveDraftJson">Save draft JSON</button>
+              <button id="wizard-download-root" type="button" data-i18n="create.downloadRootSnippet">Download root snippet</button>
+              <button id="wizard-download-migration" type="button" data-i18n="create.downloadMigrationSnippet">Download migration snippet</button>
+              <button id="wizard-download-patch" type="button" data-i18n="create.downloadInstallNotes">Download install notes</button>
+              <button id="wizard-download-plan" type="button" data-i18n="create.downloadInstallPlan">Download install plan</button>
+              <button id="wizard-download-patch-preview" type="button" data-i18n="create.downloadPatchPreview">Download patch preview</button>
+            </div>
+          </details>
+        </div>
+      </aside>
+
+      <section class="wizard-form-panel hidden" aria-labelledby="news-heading-label" data-create-template-panel="news">
+        <div class="wizard-title-row">
+          <div>
+            <h1 id="news-heading-label" class="wizard-title" data-i18n="create.newsWizard">News Wizard</h1>
+            <div id="news-core-status" class="wizard-status" data-i18n="create.status.newsCorePending">NewsDraft core pending.</div>
+          </div>
+          <div class="wizard-status-stack">
+            <label class="draft-file-picker">
+              <span data-i18n="create.loadNewsDraftJson">Load news draft JSON</span>
+              <input id="news-draft-file" type="file" accept="application/json,.json">
+            </label>
+            <div id="news-draft-status" class="wizard-index-status" data-i18n="create.status.noNewsDraftLoaded">No news draft loaded.</div>
+            <div id="news-index-status" class="wizard-index-status" data-i18n="create.status.noIndexLoaded">No index loaded.</div>
+          </div>
+        </div>
+
+        <form id="news-wizard-form" class="wizard-form">
+          <div class="wizard-guidance" data-i18n="news.createGuidance">
+            Use News Wizard for Island-style ticker or pool news. For original SDAAH monthly popups, use World Event Wizard and put event in the tags field.
+          </div>
+          <div class="wizard-guidance-actions">
+            <button class="wizard-inline-help" type="button" data-tutorial-open="tags-event" data-i18n="news.explainTagsEvent">What does tags: event mean?</button>
+          </div>
+          <fieldset class="wizard-section">
+            <legend data-i18n="create.section.news">News</legend>
+            <div class="field-grid">
+              <label>
+                <span data-i18n="create.field.id">id</span>
+                <input id="news-id" name="id" type="text" value="new_news_item" autocomplete="off">
+                <small class="wizard-field-help" data-i18n="create.help.id">Internal file-safe name; players do not see it, but install plans use it.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.delivery">delivery</span>
+                <select id="news-delivery" name="delivery">
+                  <option value="dated" selected data-i18n="create.delivery.dated">Dated headline</option>
+                  <option value="background_pool" data-i18n="create.delivery.backgroundPool">Background pool</option>
+                </select>
+                <small class="wizard-field-help" data-i18n="create.help.newsDelivery">Dated news fills a visible slot; pool news waits for the game to draw from a category.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.headline">headline</span>
+                <input id="news-headline" name="headline" type="text" value="[Politics] A new headline enters the ticker" data-i18n-value="create.sample.newsHeadline">
+                <small class="wizard-field-help" data-i18n="create.help.newsHeadline">The headline players see in the news ticker.</small>
+              </label>
+              <label data-news-delivery-section="dated">
+                <span data-i18n="create.field.slot">slot</span>
+                <select id="news-slot" name="slot">
+                  <option value="1" selected>news_1</option>
+                  <option value="2">news_2</option>
+                  <option value="3">news_3</option>
+                </select>
+                <small class="wizard-field-help" data-i18n="create.help.newsSlot">Which ticker slot this dated item occupies.</small>
+              </label>
+              <label data-news-delivery-section="dated">
+                <span data-i18n="create.field.year">year</span>
+                <input id="news-year" name="year" type="number" min="2014" max="2035" value="2025">
+                <small class="wizard-field-help" data-i18n="create.help.newsYear">Year when the dated headline appears.</small>
+              </label>
+              <label data-news-delivery-section="dated">
+                <span data-i18n="create.field.month">month</span>
+                <input id="news-month" name="month" type="number" min="1" max="12" value="3">
+                <small class="wizard-field-help" data-i18n="create.help.newsMonth">Month when the dated headline appears.</small>
+              </label>
+              <label data-news-delivery-section="dated">
+                <span data-i18n="create.field.requiresJs">requiresJs</span>
+                <input id="news-dated-requires-js" name="requiresJs" type="text" value="">
+                <small class="wizard-field-help" data-i18n="create.help.requiresJs">Optional JS condition; leave empty unless you know the project variable.</small>
+              </label>
+              <label data-news-delivery-section="background_pool" class="hidden">
+                <span data-i18n="create.field.pool">pool</span>
+                <select id="news-pool-name" name="poolName">
+                  <option value="social_pool" selected>social_pool</option>
+                  <option value="intl_pool">intl_pool</option>
+                  <option value="gossip_pool">gossip_pool</option>
+                </select>
+                <small class="wizard-field-help" data-i18n="create.help.newsPool">Category the game draws from when it needs background news.</small>
+              </label>
+              <label data-news-delivery-section="background_pool" class="hidden">
+                <span data-i18n="create.field.requiresJs">requiresJs</span>
+                <input id="news-pool-requires-js" name="poolRequiresJs" type="text" value="Q.year >= 2020">
+                <small class="wizard-field-help" data-i18n="create.help.requiresJs">Optional JS condition; leave empty unless you know the project variable.</small>
+              </label>
+            </div>
+            <label class="wide-field">
+              <span data-i18n="create.field.description">description</span>
+              <textarea id="news-description" name="description" rows="5" data-i18n-value="create.sample.newsDescription">A short explanatory paragraph for the news ticker.</textarea>
+              <small class="wizard-field-help" data-i18n="create.help.newsDescription">Short body text shown with or near the headline, depending on the project UI.</small>
+            </label>
+          </fieldset>
+        </form>
+      </section>
+
+      <aside class="wizard-preview-panel hidden" aria-label="News draft previews" data-i18n-aria-label="create.newsPreviewAria" data-create-template-panel="news">
+        <section class="wizard-diagnostics">
+          <div class="preview-heading" data-i18n="create.diagnostics">Diagnostics</div>
+          <div id="news-diagnostics"></div>
+        </section>
+
+        <section class="preview-drawer" aria-label="News output" data-i18n-aria-label="create.newsOutputAria">
+          <div class="preview-heading output-heading" data-i18n="create.output">Output</div>
+          <div class="output-tabs" role="tablist" aria-label="Generated news output" data-i18n-aria-label="create.generatedNewsOutputAria">
+            <button class="output-tab is-active" type="button" role="tab" aria-selected="true" data-news-preview-tab="snippet" data-i18n="create.snippet">Snippet</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-news-preview-tab="draft" data-i18n="create.draftJson">Draft JSON</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-news-preview-tab="patch" data-i18n="create.patchPreview">Patch preview</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-news-preview-tab="install" data-i18n="create.install">Install</button>
+          </div>
+
+          <section class="preview-block is-active" data-news-preview-panel="snippet">
+            <div class="preview-heading" data-i18n="create.preview">player-facing preview</div>
+            <div id="news-player-preview" class="player-preview"></div>
+            <div class="preview-heading" data-i18n="create.postEventNewsSnippet">post_event_news snippet</div>
+            <pre id="news-snippet-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block" data-news-preview-panel="draft" hidden>
+            <div class="preview-heading" data-i18n="create.newsDraftJson">news draft JSON</div>
+            <pre id="news-json-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block install-panel" data-news-preview-panel="install" hidden>
+            <div class="preview-heading" data-i18n="create.installNotes">install notes</div>
+            <pre id="news-install-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block" data-news-preview-panel="patch" hidden>
+            <div class="preview-heading" data-i18n="create.patchPreview">patch preview</div>
+            <pre id="news-patch-preview" class="code-preview"></pre>
+          </section>
+        </section>
+
+        <div class="wizard-actions">
+          <div class="wizard-action-group wizard-action-primary">
+            <div class="wizard-action-copy">
+              <strong data-i18n="create.action.recommendedNext">Recommended next step</strong>
+              <span data-i18n="create.action.reviewHelp">Review what can be applied, what needs checking, and what remains manual.</span>
+            </div>
+            <button id="news-review-install" class="primary-action" type="button" data-i18n="create.reviewInstall">Review &amp; Apply</button>
+          </div>
+          <div class="wizard-action-group wizard-action-secondary">
+            <div class="wizard-action-copy">
+              <strong data-i18n="create.action.snippetFile">Generated snippet</strong>
+              <span data-i18n="create.action.snippetFileHelp">Download the news snippet when you need a manual handoff.</span>
+            </div>
+            <button id="news-download-snippet" type="button" data-i18n="create.downloadSnippet">Download snippet</button>
+          </div>
+          <details class="wizard-action-group wizard-action-advanced">
+            <summary>
+              <span data-i18n="create.action.advancedDownloads">Advanced downloads</span>
+              <small data-i18n="create.action.advancedHelp">Draft JSON, install notes, install plan, patch preview, and router snippets.</small>
+            </summary>
+            <div class="wizard-action-row">
+              <button id="news-download-json" type="button" data-i18n="create.saveNewsDraftJson">Save news draft JSON</button>
+              <button id="news-download-notes" type="button" data-i18n="create.downloadInstallNotes">Download install notes</button>
+              <button id="news-download-plan" type="button" data-i18n="create.downloadInstallPlan">Download install plan</button>
+              <button id="news-download-patch" type="button" data-i18n="create.downloadPatchPreview">Download patch preview</button>
+            </div>
+          </details>
+        </div>
+      </aside>
+
+      <section class="wizard-form-panel hidden" aria-labelledby="card-heading-label" data-create-template-panel="card">
+        <div class="wizard-title-row">
+          <div>
+            <h1 id="card-heading-label" class="wizard-title" data-i18n="create.cardWizard">Card / Advisor-like Wizard</h1>
+            <div id="card-core-status" class="wizard-status" data-i18n="create.status.cardCorePending">CardDraft core pending.</div>
+          </div>
+          <div class="wizard-status-stack">
+            <label class="draft-file-picker">
+              <span data-i18n="create.loadCardDraftJson">Load card draft JSON</span>
+              <input id="card-draft-file" type="file" accept="application/json,.json">
+            </label>
+            <div id="card-draft-status" class="wizard-index-status" data-i18n="create.status.noCardDraftLoaded">No card draft loaded.</div>
+            <div id="card-index-status" class="wizard-index-status" data-i18n="create.status.noIndexLoaded">No index loaded.</div>
+          </div>
+        </div>
+
+        <form id="card-wizard-form" class="wizard-form">
+          <div class="wizard-guidance" data-i18n="create.guidance.card">
+            Build a card proposal: where it is routed, how often it can appear, what players read, and what each choice changes.
+          </div>
+          <fieldset class="wizard-section">
+            <legend data-i18n="create.section.card">Card</legend>
+            <div class="field-grid">
+              <label>
+                <span data-i18n="create.field.id">id</span>
+                <input id="card-id" name="id" type="text" value="new_action_card" autocomplete="off">
+                <small class="wizard-field-help" data-i18n="create.help.id">Internal file-safe name; players do not see it, but install plans use it.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.cardKind">cardKind</span>
+                <select id="card-kind" name="cardKind">
+                  <option value="action_card" selected data-i18n="create.cardKind.action">Action card</option>
+                  <option value="advisor_like" data-i18n="create.cardKind.advisor">Advisor-like</option>
+                </select>
+                <small class="wizard-field-help" data-i18n="create.help.cardKind">Action cards enter a deck/hand flow; advisor-like cards behave like persistent panels in some profiles.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.title">title</span>
+                <input id="card-title" name="title" type="text" value="New action card" data-i18n-value="create.sample.cardTitle">
+                <small class="wizard-field-help" data-i18n="create.help.title">Short editor label for finding this proposal later.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.heading">heading</span>
+                <input id="card-heading" name="heading" type="text" value="A new card enters the hand" data-i18n-value="create.sample.cardHeading">
+                <small class="wizard-field-help" data-i18n="create.help.heading">Main title shown in the player preview.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.tags">tags</span>
+                <input id="card-tags" name="tags" type="text" value="party_affairs">
+                <small class="wizard-field-help" data-i18n="create.help.cardTags">Tags decide which existing card route can show this card.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.viewIf">viewIf</span>
+                <input id="card-view-if" name="viewIf" type="text" value="">
+                <small class="wizard-field-help" data-i18n="create.help.viewIf">Condition required before this card can be shown.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.priority">priority</span>
+                <input id="card-priority" name="priority" type="number" step="1" value="0">
+                <small class="wizard-field-help" data-i18n="create.help.priority">Tie-breaker when several eligible cards compete.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.frequency">frequency</span>
+                <input id="card-frequency" name="frequency" type="number" min="0" step="1" value="200">
+                <small class="wizard-field-help" data-i18n="create.help.cardFrequency">Draw weight: higher values make the card more likely inside its route.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.maxVisits">max-visits</span>
+                <input id="card-max-visits" name="maxVisits" type="number" min="1" step="1" value="1">
+                <small class="wizard-field-help" data-i18n="create.help.maxVisits">Maximum times this card should appear for a playthrough.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.choices">choices</span>
+                <select id="card-option-count" name="optionCount">
+                  <option value="2" selected data-i18n="create.optionCount.2">2 choices</option>
+                  <option value="3" data-i18n="create.optionCount.3">3 choices</option>
+                  <option value="4" data-i18n="create.optionCount.4">4 choices</option>
+                </select>
+                <small class="wizard-field-help" data-i18n="create.help.choices">How many buttons the player can choose from.</small>
+              </label>
+            </div>
+            <label class="wide-field">
+              <span data-i18n="create.field.subtitle">subtitle</span>
+              <input id="card-subtitle" name="subtitle" type="text" value="A small card generated as an export-only proposal." data-i18n-value="create.sample.cardSubtitle">
+              <small class="wizard-field-help" data-i18n="create.help.subtitle">Short supporting line shown under the title.</small>
+            </label>
+            <label class="wide-field">
+              <span data-i18n="create.field.intro">intro</span>
+              <textarea id="card-intro" name="intro" rows="4" data-i18n-value="create.sample.cardIntro">A card draft can describe a repeatable player action, advisor-like panel, or other hand/deck entry.</textarea>
+              <small class="wizard-field-help" data-i18n="create.help.cardIntro">Opening prose shown before the player chooses an option.</small>
+            </label>
+            <section id="card-variable-assistant" class="variable-assistant" aria-label="Variable candidates" data-i18n-aria-label="variableAssistant.aria">
+              <div class="variable-assistant-head">
+                <div>
+                  <strong data-i18n="variableAssistant.title">Variable candidates</strong>
+                  <p data-i18n="variableAssistant.cardHelp">Search the ProjectIndex for existing variables. Insert a condition into the focused condition field, or use the variable in the card effect helper.</p>
+                </div>
+                <label>
+                  <span data-i18n="variableAssistant.search">Search variables</span>
+                  <input id="card-variable-search" type="search" placeholder="resource, event flag, unrest..." data-i18n-placeholder="variableAssistant.placeholder">
+                </label>
+              </div>
+              <div id="card-variable-candidates" class="variable-candidate-list"></div>
+            </section>
+            <div id="card-draft-asset-panel" class="draft-asset-panel-host"></div>
+            <div class="asset-install-picker">
+              <label>
+                <span data-i18n="assets.installPicker">Asset file to install</span>
+                <input id="card-asset-file" name="assetFile" type="file" accept="image/*,audio/*" multiple>
+                <small class="wizard-field-help" data-i18n="create.help.assetInstallPicker">Select local image/audio files to create install proposals and matching assetRefs.</small>
+              </label>
+            </div>
+            <div id="card-asset-picker" class="asset-picker-host"></div>
+            <div id="card-asset-manifest" class="asset-manifest-host"></div>
+            <details class="asset-advanced-panel">
+              <summary data-i18n="assets.advancedRawData">Advanced asset data</summary>
+              <label class="wide-field asset-ref-editor">
+                <span data-i18n="create.field.assetRefs">assetRefs</span>
+                <textarea id="card-asset-refs" name="assetRefs" rows="3" placeholder="assets/cards/example.png | image | Card image" data-i18n-placeholder="create.sample.cardAssetRefs"></textarea>
+                <small class="wizard-field-help" data-i18n="create.help.assetRefs">Optional image/audio references for authoring preview. Studio does not copy or install asset files.</small>
+              </label>
+              <label class="wide-field asset-ref-editor">
+                <span data-i18n="assets.installRequests">Asset install proposals</span>
+                <textarea id="card-asset-install-requests" name="assetInstallRequests" rows="3" placeholder="Card Art.PNG | assets/studio/cards/new_action_card/card-art.png | image | Card Art | card_image" data-i18n-placeholder="create.sample.cardAssetInstallRequest"></textarea>
+                <small class="wizard-field-help" data-i18n="create.help.assetInstallRequests">Review selected local files and their project-relative targets. This slice still does not copy files automatically.</small>
+              </label>
+            </details>
+          </fieldset>
+
+          <fieldset class="wizard-section">
+            <legend data-i18n="create.section.options">Options</legend>
+            <p class="wizard-section-help" data-i18n="create.help.cardOptions">Options are the card buttons. Use the effect helper to add variable changes without hand-writing syntax.</p>
+            <div class="effect-helper">
+              <label>
+                <span data-i18n="create.field.target">target</span>
+                <select id="card-effect-target">
+                  <option value="option:0" data-i18n="create.option.a">Option A</option>
+                  <option value="option:1" data-i18n="create.option.b">Option B</option>
+                  <option value="option:2" data-i18n="create.option.c">Option C</option>
+                  <option value="option:3" data-i18n="create.option.d">Option D</option>
+                </select>
+              </label>
+              <label>
+                <span data-i18n="create.field.variable">variable</span>
+                <input id="card-effect-variable" type="text" list="card-effect-variable-options" autocomplete="off">
+                <datalist id="card-effect-variable-options"></datalist>
+              </label>
+              <label>
+                <span data-i18n="create.field.op">op</span>
+                <select id="card-effect-op">
+                  <option value="+=">+=</option>
+                  <option value="-=">-=</option>
+                  <option value="=">=</option>
+                </select>
+              </label>
+              <label>
+                <span data-i18n="create.field.value">value</span>
+                <input id="card-effect-value" type="text" value="1">
+              </label>
+              <button id="card-effect-append" type="button" data-i18n="create.addEffect">Add effect</button>
+            </div>
+            <div class="option-grid">
+              <section class="option-block" data-card-option-index="0">
+                <h2 data-i18n="create.option.a">Option A</h2>
+                <label>
+                  <span data-i18n="create.field.id">id</span>
+                  <input id="card-option-0-id" type="text" value="spend_resources">
+                </label>
+                <label>
+                  <span data-i18n="create.field.label">label</span>
+                  <input id="card-option-0-label" type="text" value="Spend resources" data-i18n-value="create.sample.cardOption0Label">
+                </label>
+                <label>
+                  <span data-i18n="create.field.subtitle">subtitle</span>
+                  <input id="card-option-0-subtitle" type="text" value="Use resources for a stronger outcome." data-i18n-value="create.sample.cardOption0Subtitle">
+                </label>
+                <label>
+                  <span data-i18n="create.field.effects">effects</span>
+                  <textarea id="card-option-0-effects" rows="4">resources -= 1
+media_reach += 1</textarea>
+                </label>
+                <label>
+                  <span data-i18n="create.field.body">body</span>
+                  <textarea id="card-option-0-body" rows="4" data-i18n-value="create.sample.cardOption0Body">The party spends limited capacity to push the card's main effect.</textarea>
+                </label>
+                <details id="card-option-0-advanced" class="advanced-panel">
+                  <summary data-i18n="create.advanced">Advanced</summary>
+                  <label>
+                    <span data-i18n="create.field.chooseIf">chooseIf</span>
+                    <input id="card-option-0-choose-if" type="text">
+                  </label>
+                  <label>
+                    <span data-i18n="create.field.unavailableText">unavailableText</span>
+                    <input id="card-option-0-unavailable" type="text">
+                  </label>
+                  <label>
+                    <span data-i18n="create.field.gotoAfter">gotoAfter</span>
+                    <input id="card-option-0-goto-after" type="text" value="root">
+                  </label>
+                </details>
+              </section>
+
+              <section class="option-block" data-card-option-index="1">
+                <h2 data-i18n="create.option.b">Option B</h2>
+                <label>
+                  <span data-i18n="create.field.id">id</span>
+                  <input id="card-option-1-id" type="text" value="save_capacity">
+                </label>
+                <label>
+                  <span data-i18n="create.field.label">label</span>
+                  <input id="card-option-1-label" type="text" value="Save capacity" data-i18n-value="create.sample.cardOption1Label">
+                </label>
+                <label>
+                  <span data-i18n="create.field.subtitle">subtitle</span>
+                  <input id="card-option-1-subtitle" type="text" value="Leave resources untouched." data-i18n-value="create.sample.cardOption1Subtitle">
+                </label>
+                <label>
+                  <span data-i18n="create.field.effects">effects</span>
+                  <textarea id="card-option-1-effects" rows="4">resources += 1</textarea>
+                </label>
+                <label>
+                  <span data-i18n="create.field.body">body</span>
+                  <textarea id="card-option-1-body" rows="4" data-i18n-value="create.sample.cardOption1Body">The organization saves effort for another opening.</textarea>
+                </label>
+                <details id="card-option-1-advanced" class="advanced-panel">
+                  <summary data-i18n="create.advanced">Advanced</summary>
+                  <label>
+                    <span data-i18n="create.field.chooseIf">chooseIf</span>
+                    <input id="card-option-1-choose-if" type="text">
+                  </label>
+                  <label>
+                    <span data-i18n="create.field.unavailableText">unavailableText</span>
+                    <input id="card-option-1-unavailable" type="text">
+                  </label>
+                  <label>
+                    <span data-i18n="create.field.gotoAfter">gotoAfter</span>
+                    <input id="card-option-1-goto-after" type="text" value="root">
+                  </label>
+                </details>
+              </section>
+
+              <section class="option-block hidden" data-card-option-index="2">
+                <h2 data-i18n="create.option.c">Option C</h2>
+                <label>
+                  <span data-i18n="create.field.id">id</span>
+                  <input id="card-option-2-id" type="text" value="call_partners">
+                </label>
+                <label>
+                  <span data-i18n="create.field.label">label</span>
+                  <input id="card-option-2-label" type="text" value="Call partners" data-i18n-value="create.sample.cardOption2Label">
+                </label>
+                <label>
+                  <span data-i18n="create.field.subtitle">subtitle</span>
+                  <input id="card-option-2-subtitle" type="text" value="Trade speed for support." data-i18n-value="create.sample.cardOption2Subtitle">
+                </label>
+                <label>
+                  <span data-i18n="create.field.effects">effects</span>
+                  <textarea id="card-option-2-effects" rows="4">civil_society_trust += 1</textarea>
+                </label>
+                <label>
+                  <span data-i18n="create.field.body">body</span>
+                  <textarea id="card-option-2-body" rows="4" data-i18n-value="create.sample.cardOption2Body">Partner organizations help carry the work.</textarea>
+                </label>
+                <details id="card-option-2-advanced" class="advanced-panel">
+                  <summary data-i18n="create.advanced">Advanced</summary>
+                  <label>
+                    <span data-i18n="create.field.chooseIf">chooseIf</span>
+                    <input id="card-option-2-choose-if" type="text">
+                  </label>
+                  <label>
+                    <span data-i18n="create.field.unavailableText">unavailableText</span>
+                    <input id="card-option-2-unavailable" type="text">
+                  </label>
+                  <label>
+                    <span data-i18n="create.field.gotoAfter">gotoAfter</span>
+                    <input id="card-option-2-goto-after" type="text" value="root">
+                  </label>
+                </details>
+              </section>
+
+              <section class="option-block hidden" data-card-option-index="3">
+                <h2 data-i18n="create.option.d">Option D</h2>
+                <label>
+                  <span data-i18n="create.field.id">id</span>
+                  <input id="card-option-3-id" type="text" value="do_nothing">
+                </label>
+                <label>
+                  <span data-i18n="create.field.label">label</span>
+                  <input id="card-option-3-label" type="text" value="Do nothing" data-i18n-value="create.sample.cardOption3Label">
+                </label>
+                <label>
+                  <span data-i18n="create.field.subtitle">subtitle</span>
+                  <input id="card-option-3-subtitle" type="text" value="Keep the card quiet." data-i18n-value="create.sample.cardOption3Subtitle">
+                </label>
+                <label>
+                  <span data-i18n="create.field.effects">effects</span>
+                  <textarea id="card-option-3-effects" rows="4"></textarea>
+                </label>
+                <label>
+                  <span data-i18n="create.field.body">body</span>
+                  <textarea id="card-option-3-body" rows="4" data-i18n-value="create.sample.cardOption3Body">Nothing changes for now.</textarea>
+                </label>
+                <details id="card-option-3-advanced" class="advanced-panel">
+                  <summary data-i18n="create.advanced">Advanced</summary>
+                  <label>
+                    <span data-i18n="create.field.chooseIf">chooseIf</span>
+                    <input id="card-option-3-choose-if" type="text">
+                  </label>
+                  <label>
+                    <span data-i18n="create.field.unavailableText">unavailableText</span>
+                    <input id="card-option-3-unavailable" type="text">
+                  </label>
+                  <label>
+                    <span data-i18n="create.field.gotoAfter">gotoAfter</span>
+                    <input id="card-option-3-goto-after" type="text" value="root">
+                  </label>
+                </details>
+              </section>
+            </div>
+          </fieldset>
+        </form>
+      </section>
+
+      <aside class="wizard-preview-panel hidden" aria-label="Card draft previews" data-i18n-aria-label="create.cardPreviewAria" data-create-template-panel="card">
+        <section class="wizard-diagnostics">
+          <div class="preview-heading" data-i18n="create.diagnostics">Diagnostics</div>
+          <div id="card-diagnostics"></div>
+        </section>
+
+        <section class="preview-drawer" aria-label="Card output" data-i18n-aria-label="create.cardOutputAria">
+          <div class="preview-heading output-heading" data-i18n="create.output">Output</div>
+          <div class="output-tabs" role="tablist" aria-label="Generated card output" data-i18n-aria-label="create.generatedCardOutputAria">
+            <button class="output-tab is-active" type="button" role="tab" aria-selected="true" data-card-preview-tab="scene" data-i18n="create.scene">Scene</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-card-preview-tab="draft" data-i18n="create.draftJson">Draft JSON</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-card-preview-tab="patch" data-i18n="create.patchPreview">Patch preview</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-card-preview-tab="install" data-i18n="create.install">Install</button>
+          </div>
+
+          <section class="preview-block is-active" data-card-preview-panel="scene">
+            <div class="preview-heading" data-i18n="create.preview">player-facing preview</div>
+            <div id="card-player-preview" class="player-preview"></div>
+            <div class="preview-heading" data-i18n="create.sceneDryPreview">.scene.dry preview</div>
+            <pre id="card-scene-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block" data-card-preview-panel="draft" hidden>
+            <div class="preview-heading" data-i18n="create.cardDraftJson">card draft JSON</div>
+            <pre id="card-json-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block" data-card-preview-panel="install" hidden>
+            <div class="preview-heading" data-i18n="create.installNotes">install notes</div>
+            <pre id="card-install-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block" data-card-preview-panel="patch" hidden>
+            <div class="preview-heading" data-i18n="create.patchPreview">patch preview</div>
+            <pre id="card-patch-preview" class="code-preview"></pre>
+          </section>
+        </section>
+
+        <div class="wizard-actions">
+          <div class="wizard-action-group wizard-action-primary">
+            <div class="wizard-action-copy">
+              <strong data-i18n="create.action.recommendedNext">Recommended next step</strong>
+              <span data-i18n="create.action.reviewHelp">Review what can be applied, what needs checking, and what remains manual.</span>
+            </div>
+            <button id="card-review-install" class="primary-action" type="button" data-i18n="create.reviewInstall">Review &amp; Apply</button>
+          </div>
+          <div class="wizard-action-group wizard-action-secondary">
+            <div class="wizard-action-copy">
+              <strong data-i18n="create.action.sourceFile">Generated source file</strong>
+              <span data-i18n="create.action.sourceFileHelp">Download the playable scene file if you are handing files to someone else.</span>
+            </div>
+            <button id="card-download-scene" type="button" data-i18n="create.downloadScene">Download .scene.dry</button>
+          </div>
+          <details class="wizard-action-group wizard-action-advanced">
+            <summary>
+              <span data-i18n="create.action.advancedDownloads">Advanced downloads</span>
+              <small data-i18n="create.action.advancedHelp">Draft JSON, install notes, install plan, patch preview, and router snippets.</small>
+            </summary>
+            <div class="wizard-action-row">
+              <button id="card-download-json" type="button" data-i18n="create.saveCardDraftJson">Save card draft JSON</button>
+              <button id="card-download-notes" type="button" data-i18n="create.downloadInstallNotes">Download install notes</button>
+              <button id="card-download-plan" type="button" data-i18n="create.downloadInstallPlan">Download install plan</button>
+              <button id="card-download-patch" type="button" data-i18n="create.downloadPatchPreview">Download patch preview</button>
+            </div>
+          </details>
+        </div>
+      </aside>
+
+      <section class="wizard-form-panel hidden" aria-labelledby="surface-heading-label" data-create-template-panel="surface">
+        <div class="wizard-title-row">
+          <div>
+            <h1 id="surface-heading-label" class="wizard-title" data-i18n="create.textProposalWizard">Text Replacement Proposal</h1>
+            <div id="surface-core-status" class="wizard-status" data-i18n="create.status.surfaceCorePending">SurfaceTextDraft core pending.</div>
+          </div>
+          <div class="wizard-status-stack">
+            <label class="draft-file-picker">
+              <span data-i18n="create.loadTextProposalJson">Load text proposal JSON</span>
+              <input id="surface-draft-file" type="file" accept="application/json,.json">
+            </label>
+            <div id="surface-draft-status" class="wizard-index-status" data-i18n="create.status.noTextProposalLoaded">No text proposal loaded.</div>
+            <div id="surface-index-status" class="wizard-index-status" data-i18n="create.status.noIndexLoaded">No index loaded.</div>
+          </div>
+        </div>
+
+        <form id="surface-text-form" class="wizard-form">
+          <div class="wizard-guidance" data-i18n="create.guidance.surface">
+            Build a text replacement proposal. Source path and line are evidence for Review & Apply; they are not player-facing text.
+          </div>
+          <fieldset class="wizard-section">
+            <legend data-i18n="create.section.replacement">Replacement</legend>
+            <div class="field-grid">
+              <label>
+                <span data-i18n="create.field.id">id</span>
+                <input id="surface-id" name="id" type="text" value="rename_surface_label" autocomplete="off">
+                <small class="wizard-field-help" data-i18n="create.help.id">Internal file-safe name; players do not see it, but install plans use it.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.itemId">itemId</span>
+                <input id="surface-item-id" name="itemId" type="text" value="">
+                <small class="wizard-field-help" data-i18n="create.help.itemId">ID of the indexed text item this proposal came from, when available.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.area">area</span>
+                <input id="surface-area" name="area" type="text" value="sidebar">
+                <small class="wizard-field-help" data-i18n="create.help.area">Human grouping for where this text appears, such as sidebar, body, or option.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.editability">editability</span>
+                <select id="surface-editability" name="editability">
+                  <option value="draft_exportable" selected>draft_exportable</option>
+                  <option value="ide_escape_hatch">ide_escape_hatch</option>
+                </select>
+                <small class="wizard-field-help" data-i18n="create.help.surfaceEditability">Controls whether Review & Apply can verify a source-backed replacement or only export guidance.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.sourcePath">source path</span>
+                <input id="surface-source-path" name="sourcePath" type="text" value="">
+                <small class="wizard-field-help" data-i18n="create.help.sourcePath">File evidence used for guarded apply; leave as loaded from Explore when possible.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.line">line</span>
+                <input id="surface-source-line" name="sourceLine" type="number" min="1" step="1" value="">
+                <small class="wizard-field-help" data-i18n="create.help.sourceLine">Line evidence used to check the original text before replacing it.</small>
+              </label>
+            </div>
+            <label class="wide-field">
+              <span data-i18n="create.field.originalText">original text</span>
+              <input id="surface-label-original" name="originalLabel" type="text" value="Resources" data-i18n-value="create.sample.surfaceOriginal">
+              <small class="wizard-field-help" data-i18n="create.help.originalText">The exact text Review & Apply expects to find before changing anything.</small>
+            </label>
+            <label class="wide-field">
+              <span data-i18n="create.field.replacementText">replacement text</span>
+              <input id="surface-label-replacement" name="replacementLabel" type="text" value="Funds" data-i18n-value="create.sample.surfaceReplacement">
+              <small class="wizard-field-help" data-i18n="create.help.replacementText">The new player-facing text you want to propose.</small>
+            </label>
+            <label class="wide-field">
+              <span data-i18n="create.field.reason">reason</span>
+              <textarea id="surface-reason" name="reason" rows="4" data-i18n-value="create.sample.surfaceReason">Review this replacement before editing the owning source by hand.</textarea>
+              <small class="wizard-field-help" data-i18n="create.help.reason">Notes for your future self or reviewer; not installed into the game.</small>
+            </label>
+          </fieldset>
+        </form>
+      </section>
+
+      <aside class="wizard-preview-panel hidden" aria-label="Text replacement proposal previews" data-i18n-aria-label="create.textPreviewAria" data-create-template-panel="surface">
+        <section class="wizard-diagnostics">
+          <div class="preview-heading" data-i18n="create.diagnostics">Diagnostics</div>
+          <div id="surface-diagnostics"></div>
+        </section>
+
+        <section class="preview-drawer" aria-label="Text replacement output" data-i18n-aria-label="create.textOutputAria">
+          <div class="preview-heading output-heading" data-i18n="create.output">Output</div>
+          <div class="output-tabs" role="tablist" aria-label="Generated text replacement output" data-i18n-aria-label="create.generatedTextOutputAria">
+            <button class="output-tab is-active" type="button" role="tab" aria-selected="true" data-surface-preview-tab="proposal" data-i18n="create.proposal">Proposal</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-surface-preview-tab="draft" data-i18n="create.draftJson">Draft JSON</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-surface-preview-tab="patch" data-i18n="create.patchPreview">Patch preview</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-surface-preview-tab="install" data-i18n="create.install">Install</button>
+          </div>
+
+          <section class="preview-block is-active" data-surface-preview-panel="proposal">
+            <div class="preview-heading" data-i18n="create.preview">player-facing preview</div>
+            <div id="surface-player-preview" class="player-preview"></div>
+            <div class="preview-heading" data-i18n="create.replacementProposal">replacement proposal</div>
+            <pre id="surface-proposal-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block" data-surface-preview-panel="draft" hidden>
+            <div class="preview-heading" data-i18n="create.textProposalJson">text proposal JSON</div>
+            <pre id="surface-json-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block" data-surface-preview-panel="install" hidden>
+            <div class="preview-heading" data-i18n="create.installNotes">install notes</div>
+            <pre id="surface-install-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block" data-surface-preview-panel="patch" hidden>
+            <div class="preview-heading" data-i18n="create.patchPreview">patch preview</div>
+            <pre id="surface-patch-preview" class="code-preview"></pre>
+          </section>
+        </section>
+
+        <div class="wizard-actions">
+          <div class="wizard-action-group wizard-action-primary">
+            <div class="wizard-action-copy">
+              <strong data-i18n="create.action.recommendedNext">Recommended next step</strong>
+              <span data-i18n="create.action.reviewHelp">Review what can be applied, what needs checking, and what remains manual.</span>
+            </div>
+            <button id="surface-review-install" class="primary-action" type="button" data-i18n="create.reviewInstall">Review &amp; Apply</button>
+          </div>
+          <div class="wizard-action-group wizard-action-secondary">
+            <div class="wizard-action-copy">
+              <strong data-i18n="create.action.proposalFile">Readable proposal</strong>
+              <span data-i18n="create.action.proposalFileHelp">Download a plain text proposal for discussion or manual review.</span>
+            </div>
+            <button id="surface-download-proposal" type="button" data-i18n="create.downloadProposal">Download proposal</button>
+          </div>
+          <details class="wizard-action-group wizard-action-advanced">
+            <summary>
+              <span data-i18n="create.action.advancedDownloads">Advanced downloads</span>
+              <small data-i18n="create.action.advancedHelp">Draft JSON, install notes, install plan, patch preview, and router snippets.</small>
+            </summary>
+            <div class="wizard-action-row">
+              <button id="surface-download-json" type="button" data-i18n="create.saveProposalJson">Save proposal JSON</button>
+              <button id="surface-download-notes" type="button" data-i18n="create.downloadInstallNotes">Download install notes</button>
+              <button id="surface-download-plan" type="button" data-i18n="create.downloadInstallPlan">Download install plan</button>
+              <button id="surface-download-patch" type="button" data-i18n="create.downloadPatchPreview">Download patch preview</button>
+            </div>
+          </details>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <script src="../authoring/install_plan.js"></script>
+  <script src="../authoring/event_draft.js"></script>
+  <script src="../authoring/news_draft.js"></script>
+  <script src="../authoring/card_draft.js"></script>
+  <script src="../authoring/surface_text_draft.js"></script>
+  <script src="../authoring/draft_extract.js"></script>
+  <script src="../authoring/existing_scene_edit_model.js"></script>
+  <script src="../authoring/variable_suggestions.js"></script>
+  <script src="../authoring/asset_model.js"></script>
+  <script src="../authoring/preview_model.js"></script>
+  <script src="../authoring/meaning_layer.js"></script>
+  <script src="../authoring/event_workbench_model.js"></script>
+  <script src="../authoring/draft_workspace.js"></script>
+  <script src="../authoring/studio_contracts.js"></script>
+  <script src="i18n.js"></script>
+  <script src="app.js"></script>
+  <script src="design_model.js"></script>
+  <script src="meaning_layer_ui.js"></script>
+  <script src="event_workbench_ui.js"></script>
+  <script src="wizard_ui.js"></script>
+  <script src="news_ui.js"></script>
+  <script src="card_ui.js"></script>
+  <script src="surface_text_ui.js"></script>
+  <script src="install_assistant_ui.js"></script>
+  <script src="draft_workspace_ui.js"></script>
+  <script src="existing_scene_edit_ui.js"></script>
+  <script src="onboarding_ui.js"></script>
+  <script src="update_notice_ui.js"></script>
+  <script src="tutorial_library_ui.js"></script>
+  <script src="design_ui.js"></script>
+</body>
+</html>

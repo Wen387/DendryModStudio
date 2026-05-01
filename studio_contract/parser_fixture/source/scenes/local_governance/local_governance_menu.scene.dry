@@ -1,0 +1,16 @@
+title: Contract Local Governance
+tags: local
+on-arrival: {!
+Q.local_county_governance_demo = Q.local_county_governance_demo + 1;
+Q.founding_committee = Q.founding_committee + 1;
+Q.diplomatic_pressure = Q.diplomatic_pressure + 1;
+Q.china_pressure = Q.china_pressure + 1;
+Q.defense_readiness = Q.defense_readiness + 1;
+Q.crisis_alert = Q.crisis_alert + 1;
+!}
+
+= Local Governance Fixture
+
+This fixture marks local governance, founding, diplomacy, China, defense, and crisis variable families without giving Studio permission to rewrite those systems broadly.
+
+- @root: Return

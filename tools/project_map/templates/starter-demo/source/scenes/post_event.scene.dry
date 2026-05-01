@@ -1,0 +1,15 @@
+title: Post Event
+tags: router
+on-arrival: {!
+if (Q.demo_support === undefined) { Q.demo_support = 0; }
+if (Q.demo_conflict === undefined) { Q.demo_conflict = 0; }
+if (Q.demo_event_seen === undefined) { Q.demo_event_seen = 0; }
+// Save compatibility: post_event split (post_event_news)
+!}
+
+= Post Event
+
+This small router exists so Studio can demonstrate save migration guards and
+safe world-event install proposals.
+
+- @root: Continue

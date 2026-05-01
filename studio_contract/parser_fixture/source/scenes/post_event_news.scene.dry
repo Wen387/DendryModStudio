@@ -1,0 +1,10 @@
+title: Contract News Router
+tags: news
+
+= Contract News Router
+
+This source-backed news lane lets Studio detect a minimal IslandSunrise news item without relying on generated HTML.
+
+The contract fixture records that Studio parser changes must keep Island-style news and SDAAH-style monthly event popups separate.
+
+- @root: Return

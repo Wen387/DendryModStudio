@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "0.1",
+  "kind": "news_item",
+  "id": "bad news id",
+  "headline": "",
+  "description": "Invalid fixture.",
+  "delivery": "background_pool",
+  "pool": {
+    "name": "unknown_pool",
+    "requiresJs": "Q.party_name == '社民黨'"
+  }
+}

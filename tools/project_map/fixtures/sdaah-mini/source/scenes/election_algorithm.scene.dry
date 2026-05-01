@@ -1,0 +1,11 @@
+title: Election Algorithm
+tags: system
+on-arrival: {!
+Q.strength = (Q.strength || 0) + 1;
+!}
+
+= Election Algorithm
+
+This fixture scene marks an election algorithm without project-specific local systems.
+
+- @root: Return

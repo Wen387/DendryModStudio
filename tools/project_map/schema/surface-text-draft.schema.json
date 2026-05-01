@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dendry-mod-studio.local/schemas/surface-text-draft.v0.1.schema.json",
+  "title": "SurfaceTextDraft v0.1",
+  "type": "object",
+  "required": ["schemaVersion", "kind", "id", "originalLabel", "replacementLabel", "editability", "source"],
+  "properties": {
+    "schemaVersion": { "const": "0.1" },
+    "kind": { "const": "surface_text" },
+    "id": { "type": "string" },
+    "itemId": { "type": "string" },
+    "area": { "type": "string" },
+    "originalLabel": { "type": "string" },
+    "replacementLabel": { "type": "string" },
+    "editability": { "enum": ["draft_exportable", "draft_extractable", "ide_escape_hatch", "text_proposal"] },
+    "source": { "$ref": "#/$defs/sourceRef" },
+    "reason": { "type": "string" }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "sourceRef": {
+      "type": "object",
+      "required": ["path"],
+      "properties": {
+        "path": { "type": "string" },
+        "line": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": true
+    }
+  }
+}

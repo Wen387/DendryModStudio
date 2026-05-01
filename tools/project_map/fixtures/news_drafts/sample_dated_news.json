@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "0.1",
+  "kind": "news_item",
+  "id": "sample_dated_news",
+  "headline": "[政治] Studio news wizard handles a dated item",
+  "description": "A short description with 'quotes' and a backslash \\\\ for escaping.",
+  "delivery": "dated",
+  "when": {
+    "year": 2025,
+    "month": 3,
+    "slot": 1,
+    "requiresJs": "Q.founding_complete"
+  }
+}

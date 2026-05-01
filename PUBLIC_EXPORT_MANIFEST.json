@@ -1,0 +1,23 @@
+{
+  "exportKind": "dendry-mod-studio-public-export",
+  "targetRepository": "Wen387/DendryModStudio",
+  "sourceCommit": "534cc4c",
+  "generatedAt": "2026-05-01T05:53:31.857Z",
+  "includedRoots": [
+    "tools/project_map/",
+    "studio_contract/",
+    "tools/check_studio_contract.js"
+  ],
+  "excludedPrivateRoots": [
+    "project-memory",
+    "session-and-handover-notes",
+    "game-source",
+    "generated-runtime-output",
+    "historical-work-notes",
+    "local-fixture-checkouts"
+  ],
+  "notes": [
+    "This export is intended to be committed as a fresh repository history.",
+    "Do not push the source game repository history to the Studio repository."
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "0.1",
+  "kind": "surface_text",
+  "id": "rename_html_resources_to_funds",
+  "itemId": "sample-html-resources-label",
+  "area": "html_sidebar",
+  "originalLabel": "資源",
+  "replacementLabel": "資金",
+  "editability": "ide_escape_hatch",
+  "source": {
+    "path": "out/html/strategy-sidebar.js",
+    "line": 88
+  },
+  "reason": "Generated HTML/custom runtime UI must be edited by hand in the source that owns it."
+}

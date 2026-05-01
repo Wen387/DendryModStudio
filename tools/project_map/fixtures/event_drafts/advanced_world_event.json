@@ -1,0 +1,54 @@
+{
+  "schemaVersion": "0.1",
+  "kind": "world_event",
+  "id": "advanced_world_event",
+  "title": "Advanced World Event",
+  "heading": "Advanced fields enter review",
+  "seenFlag": "advanced_world_event_reviewed",
+  "when": {
+    "year": 2024,
+    "monthStart": 7,
+    "monthEnd": 9,
+    "requires": "founding_complete = 1",
+    "priority": 0
+  },
+  "effectsOnTrigger": [
+    { "variable": "media_reach", "op": "+=", "value": 1 }
+  ],
+  "introParagraphs": [
+    "A review fixture exposes every advanced world-event field without adding a new draft schema."
+  ],
+  "options": [
+    {
+      "id": "public_response",
+      "label": "Make a public response.",
+      "subtitle": "Requires capacity and changes the public frame.",
+      "chooseIf": "resources >= 1",
+      "unavailableText": "Resources are too low.",
+      "effects": [
+        { "variable": "resources", "op": "-=", "value": 1 },
+        { "variable": "media_reach", "op": "+=", "value": 2 }
+      ],
+      "narrativeParagraphs": [
+        "The party spends capacity to define the event in public."
+      ],
+      "variants": [
+        {
+          "condition": "media_reach >= 5",
+          "text": "Existing media relationships make the response travel farther."
+        }
+      ],
+      "gotoAfter": "after_public_response"
+    },
+    {
+      "id": "quiet_review",
+      "label": "Keep the review quiet.",
+      "effects": [
+        { "variable": "resources", "op": "+=", "value": 1 }
+      ],
+      "narrativeParagraphs": [
+        "The organization preserves capacity and accepts a quieter public trace."
+      ]
+    }
+  ]
+}

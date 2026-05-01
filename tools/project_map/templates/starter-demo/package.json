@@ -1,0 +1,12 @@
+{
+  "name": "dendry-mod-studio-starter-demo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Bundled starter project for Dendry Mod Studio.",
+  "scripts": {
+    "make-html": "dendrynexus make-html --force"
+  },
+  "dependencies": {
+    "dendrynexus": "github:aucchen/dendrynexus"
+  }
+}

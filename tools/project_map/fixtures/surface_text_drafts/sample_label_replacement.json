@@ -1,0 +1,15 @@
+{
+  "schemaVersion": "0.1",
+  "kind": "surface_text",
+  "id": "rename_resources_to_funds",
+  "itemId": "sample-source-resources-label",
+  "area": "sidebar",
+  "originalLabel": "資源",
+  "replacementLabel": "資金",
+  "editability": "draft_exportable",
+  "source": {
+    "path": "source/scenes/status.scene.dry",
+    "line": 12
+  },
+  "reason": "Source-backed display text can be reviewed as a replacement proposal."
+}

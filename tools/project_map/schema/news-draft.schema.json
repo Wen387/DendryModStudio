@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dendry-mod-studio.local/schemas/news-draft.v0.1.schema.json",
+  "title": "NewsDraft v0.1",
+  "type": "object",
+  "required": ["schemaVersion", "kind", "id", "headline", "delivery"],
+  "properties": {
+    "schemaVersion": { "const": "0.1" },
+    "kind": { "const": "news_item" },
+    "id": { "$ref": "#/$defs/id" },
+    "headline": { "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
+    "delivery": { "type": "string", "enum": ["dated", "background_pool"] },
+    "when": {
+      "type": "object",
+      "properties": {
+        "year": { "type": "integer", "minimum": 1 },
+        "month": { "type": "integer", "minimum": 1, "maximum": 12 },
+        "slot": { "type": "integer", "minimum": 1, "maximum": 3 },
+        "requiresJs": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "pool": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "enum": ["social_pool", "intl_pool", "gossip_pool"] },
+        "requiresJs": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "dendry-mod-studio-desktop",
+  "version": "0.9.2",
+  "private": true,
+  "description": "Desktop shell for Dendry Mod Studio.",
+  "main": "main.js",
+  "dendryModStudio": {
+    "updateManifestUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/desktop/update_manifest.json"
+  },
+  "scripts": {
+    "start": "electron .",
+    "package:dir": "node scripts/package_dir.js",
+    "package:portable": "node scripts/package_portable.js",
+    "package:deb": "node scripts/package_deb.js",
+    "smoke": "node ../check_desktop_shell.js",
+    "doctor": "node scripts/doctor.js"
+  },
+  "devDependencies": {
+    "electron": "^30.5.1"
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dendry-mod-studio.local/schemas/event-draft.v0.1.schema.json",
+  "title": "EventDraft v0.1",
+  "type": "object",
+  "required": ["schemaVersion", "kind", "id", "title", "heading", "when", "introParagraphs", "options"],
+  "properties": {
+    "schemaVersion": { "const": "0.1" },
+    "kind": { "const": "world_event" },
+    "id": { "$ref": "#/$defs/id" },
+    "title": { "type": "string", "minLength": 1 },
+    "heading": { "type": "string", "minLength": 1 },
+    "seenFlag": { "$ref": "#/$defs/id" },
+    "when": {
+      "type": "object",
+      "required": ["year", "monthStart", "monthEnd", "priority"],
+      "properties": {
+        "year": { "type": "integer", "minimum": 1 },
+        "monthStart": { "type": "integer", "minimum": 1, "maximum": 12 },
+        "monthEnd": { "type": "integer", "minimum": 1, "maximum": 12 },
+        "requires": { "type": "string" },
+        "priority": { "type": "integer" }
+      },
+      "additionalProperties": false
+    },
+    "effectsOnTrigger": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/effect" }
+    },
+    "introParagraphs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "options": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 4,
+      "items": { "$ref": "#/$defs/option" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+    },
+    "effect": {
+      "type": "object",
+      "required": ["variable", "op", "value"],
+      "properties": {
+        "variable": { "$ref": "#/$defs/id" },
+        "op": { "type": "string", "enum": ["=", "+=", "-="] },
+        "value": {
+          "anyOf": [
+            { "type": "number" },
+            { "type": "integer" },
+            { "type": "string" },
+            { "type": "boolean" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "variant": {
+      "type": "object",
+      "required": ["condition", "text"],
+      "properties": {
+        "condition": { "type": "string", "minLength": 1 },
+        "text": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "option": {
+      "type": "object",
+      "required": ["id", "label", "narrativeParagraphs"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "label": { "type": "string", "minLength": 1 },
+        "subtitle": { "type": "string" },
+        "chooseIf": { "type": "string" },
+        "unavailableText": { "type": "string" },
+        "effects": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/effect" }
+        },
+        "narrativeParagraphs": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "variants": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/variant" }
+        },
+        "gotoAfter": { "$ref": "#/$defs/id" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

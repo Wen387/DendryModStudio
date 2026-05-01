@@ -1,0 +1,11 @@
+title: Generic Intro
+tags: event
+on-arrival: {!
+Q.generic_score = (Q.generic_score || 0) + 1;
+!}
+
+= Generic Intro
+
+This scene has a simple variable write and no project-specific systems.
+
+- @root: Return

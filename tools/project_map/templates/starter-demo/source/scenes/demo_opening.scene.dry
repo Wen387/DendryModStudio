@@ -1,0 +1,68 @@
+title: A Small Campaign Office
+tags: event
+on-arrival: {!
+Q.demo_event_seen = 1;
+!}
+
+= A Small Campaign Office
+
+This paragraph is the event body. In Studio, it is the kind of text players edit
+when they change an Event or Scene body.
+
+The two choices below show how option text becomes a button. Each result writes
+a small variable so you can see how effects shape later conditions.
+
+- @organize_volunteers: Organize volunteers
+- @observe_quietly: Wait and observe
+
+@organize_volunteers
+title: Organize volunteers
+subtitle: Option result text
+on-arrival: {!
+Q.demo_support = (Q.demo_support || 0) + 1;
+!}
+
+= Organize volunteers
+
+This is result text. It appears after the player clicks the option. The effect
+`demo_support += 1` also unlocks a follow-up option on the starter screen.
+
+- @demo_status: Continue
+
+@observe_quietly
+title: Wait and observe
+subtitle: Option result text
+on-arrival: {!
+Q.demo_conflict = (Q.demo_conflict || 0) + 1;
+!}
+
+= Wait and observe
+
+This is another result. The effect `demo_conflict += 1` changes the state
+summary, but it does not unlock the support follow-up.
+
+- @demo_status: Continue
+
+@demo_status
+title: Demo State
+
+= Demo State
+
+[? if demo_support > 0 : `demo_support` is above 0, so the support line can now appear. ?]
+[? if demo_conflict > 0 : `demo_conflict` is above 0, so the observation line can now appear. ?]
+
+If neither line appears yet, choose one of the options in the demo event first.
+
+- @root: Back to start
+
+@support_followup
+title: Follow up on support
+view-if: demo_support > 0
+
+= Follow up on support
+
+This section is hidden until `demo_support` is above 0. In Studio, conditions
+like this appear as `view-if` or requirements. They explain why some player
+choices are not visible at the start.
+
+- @root: Back to start

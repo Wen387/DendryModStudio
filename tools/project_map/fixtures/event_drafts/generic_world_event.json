@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "0.1",
+  "kind": "world_event",
+  "id": "generic_world_event",
+  "title": "Generic World Event",
+  "heading": "A generic fixture event",
+  "when": {
+    "year": 2014,
+    "monthStart": 1,
+    "monthEnd": 12,
+    "requires": "generic_score >= 0",
+    "priority": 0
+  },
+  "introParagraphs": [
+    "A small generic draft touches only generic-mini fixture state."
+  ],
+  "options": [
+    {
+      "id": "increase",
+      "label": "Increase the score.",
+      "effects": [
+        { "variable": "generic_score", "op": "+=", "value": 1 }
+      ],
+      "narrativeParagraphs": [
+        "The score rises by one."
+      ]
+    },
+    {
+      "id": "decrease",
+      "label": "Decrease the score.",
+      "effects": [
+        { "variable": "generic_score", "op": "-=", "value": 1 }
+      ],
+      "narrativeParagraphs": [
+        "The score falls by one."
+      ]
+    }
+  ]
+}

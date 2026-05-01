@@ -1,0 +1,22 @@
+title: Starter Demo
+new-page: true
+on-arrival: {!
+if (Q.demo_support === undefined) { Q.demo_support = 0; }
+if (Q.demo_conflict === undefined) { Q.demo_conflict = 0; }
+if (Q.demo_event_seen === undefined) { Q.demo_event_seen = 0; }
+// ====== U. EVENT SEEN FLAGS ======
+!}
+
+= Dendry Mod Studio Starter Demo
+
+This bundled project is a safe place to learn how a Dendry mod is built. The
+next scene acts like a tiny in-game event: it has a title, a body, two choices,
+result text, and effects that change simple variables.
+
+In Studio, open Explore or Design after loading this template. Select
+**A Small Campaign Office** to see how the source-backed text maps to the
+player-facing event.
+
+- @demo_opening: Start the demo event
+- @.demo_opening.demo_status: Check demo state
+- @.demo_opening.support_followup: Follow up on support

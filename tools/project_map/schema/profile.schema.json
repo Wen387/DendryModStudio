@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dendry-mod-studio.local/schemas/profile.v0.1.schema.json",
+  "title": "ProjectMap Profile v0.1",
+  "type": "object",
+  "required": ["profileVersion", "id", "name", "priority", "detection", "classificationRules"],
+  "properties": {
+    "profileVersion": { "type": "string" },
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+    "name": { "type": "string" },
+    "priority": { "type": "integer" },
+    "extends": { "type": "string" },
+    "appliesTo": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "detection": {
+      "type": "object",
+      "properties": {
+        "pathHints": { "$ref": "#/$defs/hintsWithPattern" },
+        "fileNameHints": { "$ref": "#/$defs/hintsWithPattern" },
+        "contentHints": { "$ref": "#/$defs/contentHints" }
+      },
+      "additionalProperties": true
+    },
+    "classificationRules": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "diagnosticHints": {
+      "type": "array",
+      "items": { "type": "object", "additionalProperties": true }
+    }
+  },
+  "additionalProperties": true,
+  "$defs": {
+    "weight": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "hintBase": {
+      "type": "object",
+      "required": ["weight"],
+      "properties": {
+        "kind": { "type": "string" },
+        "weight": { "$ref": "#/$defs/weight" }
+      },
+      "additionalProperties": true
+    },
+    "hintsWithPattern": {
+      "type": "array",
+      "items": {
+        "allOf": [
+          { "$ref": "#/$defs/hintBase" },
+          {
+            "type": "object",
+            "required": ["pattern"],
+            "properties": {
+              "pattern": { "type": "string", "minLength": 1 }
+            }
+          }
+        ]
+      }
+    },
+    "contentHints": {
+      "type": "array",
+      "items": {
+        "allOf": [
+          { "$ref": "#/$defs/hintBase" },
+          {
+            "type": "object",
+            "required": ["regex"],
+            "properties": {
+              "regex": { "type": "string", "minLength": 1 }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "0.1",
+  "kind": "news_item",
+  "id": "sample_background_news",
+  "headline": "[社會] Background pool item from Studio",
+  "description": "This item enters the social background pool without replacing headline news.",
+  "delivery": "background_pool",
+  "pool": {
+    "name": "social_pool",
+    "requiresJs": "Q.year >= 2020"
+  }
+}

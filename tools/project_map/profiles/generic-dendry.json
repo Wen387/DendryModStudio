@@ -1,0 +1,55 @@
+{
+  "profileVersion": "0.1",
+  "id": "generic-dendry",
+  "name": "Generic Dendry",
+  "priority": 10,
+  "appliesTo": ["dendry", "dendrynexus"],
+  "uiLabels": {
+    "advisorLikeSingular": "Advisor",
+    "advisorLikePlural": "Advisors"
+  },
+  "detection": {
+    "pathHints": [
+      { "kind": "sourceRoot", "pattern": "source/scenes/**/*.scene.dry", "weight": 0.45 },
+      { "kind": "qdisplay", "pattern": "source/qdisplays/**/*.qdisplay.dry", "weight": 0.15 }
+    ],
+    "fileNameHints": [
+      { "pattern": "root.scene.dry", "weight": 0.2 },
+      { "pattern": "post_event.scene.dry", "weight": 0.15 }
+    ],
+    "contentHints": [
+      { "regex": "^@[A-Za-z0-9_:-]+", "weight": 0.2 },
+      { "regex": "^\\s*(title|subtitle|view-if|choose-if|go-to|on-arrival):", "weight": 0.25 },
+      { "regex": "Q\\.[A-Za-z_][A-Za-z0-9_]*", "weight": 0.2 }
+    ]
+  },
+  "classificationRules": {
+    "sceneTypes": [
+      { "type": "root", "pathRegex": "(^|/)root\\.scene\\.dry$" },
+      { "type": "monthly_router", "pathRegex": "(^|/)post_event[^/]*\\.scene\\.dry$" },
+      { "type": "event", "pathRegex": "(^|/)events?/.*\\.scene\\.dry$" },
+      { "type": "card", "pathRegex": "(^|/)(cards?|party_affairs|local_governance)/.*\\.scene\\.dry$" },
+      { "type": "system", "pathRegex": "(^|/)(engine|systems?|simulation)/.*\\.scene\\.dry$" },
+      { "type": "scene", "pathRegex": "\\.scene\\.dry$" }
+    ],
+    "edgeKinds": [
+      { "kind": "choice", "regex": "^\\s*-\\s*@([A-Za-z0-9_:-]+)" },
+      { "kind": "goto", "regex": "^\\s*go-to:\\s*([A-Za-z0-9_:-]+)" },
+      { "kind": "conditional_goto", "regex": "^\\s*go-to:.*\\s+if\\s+" }
+    ],
+    "variableRules": [
+      { "scope": "q", "readRegex": "Q\\.([A-Za-z_][A-Za-z0-9_]*)", "writeRegex": "Q\\.([A-Za-z_][A-Za-z0-9_]*)\\s*[-+*/]?=" },
+      { "scope": "display", "readRegex": "\\[\\+\\s*([A-Za-z_][A-Za-z0-9_]*)\\s*\\+\\]" }
+    ],
+    "semanticTags": [
+      { "tag": "entry", "pathRegex": "(^|/)root\\.scene\\.dry$" },
+      { "tag": "migration", "pathRegex": "(^|/)post_event[^/]*\\.scene\\.dry$", "contentRegex": "===\\s*undefined" },
+      { "tag": "conditional", "contentRegex": "\\b(view-if|choose-if)\\s*:" }
+    ]
+  },
+  "diagnosticHints": [
+    { "code": "dendry.conditional-goto", "severity": "warning", "regex": "^\\s*go-to:.*\\s+if\\s+" },
+    { "code": "dendry.inline-conditional-option", "severity": "error", "regex": "\\[\\?\\s*if\\s+[^?]+:\\s*-\\s*@" },
+    { "code": "dendry.literal-html-interpolation", "severity": "error", "regex": "\\{![\\s\\S]*?\\[\\+[^\\]]+\\+\\][\\s\\S]*?!\\}" }
+  ]
+}

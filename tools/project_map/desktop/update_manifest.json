@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "channel": "dev-preview",
+  "latestVersion": "0.9.2",
+  "minimumRecommendedVersion": "0.9.2",
+  "severity": "info",
+  "noticeId": "v0.9.2-dev-preview",
+  "title": "Dendry Mod Studio v0.9.2 dev preview",
+  "titleLocalized": {
+    "en": "Dendry Mod Studio v0.9.2 dev preview",
+    "zh-Hant": "Dendry Mod Studio v0.9.2 開發預覽版"
+  },
+  "body": "This preview includes Quick Start, the Starter Demo template, player-like QA coverage, and guarded Review & Apply. Public release QA is still in progress.",
+  "bodyLocalized": {
+    "en": "This preview includes Quick Start, the Starter Demo template, player-like QA coverage, and guarded Review & Apply. Public release QA is still in progress.",
+    "zh-Hant": "這個預覽版包含快速開始、內建 Demo 模板、類玩家 QA 覆蓋，以及受保護的審查與套用。公開發佈前 QA 仍在進行中。"
+  },
+  "announcementOnly": false,
+  "downloadUrl": "https://github.com/Wen387/DendryModStudio/releases",
+  "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.9.2.md",
+  "publishedAt": "2026-05-01"
+}
