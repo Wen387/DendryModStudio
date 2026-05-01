@@ -66,21 +66,21 @@ const postEvent = read(path.join(QA_FIXTURE, 'source', 'scenes', 'post_event.sce
   'qa_persistent_event',
   'install_plan.project_mismatch',
   'openProjectViaDialog',
-  'deterministic QA dialog shim for native folder selection',
+  'deterministic test dialog adapter for native folder selection',
   'Replace existing Body'
 ].forEach((needle) => {
   assert(runner.includes(needle), 'runner should include ' + needle);
 });
 
 [
-  'Player-Like QA',
+  'Guided UI QA',
   'first_time_user',
   'explore_design_existing_edit',
   'draft_persistence_restart',
   'load_bundled_demo_template',
   'project_mismatch',
-  'dialog shim',
-  'Do not treat this MVP as full manual QA'
+  'test dialog adapter',
+  'Do not treat these runs as full manual QA'
 ].forEach((needle) => {
   assert(readme.includes(needle), 'QA README should mention ' + needle);
 });

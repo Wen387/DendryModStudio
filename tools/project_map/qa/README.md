@@ -1,10 +1,10 @@
-# Dendry Mod Studio Player-Like QA
+# Dendry Mod Studio Guided UI QA
 
-This directory contains black-box-ish QA scripts that run the real Studio
-viewer inside Electron, interact with visible UI/DOM, take screenshots, and
-write a QA ledger.
+This directory contains guided UI QA scripts that run the real Studio viewer
+inside Electron, interact with visible UI/DOM, take screenshots, and write a QA
+ledger.
 
-The MVP runner is intentionally small:
+The runner is intentionally focused:
 
 ```bash
 node tools/project_map/qa/run_desktop_scenario.js --scenario first_time_user
@@ -23,7 +23,7 @@ Each run contains:
 
 ## Current Scenarios
 
-`first_time_user` covers the current MVP release path:
+`first_time_user` covers the first-run release path:
 
 1. Quick Start appears.
 2. Tutorial Library opens.
@@ -67,10 +67,11 @@ Each run contains:
 
 ## Shortcuts
 
-The runner uses a deterministic QA dialog shim for native folder selection.
-Player-facing UI still clicks Quick Start or Open Project, then the shim returns
-the configured fixture path to the same desktop preload, ProjectIndex builder,
-viewer UI, install assistant, and guarded apply path as the app.
+The runner uses a deterministic test dialog adapter for native folder
+selection.
+Player-facing UI still clicks Quick Start or Open Project, then the adapter
+returns the configured fixture path to the same desktop preload, ProjectIndex
+builder, viewer UI, install assistant, and guarded apply path as the app.
 
 `draft_persistence_restart` also reloads the Studio renderer rather than
 relaunching a packaged app process. That keeps the run deterministic while still
@@ -81,11 +82,12 @@ user data.
 copy path directly. It proves the first-run Demo button can produce a writable
 project, but it is still not a fresh package relaunch test.
 
-Do not treat this MVP as full manual QA. It is a repeatable smoke path that
-finds UI/runtime regressions before a human spends time on fresh package QA.
+Do not treat these runs as full manual QA. They are repeatable smoke paths that
+find UI/runtime regressions before a human spends time on fresh package QA.
 
 Scenario cards live in `qa/scenarios/`. Keep them written as player goals rather
-than selector scripts so a human tester or subagent can follow the same journey.
+than selector scripts so a human tester or automation runner can follow the same
+journey.
 
 ## Useful Options
 

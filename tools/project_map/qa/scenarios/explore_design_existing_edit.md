@@ -19,5 +19,6 @@ Required checkpoints:
 - Review & Apply loads an `existing_scene_edit` plan.
 - Dry-run returns a guarded `replace_text` operation with `would_apply`.
 
-Allowed shortcut: the native folder picker is replaced by the deterministic QA
-dialog shim. The player-facing Open Project action must still be clicked.
+Allowed shortcut: the native folder picker is replaced by the deterministic
+test dialog adapter. The player-facing Open Project action must still be
+clicked.

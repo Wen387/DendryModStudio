@@ -2,43 +2,69 @@
 
 [繁體中文](README.zh-Hant.md)
 
-[![Public Export Checks](https://github.com/Wen387/DendryModStudio/actions/workflows/ci.yml/badge.svg)](https://github.com/Wen387/DendryModStudio/actions/workflows/ci.yml)
+[![Checks](https://github.com/Wen387/DendryModStudio/actions/workflows/ci.yml/badge.svg)](https://github.com/Wen387/DendryModStudio/actions/workflows/ci.yml)
 [![Windows EXE](https://img.shields.io/badge/Download-Windows%20EXE-2563eb?style=for-the-badge&logo=windows)](https://github.com/Wen387/DendryModStudio/releases/latest/download/DendryModStudio-win-x64.exe)
 [![Linux AppImage](https://img.shields.io/badge/Download-Linux%20AppImage-15803d?style=for-the-badge&logo=linux)](https://github.com/Wen387/DendryModStudio/releases/latest/download/DendryModStudio-linux-x64.AppImage)
+[![Linux Deb](https://img.shields.io/badge/Download-Linux%20Deb-b45309?style=for-the-badge&logo=debian)](https://github.com/Wen387/DendryModStudio/releases/latest/download/DendryModStudio-linux-x64.deb)
 
-Dendry Mod Studio is a local authoring and review tool for Dendry and DendryNexus projects. It can scan a project, show Explore and Design views, create proposal-first edits, review install plans, and run desktop-only guarded dry-runs for supported changes.
+Dendry Mod Studio is a desktop tool for exploring and editing Dendry / DendryNexus projects. It helps mod authors inspect scenes, events, variables, assets, player-facing text, and install plans before changing project files.
 
-This repository is a clean standalone export of the Studio code. It intentionally does not include the IslandSunrise game source, private project notes, session logs, generated runtime output, package artifacts, or the previous game repository Git history.
+The current version is `v0.9.2`. It is an unsigned preview build, so Windows may show SmartScreen warnings and Linux still requires system Python 3.
 
-## Status
+## Download
 
-The current build is a `v0.9.2` developer preview. It is useful for local testing, authoring-flow review, and invitee QA, but it is not a signed public desktop release yet. The download badges point at the latest GitHub release assets once a pre-release is published.
+Download the latest preview build from [GitHub Releases](https://github.com/Wen387/DendryModStudio/releases):
 
-The code in this standalone Studio export is released under the MIT license.
+- Windows: `DendryModStudio-win-x64.exe`
+- Linux AppImage: `DendryModStudio-linux-x64.AppImage`
+- Linux Deb: `DendryModStudio-linux-x64.deb`
 
-## Layout
+The badges use GitHub's latest non-draft Release. If you publish a build as a prerelease, use the Releases page link above instead. If no Release is available yet, use the latest successful `Desktop Release` workflow artifact from the Actions tab.
 
-- `tools/project_map/` contains the Studio viewer, authoring models, desktop shell, schemas, fixtures, QA scenarios, and checks.
-- `studio_contract/` contains the current IslandSunrise compatibility contract and parser fixture used by Studio compatibility checks.
-- `PUBLIC_EXPORT_MANIFEST.json` records what was included and which private roots were excluded.
+## First Run
 
-## Quick Start
+Open the desktop app and choose the bundled Demo Template from Quick Start. The template is copied into your app data folder as an editable project, so you can safely experiment with event text, options, variables, conditions, and preview flows.
 
-Install the root dependencies once:
+To open your own project, choose a folder that contains `source/info.dry`.
+
+## What It Does
+
+- Explore scenes, events, cards, news, variables, assets, and diagnostics.
+- Use Design view to inspect story flow and related content.
+- Create proposal-first changes for supported event, card, text, news, and asset workflows.
+- Review install plans before applying changes.
+- Run desktop-only dry-runs and runtime previews on temporary project copies.
+- Check update notices from the bundled GitHub-hosted manifest.
+
+## Safety
+
+- Browser mode is review-only.
+- Desktop mode can dry-run or apply only operations classified as safe, guarded, or explicitly advanced.
+- Manual-review and refused operations are not applied automatically.
+- Runtime Preview builds temporary baseline and modified copies instead of patching the real project folder.
+- Generated runtime output such as `out/html`, `out/game.json`, and `.git` is protected from automatic edits.
+
+## Build From Source
+
+Install root dependencies once:
 
 ```bash
 npm ci
 ```
 
-Launch the browser viewer against a local project:
+Run the core checks:
+
+```bash
+npm run check:ci
+```
+
+Start the browser viewer:
 
 ```bash
 python3 tools/project_map/launch_studio.py --no-open
 ```
 
-Then open the printed local URL in your browser.
-
-For the Electron desktop shell:
+Start the Electron desktop app:
 
 ```bash
 cd tools/project_map/desktop
@@ -46,44 +72,16 @@ npm ci
 npm run start
 ```
 
-First-time users can choose the bundled Demo Template from Quick Start. The desktop app copies that template into app data before opening it, so the packaged demo can be edited without mutating application resources.
+## Release Builds
 
-## Safety Model
+Desktop release packaging is handled by `.github/workflows/release.yml`.
 
-- Browser mode is review-only.
-- Desktop mode can dry-run or apply only operations classified as safe, guarded, or explicitly advanced.
-- Manual-review and refused operations are not applied.
-- Runtime Preview builds temporary baseline/modified copies and does not patch the real project folder.
-- Generated runtime output such as `out/html`, `out/game.json`, and `.git` is protected from automatic edits.
-
-## Update Notices
-
-The desktop app reads `tools/project_map/desktop/update_manifest.json` through a static raw GitHub URL. This is an announcement/update notice system, not a silent auto-updater. It opens release/download links only when the user clicks them.
-
-## Useful Checks
-
-```bash
-npm run check:ci
-```
-
-The GitHub Actions workflow runs the same core checks on every push and pull request.
-Release preparation notes live in `docs/releases/v0.9.2-dev-preview.md`.
-
-Desktop release packaging is prepared through `.github/workflows/release.yml`.
-Tagged pre-releases can build Windows `.exe` and Linux `.AppImage` artifacts.
-
-## Public Export Gate
-
-Before pushing or making this repository public, run:
-
-```bash
-npm run check:ci
-git status --short
-git log --oneline --max-count=3
-```
-
-The first public commit should be a fresh initial Studio commit. Do not import the old game repository history.
+- Manual workflow runs always upload Actions artifacts.
+- Manual workflow runs can also publish a GitHub Release when `publish_release` is enabled and a release tag is provided.
+- Pushing a `v*` tag publishes a prerelease automatically.
+- Linux builds include AppImage and Deb packages.
+- Windows builds include an unsigned NSIS installer.
 
 ## Reporting Issues
 
-When reporting a problem, include the Studio version, operating system, whether you used browser or desktop mode, and the action you were trying to complete. Do not upload private project notes, access tokens, SSH private keys, or full game save data unless you have reviewed them first.
+When reporting a problem, include the Studio version, operating system, whether you used browser or desktop mode, and the action you were trying to complete. Do not upload private notes, access tokens, SSH private keys, or unreviewed save/project data.

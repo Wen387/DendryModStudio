@@ -5,7 +5,7 @@
 Repo 分離後建議採用：
 
 - IslandSunrise game repo：保留 `source/`, `out/html/`, `tools/build_and_validate.sh`, engine docs, `studio_contract/`。
-- DendryModStudio repo：保留 Studio source、desktop packaging、generic/SDAAH/Island profile、player-like QA。
+- DendryModStudio repo：保留 Studio source、desktop packaging、generic/SDAAH/Island profile、guided UI QA。
 - Studio CI：可把 IslandSunrise repo 的 `studio_contract/` checkout 為外部 fixture。
 
 ## Compatibility Review Checklist

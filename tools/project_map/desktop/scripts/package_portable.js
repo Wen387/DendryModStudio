@@ -115,7 +115,7 @@ function portableManifest(packaged, doctor) {
     installerStatus: {
       deb: 'not-built',
       exe: 'not-built',
-      reason: 'v0.5.2 is a portable packaging feasibility spike, not a formal installer.'
+      reason: 'v0.5.2 is a portable package, not a formal installer.'
     },
     checks: doctor.checks
   };

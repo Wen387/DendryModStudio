@@ -91,6 +91,7 @@ function main() {
   const disallowedPathFragments = [
     '/__pycache__/',
     '/node_modules/',
+    '/LLM/',
     '/desktop/dist/',
     '/.env'
   ];
@@ -100,7 +101,7 @@ function main() {
       disallowedPrefixes.some((prefix) => file.startsWith(prefix)) ||
       disallowedPathFragments.some((fragment) => ('/' + file).includes(fragment));
   });
-  assert(pathViolations.length === 0, 'public export contains disallowed private or generated paths', {pathViolations});
+  assert(pathViolations.length === 0, 'repository package contains disallowed private or generated paths', {pathViolations});
 
   [
     'README.md',
@@ -124,7 +125,7 @@ function main() {
     'studio_contract/parser_fixture/source/info.dry',
     'tools/check_studio_contract.js'
   ].forEach((requiredPath) => {
-    assert(exists(requiredPath), 'public export missing required file: ' + requiredPath);
+    assert(exists(requiredPath), 'repository package missing required file: ' + requiredPath);
   });
 
   const packageJson = JSON.parse(read('tools/project_map/desktop/package.json'));
@@ -137,7 +138,10 @@ function main() {
   assert(rootPackageJson.scripts && rootPackageJson.scripts['check:ci'], 'root package.json should define check:ci');
   assert(ciWorkflow.includes('npm ci --ignore-scripts'), 'CI workflow should use npm ci with the committed lockfile');
   assert(releaseWorkflow.includes('dist:linux') && releaseWorkflow.includes('dist:win'), 'release workflow should build Linux and Windows desktop artifacts');
+  assert(releaseWorkflow.includes('*.deb'), 'release workflow should upload Linux Deb artifacts');
+  assert(releaseWorkflow.includes('publish_release') && releaseWorkflow.includes('actions/download-artifact@v4'), 'release workflow should support manual GitHub Release publishing');
   assert(packageJson.scripts && packageJson.scripts['dist:linux'] && packageJson.scripts['dist:win'], 'desktop package should expose release build scripts');
+  assert(packageJson.scripts['dist:linux'].includes('deb'), 'desktop Linux release script should build Deb artifacts');
   assert(packageJson.devDependencies && packageJson.devDependencies['electron-builder'], 'desktop package should declare electron-builder for release builds');
   [
     'check_public_export.js',
@@ -195,16 +199,16 @@ function main() {
       }
     });
   });
-  assert(secretViolations.length === 0, 'public export contains potential secrets', {secretViolations});
+  assert(secretViolations.length === 0, 'repository package contains potential secrets', {secretViolations});
 
   const manifest = JSON.parse(read('PUBLIC_EXPORT_MANIFEST.json'));
-  assert(manifest && manifest.exportKind === 'dendry-mod-studio-public-export', 'PUBLIC_EXPORT_MANIFEST.json should identify export kind');
-  assert(Array.isArray(manifest.excludedPrivateRoots), 'PUBLIC_EXPORT_MANIFEST.json should record excluded private roots');
+  assert(manifest && manifest.manifestKind === 'dendry-mod-studio-repository-manifest', 'PUBLIC_EXPORT_MANIFEST.json should identify repository manifest kind');
+  assert(Array.isArray(manifest.excludedAreas), 'PUBLIC_EXPORT_MANIFEST.json should record excluded areas');
 
   process.stdout.write(JSON.stringify({
     ok: true,
     fileCount: files.length,
-    gate: 'public-export'
+    gate: 'repository-package'
   }, null, 2) + '\n');
 }
 

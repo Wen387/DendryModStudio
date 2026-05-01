@@ -19,6 +19,6 @@ Required checkpoints:
 - Review & Apply loads the persisted `qa_persistent_event` install plan.
 - Dry-run returns installable `would_apply` operations.
 
-Allowed shortcut: the native folder picker is replaced by the deterministic QA
-dialog shim. The scenario reloads the Studio renderer instead of relaunching a
-packaged app process.
+Allowed shortcut: the native folder picker is replaced by the deterministic
+test dialog adapter. The scenario reloads the Studio renderer instead of
+relaunching a packaged app process.

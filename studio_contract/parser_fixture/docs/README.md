@@ -1,4 +1,4 @@
-# Fixture Memory Index
+# Fixture Notes
 
 This tiny Dendry project represents the IslandSunrise Studio compatibility contract.
 

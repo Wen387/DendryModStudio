@@ -12,8 +12,9 @@ manifest polling, the bundled `update_manifest.json` schema/example, and a
 manual in-app notice banner. It remains a local feasibility package, not a
 signed public release.
 
-The Linux `.deb` path still uses the hand-written local `dpkg-deb` flow after
-a successful local install smoke, and keeps these release-hygiene behaviors:
+The release workflow uses `electron-builder` for Linux AppImage, Linux Deb, and
+Windows NSIS packages. The local `package:deb` script remains available for
+diagnosing Debian package layout and keeps these release-hygiene behaviors:
 
 - expands the Debian `Depends:` line beyond `python3` to include the common
   Electron runtime libraries used by GTK/NSS/X11/GBM/ALSA desktop sessions;
@@ -27,20 +28,17 @@ Use `npm run package:deb -- --keep-workdirs` only when debugging the staged
 package layout.
 
 2026-05-01 desktop release workflow note: GitHub Actions now has a
-tag/manual release workflow for Linux AppImage and Windows NSIS `.exe` builds
-through `electron-builder`. The builder config keeps `asar` disabled so the
+tag/manual release workflow for Linux AppImage, Linux Deb, and Windows NSIS
+`.exe` builds through `electron-builder`. The builder config keeps `asar`
+disabled so the
 Python indexer, bundled Starter Demo, Project Map resources, and DendryNexus
 runtime files remain available through normal filesystem paths. These artifacts
 are still unsigned dev-preview packages; Windows may show SmartScreen warnings,
 and both Windows and Linux builds still require system Python 3.
 
-2026-04-30 packaging note: source checkpoint `7dfdcbf` produced local ignored
-artifacts `dist/DendryModStudio-linux-x64.tar.gz` and
-`dist/dendry-mod-studio_0.9.2_amd64.deb`. `check_desktop_packaging.js`,
-`check_desktop_deb.js`, and `npm run doctor` passed. A post-cleanup
-`npm run smoke` previously timed out in one local automation run after 90 seconds
-without an error stack; rerun it in a normal local terminal before public
-release or invitee testing.
+2026-04-30 packaging note: local portable and Deb packaging checks cover the
+resource layout used by the desktop app. Run `npm run smoke` and
+`npm run doctor` before sharing artifacts for testing.
 
 2026-04-30 hotfix note: the same v0.9.2 artifact names were rebuilt after
 removing `url.pathToFileURL` from the preload script. Electron sandbox preload
@@ -113,7 +111,7 @@ runtime library dependency curation remain future work.
 
 ## v0.5.2 Scope
 
-v0.5.2 is a portable packaging feasibility spike. It proves that the Electron
+v0.5.2 is a portable packaging slice. It proves that the Electron
 desktop shell can be assembled into an unpacked app and a Linux-friendly
 portable archive without relying on repository-relative app resources.
 
@@ -126,7 +124,8 @@ It is not a public `.deb` or `.exe` installer.
   `dist/DendryModStudio-linux-x64.tar.gz`.
 - `npm run package:deb` creates
   `dist/dendry-mod-studio_<version>_amd64.deb` on Linux.
-- `npm run dist:linux` creates an unsigned AppImage under `dist-builder/`.
+- `npm run dist:linux` creates unsigned AppImage and Deb artifacts under
+  `dist-builder/`.
 - `npm run dist:win` creates an unsigned Windows NSIS `.exe` under
   `dist-builder/` when run on Windows.
 - The portable bundle includes the viewer, parser wrapper, Python indexer,
@@ -152,27 +151,26 @@ size, licensing, path, and update decisions.
 
 ## Installer Boundary
 
-- `.deb` is produced as a local feasibility package in v0.5.3+.
-- `.exe` is not produced in v0.5.2.
+- `.deb` is produced by both the local Debian helper and the release workflow.
+- `.exe` is produced by the release workflow on Windows.
 - Code signing, public maintainer metadata, full clean-VM dependency curation,
   uninstall UX beyond normal package-manager behavior, and full update channels
   are not part of v0.9.2. The current update notice path only polls a static
   manifest and opens manual links after a user action; it is not an auto-install
   updater.
 
-Electron's official docs recommend Electron Forge for full distributables, and
-the Forge `.deb` maker requires external Linux packaging tools such as
-`fakeroot` and `dpkg`. v0.5.2 intentionally keeps those dependencies out of the
-project until the desktop shell and Python strategy are stable.
+The release workflow keeps artifacts unsigned until the project has a stable
+code-signing and update-channel plan.
 
 ## Next Packaging Slice
 
-The next installer slice should choose one target first:
+The next installer slice should focus on polish rather than basic artifact
+creation:
 
-- Linux `.deb`: add Electron Forge or another maker, document required external
-  tools, and decide whether Python remains a system prerequisite.
-- Windows installer: test Windows path handling, Python discovery, unsigned
-  SmartScreen behavior, and future code signing expectations.
+- Linux `.deb`: test installation on clean Debian/Ubuntu systems and confirm
+  desktop-menu integration.
+- Windows installer: test Python discovery, unsigned SmartScreen behavior, and
+  future code signing expectations.
 - Bundled Python: decide whether to ship a minimal embedded runtime, where it
   lives inside app resources, and how doctor chooses bundled versus system
   Python.

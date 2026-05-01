@@ -57,18 +57,18 @@ does not match the currently opened project root.
 
 ## Known Limits
 
-- Public release QA is not complete. A human still needs to run the beginner
+- Fresh-package QA is not complete. A human still needs to run the beginner
   path from a fresh package: Quick Start, Tutorial Library, open/load project,
   create a proposal, save to My Changes, review, dry-run, apply, and inspect the
   result.
-- The Linux `.deb` and portable archive are feasibility artifacts, not signed
-  production installers. Python 3 is still a system requirement.
+- The Linux `.deb`, Linux AppImage, and Windows installer are unsigned preview
+  artifacts. Python 3 is still a system requirement.
 - Update Notice MVP is not an auto-updater. It does not silently download,
   install, or identify a device; it only fetches a static HTTP(S) manifest and
   opens links after the user clicks them. Hosted manifest reachability still
   needs to be checked before sharing a package.
 - The app has not been clean-VM tested across Linux distributions, Windows, or
-  macOS. Windows packaging is not part of v0.9.2.
+  macOS.
 - Asset import is intentionally basic. The Studio can propose or guarded-copy a
   local file when desktop source-path evidence exists, but it does not optimize,
   crop, transcode, or manage persistent browser file handles.
@@ -98,9 +98,9 @@ node tools/project_map/qa/run_desktop_scenario.js --scenario load_bundled_demo_t
 bash tools/build_and_validate.sh --skip-build --errors-only
 ```
 
-The player-like QA scenarios write screenshots, `transcript.json`, and
+The guided UI QA scenarios write screenshots, `transcript.json`, and
 `QA_LEDGER.md` under `/tmp/dendry_mod_studio_qa/`. They are smoke tests for the
-real Studio UI, including Open Project through the QA dialog shim and the
+real Studio UI, including Open Project through the test dialog adapter and the
 Explore -> Design -> Edit existing path. They also cover a returning-author
 draft persistence path by reloading the Studio renderer with the same Electron
 user data, reopening the saved draft from My Changes, and dry-running the

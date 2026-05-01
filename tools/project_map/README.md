@@ -5,28 +5,11 @@ Read-only tooling for inspecting a Dendry/DendryNexus project.
 For development workflow, smoke tiers, packaging hygiene, and contributor
 boundaries, see `tools/project_map/WORKFLOW.md`.
 
-## Clean Public Export
+## Repository Layout
 
-The Studio should be uploaded from a fresh export repository, not from the full
-game repository history. Generate that export with:
-
-```bash
-node tools/project_map/scripts/export_studio_repo.js --out /tmp/DendryModStudio-export --force --init-git
-```
-
-The export includes `tools/project_map/`, `studio_contract/`, and
-`tools/check_studio_contract.js`, then writes public root docs and update URLs
-for `Wen387/DendryModStudio`. It also generates `.github/workflows/ci.yml` so
-the standalone repo runs public-export / localization / Studio surface / update
-notice / starter demo / compatibility checks on push and pull request. It
-excludes game source, generated runtime output, local project memory,
-session/handover notes, historical work notes, ignored desktop artifacts, and
-local fixture checkouts. Run the public gate inside the export before pushing:
-
-```bash
-cd /tmp/DendryModStudio-export
-node tools/project_map/check_public_export.js
-```
+This directory contains the shared Project Map scanner, browser viewer, desktop
+shell, authoring helpers, templates, compatibility fixtures, and repeatable QA
+checks used by Dendry Mod Studio.
 
 UI direction note: v0.5.5 adopts the **Direction B / Studio** surface for the
 normal Explore / Create / Install workspace, with a Branch mark, grouped
@@ -115,11 +98,11 @@ To inspect what it would do without generating an index or starting a server:
 python3 tools/project_map/launch_studio.py --dry-run --no-open
 ```
 
-## Desktop shell spike
+## Desktop App
 
 v0.5 adds an isolated Electron desktop shell under `tools/project_map/desktop/`;
-v0.5.1 adds first-run diagnostics; v0.5.2 adds a portable packaging
-feasibility spike; v0.5.3 adds a local Linux `.deb` feasibility package;
+v0.5.1 adds first-run diagnostics; v0.5.2 adds a portable package;
+v0.5.3 adds a local Linux `.deb` package;
 v0.5.4 hardens that `.deb` with runtime dependencies, an app icon, and default
 cleanup of temporary packaging work directories; v0.5.5 adopts the Studio UI
 surface in the shared viewer; v0.6 adds the News Wizard and advisor-like naming
@@ -248,7 +231,7 @@ npm run package:portable
 npm run package:deb
 ```
 
-Player-like QA MVP:
+Guided UI QA:
 
 ```bash
 node tools/project_map/check_player_like_qa_model.js
@@ -259,7 +242,7 @@ node tools/project_map/qa/run_desktop_scenario.js --scenario load_bundled_demo_t
 ```
 
 These scenarios launch the real Studio viewer in Electron. They cover Quick
-Start, Tutorial Library, Open Project through the QA dialog shim, Create, My
+Start, Tutorial Library, Open Project through the test dialog adapter, Create, My
 Changes, Review & Apply, desktop dry-run, wrong-project refusal, and the
 Explore -> Design -> Edit existing guarded replacement path. They also cover a
 returning-author path where a saved draft survives a Studio renderer reload,

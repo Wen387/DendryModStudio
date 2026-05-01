@@ -2,7 +2,7 @@
   "name": "dendry-mod-studio",
   "version": "0.9.2",
   "private": true,
-  "description": "Standalone public export of Dendry Mod Studio.",
+  "description": "Desktop and browser tooling for Dendry Mod Studio.",
   "scripts": {
     "check:public": "node tools/project_map/check_public_export.js",
     "check:contract": "node tools/check_studio_contract.js --fixture-only",

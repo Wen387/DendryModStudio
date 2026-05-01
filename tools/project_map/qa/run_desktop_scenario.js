@@ -29,7 +29,7 @@ const SCENARIOS = {
       'switches project through the Open Project button and confirms wrong-project refusal'
     ],
     shortcuts: [
-      'uses a deterministic QA dialog shim for native folder selection'
+      'uses a deterministic test dialog adapter for native folder selection'
     ]
   },
   explore_design_existing_edit: {
@@ -47,7 +47,7 @@ const SCENARIOS = {
       'runs desktop dry-run'
     ],
     shortcuts: [
-      'uses a deterministic QA dialog shim for native folder selection'
+      'uses a deterministic test dialog adapter for native folder selection'
     ]
   },
   draft_persistence_restart: {
@@ -65,7 +65,7 @@ const SCENARIOS = {
       'runs desktop dry-run'
     ],
     shortcuts: [
-      'uses a deterministic QA dialog shim for native folder selection',
+      'uses a deterministic test dialog adapter for native folder selection',
       'reloads the Studio renderer instead of relaunching a packaged app process'
     ]
   },
@@ -349,7 +349,7 @@ function electronEntry() {
   }));
   ipcMain.handle('dendry:runtime-preview-create', async () => ({
     ok: false,
-    message: 'Runtime Preview is outside the first player-like QA MVP.'
+    message: 'Runtime Preview is outside the current guided UI smoke path.'
   }));
   ipcMain.handle('dendry:runtime-preview-history', async (event, options) => options || {});
 
@@ -410,7 +410,7 @@ async function writeArtifacts(artifactDir, args, transcript, consoleMessages, di
     '- Artifact directory: `' + artifactDir + '`',
     '- Player-like actions: ' + (scenario.playerLike || []).map((item) => '`' + item + '`').join('; '),
     '- Shortcuts: ' + (scenario.shortcuts || []).map((item) => '`' + item + '`').join('; '),
-    '- Dialog shim selections: ' + (dialogSelections || []).map((item) => '`#' + item.call + ' ' + item.key + ' -> ' + item.root + '`').join('; '),
+    '- Test dialog selections: ' + (dialogSelections || []).map((item) => '`#' + item.call + ' ' + item.key + ' -> ' + item.root + '`').join('; '),
     '',
     markdownTable(rows),
     '',
@@ -453,7 +453,7 @@ async function scenarioFirstTimeUser(win, args, artifactDir, log) {
   await waitForHidden(win, '#studio-tutorial-library', 'Tutorial Library should close');
   await click(win, '#onboarding-primary');
   await waitForHidden(win, '#studio-onboarding', 'Quick Start should close');
-  log('Quick Start primary opens project picker', 'PASS', 'QA dialog shim selects project root');
+  log('Quick Start primary opens project picker', 'PASS', 'test dialog adapter selects project root');
 
   const loaded = await waitForProjectLoaded(win, args.projectRoot, args.timeoutMs);
   await screenshot(win, artifactDir, '03-project-loaded');

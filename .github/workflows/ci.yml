@@ -1,4 +1,4 @@
-name: Public Export Checks
+name: Checks
 
 on:
   push:
@@ -25,5 +25,5 @@ jobs:
       - name: Install root dependencies
         run: npm ci --ignore-scripts
 
-      - name: Run public export checks
+      - name: Run checks
         run: npm run check:ci

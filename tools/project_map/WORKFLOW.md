@@ -1,12 +1,13 @@
-# Dendry Mod Studio Public Workflow
+# Dendry Mod Studio Contributor Workflow
 
-This file is the standalone Studio workflow for the public/exported repository. It replaces the game-repo development notes in clean exports.
+This file describes the local development checks and boundaries for the Studio
+code in this repository.
 
 ## Current Shape
 
 - `tools/project_map/build_project_map.py` builds a ProjectIndex from a Dendry project.
 - `tools/project_map/viewer/` is the browser Studio UI.
-- `tools/project_map/desktop/` is the Electron shell and packaging spike.
+- `tools/project_map/desktop/` is the Electron shell and desktop packaging setup.
 - `tools/project_map/authoring/` contains proposal, preview, install-plan, and meaning-layer models.
 - `tools/project_map/templates/starter-demo/` is the bundled demo project for first-time users.
 - `studio_contract/` is the IslandSunrise compatibility contract fixture used to keep Studio parsing stable.

@@ -1,5 +1,5 @@
 {
-  "exportKind": "dendry-mod-studio-public-export",
+  "manifestKind": "dendry-mod-studio-repository-manifest",
   "targetRepository": "Wen387/DendryModStudio",
   "sourceCommit": "f9350e7",
   "generatedAt": "2026-05-01T06:25:15.020Z",
@@ -11,17 +11,15 @@
     "studio_contract/",
     "tools/check_studio_contract.js"
   ],
-  "excludedPrivateRoots": [
-    "project-memory",
-    "session-and-handover-notes",
-    "game-source",
-    "generated-runtime-output",
-    "historical-work-notes",
-    "local-fixture-checkouts"
+  "excludedAreas": [
+    "game project source",
+    "generated runtime output",
+    "local package artifacts",
+    "local fixture checkouts",
+    "private development notes"
   ],
   "notes": [
-    "This export is intended to be committed as a fresh repository history.",
-    "Do not push the source game repository history to the Studio repository.",
+    "This repository contains the Studio source and compatibility fixtures needed for public development.",
     "The root package-lock.json is tracked so CI and fresh clones can use npm ci."
   ]
 }
