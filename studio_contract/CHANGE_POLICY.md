@@ -22,7 +22,7 @@ Update `studio_contract/` in the same change when a game-side edit does any of t
 
 ## Review Rule
 
-For any non-patch contract change, the author must answer three questions in the session log or PR body:
+For any non-patch contract change, the author must answer three questions in the PR body, release note, or maintainer note:
 
 1. Which Studio parser or install behavior is affected?
 2. Which fixture evidence proves the new convention?

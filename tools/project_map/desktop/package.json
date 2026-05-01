@@ -2,6 +2,7 @@
   "name": "dendry-mod-studio-desktop",
   "version": "0.9.2",
   "private": true,
+  "author": "Wen387",
   "description": "Desktop shell for Dendry Mod Studio.",
   "main": "main.js",
   "dendryModStudio": {
@@ -12,10 +13,87 @@
     "package:dir": "node scripts/package_dir.js",
     "package:portable": "node scripts/package_portable.js",
     "package:deb": "node scripts/package_deb.js",
+    "dist:linux": "electron-builder --linux AppImage --x64",
+    "dist:win": "electron-builder --win nsis --x64",
     "smoke": "node ../check_desktop_shell.js",
     "doctor": "node scripts/doctor.js"
   },
+  "build": {
+    "appId": "studio.dendry.mod",
+    "productName": "Dendry Mod Studio",
+    "artifactName": "DendryModStudio-${os}-${arch}.${ext}",
+    "asar": false,
+    "directories": {
+      "output": "dist-builder"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "studio_core.js",
+      "runtime_preview.js",
+      "runtime_preview_debug_bridge.js",
+      "update_notice.js",
+      "update_manifest.json",
+      "package.json",
+      "scripts/**",
+      "assets/**"
+    ],
+    "extraResources": [
+      {
+        "from": "../viewer",
+        "to": "app/project_map/viewer"
+      },
+      {
+        "from": "../authoring",
+        "to": "app/project_map/authoring"
+      },
+      {
+        "from": "../profiles",
+        "to": "app/project_map/profiles"
+      },
+      {
+        "from": "../schema",
+        "to": "app/project_map/schema"
+      },
+      {
+        "from": "../templates",
+        "to": "app/project_map/templates"
+      },
+      {
+        "from": "../parse_dry_project.js",
+        "to": "app/project_map/parse_dry_project.js"
+      },
+      {
+        "from": "../build_project_map.py",
+        "to": "app/project_map/build_project_map.py"
+      },
+      {
+        "from": "../../../node_modules",
+        "to": "app/node_modules"
+      }
+    ],
+    "linux": {
+      "artifactName": "DendryModStudio-linux-x64.${ext}",
+      "target": [
+        "AppImage"
+      ],
+      "category": "Development",
+      "icon": "assets/dendry-mod-studio.svg"
+    },
+    "win": {
+      "artifactName": "DendryModStudio-win-x64.${ext}",
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
   "devDependencies": {
-    "electron": "^30.5.1"
+    "electron": "^30.5.1",
+    "electron-builder": "^24.13.3"
   }
 }

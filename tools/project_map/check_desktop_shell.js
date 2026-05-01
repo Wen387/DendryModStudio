@@ -11,6 +11,7 @@ const PROJECT_MAP_DIR = __dirname;
 const REPO_ROOT = path.resolve(PROJECT_MAP_DIR, '..', '..');
 const DESKTOP_DIR = path.join(PROJECT_MAP_DIR, 'desktop');
 const VIEWER_DIR = path.join(PROJECT_MAP_DIR, 'viewer');
+const VALID_PROJECT_ROOT = path.join(PROJECT_MAP_DIR, 'templates', 'starter-demo');
 const CURRENT_INDEX = '/tmp/dendry_project_map/project-index.json';
 
 function fail(message) {
@@ -230,12 +231,12 @@ async function main() {
   assert(doctorInvalid.checks.python && doctorInvalid.checks.python.ok, 'doctor should still report Python status');
 
   const doctorValid = await core.runDesktopDoctor({
-    root: REPO_ROOT,
+    root: VALID_PROJECT_ROOT,
     outDir: path.join(os.tmpdir(), 'dendry_desktop_doctor_valid_' + process.pid),
     python: 'python3',
     desktopDir: DESKTOP_DIR
   });
-  assert(doctorValid.ok, 'doctor should pass for current repo');
+  assert(doctorValid.ok, 'doctor should pass for bundled starter demo');
   assert(doctorValid.checks.projectRoot.ok, 'doctor should confirm project root');
   assert(doctorValid.checks.python.ok, 'doctor should confirm Python');
   assert(doctorValid.checks.resources.ok, 'doctor should confirm resources');
@@ -251,7 +252,7 @@ async function main() {
   assert(fs.existsSync(path.join(starterPrepared.root, 'source', 'info.dry')), 'starter demo workspace should contain source/info.dry');
 
   const parserOut = path.join(os.tmpdir(), 'dendry_desktop_parser_' + process.pid + '.json');
-  const parserIndex = await parser.parseProject(REPO_ROOT);
+  const parserIndex = await parser.parseProject(VALID_PROJECT_ROOT);
   fs.writeFileSync(parserOut, JSON.stringify(parserIndex, null, 2) + '\n', 'utf8');
 
   const seamOut = path.join(os.tmpdir(), 'dendry_desktop_index_from_parser_' + process.pid + '.json');
@@ -259,7 +260,7 @@ async function main() {
     'python3',
     [
       path.join(PROJECT_MAP_DIR, 'build_project_map.py'),
-      '--root', REPO_ROOT,
+      '--root', VALID_PROJECT_ROOT,
       '--parser-index', parserOut,
       '--out', seamOut,
       '--summary'
@@ -268,14 +269,14 @@ async function main() {
   );
   assert(seamRun.status === 0, 'build_project_map should accept --parser-index: ' + seamRun.stderr);
   const seamIndex = readJson(seamOut);
-  assert(seamIndex.summary.sceneCount === 189, 'parser-index seam scene count should match fixture');
-  assert(seamIndex.summary.edgeCount === 1827, 'parser-index seam edge count should match fixture');
-  assert(seamIndex.summary.variableCount === 2815, 'parser-index seam variable count should match fixture');
+  assert(seamIndex.summary.sceneCount === 3, 'parser-index seam scene count should match starter demo fixture');
+  assert(seamIndex.summary.edgeCount === 9, 'parser-index seam edge count should match starter demo fixture');
+  assert(seamIndex.summary.variableCount === 3, 'parser-index seam variable count should match starter demo fixture');
 
   const scratchDir = path.join(os.tmpdir(), 'dendry_desktop_smoke_' + process.pid);
   const progressEvents = [];
   const result = await core.buildProjectIndex({
-    root: REPO_ROOT,
+    root: VALID_PROJECT_ROOT,
     outDir: scratchDir,
     includeExcerpts: false,
     python: 'python3',
@@ -284,9 +285,9 @@ async function main() {
   assert(result.ok, 'desktop core should build ProjectIndex: ' + JSON.stringify(result.error || null));
   assert(result.indexPath.startsWith(scratchDir), 'desktop ProjectIndex should be written to scratch dir');
   assert(!result.indexPath.startsWith(REPO_ROOT), 'desktop ProjectIndex should not be written into repo');
-  assert(result.summary.sceneCount === 189, 'desktop core scene count should match fixture');
-  assert(result.summary.edgeCount === 1827, 'desktop core edge count should match fixture');
-  assert(result.summary.variableCount === 2815, 'desktop core variable count should match fixture');
+  assert(result.summary.sceneCount === 3, 'desktop core scene count should match starter demo fixture');
+  assert(result.summary.edgeCount === 9, 'desktop core edge count should match starter demo fixture');
+  assert(result.summary.variableCount === 3, 'desktop core variable count should match starter demo fixture');
   assert(progressEvents.length >= 5, 'desktop core should emit scan progress updates');
   assert(progressEvents[0].stage === 'preflight', 'first progress stage should be preflight');
   assert(progressEvents.some((event) => event.stage === 'parser'), 'progress should include parser stage');

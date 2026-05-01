@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
+const fs = require('fs');
 const path = require('path');
 const core = require('../studio_core');
 
@@ -25,7 +26,9 @@ function parseArgs(argv) {
 }
 
 function defaultRoot() {
-  return path.resolve(__dirname, '..', '..', '..', '..');
+  const repoRoot = path.resolve(__dirname, '..', '..', '..', '..');
+  const starterDemo = path.resolve(__dirname, '..', '..', 'templates', 'starter-demo');
+  return fs.existsSync(path.join(repoRoot, 'source', 'info.dry')) ? repoRoot : starterDemo;
 }
 
 function printText(result) {
@@ -38,7 +41,7 @@ function printText(result) {
   console.log(result.message);
   rows.forEach(([label, check]) => {
     const status = check.ok ? 'OK' : 'Needs attention';
-    console.log('- ' + label + ': ' + status + ' - ' + check.message);
+    console.log('- ' + label + ': ' + status + ' - ' + (check.message || check.root || check.path || 'Ready.'));
   });
 }
 

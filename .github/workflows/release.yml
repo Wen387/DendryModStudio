@@ -1,0 +1,98 @@
+name: Desktop Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            tools/project_map/desktop/package-lock.json
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install root dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Run public export checks
+        run: npm run check:ci
+
+  build:
+    needs: checks
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            script: dist:linux
+            artifact_name: DendryModStudio-linux
+            artifact_path: tools/project_map/desktop/dist-builder/*.AppImage
+          - os: windows-latest
+            script: dist:win
+            artifact_name: DendryModStudio-windows
+            artifact_path: tools/project_map/desktop/dist-builder/*.exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            tools/project_map/desktop/package-lock.json
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install root dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Install desktop dependencies
+        run: npm ci
+        working-directory: tools/project_map/desktop
+
+      - name: Run desktop smoke
+        run: npm run smoke
+        working-directory: tools/project_map/desktop
+
+      - name: Build desktop artifact
+        run: npm run ${{ matrix.script }}
+        working-directory: tools/project_map/desktop
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_path }}
+
+      - name: Upload GitHub release asset
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: true
+          files: ${{ matrix.artifact_path }}

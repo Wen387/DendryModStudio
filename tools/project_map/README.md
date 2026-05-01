@@ -2,7 +2,7 @@
 
 Read-only tooling for inspecting a Dendry/DendryNexus project.
 
-For development workflow, smoke tiers, packaging hygiene, and art-handoff
+For development workflow, smoke tiers, packaging hygiene, and contributor
 boundaries, see `tools/project_map/WORKFLOW.md`.
 
 ## Clean Public Export
@@ -137,7 +137,7 @@ First install the shell dependencies:
 
 ```bash
 cd tools/project_map/desktop
-npm install
+npm ci
 ```
 
 Then start the desktop window:
@@ -271,12 +271,8 @@ project. They write screenshots and a `QA_LEDGER.md` under `/tmp/dendry_mod_stud
 See `tools/project_map/desktop/PACKAGING_NOTES.md` for the v0.9.2 packaging
 boundary and `tools/project_map/RELEASE_NOTES_v0.9.2.md` for the tester-facing
 dev preview notes and known limits. Do not commit `tools/project_map/desktop/dist/`
-or `node_modules/`. Before any handoff, run
-`node tools/project_map/check_studio_handoff.js` from the repo root and record
-the current slice, changed files, verification, safety boundaries, and next
-preview slice. Before any public release claim, also run
-`node tools/project_map/check_studio_release_readiness.js`, attach the release
-notes, and record the exact package artifact tested.
+or `node_modules/`. Before any public release claim, run `npm run check:ci`,
+attach the release notes, and record the exact package artifact tested.
 
 ## Build an index
 
@@ -604,8 +600,6 @@ node --check tools/project_map/desktop/scripts/package_portable.js
 node --check tools/project_map/desktop/scripts/package_deb.js
 node --check tools/project_map/check_desktop_packaging.js
 node --check tools/project_map/check_desktop_deb.js
-node --check tools/project_map/check_studio_handoff.js
-node --check tools/project_map/check_studio_release_readiness.js
 node --check tools/check_studio_contract.js
 python3 tools/project_map/check_launch_studio.py
 node tools/project_map/check_project_map_fixture.js --generic-mini
@@ -620,8 +614,6 @@ node tools/project_map/check_card_wizard_model.js
 node tools/project_map/check_surface_text_model.js
 node tools/project_map/check_asset_model.js
 node tools/project_map/check_preview_model.js
-node tools/project_map/check_studio_handoff.js
-node tools/project_map/check_studio_release_readiness.js
 cd tools/project_map/desktop && npm run smoke
 cd tools/project_map/desktop && npm run doctor
 cd tools/project_map/desktop && npm run package:portable

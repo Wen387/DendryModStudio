@@ -7,6 +7,7 @@ tools/project_map/desktop/node_modules/
 # Build/package output
 dist/
 tools/project_map/desktop/dist/
+tools/project_map/desktop/dist-builder/
 
 # Python / local caches
 __pycache__/

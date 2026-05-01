@@ -1,12 +1,18 @@
 # Dendry Mod Studio
 
+[繁體中文](README.zh-Hant.md)
+
+[![Public Export Checks](https://github.com/Wen387/DendryModStudio/actions/workflows/ci.yml/badge.svg)](https://github.com/Wen387/DendryModStudio/actions/workflows/ci.yml)
+[![Windows EXE](https://img.shields.io/badge/Download-Windows%20EXE-2563eb?style=for-the-badge&logo=windows)](https://github.com/Wen387/DendryModStudio/releases/latest/download/DendryModStudio-win-x64.exe)
+[![Linux AppImage](https://img.shields.io/badge/Download-Linux%20AppImage-15803d?style=for-the-badge&logo=linux)](https://github.com/Wen387/DendryModStudio/releases/latest/download/DendryModStudio-linux-x64.AppImage)
+
 Dendry Mod Studio is a local authoring and review tool for Dendry and DendryNexus projects. It can scan a project, show Explore and Design views, create proposal-first edits, review install plans, and run desktop-only guarded dry-runs for supported changes.
 
 This repository is a clean standalone export of the Studio code. It intentionally does not include the IslandSunrise game source, private project notes, session logs, generated runtime output, package artifacts, or the previous game repository Git history.
 
 ## Status
 
-The current build is a `v0.9.2` developer preview. It is useful for local testing, authoring-flow review, and invitee QA, but it is not a signed public desktop release yet.
+The current build is a `v0.9.2` developer preview. It is useful for local testing, authoring-flow review, and invitee QA, but it is not a signed public desktop release yet. The download badges point at the latest GitHub release assets once a pre-release is published.
 
 The code in this standalone Studio export is released under the MIT license.
 
@@ -36,7 +42,7 @@ For the Electron desktop shell:
 
 ```bash
 cd tools/project_map/desktop
-npm install
+npm ci
 npm run start
 ```
 
@@ -62,6 +68,9 @@ npm run check:ci
 
 The GitHub Actions workflow runs the same core checks on every push and pull request.
 Release preparation notes live in `docs/releases/v0.9.2-dev-preview.md`.
+
+Desktop release packaging is prepared through `.github/workflows/release.yml`.
+Tagged pre-releases can build Windows `.exe` and Linux `.AppImage` artifacts.
 
 ## Public Export Gate
 

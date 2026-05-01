@@ -87,8 +87,7 @@ does not match the currently opened project root.
 Run the automated checks from the repository root:
 
 ```bash
-node tools/project_map/check_studio_release_readiness.js
-node tools/project_map/check_studio_handoff.js
+node tools/project_map/check_public_export.js
 node tools/project_map/check_update_notice_model.js
 node tools/project_map/check_starter_demo_model.js
 node tools/project_map/check_player_like_qa_model.js

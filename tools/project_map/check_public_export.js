@@ -84,7 +84,9 @@ function main() {
     'HANDOVER.md',
     'INVARIANTS.md',
     'KNOWN_ISSUES.md',
-    'SESSION_LOG.md'
+    'SESSION_LOG.md',
+    'tools/project_map/check_studio_handoff.js',
+    'tools/project_map/check_studio_release_readiness.js'
   ]);
   const disallowedPathFragments = [
     '/__pycache__/',
@@ -104,9 +106,11 @@ function main() {
     'README.md',
     '.gitignore',
     '.github/workflows/ci.yml',
+    '.github/workflows/release.yml',
     'LICENSE',
     'package.json',
     'package-lock.json',
+    'README.zh-Hant.md',
     'PUBLIC_EXPORT_MANIFEST.json',
     'docs/releases/v0.9.2-dev-preview.md',
     'tools/project_map/README.md',
@@ -126,11 +130,15 @@ function main() {
   const packageJson = JSON.parse(read('tools/project_map/desktop/package.json'));
   const rootPackageJson = JSON.parse(read('package.json'));
   const ciWorkflow = read('.github/workflows/ci.yml');
+  const releaseWorkflow = read('.github/workflows/release.yml');
   const updateManifest = JSON.parse(read('tools/project_map/desktop/update_manifest.json'));
   assert(rootPackageJson.name === 'dendry-mod-studio', 'root package.json should identify Dendry Mod Studio');
   assert(rootPackageJson.dependencies && rootPackageJson.dependencies.dendrynexus, 'root package.json should declare dendrynexus dependency');
   assert(rootPackageJson.scripts && rootPackageJson.scripts['check:ci'], 'root package.json should define check:ci');
   assert(ciWorkflow.includes('npm ci --ignore-scripts'), 'CI workflow should use npm ci with the committed lockfile');
+  assert(releaseWorkflow.includes('dist:linux') && releaseWorkflow.includes('dist:win'), 'release workflow should build Linux and Windows desktop artifacts');
+  assert(packageJson.scripts && packageJson.scripts['dist:linux'] && packageJson.scripts['dist:win'], 'desktop package should expose release build scripts');
+  assert(packageJson.devDependencies && packageJson.devDependencies['electron-builder'], 'desktop package should declare electron-builder for release builds');
   [
     'check_public_export.js',
     'check_studio_contract.js --fixture-only',
@@ -158,7 +166,9 @@ function main() {
     {label: 'old game repo URL', regex: /Wen387\/Game3_IslandsSunrise/},
     {label: 'local LLM memory path', regex: /LLM\/README|\.claude|本地記憶|local memory/i},
     {label: 'private workflow archive', regex: /docs\/superpowers|SESSION_LOG_archive|history\/museum/},
-    {label: 'tool-session transcript wording', regex: /Codex tool session|Claude Code memory/i}
+    {label: 'tool-session transcript wording', regex: /Codex tool session|Claude Code memory/i},
+    {label: 'private handoff check reference', regex: /check_studio_handoff|check_studio_release_readiness|session handover/i},
+    {label: 'public-facing LLM workflow wording', regex: /LLM 友善化/i}
   ];
   const docViolations = [];
   docsToScan.forEach((file) => {

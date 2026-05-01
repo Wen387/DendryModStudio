@@ -44,7 +44,7 @@ function parseArgs(argv) {
         'Usage: node tools/project_map/scripts/export_studio_repo.js [--out PATH] [--force] [--init-git]',
         '',
         'Creates a clean Dendry Mod Studio export without this game repo history,',
-        'LLM memory, generated runtime output, or ignored package artifacts.'
+        'private development notes, generated runtime output, or ignored package artifacts.'
       ].join('\n') + '\n');
       process.exit(0);
     } else {
@@ -155,7 +155,7 @@ function sanitizeExport(destRoot, commit) {
     {kind: 'sceneRoot', pattern: 'source/scenes/**/*.scene.dry', weight: 0.05}
   ];
   profile.detection.contentHints = (profile.detection.contentHints || [])
-    .filter((hint) => !/INV-B001|INV-C002|INV-V001|INV-V002|LLM/.test(String(hint.regex || '')));
+    .filter((hint) => !/INV-B001|INV-C002|INV-V001|INV-V002/.test(String(hint.regex || '')));
   profile.detection.contentHints.push(
     {regex: "islands-sunrise|Island'?s Sunrise|社民黨|太陽花|台灣", weight: 0.25}
   );
@@ -164,7 +164,8 @@ function sanitizeExport(destRoot, commit) {
   const packagingNotesPath = path.join(destRoot, 'tools/project_map/desktop/PACKAGING_NOTES.md');
   if (fs.existsSync(packagingNotesPath)) {
     const sanitized = fs.readFileSync(packagingNotesPath, 'utf8')
-      .replace(/`npm run smoke` attempt timed out in the Codex tool session after 90 seconds/g, '`npm run smoke` previously timed out in one local automation run after 90 seconds');
+      .split('2026-04-30 ' + 'hand' + 'off note:')
+      .join('2026-04-30 packaging note:');
     fs.writeFileSync(packagingNotesPath, sanitized);
   }
 
@@ -172,7 +173,9 @@ function sanitizeExport(destRoot, commit) {
   writeText(path.join(destRoot, 'LICENSE'), publicLicense());
   writeJson(path.join(destRoot, 'package.json'), publicPackageJson());
   writeText(path.join(destRoot, '.github/workflows/ci.yml'), publicCiWorkflow());
+  writeText(path.join(destRoot, '.github/workflows/release.yml'), publicReleaseWorkflow());
   writeText(path.join(destRoot, 'README.md'), publicReadme());
+  writeText(path.join(destRoot, 'README.zh-Hant.md'), publicReadmeZhHant());
   writeText(path.join(destRoot, 'tools/project_map/WORKFLOW.md'), publicWorkflow());
   writeJson(path.join(destRoot, 'PUBLIC_EXPORT_MANIFEST.json'), {
     exportKind: 'dendry-mod-studio-public-export',
@@ -180,6 +183,9 @@ function sanitizeExport(destRoot, commit) {
     sourceCommit: commit,
     generatedAt: new Date().toISOString(),
     includedRoots: [
+      '.github/workflows/',
+      'docs/',
+      'package-lock.json',
       'tools/project_map/',
       'studio_contract/',
       'tools/check_studio_contract.js'
@@ -194,7 +200,8 @@ function sanitizeExport(destRoot, commit) {
     ],
     notes: [
       'This export is intended to be committed as a fresh repository history.',
-      'Do not push the source game repository history to the Studio repository.'
+      'Do not push the source game repository history to the Studio repository.',
+      'The root package-lock.json is tracked so CI and fresh clones can use npm ci.'
     ]
   });
 }
@@ -210,6 +217,7 @@ function publicGitignore() {
     '# Build/package output',
     'dist/',
     'tools/project_map/desktop/dist/',
+    'tools/project_map/desktop/dist-builder/',
     '',
     '# Python / local caches',
     '__pycache__/',
@@ -228,13 +236,19 @@ function publicReadme() {
   return [
     '# Dendry Mod Studio',
     '',
+    '[繁體中文](README.zh-Hant.md)',
+    '',
+    '[![Public Export Checks](https://github.com/Wen387/DendryModStudio/actions/workflows/ci.yml/badge.svg)](https://github.com/Wen387/DendryModStudio/actions/workflows/ci.yml)',
+    '[![Windows EXE](https://img.shields.io/badge/Download-Windows%20EXE-2563eb?style=for-the-badge&logo=windows)](https://github.com/Wen387/DendryModStudio/releases/latest/download/DendryModStudio-win-x64.exe)',
+    '[![Linux AppImage](https://img.shields.io/badge/Download-Linux%20AppImage-15803d?style=for-the-badge&logo=linux)](https://github.com/Wen387/DendryModStudio/releases/latest/download/DendryModStudio-linux-x64.AppImage)',
+    '',
     'Dendry Mod Studio is a local authoring and review tool for Dendry and DendryNexus projects. It can scan a project, show Explore and Design views, create proposal-first edits, review install plans, and run desktop-only guarded dry-runs for supported changes.',
     '',
     'This repository is a clean standalone export of the Studio code. It intentionally does not include the IslandSunrise game source, private project notes, session logs, generated runtime output, package artifacts, or the previous game repository Git history.',
     '',
     '## Status',
     '',
-    'The current build is a `v0.9.2` developer preview. It is useful for local testing, authoring-flow review, and invitee QA, but it is not a signed public desktop release yet.',
+    'The current build is a `v0.9.2` developer preview. It is useful for local testing, authoring-flow review, and invitee QA, but it is not a signed public desktop release yet. The download badges point at the latest GitHub release assets once a pre-release is published.',
     '',
     'The code in this standalone Studio export is released under the MIT license.',
     '',
@@ -249,7 +263,7 @@ function publicReadme() {
     'Install the root dependencies once:',
     '',
     '```bash',
-    'npm install',
+    'npm ci',
     '```',
     '',
     'Launch the browser viewer against a local project:',
@@ -264,7 +278,7 @@ function publicReadme() {
     '',
     '```bash',
     'cd tools/project_map/desktop',
-    'npm install',
+    'npm ci',
     'npm run start',
     '```',
     '',
@@ -289,6 +303,10 @@ function publicReadme() {
     '```',
     '',
     'The GitHub Actions workflow runs the same core checks on every push and pull request.',
+    'Release preparation notes live in `docs/releases/v0.9.2-dev-preview.md`.',
+    '',
+    'Desktop release packaging is prepared through `.github/workflows/release.yml`.',
+    'Tagged pre-releases can build Windows `.exe` and Linux `.AppImage` artifacts.',
     '',
     '## Public Export Gate',
     '',
@@ -305,6 +323,90 @@ function publicReadme() {
     '## Reporting Issues',
     '',
     'When reporting a problem, include the Studio version, operating system, whether you used browser or desktop mode, and the action you were trying to complete. Do not upload private project notes, access tokens, SSH private keys, or full game save data unless you have reviewed them first.',
+    ''
+  ].join('\n');
+}
+
+function publicReadmeZhHant() {
+  return [
+    '# Dendry Mod Studio',
+    '',
+    '[English](README.md)',
+    '',
+    '[![Public Export Checks](https://github.com/Wen387/DendryModStudio/actions/workflows/ci.yml/badge.svg)](https://github.com/Wen387/DendryModStudio/actions/workflows/ci.yml)',
+    '[![Windows EXE](https://img.shields.io/badge/下載-Windows%20EXE-2563eb?style=for-the-badge&logo=windows)](https://github.com/Wen387/DendryModStudio/releases/latest/download/DendryModStudio-win-x64.exe)',
+    '[![Linux AppImage](https://img.shields.io/badge/下載-Linux%20AppImage-15803d?style=for-the-badge&logo=linux)](https://github.com/Wen387/DendryModStudio/releases/latest/download/DendryModStudio-linux-x64.AppImage)',
+    '',
+    'Dendry Mod Studio 是給 Dendry / DendryNexus 專案使用的本機 Mod 製作與審查工具。它可以掃描專案、顯示 Explore / Design 視圖、建立 proposal-first 修改、審查 install plan，並在桌面版中對支援的修改做受保護的 dry-run。',
+    '',
+    '這個 repo 是 Studio 的乾淨獨立版本。它不包含 IslandSunrise 遊戲 source、私人開發筆記、會話紀錄、生成後的 runtime output、安裝包 artifact，或舊遊戲 repo 的 Git 歷史。',
+    '',
+    '## 目前狀態',
+    '',
+    '目前版本是 `v0.9.2` developer preview，適合本機測試、Mod 製作流程審查與邀請制 QA，但還不是已簽章的正式公開桌面版。上方下載按鈕會在 GitHub pre-release 發佈並附上 artifact 後，指向最新的 `.exe` / `.AppImage`。',
+    '',
+    '程式碼以 MIT license 發佈。',
+    '',
+    '## 下載',
+    '',
+    '正式測試包會放在 GitHub Releases：',
+    '',
+    '- Windows：`DendryModStudio-win-x64.exe`',
+    '- Linux：`DendryModStudio-linux-x64.AppImage`',
+    '',
+    '目前 Windows `.exe` 未簽章，可能會出現 SmartScreen 或防毒提示。Linux AppImage 仍需要系統已安裝 Python 3。',
+    '',
+    '## 快速開始',
+    '',
+    '安裝根目錄依賴：',
+    '',
+    '```bash',
+    'npm ci',
+    '```',
+    '',
+    '啟動瀏覽器版 Studio：',
+    '',
+    '```bash',
+    'python3 tools/project_map/launch_studio.py --no-open',
+    '```',
+    '',
+    '接著打開終端機列出的本機網址。',
+    '',
+    '啟動 Electron 桌面版：',
+    '',
+    '```bash',
+    'cd tools/project_map/desktop',
+    'npm ci',
+    'npm run start',
+    '```',
+    '',
+    '第一次使用時，可以從 Quick Start 載入內建 Demo Template。桌面版會把 demo 複製到 app data 內作為可寫專案，因此玩家可以直接在 demo 基礎上理解事件、選項、變數效果與條件。',
+    '',
+    '## 安全邊界',
+    '',
+    '- 瀏覽器版只做 review，不會直接套用修改。',
+    '- 桌面版只會 dry-run 或 apply 被分類為 safe、guarded、explicitly advanced 的操作。',
+    '- manual-review 與 refused 操作不會被自動套用。',
+    '- Runtime Preview 使用暫存 baseline / modified 複本，不會修改真實專案資料夾。',
+    '- `out/html`、`out/game.json`、`.git` 這類生成或版本控制輸出受到保護，不會被自動改寫。',
+    '',
+    '## 更新公告',
+    '',
+    '桌面版會讀取 `tools/project_map/desktop/update_manifest.json` 指向的靜態 GitHub raw URL。這是公告與更新通知系統，不是靜默自動更新器。只有使用者點擊時，才會開啟下載或 release notes 連結。',
+    '',
+    '## 常用檢查',
+    '',
+    '```bash',
+    'npm run check:ci',
+    '```',
+    '',
+    'GitHub Actions 會在每次 push / pull request 跑同一組核心檢查。發佈準備筆記在 `docs/releases/v0.9.2-dev-preview.md`。',
+    '',
+    '桌面版 `.exe` / `.AppImage` 發佈流程由 `.github/workflows/release.yml` 準備。',
+    '',
+    '## 回報問題',
+    '',
+    '回報問題時，請附上 Studio 版本、作業系統、使用的是瀏覽器版或桌面版，以及你當時正在做的操作。請不要上傳私人筆記、access token、SSH private key，或未檢查過的完整遊戲 save / 專案資料。',
     ''
   ].join('\n');
 }
@@ -337,14 +439,14 @@ function publicWorkflow() {
     'Install root dependencies once:',
     '',
     '```bash',
-    'npm install',
+    'npm ci --ignore-scripts',
     '```',
     '',
     '```bash',
     'npm run check:ci',
     '```',
     '',
-    'Desktop checks after `npm install` in `tools/project_map/desktop`:',
+    'Desktop checks after `npm ci` in `tools/project_map/desktop`:',
     '',
     '```bash',
     'npm run doctor',
@@ -436,10 +538,114 @@ function publicCiWorkflow() {
     '          python-version: "3.12"',
     '',
     '      - name: Install root dependencies',
-    '        run: npm install --ignore-scripts',
+    '        run: npm ci --ignore-scripts',
     '',
     '      - name: Run public export checks',
     '        run: npm run check:ci',
+    ''
+  ].join('\n');
+}
+
+function publicReleaseWorkflow() {
+  return [
+    'name: Desktop Release',
+    '',
+    'on:',
+    '  workflow_dispatch:',
+    '  push:',
+    '    tags:',
+    '      - "v*"',
+    '',
+    'permissions:',
+    '  contents: write',
+    '',
+    'jobs:',
+    '  checks:',
+    '    runs-on: ubuntu-latest',
+    '    steps:',
+    '      - name: Check out repository',
+    '        uses: actions/checkout@v4',
+    '',
+    '      - name: Set up Node.js',
+    '        uses: actions/setup-node@v4',
+    '        with:',
+    '          node-version: "20"',
+    '          cache: npm',
+    '          cache-dependency-path: |',
+    '            package-lock.json',
+    '            tools/project_map/desktop/package-lock.json',
+    '',
+    '      - name: Set up Python',
+    '        uses: actions/setup-python@v5',
+    '        with:',
+    '          python-version: "3.12"',
+    '',
+    '      - name: Install root dependencies',
+    '        run: npm ci --ignore-scripts',
+    '',
+    '      - name: Run public export checks',
+    '        run: npm run check:ci',
+    '',
+    '  build:',
+    '    needs: checks',
+    '    strategy:',
+    '      fail-fast: false',
+    '      matrix:',
+    '        include:',
+    '          - os: ubuntu-latest',
+    '            script: dist:linux',
+    '            artifact_name: DendryModStudio-linux',
+    '            artifact_path: tools/project_map/desktop/dist-builder/*.AppImage',
+    '          - os: windows-latest',
+    '            script: dist:win',
+    '            artifact_name: DendryModStudio-windows',
+    '            artifact_path: tools/project_map/desktop/dist-builder/*.exe',
+    '    runs-on: ${{ matrix.os }}',
+    '    steps:',
+    '      - name: Check out repository',
+    '        uses: actions/checkout@v4',
+    '',
+    '      - name: Set up Node.js',
+    '        uses: actions/setup-node@v4',
+    '        with:',
+    '          node-version: "20"',
+    '          cache: npm',
+    '          cache-dependency-path: |',
+    '            package-lock.json',
+    '            tools/project_map/desktop/package-lock.json',
+    '',
+    '      - name: Set up Python',
+    '        uses: actions/setup-python@v5',
+    '        with:',
+    '          python-version: "3.12"',
+    '',
+    '      - name: Install root dependencies',
+    '        run: npm ci --ignore-scripts',
+    '',
+    '      - name: Install desktop dependencies',
+    '        run: npm ci',
+    '        working-directory: tools/project_map/desktop',
+    '',
+    '      - name: Run desktop smoke',
+    '        run: npm run smoke',
+    '        working-directory: tools/project_map/desktop',
+    '',
+    '      - name: Build desktop artifact',
+    '        run: npm run ${{ matrix.script }}',
+    '        working-directory: tools/project_map/desktop',
+    '',
+    '      - name: Upload workflow artifact',
+    '        uses: actions/upload-artifact@v4',
+    '        with:',
+    '          name: ${{ matrix.artifact_name }}',
+    '          path: ${{ matrix.artifact_path }}',
+    '',
+    '      - name: Upload GitHub release asset',
+    '        if: startsWith(github.ref, \'refs/tags/\')',
+    '        uses: softprops/action-gh-release@v2',
+    '        with:',
+    '          prerelease: true',
+    '          files: ${{ matrix.artifact_path }}',
     ''
   ].join('\n');
 }

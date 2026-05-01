@@ -31,7 +31,7 @@ npm ci --ignore-scripts
 npm run check:ci
 ```
 
-Desktop checks after `npm install` in `tools/project_map/desktop`:
+Desktop checks after `npm ci` in `tools/project_map/desktop`:
 
 ```bash
 npm run doctor

@@ -10,7 +10,7 @@ Repo 分離後建議採用：
 
 ## Compatibility Review Checklist
 
-任何 engine / LLM 友善化工作若碰到下列項目，需要跑或更新 contract：
+任何 engine 或 source-layout 工作若碰到下列項目，需要跑或更新 contract：
 
 - Router: `root`, `post_event`, `post_event_news`
 - Migration: 新變數 root init + old save guard

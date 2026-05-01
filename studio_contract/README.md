@@ -6,7 +6,7 @@
 
 - 遊戲 repo 在這裡宣告哪些 source 慣例是穩定承諾。
 - Studio repo 依這份 contract 寫 profile、parser、install safety 與 fixture tests。
-- 引擎 / LLM 友善化若改變 router、變數家族、source layout 或 protected UI 邊界，必須同步更新這裡。
+- 若引擎或 source layout 改變 router、變數家族、source layout 或 protected UI 邊界，必須同步更新這裡。
 
 ## Files
 

@@ -39,6 +39,7 @@ function packageDir(options) {
   assertExists(path.join(repoRoot, 'node_modules'), 'Root node_modules');
 
   fs.rmSync(outDir, {recursive: true, force: true});
+  fs.mkdirSync(path.dirname(outDir), {recursive: true});
   copyPath(electronDist, outDir);
   fs.mkdirSync(appRoot, {recursive: true});
 

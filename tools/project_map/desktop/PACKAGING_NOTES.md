@@ -26,7 +26,15 @@ a successful local install smoke, and keeps these release-hygiene behaviors:
 Use `npm run package:deb -- --keep-workdirs` only when debugging the staged
 package layout.
 
-2026-04-30 handoff note: source checkpoint `7dfdcbf` produced local ignored
+2026-05-01 desktop release workflow note: GitHub Actions now has a
+tag/manual release workflow for Linux AppImage and Windows NSIS `.exe` builds
+through `electron-builder`. The builder config keeps `asar` disabled so the
+Python indexer, bundled Starter Demo, Project Map resources, and DendryNexus
+runtime files remain available through normal filesystem paths. These artifacts
+are still unsigned dev-preview packages; Windows may show SmartScreen warnings,
+and both Windows and Linux builds still require system Python 3.
+
+2026-04-30 packaging note: source checkpoint `7dfdcbf` produced local ignored
 artifacts `dist/DendryModStudio-linux-x64.tar.gz` and
 `dist/dendry-mod-studio_0.9.2_amd64.deb`. `check_desktop_packaging.js`,
 `check_desktop_deb.js`, and `npm run doctor` passed. A post-cleanup
@@ -118,6 +126,9 @@ It is not a public `.deb` or `.exe` installer.
   `dist/DendryModStudio-linux-x64.tar.gz`.
 - `npm run package:deb` creates
   `dist/dendry-mod-studio_<version>_amd64.deb` on Linux.
+- `npm run dist:linux` creates an unsigned AppImage under `dist-builder/`.
+- `npm run dist:win` creates an unsigned Windows NSIS `.exe` under
+  `dist-builder/` when run on Windows.
 - The portable bundle includes the viewer, parser wrapper, Python indexer,
   profiles, schemas, authoring core, bundled Starter Demo template, desktop
   scripts, `update_notice.js`, `update_manifest.json`, and root `node_modules`
@@ -160,8 +171,8 @@ The next installer slice should choose one target first:
 
 - Linux `.deb`: add Electron Forge or another maker, document required external
   tools, and decide whether Python remains a system prerequisite.
-- Windows portable / installer: test Windows path handling, Python discovery,
-  and code signing expectations.
+- Windows installer: test Windows path handling, Python discovery, unsigned
+  SmartScreen behavior, and future code signing expectations.
 - Bundled Python: decide whether to ship a minimal embedded runtime, where it
   lives inside app resources, and how doctor chooses bundled versus system
   Python.

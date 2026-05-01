@@ -203,7 +203,7 @@ function resolveElectronPath() {
   try {
     return require(path.join(DESKTOP_DIR, 'node_modules', 'electron'));
   } catch (err) {
-    throw new Error('Electron dependency was not found. Run `cd tools/project_map/desktop && npm install` first.');
+    throw new Error('Electron dependency was not found. Run `cd tools/project_map/desktop && npm ci` first.');
   }
 }
 

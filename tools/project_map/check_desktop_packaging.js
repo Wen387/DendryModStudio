@@ -28,6 +28,10 @@ function main() {
   const pkg = readJson(PACKAGE_JSON);
   assert(/^\d+\.\d+\.\d+$/.test(pkg.version || ''), 'desktop package version should be semver-like');
   assert(pkg.scripts && pkg.scripts['package:portable'], 'desktop package should expose npm run package:portable');
+  assert(pkg.scripts && pkg.scripts['dist:linux'], 'desktop package should expose npm run dist:linux');
+  assert(pkg.scripts && pkg.scripts['dist:win'], 'desktop package should expose npm run dist:win');
+  assert(pkg.devDependencies && pkg.devDependencies['electron-builder'], 'desktop package should depend on electron-builder for release builds');
+  assert(pkg.build && pkg.build.asar === false, 'desktop builder config should keep asar disabled for filesystem resources');
   assert(fs.existsSync(path.join(DESKTOP_DIR, 'scripts', 'package_portable.js')), 'package_portable.js should exist');
   assert(fs.existsSync(path.join(DESKTOP_DIR, 'PACKAGING_NOTES.md')), 'PACKAGING_NOTES.md should exist');
 
@@ -35,6 +39,8 @@ function main() {
   assert(notes.includes(`v${pkg.version}`), `packaging notes should mention v${pkg.version}`);
   assert(notes.includes('system Python 3'), 'packaging notes should state Python remains a system dependency');
   assert(notes.includes('.deb'), 'packaging notes should discuss .deb boundary');
+  assert(notes.includes('AppImage'), 'packaging notes should discuss AppImage boundary');
+  assert(notes.includes('Windows'), 'packaging notes should discuss Windows artifact boundary');
   assert(notes.includes('portable'), 'packaging notes should discuss portable package boundary');
 
   const run = spawnSync('npm', ['run', 'package:portable'], {

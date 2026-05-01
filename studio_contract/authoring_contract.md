@@ -52,7 +52,7 @@ Studio 必須保守處理：
 
 ## Engine-Friendliness Change Rule
 
-若遊戲 repo 做以下變更，必須同步更新本 contract 與 fixture，或在 PR / session handover 中明示 Studio 不再保證相容：
+若遊戲 repo 做以下變更，必須同步更新本 contract 與 fixture，或在 PR / release notes 中明示 Studio 不再保證相容：
 
 - 改變 central router 檔名、anchor 慣例或 migration block。
 - 新增 / 退役一個主要變數 family。
