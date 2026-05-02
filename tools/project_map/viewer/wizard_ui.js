@@ -110,6 +110,8 @@
       coreStatus: document.getElementById('wizard-core-status'),
       indexStatus: document.getElementById('wizard-index-status'),
       diagnostics: document.getElementById('wizard-diagnostics'),
+      readiness: document.getElementById('event-readiness-checklist'),
+      routeSummary: document.getElementById('event-route-summary'),
       playerPreview: document.getElementById('wizard-player-preview'),
       scenePreview: document.getElementById('wizard-scene-preview'),
       jsonPreview: document.getElementById('wizard-json-preview'),
@@ -618,6 +620,7 @@
     elements.installPreview.textContent = renderInstallPreview(output);
     elements.patchPreview.textContent = output.patchPreview;
     renderDiagnostics(output.diagnostics);
+    renderEventReadiness(draft, output);
     renderCoreStatus(output);
     renderOptionVisibility(draft.options.length);
     updateEffectTargetOptions(draft.options.length);
@@ -1373,6 +1376,107 @@
       const index = Number(block.dataset.optionIndex);
       block.classList.toggle('hidden', index >= count);
     });
+  }
+
+  function renderEventReadiness(draft, output) {
+    if (!elements || !elements.readiness) {
+      return;
+    }
+    const titledChoices = draft.options.filter((option) => option.title && option.title.trim());
+    const validEffectCount = draft.triggerEffects.filter((effect) => effect.valid).length +
+      draft.options.reduce((count, option) => count + option.effects.filter((effect) => effect.valid).length, 0);
+    const scheduleReady = Number.isInteger(draft.year) &&
+      validMonth(draft.monthStart) &&
+      validMonth(draft.monthEnd) &&
+      draft.monthStart <= draft.monthEnd;
+    const windowText = Number.isInteger(draft.year) && validMonth(draft.monthStart) && validMonth(draft.monthEnd)
+      ? String(draft.year) + ' / ' + String(draft.monthStart) + '-' + String(draft.monthEnd)
+      : t('event.readiness.windowMissing', 'missing window');
+    const rows = [
+      {
+        id: 'story',
+        status: draft.heading.trim() && draft.intro.trim() ? 'ready' : 'warning',
+        message: draft.heading.trim() && draft.intro.trim()
+          ? t('event.readiness.storyReady', 'Heading and opening prose are ready.')
+          : t('event.readiness.storyMissing', 'Add a heading and opening prose.')
+      },
+      {
+        id: 'schedule',
+        status: scheduleReady ? 'ready' : 'warning',
+        message: scheduleReady
+          ? t('event.readiness.scheduleReady', 'Appears during {window}.').replace('{window}', windowText)
+          : t('event.readiness.scheduleMissing', 'Fix year and month range.')
+      },
+      {
+        id: 'choices',
+        status: titledChoices.length >= MIN_OPTION_COUNT ? 'ready' : 'warning',
+        message: titledChoices.length >= MIN_OPTION_COUNT
+          ? t('event.readiness.choicesReady', '{count} player choices have labels.').replace('{count}', String(titledChoices.length))
+          : t('event.readiness.choicesMissing', 'At least two player choice labels are required.')
+      },
+      {
+        id: 'effects',
+        status: validEffectCount > 0 ? 'ready' : 'warning',
+        message: validEffectCount > 0
+          ? t('event.readiness.effectsReady', '{count} variable effects parsed.').replace('{count}', String(validEffectCount))
+          : t('event.readiness.effectsMissing', 'No variable effects parsed yet.')
+      },
+      {
+        id: 'export',
+        status: output && output.canDownload ? 'ready' : 'warning',
+        message: output && output.canDownload
+          ? t('event.readiness.exportReady', 'No blocking export errors.')
+          : t('event.readiness.exportMissing', 'Resolve blocking diagnostics before export.')
+      }
+    ];
+    elements.readiness.innerHTML = rows.map((row) => {
+      const statusLabel = row.status === 'ready'
+        ? t('event.readinessReady', 'ready')
+        : t('event.readinessMissing', 'needs work');
+      return '<div class="event-readiness-row ' + (row.status === 'ready' ? 'ready' : 'warning') + '">' +
+        '<strong>' + escapeHtml(eventReadinessLabel(row.id)) + '</strong>' +
+        '<span>' + escapeHtml(row.message) + '</span>' +
+        '<small>' + escapeHtml(statusLabel) + '</small>' +
+        '</div>';
+    }).join('');
+    renderEventRouteSummary(draft, windowText);
+  }
+
+  function renderEventRouteSummary(draft, windowText) {
+    if (!elements || !elements.routeSummary) {
+      return;
+    }
+    const chips = [
+      {
+        label: t('event.routeSummary.source', 'Source'),
+        value: draft.sourcePath || ''
+      },
+      {
+        label: t('event.routeSummary.seenFlag', 'Seen flag'),
+        value: draft.seenFlag || ''
+      },
+      {
+        label: t('event.routeSummary.window', 'Window'),
+        value: windowText || ''
+      },
+      {
+        label: t('event.routeSummary.condition', 'Condition'),
+        value: draft.requires || t('event.routeSummary.noCondition', 'time + seen flag only')
+      }
+    ];
+    elements.routeSummary.innerHTML = chips.map((chip) => {
+      return '<div class="event-route-chip"><strong>' + escapeHtml(chip.label) + '</strong><span>' + escapeHtml(chip.value || '-') + '</span></div>';
+    }).join('');
+  }
+
+  function eventReadinessLabel(id) {
+    return {
+      story: t('event.readiness.story', 'Player text'),
+      schedule: t('event.readiness.schedule', 'Timing'),
+      choices: t('event.readiness.choices', 'Choices'),
+      effects: t('event.readiness.effects', 'Effects'),
+      export: t('event.readiness.export', 'Export')
+    }[id] || id;
   }
 
   function updateEffectTargetOptions(optionCount) {

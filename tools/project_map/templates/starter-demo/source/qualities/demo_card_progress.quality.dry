@@ -1,0 +1,5 @@
+name: Demo Card Progress
+initial: 0
+min: 0
+
+Small starter variable changed by the action-card lane.

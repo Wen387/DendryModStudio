@@ -127,7 +127,18 @@ function prepareStarterDemo(options) {
 
 function repairStarterDemoSupportFiles(sourceRoot, targetRoot) {
   [
-    'package.json'
+    'package.json',
+    'source/scenes/main.scene.dry',
+    'source/scenes/decks/demo_action_deck.scene.dry',
+    'source/scenes/cards/demo_action_card.scene.dry',
+    'source/scenes/advisors/demo_advisor.scene.dry',
+    'source/qdisplays/qdemo_level.qdisplay.dry',
+    'source/qualities/demo_support.quality.dry',
+    'source/qualities/demo_conflict.quality.dry',
+    'source/qualities/demo_resources.quality.dry',
+    'source/qualities/demo_advisor_trust.quality.dry',
+    'source/qualities/demo_card_progress.quality.dry',
+    'source/qualities/demo_event_seen.quality.dry'
   ].forEach((relativePath) => {
     const sourcePath = path.join(sourceRoot, relativePath);
     const targetPath = path.join(targetRoot, relativePath);
@@ -146,11 +157,49 @@ function repairStarterDemoSourceCompatibility(targetRoot) {
     return;
   }
   const before = fs.readFileSync(rootScenePath, 'utf8');
-  const after = before
-    .replace('- @demo_status: Check demo state', '- @.demo_opening.demo_status: Check demo state')
-    .replace('- @support_followup: Follow up on support', '- @.demo_opening.support_followup: Follow up on support');
+  let after = before
+    .replace('- @.demo_opening.demo_status: Check demo state', '- @demo_opening.demo_status: Check demo state')
+    .replace('- @.demo_opening.support_followup: Follow up on support', '- @demo_opening.support_followup: Follow up on support')
+    .replace('- @demo_status: Check demo state', '- @demo_opening.demo_status: Check demo state')
+    .replace('- @support_followup: Follow up on support', '- @demo_opening.support_followup: Follow up on support');
+  if (!after.includes('Q.demo_resources === undefined')) {
+    after = after.replace(
+      'if (Q.demo_event_seen === undefined) { Q.demo_event_seen = 0; }',
+      [
+        'if (Q.demo_resources === undefined) { Q.demo_resources = 2; }',
+        'if (Q.demo_advisor_trust === undefined) { Q.demo_advisor_trust = 0; }',
+        'if (Q.demo_card_progress === undefined) { Q.demo_card_progress = 0; }',
+        'if (Q.demo_event_seen === undefined) { Q.demo_event_seen = 0; }'
+      ].join('\n')
+    );
+  }
+  if (!after.includes('- @main: Open the workspace hand')) {
+    after = after.replace(
+      '- @demo_opening: Start the demo event',
+      '- @main: Open the workspace hand\n- @demo_opening: Start the demo event'
+    );
+  }
   if (after !== before) {
     fs.writeFileSync(rootScenePath, after, 'utf8');
+  }
+  const postEventPath = path.join(targetRoot, 'source', 'scenes', 'post_event.scene.dry');
+  if (fs.existsSync(postEventPath)) {
+    const postBefore = fs.readFileSync(postEventPath, 'utf8');
+    let postAfter = postBefore;
+    if (!postAfter.includes('Q.demo_resources === undefined')) {
+      postAfter = postAfter.replace(
+        'if (Q.demo_event_seen === undefined) { Q.demo_event_seen = 0; }',
+        [
+          'if (Q.demo_resources === undefined) { Q.demo_resources = 2; }',
+          'if (Q.demo_advisor_trust === undefined) { Q.demo_advisor_trust = 0; }',
+          'if (Q.demo_card_progress === undefined) { Q.demo_card_progress = 0; }',
+          'if (Q.demo_event_seen === undefined) { Q.demo_event_seen = 0; }'
+        ].join('\n')
+      );
+    }
+    if (postAfter !== postBefore) {
+      fs.writeFileSync(postEventPath, postAfter, 'utf8');
+    }
   }
 }
 
@@ -291,6 +340,9 @@ function summarizeIndex(index) {
     diagnosticCount: Number(summary.diagnosticCount || 0),
     eventCount: Number(summary.eventCount || 0),
     cardCount: Number(summary.cardCount || 0),
+    handCount: Number(summary.handCount || 0),
+    deckCount: Number(summary.deckCount || 0),
+    pinnedCardCount: Number(summary.pinnedCardCount || 0),
     newsItemCount: Number(summary.newsItemCount || 0)
   };
 }

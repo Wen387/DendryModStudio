@@ -68,10 +68,29 @@ const postEvent = read(path.join(QA_FIXTURE, 'source', 'scenes', 'post_event.sce
   'waitForGameText',
   'demo_support',
   'justice_party_ticker_news',
+  'justice_party_play_surface',
+  'justice_party_workspace_layout',
+  'justice_party_sidebar_status',
+  'justice_party_party_affairs_card',
+  'justice_party_labor_advisor',
   'Entry & Sidebar',
+  'Playable Surface',
+  'Workspace Layout',
+  'Sidebar / Status',
+  'Card Wizard',
   'entry_sidebar',
+  'data-create-template="play_surface"',
+  'data-create-template="workspace_layout"',
+  'data-create-template="sidebar_status"',
   'entry-create-first-event',
   'waitForEntryOutput',
+  'waitForPlaySurfaceOutput',
+  'waitForWorkspaceLayoutOutput',
+  'waitForSidebarStatusOutput',
+  'waitForCardOutput',
+  'fillJusticePlaySurface',
+  'fillJusticeWorkspaceLayout',
+  'fillJusticeSidebarStatus',
   'post_event_news',
   'ProjectMapInstallAssistant',
   'data-design-edit-existing',
@@ -84,7 +103,7 @@ const postEvent = read(path.join(QA_FIXTURE, 'source', 'scenes', 'post_event.sce
   'install_plan.project_mismatch',
   'openProjectViaDialog',
   'deterministic test dialog adapter for native folder selection',
-  'Replace existing Body'
+  'replace_section'
 ].forEach((needle) => {
   assert(runner.includes(needle), 'runner should include ' + needle);
 });
@@ -97,6 +116,8 @@ const postEvent = read(path.join(QA_FIXTURE, 'source', 'scenes', 'post_event.sce
   'load_bundled_demo_template',
   'justice_party_template_mod',
   'runtime_preview_entry_flow',
+  'Playable Surface',
+  'Workspace Layout',
   'project_mismatch',
   'test dialog adapter',
   'Do not treat these runs as full manual QA'
@@ -144,9 +165,18 @@ assert(
   justicePartyScenarioCard.includes('Persona:') &&
     justicePartyScenarioCard.includes('Required checkpoints:') &&
     justicePartyScenarioCard.includes('Entry & Sidebar') &&
+    justicePartyScenarioCard.includes('Playable Surface') &&
+    justicePartyScenarioCard.includes('Workspace Layout') &&
+    justicePartyScenarioCard.includes('Sidebar / Status') &&
+    justicePartyScenarioCard.includes('Card Wizard') &&
+    justicePartyScenarioCard.includes('media deck') &&
+    justicePartyScenarioCard.includes('briefing card') &&
+    justicePartyScenarioCard.includes('party-affairs workspace') &&
+    justicePartyScenarioCard.includes('party-affairs') &&
+    justicePartyScenarioCard.includes('labor advisor') &&
     justicePartyScenarioCard.includes('Variable recommendation') &&
     justicePartyScenarioCard.includes('two news systems'),
-  'Justice Party scenario card should cover variable recommendations and both news systems'
+  'Justice Party scenario card should cover card/advisor drafts, variable recommendations, and both news systems'
 );
 assert(
   runtimePreviewScenarioCard.includes('Persona:') &&

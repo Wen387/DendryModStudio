@@ -29,6 +29,7 @@ fs.writeFileSync(path.join(sourceRoot, 'node_modules', 'large.js'), 'must not co
 fs.mkdirSync(path.join(sourceRoot, 'tools'), {recursive: true});
 fs.mkdirSync(path.join(sourceRoot, 'out', 'html'), {recursive: true});
 fs.writeFileSync(path.join(sourceRoot, 'out', 'html', 'index.html'), '<!doctype html><title>Old</title>\n', 'utf8');
+fs.writeFileSync(path.join(sourceRoot, 'out', 'html', 'game.js'), 'old generated game js\n', 'utf8');
 fs.writeFileSync(path.join(sourceRoot, 'tools', 'build_and_validate.sh'), [
   '#!/bin/bash',
   'set -e',
@@ -71,6 +72,16 @@ fs.writeFileSync(path.join(sourceOnlyRoot, 'source', 'info.dry'), 'title: Source
 const sourceOnlyCommand = runtimePreview.resolveBuildCommand(sourceOnlyRoot);
 assert(sourceOnlyCommand.ok, 'source-only Dendry project should resolve bundled DendryNexus build command: ' + JSON.stringify(sourceOnlyCommand));
 assert(sourceOnlyCommand.cmd === process.execPath, 'source-only project should use the current Node executable, not npx: ' + JSON.stringify(sourceOnlyCommand));
+
+const staleHtmlRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dms_runtime_preview_stale_html_'));
+fs.mkdirSync(path.join(staleHtmlRoot, 'out', 'html'), {recursive: true});
+fs.writeFileSync(path.join(staleHtmlRoot, 'out', 'html', 'index.html'), 'stale index\n', 'utf8');
+fs.writeFileSync(path.join(staleHtmlRoot, 'out', 'html', 'game.js'), 'stale game\n', 'utf8');
+fs.writeFileSync(path.join(staleHtmlRoot, 'out', 'html', 'core.js'), 'stable runtime core\n', 'utf8');
+runtimePreview.prepareGeneratedHtmlForBuild(staleHtmlRoot);
+assert(!fs.existsSync(path.join(staleHtmlRoot, 'out', 'html', 'index.html')), 'Runtime Preview build prep should remove stale generated index.html from the sandbox');
+assert(!fs.existsSync(path.join(staleHtmlRoot, 'out', 'html', 'game.js')), 'Runtime Preview build prep should remove stale generated game.js from the sandbox');
+assert(fs.existsSync(path.join(staleHtmlRoot, 'out', 'html', 'core.js')), 'Runtime Preview build prep should keep reusable runtime support files');
 
 fs.writeFileSync(path.join(session.paths.modifiedRoot, 'source', 'scenes', 'status.scene.dry'), 'Changed in sandbox\n', 'utf8');
 assert(fs.readFileSync(path.join(sourceRoot, 'source', 'scenes', 'status.scene.dry'), 'utf8') === 'Original label\n', 'modified sandbox must not mutate source project');

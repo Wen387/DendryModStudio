@@ -5,8 +5,12 @@
     event: 'World Event',
     news: 'News',
     card: 'Card',
+    play_surface: 'Playable Surface',
+    workspace_layout: 'Workspace Layout',
+    sidebar_status: 'Sidebar / Status',
     surface: 'Text',
     entry: 'Entry & Sidebar',
+    project: 'Game Info',
     existing: 'Existing edit'
   };
 
@@ -273,8 +277,12 @@
       event: global.ProjectMapWizard,
       news: global.ProjectMapNewsWizard,
       card: global.ProjectMapCardWizard,
+      play_surface: global.ProjectMapPlaySurfaceWizard,
+      workspace_layout: global.ProjectMapWorkspaceLayoutWizard,
+      sidebar_status: global.ProjectMapSidebarStatusWizard,
       surface: global.ProjectMapSurfaceTextWizard,
       entry: global.ProjectMapEntrySidebarWizard,
+      project: global.ProjectMapProjectMetadataWizard,
       existing: global.ProjectMapExistingSceneEditor
     }[template] || null;
   }

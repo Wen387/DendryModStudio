@@ -128,6 +128,102 @@ assert(entryItem.template === 'entry', 'entry_sidebar should normalize to entry 
 assert(entryItem.subtitle.includes('justice_party_opening'), 'entry draft subtitle should identify the first playable target');
 assert(entryItem.previewText.includes('Justice Party'), 'entry draft preview should be captured');
 
+const projectItem = workspace.makeDraftItem({
+  draft: {
+    schemaVersion: '0.1',
+    kind: 'project_metadata',
+    id: 'project_metadata_update',
+    title: 'Game Info Update',
+    gameTitle: 'Justice Party Campaign Office',
+    author: 'Dendry Mod Studio Playtest'
+  },
+  output: {
+    playerPreview: 'Game title: Justice Party Campaign Office',
+    installPlan: {
+      schemaVersion: '0.1',
+      draftKind: 'project_metadata',
+      operations: [{
+        id: 'project_metadata_title',
+        type: 'replace_text',
+        safety: 'guarded_apply',
+        path: 'source/info.dry',
+        search: 'title: Old',
+        replace: 'title: Justice Party Campaign Office'
+      }]
+    }
+  }
+});
+assert(projectItem.template === 'project', 'project_metadata should normalize to project template');
+assert(projectItem.subtitle.includes('Justice Party Campaign Office'), 'project metadata subtitle should identify the game title');
+assert(projectItem.subtitle.includes('Dendry Mod Studio Playtest'), 'project metadata subtitle should identify the author');
+assert(projectItem.previewText.includes('Game title'), 'project metadata preview should be captured');
+
+const layoutItem = workspace.makeDraftItem({
+  draft: {
+    schemaVersion: '0.1',
+    kind: 'workspace_layout',
+    id: 'justice_party_layout',
+    title: 'Justice Party workspace layout',
+    deckTitle: 'Justice Party Media Deck',
+    createStarterCard: true,
+    starterCardTitle: 'Media Briefing',
+    sidebarHeading: 'Media Desk'
+  },
+  output: {
+    playerPreview: 'Deck: Justice Party Media Deck\nSidebar category: Media Desk',
+    installPlan: {
+      schemaVersion: '0.1',
+      draftKind: 'workspace_layout',
+      operations: [{
+        id: 'create_deck_scene',
+        type: 'create_file',
+        safety: 'safe_apply',
+        path: 'source/scenes/decks/justice_party_media_deck.scene.dry',
+        content: 'title: Justice Party Media Deck\n'
+      }]
+    }
+  }
+});
+assert(layoutItem.template === 'workspace_layout', 'workspace_layout should normalize to workspace_layout template');
+assert(layoutItem.subtitle.includes('Justice Party Media Deck'), 'workspace layout subtitle should identify the deck');
+assert(layoutItem.subtitle.includes('Media Briefing'), 'workspace layout subtitle should identify the starter card');
+assert(layoutItem.subtitle.includes('Media Desk'), 'workspace layout subtitle should identify the sidebar category');
+assert(layoutItem.previewText.includes('Justice Party Media Deck'), 'workspace layout preview should be captured');
+
+const sidebarStatusItem = workspace.makeDraftItem({
+  draft: {
+    schemaVersion: '0.1',
+    kind: 'sidebar_status',
+    id: 'justice_party_sidebar',
+    title: 'Justice Party sidebar update',
+    statusTitle: 'Justice Party Status',
+    sectionId: 'organization',
+    sectionHeading: 'Justice Party Organization'
+  },
+  output: {
+    playerPreview: 'Sidebar / Status\nJustice Party Organization',
+    installPlan: {
+      schemaVersion: '0.1',
+      draftKind: 'sidebar_status',
+      operations: [{
+        id: 'sidebar_status_section',
+        type: 'replace_section',
+        safety: 'guarded_apply',
+        path: 'source/scenes/status.scene.dry',
+        anchorText: '= Organization',
+        endAnchorText: 'Old body',
+        content: '= Justice Party Organization\n',
+        dedupeSearch: 'Justice Party Organization'
+      }]
+    }
+  }
+});
+assert(sidebarStatusItem.template === 'sidebar_status', 'sidebar_status should normalize to sidebar_status template');
+assert(sidebarStatusItem.subtitle.includes('Justice Party Status'), 'sidebar status subtitle should identify the status scene');
+assert(sidebarStatusItem.subtitle.includes('Justice Party Organization'), 'sidebar status subtitle should identify the selected section');
+assert(sidebarStatusItem.previewText.includes('Justice Party Organization'), 'sidebar status preview should be captured');
+assert(sidebarStatusItem.installSummary.guardedApply === 1, 'sidebar status item should count guarded install operations');
+
 const existingSceneItem = workspace.makeDraftItem({
   template: 'existing',
   draft: {
@@ -362,5 +458,5 @@ assert(uiSmoke.installClicks === 1, 'enabled Review should switch to Install');
 console.log(JSON.stringify({
   ok: true,
   itemId: item.workspaceId,
-  templates: ['event', newsItem.template, entryItem.template]
+  templates: ['event', newsItem.template, entryItem.template, layoutItem.template, sidebarStatusItem.template, projectItem.template]
 }, null, 2));

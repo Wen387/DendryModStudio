@@ -1,7 +1,7 @@
 (function initProjectMapExistingSceneEdit(global) {
   'use strict';
 
-  const EXISTING_SCENE_EDIT_VERSION = '0.1';
+  const EXISTING_SCENE_EDIT_VERSION = '0.2';
   const MODEL_KIND = 'existing_scene_edit_model';
   const PROPOSAL_KIND = 'existing_scene_edit';
   const ID_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -69,9 +69,11 @@
     }
     const textRows = textRowsForScene(lookup, scene, source.path);
     const scriptRows = textRows.filter(isEffectScriptRow);
-    const textFields = textRows
+    const visibleTextRows = textRows.filter((row) => !isEffectScriptRow(row));
+    const textFields = visibleTextRows
       .filter((row) => !isEffectScriptRow(row))
       .map((row, index) => fieldFromTextRow(row, index, source.path));
+    const textBlocks = textBlocksForScene(scene, visibleTextRows, source.path);
     const fields = textFields.concat(metadataEditableFields(scene, source.path));
     if (!fields.length) {
       diagnostics.push(diagnostic('warning', 'existing_scene_edit.no_text_rows', 'No source-backed Text Corpus rows were found for this scene.'));
@@ -88,6 +90,7 @@
       source,
       profileIds: ensureArray(index.project && index.project.profileIds).map(String),
       fields,
+      textBlocks,
       options: eventOptions,
       sections: sectionRows(fields, eventOptions),
       effects: effectRows(index, scene, scriptRows),
@@ -283,6 +286,108 @@
     return Array.from(sections.values());
   }
 
+  function textBlocksForScene(scene, rows, sceneSourcePath) {
+    const bySection = new Map();
+    ensureArray(rows).forEach((row) => {
+      if (!isBlockTextRole(row.role)) {
+        return;
+      }
+      const source = sourceRef(row.source || {});
+      if (!source.path || (sceneSourcePath && source.path !== sceneSourcePath) || !source.line) {
+        return;
+      }
+      const owner = isObject(row.owner) ? row.owner : {};
+      const key = String(owner.sectionId || '');
+      if (!bySection.has(key)) {
+        bySection.set(key, []);
+      }
+      bySection.get(key).push(row);
+    });
+    const blocks = [];
+    bySection.forEach((sectionRowsForBlock, sectionId) => {
+      const ordered = sectionRowsForBlock.slice().sort((a, b) => sourceLine(a.source) - sourceLine(b.source));
+      const block = textBlockFromRows(scene, sectionId, ordered);
+      if (block) {
+        blocks.push(block);
+      }
+    });
+    return blocks.sort((a, b) => (a.source.line || 0) - (b.source.line || 0));
+  }
+
+  function textBlockFromRows(scene, sectionId, rows) {
+    const usable = ensureArray(rows).filter((row) => isBlockTextRole(row.role) && sourceLine(row.source));
+    if (!usable.length) {
+      return null;
+    }
+    const first = usable[0];
+    const last = usable[usable.length - 1];
+    const source = sourceRef(first.source || {});
+    const end = sourceRef(last.source || {});
+    const anchorText = sourceAnchor(first);
+    const endAnchorText = sourceEndAnchor(last);
+    if (!source.path || !anchorText || !endAnchorText || isProtectedRouterPath(source.path)) {
+      return null;
+    }
+    const startLine = sourceLine(first.source);
+    const endLine = sourceEndLine(last.source);
+    const spanLines = endLine && startLine ? endLine - startLine + 1 : 0;
+    if (spanLines > 36) {
+      return null;
+    }
+    const original = renderTextBlockContent(usable);
+    if (!original.trim()) {
+      return null;
+    }
+    const id = safeId('section_text_' + (sectionId || scene && scene.id || 'opening'));
+    return {
+      id,
+      role: 'section_text',
+      label: sectionId ? 'Section text: ' + humanSectionId(sectionId) : 'Opening page text',
+      sectionId: String(sectionId || ''),
+      fieldIds: usable.map((row) => safeId(row.id || [row.role || 'text', sectionId, sourceLine(row.source)].filter(Boolean).join('_'))),
+      original,
+      value: original,
+      source: {
+        path: source.path,
+        line: startLine,
+        endLine,
+        anchorText,
+        endAnchorText
+      },
+      editability: 'guarded_replace_section',
+      confidence: 'exact',
+      reason: 'Exact source-backed text block can be checked before replacement.'
+    };
+  }
+
+  function isBlockTextRole(role) {
+    const text = String(role || '');
+    return text === 'heading' || text === 'body' || text === 'conditional_body';
+  }
+
+  function renderTextBlockContent(rows) {
+    const lines = [];
+    ensureArray(rows).forEach((row) => {
+      const role = String(row.role || '');
+      const text = String(row.text || '').trim();
+      if (!text) {
+        return;
+      }
+      if (lines.length && lines[lines.length - 1] !== '') {
+        lines.push('');
+      }
+      if (role === 'heading') {
+        lines.push(text.startsWith('=') ? text : '= ' + text);
+      } else if (role === 'conditional_body') {
+        const source = row.source || {};
+        lines.push(String(source.anchorText || text).trim());
+      } else {
+        lines.push(text);
+      }
+    });
+    return lines.join('\n').replace(/\n+$/, '') + '\n';
+  }
+
   function metadataRows(scene, source, fieldById) {
     const rows = [
       metadataRow('title', 'Title', scene.title, 'title'),
@@ -411,7 +516,40 @@
     const model = isObject(modelInput) ? modelInput : {};
     const values = isObject(editedValues) ? editedValues : {};
     const opts = isObject(options) ? options : {};
-    const changes = ensureArray(model.fields).map((field) => {
+    const blockChanges = ensureArray(model.textBlocks).map((block) => {
+      const key = 'block:' + block.id;
+      const hasEditedValue = Object.prototype.hasOwnProperty.call(values, key);
+      const after = hasEditedValue ? values[key] : block.value;
+      if (String(after === undefined || after === null ? '' : after) === String(block.original || '')) {
+        return null;
+      }
+      return {
+        fieldId: block.id,
+        role: block.role || 'section_text',
+        label: block.label || roleLabel(block.role),
+        sectionId: block.sectionId || '',
+        optionId: '',
+        source: sourceRef(block.source || {}),
+        editability: block.editability || 'guarded_replace_section',
+        operationType: 'replace_section',
+        anchorText: block.source && block.source.anchorText || '',
+        endAnchorText: block.source && block.source.endAnchorText || '',
+        startLine: block.source && block.source.line || null,
+        endLine: block.source && block.source.endLine || null,
+        dedupeSearch: String(after || '').trim().slice(0, 200),
+        before: String(block.original || ''),
+        after: String(after === undefined || after === null ? '' : after)
+      };
+    }).filter(Boolean);
+    const coveredFieldIds = new Set();
+    blockChanges.forEach((change) => {
+      const block = ensureArray(model.textBlocks).find((item) => item.id === change.fieldId);
+      ensureArray(block && block.fieldIds).forEach((fieldId) => coveredFieldIds.add(fieldId));
+    });
+    const fieldChanges = ensureArray(model.fields).map((field) => {
+      if (coveredFieldIds.has(field.id)) {
+        return null;
+      }
       const hasEditedValue = Object.prototype.hasOwnProperty.call(values, field.id);
       const after = hasEditedValue ? values[field.id] : field.value;
       if (String(after === undefined || after === null ? '' : after) === String(field.original || '')) {
@@ -429,6 +567,7 @@
         after: String(after === undefined || after === null ? '' : after)
       };
     }).filter(Boolean);
+    const changes = blockChanges.concat(fieldChanges);
     const diagnostics = [];
     if (!changes.length) {
       diagnostics.push(diagnostic('warning', 'existing_scene_edit.no_changes', 'No changed fields were found yet.'));
@@ -478,6 +617,12 @@
       optionId: String(value.optionId || ''),
       source: sourceRef(value.source || {}),
       editability: String(value.editability || 'manual_review'),
+      operationType: String(value.operationType || ''),
+      anchorText: String(value.anchorText || ''),
+      endAnchorText: String(value.endAnchorText || ''),
+      startLine: numberOrNull(value.startLine),
+      endLine: numberOrNull(value.endLine),
+      dedupeSearch: String(value.dedupeSearch || ''),
       before: String(value.before === undefined || value.before === null ? '' : value.before),
       after: String(value.after === undefined || value.after === null ? '' : value.after)
     };
@@ -492,11 +637,14 @@
       } else {
         summary.textFields += 1;
       }
-      if (change.editability === 'manual_review' || !canGuardField(change.source, change.before)) {
+      if (change.editability === 'manual_review' || !(canGuardField(change.source, change.before) || canGuardSectionChange(change))) {
         summary.manualFields += 1;
       }
+      if (change.operationType === 'replace_section') {
+        summary.sectionFields = (summary.sectionFields || 0) + 1;
+      }
       return summary;
-    }, {total: 0, textFields: 0, metadataFields: 0, manualFields: 0});
+    }, {total: 0, textFields: 0, metadataFields: 0, manualFields: 0, sectionFields: 0});
   }
 
   function buildExportBundle(input, projectIndex) {
@@ -569,6 +717,36 @@
       return ' (manual source review)';
     }
     return ' (' + ref.path + (ref.line ? ':' + ref.line : '') + ')';
+  }
+
+  function sourceAnchor(row) {
+    const source = row && row.source || {};
+    const exact = String(source.anchorText || '').trim();
+    if (exact) {
+      return exact;
+    }
+    const original = String(row && (row.originalText || row.text) || '').trim();
+    if (String(row && row.role || '') === 'heading' && !original.startsWith('=')) {
+      return '= ' + original;
+    }
+    if (sourceLine(source) && sourceEndLine(source) && sourceLine(source) !== sourceEndLine(source)) {
+      return '';
+    }
+    return original;
+  }
+
+  function sourceEndAnchor(row) {
+    const source = row && row.source || {};
+    const exact = String(source.endAnchorText || '').trim();
+    if (exact) {
+      return exact;
+    }
+    return sourceAnchor(row);
+  }
+
+  function sourceEndLine(source) {
+    const ref = sourceRef(source);
+    return ref.endLine || ref.line || 0;
   }
 
   function splitOptionTitle(title) {
@@ -651,10 +829,33 @@
       option_label: 'Player option',
       option_subtitle: 'Option subtitle',
       unavailable_text: 'Unavailable text',
+      section_text: 'Section text',
       metadata: 'Metadata',
       condition: 'Condition'
     };
     return labels[String(role || '')] || String(role || 'Text');
+  }
+
+  function humanSectionId(sectionId) {
+    const text = String(sectionId || '');
+    const last = text.includes('.') ? text.split('.').pop() : text;
+    return last.replace(/[_-]+/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
+  }
+
+  function canGuardSectionChange(change) {
+    const value = isObject(change) ? change : {};
+    const source = sourceRef(value.source || {});
+    return Boolean(
+      value.operationType === 'replace_section' &&
+      source.path.startsWith('source/scenes/') &&
+      source.path.endsWith('.scene.dry') &&
+      !isProtectedRouterPath(source.path) &&
+      source.line &&
+      source.endLine &&
+      value.anchorText &&
+      value.endAnchorText &&
+      String(value.after || '').trim()
+    );
   }
 
   function isProtectedRouterPath(relPath) {

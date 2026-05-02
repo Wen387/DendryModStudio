@@ -3,8 +3,8 @@
 Persona: cautious mod author editing existing player-facing text.
 
 Goal: find an existing Event the way a player-tester would, understand it in
-Design, open Edit existing, change a source-backed line, save the proposal, and
-dry-run the guarded replacement.
+Design, open Edit existing, change a source-backed page section, save the
+proposal, and dry-run the guarded replacement.
 
 Required checkpoints:
 
@@ -14,10 +14,10 @@ Required checkpoints:
 - Design list view can find the same event as `event:generic_intro`.
 - The Design inspector exposes Edit existing.
 - Existing Scene Editor opens in Create and updates the proposal preview when a
-  body field changes.
+  source-backed page section changes.
 - My Changes saves the existing edit.
 - Review & Apply loads an `existing_scene_edit` plan.
-- Dry-run returns a guarded `replace_text` operation with `would_apply`.
+- Dry-run returns a guarded `replace_section` operation with `would_apply`.
 
 Allowed shortcut: the native folder picker is replaced by the deterministic
 test dialog adapter. The player-facing Open Project action must still be

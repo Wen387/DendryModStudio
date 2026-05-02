@@ -77,6 +77,7 @@
     const variableCandidates = suggestions && typeof suggestions.buildVariableCandidates === 'function'
       ? suggestions.buildVariableCandidates(index, {limit: 24})
       : ensureArray(index.variables).map((variable) => ({name: variable && variable.name || '', reason: 'ProjectIndex variable'}));
+    const targetExists = Boolean(firstTargetId && playableScenes.some((scene) => scene.id === firstTargetId));
 
     return {
       schemaVersion: ENTRY_SIDEBAR_VERSION,
@@ -119,6 +120,32 @@
         evidence: null
       },
       hasGeneratedSidebarOnly: !status && generatedSurfaceSources(index),
+      playability: [
+        {
+          id: 'root',
+          status: root ? 'ready' : 'warning',
+          label: 'Root scene',
+          message: root ? 'Root/start scene detected.' : 'No root/start scene was detected.'
+        },
+        {
+          id: 'first_route',
+          status: firstOption && firstTargetId ? 'ready' : 'warning',
+          label: 'First route',
+          message: firstOption && firstTargetId ? 'First start-menu route detected.' : 'No first playable root route was detected.'
+        },
+        {
+          id: 'first_target',
+          status: targetExists ? 'ready' : 'warning',
+          label: 'First target',
+          message: targetExists ? 'First playable target exists in source.' : 'First target is missing or must be created.'
+        },
+        {
+          id: 'sidebar',
+          status: status ? 'ready' : (!status && generatedSurfaceSources(index) ? 'manual' : 'warning'),
+          label: 'Sidebar/status',
+          message: status ? 'Source-backed status/sidebar scene detected.' : (!status && generatedSurfaceSources(index) ? 'Generated/custom sidebar needs manual review.' : 'No status/sidebar scene detected; Studio can propose one.')
+        }
+      ],
       playableScenes,
       variables: variableCandidates.map((candidate) => ({
         name: String(candidate && candidate.name || '').trim(),

@@ -1,0 +1,16 @@
+title: Workspace Hand
+new-page: true
+is-hand: true
+max-cards: 3
+
+= Workspace Hand
+
+This is a whiteboard hand scene. It gives the project a ready-made card surface:
+one deck lane for action cards and one pinned advisor lane.
+
+In a larger mod, this can become the place where monthly actions, party work,
+advisors, circles, or other repeatable systems live.
+
+- @demo_action_deck: Draw from the starter deck
+- #demo_advisor: Review starter advisor
+- @root: Back to start

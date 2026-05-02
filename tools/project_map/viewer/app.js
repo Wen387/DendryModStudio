@@ -3254,6 +3254,14 @@
       global.ProjectMapSurfaceTextWizard.loadDraft(draft, meta);
       return true;
     }
+    if (templateKey === 'entry' && global.ProjectMapEntrySidebarWizard && typeof global.ProjectMapEntrySidebarWizard.loadDraft === 'function') {
+      global.ProjectMapEntrySidebarWizard.loadDraft(draft, meta);
+      return true;
+    }
+    if (templateKey === 'project' && global.ProjectMapProjectMetadataWizard && typeof global.ProjectMapProjectMetadataWizard.loadDraft === 'function') {
+      global.ProjectMapProjectMetadataWizard.loadDraft(draft, meta);
+      return true;
+    }
     return false;
   }
 

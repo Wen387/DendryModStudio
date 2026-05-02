@@ -53,6 +53,8 @@
       indexStatus: document.getElementById('entry-index-status'),
       coreStatus: document.getElementById('entry-core-status'),
       diagnostics: document.getElementById('entry-diagnostics'),
+      playability: document.getElementById('entry-playability-checklist'),
+      routeMap: document.getElementById('entry-route-map'),
       firstTarget: document.getElementById('entry-first-target'),
       variableSearch: document.getElementById('entry-variable-search'),
       variableCandidates: document.getElementById('entry-variable-candidates'),
@@ -264,6 +266,8 @@
       ? t('create.status.entryCoreLoaded', 'EntrySidebarDraft core loaded.')
       : t('create.status.entryCorePending', 'EntrySidebarDraft core pending.'), output.coreUsed ? 'ready' : 'warning');
     renderDiagnostics(output.diagnostics);
+    renderPlayability();
+    renderRouteMap(draft);
     setText(elements.playerPreview, output.playerPreview);
     setText(elements.jsonPreview, output.draftJson);
     setText(elements.installPreview, renderInstallPreview(output));
@@ -412,6 +416,103 @@
     const text = [candidate && candidate.name, candidate && candidate.reason].join(' ').toLowerCase();
     const needle = String(query || '').trim().toLowerCase();
     return !needle || text.includes(needle);
+  }
+
+  function renderPlayability() {
+    if (!elements.playability) {
+      return;
+    }
+    const rows = state.entryModel && Array.isArray(state.entryModel.playability) ? state.entryModel.playability : [];
+    if (!rows.length) {
+      elements.playability.innerHTML = '<div class="entry-playability-row warning"><strong>' +
+        escapeHtml(t('entry.playabilityNoIndex', 'No index')) +
+        '</strong><span>' +
+        escapeHtml(t('entry.playabilityNoIndexBody', 'Open or index a project to check first-playable readiness.')) +
+        '</span><small>' +
+        escapeHtml(t('entry.playabilityMissing', 'missing')) +
+        '</small></div>';
+      return;
+    }
+    elements.playability.innerHTML = rows.map((row) => {
+      const status = String(row.status || 'warning');
+      const statusLabel = status === 'ready'
+        ? t('entry.playabilityReady', 'ready')
+        : status === 'manual'
+          ? t('entry.playabilityManual', 'manual review')
+          : t('entry.playabilityMissing', 'missing');
+      return '<div class="entry-playability-row ' + (status === 'ready' ? 'ready' : 'warning') + '">' +
+        '<strong>' + escapeHtml(playabilityLabel(row)) + '</strong>' +
+        '<span>' + escapeHtml(playabilityMessage(row)) + '</span>' +
+        '<small>' + escapeHtml(statusLabel) + '</small>' +
+        '</div>';
+    }).join('');
+  }
+
+  function renderRouteMap(draft) {
+    if (!elements.routeMap) {
+      return;
+    }
+    const items = [
+      {
+        id: 'start',
+        label: t('entry.route.startScreen', 'Start screen'),
+        value: draft.rootHeading || draft.rootTitle || t('entry.route.missing', 'Missing'),
+        status: draft.rootHeading || draft.rootTitle ? 'ready' : 'warning'
+      },
+      {
+        id: 'option',
+        label: t('entry.route.firstOption', 'First option'),
+        value: draft.firstOptionTitle || t('entry.route.missing', 'Missing'),
+        status: draft.firstOptionTitle ? 'ready' : 'warning'
+      },
+      {
+        id: 'target',
+        label: t('entry.route.targetScene', 'Target scene'),
+        value: draft.firstTargetId || t('entry.route.missing', 'Missing'),
+        status: draft.firstTargetId ? 'ready' : 'warning'
+      }
+    ];
+    elements.routeMap.innerHTML = items.map((item) => {
+      return '<div class="entry-route-card ' + (item.status === 'ready' ? 'ready' : 'warning') + '">' +
+        '<small>' + escapeHtml(item.label) + '</small>' +
+        '<strong>' + escapeHtml(item.value) + '</strong>' +
+        '</div>';
+    }).join('');
+  }
+
+  function playabilityLabel(row) {
+    const labels = {
+      root: t('entry.playability.root', 'Root scene'),
+      first_route: t('entry.playability.firstRoute', 'First route'),
+      first_target: t('entry.playability.firstTarget', 'First target'),
+      sidebar: t('entry.playability.sidebar', 'Sidebar/status')
+    };
+    return labels[row && row.id] || row && row.label || 'Check';
+  }
+
+  function playabilityMessage(row) {
+    const messages = {
+      root: {
+        ready: t('entry.playability.rootReady', 'Root/start scene detected.'),
+        warning: t('entry.playability.rootMissing', 'No root/start scene was detected.')
+      },
+      first_route: {
+        ready: t('entry.playability.firstRouteReady', 'First start-menu route detected.'),
+        warning: t('entry.playability.firstRouteMissing', 'No first playable root route was detected.')
+      },
+      first_target: {
+        ready: t('entry.playability.firstTargetReady', 'First playable target exists in source.'),
+        warning: t('entry.playability.firstTargetMissing', 'First target is missing or must be created.')
+      },
+      sidebar: {
+        ready: t('entry.playability.sidebarReady', 'Source-backed status/sidebar scene detected.'),
+        warning: t('entry.playability.sidebarMissing', 'No status/sidebar scene detected; Studio can propose one.'),
+        manual: t('entry.playability.sidebarManual', 'Generated/custom sidebar needs manual review.')
+      }
+    };
+    const status = String(row && row.status || 'warning');
+    const group = messages[row && row.id] || {};
+    return group[status] || row && row.message || '';
   }
 
   function appendStatusLine(name) {

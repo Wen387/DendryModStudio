@@ -2,6 +2,10 @@
 'use strict';
 
 const existingEdit = require('./authoring/existing_scene_edit_model.js');
+const installPlan = require('./authoring/install_plan.js');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 
 function fail(message) {
   process.stderr.write('FAIL: ' + message + '\n');
@@ -152,6 +156,7 @@ assert(eventModel.sceneKind === 'event', 'event edit model should classify event
 assert(eventModel.source.path === 'source/scenes/events/all_quiet.scene.dry', 'event edit model should keep source path');
 assert(eventModel.fields.some((field) => field.role === 'body' && field.original.includes('film arrives')), 'event model should expose body prose');
 assert(eventModel.fields.some((field) => field.role === 'option_label' && field.original === 'Ban the film'), 'event model should expose option label text');
+assert(eventModel.textBlocks.some((block) => block.role === 'section_text' && block.original.includes('film arrives')), 'event model should expose source-backed section text blocks');
 const eventChainField = eventModel.fields.find((field) => field.role === 'condition' && field.id === 'metadata_viewIf');
 assert(eventChainField, 'event model should expose source-backed view-if as an editable event-chain field');
 assert(eventChainField.source.line === 3, 'event-chain field should keep exact view-if source line');
@@ -181,6 +186,42 @@ assert(bundle.previewText.includes('Modify existing Event'), 'bundle preview tex
 assert(bundle.proposalText.includes('Before:'), 'bundle proposal text should include before text');
 assert(bundle.proposalText.includes('After:'), 'bundle proposal text should include after text');
 
+const openingBlock = eventModel.textBlocks.find((block) => block.original.includes('film arrives'));
+assert(openingBlock, 'event model should expose an opening text block');
+const blockProposal = existingEdit.buildProposal(eventModel, {
+  ['block:' + openingBlock.id]: 'The film arrives as a Studio section edit with a clearer public argument.\n'
+});
+assert(blockProposal.changes.length === 1, 'section proposal should contain one block change');
+assert(blockProposal.changes[0].operationType === 'replace_section', 'section proposal should mark replace_section operation type');
+const blockBundle = existingEdit.buildExportBundle(blockProposal, index);
+assert(blockBundle.installPlan.operations[0].type === 'replace_section', 'section block edit should use replace_section');
+assert(blockBundle.installPlan.operations[0].safety === 'guarded_apply', 'section block edit should be guarded');
+blockBundle.installPlan.project = null;
+
+const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dms_existing_section_'));
+const eventPath = path.join(tmpRoot, 'source', 'scenes', 'events');
+fs.mkdirSync(eventPath, {recursive: true});
+fs.writeFileSync(path.join(tmpRoot, 'source', 'info.dry'), 'title: Existing Section Fixture\n', 'utf8');
+fs.writeFileSync(path.join(eventPath, 'all_quiet.scene.dry'), [
+  'title: All Quiet on the Western Front',
+  'tags: event',
+  'view-if: year = 1930 and month >= 1 and month <= 4 and all_quiet_seen = 0',
+  'priority: 1',
+  'new-page: true',
+  '',
+  '= All Quiet on the Western Front',
+  'The film arrives with a silence heavier than the posters.',
+  '',
+  '- @ban: Ban the film',
+  '',
+  '@ban',
+  'Police notes thicken into policy.',
+  ''
+].join('\n'), 'utf8');
+const blockApply = installPlan.applyInstallPlan(blockBundle.installPlan, {projectRoot: tmpRoot, dryRun: false});
+assert(blockApply.ok, 'section block apply should succeed: ' + JSON.stringify(blockApply));
+assert(fs.readFileSync(path.join(eventPath, 'all_quiet.scene.dry'), 'utf8').includes('Studio section edit'), 'section block apply should mutate copied source');
+
 const unchangedProposal = existingEdit.buildProposal(eventModel, {});
 assert(unchangedProposal.changes.length === 0, 'proposal with no edited values should have no changes');
 assert(unchangedProposal.diagnostics.some((diag) => diag.code === 'existing_scene_edit.no_changes'), 'no-change proposal should diagnose empty edit');
@@ -207,6 +248,7 @@ assert(manualModel.fields[0].editability === 'manual_review', 'protected router-
 console.log(JSON.stringify({
   ok: true,
   eventFields: eventModel.fields.length,
+  textBlocks: eventModel.textBlocks.length,
   eventChanges: eventProposal.changes.length,
   cardOptions: cardModel.options.length,
   manualEditability: manualModel.fields[0].editability

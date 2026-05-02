@@ -358,9 +358,7 @@
     const scene = renderSceneDry(draft, projectIndex);
     const draftJson = JSON.stringify(draft, null, 2) + '\n';
     const lane = draft.cardKind === 'advisor_like' ? 'Advisor-like' : 'Action card';
-    const suggestedPath = draft.cardKind === 'advisor_like'
-      ? 'source/scenes/circles/' + draft.id + '.scene.dry'
-      : 'source/scenes/cards/' + draft.id + '.scene.dry';
+    const suggestedPath = suggestedCardPath(draft, projectIndex);
     const wiring = cardWiringProposal(draft, projectIndex, suggestedPath);
     const installApi = installPlanApi();
     const plan = installApi.cardInstallPlan({
@@ -482,6 +480,43 @@
       );
     }
     return {path: handPath, content: lines.join('\n') + '\n', autoRouted: false, route: null};
+  }
+
+  function suggestedCardPath(draft, projectIndex) {
+    const existingLane = matchingLaneScene(draft, projectIndex);
+    const existingDir = sceneDirectory(existingLane && existingLane.path);
+    if (existingDir) {
+      return existingDir + '/' + draft.id + '.scene.dry';
+    }
+    return draft.cardKind === 'advisor_like'
+      ? 'source/scenes/circles/' + draft.id + '.scene.dry'
+      : 'source/scenes/cards/' + draft.id + '.scene.dry';
+  }
+
+  function matchingLaneScene(draft, projectIndex) {
+    const tags = new Set((draft.tags || []).map(String).filter(Boolean));
+    if (!tags.size) {
+      return null;
+    }
+    const wantedTypes = draft.cardKind === 'advisor_like'
+      ? new Set(['pinned_card', 'advisor', 'circle'])
+      : new Set(['card']);
+    return ensureArray(projectIndex && projectIndex.scenes).find((scene) => {
+      if (!scene || !scene.path || !String(scene.path).startsWith('source/scenes/')) {
+        return false;
+      }
+      const sceneType = String(scene.type || '');
+      if (!wantedTypes.has(sceneType)) {
+        return false;
+      }
+      return ensureArray(scene.tags).some((tag) => tags.has(String(tag)));
+    }) || null;
+  }
+
+  function sceneDirectory(sourcePath) {
+    const normalized = String(sourcePath || '').replace(/\\/g, '/');
+    const match = normalized.match(/^(source\/scenes\/.+)\/[^/]+\.scene\.dry$/);
+    return match ? match[1] : '';
   }
 
   function existingTagRoute(draft, projectIndex, fallbackTag) {

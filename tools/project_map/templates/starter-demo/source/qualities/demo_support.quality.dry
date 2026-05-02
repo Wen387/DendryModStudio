@@ -1,0 +1,5 @@
+name: Demo Support
+initial: 0
+min: 0
+
+Small starter variable used by the demo event, sidebar, and advisor lane.

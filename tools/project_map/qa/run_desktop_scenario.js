@@ -41,7 +41,7 @@ const SCENARIOS = {
       'searches Explore events',
       'inspects the same event in Design list view',
       'opens Edit existing from Design',
-      'changes source-backed player text',
+      'changes a source-backed page section',
       'saves the edit to My Changes',
       'reviews the guarded replacement',
       'runs desktop dry-run'
@@ -94,6 +94,10 @@ const SCENARIOS = {
       'edits the start menu, sidebar, and first playable route through Entry & Sidebar',
       'uses the Create first event shortcut from Entry & Sidebar',
       'uses automatic variable recommendations to reuse template support state',
+      'customizes the party affairs hand, starter deck, starter card, and advisor through Playable Surface',
+      'adds a new media deck lane, first media briefing card, and sidebar category through Workspace Layout',
+      'adds a routed party-affairs action card to the starter deck',
+      'adds a routed advisor-like card to the starter hand',
       'creates a Justice Party campaign event proposal',
       'creates a traditional monthly-popup style news beat as a World Event',
       'creates an Island-style ticker news proposal through News Wizard',
@@ -106,7 +110,7 @@ const SCENARIOS = {
     ]
   },
   runtime_preview_entry_flow: {
-    title: 'Runtime Preview opens the starter route, clicks the first event, and verifies sidebar state changes.',
+    title: 'Runtime Preview opens the starter workspace, clicks an advisor card, and verifies sidebar state changes.',
     run: scenarioRuntimePreviewEntryFlow,
     artifactBase: path.join(REPO_ROOT, '.studio-local', 'playtests', 'runtime-preview-entry-flow'),
     dialogRoots: [],
@@ -114,8 +118,8 @@ const SCENARIOS = {
       'starts from the bundled demo template',
       'creates a desktop Runtime Preview sandbox',
       'opens the modified game preview in a BrowserWindow',
-      'clicks the root start option',
-      'clicks a player choice',
+      'clicks the root start option into the hand workspace',
+      'clicks a player choice on an advisor-like card',
       'verifies the sidebar/status text changes after the choice'
     ],
     shortcuts: [
@@ -226,7 +230,8 @@ function nodeEntry() {
     process.exit(2);
   }
   const electronPath = resolveElectronPath();
-  const childArgs = [__filename].concat(process.argv.slice(2));
+  const childArgs = [__filename];
+  childArgs.push(...process.argv.slice(2));
   const childEnv = {
     ...process.env,
     DMS_QA_CHILD: '1',
@@ -294,6 +299,9 @@ function electronEntry() {
 
   app.commandLine.appendSwitch('disable-gpu');
   app.commandLine.appendSwitch('disable-dev-shm-usage');
+  if (process.platform === 'linux' && !args.headed) {
+    app.commandLine.appendSwitch('no-sandbox');
+  }
   if (!args.headed) {
     app.commandLine.appendSwitch('headless');
   }
@@ -631,14 +639,14 @@ async function scenarioExploreDesignExistingEdit(win, args, artifactDir, log) {
 
   await click(win, '#design-inspector [data-design-edit-existing]');
   await expectVisible(win, '#existing-scene-editor-host [data-existing-scene-editor="true"]', 'Existing Scene Editor should open from Design');
-  await replaceExistingFieldByOriginal(
+  await replaceExistingBlockByOriginal(
     win,
-    'This scene has a simple variable write and no project-specific systems.',
-    'This edited line proves Design can open a guarded existing scene proposal.'
+    '= Generic Intro\n\nThis scene has a simple variable write and no project-specific systems.\n',
+    '= Generic Intro\n\nThis edited section proves Design can open a guarded existing scene section proposal.\n'
   );
-  await expectText(win, '#existing-scene-editor-host [data-existing-preview="true"]', 'This edited line proves Design can open a guarded existing scene proposal.');
+  await expectText(win, '#existing-scene-editor-host [data-existing-preview="true"]', 'This edited section proves Design can open a guarded existing scene section proposal.');
   await screenshot(win, artifactDir, '05-existing-edit');
-  log('Existing editor updates source-backed player text', 'PASS', '05-existing-edit.png');
+  log('Existing editor updates a source-backed page section', 'PASS', '05-existing-edit.png');
 
   await click(win, '#draft-workspace-save');
   await expectText(win, '#draft-workspace-list', 'Generic Intro');
@@ -650,7 +658,7 @@ async function scenarioExploreDesignExistingEdit(win, args, artifactDir, log) {
     const state = window.ProjectMapInstallAssistant && window.ProjectMapInstallAssistant.getState();
     return Boolean(state && state.plan && state.plan.draftKind === 'existing_scene_edit');
   }), 'Review & Apply should load the existing scene edit plan');
-  await expectText(win, '#install-checklist', 'Replace existing Body');
+  await expectText(win, '#install-checklist', 'replace_section');
   await screenshot(win, artifactDir, '07-existing-review');
   log('Saved existing edit opens Review & Apply', 'PASS', '07-existing-review.png');
 
@@ -666,8 +674,8 @@ async function scenarioExploreDesignExistingEdit(win, args, artifactDir, log) {
     const state = window.ProjectMapInstallAssistant && window.ProjectMapInstallAssistant.getState();
     return state && state.lastResult;
   });
-  if (!dryRunResult || dryRunResult.ok !== true || !dryRunResult.results.some((item) => item.type === 'replace_text' && item.status === 'would_apply')) {
-    throw new Error('Existing edit dry-run did not produce a guarded replace_text would_apply result: ' + JSON.stringify(dryRunResult));
+  if (!dryRunResult || dryRunResult.ok !== true || !dryRunResult.results.some((item) => item.type === 'replace_section' && item.status === 'would_apply')) {
+    throw new Error('Existing edit dry-run did not produce a guarded replace_section would_apply result: ' + JSON.stringify(dryRunResult));
   }
   await screenshot(win, artifactDir, '08-existing-dry-run');
   log('Existing edit dry-run succeeds', 'PASS', '08-existing-dry-run.png');
@@ -811,8 +819,8 @@ async function scenarioRuntimePreviewEntryFlow(_win, args, artifactDir, log) {
   draft.id = 'runtime_preview_entry_flow';
   draft.title = 'Runtime Preview Entry Flow';
   draft.rootHeading = 'Runtime Preview Edited Entry';
-  draft.rootIntro = 'Runtime Preview is testing an Entry & Sidebar edit before the first playable event.';
-  draft.firstOptionTitle = 'Enter the runtime preview event';
+  draft.rootIntro = 'Runtime Preview is testing an Entry & Sidebar edit before the first playable route.';
+  draft.firstOptionTitle = 'Enter the runtime preview workspace';
   draft.sidebarHeading = 'Runtime Preview Status';
   draft.sidebarBody = 'This sidebar text came from the Entry & Sidebar workflow.';
   draft.sidebarStatusLines = '[? if demo_support > 0 : Runtime preview support is visible. ?]';
@@ -848,16 +856,19 @@ async function scenarioRuntimePreviewEntryFlow(_win, args, artifactDir, log) {
     });
     log('Runtime Preview game initial body text', 'PASS', initialBody.replace(/\s+/g, ' ').trim());
     await waitForGameText(gameWin, 'Runtime Preview Edited Entry', args.timeoutMs);
-    await waitForGameText(gameWin, 'Enter the runtime preview event', args.timeoutMs);
+    await waitForGameText(gameWin, 'Enter the runtime preview workspace', args.timeoutMs);
     await screenshot(gameWin, artifactDir, '01-runtime-root');
-    await clickGameText(gameWin, 'Enter the runtime preview event');
-    await waitForGameText(gameWin, 'A Small Campaign Office', args.timeoutMs);
-    await screenshot(gameWin, artifactDir, '02-runtime-first-event');
-    await clickGameText(gameWin, 'Organize volunteers');
-    await waitForGameText(gameWin, 'This is result text', args.timeoutMs);
+    await clickGameText(gameWin, 'Enter the runtime preview workspace');
+    await waitForGameText(gameWin, 'Workspace Hand', args.timeoutMs);
+    await waitForGameText(gameWin, 'Review starter advisor', args.timeoutMs);
+    await screenshot(gameWin, artifactDir, '02-runtime-first-route');
+    await clickGameText(gameWin, 'Review starter advisor');
+    await waitForGameText(gameWin, 'Starter Advisor', args.timeoutMs);
+    await clickGameText(gameWin, 'Ask for organizing help');
+    await waitForGameText(gameWin, 'Workspace Hand', args.timeoutMs);
     await waitForGameText(gameWin, 'Runtime preview support is visible.', args.timeoutMs);
     await screenshot(gameWin, artifactDir, '03-runtime-sidebar-changed');
-    log('Runtime Preview clicked root choice, first event choice, and observed sidebar change', 'PASS', '03-runtime-sidebar-changed.png');
+    log('Runtime Preview clicked root choice, hand advisor choice, and observed sidebar change', 'PASS', '03-runtime-sidebar-changed.png');
   } finally {
     if (!gameWin.isDestroyed()) {
       gameWin.destroy();
@@ -895,9 +906,10 @@ async function scenarioJusticePartyTemplateMod(win, args, artifactDir, log) {
   await fill(win, '#entry-variable-search', 'support');
   await clickEntryVariableCandidateAction(win, 'demo_support');
   await expectFieldContains(win, '#entry-sidebar-status-lines', 'demo_support > 0');
+  await appendToField(win, '#entry-sidebar-status-lines', '[? if demo_resources > 1 : The Justice Party office still has spare organizing capacity. ?]\n[? if demo_advisor_trust > 0 : The labor advisor has begun trusting the office. ?]\n[? if demo_card_progress > 0 : Party-work cards have moved the campaign forward. ?]');
   await waitForEntryOutput(win, 'justice_party_template_mod');
   await screenshot(win, artifactDir, '04-entry-sidebar-edited');
-  log('Entry & Sidebar edits the start menu, status display, and variable-backed sidebar line', 'PASS', '04-entry-sidebar-edited.png');
+  log('Entry & Sidebar edits the welcome page, status display, and variable-backed sidebar lines', 'PASS', '04-entry-sidebar-edited.png');
   await observeStep(args);
 
   await click(win, '#entry-create-first-event');
@@ -937,6 +949,130 @@ async function scenarioJusticePartyTemplateMod(win, args, artifactDir, log) {
   await observeStep(args);
 
   await click(win, '#mode-create');
+  await click(win, '[data-create-template="play_surface"]');
+  await fillJusticePlaySurface(win);
+  await waitForPlaySurfaceOutput(win, 'justice_party_play_surface');
+  await screenshot(win, artifactDir, '08b-play-surface-edited');
+  log('Playable Surface customizes the Justice Party hand, deck, starter card, and advisor', 'PASS', '08b-play-surface-edited.png');
+  await observeStep(args);
+
+  await click(win, '#draft-workspace-save');
+  await expectText(win, '#draft-workspace-list', 'Justice Party playable surface');
+  await clickDraftActionContaining(win, 'Justice Party playable surface', 'review');
+  await expectText(win, '#install-checklist', 'source/scenes/main.scene.dry');
+  await expectText(win, '#install-checklist', 'replace_section');
+  await click(win, '#install-dry-run');
+  const playSurfaceResult = await waitForInstallResult(win, (result) => {
+    const rows = Array.isArray(result && result.results) ? result.results : [];
+    return Boolean(result && result.ok === true &&
+      rows.some((item) => item.id === 'hand_opening' && item.status === 'would_apply') &&
+      rows.some((item) => item.id === 'card_opening' && item.status === 'would_apply') &&
+      rows.some((item) => item.id === 'advisor_opening' && item.status === 'would_apply') &&
+      !rows.some((item) => item.status === 'failed'));
+  }, 'Playable Surface dry-run should include guarded hand/card/advisor replacements');
+  await screenshot(win, artifactDir, '08c-play-surface-dry-run');
+  log('Playable Surface Review & Apply dry-run succeeds', 'PASS', JSON.stringify(statusSummary(playSurfaceResult)));
+  await observeStep(args);
+
+  await click(win, '#mode-create');
+  await click(win, '[data-create-template="workspace_layout"]');
+  await fillJusticeWorkspaceLayout(win);
+  await waitForWorkspaceLayoutOutput(win, 'justice_party_workspace_layout');
+  await screenshot(win, artifactDir, '08d-workspace-layout-edited');
+  log('Workspace Layout adds a Justice Party media deck, first media card, and sidebar category', 'PASS', '08d-workspace-layout-edited.png');
+  await observeStep(args);
+
+  await click(win, '#draft-workspace-save');
+  await expectText(win, '#draft-workspace-list', 'Justice Party workspace layout');
+  await clickDraftActionContaining(win, 'Justice Party workspace layout', 'review');
+  await expectText(win, '#install-checklist', 'source/scenes/decks/justice_party_media_deck.scene.dry');
+  await expectText(win, '#install-checklist', 'source/scenes/cards/justice_party_media_briefing_card.scene.dry');
+  await click(win, '#install-dry-run');
+  const layoutResult = await waitForInstallResult(win, (result) => {
+    const rows = Array.isArray(result && result.results) ? result.results : [];
+    return Boolean(result && result.ok === true &&
+      rows.some((item) => item.id === 'create_deck_scene' && item.path === 'source/scenes/decks/justice_party_media_deck.scene.dry' && item.status === 'would_apply') &&
+      rows.some((item) => item.id === 'create_starter_card' && item.path === 'source/scenes/cards/justice_party_media_briefing_card.scene.dry' && item.status === 'would_apply') &&
+      rows.some((item) => item.id === 'hand_deck_route' && item.status === 'would_apply') &&
+      rows.some((item) => item.id === 'sidebar_category' && item.status === 'would_apply') &&
+      !rows.some((item) => item.status === 'failed'));
+  }, 'Workspace Layout dry-run should create a deck and insert hand/sidebar anchors');
+  await screenshot(win, artifactDir, '08e-workspace-layout-dry-run');
+  log('Workspace Layout Review & Apply dry-run succeeds', 'PASS', JSON.stringify(statusSummary(layoutResult)));
+  await observeStep(args);
+
+  await click(win, '#mode-create');
+  await click(win, '[data-create-template="sidebar_status"]');
+  await fillJusticeSidebarStatus(win);
+  await waitForSidebarStatusOutput(win, 'justice_party_sidebar_status');
+  await screenshot(win, artifactDir, '08f-sidebar-status-edited');
+  log('Sidebar / Status edits an existing source-backed sidebar category with a variable-backed line', 'PASS', '08f-sidebar-status-edited.png');
+  await observeStep(args);
+
+  await click(win, '#draft-workspace-save');
+  await expectText(win, '#draft-workspace-list', 'Justice Party sidebar status');
+  await clickDraftActionContaining(win, 'Justice Party sidebar status', 'review');
+  await expectText(win, '#install-checklist', 'source/scenes/status.scene.dry');
+  await expectText(win, '#install-checklist', 'replace_section');
+  await click(win, '#install-dry-run');
+  const sidebarStatusResult = await waitForInstallResult(win, (result) => {
+    const rows = Array.isArray(result && result.results) ? result.results : [];
+    return Boolean(result && result.ok === true &&
+      rows.some((item) => item.id === 'sidebar_status_title' && item.status === 'would_apply') &&
+      rows.some((item) => item.id === 'sidebar_status_section' && item.status === 'would_apply') &&
+      !rows.some((item) => item.status === 'failed'));
+  }, 'Sidebar / Status dry-run should replace the selected status section');
+  await screenshot(win, artifactDir, '08g-sidebar-status-dry-run');
+  log('Sidebar / Status Review & Apply dry-run succeeds', 'PASS', JSON.stringify(statusSummary(sidebarStatusResult)));
+  await observeStep(args);
+
+  await click(win, '#mode-create');
+  await click(win, '[data-create-template="card"]');
+  await fillJusticePartyActionCard(win);
+  await waitForCardOutput(win, 'justice_party_party_affairs_card', 'is-card: true');
+  await screenshot(win, artifactDir, '09-party-affairs-card');
+  log('Card Wizard creates a Justice Party party-affairs card routed through the starter deck tag', 'PASS', '09-party-affairs-card.png');
+  await observeStep(args);
+
+  await click(win, '#draft-workspace-save');
+  await expectText(win, '#draft-workspace-list', 'Justice Party party affairs card');
+  await clickDraftActionContaining(win, 'Justice Party party affairs card', 'review');
+  await expectText(win, '#install-checklist', 'source/scenes/cards/justice_party_party_affairs_card.scene.dry');
+  await click(win, '#install-dry-run');
+  const partyCardResult = await waitForInstallResult(win, (result) => {
+    const rows = Array.isArray(result && result.results) ? result.results : [];
+    return Boolean(result && result.ok === true &&
+      rows.some((item) => item.id === 'create_scene' && item.path === 'source/scenes/cards/justice_party_party_affairs_card.scene.dry' && item.status === 'would_apply') &&
+      !rows.some((item) => item.status === 'failed'));
+  }, 'Party-affairs card dry-run should create a routed card scene');
+  await screenshot(win, artifactDir, '10-party-affairs-card-dry-run');
+  log('Party-affairs card Review & Apply dry-run succeeds', 'PASS', JSON.stringify(statusSummary(partyCardResult)));
+  await observeStep(args);
+
+  await click(win, '#mode-create');
+  await click(win, '[data-create-template="card"]');
+  await fillJusticePartyAdvisorCard(win);
+  await waitForCardOutput(win, 'justice_party_labor_advisor', 'is-pinned-card: true');
+  await screenshot(win, artifactDir, '11-labor-advisor-card');
+  log('Card Wizard creates a Justice Party labor advisor routed through the starter advisor tag', 'PASS', '11-labor-advisor-card.png');
+  await observeStep(args);
+
+  await click(win, '#draft-workspace-save');
+  await expectText(win, '#draft-workspace-list', 'Justice Party labor advisor');
+  await clickDraftActionContaining(win, 'Justice Party labor advisor', 'review');
+  await expectText(win, '#install-checklist', 'source/scenes/advisors/justice_party_labor_advisor.scene.dry');
+  await click(win, '#install-dry-run');
+  const advisorResult = await waitForInstallResult(win, (result) => {
+    const rows = Array.isArray(result && result.results) ? result.results : [];
+    return Boolean(result && result.ok === true &&
+      rows.some((item) => item.id === 'create_scene' && item.path === 'source/scenes/advisors/justice_party_labor_advisor.scene.dry' && item.status === 'would_apply') &&
+      !rows.some((item) => item.status === 'failed'));
+  }, 'Advisor card dry-run should create a routed advisor scene');
+  await screenshot(win, artifactDir, '12-labor-advisor-card-dry-run');
+  log('Labor advisor Review & Apply dry-run succeeds', 'PASS', JSON.stringify(statusSummary(advisorResult)));
+  await observeStep(args);
+
+  await click(win, '#mode-create');
   await click(win, '[data-create-template="event"]');
   await fillJusticeCampaignEvent(win, 'justice_party_campaign_office');
   await fill(win, '#wizard-requires', '');
@@ -952,21 +1088,21 @@ async function scenarioJusticePartyTemplateMod(win, args, artifactDir, log) {
   await appendToField(win, '#wizard-option-0-effects', 'justice_party_support += 1\nlabor_green_alliance += 1');
   await appendToField(win, '#wizard-option-1-effects', 'parliamentary_strategy += 1\ngrassroots_energy -= 1');
   await waitForEventOutput(win, 'justice_party_campaign_office');
-  await screenshot(win, artifactDir, '09-variable-assisted-campaign-event');
-  log('Justice Party event uses variable recommendations and custom effects', 'PASS', '09-variable-assisted-campaign-event.png');
+  await screenshot(win, artifactDir, '13-variable-assisted-campaign-event');
+  log('Justice Party event uses variable recommendations and custom effects', 'PASS', '13-variable-assisted-campaign-event.png');
   await observeStep(args);
 
   await click(win, '#draft-workspace-save');
   await expectText(win, '#draft-workspace-list', 'Justice Party campaign office');
-  await screenshot(win, artifactDir, '10-campaign-event-saved');
-  log('Campaign event saves to My Changes', 'PASS', '10-campaign-event-saved.png');
+  await screenshot(win, artifactDir, '14-campaign-event-saved');
+  log('Campaign event saves to My Changes', 'PASS', '14-campaign-event-saved.png');
   await observeStep(args);
 
   await click(win, '[data-create-template="event"]');
   await fillTraditionalJusticeNewsEvent(win);
   await waitForEventOutput(win, 'justice_party_monthly_popup');
-  await screenshot(win, artifactDir, '11-traditional-news-event');
-  log('Traditional monthly-popup news is drafted as a World Event', 'PASS', '11-traditional-news-event.png');
+  await screenshot(win, artifactDir, '15-traditional-news-event');
+  log('Traditional monthly-popup news is drafted as a World Event', 'PASS', '15-traditional-news-event.png');
   await observeStep(args);
 
   await click(win, '#draft-workspace-save');
@@ -979,7 +1115,7 @@ async function scenarioJusticePartyTemplateMod(win, args, artifactDir, log) {
   const traditionalResult = await waitForInstallResult(win, (result) => {
     return Boolean(result && result.results && result.results.some((item) => item.id === 'create_scene' && item.status === 'would_apply'));
   }, 'Traditional monthly-popup event dry-run should create a world-event scene');
-  await screenshot(win, artifactDir, '12-traditional-news-dry-run');
+  await screenshot(win, artifactDir, '16-traditional-news-dry-run');
   log('Traditional monthly-popup event dry-run succeeds', 'PASS', JSON.stringify(statusSummary(traditionalResult)));
   await observeStep(args);
 
@@ -987,8 +1123,8 @@ async function scenarioJusticePartyTemplateMod(win, args, artifactDir, log) {
   await click(win, '[data-create-template="news"]');
   await fillIslandStyleJusticeNews(win);
   await waitForNewsOutput(win, 'justice_party_ticker_news');
-  await screenshot(win, artifactDir, '13-island-style-news');
-  log('Island-style ticker news draft renders a post_event_news snippet', 'PASS', '13-island-style-news.png');
+  await screenshot(win, artifactDir, '17-island-style-news');
+  log('Island-style ticker news draft renders a post_event_news snippet', 'PASS', '17-island-style-news.png');
   await observeStep(args);
 
   await click(win, '#draft-workspace-save');
@@ -1002,17 +1138,21 @@ async function scenarioJusticePartyTemplateMod(win, args, artifactDir, log) {
         (item.status === 'manual_review' || item.status === 'would_apply');
     }));
   }, 'Island-style news dry-run should preserve post_event_news manual/guarded boundary');
-  await screenshot(win, artifactDir, '14-island-style-news-dry-run');
+  await screenshot(win, artifactDir, '18-island-style-news-dry-run');
   log('Island-style news dry-run exposes post_event_news boundary', 'PASS', JSON.stringify(statusSummary(islandResult)));
   await observeStep(args);
 
   await click(win, '#mode-create');
   await expectText(win, '#draft-workspace-list', 'Justice Party start menu');
+  await expectText(win, '#draft-workspace-list', 'Justice Party playable surface');
+  await expectText(win, '#draft-workspace-list', 'Justice Party workspace layout');
+  await expectText(win, '#draft-workspace-list', 'Justice Party party affairs card');
+  await expectText(win, '#draft-workspace-list', 'Justice Party labor advisor');
   await expectText(win, '#draft-workspace-list', 'Justice Party campaign office');
   await expectText(win, '#draft-workspace-list', 'Justice Party monthly popup');
   await expectText(win, '#draft-workspace-list', 'Justice Party tests a labor-green pact');
-  await screenshot(win, artifactDir, '15-mod-draft-set');
-  log('Justice Party mod draft set remains available in My Changes', 'PASS', '15-mod-draft-set.png');
+  await screenshot(win, artifactDir, '19-mod-draft-set');
+  log('Justice Party mod draft set remains available in My Changes', 'PASS', '19-mod-draft-set.png');
   await observeStep(args);
 }
 
@@ -1027,6 +1167,68 @@ async function fillJusticeEntrySidebar(win) {
   await fill(win, '#entry-sidebar-heading', 'Campaign Status');
   await fill(win, '#entry-sidebar-body', 'Track whether the new office has turned the template into a playable campaign route.');
   await fill(win, '#entry-sidebar-status-lines', '');
+}
+
+async function fillJusticePlaySurface(win) {
+  await fill(win, '#play-surface-id', 'justice_party_play_surface');
+  await fill(win, '#play-surface-title', 'Justice Party playable surface');
+  await fill(win, '#play-surface-hand-title', 'Justice Party Affairs Hand');
+  await fill(win, '#play-surface-hand-heading', 'Justice Party Affairs Hand');
+  await fill(win, '#play-surface-hand-body', 'The new campaign office turns labor, climate, and local democracy work into a visible hand of party tasks. The player can open the party affairs deck or consult a standing labor organizer.');
+  await fill(win, '#play-surface-hand-deck-option-label', 'Open party affairs deck');
+  await fill(win, '#play-surface-hand-advisor-option-label', 'Consult labor organizer');
+  await fill(win, '#play-surface-deck-title', 'Party Affairs Deck');
+  await fill(win, '#play-surface-deck-subtitle', 'Weekly organizing work');
+  await fill(win, '#play-surface-card-title', 'Local Organizing Push');
+  await fill(win, '#play-surface-card-heading', 'Plan the week of local organizing');
+  await fill(win, '#play-surface-card-body', 'The Justice Party team decides whether to spend volunteer capacity on street outreach or preserve it for coalition calls later in the month.');
+  await fill(win, '#play-surface-card-option0-label', 'Spend volunteer capacity');
+  await fill(win, '#play-surface-card-option1-label', 'Save capacity for coalition calls');
+  await fill(win, '#play-surface-advisor-title', 'Labor Organizer');
+  await fill(win, '#play-surface-advisor-subtitle', 'Workplace and union guidance');
+  await fill(win, '#play-surface-advisor-heading', 'Labor Organizer');
+  await fill(win, '#play-surface-advisor-body', 'A workplace organizer keeps the party connected to shop-floor concerns and helps turn policy language into people the office can actually call.');
+  await fill(win, '#play-surface-advisor-option0-label', 'Ask for a workplace map');
+}
+
+async function fillJusticeWorkspaceLayout(win) {
+  await fill(win, '#workspace-layout-id', 'justice_party_workspace_layout');
+  await fill(win, '#workspace-layout-title', 'Justice Party workspace layout');
+  await fill(win, '#workspace-layout-deck-id', 'justice_party_media_deck');
+  await fill(win, '#workspace-layout-deck-title', 'Justice Party Media Deck');
+  await fill(win, '#workspace-layout-deck-subtitle', 'Messages and press work');
+  await fill(win, '#workspace-layout-deck-tag', 'justice_party_media');
+  await fill(win, '#workspace-layout-hand-option-label', 'Open media deck');
+  await fill(win, '#workspace-layout-hand-insert-mode', 'before_root');
+  await fill(win, '#workspace-layout-starter-card-id', 'justice_party_media_briefing_card');
+  await fill(win, '#workspace-layout-starter-card-title', 'Media Briefing');
+  await fill(win, '#workspace-layout-starter-card-heading', 'Shape the campaign narrative');
+  await fill(win, '#workspace-layout-starter-card-return-target', 'main');
+  await fill(win, '#workspace-layout-starter-card-body', 'The Justice Party office chooses whether to hold a public briefing or reserve capacity for coalition calls.');
+  await fill(win, '#workspace-layout-starter-card-option0-label', 'Hold a press briefing');
+  await fill(win, '#workspace-layout-starter-card-option0-variable', 'media_attention');
+  await fill(win, '#workspace-layout-starter-card-option0-delta', '1');
+  await fill(win, '#workspace-layout-starter-card-option1-label', 'Prepare coalition calls');
+  await fill(win, '#workspace-layout-starter-card-option1-variable', 'coalition_trust');
+  await fill(win, '#workspace-layout-starter-card-option1-delta', '1');
+  await fill(win, '#workspace-layout-sidebar-category-id', 'media');
+  await fill(win, '#workspace-layout-sidebar-heading', 'Media Desk');
+  await fill(win, '#workspace-layout-sidebar-insert-mode', 'before_category');
+  await fill(win, '#workspace-layout-sidebar-anchor-id', 'politics');
+  await fill(win, '#workspace-layout-sidebar-body', 'Track whether the Justice Party office can turn campaign choices into a public narrative.');
+  await fill(win, '#workspace-layout-sidebar-status-lines', '[? if media_attention > 0 : Reporters are watching the Justice Party experiment. ?]');
+}
+
+async function fillJusticeSidebarStatus(win) {
+  await fill(win, '#sidebar-status-id', 'justice_party_sidebar_status');
+  await fill(win, '#sidebar-status-title', 'Justice Party sidebar status');
+  await fill(win, '#sidebar-status-status-title', 'Justice Party Status');
+  await fill(win, '#sidebar-status-section-id', 'organization');
+  await fill(win, '#sidebar-status-section-heading', 'Justice Party Organization');
+  await fill(win, '#sidebar-status-section-body', 'Track branches, volunteer energy, local dues, coalition trust, and the party-affairs workspace.');
+  await fill(win, '#sidebar-status-section-status-lines', '[? if justice_party_support > 0 : The Justice Party office has visible local support. ?]');
+  await fill(win, '#sidebar-status-condition-variable', 'coalition_trust');
+  await click(win, '#sidebar-status-insert-condition');
 }
 
 async function fillJusticeCampaignEvent(win, eventId) {
@@ -1049,6 +1251,68 @@ async function fillJusticeCampaignEvent(win, eventId) {
   await fill(win, '#wizard-option-1-subtitle', 'Trade street energy for a more careful parliamentary route.');
   await fill(win, '#wizard-option-1-effects', '');
   await fill(win, '#wizard-option-1-body', 'The campaign desk calls sympathetic lawmakers first. The move opens institutional doors, but volunteers worry the new party is already learning to speak too softly.');
+}
+
+async function fillJusticePartyActionCard(win) {
+  await fill(win, '#card-id', 'justice_party_party_affairs_card');
+  await fill(win, '#card-kind', 'action_card');
+  await fill(win, '#card-title', 'Justice Party party affairs card');
+  await fill(win, '#card-heading', 'Justice Party party affairs desk');
+  await fill(win, '#card-tags', 'demo_action');
+  await fill(win, '#card-view-if', '');
+  await fill(win, '#card-priority', '1');
+  await fill(win, '#card-frequency', '100');
+  await fill(win, '#card-max-visits', '');
+  await fill(win, '#card-subtitle', 'A repeatable party-work card for the starter hand.');
+  await fill(win, '#card-intro', 'The office turns a vague organizing plan into a concrete week of party work: district calls, workplace visits, and volunteer follow-up.');
+  await fill(win, '#card-option-count', '2');
+  await fill(win, '#card-option-0-id', 'open_district_calls');
+  await fill(win, '#card-option-0-label', 'Open district calls');
+  await fill(win, '#card-option-0-subtitle', 'Spend capacity to organize a visible week.');
+  await fill(win, '#card-option-0-effects', 'demo_resources -= 1\ndemo_support += 1\ndemo_card_progress += 1');
+  await fill(win, '#card-option-0-body', 'Volunteers call local members and turn the office calendar into a party-work hand.');
+  await fill(win, '#card-option-0-choose-if', 'demo_resources >= 1');
+  await fill(win, '#card-option-0-unavailable', 'Resources are too low.');
+  await fill(win, '#card-option-0-goto-after', 'main');
+  await fill(win, '#card-option-1-id', 'hold_capacity');
+  await fill(win, '#card-option-1-label', 'Hold capacity');
+  await fill(win, '#card-option-1-subtitle', 'Keep the office ready for a better opening.');
+  await fill(win, '#card-option-1-effects', 'demo_resources += 1');
+  await fill(win, '#card-option-1-body', 'The desk keeps capacity for a stronger opening next week.');
+  await fill(win, '#card-option-1-choose-if', '');
+  await fill(win, '#card-option-1-unavailable', '');
+  await fill(win, '#card-option-1-goto-after', 'main');
+}
+
+async function fillJusticePartyAdvisorCard(win) {
+  await fill(win, '#card-id', 'justice_party_labor_advisor');
+  await fill(win, '#card-kind', 'advisor_like');
+  await fill(win, '#card-title', 'Justice Party labor advisor');
+  await fill(win, '#card-heading', 'A labor organizer joins the office');
+  await fill(win, '#card-tags', 'demo_advisor');
+  await fill(win, '#card-view-if', '');
+  await fill(win, '#card-priority', '');
+  await fill(win, '#card-frequency', '');
+  await fill(win, '#card-max-visits', '');
+  await fill(win, '#card-subtitle', 'A persistent advisor for the starter hand.');
+  await fill(win, '#card-intro', 'The advisor helps the Justice Party office connect workplace demands with local campaign capacity.');
+  await fill(win, '#card-option-count', '2');
+  await fill(win, '#card-option-0-id', 'ask_for_contacts');
+  await fill(win, '#card-option-0-label', 'Ask for shop-floor contacts');
+  await fill(win, '#card-option-0-subtitle', 'Turn trust into organizing reach.');
+  await fill(win, '#card-option-0-effects', 'demo_advisor_trust += 1\ndemo_support += 1');
+  await fill(win, '#card-option-0-body', 'The advisor opens a few careful conversations with union militants and workplace organizers.');
+  await fill(win, '#card-option-0-choose-if', '');
+  await fill(win, '#card-option-0-unavailable', '');
+  await fill(win, '#card-option-0-goto-after', 'main');
+  await fill(win, '#card-option-1-id', 'ask_for_caution');
+  await fill(win, '#card-option-1-label', 'Ask for caution');
+  await fill(win, '#card-option-1-subtitle', 'Keep promises inside the office capacity.');
+  await fill(win, '#card-option-1-effects', 'demo_resources += 1');
+  await fill(win, '#card-option-1-body', 'The advisor slows the desk down before it promises more than it can carry.');
+  await fill(win, '#card-option-1-choose-if', '');
+  await fill(win, '#card-option-1-unavailable', '');
+  await fill(win, '#card-option-1-goto-after', 'main');
 }
 
 async function fillTraditionalJusticeNewsEvent(win) {
@@ -1306,6 +1570,72 @@ async function waitForNewsOutput(win, expectedId) {
   }, expectedId), 'News output should produce post_event_news snippet and install plan for ' + expectedId);
 }
 
+async function waitForCardOutput(win, expectedId, expectedSceneFlag) {
+  await waitFor(win, () => evalInPage(win, (id, flag) => {
+    const wizard = window.ProjectMapCardWizard;
+    const output = wizard && wizard.getOutput && wizard.getOutput();
+    const draft = wizard && wizard.getDraft && wizard.getDraft();
+    return Boolean(
+      draft && draft.id === id &&
+      output && output.installPlanJson && output.patchPreview &&
+      String(output.scene || '').includes(flag) &&
+      String(output.installPlanJson || '').includes('create_scene')
+    );
+  }, expectedId, expectedSceneFlag), 'Card output should produce scene and install plan for ' + expectedId);
+}
+
+async function waitForPlaySurfaceOutput(win, expectedId) {
+  await waitFor(win, () => evalInPage(win, (id) => {
+    const wizard = window.ProjectMapPlaySurfaceWizard;
+    const output = wizard && wizard.getOutput && wizard.getOutput();
+    const draft = wizard && wizard.getDraft && wizard.getDraft();
+    return Boolean(
+      draft && draft.id === id &&
+      output && output.installPlanJson && output.patchPreview &&
+      String(output.installPlanJson || '').includes('play_surface') &&
+      String(output.installPlanJson || '').includes('hand_opening') &&
+      String(output.installPlanJson || '').includes('card_opening') &&
+      String(output.installPlanJson || '').includes('advisor_opening') &&
+      String(output.patchPreview || '').includes('@@ replace section')
+    );
+  }, expectedId), 'Playable Surface output should produce an install plan and patch preview for ' + expectedId);
+}
+
+async function waitForWorkspaceLayoutOutput(win, expectedId) {
+  await waitFor(win, () => evalInPage(win, (id) => {
+    const wizard = window.ProjectMapWorkspaceLayoutWizard;
+    const output = wizard && wizard.getOutput && wizard.getOutput();
+    const draft = wizard && wizard.getDraft && wizard.getDraft();
+    return Boolean(
+      draft && draft.id === id &&
+      output && output.installPlanJson && output.patchPreview &&
+      String(output.installPlanJson || '').includes('workspace_layout') &&
+      String(output.installPlanJson || '').includes('create_deck_scene') &&
+      String(output.installPlanJson || '').includes('create_starter_card') &&
+      String(output.installPlanJson || '').includes('hand_deck_route') &&
+      String(output.installPlanJson || '').includes('sidebar_category') &&
+      String(output.patchPreview || '').includes('source/scenes/decks/justice_party_media_deck.scene.dry') &&
+      String(output.patchPreview || '').includes('source/scenes/cards/justice_party_media_briefing_card.scene.dry')
+    );
+  }, expectedId), 'Workspace Layout output should produce an install plan and patch preview for ' + expectedId);
+}
+
+async function waitForSidebarStatusOutput(win, expectedId) {
+  await waitFor(win, () => evalInPage(win, (id) => {
+    const wizard = window.ProjectMapSidebarStatusWizard;
+    const output = wizard && wizard.getOutput && wizard.getOutput();
+    const draft = wizard && wizard.getDraft && wizard.getDraft();
+    return Boolean(
+      draft && draft.id === id &&
+      output && output.installPlanJson && output.patchPreview &&
+      String(output.installPlanJson || '').includes('sidebar_status') &&
+      String(output.installPlanJson || '').includes('source/scenes/status.scene.dry') &&
+      String(output.patchPreview || '').includes('source/scenes/status.scene.dry') &&
+      String(output.playerPreview || '').includes('Justice Party Organization')
+    );
+  }, expectedId), 'Sidebar / Status output should produce an install plan and patch preview for ' + expectedId);
+}
+
 async function waitForGameText(win, expectedText, timeoutMs) {
   await waitFor(win, () => evalInPage(win, (text) => {
     const bodyText = String(document.body && (document.body.textContent || document.body.innerText) || '');
@@ -1315,11 +1645,54 @@ async function waitForGameText(win, expectedText, timeoutMs) {
 
 async function clickGameText(win, expectedText) {
   const ok = await evalInPage(win, (text) => {
-    const elements = Array.from(document.querySelectorAll('a, button, input[type="button"], input[type="submit"]'));
-    const target = elements.find((element) => {
-      const label = element.value || element.textContent || '';
-      return String(label).includes(text);
+    const cardCaption = Array.from(document.querySelectorAll('.card-caption')).find((element) => {
+      return String(element.textContent || '').includes(text);
     });
+    if (cardCaption) {
+      const cardHost = cardCaption.closest('.card-in-hand, .pinned-card, .deck');
+      const cardLink = cardHost && cardHost.querySelector('a.card');
+      if (cardLink) {
+        cardLink.scrollIntoView({block: 'center', inline: 'center'});
+        cardLink.click();
+        return true;
+      }
+    }
+    const elements = Array.from(document.querySelectorAll([
+      'a',
+      'button',
+      'input[type="button"]',
+      'input[type="submit"]',
+      '[role="button"]',
+      '[onclick]',
+      '.card',
+      '.deck',
+      '.choice',
+      'li',
+      'span',
+      'div',
+      'p'
+    ].join(',')));
+    const visibleCandidates = elements.filter((element) => {
+      if (!element || element === document.body || element === document.documentElement) {
+        return false;
+      }
+      const tag = String(element.tagName || '').toLowerCase();
+      if (tag === 'script' || tag === 'style') {
+        return false;
+      }
+      const label = element.value || element.textContent || '';
+      if (!String(label).includes(text)) {
+        return false;
+      }
+      const rect = element.getBoundingClientRect();
+      const style = window.getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+    }).sort((left, right) => {
+      const leftText = String(left.value || left.textContent || '').length;
+      const rightText = String(right.value || right.textContent || '').length;
+      return leftText - rightText;
+    });
+    const target = visibleCandidates[0] || null;
     if (!target) {
       return false;
     }
@@ -1423,6 +1796,25 @@ async function replaceExistingFieldByOriginal(win, original, replacement) {
   }, original, replacement);
   if (!ok) {
     throw new Error('Could not find existing scene field with original text: ' + original);
+  }
+}
+
+async function replaceExistingBlockByOriginal(win, original, replacement) {
+  const ok = await evalInPage(win, (originalText, replacementText) => {
+    const field = Array.from(document.querySelectorAll('#existing-scene-editor-host [data-existing-block]')).find((input) => {
+      return input.value === originalText;
+    });
+    if (!field) {
+      return false;
+    }
+    field.scrollIntoView({block: 'center', inline: 'center'});
+    field.value = replacementText;
+    field.dispatchEvent(new Event('input', {bubbles: true}));
+    field.dispatchEvent(new Event('change', {bubbles: true}));
+    return true;
+  }, original, replacement);
+  if (!ok) {
+    throw new Error('Could not find existing scene block with original text: ' + original);
   }
 }
 

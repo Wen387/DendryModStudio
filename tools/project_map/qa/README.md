@@ -43,9 +43,9 @@ Each run contains:
 2. Explore searches and selects an existing Event.
 3. Design list view selects the same Event as a player-flow node.
 4. Edit existing opens the Existing Scene Editor from Design.
-5. A source-backed body line is changed and saved to My Changes.
+5. A source-backed page section is changed and saved to My Changes.
 6. Review & Apply loads an `existing_scene_edit` install plan.
-7. Desktop dry-run proves the guarded `replace_text` operation would apply.
+7. Desktop dry-run proves the guarded `replace_section` operation would apply.
 
 `draft_persistence_restart` covers returning to saved work:
 
@@ -71,17 +71,26 @@ Each run contains:
 
 1. Quick Start loads the bundled Demo Template as a writable project copy.
 2. Explore inspects `A Small Campaign Office` as the player's template example.
-3. Entry & Sidebar changes the start menu, status sidebar, and first playable
-   route.
+3. Entry & Sidebar changes the start menu, welcome text, status sidebar, and
+   first playable route.
 4. Create first event seeds the World Event Wizard from that first playable
    route.
-5. Create uses Variable candidates to insert `demo_support` into a condition
+5. Playable Surface customizes the starter party-affairs hand, deck, action
+   card, and advisor text.
+6. Workspace Layout adds a media deck lane, first media briefing card, and
+   sidebar category from source-backed hand/status anchors.
+7. Sidebar / Status edits an existing source-backed status category and adds a
+   variable-backed conditional status line.
+8. Card Wizard adds a routed party-affairs hand card and a routed labor advisor.
+9. Create uses Variable candidates to insert `demo_support` into a condition
    and the effect helper.
-6. The player drafts a Korean Justice Party campaign event and saves it.
-7. The player drafts traditional monthly-popup style news as a World Event.
-8. The player drafts Island-style ticker news through News Wizard.
-9. Review & Apply dry-runs the Entry & Sidebar and traditional event/news plans.
-10. Review & Apply keeps the Island-style `post_event_news` operation guarded or
+10. The player drafts a Korean Justice Party campaign event and saves it.
+11. The player drafts traditional monthly-popup style news as a World Event.
+12. The player drafts Island-style ticker news through News Wizard.
+13. Review & Apply dry-runs Entry & Sidebar, Playable Surface, Workspace
+   Layout deck/card wiring, Sidebar / Status, routed card/advisor, and
+   traditional event/news plans.
+14. Review & Apply keeps the Island-style `post_event_news` operation guarded or
    manual-review when the template lacks a matching Island news router.
 
 `runtime_preview_entry_flow` covers the in-app game preview path:
@@ -90,7 +99,8 @@ Each run contains:
 2. Desktop Runtime Preview builds baseline and modified sandboxes.
 3. The modified game preview opens in Electron.
 4. Automation clicks the root start option.
-5. Automation clicks a player choice in the first event.
+5. Automation clicks a player choice on an advisor-like card in the hand
+   workspace.
 6. The preview shows changed sidebar/status text after the choice.
 
 ## Shortcuts

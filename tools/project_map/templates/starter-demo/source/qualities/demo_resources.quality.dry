@@ -1,0 +1,5 @@
+name: Demo Resources
+initial: 2
+min: 0
+
+Small starter resource used by the whiteboard action-card lane.

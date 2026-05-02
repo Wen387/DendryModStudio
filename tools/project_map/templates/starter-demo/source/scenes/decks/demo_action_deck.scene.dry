@@ -1,0 +1,5 @@
+title: Starter Deck
+subtitle: A minimal action-card deck
+is-deck: true
+
+- #demo_action

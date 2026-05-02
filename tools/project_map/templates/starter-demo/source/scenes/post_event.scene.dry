@@ -3,6 +3,9 @@ tags: router
 on-arrival: {!
 if (Q.demo_support === undefined) { Q.demo_support = 0; }
 if (Q.demo_conflict === undefined) { Q.demo_conflict = 0; }
+if (Q.demo_resources === undefined) { Q.demo_resources = 2; }
+if (Q.demo_advisor_trust === undefined) { Q.demo_advisor_trust = 0; }
+if (Q.demo_card_progress === undefined) { Q.demo_card_progress = 0; }
 if (Q.demo_event_seen === undefined) { Q.demo_event_seen = 0; }
 // Save compatibility: post_event split (post_event_news)
 !}

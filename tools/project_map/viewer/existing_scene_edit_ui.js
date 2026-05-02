@@ -119,6 +119,9 @@
       fieldInputs().forEach((input) => {
         values[input.dataset.existingField] = input.value;
       });
+      blockInputs().forEach((input) => {
+        values['block:' + input.dataset.existingBlock] = input.value;
+      });
       state.proposal = core.buildProposal(state.model, values);
     } else if (state.proposal && typeof core.normalizeProposal === 'function') {
       const proposal = core.normalizeProposal(state.proposal);
@@ -183,7 +186,7 @@
       renderPreviewSurface(),
       '</section>'
     ].join('');
-    elements.host.querySelectorAll('[data-existing-field], [data-existing-change]').forEach((input) => {
+    elements.host.querySelectorAll('[data-existing-field], [data-existing-block], [data-existing-change]').forEach((input) => {
       input.addEventListener('input', refresh);
     });
     const refreshButton = elements.host.querySelector('[data-existing-action="refresh"]');
@@ -228,6 +231,7 @@
     });
     const optionFields = model.fields.filter((field) => String(field.role || '').startsWith('option_') || field.optionId);
     return [
+      renderTextBlocksGroup(model.textBlocks || []),
       renderFieldGroup(t('existingScene.playerText', 'Player text'), playerFields, true),
       renderOptionsGroup(model.options, optionFields),
       renderConditionEditor(conditionFields),
@@ -252,6 +256,29 @@
       '<p class="existing-scene-condition-note">' + escapeHtml(t('existingScene.eventChainNote', 'Change this only when you mean to alter when this event/card can appear. Review & Apply will check the exact source line before replacing it.')) + '</p>',
       fields.map(renderField).join(''),
       '</details>'
+    ].join('');
+  }
+
+  function renderTextBlocksGroup(blocks) {
+    const rows = Array.isArray(blocks) ? blocks : [];
+    return [
+      '<details class="existing-scene-group existing-scene-block-group" open>',
+      '<summary><span>' + escapeHtml(t('existingScene.textBlocks', 'Page sections')) + '</span><b class="section-count">' + rows.length + '</b></summary>',
+      '<p class="existing-scene-condition-note">' + escapeHtml(t('existingScene.textBlocksNote', 'Edit complete source-backed heading/body blocks when you want to rewrite a scene page or event result without touching scripts or routing.')) + '</p>',
+      rows.map(renderTextBlock).join('') || '<div class="empty-state">' + escapeHtml(t('existingScene.noTextBlocks', 'No source-backed page sections were found for this scene.')) + '</div>',
+      '</details>'
+    ].join('');
+  }
+
+  function renderTextBlock(block) {
+    const lineCount = String(block.original || '').split('\n').length;
+    const rows = Math.max(5, Math.min(14, lineCount + 2));
+    return [
+      '<label class="existing-scene-field existing-scene-block-field">',
+      '<span>' + escapeHtml(block.label || block.id) + '</span>',
+      '<small>' + escapeHtml(sourceLabel(block.source) + ' / ' + (block.editability || 'guarded_replace_section')) + '</small>',
+      '<textarea rows="' + rows + '" data-existing-block="' + escapeAttr(block.id) + '">' + escapeHtml(block.value || block.original || '') + '</textarea>',
+      '</label>'
     ].join('');
   }
 
@@ -362,6 +389,10 @@
     return elements && elements.host ? Array.from(elements.host.querySelectorAll('[data-existing-field]')) : [];
   }
 
+  function blockInputs() {
+    return elements && elements.host ? Array.from(elements.host.querySelectorAll('[data-existing-block]')) : [];
+  }
+
   function conditionRows(model, editableFields) {
     const hasEditableViewIf = ensureArray(editableFields).some((field) => field.id === 'metadata_viewIf');
     return [
@@ -383,9 +414,11 @@
   }
 
   function sourceRows(model) {
-    return ensureArray(model.fields).map((field) => {
+    return ensureArray(model.textBlocks).map((block) => {
+      return [block.id, block.role, sourceLabel(block.source), block.editability].filter(Boolean).join(' / ');
+    }).concat(ensureArray(model.fields).map((field) => {
       return [field.id, field.role, sourceLabel(field.source), field.editability].filter(Boolean).join(' / ');
-    });
+    }));
   }
 
   function coreApi() {

@@ -109,6 +109,10 @@ async function main() {
   assert(model.root && model.root.firstOption && model.root.firstOption.targetId === 'old_event', 'model should detect first playable root route');
   assert(model.sidebar && model.sidebar.exists === true, 'model should detect source-backed status/sidebar scene');
   assert(model.variables.some((item) => item.name === 'volunteer_energy'), 'model should expose variable candidates');
+  assert(model.playability.some((row) => row.id === 'root' && row.status === 'ready'), 'model should mark detected root as playable-ready');
+  assert(model.playability.some((row) => row.id === 'first_route' && row.status === 'ready'), 'model should mark detected first route as playable-ready');
+  assert(model.playability.some((row) => row.id === 'first_target' && row.status === 'ready'), 'model should mark existing first target as playable-ready');
+  assert(model.playability.some((row) => row.id === 'sidebar' && row.status === 'ready'), 'model should mark source-backed sidebar as playable-ready');
 
   const draft = editedDraft(syntheticIndex());
   assert(entrySidebar.validateDraft(draft).ok, 'edited draft should validate');
@@ -121,6 +125,8 @@ async function main() {
   assert(installPlan.operationSummary(bundle.installPlan).guardedApply >= 2, 'source-backed entry/sidebar changes should be guarded');
 
   const generatedDraft = editedDraft(syntheticIndex({status: false, generatedSidebar: true}));
+  const generatedModel = entrySidebar.buildEntryModel(syntheticIndex({status: false, generatedSidebar: true}));
+  assert(generatedModel.playability.some((row) => row.id === 'sidebar' && row.status === 'manual'), 'generated/custom sidebar evidence should be surfaced as manual review readiness');
   const generatedPlan = entrySidebar.buildInstallPlan(generatedDraft, syntheticIndex({status: false, generatedSidebar: true}));
   assert(generatedPlan.operations.some((op) => op.id === 'sidebar_generated_manual' && op.safety === 'manual_review'), 'generated/custom sidebar evidence should stay manual review');
   assert(!generatedPlan.operations.some((op) => op.type === 'create_file'), 'generated/custom sidebar evidence should not create a status scene automatically');
@@ -150,8 +156,8 @@ async function main() {
   const starterModel = entrySidebar.buildEntryModel(indexed.index);
   assert(starterModel.root && starterModel.root.id === 'root', 'starter demo model should detect root entry scene');
   assert(starterModel.sidebar && starterModel.sidebar.exists === true && starterModel.sidebar.id === 'status', 'starter demo model should detect status sidebar scene');
-  assert(starterModel.root.firstOption && starterModel.root.firstOption.targetId === 'demo_opening', 'starter demo model should detect first playable demo event');
-  assert(starterModel.playableScenes.some((scene) => scene.id === 'demo_opening'), 'starter demo model should offer first playable scene choices');
+  assert(starterModel.root.firstOption && starterModel.root.firstOption.targetId === 'main', 'starter demo model should detect the whiteboard hand as the first playable route');
+  assert(starterModel.playableScenes.some((scene) => scene.id === 'main'), 'starter demo model should offer the whiteboard hand as a first playable scene choice');
   assert(fs.existsSync(path.join(TEMPLATE_ROOT, 'source', 'scenes', 'status.scene.dry')), 'starter demo should include status.scene.dry');
   const starterDraft = entrySidebar.defaultDraft(indexed.index);
   starterDraft.id = 'starter_entry_sidebar_probe';
@@ -174,7 +180,7 @@ async function main() {
   const starterStatusText = fs.readFileSync(path.join(prepared.root, 'source', 'scenes', 'status.scene.dry'), 'utf8');
   assert(starterRootText.includes('= Changed Starter Entry'), 'starter root should contain changed entry heading after apply');
   assert(!starterRootText.includes('player-facing event.'), 'starter root replacement should not leave old opening fragments behind');
-  assert(starterRootText.includes('- @demo_opening: Begin changed starter event'), 'starter root should keep the first route with the changed label');
+  assert(starterRootText.includes('- @main: Begin changed starter event'), 'starter root should keep the first route with the changed label');
   assert(starterStatusText.includes('Changed support status is visible.'), 'starter status should contain changed conditional sidebar line');
   fs.rmSync(preparedRoot, {recursive: true, force: true});
   fs.rmSync(scratchRoot, {recursive: true, force: true});

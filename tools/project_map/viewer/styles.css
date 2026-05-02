@@ -4142,6 +4142,13 @@ body[data-mode="create"] .topbar {
   gap: 10px;
 }
 
+.field-action-stack {
+  display: grid;
+  align-content: end;
+  gap: 6px;
+  min-width: 0;
+}
+
 .wizard-form label {
   display: grid;
   gap: 4px;
@@ -4188,6 +4195,179 @@ body[data-mode="create"] .topbar {
 
 .wide-field {
   margin-top: 10px;
+}
+
+.metadata-evidence-panel,
+.event-readiness-panel,
+.entry-playability-panel,
+.entry-route-panel {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.metadata-evidence-panel p,
+.event-readiness-panel p,
+.entry-playability-panel p,
+.entry-route-panel p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.metadata-evidence-grid,
+.event-readiness-list,
+.entry-playability-list {
+  display: grid;
+  gap: 7px;
+}
+
+.metadata-evidence-row,
+.event-readiness-row,
+.entry-playability-row {
+  display: grid;
+  grid-template-columns: minmax(62px, max-content) minmax(0, 1fr) minmax(72px, max-content);
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fffefa;
+  font-size: 12px;
+}
+
+.metadata-evidence-row strong,
+.event-readiness-row strong,
+.entry-playability-row strong,
+.metadata-evidence-row span,
+.event-readiness-row span,
+.entry-playability-row span,
+.metadata-evidence-row small,
+.event-readiness-row small,
+.entry-playability-row small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.metadata-evidence-row.ready,
+.event-readiness-row.ready,
+.entry-playability-row.ready {
+  border-color: rgba(47, 125, 78, 0.45);
+}
+
+.metadata-evidence-row.warning,
+.event-readiness-row.warning,
+.entry-playability-row.warning {
+  border-color: rgba(158, 105, 24, 0.5);
+}
+
+.event-route-summary,
+.entry-route-map {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+  gap: 7px;
+}
+
+.event-route-chip,
+.entry-route-card {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fffefa;
+}
+
+.event-route-chip strong,
+.entry-route-card strong,
+.event-route-chip span,
+.entry-route-card small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.event-route-chip strong,
+.entry-route-card small {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.event-route-chip span,
+.entry-route-card strong {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.entry-route-card.ready {
+  border-color: rgba(47, 125, 78, 0.45);
+}
+
+.entry-route-card.warning {
+  border-color: rgba(158, 105, 24, 0.5);
+}
+
+.wizard-subsection-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 12px 0 8px;
+}
+
+.wizard-subsection-title strong {
+  color: var(--accent-strong);
+  font-size: 13px;
+}
+
+.wizard-subsection-title span {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+  text-align: right;
+}
+
+.event-workbench-section {
+  background: #fffdfa;
+}
+
+.event-heading-field,
+.event-intro-field {
+  margin-top: 0;
+}
+
+.event-core-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.event-core-grid label {
+  grid-column: span 2;
+}
+
+.event-core-grid .event-wide-control,
+.event-core-grid .event-technical-field {
+  grid-column: span 3;
+}
+
+.event-choice-count-field {
+  grid-column: span 2;
+}
+
+.metadata-save-warning {
+  padding: 8px 9px;
+  border: 1px solid rgba(158, 105, 24, 0.45);
+  border-radius: 6px;
+  background: #fff7df;
+  color: #6d4b13;
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .option-grid {
@@ -4672,6 +4852,12 @@ body[data-mode="create"] .topbar {
   resize: vertical;
 }
 
+.existing-scene-block-field textarea {
+  min-height: 150px;
+  font-family: var(--mono);
+  line-height: 1.45;
+}
+
 .existing-option-card {
   display: grid;
   gap: 6px;
@@ -4958,6 +5144,28 @@ body[data-mode="create"] .topbar {
   .field-grid,
   .option-grid,
   .effect-helper {
+    grid-template-columns: 1fr;
+  }
+
+  .event-core-grid label,
+  .event-core-grid .event-wide-control,
+  .event-core-grid .event-technical-field,
+  .event-choice-count-field {
+    grid-column: auto;
+  }
+
+  .wizard-subsection-title {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .wizard-subsection-title span {
+    text-align: left;
+  }
+
+  .metadata-evidence-row,
+  .event-readiness-row,
+  .entry-playability-row {
     grid-template-columns: 1fr;
   }
 

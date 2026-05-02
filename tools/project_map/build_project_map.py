@@ -320,6 +320,27 @@ def parse_info(root: Path) -> dict[str, str]:
     return info
 
 
+def parse_info_source(root: Path) -> dict[str, dict[str, Any]]:
+    info_path = root / "source" / "info.dry"
+    if not info_path.exists():
+        raise FileNotFoundError(f"Missing required project file: {info_path}")
+
+    source: dict[str, dict[str, Any]] = {}
+    for line_number, raw in enumerate(info_path.read_text(encoding="utf-8").splitlines(), start=1):
+        if ":" not in raw:
+            continue
+        key, _value = raw.split(":", 1)
+        normalized_key = key.strip()
+        if not normalized_key:
+            continue
+        source[normalized_key] = {
+            "path": "source/info.dry",
+            "line": line_number,
+            "anchorText": raw,
+        }
+    return source
+
+
 def iter_project_files(root: Path) -> list[Path]:
     skip_dirs = {".git", "node_modules", ".pytest_cache", "__pycache__"}
     files: list[Path] = []
@@ -2432,6 +2453,7 @@ def build_index(
 ) -> dict[str, Any]:
     root = root.resolve()
     info = parse_info(root)
+    info_source = parse_info_source(root)
     if parser_index is None:
         parser_index = run_node_parser(root)
     selected_profiles = score_profiles(root, parser_index)
@@ -2481,6 +2503,7 @@ def build_index(
             "profileIds": [profile["id"] for profile in profile_refs],
             "sourceRoots": ["source"],
             "info": info,
+            "infoSource": info_source,
             "detection": {
                 "confidence": CONF_PROFILE,
                 "profiles": [

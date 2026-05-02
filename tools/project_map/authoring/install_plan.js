@@ -301,10 +301,27 @@
     const source = isObject(value.source) ? value.source : {};
     const path = String(source.path || value.sourcePath || '').trim();
     const line = numberOrNull(source.line || source.startLine);
+    const endLine = numberOrNull(source.endLine || value.endLine || source.line || source.startLine);
     const before = String(value.before === undefined || value.before === null ? '' : value.before);
     const after = String(value.after === undefined || value.after === null ? '' : value.after);
     const id = 'replace_existing_' + (index + 1);
     const label = String(value.label || value.role || 'field').trim();
+    if (existingSceneSectionCanGuard(value, path, line, endLine, after)) {
+      return {
+        id,
+        type: 'replace_section',
+        path,
+        anchorText: value.anchorText,
+        endAnchorText: value.endAnchorText,
+        content: after.endsWith('\n') ? after : after + '\n',
+        dedupeSearch: value.dedupeSearch || after.trim(),
+        startLine: value.startLine || line,
+        endLine: value.endLine || endLine,
+        safety: 'guarded_apply',
+        role: 'existing_scene.section_text',
+        description: 'Replace existing ' + label + ' section text after confirming exact source anchors still match.'
+      };
+    }
     if (existingSceneChangeCanGuard(path, line, source.endLine || source.line || source.startLine, before, after)) {
       return {
         id,
@@ -350,6 +367,26 @@
       sourceLine > 0 &&
       (!Number.isInteger(sourceEndLine) || sourceEndLine <= 0 || sourceEndLine === sourceLine) &&
       String(before || '').trim() &&
+      String(after || '').trim()
+    );
+  }
+
+  function existingSceneSectionCanGuard(change, path, line, endLine, after) {
+    const value = isObject(change) ? change : {};
+    const rel = String(path || '').replace(/\\/g, '/');
+    const sourceLine = Number(line || 0);
+    const sourceEndLine = Number(endLine || 0);
+    return Boolean(
+      value.operationType === 'replace_section' &&
+      rel.startsWith('source/scenes/') &&
+      rel.endsWith('.scene.dry') &&
+      !isProtectedRouterPath(rel) &&
+      Number.isInteger(sourceLine) &&
+      sourceLine > 0 &&
+      Number.isInteger(sourceEndLine) &&
+      sourceEndLine >= sourceLine &&
+      String(value.anchorText || '').trim() &&
+      String(value.endAnchorText || '').trim() &&
       String(after || '').trim()
     );
   }
@@ -783,13 +820,24 @@
       }
       return {ok: false, message: 'Operation path is manual-review only: ' + rel};
     }
+    if (rel === 'source/info.dry') {
+      if (operation.type === 'replace_text' && safety === 'guarded_apply' && isProjectMetadataReplace(operation)) {
+        return {ok: true, message: 'Guarded project metadata replacement is allowed with exact info.dry line evidence.'};
+      }
+      if (operation.type === 'insert_text' && safety === 'guarded_apply' && isProjectMetadataInsert(operation)) {
+        return {ok: true, message: 'Guarded project metadata insert is allowed with an exact info.dry anchor and dedupe evidence.'};
+      }
+      return {ok: false, message: 'source/info.dry edits are limited to guarded project metadata fields.'};
+    }
     if (operation.type === 'create_file') {
       if (!rel.endsWith('.scene.dry')) {
         return {ok: false, message: 'create_file safe apply is limited to .scene.dry files: ' + rel};
       }
       if (
         rel.startsWith('source/scenes/events/') ||
+        rel.startsWith('source/scenes/decks/') ||
         rel.startsWith('source/scenes/cards/') ||
+        rel.startsWith('source/scenes/advisors/') ||
         rel.startsWith('source/scenes/circles/')
       ) {
         return {ok: true};
@@ -797,7 +845,7 @@
       if (rel === 'source/scenes/status.scene.dry' || /^source\/scenes\/status_[A-Za-z0-9_.-]+\.scene\.dry$/.test(rel)) {
         return {ok: true, message: 'Safe create_file may add a source-backed status/sidebar scene.'};
       }
-      return {ok: false, message: 'create_file safe apply is limited to event/card/status scene proposal directories: ' + rel};
+      return {ok: false, message: 'create_file safe apply is limited to event/deck/card/advisor/status scene proposal directories: ' + rel};
     }
     if (operation.type === 'replace_text') {
       if (safety === 'advanced_apply') {
@@ -1164,6 +1212,56 @@
       isEntryHeadingLine(anchor) &&
       isEntryProseEndAnchor(endAnchor) &&
       isSafeEntrySectionContent(content);
+  }
+
+  function isProjectMetadataReplace(operation) {
+    const role = String(operation && (operation.role || operation.workflow || operation.label) || '');
+    const line = Number(operation && operation.line || 0);
+    const search = String(operation && operation.search || '');
+    const replace = String(operation && operation.replace || '');
+    const key = projectMetadataRoleKey(role);
+    if (!key || !Number.isInteger(line) || line <= 0 || !search.trim() || !replace.trim()) {
+      return false;
+    }
+    if (/[\r\n{}]/.test(search + replace)) {
+      return false;
+    }
+    return metadataLineMatches(search, key) && metadataLineMatches(replace, key);
+  }
+
+  function isProjectMetadataInsert(operation) {
+    const role = String(operation && (operation.role || operation.workflow || operation.label) || '');
+    const key = projectMetadataRoleKey(role);
+    const anchor = String(operation && operation.anchorText || '');
+    const content = String(operation && operation.content || '');
+    const dedupe = String(operation && operation.dedupeSearch || '');
+    if (!key || !anchor.trim() || !content.trim() || !dedupe.trim()) {
+      return false;
+    }
+    if (/[\r{}]/.test(content) || content.replace(/\n$/, '').split('\n').length !== 1) {
+      return false;
+    }
+    return isMetadataAnchorLine(anchor) && metadataLineMatches(content.trim(), key) && dedupe === key + ':';
+  }
+
+  function projectMetadataRoleKey(role) {
+    const match = String(role || '').match(/^project_metadata\.(title|author|ifid)$/i);
+    return match ? match[1].toLowerCase() : '';
+  }
+
+  function metadataLineMatches(value, key) {
+    const text = String(value || '').trim();
+    if (!key) {
+      return false;
+    }
+    if (!new RegExp('^' + key + '\\s*:\\s+\\S.*$', 'i').test(text)) {
+      return false;
+    }
+    return !/^\s*(?:title|author|ifid)\s*:\s*$/i.test(text);
+  }
+
+  function isMetadataAnchorLine(value) {
+    return ['title', 'author', 'ifid'].some((key) => metadataLineMatches(value, key));
   }
 
   function isEntryRouteLine(value) {

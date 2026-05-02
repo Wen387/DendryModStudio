@@ -127,11 +127,23 @@
     if (text === 'card' || text === 'card_draft' || text === 'action_card' || text === 'advisor_like') {
       return 'card';
     }
+    if (text === 'play_surface' || text === 'playable_surface') {
+      return 'play_surface';
+    }
+    if (text === 'workspace_layout' || text === 'layout' || text === 'hand_sidebar_layout') {
+      return 'workspace_layout';
+    }
+    if (text === 'sidebar_status' || text === 'sidebar' || text === 'status') {
+      return 'sidebar_status';
+    }
     if (text === 'surface_text' || text === 'surface' || text === 'text') {
       return 'surface';
     }
     if (text === 'entry' || text === 'entry_sidebar' || text === 'entry_sidebar_model') {
       return 'entry';
+    }
+    if (text === 'project' || text === 'project_metadata' || text === 'game_info') {
+      return 'project';
     }
     if (text === 'existing_scene_edit' || text === 'existing' || text === 'scene_edit') {
       return 'existing';
@@ -161,11 +173,27 @@
     if (template === 'card') {
       return draft.cardKind || draft.kind || '';
     }
+    if (template === 'play_surface') {
+      return [draft.handHeading || draft.handTitle, draft.cardHeading || draft.cardTitle, draft.advisorHeading || draft.advisorTitle].filter(Boolean).join(' / ');
+    }
+    if (template === 'workspace_layout') {
+      return [
+        draft.deckTitle || draft.deckId,
+        draft.createStarterCard ? draft.starterCardTitle || draft.starterCardId : '',
+        draft.sidebarHeading || draft.sidebarCategoryId
+      ].filter(Boolean).join(' / ');
+    }
+    if (template === 'sidebar_status') {
+      return [draft.statusTitle, draft.sectionHeading || draft.sectionId].filter(Boolean).join(' / ');
+    }
     if (template === 'surface') {
       return [draft.area, draft.editability].filter(Boolean).join(' / ');
     }
     if (template === 'entry') {
       return [draft.rootHeading || draft.rootTitle, draft.firstTargetId].filter(Boolean).join(' / ');
+    }
+    if (template === 'project') {
+      return [draft.gameTitle, draft.author].filter(Boolean).join(' / ');
     }
     if (template === 'existing') {
       return [draft.sceneKind || 'scene', draft.sceneId, draft.sourcePath].filter(Boolean).join(' / ');
@@ -183,6 +211,7 @@
       output.proposal,
       draft.intro,
       draft.description,
+      draft.gameTitle,
       draft.heading,
       draft.headline,
       existingScenePreviewText(draft),
@@ -240,8 +269,12 @@
       event: 'World Event Draft',
       news: 'News Draft',
       card: 'Card Draft',
+      play_surface: 'Playable Surface Draft',
+      workspace_layout: 'Workspace Layout Draft',
+      sidebar_status: 'Sidebar / Status Draft',
       surface: 'Text Proposal',
       entry: 'Entry & Sidebar Draft',
+      project: 'Game Info Draft',
       existing: 'Existing Scene Edit'
     }[template] || 'Draft';
   }

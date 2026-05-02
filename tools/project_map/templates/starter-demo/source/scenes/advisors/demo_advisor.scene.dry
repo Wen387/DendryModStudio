@@ -1,0 +1,31 @@
+title: Starter Advisor
+new-page: true
+is-pinned-card: true
+tags: demo_advisor
+subtitle: A minimal persistent advisor lane
+
+= Starter Advisor
+
+This pinned card acts like a tiny advisor, Circle, or standing organization
+surface. It stays available from the hand and can be replaced with the user's
+own persistent actor.
+
+- @ask_for_help: Ask for organizing help
+- @wait_for_now: Wait for now
+
+@ask_for_help
+title: Ask for organizing help
+subtitle: Gain a little trust.
+on-arrival: {!
+Q.demo_advisor_trust = (Q.demo_advisor_trust || 0) + 1;
+Q.demo_support = (Q.demo_support || 0) + 1;
+!}
+go-to: main
+
+The advisor helps the organization turn a loose idea into a modest first step.
+
+@wait_for_now
+title: Wait for now
+go-to: main
+
+The advisor remains available while the organization keeps listening.

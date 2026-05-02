@@ -1,0 +1,37 @@
+title: Starter Action Card
+new-page: true
+is-card: true
+tags: demo_action
+frequency: 100
+priority: 0
+
+= Starter Action Card
+
+This card is intentionally small. It demonstrates the action-card lane without
+copying an existing game system.
+
+- @spend_resources: Spend resources
+- @save_capacity: Save capacity
+
+@spend_resources
+title: Spend resources
+subtitle: Convert capacity into visible progress.
+choose-if: demo_resources >= 1
+unavailable-subtitle: Resources are too low.
+on-arrival: {!
+Q.demo_resources = (Q.demo_resources || 0) - 1;
+Q.demo_card_progress = (Q.demo_card_progress || 0) + 1;
+!}
+go-to: main
+
+The organization spends a small amount of capacity to move the project forward.
+
+@save_capacity
+title: Save capacity
+subtitle: Keep resources for later.
+on-arrival: {!
+Q.demo_resources = (Q.demo_resources || 0) + 1;
+!}
+go-to: main
+
+The organization keeps its limited capacity available for another moment.

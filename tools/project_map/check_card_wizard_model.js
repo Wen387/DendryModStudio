@@ -7,11 +7,12 @@ const path = require('path');
 const {spawnSync} = require('child_process');
 
 const cardDraft = require('./authoring/card_draft.js');
+const installPlan = require('./authoring/install_plan.js');
 const viewer = require('./viewer/app.js');
 const sceneParser = require('../../node_modules/dendrynexus/lib/parsers/scene.js');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
-const DEFAULT_INDEX = '/tmp/dendry_project_map/project-index.json';
+const DEFAULT_INDEX = process.env.DMS_CARD_CHECK_INDEX || '';
 const SAMPLE_CARD = path.join(__dirname, 'fixtures', 'card_drafts', 'sample_action_card.json');
 const SAMPLE_ADVISOR = path.join(__dirname, 'fixtures', 'card_drafts', 'sample_advisor_card.json');
 const INVALID_CARD = path.join(__dirname, 'fixtures', 'card_drafts', 'invalid_card.json');
@@ -44,7 +45,7 @@ function loadIndex() {
     });
     return result;
   }
-  if (fs.existsSync(DEFAULT_INDEX)) {
+  if (DEFAULT_INDEX && fs.existsSync(DEFAULT_INDEX)) {
     return withFixtureVariables(readJson(DEFAULT_INDEX));
   }
   return withFixtureVariables({
@@ -118,6 +119,117 @@ assert(actionBundle.installNotes.includes('Validation command:'), 'install notes
 assert(actionBundle.installPlan.operations.some((op) => op.type === 'create_file'), 'card install plan should include create-file operation');
 assert(actionBundle.patchPreview.includes('diff --git'), 'card bundle should expose patch preview');
 assert(actionBundle.installChecklist.includes('Safe apply'), 'card bundle should expose install operation checklist');
+
+const starterLikeIndex = {
+  schemaVersion: '0.1',
+  project: {root: REPO_ROOT, profileIds: ['generic-dendry']},
+  profiles: [{id: 'generic-dendry', uiLabels: {advisorLikeSingular: 'Advisor', advisorLikePlural: 'Advisors'}}],
+  scenes: [
+    {
+      id: 'main',
+      title: 'Workspace Hand',
+      type: 'hand',
+      path: 'source/scenes/main.scene.dry',
+      options: [
+        {id: '@demo_action_deck', target: {kind: 'scene', id: 'demo_action_deck'}, sourceSpan: {path: 'source/scenes/main.scene.dry', startLine: 14, endLine: 14}},
+        {id: '#demo_advisor', target: {kind: 'tag', id: 'demo_advisor'}, sourceSpan: {path: 'source/scenes/main.scene.dry', startLine: 15, endLine: 15}}
+      ]
+    },
+    {
+      id: 'demo_action_deck',
+      title: 'Starter Deck',
+      type: 'deck',
+      path: 'source/scenes/decks/demo_action_deck.scene.dry',
+      options: [
+        {id: '#demo_action', target: {kind: 'tag', id: 'demo_action'}, sourceSpan: {path: 'source/scenes/decks/demo_action_deck.scene.dry', startLine: 6, endLine: 6}}
+      ]
+    },
+    {id: 'demo_action_card', title: 'Starter Action Card', type: 'card', path: 'source/scenes/cards/demo_action_card.scene.dry', tags: ['demo_action']},
+    {id: 'demo_advisor', title: 'Starter Advisor', type: 'pinned_card', path: 'source/scenes/advisors/demo_advisor.scene.dry', tags: ['demo_advisor']}
+  ],
+  variables: [
+    {name: 'demo_resources'},
+    {name: 'demo_support'},
+    {name: 'demo_card_progress'},
+    {name: 'demo_advisor_trust'}
+  ],
+  semantic: {events: [], cards: [], hands: [], decks: [], pinnedCards: [], news: {items: []}},
+  diagnostics: [],
+  summary: {}
+};
+const justiceActionBundle = cardDraft.buildExportBundle({
+  schemaVersion: '0.1',
+  kind: 'card',
+  id: 'justice_party_party_affairs_card',
+  title: 'Justice Party party affairs card',
+  cardKind: 'action_card',
+  tags: ['demo_action'],
+  frequency: 100,
+  priority: 1,
+  heading: 'Justice Party party affairs desk',
+  subtitle: 'A party-work card routed through the starter deck.',
+  introParagraphs: ['The office turns a vague organizing plan into a concrete week of party work.'],
+  options: [
+    {
+      id: 'open_district_calls',
+      label: 'Open district calls',
+      chooseIf: 'demo_resources >= 1',
+      unavailableText: 'Resources are too low.',
+      effects: [
+        {variable: 'demo_resources', op: '-=', value: 1},
+        {variable: 'demo_support', op: '+=', value: 1},
+        {variable: 'demo_card_progress', op: '+=', value: 1}
+      ],
+      narrativeParagraphs: ['Volunteers call local members and turn the office calendar into a party-work hand.'],
+      gotoAfter: 'main'
+    },
+    {
+      id: 'hold_capacity',
+      label: 'Hold capacity',
+      effects: [{variable: 'demo_resources', op: '+=', value: 1}],
+      narrativeParagraphs: ['The desk keeps capacity for a stronger opening next week.'],
+      gotoAfter: 'main'
+    }
+  ]
+}, starterLikeIndex);
+const justiceAdvisorBundle = cardDraft.buildExportBundle({
+  schemaVersion: '0.1',
+  kind: 'card',
+  id: 'justice_party_labor_advisor',
+  title: 'Justice Party labor advisor',
+  cardKind: 'advisor_like',
+  tags: ['demo_advisor'],
+  heading: 'A labor organizer joins the office',
+  subtitle: 'A persistent advisor for the starter hand.',
+  introParagraphs: ['The advisor helps the Justice Party office connect workplace demands with local campaign capacity.'],
+  options: [
+    {
+      id: 'ask_for_contacts',
+      label: 'Ask for shop-floor contacts',
+      effects: [
+        {variable: 'demo_advisor_trust', op: '+=', value: 1},
+        {variable: 'demo_support', op: '+=', value: 1}
+      ],
+      narrativeParagraphs: ['The advisor opens a few careful conversations with union militants and workplace organizers.'],
+      gotoAfter: 'main'
+    },
+    {
+      id: 'ask_for_caution',
+      label: 'Ask for caution',
+      effects: [{variable: 'demo_resources', op: '+=', value: 1}],
+      narrativeParagraphs: ['The advisor slows the desk down before it promises more than it can carry.'],
+      gotoAfter: 'main'
+    }
+  ]
+}, starterLikeIndex);
+assert(justiceActionBundle.ok, 'Justice Party action card should validate against starter lanes: ' + JSON.stringify(justiceActionBundle.diagnostics));
+assert(justiceAdvisorBundle.ok, 'Justice Party advisor card should validate against starter lanes: ' + JSON.stringify(justiceAdvisorBundle.diagnostics));
+assert(justiceActionBundle.installPlan.operations.some((op) => op.id === 'create_scene' && op.path === 'source/scenes/cards/justice_party_party_affairs_card.scene.dry'), 'Justice Party action card should use the existing starter card directory');
+assert(justiceAdvisorBundle.installPlan.operations.some((op) => op.id === 'create_scene' && op.path === 'source/scenes/advisors/justice_party_labor_advisor.scene.dry'), 'Justice Party advisor card should use the existing starter advisor directory');
+assert(!justiceActionBundle.installPlan.operations.some((op) => op.id === 'wire_card_flow'), 'Justice Party action card should auto-route through #demo_action');
+assert(!justiceAdvisorBundle.installPlan.operations.some((op) => op.id === 'wire_card_flow'), 'Justice Party advisor card should auto-route through #demo_advisor');
+assert(installPlan.operationSummary(justiceActionBundle.installPlan).safeApply === 1, 'Justice Party action card create should be safe-apply');
+assert(installPlan.operationSummary(justiceAdvisorBundle.installPlan).safeApply === 1, 'Justice Party advisor card create should be safe-apply');
 
 const invalidCodes = diagnosticCodes(invalidResult);
 assert(invalidCodes.includes('card_draft.duplicate_scene_id'), 'invalid card should diagnose duplicate scene id');

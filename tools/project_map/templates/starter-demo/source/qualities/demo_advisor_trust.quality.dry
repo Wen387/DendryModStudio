@@ -1,0 +1,5 @@
+name: Demo Advisor Trust
+initial: 0
+min: 0
+
+Small starter variable used by the whiteboard advisor lane.

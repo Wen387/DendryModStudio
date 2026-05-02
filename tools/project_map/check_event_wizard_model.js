@@ -8,7 +8,7 @@ const {spawnSync} = require('child_process');
 const eventDraft = require('./authoring/event_draft.js');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
-const DEFAULT_INDEX = '/tmp/dendry_project_map/project-index.json';
+const SAMPLE_INDEX = path.join(os.tmpdir(), 'dendry_event_wizard_index_' + process.pid + '.json');
 const SAMPLE_DRAFT = path.join(__dirname, 'fixtures', 'event_drafts', 'sample_world_event.json');
 const GENERIC_DRAFT = path.join(__dirname, 'fixtures', 'event_drafts', 'generic_world_event.json');
 const FOUR_CHOICE_DRAFT = path.join(__dirname, 'fixtures', 'event_drafts', 'four_choice_world_event.json');
@@ -58,18 +58,12 @@ function genericMiniIndex() {
   };
 }
 
-function loadIndex() {
-  if (fs.existsSync(DEFAULT_INDEX)) {
-    return readJson(DEFAULT_INDEX);
-  }
-  return minimalIndex();
-}
-
 function diagnosticCodes(result) {
   return result.diagnostics.map((diag) => diag.code);
 }
 
-const index = loadIndex();
+const index = minimalIndex();
+fs.writeFileSync(SAMPLE_INDEX, JSON.stringify(index, null, 2) + '\n', 'utf8');
 const sample = readJson(SAMPLE_DRAFT);
 const bundle = eventDraft.buildExportBundle(sample, index);
 const genericBundle = eventDraft.buildExportBundle(readJson(GENERIC_DRAFT), genericMiniIndex());
@@ -184,47 +178,41 @@ const cli = spawnSync(
   [
     path.join(__dirname, 'generate_event.js'),
     '--draft', SAMPLE_DRAFT,
-    '--index', DEFAULT_INDEX,
+    '--index', SAMPLE_INDEX,
     '--out-dir', outDir,
     '--summary'
   ],
   {cwd: REPO_ROOT, encoding: 'utf8'}
 );
-if (fs.existsSync(DEFAULT_INDEX)) {
-  assert(cli.status === 0, 'CLI exporter should succeed: ' + cli.stderr);
-  assert(fs.existsSync(path.join(outDir, 'sample_world_event.scene.dry')), 'CLI should write scene file');
-  assert(fs.existsSync(path.join(outDir, 'sample_world_event.event-draft.json')), 'CLI should write draft JSON file');
-  assert(fs.existsSync(path.join(outDir, 'sample_world_event.install-plan.json')), 'CLI should write install-plan JSON file');
-  assert(fs.existsSync(path.join(outDir, 'sample_world_event.patch-preview.diff')), 'CLI should write patch preview file');
-}
+assert(cli.status === 0, 'CLI exporter should succeed: ' + cli.stderr);
+assert(fs.existsSync(path.join(outDir, 'sample_world_event.scene.dry')), 'CLI should write scene file');
+assert(fs.existsSync(path.join(outDir, 'sample_world_event.event-draft.json')), 'CLI should write draft JSON file');
+assert(fs.existsSync(path.join(outDir, 'sample_world_event.install-plan.json')), 'CLI should write install-plan JSON file');
+assert(fs.existsSync(path.join(outDir, 'sample_world_event.patch-preview.diff')), 'CLI should write patch preview file');
 
 const protectedCli = spawnSync(
   'node',
   [
     path.join(__dirname, 'generate_event.js'),
     '--draft', SAMPLE_DRAFT,
-    '--index', DEFAULT_INDEX,
+    '--index', SAMPLE_INDEX,
     '--out-dir', path.join(REPO_ROOT, 'out', 'html', 'event-export')
   ],
   {cwd: REPO_ROOT, encoding: 'utf8'}
 );
-if (fs.existsSync(DEFAULT_INDEX)) {
-  assert(protectedCli.status !== 0, 'CLI should refuse out/html output');
-}
+assert(protectedCli.status !== 0, 'CLI should refuse out/html output');
 
 const protectedOutCli = spawnSync(
   'node',
   [
     path.join(__dirname, 'generate_event.js'),
     '--draft', SAMPLE_DRAFT,
-    '--index', DEFAULT_INDEX,
+    '--index', SAMPLE_INDEX,
     '--out-dir', path.join(REPO_ROOT, 'out', 'event-export')
   ],
   {cwd: REPO_ROOT, encoding: 'utf8'}
 );
-if (fs.existsSync(DEFAULT_INDEX)) {
-  assert(protectedOutCli.status !== 0, 'CLI should refuse out/ output');
-}
+assert(protectedOutCli.status !== 0, 'CLI should refuse out/ output');
 
 const noRootIndex = path.join(os.tmpdir(), 'dendry_event_no_root_index_' + process.pid + '.json');
 fs.writeFileSync(noRootIndex, JSON.stringify({project: {}, scenes: [], variables: []}), 'utf8');
@@ -244,6 +232,6 @@ process.stdout.write(JSON.stringify({
   ok: true,
   sampleScene: 'sample_world_event.scene.dry',
   diagnosticsChecked: true,
-  cliOutDir: fs.existsSync(DEFAULT_INDEX) ? outDir : null,
-  usedIndex: fs.existsSync(DEFAULT_INDEX) ? DEFAULT_INDEX : 'minimal fallback'
+  cliOutDir: outDir,
+  usedIndex: SAMPLE_INDEX
 }, null, 2) + '\n');

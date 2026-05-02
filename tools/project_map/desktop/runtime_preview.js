@@ -225,6 +225,7 @@ function runBuild(root, meta) {
       diagnostics: [diagnostic('error', 'runtime_preview.build_missing', command.message)]
     };
   }
+  prepareGeneratedHtmlForBuild(root);
   const result = spawnSync(command.cmd, command.args, {
     cwd: root,
     env: Object.assign({}, process.env, command.env || {}),
@@ -244,6 +245,17 @@ function runBuild(root, meta) {
     stderr: clipLog(result.stderr || (result.error && result.error.message) || ''),
     diagnostics: ok ? [] : [diagnostic('error', 'runtime_preview.build_failed', 'Runtime preview build failed or out/html/index.html was not produced.')]
   };
+}
+
+function prepareGeneratedHtmlForBuild(root) {
+  const htmlRoot = path.join(root, 'out', 'html');
+  ['index.html', 'game.js'].forEach((fileName) => {
+    try {
+      fs.rmSync(path.join(htmlRoot, fileName), {force: true});
+    } catch (_err) {
+      // Runtime Preview operates on a sandbox copy, so stale generated HTML is disposable.
+    }
+  });
 }
 
 function resolveBuildCommand(root) {
@@ -612,6 +624,7 @@ module.exports = {
   validateProjectRoot,
   recordDebugCommandHistory,
   resolveBuildCommand,
+  prepareGeneratedHtmlForBuild,
   fakeBuildRunner,
   fakeServerFactory
 };

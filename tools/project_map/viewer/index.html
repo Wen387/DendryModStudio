@@ -419,8 +419,12 @@
           <button class="template-button is-active" type="button" role="tab" aria-selected="true" data-create-template="event" data-i18n="create.worldEvent">World Event</button>
           <button class="template-button" type="button" role="tab" aria-selected="false" data-create-template="news" data-i18n="create.news">News</button>
           <button class="template-button" type="button" role="tab" aria-selected="false" data-create-template="card" data-i18n="create.card">Card</button>
+          <button class="template-button" type="button" role="tab" aria-selected="false" data-create-template="play_surface" data-i18n="create.playSurface">Playable Surface</button>
+          <button class="template-button" type="button" role="tab" aria-selected="false" data-create-template="workspace_layout" data-i18n="create.workspaceLayout">Workspace Layout</button>
+          <button class="template-button" type="button" role="tab" aria-selected="false" data-create-template="sidebar_status" data-i18n="create.sidebarStatus">Sidebar / Status</button>
           <button class="template-button" type="button" role="tab" aria-selected="false" data-create-template="surface" data-i18n="create.editText">Edit Text</button>
           <button class="template-button" type="button" role="tab" aria-selected="false" data-create-template="entry" data-i18n="create.entrySidebar">Entry &amp; Sidebar</button>
+          <button class="template-button" type="button" role="tab" aria-selected="false" data-create-template="project" data-i18n="create.gameInfo">Game Info</button>
         </div>
       </section>
 
@@ -439,6 +443,137 @@
       </section>
 
       <section id="existing-scene-editor-host" class="existing-scene-editor-host hidden" aria-label="Existing Scene Editor" data-i18n-aria-label="existingScene.editorAria" hidden></section>
+
+      <section class="wizard-form-panel hidden" aria-labelledby="project-metadata-heading-label" data-create-template-panel="project">
+        <div class="wizard-title-row">
+          <div>
+            <h1 id="project-metadata-heading-label" class="wizard-title" data-i18n="create.gameInfoWizard">Game Info</h1>
+            <div id="project-metadata-core-status" class="wizard-status" data-i18n="create.status.projectMetadataCorePending">Game Info model pending.</div>
+          </div>
+          <div class="wizard-status-stack">
+            <label class="draft-file-picker">
+              <span data-i18n="create.loadProjectMetadataDraftJson">Load Game Info JSON</span>
+              <input id="project-metadata-draft-file" type="file" accept="application/json,.json">
+            </label>
+            <div id="project-metadata-draft-status" class="wizard-index-status" data-i18n="create.status.noProjectMetadataDraftLoaded">No Game Info draft loaded.</div>
+            <div id="project-metadata-index-status" class="wizard-index-status" data-i18n="create.status.noIndexLoaded">No index loaded.</div>
+          </div>
+        </div>
+
+        <form id="project-metadata-form" class="wizard-form">
+          <div class="wizard-guidance" data-i18n="create.guidance.projectMetadata">
+            Edit the game title, author, and IFID from source/info.dry. Studio only applies exact source-backed metadata changes.
+          </div>
+
+          <section class="metadata-evidence-panel" aria-label="Game Info source evidence" data-i18n-aria-label="projectMetadata.evidenceAria">
+            <div>
+              <strong data-i18n="projectMetadata.evidenceTitle">Source evidence</strong>
+              <p data-i18n="projectMetadata.evidenceBody">Guarded apply is available only when Studio can match the exact source/info.dry line.</p>
+            </div>
+            <div id="project-metadata-evidence" class="metadata-evidence-grid"></div>
+          </section>
+
+          <fieldset class="wizard-section">
+            <legend data-i18n="create.section.projectMetadataDraft">Draft</legend>
+            <div class="field-grid">
+              <label>
+                <span data-i18n="create.field.id">id</span>
+                <input id="project-metadata-id" name="id" type="text" value="project_metadata_update" autocomplete="off">
+                <small class="wizard-field-help" data-i18n="create.help.id">Internal file-safe name; players do not see it, but install plans use it.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.title">title</span>
+                <input id="project-metadata-title" name="title" type="text" value="Game Info Update" data-i18n-value="create.sample.projectMetadataTitle">
+                <small class="wizard-field-help" data-i18n="create.help.projectMetadataDraftTitle">Short editor label for finding this Game Info proposal later.</small>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="wizard-section">
+            <legend data-i18n="create.section.gameInfo">Game Info</legend>
+            <label class="wide-field">
+              <span data-i18n="create.field.gameTitle">game title</span>
+              <input id="project-metadata-game-title" name="gameTitle" type="text" value="Untitled Dendry Project">
+              <small class="wizard-field-help" data-i18n="create.help.gameTitle">Runtime header, browser title, compiled game title, and local-save prefix use this value after rebuild.</small>
+            </label>
+            <label class="wide-field">
+              <span data-i18n="create.field.author">author</span>
+              <input id="project-metadata-author" name="author" type="text" value="">
+              <small class="wizard-field-help" data-i18n="create.help.author">Runtime header and local-save prefix use this value after rebuild.</small>
+            </label>
+            <div class="field-grid">
+              <label>
+                <span data-i18n="create.field.ifid">IFID</span>
+                <input id="project-metadata-ifid" name="ifid" type="text" value="" autocomplete="off">
+                <small class="wizard-field-help" data-i18n="create.help.ifid">Stable interactive-fiction identifier. Generate a new one only when this should become a distinct game.</small>
+              </label>
+              <div class="field-action-stack">
+                <button id="project-metadata-generate-ifid" type="button" data-i18n="create.generateIfid">Generate new IFID</button>
+                <small class="wizard-field-help" data-i18n="create.help.generateIfid">This intentionally changes project identity; review before applying.</small>
+              </div>
+            </div>
+          </fieldset>
+        </form>
+      </section>
+
+      <aside class="wizard-preview-panel hidden" aria-label="Game Info previews" data-i18n-aria-label="create.projectMetadataPreviewAria" data-create-template-panel="project">
+        <section class="wizard-diagnostics">
+          <div class="preview-heading" data-i18n="create.diagnostics">Diagnostics</div>
+          <div id="project-metadata-diagnostics"></div>
+        </section>
+
+        <section class="preview-drawer" aria-label="Game Info output" data-i18n-aria-label="create.projectMetadataOutputAria">
+          <div class="preview-heading output-heading" data-i18n="create.output">Output</div>
+          <div class="output-tabs" role="tablist" aria-label="Generated Game Info output" data-i18n-aria-label="create.generatedProjectMetadataOutputAria">
+            <button class="output-tab is-active" type="button" role="tab" aria-selected="true" data-project-metadata-preview-tab="preview" data-i18n="create.preview">player-facing preview</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-project-metadata-preview-tab="draft" data-i18n="create.draftJson">Draft JSON</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-project-metadata-preview-tab="patch" data-i18n="create.patchPreview">Patch preview</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-project-metadata-preview-tab="install" data-i18n="create.install">Install</button>
+          </div>
+
+          <section class="preview-block is-active" data-project-metadata-preview-panel="preview">
+            <div class="preview-heading" data-i18n="create.preview">player-facing preview</div>
+            <pre id="project-metadata-player-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block" data-project-metadata-preview-panel="draft" hidden>
+            <div class="preview-heading" data-i18n="create.projectMetadataDraftJson">Game Info draft JSON</div>
+            <pre id="project-metadata-json-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block" data-project-metadata-preview-panel="install" hidden>
+            <div class="preview-heading" data-i18n="create.installNotes">install notes</div>
+            <pre id="project-metadata-install-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block" data-project-metadata-preview-panel="patch" hidden>
+            <div class="preview-heading" data-i18n="create.patchPreview">patch preview</div>
+            <pre id="project-metadata-patch-preview" class="code-preview"></pre>
+          </section>
+        </section>
+
+        <div class="wizard-actions">
+          <div class="wizard-action-group wizard-action-primary">
+            <div class="wizard-action-copy">
+              <strong data-i18n="create.action.recommendedNext">Recommended next step</strong>
+              <span data-i18n="create.action.reviewHelp">Review what can be applied, what needs checking, and what remains manual.</span>
+            </div>
+            <button id="project-metadata-review-install" class="primary-action" type="button" data-i18n="create.reviewInstall">Review &amp; Apply</button>
+          </div>
+          <details class="wizard-action-group wizard-action-advanced">
+            <summary>
+              <span data-i18n="create.action.advancedDownloads">Advanced downloads</span>
+              <small data-i18n="create.action.advancedHelp">Draft JSON, install notes, install plan, patch preview, and router snippets.</small>
+            </summary>
+            <div class="wizard-action-row">
+              <button id="project-metadata-download-json" type="button" data-i18n="create.saveProjectMetadataDraftJson">Save Game Info draft JSON</button>
+              <button id="project-metadata-download-notes" type="button" data-i18n="create.downloadInstallNotes">Download install notes</button>
+              <button id="project-metadata-download-plan" type="button" data-i18n="create.downloadInstallPlan">Download install plan</button>
+              <button id="project-metadata-download-patch" type="button" data-i18n="create.downloadPatchPreview">Download patch preview</button>
+            </div>
+          </details>
+        </div>
+      </aside>
 
       <section class="wizard-form-panel" aria-labelledby="wizard-heading-label" data-create-template-panel="event">
         <div class="wizard-title-row">
@@ -460,50 +595,67 @@
           <div class="wizard-guidance" data-i18n="create.guidance.event">
             Build a player-facing event proposal: when it appears, what players read, what choices they get, and what changes after those choices.
           </div>
-          <fieldset class="wizard-section">
-            <legend data-i18n="create.section.event">Event</legend>
-            <div class="field-grid">
-              <label>
+          <section class="event-readiness-panel" aria-label="Playable event checklist" data-i18n-aria-label="event.readinessAria">
+            <div>
+              <strong data-i18n="event.readinessTitle">Playable event checklist</strong>
+              <p data-i18n="event.readinessBody">Studio checks whether this draft has player text, a valid appearance window, usable choices, variable effects, and export readiness.</p>
+            </div>
+            <div id="event-route-summary" class="event-route-summary"></div>
+            <div id="event-readiness-checklist" class="event-readiness-list"></div>
+          </section>
+          <fieldset class="wizard-section event-workbench-section">
+            <legend data-i18n="create.section.playerScene">Player Scene</legend>
+            <label class="wide-field event-heading-field">
+              <span data-i18n="create.field.heading">heading</span>
+              <input id="wizard-heading" name="heading" type="text" value="A new pressure enters the room" data-i18n-value="create.sample.eventHeading">
+              <small class="wizard-field-help" data-i18n="create.help.heading">Main title shown in the player preview.</small>
+            </label>
+            <label class="wide-field event-intro-field">
+              <span data-i18n="create.field.intro">intro</span>
+              <textarea id="wizard-intro" name="intro" rows="5" data-i18n-value="create.sample.eventIntro">A public event creates a short window where institutions, movements, and party strategy all pull on the same question.</textarea>
+              <small class="wizard-field-help" data-i18n="create.help.intro">Opening prose players read before choosing.</small>
+            </label>
+            <div class="wizard-subsection-title">
+              <strong data-i18n="create.section.routingTiming">Routing & timing</strong>
+              <span data-i18n="create.section.routingTimingHelp">Controls where the scene is saved and when it can appear.</span>
+            </div>
+            <div class="field-grid event-core-grid">
+              <label class="event-technical-field">
                 <span data-i18n="create.field.id">id</span>
                 <input id="wizard-id" name="id" type="text" value="new_world_event" autocomplete="off">
                 <small class="wizard-field-help" data-i18n="create.help.id">Internal file-safe name; players do not see it, but install plans use it.</small>
               </label>
-              <label>
+              <label class="event-technical-field">
                 <span data-i18n="create.field.title">title</span>
                 <input id="wizard-title" name="title" type="text" value="New world event" data-i18n-value="create.sample.eventTitle">
                 <small class="wizard-field-help" data-i18n="create.help.title">Short editor label for finding this proposal later.</small>
               </label>
-              <label>
-                <span data-i18n="create.field.heading">heading</span>
-                <input id="wizard-heading" name="heading" type="text" value="A new pressure enters the room" data-i18n-value="create.sample.eventHeading">
-                <small class="wizard-field-help" data-i18n="create.help.heading">Main title shown in the player preview.</small>
-              </label>
-              <label>
+              <label class="event-routing-field">
                 <span data-i18n="create.field.year">year</span>
                 <input id="wizard-year" name="year" type="number" min="2014" max="2035" value="2021">
                 <small class="wizard-field-help" data-i18n="create.help.eventYear">Year when this event can first appear.</small>
               </label>
-              <label>
+              <label class="event-routing-field">
                 <span data-i18n="create.field.monthStart">monthStart</span>
                 <input id="wizard-month-start" name="monthStart" type="number" min="1" max="12" value="5">
                 <small class="wizard-field-help" data-i18n="create.help.monthStart">First month in the event window.</small>
               </label>
-              <label>
+              <label class="event-routing-field">
                 <span data-i18n="create.field.monthEnd">monthEnd</span>
                 <input id="wizard-month-end" name="monthEnd" type="number" min="1" max="12" value="7">
                 <small class="wizard-field-help" data-i18n="create.help.monthEnd">Last month in the event window.</small>
               </label>
-              <label>
+              <label class="event-routing-field event-wide-control">
                 <span data-i18n="create.field.requires">requires</span>
                 <input id="wizard-requires" name="requires" type="text" value="founding_complete = 1">
                 <small class="wizard-field-help" data-i18n="create.help.eventRequires">Extra condition required before the event is eligible.</small>
               </label>
-              <label>
+              <label class="event-routing-field">
                 <span data-i18n="create.field.priority">priority</span>
                 <input id="wizard-priority" name="priority" type="number" step="1" value="0">
                 <small class="wizard-field-help" data-i18n="create.help.priority">Tie-breaker when several eligible events compete.</small>
               </label>
-              <label>
+              <label class="event-choice-count-field">
                 <span data-i18n="create.field.choices">choices</span>
                 <select id="wizard-option-count" name="optionCount">
                   <option value="2" selected data-i18n="create.optionCount.2">2 choices</option>
@@ -513,11 +665,6 @@
                 <small class="wizard-field-help" data-i18n="create.help.choices">How many buttons the player can choose from.</small>
               </label>
             </div>
-            <label class="wide-field">
-              <span data-i18n="create.field.intro">intro</span>
-              <textarea id="wizard-intro" name="intro" rows="5" data-i18n-value="create.sample.eventIntro">A public event creates a short window where institutions, movements, and party strategy all pull on the same question.</textarea>
-              <small class="wizard-field-help" data-i18n="create.help.intro">Opening prose players read before choosing.</small>
-            </label>
             <section id="wizard-variable-assistant" class="variable-assistant" aria-label="Variable candidates" data-i18n-aria-label="variableAssistant.aria">
               <div class="variable-assistant-head">
                 <div>
@@ -604,8 +751,8 @@
               </label>
               <button id="wizard-effect-append" type="button" data-i18n="create.addEffect">Add effect</button>
             </div>
-            <div class="option-grid">
-              <section class="option-block" data-option-index="0">
+            <div class="option-grid event-option-grid">
+              <section class="option-block event-option-block" data-option-index="0">
                 <h2 data-i18n="create.option.a">Option A</h2>
                 <label>
                   <span data-i18n="create.field.id">id</span>
@@ -649,7 +796,7 @@ media_reach += 2</textarea>
                 </details>
               </section>
 
-              <section class="option-block" data-option-index="1">
+              <section class="option-block event-option-block" data-option-index="1">
                 <h2 data-i18n="create.option.b">Option B</h2>
                 <label>
                   <span data-i18n="create.field.id">id</span>
@@ -693,7 +840,7 @@ civil_society_trust += 1</textarea>
                 </details>
               </section>
 
-              <section class="option-block hidden" data-option-index="2">
+              <section class="option-block event-option-block hidden" data-option-index="2">
                 <h2 data-i18n="create.option.c">Option C</h2>
                 <label>
                   <span data-i18n="create.field.id">id</span>
@@ -736,7 +883,7 @@ civil_society_trust += 1</textarea>
                 </details>
               </section>
 
-              <section class="option-block hidden" data-option-index="3">
+              <section class="option-block event-option-block hidden" data-option-index="3">
                 <h2 data-i18n="create.option.d">Option D</h2>
                 <label>
                   <span data-i18n="create.field.id">id</span>
@@ -1580,6 +1727,20 @@ media_reach += 1</textarea>
           <div class="wizard-guidance" data-i18n="create.guidance.entry">
             Edit the start menu, sidebar/status display, and first playable route using source evidence when Studio can prove it.
           </div>
+          <section class="entry-playability-panel" aria-label="First playable route checklist" data-i18n-aria-label="entry.playabilityAria">
+            <div>
+              <strong data-i18n="entry.playabilityTitle">First playable checklist</strong>
+              <p data-i18n="entry.playabilityBody">Studio checks whether the project has a root scene, a first route, a target scene, and a sidebar/status surface.</p>
+            </div>
+            <div id="entry-playability-checklist" class="entry-playability-list"></div>
+          </section>
+          <section class="entry-route-panel" aria-label="Playable route map" data-i18n-aria-label="entry.routeAria">
+            <div>
+              <strong data-i18n="entry.routeTitle">Playable route</strong>
+              <p data-i18n="entry.routeBody">A compact view of the first player journey from the start screen into the first playable scene.</p>
+            </div>
+            <div id="entry-route-map" class="entry-route-map"></div>
+          </section>
           <fieldset class="wizard-section">
             <legend data-i18n="create.section.entryDraft">Draft</legend>
             <div class="field-grid">
@@ -1729,6 +1890,604 @@ media_reach += 1</textarea>
           </details>
         </div>
       </aside>
+
+      <section class="wizard-form-panel hidden" aria-labelledby="play-surface-heading-label" data-create-template-panel="play_surface">
+        <div class="wizard-title-row">
+          <div>
+            <h1 id="play-surface-heading-label" class="wizard-title" data-i18n="create.playSurfaceWizard">Playable Surface</h1>
+            <div id="play-surface-core-status" class="wizard-status" data-i18n="create.status.playSurfaceCorePending">Playable Surface core pending.</div>
+          </div>
+          <div class="wizard-status-stack">
+            <label class="draft-file-picker">
+              <span data-i18n="create.loadPlaySurfaceDraftJson">Load playable surface JSON</span>
+              <input id="play-surface-draft-file" type="file" accept="application/json,.json">
+            </label>
+            <div id="play-surface-draft-status" class="wizard-index-status" data-i18n="create.status.noPlaySurfaceDraftLoaded">No playable surface draft loaded.</div>
+            <div id="play-surface-index-status" class="wizard-index-status" data-i18n="create.status.noIndexLoaded">No index loaded.</div>
+          </div>
+        </div>
+
+        <form id="play-surface-form" class="wizard-form">
+          <div class="wizard-guidance" data-i18n="create.guidance.playSurface">
+            Rename the source-backed hand, deck, action card, and advisor-like card that make the first playable workspace feel like a real mod.
+          </div>
+          <section class="entry-playability-panel" aria-label="Playable surface checklist" data-i18n-aria-label="playSurface.readinessAria">
+            <div>
+              <strong data-i18n="playSurface.readinessTitle">Playable surface checklist</strong>
+              <p data-i18n="playSurface.readinessBody">Studio checks whether the project exposes a hand, deck, action card, and advisor-like pinned card.</p>
+            </div>
+            <div id="play-surface-readiness" class="entry-playability-list"></div>
+          </section>
+
+          <fieldset class="wizard-section">
+            <legend data-i18n="create.section.draft">Draft</legend>
+            <div class="field-grid">
+              <label>
+                <span data-i18n="create.field.id">id</span>
+                <input id="play-surface-id" name="id" type="text" value="play_surface_update" autocomplete="off">
+                <small class="wizard-field-help" data-i18n="create.help.id">Internal file-safe name; players do not see it, but install plans use it.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.title">title</span>
+                <input id="play-surface-title" name="title" type="text" value="Playable Surface Update" data-i18n-value="create.sample.playSurfaceTitle">
+                <small class="wizard-field-help" data-i18n="create.help.title">Short editor label for finding this proposal later.</small>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="wizard-section">
+            <legend data-i18n="create.section.hand">Hand / Workspace</legend>
+            <div class="field-grid">
+              <label>
+                <span data-i18n="create.field.handTitle">hand title</span>
+                <input id="play-surface-hand-title" name="handTitle" type="text" value="Workspace Hand">
+              </label>
+              <label>
+                <span data-i18n="create.field.handHeading">hand heading</span>
+                <input id="play-surface-hand-heading" name="handHeading" type="text" value="Workspace Hand">
+              </label>
+              <label>
+                <span data-i18n="create.field.deckOption">deck option</span>
+                <input id="play-surface-hand-deck-option-label" name="handDeckOptionLabel" type="text" value="Open deck">
+              </label>
+              <label>
+                <span data-i18n="create.field.advisorOption">advisor option</span>
+                <input id="play-surface-hand-advisor-option-label" name="handAdvisorOptionLabel" type="text" value="Review advisor">
+              </label>
+            </div>
+            <label class="wide-field">
+              <span data-i18n="create.field.handBody">hand body</span>
+              <textarea id="play-surface-hand-body" name="handBody" rows="4"></textarea>
+              <small class="wizard-field-help" data-i18n="create.help.handBody">Player-facing text for the recurring workspace where cards and advisors appear.</small>
+            </label>
+          </fieldset>
+
+          <fieldset class="wizard-section">
+            <legend data-i18n="create.section.deck">Deck</legend>
+            <div class="field-grid">
+              <label>
+                <span data-i18n="create.field.deckTitle">deck title</span>
+                <input id="play-surface-deck-title" name="deckTitle" type="text" value="Starter Deck">
+              </label>
+              <label>
+                <span data-i18n="create.field.deckSubtitle">deck subtitle</span>
+                <input id="play-surface-deck-subtitle" name="deckSubtitle" type="text" value="">
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="wizard-section">
+            <legend data-i18n="create.section.actionCard">Action Card</legend>
+            <div class="field-grid">
+              <label>
+                <span data-i18n="create.field.cardTitle">card title</span>
+                <input id="play-surface-card-title" name="cardTitle" type="text" value="Starter Action Card">
+              </label>
+              <label>
+                <span data-i18n="create.field.cardHeading">card heading</span>
+                <input id="play-surface-card-heading" name="cardHeading" type="text" value="Starter Action Card">
+              </label>
+              <label>
+                <span data-i18n="create.field.optionA">option A</span>
+                <input id="play-surface-card-option0-label" name="cardOption0Label" type="text" value="Spend resources">
+              </label>
+              <label>
+                <span data-i18n="create.field.optionB">option B</span>
+                <input id="play-surface-card-option1-label" name="cardOption1Label" type="text" value="Save capacity">
+              </label>
+            </div>
+            <label class="wide-field">
+              <span data-i18n="create.field.cardBody">card body</span>
+              <textarea id="play-surface-card-body" name="cardBody" rows="4"></textarea>
+              <small class="wizard-field-help" data-i18n="create.help.playSurfaceCardBody">Player-facing text for the starter action card in the hand/deck loop.</small>
+            </label>
+          </fieldset>
+
+          <fieldset class="wizard-section">
+            <legend data-i18n="create.section.advisor">Advisor</legend>
+            <div class="field-grid">
+              <label>
+                <span data-i18n="create.field.advisorTitle">advisor title</span>
+                <input id="play-surface-advisor-title" name="advisorTitle" type="text" value="Starter Advisor">
+              </label>
+              <label>
+                <span data-i18n="create.field.advisorSubtitle">advisor subtitle</span>
+                <input id="play-surface-advisor-subtitle" name="advisorSubtitle" type="text" value="">
+              </label>
+              <label>
+                <span data-i18n="create.field.advisorHeading">advisor heading</span>
+                <input id="play-surface-advisor-heading" name="advisorHeading" type="text" value="Starter Advisor">
+              </label>
+              <label>
+                <span data-i18n="create.field.advisorOption">advisor option</span>
+                <input id="play-surface-advisor-option0-label" name="advisorOption0Label" type="text" value="Ask for organizing help">
+              </label>
+            </div>
+            <label class="wide-field">
+              <span data-i18n="create.field.advisorBody">advisor body</span>
+              <textarea id="play-surface-advisor-body" name="advisorBody" rows="4"></textarea>
+              <small class="wizard-field-help" data-i18n="create.help.advisorBody">Player-facing text for the persistent advisor-like card.</small>
+            </label>
+          </fieldset>
+        </form>
+      </section>
+
+      <aside class="wizard-preview-panel hidden" aria-label="Playable surface previews" data-i18n-aria-label="create.playSurfacePreviewAria" data-create-template-panel="play_surface">
+        <section class="wizard-diagnostics">
+          <div class="preview-heading" data-i18n="create.diagnostics">Diagnostics</div>
+          <div id="play-surface-diagnostics"></div>
+        </section>
+
+        <section class="preview-drawer" aria-label="Playable surface output" data-i18n-aria-label="create.playSurfaceOutputAria">
+          <div class="preview-heading output-heading" data-i18n="create.output">Output</div>
+          <div class="output-tabs" role="tablist" aria-label="Generated playable surface output" data-i18n-aria-label="create.generatedPlaySurfaceOutputAria">
+            <button class="output-tab is-active" type="button" role="tab" aria-selected="true" data-play-surface-preview-tab="preview" data-i18n="create.preview">player-facing preview</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-play-surface-preview-tab="draft" data-i18n="create.draftJson">Draft JSON</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-play-surface-preview-tab="patch" data-i18n="create.patchPreview">Patch preview</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-play-surface-preview-tab="install" data-i18n="create.install">Install</button>
+          </div>
+
+          <section class="preview-block is-active" data-play-surface-preview-panel="preview">
+            <div class="preview-heading" data-i18n="create.preview">player-facing preview</div>
+            <pre id="play-surface-player-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block" data-play-surface-preview-panel="draft" hidden>
+            <div class="preview-heading" data-i18n="create.playSurfaceDraftJson">playable surface draft JSON</div>
+            <pre id="play-surface-json-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block" data-play-surface-preview-panel="install" hidden>
+            <div class="preview-heading" data-i18n="create.installNotes">install notes</div>
+            <pre id="play-surface-install-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block" data-play-surface-preview-panel="patch" hidden>
+            <div class="preview-heading" data-i18n="create.patchPreview">patch preview</div>
+            <pre id="play-surface-patch-preview" class="code-preview"></pre>
+          </section>
+        </section>
+
+        <div class="wizard-actions">
+          <div class="wizard-action-group wizard-action-primary">
+            <div class="wizard-action-copy">
+              <strong data-i18n="create.action.recommendedNext">Recommended next step</strong>
+              <span data-i18n="create.action.reviewHelp">Review what can be applied, what needs checking, and what remains manual.</span>
+            </div>
+            <button id="play-surface-review-install" class="primary-action" type="button" data-i18n="create.reviewInstall">Review &amp; Apply</button>
+          </div>
+          <details class="wizard-action-group wizard-action-advanced">
+            <summary>
+              <span data-i18n="create.action.advancedDownloads">Advanced downloads</span>
+              <small data-i18n="create.action.advancedHelp">Draft JSON, install notes, install plan, patch preview, and router snippets.</small>
+            </summary>
+            <div class="wizard-action-row">
+              <button id="play-surface-download-json" type="button" data-i18n="create.savePlaySurfaceDraftJson">Save playable surface draft JSON</button>
+              <button id="play-surface-download-notes" type="button" data-i18n="create.downloadInstallNotes">Download install notes</button>
+              <button id="play-surface-download-plan" type="button" data-i18n="create.downloadInstallPlan">Download install plan</button>
+              <button id="play-surface-download-patch" type="button" data-i18n="create.downloadPatchPreview">Download patch preview</button>
+            </div>
+          </details>
+        </div>
+      </aside>
+
+      <section class="wizard-form-panel hidden" aria-labelledby="workspace-layout-heading-label" data-create-template-panel="workspace_layout">
+        <div class="wizard-title-row">
+          <div>
+            <h1 id="workspace-layout-heading-label" class="wizard-title" data-i18n="create.workspaceLayoutWizard">Workspace Layout</h1>
+            <div id="workspace-layout-core-status" class="wizard-status" data-i18n="create.status.workspaceLayoutCorePending">Workspace Layout core pending.</div>
+          </div>
+          <div class="wizard-status-stack">
+            <label class="draft-file-picker">
+              <span data-i18n="create.loadWorkspaceLayoutDraftJson">Load workspace layout JSON</span>
+              <input id="workspace-layout-draft-file" type="file" accept="application/json,.json">
+            </label>
+            <div id="workspace-layout-draft-status" class="wizard-index-status" data-i18n="create.status.noWorkspaceLayoutDraftLoaded">No workspace layout draft loaded.</div>
+            <div id="workspace-layout-index-status" class="wizard-index-status" data-i18n="create.status.noIndexLoaded">No index loaded.</div>
+          </div>
+        </div>
+
+        <form id="workspace-layout-form" class="wizard-form">
+          <div class="wizard-guidance" data-i18n="create.guidance.workspaceLayout">
+            Add a new deck lane, route it from the hand/workspace, and add a sidebar/status category using source-backed anchors.
+          </div>
+          <section class="entry-playability-panel" aria-label="Workspace layout checklist" data-i18n-aria-label="workspaceLayout.readinessAria">
+            <div>
+              <strong data-i18n="workspaceLayout.readinessTitle">Workspace layout checklist</strong>
+              <p data-i18n="workspaceLayout.readinessBody">Studio checks whether the project exposes a source-backed hand route anchor and sidebar category anchor.</p>
+            </div>
+            <div id="workspace-layout-readiness" class="entry-playability-list"></div>
+          </section>
+
+          <fieldset class="wizard-section">
+            <legend data-i18n="create.section.draft">Draft</legend>
+            <div class="field-grid">
+              <label>
+                <span data-i18n="create.field.id">id</span>
+                <input id="workspace-layout-id" name="id" type="text" value="workspace_layout_update" autocomplete="off">
+                <small class="wizard-field-help" data-i18n="create.help.id">Internal file-safe name; players do not see it, but install plans use it.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.title">title</span>
+                <input id="workspace-layout-title" name="title" type="text" value="Workspace Layout Update" data-i18n-value="create.sample.workspaceLayoutTitle">
+                <small class="wizard-field-help" data-i18n="create.help.title">Short editor label for finding this proposal later.</small>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="wizard-section">
+            <legend data-i18n="create.section.newDeck">New Deck Lane</legend>
+            <div class="field-grid">
+              <label>
+                <span data-i18n="create.field.deckId">deck id</span>
+                <input id="workspace-layout-deck-id" name="deckId" type="text" value="policy_deck" autocomplete="off">
+                <small class="wizard-field-help" data-i18n="create.help.deckId">Scene id for the new deck file under source/scenes/decks/.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.deckTitle">deck title</span>
+                <input id="workspace-layout-deck-title" name="deckTitle" type="text" value="Policy Deck">
+              </label>
+              <label>
+                <span data-i18n="create.field.deckSubtitle">deck subtitle</span>
+                <input id="workspace-layout-deck-subtitle" name="deckSubtitle" type="text" value="Repeatable policy work">
+              </label>
+              <label>
+                <span data-i18n="create.field.deckTag">deck tag</span>
+                <input id="workspace-layout-deck-tag" name="deckTag" type="text" value="policy_action" autocomplete="off">
+                <small class="wizard-field-help" data-i18n="create.help.deckTag">Cards with this tag can appear through the new deck lane.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.handOption">hand option</span>
+                <input id="workspace-layout-hand-option-label" name="handOptionLabel" type="text" value="Open policy deck">
+                <small class="wizard-field-help" data-i18n="create.help.handOption">Player-facing route label inserted into the hand/workspace.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.handInsertMode">hand insert position</span>
+                <select id="workspace-layout-hand-insert-mode" name="handInsertMode">
+                  <option value="auto" data-i18n="create.option.autoAnchor">Auto-detect safe anchor</option>
+                  <option value="before_root" selected data-i18n="create.option.beforeRoot">Before the back-to-start route</option>
+                  <option value="after_last" data-i18n="create.option.afterLastHand">After the last hand option</option>
+                  <option value="before_option" data-i18n="create.option.beforeSelectedHand">Before selected hand option</option>
+                  <option value="after_option" data-i18n="create.option.afterSelectedHand">After selected hand option</option>
+                </select>
+                <small class="wizard-field-help" data-i18n="create.help.handInsertMode">Choose where the new deck button should appear when Studio can verify an exact source anchor.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.handAnchor">selected hand option</span>
+                <select id="workspace-layout-hand-anchor-id" name="handAnchorId"></select>
+                <small class="wizard-field-help" data-i18n="create.help.handAnchor">Used by the before/after selected hand option modes.</small>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="wizard-section">
+            <legend data-i18n="create.section.starterCard">Starter Card</legend>
+            <label>
+              <span data-i18n="create.field.createStarterCard">create first card</span>
+              <input id="workspace-layout-create-starter-card" name="createStarterCard" type="checkbox" checked>
+              <small class="wizard-field-help" data-i18n="create.help.createStarterCard">Create one tagged action card so the new deck lane is playable immediately.</small>
+            </label>
+            <div class="field-grid">
+              <label>
+                <span data-i18n="create.field.starterCardId">card id</span>
+                <input id="workspace-layout-starter-card-id" name="starterCardId" type="text" value="policy_starter_card" autocomplete="off" data-workspace-layout-starter-card-field>
+              </label>
+              <label>
+                <span data-i18n="create.field.starterCardTitle">card title</span>
+                <input id="workspace-layout-starter-card-title" name="starterCardTitle" type="text" value="Policy Starter Card" data-workspace-layout-starter-card-field>
+              </label>
+              <label>
+                <span data-i18n="create.field.starterCardHeading">card heading</span>
+                <input id="workspace-layout-starter-card-heading" name="starterCardHeading" type="text" value="Plan the first policy push" data-workspace-layout-starter-card-field>
+              </label>
+              <label>
+                <span data-i18n="create.field.starterCardReturnTarget">return target</span>
+                <input id="workspace-layout-starter-card-return-target" name="starterCardReturnTarget" type="text" value="main" autocomplete="off" data-workspace-layout-starter-card-field>
+                <small class="wizard-field-help" data-i18n="create.help.starterCardReturnTarget">Scene id to return to after either choice; usually the hand/workspace scene.</small>
+              </label>
+            </div>
+            <label class="wide-field">
+              <span data-i18n="create.field.starterCardBody">card body</span>
+              <textarea id="workspace-layout-starter-card-body" name="starterCardBody" rows="4" data-workspace-layout-starter-card-field>The team chooses whether to turn capacity into public momentum or save it for later work.</textarea>
+            </label>
+            <div class="field-grid">
+              <label>
+                <span data-i18n="create.field.starterCardOption0Label">first choice</span>
+                <input id="workspace-layout-starter-card-option0-label" name="starterCardOption0Label" type="text" value="Build public momentum" data-workspace-layout-starter-card-field>
+              </label>
+              <label>
+                <span data-i18n="create.field.starterCardOption0Variable">first choice variable</span>
+                <input id="workspace-layout-starter-card-option0-variable" name="starterCardOption0Variable" type="text" value="policy_momentum" list="workspace-layout-variable-options" autocomplete="off" data-workspace-layout-starter-card-field>
+              </label>
+              <label>
+                <span data-i18n="create.field.starterCardOption0Delta">first choice delta</span>
+                <input id="workspace-layout-starter-card-option0-delta" name="starterCardOption0Delta" type="number" value="1" step="1" data-workspace-layout-starter-card-field>
+              </label>
+              <label>
+                <span data-i18n="create.field.starterCardOption1Label">second choice</span>
+                <input id="workspace-layout-starter-card-option1-label" name="starterCardOption1Label" type="text" value="Save capacity" data-workspace-layout-starter-card-field>
+              </label>
+              <label>
+                <span data-i18n="create.field.starterCardOption1Variable">second choice variable</span>
+                <input id="workspace-layout-starter-card-option1-variable" name="starterCardOption1Variable" type="text" value="policy_capacity" list="workspace-layout-variable-options" autocomplete="off" data-workspace-layout-starter-card-field>
+              </label>
+              <label>
+                <span data-i18n="create.field.starterCardOption1Delta">second choice delta</span>
+                <input id="workspace-layout-starter-card-option1-delta" name="starterCardOption1Delta" type="number" value="1" step="1" data-workspace-layout-starter-card-field>
+              </label>
+            </div>
+            <datalist id="workspace-layout-variable-options"></datalist>
+          </fieldset>
+
+          <fieldset class="wizard-section">
+            <legend data-i18n="create.section.sidebarCategory">Sidebar Category</legend>
+            <div class="field-grid">
+              <label>
+                <span data-i18n="create.field.sidebarCategoryId">category id</span>
+                <input id="workspace-layout-sidebar-category-id" name="sidebarCategoryId" type="text" value="policy" autocomplete="off">
+              </label>
+              <label>
+                <span data-i18n="create.field.sidebarHeading">sidebar heading</span>
+                <input id="workspace-layout-sidebar-heading" name="sidebarHeading" type="text" value="Policy Desk">
+              </label>
+              <label>
+                <span data-i18n="create.field.sidebarInsertMode">sidebar insert position</span>
+                <select id="workspace-layout-sidebar-insert-mode" name="sidebarInsertMode">
+                  <option value="auto" data-i18n="create.option.autoAnchor">Auto-detect safe anchor</option>
+                  <option value="before_politics" data-i18n="create.option.beforePolitics">Before public mood/politics</option>
+                  <option value="before_category" selected data-i18n="create.option.beforeSelectedSidebar">Before selected sidebar category</option>
+                  <option value="after_category" data-i18n="create.option.afterSelectedSidebar">After selected sidebar category</option>
+                </select>
+                <small class="wizard-field-help" data-i18n="create.help.sidebarInsertMode">After selected category is guarded only when there is another exact section anchor after it.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.sidebarAnchor">selected sidebar category</span>
+                <select id="workspace-layout-sidebar-anchor-id" name="sidebarAnchorId"></select>
+              </label>
+            </div>
+            <label class="wide-field">
+              <span data-i18n="create.field.sidebarBody">sidebar body</span>
+              <textarea id="workspace-layout-sidebar-body" name="sidebarBody" rows="4">Use this section for policy lanes, campaign promises, research, or issue-specific work.</textarea>
+            </label>
+            <label class="wide-field">
+              <span data-i18n="create.field.sidebarStatusLines">conditional status lines</span>
+              <textarea id="workspace-layout-sidebar-status-lines" name="sidebarStatusLines" rows="4">[? if demo_card_progress &gt; 0 : Policy work has started moving through the deck. ?]</textarea>
+              <small class="wizard-field-help" data-i18n="create.help.sidebarStatusLines">Optional Dendry conditional lines that react to variables.</small>
+            </label>
+          </fieldset>
+        </form>
+      </section>
+
+      <aside class="wizard-preview-panel hidden" aria-label="Workspace layout previews" data-i18n-aria-label="create.workspaceLayoutPreviewAria" data-create-template-panel="workspace_layout">
+        <section class="wizard-diagnostics">
+          <div class="preview-heading" data-i18n="create.diagnostics">Diagnostics</div>
+          <div id="workspace-layout-diagnostics"></div>
+        </section>
+
+        <section class="preview-drawer" aria-label="Workspace layout output" data-i18n-aria-label="create.workspaceLayoutOutputAria">
+          <div class="preview-heading output-heading" data-i18n="create.output">Output</div>
+          <div class="output-tabs" role="tablist" aria-label="Generated workspace layout output" data-i18n-aria-label="create.generatedWorkspaceLayoutOutputAria">
+            <button class="output-tab is-active" type="button" role="tab" aria-selected="true" data-workspace-layout-preview-tab="preview" data-i18n="create.preview">player-facing preview</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-workspace-layout-preview-tab="draft" data-i18n="create.draftJson">Draft JSON</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-workspace-layout-preview-tab="patch" data-i18n="create.patchPreview">Patch preview</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-workspace-layout-preview-tab="install" data-i18n="create.install">Install</button>
+          </div>
+
+          <section class="preview-block is-active" data-workspace-layout-preview-panel="preview">
+            <div class="preview-heading" data-i18n="create.preview">player-facing preview</div>
+            <pre id="workspace-layout-player-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block" data-workspace-layout-preview-panel="draft" hidden>
+            <div class="preview-heading" data-i18n="create.workspaceLayoutDraftJson">workspace layout draft JSON</div>
+            <pre id="workspace-layout-json-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block" data-workspace-layout-preview-panel="install" hidden>
+            <div class="preview-heading" data-i18n="create.installNotes">install notes</div>
+            <pre id="workspace-layout-install-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block" data-workspace-layout-preview-panel="patch" hidden>
+            <div class="preview-heading" data-i18n="create.patchPreview">patch preview</div>
+            <pre id="workspace-layout-patch-preview" class="code-preview"></pre>
+          </section>
+        </section>
+
+        <div class="wizard-actions">
+          <div class="wizard-action-group wizard-action-primary">
+            <div class="wizard-action-copy">
+              <strong data-i18n="create.action.recommendedNext">Recommended next step</strong>
+              <span data-i18n="create.action.reviewHelp">Review what can be applied, what needs checking, and what remains manual.</span>
+            </div>
+            <button id="workspace-layout-review-install" class="primary-action" type="button" data-i18n="create.reviewInstall">Review &amp; Apply</button>
+          </div>
+          <details class="wizard-action-group wizard-action-advanced">
+            <summary>
+              <span data-i18n="create.action.advancedDownloads">Advanced downloads</span>
+              <small data-i18n="create.action.advancedHelp">Draft JSON, install notes, install plan, patch preview, and router snippets.</small>
+            </summary>
+            <div class="wizard-action-row">
+              <button id="workspace-layout-download-json" type="button" data-i18n="create.saveWorkspaceLayoutDraftJson">Save workspace layout draft JSON</button>
+              <button id="workspace-layout-download-notes" type="button" data-i18n="create.downloadInstallNotes">Download install notes</button>
+              <button id="workspace-layout-download-plan" type="button" data-i18n="create.downloadInstallPlan">Download install plan</button>
+              <button id="workspace-layout-download-patch" type="button" data-i18n="create.downloadPatchPreview">Download patch preview</button>
+            </div>
+          </details>
+        </div>
+      </aside>
+
+      <section class="wizard-form-panel hidden" aria-labelledby="sidebar-status-heading-label" data-create-template-panel="sidebar_status">
+        <div class="wizard-title-row">
+          <div>
+            <h1 id="sidebar-status-heading-label" class="wizard-title" data-i18n="create.sidebarStatusWizard">Sidebar / Status</h1>
+            <div id="sidebar-status-core-status" class="wizard-status" data-i18n="create.status.sidebarStatusCorePending">Sidebar / Status core pending.</div>
+          </div>
+          <div class="wizard-status-stack">
+            <label class="draft-file-picker">
+              <span data-i18n="create.loadSidebarStatusDraftJson">Load Sidebar / Status JSON</span>
+              <input id="sidebar-status-draft-file" type="file" accept="application/json,.json">
+            </label>
+            <div id="sidebar-status-draft-status" class="wizard-index-status" data-i18n="create.status.noSidebarStatusDraftLoaded">No Sidebar / Status draft loaded.</div>
+            <div id="sidebar-status-index-status" class="wizard-index-status" data-i18n="create.status.noIndexLoaded">No index loaded.</div>
+          </div>
+        </div>
+
+        <form id="sidebar-status-form" class="wizard-form">
+          <div class="wizard-guidance" data-i18n="create.guidance.sidebarStatus">
+            Edit existing status/sidebar sections from source-backed status.scene.dry anchors. Studio preserves category anchors and keeps generated/custom UI as manual review.
+          </div>
+          <section class="event-readiness-panel" aria-label="Sidebar / Status checklist" data-i18n-aria-label="sidebarStatus.readinessAria">
+            <div>
+              <strong data-i18n="sidebarStatus.readinessTitle">Sidebar / Status checklist</strong>
+              <p data-i18n="sidebarStatus.readinessBody">Studio checks whether the project exposes a source-backed status scene and exact visible-text anchors for each editable section.</p>
+            </div>
+            <div id="sidebar-status-readiness" class="entry-playability-list"></div>
+          </section>
+
+          <fieldset class="wizard-section">
+            <legend data-i18n="create.section.sidebarStatusDraft">Draft</legend>
+            <div class="field-grid">
+              <label>
+                <span data-i18n="create.field.id">id</span>
+                <input id="sidebar-status-id" name="id" type="text" value="sidebar_status_update" autocomplete="off">
+                <small class="wizard-field-help" data-i18n="create.help.id">Internal file-safe name; players do not see it, but install plans use it.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.title">title</span>
+                <input id="sidebar-status-title" name="title" type="text" value="Sidebar / Status Update" data-i18n-value="create.sample.sidebarStatusTitle">
+                <small class="wizard-field-help" data-i18n="create.help.sidebarStatusDraftTitle">Short editor label for finding this Sidebar / Status proposal later.</small>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="wizard-section">
+            <legend data-i18n="create.section.sidebarStatusScene">Status scene</legend>
+            <div class="field-grid">
+              <label>
+                <span data-i18n="create.field.statusTitle">status title</span>
+                <input id="sidebar-status-status-title" name="statusTitle" type="text" value="Status">
+                <small class="wizard-field-help" data-i18n="create.help.statusTitle">Title metadata for the source-backed status/sidebar scene.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.sidebarSection">sidebar section</span>
+                <select id="sidebar-status-section-id" name="sectionId"></select>
+                <small class="wizard-field-help" data-i18n="create.help.sidebarSection">Choose the existing status/sidebar section to edit.</small>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="wizard-section">
+            <legend data-i18n="create.section.sidebarStatusText">Sidebar text</legend>
+            <label class="wide-field">
+              <span data-i18n="create.field.heading">heading</span>
+              <input id="sidebar-status-section-heading" name="sectionHeading" type="text" value="Status">
+              <small class="wizard-field-help" data-i18n="create.help.sidebarStatusHeading">Heading shown in the selected sidebar/status section.</small>
+            </label>
+            <label class="wide-field">
+              <span data-i18n="create.field.body">body</span>
+              <textarea id="sidebar-status-section-body" name="sectionBody" rows="5"></textarea>
+              <small class="wizard-field-help" data-i18n="create.help.sidebarStatusBody">Visible body, variable displays, or compact dashboard lines for this section.</small>
+            </label>
+            <div class="field-grid">
+              <label>
+                <span data-i18n="create.field.variable">variable</span>
+                <input id="sidebar-status-condition-variable" type="text" list="sidebar-status-variable-options" autocomplete="off">
+                <small class="wizard-field-help" data-i18n="create.help.sidebarStatusVariable">Pick a recommended variable to seed a conditional status line.</small>
+              </label>
+              <div class="field-action-stack">
+                <button id="sidebar-status-insert-condition" type="button" data-i18n="create.insertStatusLine">Insert status line</button>
+                <small class="wizard-field-help" data-i18n="create.help.insertStatusLine">Adds a Dendry conditional line to the selected section.</small>
+              </div>
+            </div>
+            <datalist id="sidebar-status-variable-options"></datalist>
+            <label class="wide-field">
+              <span data-i18n="create.field.statusLines">status lines</span>
+              <textarea id="sidebar-status-section-status-lines" name="sectionStatusLines" rows="5"></textarea>
+              <small class="wizard-field-help" data-i18n="create.help.statusLines">Conditional status lines such as [? if variable &gt; 0 : Text. ?].</small>
+            </label>
+          </fieldset>
+        </form>
+      </section>
+
+      <aside class="wizard-preview-panel hidden" aria-label="Sidebar / Status previews" data-i18n-aria-label="create.sidebarStatusPreviewAria" data-create-template-panel="sidebar_status">
+        <section class="wizard-diagnostics">
+          <div class="preview-heading" data-i18n="create.diagnostics">Diagnostics</div>
+          <div id="sidebar-status-diagnostics"></div>
+        </section>
+
+        <section class="preview-drawer" aria-label="Sidebar / Status output" data-i18n-aria-label="create.sidebarStatusOutputAria">
+          <div class="preview-heading output-heading" data-i18n="create.output">Output</div>
+          <div class="output-tabs" role="tablist" aria-label="Generated Sidebar / Status output" data-i18n-aria-label="create.generatedSidebarStatusOutputAria">
+            <button class="output-tab is-active" type="button" role="tab" aria-selected="true" data-sidebar-status-preview-tab="preview" data-i18n="create.preview">player-facing preview</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-sidebar-status-preview-tab="draft" data-i18n="create.draftJson">Draft JSON</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-sidebar-status-preview-tab="patch" data-i18n="create.patchPreview">Patch preview</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-sidebar-status-preview-tab="install" data-i18n="create.install">Install</button>
+          </div>
+
+          <section class="preview-block is-active" data-sidebar-status-preview-panel="preview">
+            <div class="preview-heading" data-i18n="create.preview">player-facing preview</div>
+            <pre id="sidebar-status-player-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block" data-sidebar-status-preview-panel="draft" hidden>
+            <div class="preview-heading" data-i18n="create.sidebarStatusDraftJson">Sidebar / Status draft JSON</div>
+            <pre id="sidebar-status-json-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block" data-sidebar-status-preview-panel="install" hidden>
+            <div class="preview-heading" data-i18n="create.installNotes">install notes</div>
+            <pre id="sidebar-status-install-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block" data-sidebar-status-preview-panel="patch" hidden>
+            <div class="preview-heading" data-i18n="create.patchPreview">patch preview</div>
+            <pre id="sidebar-status-patch-preview" class="code-preview"></pre>
+          </section>
+        </section>
+
+        <div class="wizard-actions">
+          <div class="wizard-action-group wizard-action-primary">
+            <div class="wizard-action-copy">
+              <strong data-i18n="create.action.recommendedNext">Recommended next step</strong>
+              <span data-i18n="create.action.reviewHelp">Review what can be applied, what needs checking, and what remains manual.</span>
+            </div>
+            <button id="sidebar-status-review-install" class="primary-action" type="button" data-i18n="create.reviewInstall">Review &amp; Apply</button>
+          </div>
+          <details class="wizard-action-group wizard-action-advanced">
+            <summary>
+              <span data-i18n="create.action.advancedDownloads">Advanced downloads</span>
+              <small data-i18n="create.action.advancedHelp">Draft JSON, install notes, install plan, patch preview, and router snippets.</small>
+            </summary>
+            <div class="wizard-action-row">
+              <button id="sidebar-status-download-json" type="button" data-i18n="create.saveSidebarStatusDraftJson">Save Sidebar / Status draft JSON</button>
+              <button id="sidebar-status-download-notes" type="button" data-i18n="create.downloadInstallNotes">Download install notes</button>
+              <button id="sidebar-status-download-plan" type="button" data-i18n="create.downloadInstallPlan">Download install plan</button>
+              <button id="sidebar-status-download-patch" type="button" data-i18n="create.downloadPatchPreview">Download patch preview</button>
+            </div>
+          </details>
+        </div>
+      </aside>
     </main>
   </div>
 
@@ -1738,6 +2497,10 @@ media_reach += 1</textarea>
   <script src="../authoring/card_draft.js"></script>
   <script src="../authoring/surface_text_draft.js"></script>
   <script src="../authoring/entry_sidebar_draft.js"></script>
+  <script src="../authoring/play_surface_draft.js"></script>
+  <script src="../authoring/workspace_layout_draft.js"></script>
+  <script src="../authoring/sidebar_status_draft.js"></script>
+  <script src="../authoring/project_metadata_draft.js"></script>
   <script src="../authoring/draft_extract.js"></script>
   <script src="../authoring/existing_scene_edit_model.js"></script>
   <script src="../authoring/variable_suggestions.js"></script>
@@ -1757,6 +2520,10 @@ media_reach += 1</textarea>
   <script src="card_ui.js"></script>
   <script src="surface_text_ui.js"></script>
   <script src="entry_sidebar_ui.js"></script>
+  <script src="play_surface_ui.js"></script>
+  <script src="workspace_layout_ui.js"></script>
+  <script src="sidebar_status_ui.js"></script>
+  <script src="project_metadata_ui.js"></script>
   <script src="install_assistant_ui.js"></script>
   <script src="draft_workspace_ui.js"></script>
   <script src="existing_scene_edit_ui.js"></script>
