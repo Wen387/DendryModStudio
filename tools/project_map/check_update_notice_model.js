@@ -56,7 +56,7 @@ async function main() {
   assert(validation.ok, 'bundled update manifest should validate: ' + validation.diagnostics.join('; '));
   assert(manifest.schemaVersion === 1, 'bundled update manifest should use schemaVersion 1');
   assert(manifest.latestVersion === packageJson.version, 'bundled update manifest should match desktop package version');
-  assert(manifest.announcementOnly === false, 'bundled update manifest should make announcement-only behavior explicit');
+  assert(typeof manifest.announcementOnly === 'boolean', 'bundled update manifest should make announcement-only behavior explicit');
   assert(manifest.titleLocalized && manifest.titleLocalized['zh-Hant'], 'bundled update manifest should include zh-Hant title');
   assert(manifest.bodyLocalized && manifest.bodyLocalized['zh-Hant'], 'bundled update manifest should include zh-Hant body');
   assert(updateNotice.compareVersions('0.9.2', '0.9.3') < 0, 'compareVersions should detect newer patch releases');
@@ -91,6 +91,13 @@ async function main() {
     body: 'A current-version announcement should still notify.'
   }, {currentVersion: '0.9.2'});
   assert(announcement.ok && announcement.shouldNotify && !announcement.updateAvailable, 'announcementOnly should notify without a newer version');
+
+  const bundledEvaluation = updateNotice.evaluateManifest(manifest, {currentVersion: packageJson.version});
+  assert(bundledEvaluation.ok, 'bundled update manifest should evaluate successfully');
+  assert(
+    !manifest.announcementOnly || (bundledEvaluation.shouldNotify && !bundledEvaluation.updateAvailable),
+    'bundled same-version announcement should notify without reporting an update'
+  );
 
   const invalid = updateNotice.validateManifest({
     schemaVersion: 1,

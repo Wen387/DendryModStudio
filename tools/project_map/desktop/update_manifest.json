@@ -4,19 +4,19 @@
   "latestVersion": "0.9.2",
   "minimumRecommendedVersion": "0.9.2",
   "severity": "info",
-  "noticeId": "v0.9.2-dev-preview",
-  "title": "Dendry Mod Studio v0.9.2 dev preview",
+  "noticeId": "v0.9.2-preview-announcement-2026-05-02",
+  "title": "Dendry Mod Studio preview channel notice",
   "titleLocalized": {
-    "en": "Dendry Mod Studio v0.9.2 dev preview",
-    "zh-Hant": "Dendry Mod Studio v0.9.2 開發預覽版"
+    "en": "Dendry Mod Studio preview channel notice",
+    "zh-Hant": "Dendry Mod Studio 預覽版公告"
   },
-  "body": "This preview includes Quick Start, the Starter Demo template, guided Review & Apply, and desktop runtime previews. Download the latest build from GitHub Releases.",
+  "body": "The preview announcement channel is active. This build includes Quick Start, the Starter Demo template, guided Review & Apply, and desktop runtime previews.",
   "bodyLocalized": {
-    "en": "This preview includes Quick Start, the Starter Demo template, guided Review & Apply, and desktop runtime previews. Download the latest build from GitHub Releases.",
-    "zh-Hant": "這個預覽版包含快速開始、內建 Demo 模板、引導式審查與套用，以及桌面版 runtime preview。請從 GitHub Releases 下載最新版本。"
+    "en": "The preview announcement channel is active. This build includes Quick Start, the Starter Demo template, guided Review & Apply, and desktop runtime previews.",
+    "zh-Hant": "預覽版公告通道已啟用。這個版本包含快速開始、內建 Demo 模板、引導式審查與套用，以及桌面版 runtime preview。"
   },
-  "announcementOnly": false,
+  "announcementOnly": true,
   "downloadUrl": "https://github.com/Wen387/DendryModStudio/releases",
   "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.9.2.md",
-  "publishedAt": "2026-05-01"
+  "publishedAt": "2026-05-02"
 }
