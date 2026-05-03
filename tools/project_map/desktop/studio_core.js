@@ -21,6 +21,8 @@ function requireInstallPlan() {
 const installPlan = requireInstallPlan();
 const runtimePreview = require('./runtime_preview');
 const STARTER_DEMO_ID = 'starter-demo';
+const PYTHON_CHECK_TIMEOUT_MS = 10 * 1000;
+const PROJECT_INDEX_TIMEOUT_MS = 10 * 60 * 1000;
 
 function resolveResourcePaths(options) {
   const desktopDir = path.resolve((options && options.desktopDir) || __dirname);
@@ -258,7 +260,7 @@ function checkPython(options) {
   const python = resolved.python;
   const result = spawnSync(python, ['--version'], {
     encoding: 'utf8',
-    timeout: 5000,
+    timeout: PYTHON_CHECK_TIMEOUT_MS,
     windowsHide: true
   });
   const versionText = String(result.stdout || result.stderr || '').trim();
@@ -679,7 +681,7 @@ async function buildProjectIndex(options) {
   const result = spawnSync(python, args, {
     cwd: root,
     encoding: 'utf8',
-    timeout: 180000,
+    timeout: PROJECT_INDEX_TIMEOUT_MS,
     maxBuffer: 1024 * 1024 * 8,
     windowsHide: true
   });

@@ -10,6 +10,9 @@ const installPlan = requireAuthoringModule('install_plan.js');
 const debugModel = requireAuthoringModule('runtime_preview_debug_model.js');
 const debugBridge = require('./runtime_preview_debug_bridge.js');
 
+const BUILD_TIMEOUT_MS = 5 * 60 * 1000;
+const COMMAND_CHECK_TIMEOUT_MS = 10 * 1000;
+
 let previewServer = null;
 let previewServerRoot = '';
 
@@ -231,7 +234,7 @@ function runBuild(root, meta) {
     cwd: root,
     env: Object.assign({}, process.env, command.env || {}),
     encoding: 'utf8',
-    timeout: 120000,
+    timeout: BUILD_TIMEOUT_MS,
     maxBuffer: 1024 * 1024 * 4,
     windowsHide: true
   });
@@ -299,7 +302,7 @@ function resolveBuildWrapperCommand(root, options) {
 function isCommandAvailable(command) {
   const result = spawnSync(command, ['--version'], {
     encoding: 'utf8',
-    timeout: 5000,
+    timeout: COMMAND_CHECK_TIMEOUT_MS,
     windowsHide: true
   });
   return !result.error && result.status === 0;
