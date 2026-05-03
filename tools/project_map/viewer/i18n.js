@@ -6,7 +6,7 @@
   const DICTIONARIES = {
     en: {
       'topbar.subtitle.default': 'Studio workspace for branching Dendry projects',
-      'topbar.version': 'Dendry Mod Studio v0.9.2 dev preview',
+      'topbar.version': 'Dendry Mod Studio v0.92.1 dev preview',
       'topbar.author': 'by Wenmo',
       'topbar.language': 'Language',
       'topbar.checkSetup': 'Check Setup',
@@ -1472,7 +1472,7 @@
     },
     'zh-Hant': {
       'topbar.subtitle.default': '分支型 Dendry 專案的 Mod 編輯工作區',
-      'topbar.version': 'Dendry Mod Studio v0.9.2 dev preview',
+      'topbar.version': 'Dendry Mod Studio v0.92.1 dev preview',
       'topbar.author': '作者 Wenmo',
       'topbar.language': '語言',
       'topbar.checkSetup': '檢查設定',

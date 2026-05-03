@@ -143,7 +143,7 @@ function sanitizeExport(destRoot, commit) {
   const updateManifest = readJson(manifestPath);
   updateManifest.downloadUrl = 'https://github.com/' + TARGET_REPO + '/releases';
   updateManifest.releaseNotesUrl =
-    'https://raw.githubusercontent.com/' + TARGET_REPO + '/main/tools/project_map/RELEASE_NOTES_v0.9.2.md';
+    'https://raw.githubusercontent.com/' + TARGET_REPO + '/main/tools/project_map/RELEASE_NOTES_v0.92.1.md';
   writeJson(manifestPath, updateManifest);
 
   const profilePath = path.join(destRoot, 'tools/project_map/profiles/islands-sunrise.json');
@@ -258,7 +258,7 @@ function publicReadme() {
     '',
     '## Status',
     '',
-    'The current version is `v0.9.2`. It is an unsigned preview build, so Windows may show SmartScreen warnings. Release artifacts include the Python runtime used by the desktop indexer.',
+    'The current version is `v0.92.1`. It is an unsigned preview build, so Windows may show SmartScreen warnings. Release artifacts include the Python runtime used by the desktop indexer.',
     '',
     'The code in this repository is released under the MIT license.',
     '',
@@ -313,7 +313,7 @@ function publicReadme() {
     '```',
     '',
     'The GitHub Actions workflow runs the same core checks on every push and pull request.',
-    'Release preparation notes live in `docs/releases/v0.9.2-dev-preview.md`.',
+    'Release preparation notes live in `docs/releases/v0.92.1-dev-preview.md`.',
     '',
     'Desktop release packaging is prepared through `.github/workflows/release.yml`.',
     'Tagged pre-releases can build Windows `.exe`, Linux AppImage, and Linux Deb artifacts.',
@@ -354,7 +354,7 @@ function publicReadmeZhHant() {
     '',
     '## 目前狀態',
     '',
-    '目前版本是 `v0.9.2`。這是未簽章的 preview build，所以 Windows 可能會出現 SmartScreen 提示。Release artifacts 會包含桌面版 indexer 使用的 Python runtime。',
+    '目前版本是 `v0.92.1`。這是未簽章的 preview build，所以 Windows 可能會出現 SmartScreen 提示。Release artifacts 會包含桌面版 indexer 使用的 Python runtime。',
     '',
     '程式碼以 MIT license 發佈。',
     '',
@@ -412,7 +412,7 @@ function publicReadmeZhHant() {
     'npm run check:ci',
     '```',
     '',
-    'GitHub Actions 會在每次 push / pull request 跑同一組核心檢查。發佈準備筆記在 `docs/releases/v0.9.2-dev-preview.md`。',
+    'GitHub Actions 會在每次 push / pull request 跑同一組核心檢查。發佈準備筆記在 `docs/releases/v0.92.1-dev-preview.md`。',
     '',
     '桌面版 `.exe` / AppImage / Deb 發佈流程由 `.github/workflows/release.yml` 準備。',
     '',
@@ -557,7 +557,7 @@ function publicLicense() {
 function publicPackageJson() {
   return {
     name: 'dendry-mod-studio',
-    version: '0.9.2',
+    version: '0.92.1',
     private: true,
     description: 'Desktop and browser tooling for Dendry Mod Studio.',
     scripts: {

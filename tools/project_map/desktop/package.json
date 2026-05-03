@@ -1,6 +1,6 @@
 {
   "name": "dendry-mod-studio-desktop",
-  "version": "0.9.2",
+  "version": "0.92.1",
   "private": true,
   "author": {
     "name": "Wen387",
@@ -114,7 +114,8 @@
     "nsis": {
       "oneClick": false,
       "perMachine": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "include": "build/installer.nsh"
     }
   },
   "devDependencies": {

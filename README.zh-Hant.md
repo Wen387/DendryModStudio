@@ -9,7 +9,7 @@
 
 Dendry Mod Studio 是給 Dendry / DendryNexus 專案使用的桌面工具。它幫助 Mod 作者檢查場景、事件、變數、素材、玩家可見文本與安裝計畫，先看清楚再修改專案檔案。
 
-目前版本是 `v0.9.2`。這是未簽章的 preview build，所以 Windows 可能會出現 SmartScreen 提示。Release artifacts 會包含桌面版 indexer 使用的 Python runtime。
+目前版本是 `v0.92.1`。這是未簽章的 preview build，所以 Windows 可能會出現 SmartScreen 提示。Release artifacts 會包含桌面版 indexer 使用的 Python runtime。
 
 ## 下載
 

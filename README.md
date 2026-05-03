@@ -9,7 +9,7 @@
 
 Dendry Mod Studio is a desktop tool for exploring and editing Dendry / DendryNexus projects. It helps mod authors inspect scenes, events, variables, assets, player-facing text, and install plans before changing project files.
 
-The current version is `v0.9.2`. It is an unsigned preview build, so Windows may show SmartScreen warnings. Release artifacts include the Python runtime used by the desktop indexer.
+The current version is `v0.92.1`. It is an unsigned preview build, so Windows may show SmartScreen warnings. Release artifacts include the Python runtime used by the desktop indexer.
 
 ## Download
 

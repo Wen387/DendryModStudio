@@ -31,11 +31,15 @@ function assertIncludes(text, needle, label) {
 
 function main() {
   const desktopPackage = readJson('tools/project_map/desktop/package.json');
+  const releaseVersion = desktopPackage.version;
+  const releaseTag = 'v' + releaseVersion + '-preview.1';
+  const releasePrepPath = 'docs/releases/v' + releaseVersion + '-dev-preview.md';
+  const releaseNotesPath = 'tools/project_map/RELEASE_NOTES_v' + releaseVersion + '.md';
   const readmeEn = read('README.md');
   const readmeZh = read('README.zh-Hant.md');
   const releaseWorkflow = read('.github/workflows/release.yml');
-  const releasePrep = read('docs/releases/v0.9.2-dev-preview.md');
-  const releaseNotes = read('tools/project_map/RELEASE_NOTES_v0.9.2.md');
+  const releasePrep = read(releasePrepPath);
+  const releaseNotes = read(releaseNotesPath);
   const updateManifest = readJson('tools/project_map/desktop/update_manifest.json');
 
   const winAsset = 'DendryModStudio-win-x64.exe';
@@ -76,14 +80,14 @@ function main() {
   assertIncludes(releaseWorkflow, 'softprops/action-gh-release@v2', 'release workflow');
   assertIncludes(releaseWorkflow, 'publish_release', 'release workflow');
   assertIncludes(releaseWorkflow, 'release_tag', 'release workflow');
-  assertIncludes(releaseWorkflow, 'v0.9.2-preview.1', 'release workflow');
+  assertIncludes(releaseWorkflow, releaseTag, 'release workflow');
 
   assert(updateManifest.downloadUrl === releaseUrl, 'update manifest downloadUrl should point to GitHub Releases');
   assert(
-    /^https:\/\/raw\.githubusercontent\.com\/Wen387\/DendryModStudio\/main\/tools\/project_map\/RELEASE_NOTES_v0\.9\.2\.md$/.test(updateManifest.releaseNotesUrl || ''),
+    updateManifest.releaseNotesUrl === 'https://raw.githubusercontent.com/Wen387/DendryModStudio/main/' + releaseNotesPath,
     'update manifest releaseNotesUrl should point to tracked release notes'
   );
-  assertIncludes(releasePrep, 'v0.9.2-preview.1', 'release prep');
+  assertIncludes(releasePrep, releaseTag, 'release prep');
   assertIncludes(releasePrep, 'publish_release', 'release prep');
   assertIncludes(releasePrep, 'Desktop Release', 'release prep');
   assertIncludes(releaseNotes, 'Desktop Release', 'release notes');

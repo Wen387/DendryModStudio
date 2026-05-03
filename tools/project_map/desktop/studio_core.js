@@ -265,7 +265,7 @@ function checkPython(options) {
       python,
       source: resolved.source,
       bundled: resolved.bundled,
-      message: 'Dendry Mod Studio could not find its bundled Python runtime. Install a release build with the runtime included, or set PYTHON to a Python 3 executable for development.'
+      message: 'Dendry Mod Studio could not find its bundled Python runtime. Install a release build with the runtime included, or set PYTHON to a Python 3 executable for development.' + bundledPythonHint(resolved)
     };
   }
   if (result.status !== 0) {
@@ -275,7 +275,7 @@ function checkPython(options) {
       python,
       source: resolved.source,
       bundled: resolved.bundled,
-      message: 'Dendry Mod Studio could not start its Python runtime.'
+      message: 'Dendry Mod Studio could not start its Python runtime at ' + python + '.'
     };
   }
   const match = versionText.match(/Python\s+(\d+)\.(\d+)(?:\.(\d+))?/);
@@ -449,6 +449,17 @@ function resolvePythonExecutable(options) {
     python: process.platform === 'win32' ? 'python' : 'python3',
     bundled
   };
+}
+
+function bundledPythonHint(resolved) {
+  const bundled = resolved && resolved.bundled;
+  const candidates = bundled && Array.isArray(bundled.candidates)
+    ? bundled.candidates.filter(Boolean)
+    : [];
+  if (!candidates.length) {
+    return '';
+  }
+  return ' Looked for bundled Python at: ' + candidates.join(', ');
 }
 
 function readJsonFile(filePath) {

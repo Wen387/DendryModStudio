@@ -49,14 +49,14 @@ function run(command, args, options) {
 
 function main() {
   const pkg = readJson(path.join(DESKTOP_DIR, 'package.json'));
-  assert(pkg.version === '0.9.2', 'desktop package version should be 0.9.2');
+  assert(/^\d+\.\d+\.\d+$/.test(pkg.version || ''), 'desktop package version should be semver-like');
   assert(pkg.scripts && pkg.scripts['package:deb'], 'desktop package should expose npm run package:deb');
   assert(pkg.scripts && pkg.scripts['fetch:python'], 'desktop package should expose bundled Python fetch script');
   assert(pkg.build && pkg.build.deb && !pkg.build.deb.depends.includes('python3'), 'release Deb config should not depend on system Python');
   assert(fs.existsSync(path.join(DESKTOP_DIR, 'scripts', 'package_deb.js')), 'package_deb.js should exist');
 
   const notes = fs.readFileSync(path.join(DESKTOP_DIR, 'PACKAGING_NOTES.md'), 'utf8');
-  assert(notes.includes('v0.9.2'), 'packaging notes should mention v0.9.2');
+  assert(notes.includes('v' + pkg.version), 'packaging notes should mention current package version');
   assert(notes.includes('bundled Python runtime'), 'packaging notes should document bundled Python');
   assert(notes.includes('`python3` used only by local fallback'), 'packaging notes should document local fallback Python dependency');
   assert(notes.includes('cleans temporary packaging work directories'), 'packaging notes should document package:deb cleanup');
@@ -69,7 +69,12 @@ function main() {
   assert(summary.debPath && summary.debPath.endsWith('.deb'), 'package:deb should produce a .deb');
   assert(fs.existsSync(summary.debPath), 'deb artifact should exist');
   assert(summary.packageName === 'dendry-mod-studio', 'deb package name should be stable');
-  assert(summary.depends && summary.depends.includes('python3'), 'local deb summary should include python3 dependency when no bundled runtime is staged');
+  const bundledRuntimePresent = fs.existsSync(path.join(DESKTOP_DIR, 'runtime', 'python'));
+  if (bundledRuntimePresent) {
+    assert(summary.depends && !summary.depends.includes('python3'), 'bundled local deb summary should omit python3 dependency');
+  } else {
+    assert(summary.depends && summary.depends.includes('python3'), 'local fallback deb summary should include python3 dependency when no bundled runtime is staged');
+  }
   assert(summary.depends.includes('libgtk-3-0'), 'deb summary should include GTK runtime dependency');
   assert(summary.depends.includes('libnss3'), 'deb summary should include NSS runtime dependency');
   assert(summary.depends.includes('libxss1'), 'deb summary should include XSS runtime dependency');
@@ -83,8 +88,13 @@ function main() {
 
   const info = run('dpkg-deb', ['--info', summary.debPath]).stdout;
   assert(/Package:\s*dendry-mod-studio/.test(info), 'deb control should include package name');
-  assert(/Version:\s*0\.9\.2/.test(info), 'deb control should include version');
-  assert(/Depends:\s*.*python3/.test(info), 'local fallback deb control should depend on python3 when no bundled runtime is staged');
+  const escapedVersion = pkg.version.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  assert(new RegExp('Version:\\s*' + escapedVersion).test(info), 'deb control should include version');
+  if (bundledRuntimePresent) {
+    assert(!/Depends:\s*.*python3/.test(info), 'bundled local deb control should not depend on python3');
+  } else {
+    assert(/Depends:\s*.*python3/.test(info), 'local fallback deb control should depend on python3 when no bundled runtime is staged');
+  }
   assert(/Depends:\s*.*libgtk-3-0/.test(info), 'deb control should include GTK dependency');
 
   const contents = run('dpkg-deb', ['--contents', summary.debPath]).stdout;

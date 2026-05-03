@@ -44,12 +44,14 @@ function main() {
   assert(pkg.build.linux && pkg.build.linux.maintainer, 'desktop Linux config should define Deb maintainer');
   assert(pkg.build.deb && Array.isArray(pkg.build.deb.depends), 'desktop Deb config should declare runtime dependencies');
   assert(!pkg.build.deb.depends.includes('python3'), 'desktop release Deb config should not require system Python');
+  assert(pkg.build.nsis && pkg.build.nsis.include === 'build/installer.nsh', 'desktop NSIS config should include the custom installer cleanup script');
   assert(
     pkg.build.extraResources && pkg.build.extraResources.some((item) => item.from === 'runtime' && item.to === 'app/runtime'),
     'desktop builder config should include bundled runtime resources'
   );
   assert(fs.existsSync(path.join(DESKTOP_DIR, 'scripts', 'package_portable.js')), 'package_portable.js should exist');
   assert(fs.existsSync(path.join(DESKTOP_DIR, 'scripts', 'fetch_bundled_python.js')), 'fetch_bundled_python.js should exist');
+  assert(fs.existsSync(path.join(DESKTOP_DIR, 'build', 'installer.nsh')), 'installer.nsh should exist');
   assert(fs.existsSync(path.join(DESKTOP_DIR, 'PACKAGING_NOTES.md')), 'PACKAGING_NOTES.md should exist');
 
   const notes = fs.readFileSync(path.join(DESKTOP_DIR, 'PACKAGING_NOTES.md'), 'utf8');

@@ -66,7 +66,7 @@ async function checkPreloadSandboxFileUrl(preloadPath) {
             ok: true,
             configured: true,
             shouldNotify: false,
-            currentVersion: '0.9.2'
+            currentVersion: '0.92.1'
           };
         }
         if (channel === 'dendry:open-external-url') {
