@@ -100,6 +100,7 @@ function writeTarGz(srcDir, archivePath) {
 }
 
 function portableManifest(packaged, doctor) {
+  const python = doctor && doctor.checks && doctor.checks.python || {};
   return {
     schemaVersion: '0.1',
     packageKind: 'portable-tar-gz',
@@ -110,8 +111,11 @@ function portableManifest(packaged, doctor) {
     executable: packaged.executable,
     appRoot: packaged.appRoot,
     systemDependencies: {
-      python3: 'required'
+      python3: python.source === 'bundled' ? 'bundled with app' : 'required for local packaging fallback'
     },
+    bundledPython: python.source === 'bundled'
+      ? {ok: true, executable: python.python, version: python.version}
+      : {ok: false, reason: 'No bundled runtime was present when this package was assembled.'},
     installerStatus: {
       deb: 'not-built',
       exe: 'not-built',
@@ -143,7 +147,9 @@ async function main() {
     executable: packaged.executable,
     appRoot: packaged.appRoot,
     checks: doctor.checks,
-    notes: 'Portable package still requires system Python 3. This is not a .deb or .exe installer.'
+    notes: doctor.checks.python && doctor.checks.python.source === 'bundled'
+      ? 'Portable package includes the bundled Python runtime. This is not a .deb or .exe installer.'
+      : 'Portable package did not include a bundled Python runtime; this local fallback still requires Python 3.'
   }, null, 2));
 }
 

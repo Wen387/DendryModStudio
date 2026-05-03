@@ -51,13 +51,15 @@ function main() {
   const pkg = readJson(path.join(DESKTOP_DIR, 'package.json'));
   assert(pkg.version === '0.9.2', 'desktop package version should be 0.9.2');
   assert(pkg.scripts && pkg.scripts['package:deb'], 'desktop package should expose npm run package:deb');
+  assert(pkg.scripts && pkg.scripts['fetch:python'], 'desktop package should expose bundled Python fetch script');
+  assert(pkg.build && pkg.build.deb && !pkg.build.deb.depends.includes('python3'), 'release Deb config should not depend on system Python');
   assert(fs.existsSync(path.join(DESKTOP_DIR, 'scripts', 'package_deb.js')), 'package_deb.js should exist');
 
   const notes = fs.readFileSync(path.join(DESKTOP_DIR, 'PACKAGING_NOTES.md'), 'utf8');
   assert(notes.includes('v0.9.2'), 'packaging notes should mention v0.9.2');
-  assert(notes.includes('Depends: python3'), 'packaging notes should document Python deb dependency');
+  assert(notes.includes('bundled Python runtime'), 'packaging notes should document bundled Python');
+  assert(notes.includes('`python3` used only by local fallback'), 'packaging notes should document local fallback Python dependency');
   assert(notes.includes('cleans temporary packaging work directories'), 'packaging notes should document package:deb cleanup');
-  assert(notes.includes('not bundle Python'), 'packaging notes should say the deb does not bundle Python');
 
   const packageRun = run('node', [path.join('scripts', 'package_deb.js')], {cwd: DESKTOP_DIR});
   const match = packageRun.stdout.match(/\{[\s\S]*\}\s*$/);
@@ -67,7 +69,7 @@ function main() {
   assert(summary.debPath && summary.debPath.endsWith('.deb'), 'package:deb should produce a .deb');
   assert(fs.existsSync(summary.debPath), 'deb artifact should exist');
   assert(summary.packageName === 'dendry-mod-studio', 'deb package name should be stable');
-  assert(summary.depends && summary.depends.includes('python3'), 'deb summary should include python3 dependency');
+  assert(summary.depends && summary.depends.includes('python3'), 'local deb summary should include python3 dependency when no bundled runtime is staged');
   assert(summary.depends.includes('libgtk-3-0'), 'deb summary should include GTK runtime dependency');
   assert(summary.depends.includes('libnss3'), 'deb summary should include NSS runtime dependency');
   assert(summary.depends.includes('libxss1'), 'deb summary should include XSS runtime dependency');
@@ -82,12 +84,13 @@ function main() {
   const info = run('dpkg-deb', ['--info', summary.debPath]).stdout;
   assert(/Package:\s*dendry-mod-studio/.test(info), 'deb control should include package name');
   assert(/Version:\s*0\.9\.2/.test(info), 'deb control should include version');
-  assert(/Depends:\s*.*python3/.test(info), 'deb control should depend on python3');
+  assert(/Depends:\s*.*python3/.test(info), 'local fallback deb control should depend on python3 when no bundled runtime is staged');
   assert(/Depends:\s*.*libgtk-3-0/.test(info), 'deb control should include GTK dependency');
 
   const contents = run('dpkg-deb', ['--contents', summary.debPath]).stdout;
   assert(contents.includes('./opt/dendry-mod-studio/electron'), 'deb should include Electron executable');
   assert(contents.includes('./opt/dendry-mod-studio/resources/app/project_map/viewer/index.html'), 'deb should include viewer');
+  assert(contents.includes('./opt/dendry-mod-studio/resources/app/runtime/README.md'), 'deb should include runtime staging notes');
   assert(
     contents.includes('./opt/dendry-mod-studio/resources/app/project_map/templates/starter-demo/source/info.dry'),
     'deb should include bundled starter demo template'
@@ -95,6 +98,14 @@ function main() {
   assert(
     contents.includes('./opt/dendry-mod-studio/resources/app/project_map/templates/starter-demo/package.json'),
     'deb should include bundled starter demo package.json for Runtime Preview builds'
+  );
+  assert(
+    contents.includes('./opt/dendry-mod-studio/resources/app/project_map/templates/starter-demo/project-index.json'),
+    'deb should include cached starter demo ProjectIndex'
+  );
+  assert(
+    contents.includes('./opt/dendry-mod-studio/resources/app/project_map/templates/starter-demo/project-index-excerpts.json'),
+    'deb should include cached starter demo excerpt ProjectIndex'
   );
   assert(contents.includes('./opt/dendry-mod-studio/resources/app/project_map/build_project_map.py'), 'deb should include Python indexer');
   assert(contents.includes('./opt/dendry-mod-studio/resources/app/scripts/doctor.js'), 'deb should include doctor script');

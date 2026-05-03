@@ -166,6 +166,8 @@ async function main() {
   assert(typeof packagedCore.createRuntimePreview === 'function', 'packaged studio_core should expose runtime preview');
   assert(typeof packagedCore.recordRuntimePreviewHistory === 'function', 'packaged studio_core should expose runtime preview history');
   assert(typeof packagedCore.prepareStarterDemo === 'function', 'packaged studio_core should expose starter demo preparation');
+  assert(typeof packagedCore.loadStarterDemoIndex === 'function', 'packaged studio_core should expose starter demo cached index loading');
+  assert(typeof packagedCore.resolveBundledPython === 'function', 'packaged studio_core should expose bundled Python resolution');
   fs.rmSync(packagedCoreDir, {recursive: true, force: true});
 
   const parser = require('./parse_dry_project.js');
@@ -180,6 +182,8 @@ async function main() {
     'resolveResourcePaths',
     'validateProjectRoot',
     'friendlyError',
+    'resolveBundledPython',
+    'resolvePythonExecutable',
     'checkPython',
     'checkResourcePaths',
     'checkScratchDir',
@@ -189,7 +193,8 @@ async function main() {
     'applyInstallPlan',
     'createRuntimePreview',
     'recordRuntimePreviewHistory',
-    'prepareStarterDemo'
+    'prepareStarterDemo',
+    'loadStarterDemoIndex'
   ].forEach((name) => {
     assert(typeof core[name] === 'function', 'studio_core should export ' + name);
   });
@@ -200,6 +205,8 @@ async function main() {
   assert(fs.existsSync(paths.indexer), 'Python indexer path should exist');
   assert(fs.existsSync(paths.parser), 'parser wrapper path should exist');
   assert(fs.existsSync(path.join(paths.starterDemoTemplate, 'source', 'info.dry')), 'starter demo template should exist');
+  assert(fs.existsSync(paths.starterDemoIndex), 'starter demo cached ProjectIndex should exist');
+  assert(fs.existsSync(paths.starterDemoIndexWithExcerpts), 'starter demo cached excerpt ProjectIndex should exist');
   assert(paths.projectMapDir === PROJECT_MAP_DIR, 'projectMapDir should resolve to tools/project_map');
 
   const invalidRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dendry_desktop_invalid_root_' + process.pid + '_'));
@@ -233,6 +240,22 @@ async function main() {
   assert(/Python 3/.test(pythonMissing.message), 'Python missing message should be human-readable');
   assert(!/ENOENT|Traceback|Error:/.test(pythonMissing.message), 'Python missing message should hide raw process noise');
 
+  const bundledPythonDesktop = fs.mkdtempSync(path.join(os.tmpdir(), 'dendry_bundled_python_desktop_' + process.pid + '_'));
+  const bundledPythonBin = path.join(bundledPythonDesktop, 'runtime', 'python', 'bin');
+  const bundledPythonExe = path.join(bundledPythonBin, 'python3');
+  fs.mkdirSync(bundledPythonBin, {recursive: true});
+  fs.writeFileSync(bundledPythonExe, '#!/bin/sh\necho "Python 3.13.12"\n', 'utf8');
+  fs.chmodSync(bundledPythonExe, 0o755);
+  const bundledResolved = core.resolveBundledPython({desktopDir: bundledPythonDesktop});
+  assert(bundledResolved.ok, 'bundled Python resolver should find runtime/python/bin/python3');
+  assert(bundledResolved.python === bundledPythonExe, 'bundled Python resolver should return the bundled executable');
+  const bundledPython = core.checkPython({desktopDir: bundledPythonDesktop});
+  assert(bundledPython.ok, 'Python preflight should prefer bundled runtime when present');
+  assert(bundledPython.source === 'bundled', 'Python preflight should report bundled source');
+  assert(bundledPython.python === bundledPythonExe, 'Python preflight should run bundled executable');
+  assert(/Bundled Python 3\.13\.12/.test(bundledPython.message), 'bundled Python message should identify bundled runtime');
+  fs.rmSync(bundledPythonDesktop, {recursive: true, force: true});
+
   const doctorInvalid = await core.runDesktopDoctor({
     root: invalidRoot,
     outDir: path.join(os.tmpdir(), 'dendry_desktop_doctor_invalid_' + process.pid),
@@ -264,6 +287,29 @@ async function main() {
   assert(starterPrepared.ok, 'starter demo should prepare a writable project copy');
   assert(starterPrepared.root.startsWith(starterWorkspace), 'starter demo should open from app-data-style workspace');
   assert(fs.existsSync(path.join(starterPrepared.root, 'source', 'info.dry')), 'starter demo workspace should contain source/info.dry');
+  const cachedStarter = core.loadStarterDemoIndex({
+    desktopDir: DESKTOP_DIR,
+    prepared: starterPrepared,
+    includeExcerpts: false
+  });
+  assert(cachedStarter.ok, 'starter demo should load from cached ProjectIndex without Python');
+  assert(cachedStarter.fromCache === true, 'starter demo cached ProjectIndex result should mark fromCache');
+  assert(cachedStarter.root === starterPrepared.root, 'cached starter demo should rewrite project root to writable workspace');
+  assert(cachedStarter.index.project.root === starterPrepared.root, 'cached starter demo ProjectIndex should expose writable root');
+  assert(cachedStarter.includeExcerpts === false, 'plain cached starter demo ProjectIndex should not claim excerpts');
+  assertSummaryAtLeast(cachedStarter.summary, {
+    sceneCount: 3,
+    edgeCount: 2,
+    variableCount: 3
+  }, 'cached starter demo summary');
+  const cachedStarterExcerpts = core.loadStarterDemoIndex({
+    desktopDir: DESKTOP_DIR,
+    prepared: starterPrepared,
+    includeExcerpts: true
+  });
+  assert(cachedStarterExcerpts.ok, 'starter demo should load cached excerpt ProjectIndex');
+  assert(cachedStarterExcerpts.includeExcerpts === true, 'excerpt cached starter demo ProjectIndex should claim excerpts');
+  assert(JSON.stringify(cachedStarterExcerpts.index).includes('"excerpt"'), 'excerpt cached starter demo ProjectIndex should contain source excerpts');
 
   const parserOut = path.join(os.tmpdir(), 'dendry_desktop_parser_' + process.pid + '.json');
   const parserIndex = await parser.parseProject(VALID_PROJECT_ROOT);

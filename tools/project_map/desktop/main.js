@@ -65,6 +65,19 @@ function sendScanProgress(target, update) {
   target.send('dendry:scan-progress', update);
 }
 
+function rememberProject(result) {
+  if (!result || !result.ok) {
+    return;
+  }
+  lastProject = {
+    root: result.root,
+    projectName: result.projectName,
+    indexPath: result.indexPath,
+    includeExcerpts: result.includeExcerpts,
+    summary: result.summary
+  };
+}
+
 async function scanProject(root, includeExcerpts, progressTarget) {
   const target = progressTarget || (mainWindow && mainWindow.webContents);
   try {
@@ -75,13 +88,7 @@ async function scanProject(root, includeExcerpts, progressTarget) {
       onProgress: (update) => sendScanProgress(target, update)
     });
     if (result.ok) {
-      lastProject = {
-        root: result.root,
-        projectName: result.projectName,
-        indexPath: result.indexPath,
-        includeExcerpts: result.includeExcerpts,
-        summary: result.summary
-      };
+      rememberProject(result);
     }
     return result;
   } catch (err) {
@@ -135,12 +142,40 @@ ipcMain.handle('dendry:scan-project', async (_event, options) => {
 });
 
 ipcMain.handle('dendry:open-starter-demo', async (_event, options) => {
+  const target = _event.sender;
   const prepared = core.prepareStarterDemo({
     desktopDir: __dirname,
     workspaceRoot: userDataTemplateDir()
   });
   if (!prepared.ok) {
     return prepared;
+  }
+  sendScanProgress(target, {
+    stage: 'starter-demo',
+    percent: 40,
+    label: 'Opening bundled demo template...'
+  });
+  const cached = core.loadStarterDemoIndex({
+    desktopDir: __dirname,
+    prepared,
+    includeExcerpts: options && options.includeExcerpts
+  });
+  if (cached.ok) {
+    rememberProject(cached);
+    sendScanProgress(target, {
+      stage: 'complete',
+      percent: 100,
+      label: 'Project loaded.'
+    });
+    return Object.assign({}, cached, {
+      template: {
+        id: prepared.id,
+        title: prepared.title,
+        sourceRoot: prepared.sourceRoot,
+        workspaceRoot: prepared.targetRoot,
+        reused: prepared.reused
+      }
+    });
   }
   const result = await scanProject(prepared.root, options && options.includeExcerpts, _event.sender);
   return Object.assign({}, result, {

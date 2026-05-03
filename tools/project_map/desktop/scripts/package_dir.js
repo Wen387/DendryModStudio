@@ -55,6 +55,9 @@ function packageDir(options) {
   ].forEach((name) => copyFile(path.join(desktopDir, name), path.join(appRoot, name)));
 
   copyPath(path.join(desktopDir, 'scripts'), path.join(appRoot, 'scripts'));
+  if (fs.existsSync(path.join(desktopDir, 'runtime'))) {
+    copyPath(path.join(desktopDir, 'runtime'), path.join(appRoot, 'runtime'));
+  }
 
   [
     'viewer',

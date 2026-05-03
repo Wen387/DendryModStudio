@@ -142,8 +142,8 @@ The desktop shell:
 - opens the existing Project Map viewer in a standalone Electron window;
 - uses a native `Open Project Folder` picker;
 - validates that the folder contains `source/info.dry`;
-- offers a `Check Setup` preflight for app files, Python 3, scratch storage, and
-  project-folder readiness;
+- offers a `Check Setup` preflight for app files, the bundled Python runtime,
+  scratch storage, and project-folder readiness;
 - runs the indexer into Electron's userData scratch directory;
 - sends the generated `ProjectIndex` to the viewer through a preload IPC bridge;
 - checks the configured announcement manifest and shows an announcement preview
@@ -158,7 +158,7 @@ The desktop shell:
 
 Current v0.9.2 limits:
 
-- system Python 3 is still required;
+- release builds include the Python runtime used by the desktop indexer;
 - public release installers are unsigned and still need clean-machine QA,
   backup guidance, signing, and full release-channel hardening;
 - announcements and update notices are static manifest polling only. The

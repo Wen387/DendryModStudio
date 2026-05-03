@@ -36,7 +36,9 @@ function resolveResourcePaths(options) {
     parser: path.join(projectMapDir, 'parse_dry_project.js'),
     indexer: path.join(projectMapDir, 'build_project_map.py'),
     templatesDir: path.join(projectMapDir, 'templates'),
-    starterDemoTemplate: path.join(projectMapDir, 'templates', STARTER_DEMO_ID)
+    starterDemoTemplate: path.join(projectMapDir, 'templates', STARTER_DEMO_ID),
+    starterDemoIndex: path.join(projectMapDir, 'templates', STARTER_DEMO_ID, 'project-index.json'),
+    starterDemoIndexWithExcerpts: path.join(projectMapDir, 'templates', STARTER_DEMO_ID, 'project-index-excerpts.json')
   };
 }
 
@@ -252,7 +254,8 @@ function findNestedProjectCandidates(rootPath) {
 }
 
 function checkPython(options) {
-  const python = (options && options.python) || process.env.PYTHON || 'python3';
+  const resolved = resolvePythonExecutable(options);
+  const python = resolved.python;
   const result = spawnSync(python, ['--version'], {encoding: 'utf8'});
   const versionText = String(result.stdout || result.stderr || '').trim();
   if (result.error && result.status !== 0 && !versionText) {
@@ -260,7 +263,9 @@ function checkPython(options) {
       ok: false,
       code: 'python_missing',
       python,
-      message: 'Python 3 was not found. Install Python 3, then reopen Dendry Mod Studio.'
+      source: resolved.source,
+      bundled: resolved.bundled,
+      message: 'Dendry Mod Studio could not find its bundled Python runtime. Install a release build with the runtime included, or set PYTHON to a Python 3 executable for development.'
     };
   }
   if (result.status !== 0) {
@@ -268,7 +273,9 @@ function checkPython(options) {
       ok: false,
       code: 'python_failed',
       python,
-      message: 'Python 3 could not be checked. Make sure Python 3 is installed and available on PATH.'
+      source: resolved.source,
+      bundled: resolved.bundled,
+      message: 'Dendry Mod Studio could not start its Python runtime.'
     };
   }
   const match = versionText.match(/Python\s+(\d+)\.(\d+)(?:\.(\d+))?/);
@@ -277,16 +284,20 @@ function checkPython(options) {
       ok: false,
       code: 'python_version',
       python,
+      source: resolved.source,
+      bundled: resolved.bundled,
       version: versionText,
-      message: 'Dendry Mod Studio needs Python 3. Install Python 3, then reopen the app.'
+      message: 'Dendry Mod Studio needs a Python 3 runtime.'
     };
   }
   return {
     ok: true,
     code: 'python_ok',
     python,
+    source: resolved.source,
+    bundled: resolved.bundled,
     version: versionText,
-    message: versionText + ' is available.'
+    message: (resolved.source === 'bundled' ? 'Bundled ' : '') + versionText + ' is available.'
   };
 }
 
@@ -369,6 +380,125 @@ function projectName(index, root) {
   return (index && index.project && index.project.name) || path.basename(root);
 }
 
+function bundledPythonRoots(options) {
+  const paths = resolveResourcePaths(options);
+  const roots = [
+    path.join(paths.desktopDir, 'runtime', 'python')
+  ];
+  if (process.resourcesPath) {
+    roots.push(path.join(process.resourcesPath, 'app', 'runtime', 'python'));
+    roots.push(path.join(process.resourcesPath, 'runtime', 'python'));
+  }
+  return Array.from(new Set(roots.map((root) => path.resolve(root))));
+}
+
+function bundledPythonCandidates(options) {
+  const candidates = [];
+  bundledPythonRoots(options).forEach((root) => {
+    if (process.platform === 'win32') {
+      candidates.push(
+        path.join(root, 'python.exe'),
+        path.join(root, 'python', 'python.exe')
+      );
+      return;
+    }
+    candidates.push(
+      path.join(root, 'bin', 'python3'),
+      path.join(root, 'bin', 'python'),
+      path.join(root, 'python', 'bin', 'python3'),
+      path.join(root, 'python', 'bin', 'python')
+    );
+  });
+  return Array.from(new Set(candidates));
+}
+
+function resolveBundledPython(options) {
+  const candidates = bundledPythonCandidates(options);
+  const executable = candidates.find((candidate) => fs.existsSync(candidate));
+  return executable
+    ? {ok: true, source: 'bundled', python: executable, candidates}
+    : {ok: false, source: 'bundled', candidates};
+}
+
+function resolvePythonExecutable(options) {
+  const opts = options || {};
+  const bundled = resolveBundledPython(opts);
+  if (opts.python) {
+    return {
+      source: 'explicit',
+      python: opts.python,
+      bundled
+    };
+  }
+  if (bundled.ok) {
+    return {
+      source: 'bundled',
+      python: bundled.python,
+      bundled
+    };
+  }
+  if (process.env.PYTHON) {
+    return {
+      source: 'environment',
+      python: process.env.PYTHON,
+      bundled
+    };
+  }
+  return {
+    source: 'system',
+    python: process.platform === 'win32' ? 'python' : 'python3',
+    bundled
+  };
+}
+
+function readJsonFile(filePath) {
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+function loadStarterDemoIndex(options) {
+  const opts = options || {};
+  const prepared = opts.prepared || null;
+  const paths = resolveResourcePaths(opts);
+  const preferredIndexPath = opts.includeExcerpts && fs.existsSync(paths.starterDemoIndexWithExcerpts)
+    ? paths.starterDemoIndexWithExcerpts
+    : paths.starterDemoIndex;
+  if (!fs.existsSync(preferredIndexPath)) {
+    return {
+      ok: false,
+      code: 'starter_demo_index_missing',
+      indexPath: preferredIndexPath,
+      message: 'The bundled starter demo ProjectIndex cache is missing.'
+    };
+  }
+  try {
+    const index = readJsonFile(preferredIndexPath);
+    const root = prepared && prepared.root
+      ? prepared.root
+      : paths.starterDemoTemplate;
+    index.project = Object.assign({}, index.project || {}, {
+      root
+    });
+    return {
+      ok: true,
+      root,
+      projectName: projectName(index, root),
+      includeExcerpts: preferredIndexPath === paths.starterDemoIndexWithExcerpts,
+      indexPath: preferredIndexPath,
+      index,
+      summary: summarizeIndex(index),
+      fromCache: true
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      code: 'starter_demo_index_invalid',
+      indexPath: preferredIndexPath,
+      error: friendlyError(err),
+      message: 'The bundled starter demo ProjectIndex cache could not be read.'
+    };
+  }
+}
+
 function ensureScratchDir(outDir) {
   const check = checkScratchDir(outDir);
   if (!check.ok) {
@@ -441,8 +571,8 @@ async function buildProjectIndex(options) {
   const indexName = includeExcerpts ? 'project-index-excerpts.json' : 'project-index.json';
   const parserOut = path.join(scratch, 'parser-index.json');
   const indexPath = path.join(scratch, indexName);
-  const python = (options && options.python) || process.env.PYTHON || 'python3';
-  const pythonCheck = checkPython({python});
+  const pythonCheck = checkPython(options);
+  const python = pythonCheck.python;
   if (!pythonCheck.ok) {
     emitProgress(options, {
       stage: 'preflight',
@@ -508,7 +638,7 @@ async function buildProjectIndex(options) {
       stage: 'indexer',
       error: friendlyError(result.error || result.stderr || ('exit ' + result.status)),
       message: result.error && result.error.code === 'ENOENT'
-        ? 'Python 3 was not found. Install Python 3 to use this desktop spike.'
+        ? pythonCheck.message
         : 'Could not build the Project Map index.'
     };
   }
@@ -557,7 +687,7 @@ async function runDesktopDoctor(options) {
   const root = options && options.root;
   const resources = checkResourcePaths(options);
   const scratch = checkScratchDir(options && options.outDir);
-  const python = checkPython({python: options && options.python});
+  const python = checkPython(options);
   const projectRoot = validateProjectRoot(root);
   const checks = {
     resources,
@@ -624,11 +754,14 @@ module.exports = {
   resolveResourcePaths,
   validateProjectRoot,
   friendlyError,
+  resolveBundledPython,
+  resolvePythonExecutable,
   checkPython,
   checkResourcePaths,
   checkScratchDir,
   runDesktopDoctor,
   buildProjectIndex,
+  loadStarterDemoIndex,
   applyInstallPlan,
   createRuntimePreview,
   recordRuntimePreviewHistory,

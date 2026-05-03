@@ -14,8 +14,7 @@ const wrapperPath = '/usr/bin/dendry-mod-studio';
 const desktopFilePath = '/usr/share/applications/dendry-mod-studio.desktop';
 const iconSourcePath = path.join(desktopDir, 'assets', 'dendry-mod-studio.svg');
 const iconInstallPath = '/usr/share/icons/hicolor/scalable/apps/dendry-mod-studio.svg';
-const depends = [
-  'python3',
+const baseDepends = [
   'libc6',
   'libgtk-3-0',
   'libnss3',
@@ -36,7 +35,23 @@ const depends = [
   'libcairo2',
   'libxkbcommon0',
   'libatspi2.0-0'
-].join(', ');
+];
+
+function hasBundledPython(appRoot) {
+  return [
+    path.join(appRoot, 'runtime', 'python', 'bin', 'python3'),
+    path.join(appRoot, 'runtime', 'python', 'bin', 'python'),
+    path.join(appRoot, 'runtime', 'python', 'python', 'bin', 'python3'),
+    path.join(appRoot, 'runtime', 'python', 'python', 'bin', 'python'),
+    path.join(appRoot, 'runtime', 'python', 'python.exe'),
+    path.join(appRoot, 'runtime', 'python', 'python', 'python.exe')
+  ].some((candidate) => fs.existsSync(candidate));
+}
+
+function packageDepends(appRoot) {
+  const runtimeDepends = hasBundledPython(appRoot) ? baseDepends : ['python3'].concat(baseDepends);
+  return runtimeDepends.join(', ');
+}
 
 function run(command, args, options) {
   const result = spawnSync(command, args, Object.assign({encoding: 'utf8'}, options || {}));
@@ -81,7 +96,7 @@ function writeFile(filePath, contents, mode) {
   }
 }
 
-function controlFile(arch) {
+function controlFile(arch, depends) {
   return [
     'Package: ' + packageName,
     'Version: ' + packageJson.version,
@@ -120,7 +135,8 @@ function wrapperScript() {
   ].join('\n');
 }
 
-function debManifest(packaged, arch, options) {
+function debManifest(packaged, arch, options, depends) {
+  const pythonBundled = hasBundledPython(packaged.appRoot);
   return {
     schemaVersion: '0.1',
     packageKind: 'deb',
@@ -132,14 +148,15 @@ function debManifest(packaged, arch, options) {
     desktopFilePath,
     iconInstallPath,
     systemDependencies: {
-      python3: 'deb Depends: python3',
+      python3: pythonBundled ? 'bundled with app' : 'deb Depends: python3',
       electronRuntime: 'deb Depends include GTK/NSS/X11/GBM/ALSA runtime libraries'
     },
     installerStatus: {
       deb: 'built',
       exe: 'not-built',
-      pythonBundled: false
+      pythonBundled
     },
+    depends,
     sourceBuildAppRoot: options.keepWorkDirs ? packaged.appRoot : null,
     workDirsCleaned: !options.keepWorkDirs
   };
@@ -182,19 +199,21 @@ function packageDeb(options) {
   const packageRoot = path.join(stagingDir, packageName + '_' + packageJson.version + '_' + arch);
   const debPath = path.join(distDir, packageName + '_' + packageJson.version + '_' + arch + '.deb');
   let staleDebsRemoved = [];
+  let depends = '';
 
   try {
     fs.rmSync(packageRoot, {recursive: true, force: true});
     fs.mkdirSync(packageRoot, {recursive: true});
 
     copyPath(packaged.outDir, path.join(packageRoot, installDir.slice(1)));
-    writeFile(path.join(packageRoot, 'DEBIAN', 'control'), controlFile(arch), 0o644);
+    depends = packageDepends(packaged.appRoot);
+    writeFile(path.join(packageRoot, 'DEBIAN', 'control'), controlFile(arch, depends), 0o644);
     writeFile(path.join(packageRoot, wrapperPath.slice(1)), wrapperScript(), 0o755);
     writeFile(path.join(packageRoot, desktopFilePath.slice(1)), desktopEntry(), 0o644);
     copyFile(iconSourcePath, path.join(packageRoot, iconInstallPath.slice(1)), 0o644);
     writeFile(
       path.join(packageRoot, installDir.slice(1), 'deb-manifest.json'),
-      JSON.stringify(debManifest(packaged, arch, opts), null, 2) + '\n',
+      JSON.stringify(debManifest(packaged, arch, opts, depends), null, 2) + '\n',
       0o644
     );
 
@@ -237,5 +256,7 @@ if (require.main === module) {
 
 module.exports = {
   packageDeb,
-  removeStaleDebs
+  removeStaleDebs,
+  hasBundledPython,
+  packageDepends
 };

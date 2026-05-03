@@ -16,8 +16,9 @@ The release workflow uses `electron-builder` for Linux AppImage, Linux Deb, and
 Windows NSIS packages. The local `package:deb` script remains available for
 diagnosing Debian package layout and keeps these release-hygiene behaviors:
 
-- expands the Debian `Depends:` line beyond `python3` to include the common
-  Electron runtime libraries used by GTK/NSS/X11/GBM/ALSA desktop sessions;
+- keeps the Debian `Depends:` line focused on Electron runtime libraries when a
+  bundled Python runtime is present, with `python3` used only by local fallback
+  packages that were assembled without the runtime;
 - installs a simple app icon into the hicolor theme and references it from the
   desktop entry;
 - cleans temporary packaging work directories and stale same-architecture
@@ -31,10 +32,17 @@ package layout.
 tag/manual release workflow for Linux AppImage, Linux Deb, and Windows NSIS
 `.exe` builds through `electron-builder`. The builder config keeps `asar`
 disabled so the
-Python indexer, bundled Starter Demo, Project Map resources, and DendryNexus
-runtime files remain available through normal filesystem paths. These artifacts
-are still unsigned dev-preview packages; Windows may show SmartScreen warnings,
-and both Windows and Linux builds still require system Python 3.
+Python runtime, Python indexer, bundled Starter Demo, Project Map resources,
+and DendryNexus runtime files remain available through normal filesystem paths.
+These artifacts are still unsigned dev-preview packages; Windows may show
+SmartScreen warnings, but users should not need to install Python separately.
+
+2026-05-03 bundled Python note: `npm run dist:linux`, `npm run dist:win`, and
+the release workflow fetch a redistributable python-build-standalone runtime
+into `tools/project_map/desktop/runtime/python/` before packaging. The desktop
+doctor and scanner prefer that bundled runtime and fall back to `PYTHON`/system
+Python only for development or local fallback packages assembled without the
+runtime.
 
 2026-04-30 packaging note: local portable and Deb packaging checks cover the
 resource layout used by the desktop app. Run `npm run smoke` and
@@ -103,7 +111,8 @@ v0.5.3 adds a Linux `.deb` feasibility package around the existing Electron
 desktop shell. It uses local `dpkg-deb` and the already-built unpacked app
 layout; it does not add Electron Forge as a project dependency.
 
-The `.deb` declares `Depends: python3`. It does not bundle Python.
+At the time, the `.deb` declared `Depends: python3`; current release builds now
+bundle the Python runtime.
 
 This remains a feasibility package, not a public release candidate. Code
 signing, icons, update channels, production maintainer metadata, and full
@@ -140,14 +149,12 @@ It is not a public `.deb` or `.exe` installer.
 - The `.deb` installs an icon at
   `/usr/share/icons/hicolor/scalable/apps/dendry-mod-studio.svg`.
 
-## Current System Dependency
+## Current Runtime Dependency
 
-The portable and `.deb` packages still require system Python 3. The app checks
-for Python and reports a friendly error when it is missing, but it does not
-bundle Python.
-
-Python bundling is a later installer slice because it needs platform-specific
-size, licensing, path, and update decisions.
+Release AppImage, Deb, and Windows NSIS artifacts include the Python runtime
+used by the desktop indexer. Local packaging helpers still support a fallback
+mode without `runtime/python/`; those local fallback packages report the missing
+bundled runtime in doctor output and may depend on system Python 3.
 
 ## Installer Boundary
 
@@ -169,11 +176,10 @@ creation:
 
 - Linux `.deb`: test installation on clean Debian/Ubuntu systems and confirm
   desktop-menu integration.
-- Windows installer: test Python discovery, unsigned SmartScreen behavior, and
-  future code signing expectations.
-- Bundled Python: decide whether to ship a minimal embedded runtime, where it
-  lives inside app resources, and how doctor chooses bundled versus system
-  Python.
+- Windows installer: test bundled Python discovery, unsigned SmartScreen
+  behavior, and future code signing expectations.
+- Bundled Python: add checksum verification and clean-VM install checks for each
+  release artifact.
 
 Until then, the recommended test path is:
 

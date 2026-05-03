@@ -66,7 +66,8 @@ does not match the currently opened project root.
   create a proposal, save to My Changes, review, dry-run, apply, and inspect the
   result.
 - The Linux `.deb`, Linux AppImage, and Windows installer are unsigned preview
-  artifacts. Python 3 is still a system requirement.
+  artifacts. Release builds include the Python runtime used by the desktop
+  indexer.
 - Announcement Preview / Update Notice MVP is not an auto-updater. It does not
   silently download, install, or identify a device; it only fetches a static
   HTTP(S) manifest and opens links after the user clicks them. Hosted manifest

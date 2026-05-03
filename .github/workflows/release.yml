@@ -95,6 +95,10 @@ jobs:
         run: npm ci
         working-directory: tools/project_map/desktop
 
+      - name: Fetch bundled Python runtime
+        run: npm run fetch:python
+        working-directory: tools/project_map/desktop
+
       - name: Run desktop smoke
         run: npm run smoke
         working-directory: tools/project_map/desktop
@@ -153,7 +157,7 @@ jobs:
             - Linux AppImage
             - Linux Deb
 
-            These builds are unsigned and still require system Python 3.
+            These builds are unsigned and include the Python runtime used by the desktop indexer.
           prerelease: ${{ github.event_name != 'workflow_dispatch' || inputs.prerelease }}
           draft: ${{ github.event_name == 'workflow_dispatch' && inputs.draft }}
           files: release-artifacts/*

@@ -8,6 +8,8 @@ tools/project_map/desktop/node_modules/
 dist/
 tools/project_map/desktop/dist/
 tools/project_map/desktop/dist-builder/
+tools/project_map/desktop/runtime/python/
+tools/project_map/desktop/runtime/python-manifest.json
 
 # Python / local caches
 __pycache__/

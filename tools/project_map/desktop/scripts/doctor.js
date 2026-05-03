@@ -35,7 +35,7 @@ function printText(result) {
   const rows = [
     ['App files', result.checks.resources],
     ['Scratch folder', result.checks.scratch],
-    ['Python 3', result.checks.python],
+    ['Python runtime', result.checks.python],
     ['Project folder', result.checks.projectRoot]
   ];
   console.log(result.message);

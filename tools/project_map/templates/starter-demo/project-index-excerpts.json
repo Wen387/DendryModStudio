@@ -1,0 +1,4532 @@
+{
+  "schemaVersion": "0.1",
+  "generatedAt": "2026-05-03T14:27:55.781928Z",
+  "project": {
+    "name": "Dendry Mod Studio Starter Demo",
+    "root": "__STARTER_DEMO_TEMPLATE_ROOT__",
+    "engine": "dendrynexus",
+    "profileIds": [
+      "generic-dendry"
+    ],
+    "sourceRoots": [
+      "source"
+    ],
+    "info": {
+      "title": "Dendry Mod Studio Starter Demo",
+      "author": "Dendry Mod Studio",
+      "ifid": "00000000-0000-4000-8000-000000000004"
+    },
+    "infoSource": {
+      "title": {
+        "path": "source/info.dry",
+        "line": 1,
+        "anchorText": "title: Dendry Mod Studio Starter Demo",
+        "excerpt": "1: title: Dendry Mod Studio Starter Demo\n2: author: Dendry Mod Studio"
+      },
+      "author": {
+        "path": "source/info.dry",
+        "line": 2,
+        "anchorText": "author: Dendry Mod Studio",
+        "excerpt": "1: title: Dendry Mod Studio Starter Demo\n2: author: Dendry Mod Studio\n3: ifid: 00000000-0000-4000-8000-000000000004"
+      },
+      "ifid": {
+        "path": "source/info.dry",
+        "line": 3,
+        "anchorText": "ifid: 00000000-0000-4000-8000-000000000004",
+        "excerpt": "2: author: Dendry Mod Studio\n3: ifid: 00000000-0000-4000-8000-000000000004"
+      }
+    },
+    "detection": {
+      "confidence": "profile_heuristic",
+      "profiles": [
+        {
+          "id": "generic-dendry",
+          "confidence": 1.0,
+          "evidence": [
+            "path:source/scenes/**/*.scene.dry",
+            "path:source/qdisplays/**/*.qdisplay.dry",
+            "file:root.scene.dry",
+            "file:post_event.scene.dry",
+            "content:^@[A-Za-z0-9_:-]+",
+            "content:^\\s*(title|subtitle|view-if|choose-if|go-to|on-arrival):",
+            "content:Q\\.[A-Za-z_][A-Za-z0-9_]*",
+            "parser:sceneCount>0"
+          ]
+        }
+      ]
+    }
+  },
+  "profiles": [
+    {
+      "id": "generic-dendry",
+      "name": "Generic Dendry",
+      "version": "0.1",
+      "priority": 10,
+      "confidence": 1.0,
+      "confidenceLabel": "profile_heuristic",
+      "evidence": [
+        "path:source/scenes/**/*.scene.dry",
+        "path:source/qdisplays/**/*.qdisplay.dry",
+        "file:root.scene.dry",
+        "file:post_event.scene.dry",
+        "content:^@[A-Za-z0-9_:-]+",
+        "content:^\\s*(title|subtitle|view-if|choose-if|go-to|on-arrival):",
+        "content:Q\\.[A-Za-z_][A-Za-z0-9_]*",
+        "parser:sceneCount>0"
+      ]
+    }
+  ],
+  "scenes": [
+    {
+      "id": "demo_advisor",
+      "name": "demo_advisor",
+      "title": "Starter Advisor",
+      "path": "source/scenes/advisors/demo_advisor.scene.dry",
+      "type": "pinned_card",
+      "profileId": null,
+      "confidence": "exact",
+      "classificationConfidence": "exact",
+      "sourceSpan": {
+        "path": "source/scenes/advisors/demo_advisor.scene.dry",
+        "startLine": 1,
+        "endLine": 32,
+        "excerpt": "1: title: Starter Advisor\n2: new-page: true"
+      },
+      "topLevelSpan": {
+        "path": "source/scenes/advisors/demo_advisor.scene.dry",
+        "startLine": 1,
+        "endLine": 15,
+        "excerpt": "1: title: Starter Advisor\n2: new-page: true"
+      },
+      "metadata": {
+        "$file": "source/scenes/advisors/demo_advisor.scene.dry",
+        "id": {
+          "line": -1
+        },
+        "isPinnedCard": {
+          "path": "source/scenes/advisors/demo_advisor.scene.dry",
+          "line": 3,
+          "excerpt": "2: new-page: true\n3: is-pinned-card: true\n4: tags: demo_advisor"
+        },
+        "newPage": {
+          "path": "source/scenes/advisors/demo_advisor.scene.dry",
+          "line": 2,
+          "excerpt": "1: title: Starter Advisor\n2: new-page: true\n3: is-pinned-card: true"
+        },
+        "subtitle": {
+          "path": "source/scenes/advisors/demo_advisor.scene.dry",
+          "line": 5,
+          "excerpt": "4: tags: demo_advisor\n5: subtitle: A minimal persistent advisor lane\n6: "
+        },
+        "tags": {
+          "path": "source/scenes/advisors/demo_advisor.scene.dry",
+          "line": 4,
+          "excerpt": "3: is-pinned-card: true\n4: tags: demo_advisor\n5: subtitle: A minimal persistent advisor lane"
+        },
+        "title": {
+          "path": "source/scenes/advisors/demo_advisor.scene.dry",
+          "line": 1,
+          "excerpt": "1: title: Starter Advisor\n2: new-page: true"
+        },
+        "type": {
+          "line": -1
+        }
+      },
+      "tags": [
+        "demo_advisor"
+      ],
+      "flags": {
+        "isCard": false,
+        "isPinnedCard": true,
+        "isHand": false,
+        "isDeck": false,
+        "isSpecial": false
+      },
+      "routes": {},
+      "options": [
+        {
+          "id": "@ask_for_help",
+          "target": {
+            "kind": "scene",
+            "id": "ask_for_help"
+          },
+          "sourceSpan": {
+            "path": "source/scenes/advisors/demo_advisor.scene.dry",
+            "startLine": 13,
+            "endLine": 13,
+            "excerpt": "12: \n13: - @ask_for_help: Ask for organizing help\n14: - @wait_for_now: Wait for now"
+          },
+          "metadata": {
+            "$file": "source/scenes/advisors/demo_advisor.scene.dry",
+            "$line": 13
+          },
+          "title": "Ask for organizing help"
+        },
+        {
+          "id": "@wait_for_now",
+          "target": {
+            "kind": "scene",
+            "id": "wait_for_now"
+          },
+          "sourceSpan": {
+            "path": "source/scenes/advisors/demo_advisor.scene.dry",
+            "startLine": 14,
+            "endLine": 14,
+            "excerpt": "13: - @ask_for_help: Ask for organizing help\n14: - @wait_for_now: Wait for now\n15: "
+          },
+          "metadata": {
+            "$file": "source/scenes/advisors/demo_advisor.scene.dry",
+            "$line": 14
+          },
+          "title": "Wait for now"
+        }
+      ],
+      "sections": [
+        {
+          "id": "demo_advisor.ask_for_help",
+          "sourceSpan": {
+            "path": "source/scenes/advisors/demo_advisor.scene.dry",
+            "startLine": 16,
+            "endLine": 26,
+            "excerpt": "15: \n16: @ask_for_help\n17: title: Ask for organizing help"
+          },
+          "metadata": {
+            "$file": "source/scenes/advisors/demo_advisor.scene.dry",
+            "$line": 16,
+            "goTo": {
+              "path": "source/scenes/advisors/demo_advisor.scene.dry",
+              "line": 23,
+              "excerpt": "22: !}\n23: go-to: main\n24: "
+            },
+            "onArrival": {
+              "path": "source/scenes/advisors/demo_advisor.scene.dry",
+              "line": 22,
+              "excerpt": "21: Q.demo_support = (Q.demo_support || 0) + 1;\n22: !}\n23: go-to: main"
+            },
+            "subtitle": {
+              "path": "source/scenes/advisors/demo_advisor.scene.dry",
+              "line": 18,
+              "excerpt": "17: title: Ask for organizing help\n18: subtitle: Gain a little trust.\n19: on-arrival: {!"
+            },
+            "title": {
+              "path": "source/scenes/advisors/demo_advisor.scene.dry",
+              "line": 17,
+              "excerpt": "16: @ask_for_help\n17: title: Ask for organizing help\n18: subtitle: Gain a little trust."
+            }
+          },
+          "routes": {
+            "goTo": [
+              {
+                "id": "main",
+                "raw": "main"
+              }
+            ]
+          },
+          "options": [],
+          "title": "Ask for organizing help",
+          "subtitle": "Gain a little trust.",
+          "tags": []
+        },
+        {
+          "id": "demo_advisor.wait_for_now",
+          "sourceSpan": {
+            "path": "source/scenes/advisors/demo_advisor.scene.dry",
+            "startLine": 27,
+            "endLine": 32,
+            "excerpt": "26: \n27: @wait_for_now\n28: title: Wait for now"
+          },
+          "metadata": {
+            "$file": "source/scenes/advisors/demo_advisor.scene.dry",
+            "$line": 27,
+            "goTo": {
+              "path": "source/scenes/advisors/demo_advisor.scene.dry",
+              "line": 29,
+              "excerpt": "28: title: Wait for now\n29: go-to: main\n30: "
+            },
+            "title": {
+              "path": "source/scenes/advisors/demo_advisor.scene.dry",
+              "line": 28,
+              "excerpt": "27: @wait_for_now\n28: title: Wait for now\n29: go-to: main"
+            }
+          },
+          "routes": {
+            "goTo": [
+              {
+                "id": "main",
+                "raw": "main"
+              }
+            ]
+          },
+          "options": [],
+          "title": "Wait for now",
+          "tags": []
+        }
+      ],
+      "sourceFingerprint": {
+        "algorithm": "sha256",
+        "scope": "topLevelSpan",
+        "value": "a5f225964e8204f9155b7a4cc4bde66dd78ae45b71c4a42f50ec712849b02990"
+      },
+      "newPage": "true"
+    },
+    {
+      "id": "demo_action_card",
+      "name": "demo_action_card",
+      "title": "Starter Action Card",
+      "path": "source/scenes/cards/demo_action_card.scene.dry",
+      "type": "card",
+      "profileId": null,
+      "confidence": "exact",
+      "classificationConfidence": "exact",
+      "sourceSpan": {
+        "path": "source/scenes/cards/demo_action_card.scene.dry",
+        "startLine": 1,
+        "endLine": 38,
+        "excerpt": "1: title: Starter Action Card\n2: new-page: true"
+      },
+      "topLevelSpan": {
+        "path": "source/scenes/cards/demo_action_card.scene.dry",
+        "startLine": 1,
+        "endLine": 15,
+        "excerpt": "1: title: Starter Action Card\n2: new-page: true"
+      },
+      "metadata": {
+        "$file": "source/scenes/cards/demo_action_card.scene.dry",
+        "frequency": {
+          "path": "source/scenes/cards/demo_action_card.scene.dry",
+          "line": 5,
+          "excerpt": "4: tags: demo_action\n5: frequency: 100\n6: priority: 0"
+        },
+        "id": {
+          "line": -1
+        },
+        "isCard": {
+          "path": "source/scenes/cards/demo_action_card.scene.dry",
+          "line": 3,
+          "excerpt": "2: new-page: true\n3: is-card: true\n4: tags: demo_action"
+        },
+        "newPage": {
+          "path": "source/scenes/cards/demo_action_card.scene.dry",
+          "line": 2,
+          "excerpt": "1: title: Starter Action Card\n2: new-page: true\n3: is-card: true"
+        },
+        "priority": {
+          "path": "source/scenes/cards/demo_action_card.scene.dry",
+          "line": 6,
+          "excerpt": "5: frequency: 100\n6: priority: 0\n7: "
+        },
+        "tags": {
+          "path": "source/scenes/cards/demo_action_card.scene.dry",
+          "line": 4,
+          "excerpt": "3: is-card: true\n4: tags: demo_action\n5: frequency: 100"
+        },
+        "title": {
+          "path": "source/scenes/cards/demo_action_card.scene.dry",
+          "line": 1,
+          "excerpt": "1: title: Starter Action Card\n2: new-page: true"
+        },
+        "type": {
+          "line": -1
+        }
+      },
+      "tags": [
+        "demo_action"
+      ],
+      "flags": {
+        "isCard": true,
+        "isPinnedCard": false,
+        "isHand": false,
+        "isDeck": false,
+        "isSpecial": false
+      },
+      "routes": {},
+      "options": [
+        {
+          "id": "@spend_resources",
+          "target": {
+            "kind": "scene",
+            "id": "spend_resources"
+          },
+          "sourceSpan": {
+            "path": "source/scenes/cards/demo_action_card.scene.dry",
+            "startLine": 13,
+            "endLine": 13,
+            "excerpt": "12: \n13: - @spend_resources: Spend resources\n14: - @save_capacity: Save capacity"
+          },
+          "metadata": {
+            "$file": "source/scenes/cards/demo_action_card.scene.dry",
+            "$line": 13
+          },
+          "title": "Spend resources"
+        },
+        {
+          "id": "@save_capacity",
+          "target": {
+            "kind": "scene",
+            "id": "save_capacity"
+          },
+          "sourceSpan": {
+            "path": "source/scenes/cards/demo_action_card.scene.dry",
+            "startLine": 14,
+            "endLine": 14,
+            "excerpt": "13: - @spend_resources: Spend resources\n14: - @save_capacity: Save capacity\n15: "
+          },
+          "metadata": {
+            "$file": "source/scenes/cards/demo_action_card.scene.dry",
+            "$line": 14
+          },
+          "title": "Save capacity"
+        }
+      ],
+      "sections": [
+        {
+          "id": "demo_action_card.spend_resources",
+          "sourceSpan": {
+            "path": "source/scenes/cards/demo_action_card.scene.dry",
+            "startLine": 16,
+            "endLine": 28,
+            "excerpt": "15: \n16: @spend_resources\n17: title: Spend resources"
+          },
+          "metadata": {
+            "$file": "source/scenes/cards/demo_action_card.scene.dry",
+            "$line": 16,
+            "chooseIf": {
+              "path": "source/scenes/cards/demo_action_card.scene.dry",
+              "line": 19,
+              "excerpt": "18: subtitle: Convert capacity into visible progress.\n19: choose-if: demo_resources >= 1\n20: unavailable-subtitle: Resources are too low."
+            },
+            "goTo": {
+              "path": "source/scenes/cards/demo_action_card.scene.dry",
+              "line": 25,
+              "excerpt": "24: !}\n25: go-to: main\n26: "
+            },
+            "onArrival": {
+              "path": "source/scenes/cards/demo_action_card.scene.dry",
+              "line": 24,
+              "excerpt": "23: Q.demo_card_progress = (Q.demo_card_progress || 0) + 1;\n24: !}\n25: go-to: main"
+            },
+            "subtitle": {
+              "path": "source/scenes/cards/demo_action_card.scene.dry",
+              "line": 18,
+              "excerpt": "17: title: Spend resources\n18: subtitle: Convert capacity into visible progress.\n19: choose-if: demo_resources >= 1"
+            },
+            "title": {
+              "path": "source/scenes/cards/demo_action_card.scene.dry",
+              "line": 17,
+              "excerpt": "16: @spend_resources\n17: title: Spend resources\n18: subtitle: Convert capacity into visible progress."
+            },
+            "unavailableSubtitle": {
+              "path": "source/scenes/cards/demo_action_card.scene.dry",
+              "line": 20,
+              "excerpt": "19: choose-if: demo_resources >= 1\n20: unavailable-subtitle: Resources are too low.\n21: on-arrival: {!"
+            }
+          },
+          "routes": {
+            "goTo": [
+              {
+                "id": "main",
+                "raw": "main"
+              }
+            ]
+          },
+          "options": [],
+          "title": "Spend resources",
+          "subtitle": "Convert capacity into visible progress.",
+          "chooseIf": "demo_resources >= 1",
+          "tags": []
+        },
+        {
+          "id": "demo_action_card.save_capacity",
+          "sourceSpan": {
+            "path": "source/scenes/cards/demo_action_card.scene.dry",
+            "startLine": 29,
+            "endLine": 38,
+            "excerpt": "28: \n29: @save_capacity\n30: title: Save capacity"
+          },
+          "metadata": {
+            "$file": "source/scenes/cards/demo_action_card.scene.dry",
+            "$line": 29,
+            "goTo": {
+              "path": "source/scenes/cards/demo_action_card.scene.dry",
+              "line": 35,
+              "excerpt": "34: !}\n35: go-to: main\n36: "
+            },
+            "onArrival": {
+              "path": "source/scenes/cards/demo_action_card.scene.dry",
+              "line": 34,
+              "excerpt": "33: Q.demo_resources = (Q.demo_resources || 0) + 1;\n34: !}\n35: go-to: main"
+            },
+            "subtitle": {
+              "path": "source/scenes/cards/demo_action_card.scene.dry",
+              "line": 31,
+              "excerpt": "30: title: Save capacity\n31: subtitle: Keep resources for later.\n32: on-arrival: {!"
+            },
+            "title": {
+              "path": "source/scenes/cards/demo_action_card.scene.dry",
+              "line": 30,
+              "excerpt": "29: @save_capacity\n30: title: Save capacity\n31: subtitle: Keep resources for later."
+            }
+          },
+          "routes": {
+            "goTo": [
+              {
+                "id": "main",
+                "raw": "main"
+              }
+            ]
+          },
+          "options": [],
+          "title": "Save capacity",
+          "subtitle": "Keep resources for later.",
+          "tags": []
+        }
+      ],
+      "sourceFingerprint": {
+        "algorithm": "sha256",
+        "scope": "topLevelSpan",
+        "value": "fac6b2ce68adfc784a62cff5846ae7b97c1d31f42dd25a2e4b3ada9bd3c7dd5b"
+      },
+      "priority": "0",
+      "frequency": "100",
+      "newPage": "true"
+    },
+    {
+      "id": "demo_action_deck",
+      "name": "demo_action_deck",
+      "title": "Starter Deck",
+      "path": "source/scenes/decks/demo_action_deck.scene.dry",
+      "type": "deck",
+      "profileId": null,
+      "confidence": "exact",
+      "classificationConfidence": "exact",
+      "sourceSpan": {
+        "path": "source/scenes/decks/demo_action_deck.scene.dry",
+        "startLine": 1,
+        "endLine": 6,
+        "excerpt": "1: title: Starter Deck\n2: subtitle: A minimal action-card deck"
+      },
+      "topLevelSpan": {
+        "path": "source/scenes/decks/demo_action_deck.scene.dry",
+        "startLine": 1,
+        "endLine": 6,
+        "excerpt": "1: title: Starter Deck\n2: subtitle: A minimal action-card deck"
+      },
+      "metadata": {
+        "$file": "source/scenes/decks/demo_action_deck.scene.dry",
+        "id": {
+          "line": -1
+        },
+        "isDeck": {
+          "path": "source/scenes/decks/demo_action_deck.scene.dry",
+          "line": 3,
+          "excerpt": "2: subtitle: A minimal action-card deck\n3: is-deck: true\n4: "
+        },
+        "subtitle": {
+          "path": "source/scenes/decks/demo_action_deck.scene.dry",
+          "line": 2,
+          "excerpt": "1: title: Starter Deck\n2: subtitle: A minimal action-card deck\n3: is-deck: true"
+        },
+        "title": {
+          "path": "source/scenes/decks/demo_action_deck.scene.dry",
+          "line": 1,
+          "excerpt": "1: title: Starter Deck\n2: subtitle: A minimal action-card deck"
+        },
+        "type": {
+          "line": -1
+        }
+      },
+      "tags": [],
+      "flags": {
+        "isCard": false,
+        "isPinnedCard": false,
+        "isHand": false,
+        "isDeck": true,
+        "isSpecial": false
+      },
+      "routes": {},
+      "options": [
+        {
+          "id": "#demo_action",
+          "target": {
+            "kind": "tag",
+            "id": "demo_action"
+          },
+          "sourceSpan": {
+            "path": "source/scenes/decks/demo_action_deck.scene.dry",
+            "startLine": 5,
+            "endLine": 5,
+            "excerpt": "4: \n5: - #demo_action"
+          },
+          "metadata": {
+            "$file": "source/scenes/decks/demo_action_deck.scene.dry",
+            "$line": 5
+          }
+        }
+      ],
+      "sections": [],
+      "sourceFingerprint": {
+        "algorithm": "sha256",
+        "scope": "topLevelSpan",
+        "value": "bf92971c0fac9cd0ce93285192c57600d214b624d5c15d38e3151bb5839f108e"
+      }
+    },
+    {
+      "id": "demo_opening",
+      "name": "demo_opening",
+      "title": "A Small Campaign Office",
+      "path": "source/scenes/demo_opening.scene.dry",
+      "type": "event",
+      "profileId": null,
+      "confidence": "exact",
+      "classificationConfidence": "exact",
+      "sourceSpan": {
+        "path": "source/scenes/demo_opening.scene.dry",
+        "startLine": 1,
+        "endLine": 69,
+        "excerpt": "1: title: A Small Campaign Office\n2: tags: event"
+      },
+      "topLevelSpan": {
+        "path": "source/scenes/demo_opening.scene.dry",
+        "startLine": 1,
+        "endLine": 17,
+        "excerpt": "1: title: A Small Campaign Office\n2: tags: event"
+      },
+      "metadata": {
+        "$file": "source/scenes/demo_opening.scene.dry",
+        "id": {
+          "line": -1
+        },
+        "onArrival": {
+          "path": "source/scenes/demo_opening.scene.dry",
+          "line": 5,
+          "excerpt": "4: Q.demo_event_seen = 1;\n5: !}\n6: "
+        },
+        "tags": {
+          "path": "source/scenes/demo_opening.scene.dry",
+          "line": 2,
+          "excerpt": "1: title: A Small Campaign Office\n2: tags: event\n3: on-arrival: {!"
+        },
+        "title": {
+          "path": "source/scenes/demo_opening.scene.dry",
+          "line": 1,
+          "excerpt": "1: title: A Small Campaign Office\n2: tags: event"
+        },
+        "type": {
+          "line": -1
+        }
+      },
+      "tags": [
+        "event"
+      ],
+      "flags": {
+        "isCard": false,
+        "isPinnedCard": false,
+        "isHand": false,
+        "isDeck": false,
+        "isSpecial": false
+      },
+      "routes": {},
+      "options": [
+        {
+          "id": "@organize_volunteers",
+          "target": {
+            "kind": "scene",
+            "id": "organize_volunteers"
+          },
+          "sourceSpan": {
+            "path": "source/scenes/demo_opening.scene.dry",
+            "startLine": 15,
+            "endLine": 15,
+            "excerpt": "14: \n15: - @organize_volunteers: Organize volunteers\n16: - @observe_quietly: Wait and observe"
+          },
+          "metadata": {
+            "$file": "source/scenes/demo_opening.scene.dry",
+            "$line": 15
+          },
+          "title": "Organize volunteers"
+        },
+        {
+          "id": "@observe_quietly",
+          "target": {
+            "kind": "scene",
+            "id": "observe_quietly"
+          },
+          "sourceSpan": {
+            "path": "source/scenes/demo_opening.scene.dry",
+            "startLine": 16,
+            "endLine": 16,
+            "excerpt": "15: - @organize_volunteers: Organize volunteers\n16: - @observe_quietly: Wait and observe\n17: "
+          },
+          "metadata": {
+            "$file": "source/scenes/demo_opening.scene.dry",
+            "$line": 16
+          },
+          "title": "Wait and observe"
+        }
+      ],
+      "sections": [
+        {
+          "id": "demo_opening.organize_volunteers",
+          "sourceSpan": {
+            "path": "source/scenes/demo_opening.scene.dry",
+            "startLine": 18,
+            "endLine": 31,
+            "excerpt": "17: \n18: @organize_volunteers\n19: title: Organize volunteers"
+          },
+          "metadata": {
+            "$file": "source/scenes/demo_opening.scene.dry",
+            "$line": 18,
+            "onArrival": {
+              "path": "source/scenes/demo_opening.scene.dry",
+              "line": 23,
+              "excerpt": "22: Q.demo_support = (Q.demo_support || 0) + 1;\n23: !}\n24: "
+            },
+            "subtitle": {
+              "path": "source/scenes/demo_opening.scene.dry",
+              "line": 20,
+              "excerpt": "19: title: Organize volunteers\n20: subtitle: Option result text\n21: on-arrival: {!"
+            },
+            "title": {
+              "path": "source/scenes/demo_opening.scene.dry",
+              "line": 19,
+              "excerpt": "18: @organize_volunteers\n19: title: Organize volunteers\n20: subtitle: Option result text"
+            }
+          },
+          "routes": {},
+          "options": [
+            {
+              "id": "@demo_status",
+              "target": {
+                "kind": "scene",
+                "id": "demo_status"
+              },
+              "sourceSpan": {
+                "path": "source/scenes/demo_opening.scene.dry",
+                "startLine": 30,
+                "endLine": 30,
+                "excerpt": "29: \n30: - @demo_status: Continue\n31: "
+              },
+              "metadata": {
+                "$file": "source/scenes/demo_opening.scene.dry",
+                "$line": 30
+              },
+              "title": "Continue"
+            }
+          ],
+          "title": "Organize volunteers",
+          "subtitle": "Option result text",
+          "tags": []
+        },
+        {
+          "id": "demo_opening.observe_quietly",
+          "sourceSpan": {
+            "path": "source/scenes/demo_opening.scene.dry",
+            "startLine": 32,
+            "endLine": 45,
+            "excerpt": "31: \n32: @observe_quietly\n33: title: Wait and observe"
+          },
+          "metadata": {
+            "$file": "source/scenes/demo_opening.scene.dry",
+            "$line": 32,
+            "onArrival": {
+              "path": "source/scenes/demo_opening.scene.dry",
+              "line": 37,
+              "excerpt": "36: Q.demo_conflict = (Q.demo_conflict || 0) + 1;\n37: !}\n38: "
+            },
+            "subtitle": {
+              "path": "source/scenes/demo_opening.scene.dry",
+              "line": 34,
+              "excerpt": "33: title: Wait and observe\n34: subtitle: Option result text\n35: on-arrival: {!"
+            },
+            "title": {
+              "path": "source/scenes/demo_opening.scene.dry",
+              "line": 33,
+              "excerpt": "32: @observe_quietly\n33: title: Wait and observe\n34: subtitle: Option result text"
+            }
+          },
+          "routes": {},
+          "options": [
+            {
+              "id": "@demo_status",
+              "target": {
+                "kind": "scene",
+                "id": "demo_status"
+              },
+              "sourceSpan": {
+                "path": "source/scenes/demo_opening.scene.dry",
+                "startLine": 44,
+                "endLine": 44,
+                "excerpt": "43: \n44: - @demo_status: Continue\n45: "
+              },
+              "metadata": {
+                "$file": "source/scenes/demo_opening.scene.dry",
+                "$line": 44
+              },
+              "title": "Continue"
+            }
+          ],
+          "title": "Wait and observe",
+          "subtitle": "Option result text",
+          "tags": []
+        },
+        {
+          "id": "demo_opening.demo_status",
+          "sourceSpan": {
+            "path": "source/scenes/demo_opening.scene.dry",
+            "startLine": 46,
+            "endLine": 57,
+            "excerpt": "45: \n46: @demo_status\n47: title: Demo State"
+          },
+          "metadata": {
+            "$file": "source/scenes/demo_opening.scene.dry",
+            "$line": 46,
+            "title": {
+              "path": "source/scenes/demo_opening.scene.dry",
+              "line": 47,
+              "excerpt": "46: @demo_status\n47: title: Demo State\n48: "
+            }
+          },
+          "routes": {},
+          "options": [
+            {
+              "id": "@root",
+              "target": {
+                "kind": "scene",
+                "id": "root"
+              },
+              "sourceSpan": {
+                "path": "source/scenes/demo_opening.scene.dry",
+                "startLine": 56,
+                "endLine": 56,
+                "excerpt": "55: \n56: - @root: Back to start\n57: "
+              },
+              "metadata": {
+                "$file": "source/scenes/demo_opening.scene.dry",
+                "$line": 56
+              },
+              "title": "Back to start"
+            }
+          ],
+          "title": "Demo State",
+          "tags": []
+        },
+        {
+          "id": "demo_opening.support_followup",
+          "sourceSpan": {
+            "path": "source/scenes/demo_opening.scene.dry",
+            "startLine": 58,
+            "endLine": 69,
+            "excerpt": "57: \n58: @support_followup\n59: title: Follow up on support"
+          },
+          "metadata": {
+            "$file": "source/scenes/demo_opening.scene.dry",
+            "$line": 58,
+            "title": {
+              "path": "source/scenes/demo_opening.scene.dry",
+              "line": 59,
+              "excerpt": "58: @support_followup\n59: title: Follow up on support\n60: view-if: demo_support > 0"
+            },
+            "viewIf": {
+              "path": "source/scenes/demo_opening.scene.dry",
+              "line": 60,
+              "excerpt": "59: title: Follow up on support\n60: view-if: demo_support > 0\n61: "
+            }
+          },
+          "routes": {},
+          "options": [
+            {
+              "id": "@root",
+              "target": {
+                "kind": "scene",
+                "id": "root"
+              },
+              "sourceSpan": {
+                "path": "source/scenes/demo_opening.scene.dry",
+                "startLine": 68,
+                "endLine": 68,
+                "excerpt": "67: \n68: - @root: Back to start"
+              },
+              "metadata": {
+                "$file": "source/scenes/demo_opening.scene.dry",
+                "$line": 68
+              },
+              "title": "Back to start"
+            }
+          ],
+          "title": "Follow up on support",
+          "viewIf": "demo_support > 0",
+          "tags": []
+        }
+      ],
+      "sourceFingerprint": {
+        "algorithm": "sha256",
+        "scope": "topLevelSpan",
+        "value": "5a5df5cae408496dba204e9f5995827175482675e266b773928ba4146760498d"
+      }
+    },
+    {
+      "id": "main",
+      "name": "main",
+      "title": "Workspace Hand",
+      "path": "source/scenes/main.scene.dry",
+      "type": "hand",
+      "profileId": null,
+      "confidence": "exact",
+      "classificationConfidence": "exact",
+      "sourceSpan": {
+        "path": "source/scenes/main.scene.dry",
+        "startLine": 1,
+        "endLine": 17,
+        "excerpt": "1: title: Workspace Hand\n2: new-page: true"
+      },
+      "topLevelSpan": {
+        "path": "source/scenes/main.scene.dry",
+        "startLine": 1,
+        "endLine": 17,
+        "excerpt": "1: title: Workspace Hand\n2: new-page: true"
+      },
+      "metadata": {
+        "$file": "source/scenes/main.scene.dry",
+        "id": {
+          "line": -1
+        },
+        "isHand": {
+          "path": "source/scenes/main.scene.dry",
+          "line": 3,
+          "excerpt": "2: new-page: true\n3: is-hand: true\n4: max-cards: 3"
+        },
+        "maxCards": {
+          "path": "source/scenes/main.scene.dry",
+          "line": 4,
+          "excerpt": "3: is-hand: true\n4: max-cards: 3\n5: "
+        },
+        "newPage": {
+          "path": "source/scenes/main.scene.dry",
+          "line": 2,
+          "excerpt": "1: title: Workspace Hand\n2: new-page: true\n3: is-hand: true"
+        },
+        "title": {
+          "path": "source/scenes/main.scene.dry",
+          "line": 1,
+          "excerpt": "1: title: Workspace Hand\n2: new-page: true"
+        },
+        "type": {
+          "line": -1
+        }
+      },
+      "tags": [],
+      "flags": {
+        "isCard": false,
+        "isPinnedCard": false,
+        "isHand": true,
+        "isDeck": false,
+        "isSpecial": false
+      },
+      "routes": {},
+      "options": [
+        {
+          "id": "@demo_action_deck",
+          "target": {
+            "kind": "scene",
+            "id": "demo_action_deck"
+          },
+          "sourceSpan": {
+            "path": "source/scenes/main.scene.dry",
+            "startLine": 14,
+            "endLine": 14,
+            "excerpt": "13: \n14: - @demo_action_deck: Draw from the starter deck\n15: - #demo_advisor: Review starter advisor"
+          },
+          "metadata": {
+            "$file": "source/scenes/main.scene.dry",
+            "$line": 14
+          },
+          "title": "Draw from the starter deck"
+        },
+        {
+          "id": "#demo_advisor",
+          "target": {
+            "kind": "tag",
+            "id": "demo_advisor"
+          },
+          "sourceSpan": {
+            "path": "source/scenes/main.scene.dry",
+            "startLine": 15,
+            "endLine": 15,
+            "excerpt": "14: - @demo_action_deck: Draw from the starter deck\n15: - #demo_advisor: Review starter advisor\n16: - @root: Back to start"
+          },
+          "metadata": {
+            "$file": "source/scenes/main.scene.dry",
+            "$line": 15
+          },
+          "title": "Review starter advisor"
+        },
+        {
+          "id": "@root",
+          "target": {
+            "kind": "scene",
+            "id": "root"
+          },
+          "sourceSpan": {
+            "path": "source/scenes/main.scene.dry",
+            "startLine": 16,
+            "endLine": 16,
+            "excerpt": "15: - #demo_advisor: Review starter advisor\n16: - @root: Back to start"
+          },
+          "metadata": {
+            "$file": "source/scenes/main.scene.dry",
+            "$line": 16
+          },
+          "title": "Back to start"
+        }
+      ],
+      "sections": [],
+      "sourceFingerprint": {
+        "algorithm": "sha256",
+        "scope": "topLevelSpan",
+        "value": "517c5b4fc381fe94e760759de222e0e1aab36fdb2e82096e02b5ed8711bb34e1"
+      },
+      "newPage": "true"
+    },
+    {
+      "id": "post_event",
+      "name": "post_event",
+      "title": "",
+      "path": "source/scenes/post_event.scene.dry",
+      "type": "monthly_router",
+      "profileId": null,
+      "confidence": "opaque",
+      "classificationConfidence": "opaque",
+      "sourceSpan": {
+        "path": "source/scenes/post_event.scene.dry",
+        "startLine": 1,
+        "endLine": 18,
+        "excerpt": "1: title: Post Event\n2: tags: router"
+      },
+      "topLevelSpan": {
+        "path": "source/scenes/post_event.scene.dry",
+        "startLine": 1,
+        "endLine": 18,
+        "excerpt": "1: title: Post Event\n2: tags: router"
+      },
+      "metadata": {},
+      "tags": [],
+      "flags": {
+        "isCard": false,
+        "isPinnedCard": false,
+        "isHand": false,
+        "isDeck": false,
+        "isSpecial": false
+      },
+      "routes": {},
+      "options": [],
+      "sections": [],
+      "opaque": true
+    },
+    {
+      "id": "root",
+      "name": "root",
+      "title": "Starter Demo",
+      "path": "source/scenes/root.scene.dry",
+      "type": "root",
+      "profileId": "generic-dendry",
+      "confidence": "exact",
+      "classificationConfidence": "profile_heuristic",
+      "sourceSpan": {
+        "path": "source/scenes/root.scene.dry",
+        "startLine": 1,
+        "endLine": 28,
+        "excerpt": "1: title: Starter Demo\n2: new-page: true"
+      },
+      "topLevelSpan": {
+        "path": "source/scenes/root.scene.dry",
+        "startLine": 1,
+        "endLine": 28,
+        "excerpt": "1: title: Starter Demo\n2: new-page: true"
+      },
+      "metadata": {
+        "$file": "source/scenes/root.scene.dry",
+        "id": {
+          "line": -1
+        },
+        "newPage": {
+          "path": "source/scenes/root.scene.dry",
+          "line": 2,
+          "excerpt": "1: title: Starter Demo\n2: new-page: true\n3: on-arrival: {!"
+        },
+        "onArrival": {
+          "path": "source/scenes/root.scene.dry",
+          "line": 11,
+          "excerpt": "10: // ====== U. EVENT SEEN FLAGS ======\n11: !}\n12: "
+        },
+        "title": {
+          "path": "source/scenes/root.scene.dry",
+          "line": 1,
+          "excerpt": "1: title: Starter Demo\n2: new-page: true"
+        },
+        "type": {
+          "line": -1
+        }
+      },
+      "tags": [],
+      "flags": {
+        "isCard": false,
+        "isPinnedCard": false,
+        "isHand": false,
+        "isDeck": false,
+        "isSpecial": false
+      },
+      "routes": {},
+      "options": [
+        {
+          "id": "@main",
+          "target": {
+            "kind": "scene",
+            "id": "main"
+          },
+          "sourceSpan": {
+            "path": "source/scenes/root.scene.dry",
+            "startLine": 24,
+            "endLine": 24,
+            "excerpt": "23: \n24: - @main: Open the workspace hand\n25: - @demo_opening: Start the demo event"
+          },
+          "metadata": {
+            "$file": "source/scenes/root.scene.dry",
+            "$line": 24
+          },
+          "title": "Open the workspace hand"
+        },
+        {
+          "id": "@demo_opening",
+          "target": {
+            "kind": "scene",
+            "id": "demo_opening"
+          },
+          "sourceSpan": {
+            "path": "source/scenes/root.scene.dry",
+            "startLine": 25,
+            "endLine": 25,
+            "excerpt": "24: - @main: Open the workspace hand\n25: - @demo_opening: Start the demo event\n26: - @demo_opening.demo_status: Check demo state"
+          },
+          "metadata": {
+            "$file": "source/scenes/root.scene.dry",
+            "$line": 25
+          },
+          "title": "Start the demo event"
+        },
+        {
+          "id": "@demo_opening.demo_status",
+          "target": {
+            "kind": "scene",
+            "id": "demo_opening.demo_status"
+          },
+          "sourceSpan": {
+            "path": "source/scenes/root.scene.dry",
+            "startLine": 26,
+            "endLine": 26,
+            "excerpt": "25: - @demo_opening: Start the demo event\n26: - @demo_opening.demo_status: Check demo state\n27: - @demo_opening.support_followup: Follow up on support"
+          },
+          "metadata": {
+            "$file": "source/scenes/root.scene.dry",
+            "$line": 26
+          },
+          "title": "Check demo state"
+        },
+        {
+          "id": "@demo_opening.support_followup",
+          "target": {
+            "kind": "scene",
+            "id": "demo_opening.support_followup"
+          },
+          "sourceSpan": {
+            "path": "source/scenes/root.scene.dry",
+            "startLine": 27,
+            "endLine": 27,
+            "excerpt": "26: - @demo_opening.demo_status: Check demo state\n27: - @demo_opening.support_followup: Follow up on support"
+          },
+          "metadata": {
+            "$file": "source/scenes/root.scene.dry",
+            "$line": 27
+          },
+          "title": "Follow up on support"
+        }
+      ],
+      "sections": [],
+      "sourceFingerprint": {
+        "algorithm": "sha256",
+        "scope": "topLevelSpan",
+        "value": "cd5b308af40f4281858f3cc9a8267451c464799f7ea933bbc67eade9b25143f8"
+      },
+      "newPage": "true"
+    },
+    {
+      "id": "status",
+      "name": "status",
+      "title": "Demo Status",
+      "path": "source/scenes/status.scene.dry",
+      "type": "scene",
+      "profileId": "generic-dendry",
+      "confidence": "exact",
+      "classificationConfidence": "profile_heuristic",
+      "sourceSpan": {
+        "path": "source/scenes/status.scene.dry",
+        "startLine": 1,
+        "endLine": 49,
+        "excerpt": "1: title: Demo Status\n2: new-page: true"
+      },
+      "topLevelSpan": {
+        "path": "source/scenes/status.scene.dry",
+        "startLine": 1,
+        "endLine": 23,
+        "excerpt": "1: title: Demo Status\n2: new-page: true"
+      },
+      "metadata": {
+        "$file": "source/scenes/status.scene.dry",
+        "id": {
+          "line": -1
+        },
+        "isSpecial": {
+          "path": "source/scenes/status.scene.dry",
+          "line": 3,
+          "excerpt": "2: new-page: true\n3: is-special: true\n4: "
+        },
+        "newPage": {
+          "path": "source/scenes/status.scene.dry",
+          "line": 2,
+          "excerpt": "1: title: Demo Status\n2: new-page: true\n3: is-special: true"
+        },
+        "title": {
+          "path": "source/scenes/status.scene.dry",
+          "line": 1,
+          "excerpt": "1: title: Demo Status\n2: new-page: true"
+        },
+        "type": {
+          "line": -1
+        }
+      },
+      "tags": [],
+      "flags": {
+        "isCard": false,
+        "isPinnedCard": false,
+        "isHand": false,
+        "isDeck": false,
+        "isSpecial": true
+      },
+      "routes": {},
+      "options": [],
+      "sections": [
+        {
+          "id": "status.organization",
+          "sourceSpan": {
+            "path": "source/scenes/status.scene.dry",
+            "startLine": 24,
+            "endLine": 30,
+            "excerpt": "23: \n24: @organization\n25: "
+          },
+          "metadata": {
+            "$file": "source/scenes/status.scene.dry",
+            "$line": 24
+          },
+          "routes": {},
+          "options": [],
+          "tags": []
+        },
+        {
+          "id": "status.cards",
+          "sourceSpan": {
+            "path": "source/scenes/status.scene.dry",
+            "startLine": 31,
+            "endLine": 36,
+            "excerpt": "30: \n31: @cards\n32: "
+          },
+          "metadata": {
+            "$file": "source/scenes/status.scene.dry",
+            "$line": 31
+          },
+          "routes": {},
+          "options": [],
+          "tags": []
+        },
+        {
+          "id": "status.advisors",
+          "sourceSpan": {
+            "path": "source/scenes/status.scene.dry",
+            "startLine": 37,
+            "endLine": 42,
+            "excerpt": "36: \n37: @advisors\n38: "
+          },
+          "metadata": {
+            "$file": "source/scenes/status.scene.dry",
+            "$line": 37
+          },
+          "routes": {},
+          "options": [],
+          "tags": []
+        },
+        {
+          "id": "status.politics",
+          "sourceSpan": {
+            "path": "source/scenes/status.scene.dry",
+            "startLine": 43,
+            "endLine": 49,
+            "excerpt": "42: \n43: @politics\n44: "
+          },
+          "metadata": {
+            "$file": "source/scenes/status.scene.dry",
+            "$line": 43
+          },
+          "routes": {},
+          "options": [],
+          "tags": []
+        }
+      ],
+      "sourceFingerprint": {
+        "algorithm": "sha256",
+        "scope": "topLevelSpan",
+        "value": "3016346019514b3a0810532142ad39e1e3f8e780a0484234e1ac29a303ee2ef8"
+      },
+      "newPage": "true"
+    }
+  ],
+  "edges": [
+    {
+      "from": "demo_advisor",
+      "to": "demo_advisor.ask_for_help",
+      "kind": "choice",
+      "rawTarget": "@ask_for_help",
+      "label": "Ask for organizing help",
+      "confidence": "exact",
+      "source": {
+        "path": "source/scenes/advisors/demo_advisor.scene.dry",
+        "line": 13,
+        "excerpt": "12: \n13: - @ask_for_help: Ask for organizing help\n14: - @wait_for_now: Wait for now"
+      }
+    },
+    {
+      "from": "demo_advisor",
+      "to": "demo_advisor.wait_for_now",
+      "kind": "choice",
+      "rawTarget": "@wait_for_now",
+      "label": "Wait for now",
+      "confidence": "exact",
+      "source": {
+        "path": "source/scenes/advisors/demo_advisor.scene.dry",
+        "line": 14,
+        "excerpt": "13: - @ask_for_help: Ask for organizing help\n14: - @wait_for_now: Wait for now\n15: "
+      }
+    },
+    {
+      "from": "demo_advisor.ask_for_help",
+      "to": "main",
+      "kind": "go_to",
+      "rawTarget": "main",
+      "confidence": "exact",
+      "source": {
+        "path": "source/scenes/advisors/demo_advisor.scene.dry",
+        "line": 23,
+        "excerpt": "22: !}\n23: go-to: main\n24: "
+      }
+    },
+    {
+      "from": "demo_advisor.wait_for_now",
+      "to": "main",
+      "kind": "go_to",
+      "rawTarget": "main",
+      "confidence": "exact",
+      "source": {
+        "path": "source/scenes/advisors/demo_advisor.scene.dry",
+        "line": 29,
+        "excerpt": "28: title: Wait for now\n29: go-to: main\n30: "
+      }
+    },
+    {
+      "from": "demo_action_card",
+      "to": "demo_action_card.spend_resources",
+      "kind": "choice",
+      "rawTarget": "@spend_resources",
+      "label": "Spend resources",
+      "confidence": "exact",
+      "source": {
+        "path": "source/scenes/cards/demo_action_card.scene.dry",
+        "line": 13,
+        "excerpt": "12: \n13: - @spend_resources: Spend resources\n14: - @save_capacity: Save capacity"
+      }
+    },
+    {
+      "from": "demo_action_card",
+      "to": "demo_action_card.save_capacity",
+      "kind": "choice",
+      "rawTarget": "@save_capacity",
+      "label": "Save capacity",
+      "confidence": "exact",
+      "source": {
+        "path": "source/scenes/cards/demo_action_card.scene.dry",
+        "line": 14,
+        "excerpt": "13: - @spend_resources: Spend resources\n14: - @save_capacity: Save capacity\n15: "
+      }
+    },
+    {
+      "from": "demo_action_card.spend_resources",
+      "to": "main",
+      "kind": "go_to",
+      "rawTarget": "main",
+      "confidence": "exact",
+      "source": {
+        "path": "source/scenes/cards/demo_action_card.scene.dry",
+        "line": 25,
+        "excerpt": "24: !}\n25: go-to: main\n26: "
+      }
+    },
+    {
+      "from": "demo_action_card.save_capacity",
+      "to": "main",
+      "kind": "go_to",
+      "rawTarget": "main",
+      "confidence": "exact",
+      "source": {
+        "path": "source/scenes/cards/demo_action_card.scene.dry",
+        "line": 35,
+        "excerpt": "34: !}\n35: go-to: main\n36: "
+      }
+    },
+    {
+      "from": "demo_action_deck",
+      "to": "tag:demo_action",
+      "kind": "tag_choice",
+      "rawTarget": "#demo_action",
+      "confidence": "exact",
+      "source": {
+        "path": "source/scenes/decks/demo_action_deck.scene.dry",
+        "line": 5,
+        "excerpt": "4: \n5: - #demo_action"
+      }
+    },
+    {
+      "from": "demo_opening",
+      "to": "demo_opening.organize_volunteers",
+      "kind": "choice",
+      "rawTarget": "@organize_volunteers",
+      "label": "Organize volunteers",
+      "confidence": "exact",
+      "source": {
+        "path": "source/scenes/demo_opening.scene.dry",
+        "line": 15,
+        "excerpt": "14: \n15: - @organize_volunteers: Organize volunteers\n16: - @observe_quietly: Wait and observe"
+      }
+    },
+    {
+      "from": "demo_opening",
+      "to": "demo_opening.observe_quietly",
+      "kind": "choice",
+      "rawTarget": "@observe_quietly",
+      "label": "Wait and observe",
+      "confidence": "exact",
+      "source": {
+        "path": "source/scenes/demo_opening.scene.dry",
+        "line": 16,
+        "excerpt": "15: - @organize_volunteers: Organize volunteers\n16: - @observe_quietly: Wait and observe\n17: "
+      }
+    },
+    {
+      "from": "demo_opening.organize_volunteers",
+      "to": "demo_opening.demo_status",
+      "kind": "choice",
+      "rawTarget": "@demo_status",
+      "label": "Continue",
+      "confidence": "exact",
+      "source": {
+        "path": "source/scenes/demo_opening.scene.dry",
+        "line": 30,
+        "excerpt": "29: \n30: - @demo_status: Continue\n31: "
+      }
+    },
+    {
+      "from": "demo_opening.observe_quietly",
+      "to": "demo_opening.demo_status",
+      "kind": "choice",
+      "rawTarget": "@demo_status",
+      "label": "Continue",
+      "confidence": "exact",
+      "source": {
+        "path": "source/scenes/demo_opening.scene.dry",
+        "line": 44,
+        "excerpt": "43: \n44: - @demo_status: Continue\n45: "
+      }
+    },
+    {
+      "from": "demo_opening.demo_status",
+      "to": "root",
+      "kind": "choice",
+      "rawTarget": "@root",
+      "label": "Back to start",
+      "confidence": "exact",
+      "source": {
+        "path": "source/scenes/demo_opening.scene.dry",
+        "line": 56,
+        "excerpt": "55: \n56: - @root: Back to start\n57: "
+      }
+    },
+    {
+      "from": "demo_opening.support_followup",
+      "to": "root",
+      "kind": "choice",
+      "rawTarget": "@root",
+      "label": "Back to start",
+      "confidence": "exact",
+      "source": {
+        "path": "source/scenes/demo_opening.scene.dry",
+        "line": 68,
+        "excerpt": "67: \n68: - @root: Back to start"
+      }
+    },
+    {
+      "from": "main",
+      "to": "demo_action_deck",
+      "kind": "choice",
+      "rawTarget": "@demo_action_deck",
+      "label": "Draw from the starter deck",
+      "confidence": "exact",
+      "source": {
+        "path": "source/scenes/main.scene.dry",
+        "line": 14,
+        "excerpt": "13: \n14: - @demo_action_deck: Draw from the starter deck\n15: - #demo_advisor: Review starter advisor"
+      }
+    },
+    {
+      "from": "main",
+      "to": "tag:demo_advisor",
+      "kind": "tag_choice",
+      "rawTarget": "#demo_advisor",
+      "confidence": "exact",
+      "source": {
+        "path": "source/scenes/main.scene.dry",
+        "line": 15,
+        "excerpt": "14: - @demo_action_deck: Draw from the starter deck\n15: - #demo_advisor: Review starter advisor\n16: - @root: Back to start"
+      }
+    },
+    {
+      "from": "main",
+      "to": "root",
+      "kind": "choice",
+      "rawTarget": "@root",
+      "label": "Back to start",
+      "confidence": "exact",
+      "source": {
+        "path": "source/scenes/main.scene.dry",
+        "line": 16,
+        "excerpt": "15: - #demo_advisor: Review starter advisor\n16: - @root: Back to start"
+      }
+    },
+    {
+      "from": "root",
+      "to": "main",
+      "kind": "choice",
+      "rawTarget": "@main",
+      "label": "Open the workspace hand",
+      "confidence": "exact",
+      "source": {
+        "path": "source/scenes/root.scene.dry",
+        "line": 24,
+        "excerpt": "23: \n24: - @main: Open the workspace hand\n25: - @demo_opening: Start the demo event"
+      }
+    },
+    {
+      "from": "root",
+      "to": "demo_opening",
+      "kind": "choice",
+      "rawTarget": "@demo_opening",
+      "label": "Start the demo event",
+      "confidence": "exact",
+      "source": {
+        "path": "source/scenes/root.scene.dry",
+        "line": 25,
+        "excerpt": "24: - @main: Open the workspace hand\n25: - @demo_opening: Start the demo event\n26: - @demo_opening.demo_status: Check demo state"
+      }
+    },
+    {
+      "from": "root",
+      "to": "demo_opening.demo_status",
+      "kind": "choice",
+      "rawTarget": "@demo_opening.demo_status",
+      "label": "Check demo state",
+      "confidence": "exact",
+      "source": {
+        "path": "source/scenes/root.scene.dry",
+        "line": 26,
+        "excerpt": "25: - @demo_opening: Start the demo event\n26: - @demo_opening.demo_status: Check demo state\n27: - @demo_opening.support_followup: Follow up on support"
+      }
+    },
+    {
+      "from": "root",
+      "to": "demo_opening.support_followup",
+      "kind": "choice",
+      "rawTarget": "@demo_opening.support_followup",
+      "label": "Follow up on support",
+      "confidence": "exact",
+      "source": {
+        "path": "source/scenes/root.scene.dry",
+        "line": 27,
+        "excerpt": "26: - @demo_opening.demo_status: Check demo state\n27: - @demo_opening.support_followup: Follow up on support"
+      }
+    }
+  ],
+  "variables": [
+    {
+      "name": "demo_advisor_trust",
+      "scope": "q",
+      "reads": [
+        {
+          "path": "source/scenes/advisors/demo_advisor.scene.dry",
+          "line": 20,
+          "excerpt": "19: on-arrival: {!\n20: Q.demo_advisor_trust = (Q.demo_advisor_trust || 0) + 1;\n21: Q.demo_support = (Q.demo_support || 0) + 1;"
+        },
+        {
+          "path": "source/scenes/root.scene.dry",
+          "line": 7,
+          "excerpt": "6: if (Q.demo_resources === undefined) { Q.demo_resources = 2; }\n7: if (Q.demo_advisor_trust === undefined) { Q.demo_advisor_trust = 0; }\n8: if (Q.demo_card_progress === undefined) { Q.demo_card_progress = 0; }"
+        },
+        {
+          "path": "source/scenes/status.scene.dry",
+          "line": 15,
+          "excerpt": "14: \n15: Advisor trust: [+ demo_advisor_trust : qdemo_level +]\n16: "
+        },
+        {
+          "path": "source/scenes/status.scene.dry",
+          "line": 22,
+          "excerpt": "21: [? if demo_card_progress > 0 : The starter deck has changed project state. ?]\n22: [? if demo_advisor_trust > 0 : The advisor lane has contributed trust. ?]\n23: "
+        }
+      ],
+      "writes": [
+        {
+          "path": "source/scenes/advisors/demo_advisor.scene.dry",
+          "line": 20,
+          "excerpt": "19: on-arrival: {!\n20: Q.demo_advisor_trust = (Q.demo_advisor_trust || 0) + 1;\n21: Q.demo_support = (Q.demo_support || 0) + 1;"
+        },
+        {
+          "path": "source/scenes/root.scene.dry",
+          "line": 7,
+          "excerpt": "6: if (Q.demo_resources === undefined) { Q.demo_resources = 2; }\n7: if (Q.demo_advisor_trust === undefined) { Q.demo_advisor_trust = 0; }\n8: if (Q.demo_card_progress === undefined) { Q.demo_card_progress = 0; }"
+        }
+      ],
+      "definedIn": [
+        {
+          "path": "source/scenes/root.scene.dry",
+          "line": 7,
+          "excerpt": "6: if (Q.demo_resources === undefined) { Q.demo_resources = 2; }\n7: if (Q.demo_advisor_trust === undefined) { Q.demo_advisor_trust = 0; }\n8: if (Q.demo_card_progress === undefined) { Q.demo_card_progress = 0; }"
+        }
+      ],
+      "confidence": "static_inferred",
+      "readCount": 4,
+      "writeCount": 2
+    },
+    {
+      "name": "demo_card_progress",
+      "scope": "q",
+      "reads": [
+        {
+          "path": "source/scenes/cards/demo_action_card.scene.dry",
+          "line": 23,
+          "excerpt": "22: Q.demo_resources = (Q.demo_resources || 0) - 1;\n23: Q.demo_card_progress = (Q.demo_card_progress || 0) + 1;\n24: !}"
+        },
+        {
+          "path": "source/scenes/root.scene.dry",
+          "line": 8,
+          "excerpt": "7: if (Q.demo_advisor_trust === undefined) { Q.demo_advisor_trust = 0; }\n8: if (Q.demo_card_progress === undefined) { Q.demo_card_progress = 0; }\n9: if (Q.demo_event_seen === undefined) { Q.demo_event_seen = 0; }"
+        },
+        {
+          "path": "source/scenes/status.scene.dry",
+          "line": 17,
+          "excerpt": "16: \n17: Card progress: [+ demo_card_progress : qdemo_level +]\n18: "
+        },
+        {
+          "path": "source/scenes/status.scene.dry",
+          "line": 21,
+          "excerpt": "20: [? if demo_conflict > 0 : Observation pressure is active. ?]\n21: [? if demo_card_progress > 0 : The starter deck has changed project state. ?]\n22: [? if demo_advisor_trust > 0 : The advisor lane has contributed trust. ?]"
+        }
+      ],
+      "writes": [
+        {
+          "path": "source/scenes/cards/demo_action_card.scene.dry",
+          "line": 23,
+          "excerpt": "22: Q.demo_resources = (Q.demo_resources || 0) - 1;\n23: Q.demo_card_progress = (Q.demo_card_progress || 0) + 1;\n24: !}"
+        },
+        {
+          "path": "source/scenes/root.scene.dry",
+          "line": 8,
+          "excerpt": "7: if (Q.demo_advisor_trust === undefined) { Q.demo_advisor_trust = 0; }\n8: if (Q.demo_card_progress === undefined) { Q.demo_card_progress = 0; }\n9: if (Q.demo_event_seen === undefined) { Q.demo_event_seen = 0; }"
+        }
+      ],
+      "definedIn": [
+        {
+          "path": "source/scenes/root.scene.dry",
+          "line": 8,
+          "excerpt": "7: if (Q.demo_advisor_trust === undefined) { Q.demo_advisor_trust = 0; }\n8: if (Q.demo_card_progress === undefined) { Q.demo_card_progress = 0; }\n9: if (Q.demo_event_seen === undefined) { Q.demo_event_seen = 0; }"
+        }
+      ],
+      "confidence": "static_inferred",
+      "readCount": 4,
+      "writeCount": 2
+    },
+    {
+      "name": "demo_conflict",
+      "scope": "q",
+      "reads": [
+        {
+          "path": "source/scenes/demo_opening.scene.dry",
+          "line": 52,
+          "excerpt": "51: [? if demo_support > 0 : `demo_support` is above 0, so the support line can now appear. ?]\n52: [? if demo_conflict > 0 : `demo_conflict` is above 0, so the observation line can now appear. ?]\n53: "
+        },
+        {
+          "path": "source/scenes/demo_opening.scene.dry",
+          "line": 36,
+          "excerpt": "35: on-arrival: {!\n36: Q.demo_conflict = (Q.demo_conflict || 0) + 1;\n37: !}"
+        },
+        {
+          "path": "source/scenes/root.scene.dry",
+          "line": 5,
+          "excerpt": "4: if (Q.demo_support === undefined) { Q.demo_support = 0; }\n5: if (Q.demo_conflict === undefined) { Q.demo_conflict = 0; }\n6: if (Q.demo_resources === undefined) { Q.demo_resources = 2; }"
+        },
+        {
+          "path": "source/scenes/status.scene.dry",
+          "line": 20,
+          "excerpt": "19: [? if demo_support > 0 : Volunteer support is active. ?]\n20: [? if demo_conflict > 0 : Observation pressure is active. ?]\n21: [? if demo_card_progress > 0 : The starter deck has changed project state. ?]"
+        }
+      ],
+      "writes": [
+        {
+          "path": "source/scenes/demo_opening.scene.dry",
+          "line": 36,
+          "excerpt": "35: on-arrival: {!\n36: Q.demo_conflict = (Q.demo_conflict || 0) + 1;\n37: !}"
+        },
+        {
+          "path": "source/scenes/root.scene.dry",
+          "line": 5,
+          "excerpt": "4: if (Q.demo_support === undefined) { Q.demo_support = 0; }\n5: if (Q.demo_conflict === undefined) { Q.demo_conflict = 0; }\n6: if (Q.demo_resources === undefined) { Q.demo_resources = 2; }"
+        }
+      ],
+      "definedIn": [
+        {
+          "path": "source/scenes/root.scene.dry",
+          "line": 5,
+          "excerpt": "4: if (Q.demo_support === undefined) { Q.demo_support = 0; }\n5: if (Q.demo_conflict === undefined) { Q.demo_conflict = 0; }\n6: if (Q.demo_resources === undefined) { Q.demo_resources = 2; }"
+        }
+      ],
+      "confidence": "static_inferred",
+      "readCount": 4,
+      "writeCount": 2
+    },
+    {
+      "name": "demo_event_seen",
+      "scope": "q",
+      "reads": [
+        {
+          "path": "source/scenes/root.scene.dry",
+          "line": 9,
+          "excerpt": "8: if (Q.demo_card_progress === undefined) { Q.demo_card_progress = 0; }\n9: if (Q.demo_event_seen === undefined) { Q.demo_event_seen = 0; }\n10: // ====== U. EVENT SEEN FLAGS ======"
+        }
+      ],
+      "writes": [
+        {
+          "path": "source/scenes/demo_opening.scene.dry",
+          "line": 4,
+          "excerpt": "3: on-arrival: {!\n4: Q.demo_event_seen = 1;\n5: !}"
+        },
+        {
+          "path": "source/scenes/root.scene.dry",
+          "line": 9,
+          "excerpt": "8: if (Q.demo_card_progress === undefined) { Q.demo_card_progress = 0; }\n9: if (Q.demo_event_seen === undefined) { Q.demo_event_seen = 0; }\n10: // ====== U. EVENT SEEN FLAGS ======"
+        }
+      ],
+      "definedIn": [
+        {
+          "path": "source/scenes/root.scene.dry",
+          "line": 9,
+          "excerpt": "8: if (Q.demo_card_progress === undefined) { Q.demo_card_progress = 0; }\n9: if (Q.demo_event_seen === undefined) { Q.demo_event_seen = 0; }\n10: // ====== U. EVENT SEEN FLAGS ======"
+        }
+      ],
+      "confidence": "static_inferred",
+      "readCount": 1,
+      "writeCount": 2
+    },
+    {
+      "name": "demo_resources",
+      "scope": "q",
+      "reads": [
+        {
+          "path": "source/scenes/cards/demo_action_card.scene.dry",
+          "line": 19,
+          "excerpt": "18: subtitle: Convert capacity into visible progress.\n19: choose-if: demo_resources >= 1\n20: unavailable-subtitle: Resources are too low."
+        },
+        {
+          "path": "source/scenes/cards/demo_action_card.scene.dry",
+          "line": 22,
+          "excerpt": "21: on-arrival: {!\n22: Q.demo_resources = (Q.demo_resources || 0) - 1;\n23: Q.demo_card_progress = (Q.demo_card_progress || 0) + 1;"
+        },
+        {
+          "path": "source/scenes/cards/demo_action_card.scene.dry",
+          "line": 33,
+          "excerpt": "32: on-arrival: {!\n33: Q.demo_resources = (Q.demo_resources || 0) + 1;\n34: !}"
+        },
+        {
+          "path": "source/scenes/root.scene.dry",
+          "line": 6,
+          "excerpt": "5: if (Q.demo_conflict === undefined) { Q.demo_conflict = 0; }\n6: if (Q.demo_resources === undefined) { Q.demo_resources = 2; }\n7: if (Q.demo_advisor_trust === undefined) { Q.demo_advisor_trust = 0; }"
+        },
+        {
+          "path": "source/scenes/status.scene.dry",
+          "line": 11,
+          "excerpt": "10: \n11: Resources: [+ demo_resources +]\n12: "
+        }
+      ],
+      "writes": [
+        {
+          "path": "source/scenes/cards/demo_action_card.scene.dry",
+          "line": 22,
+          "excerpt": "21: on-arrival: {!\n22: Q.demo_resources = (Q.demo_resources || 0) - 1;\n23: Q.demo_card_progress = (Q.demo_card_progress || 0) + 1;"
+        },
+        {
+          "path": "source/scenes/cards/demo_action_card.scene.dry",
+          "line": 33,
+          "excerpt": "32: on-arrival: {!\n33: Q.demo_resources = (Q.demo_resources || 0) + 1;\n34: !}"
+        },
+        {
+          "path": "source/scenes/root.scene.dry",
+          "line": 6,
+          "excerpt": "5: if (Q.demo_conflict === undefined) { Q.demo_conflict = 0; }\n6: if (Q.demo_resources === undefined) { Q.demo_resources = 2; }\n7: if (Q.demo_advisor_trust === undefined) { Q.demo_advisor_trust = 0; }"
+        }
+      ],
+      "definedIn": [
+        {
+          "path": "source/scenes/root.scene.dry",
+          "line": 6,
+          "excerpt": "5: if (Q.demo_conflict === undefined) { Q.demo_conflict = 0; }\n6: if (Q.demo_resources === undefined) { Q.demo_resources = 2; }\n7: if (Q.demo_advisor_trust === undefined) { Q.demo_advisor_trust = 0; }"
+        }
+      ],
+      "confidence": "static_inferred",
+      "readCount": 5,
+      "writeCount": 3
+    },
+    {
+      "name": "demo_support",
+      "scope": "q",
+      "reads": [
+        {
+          "path": "source/scenes/advisors/demo_advisor.scene.dry",
+          "line": 21,
+          "excerpt": "20: Q.demo_advisor_trust = (Q.demo_advisor_trust || 0) + 1;\n21: Q.demo_support = (Q.demo_support || 0) + 1;\n22: !}"
+        },
+        {
+          "path": "source/scenes/demo_opening.scene.dry",
+          "line": 51,
+          "excerpt": "50: \n51: [? if demo_support > 0 : `demo_support` is above 0, so the support line can now appear. ?]\n52: [? if demo_conflict > 0 : `demo_conflict` is above 0, so the observation line can now appear. ?]"
+        },
+        {
+          "path": "source/scenes/demo_opening.scene.dry",
+          "line": 60,
+          "excerpt": "59: title: Follow up on support\n60: view-if: demo_support > 0\n61: "
+        },
+        {
+          "path": "source/scenes/demo_opening.scene.dry",
+          "line": 22,
+          "excerpt": "21: on-arrival: {!\n22: Q.demo_support = (Q.demo_support || 0) + 1;\n23: !}"
+        },
+        {
+          "path": "source/scenes/root.scene.dry",
+          "line": 4,
+          "excerpt": "3: on-arrival: {!\n4: if (Q.demo_support === undefined) { Q.demo_support = 0; }\n5: if (Q.demo_conflict === undefined) { Q.demo_conflict = 0; }"
+        },
+        {
+          "path": "source/scenes/status.scene.dry",
+          "line": 13,
+          "excerpt": "12: \n13: Volunteer support: [+ demo_support : qdemo_level +]\n14: "
+        },
+        {
+          "path": "source/scenes/status.scene.dry",
+          "line": 19,
+          "excerpt": "18: \n19: [? if demo_support > 0 : Volunteer support is active. ?]\n20: [? if demo_conflict > 0 : Observation pressure is active. ?]"
+        }
+      ],
+      "writes": [
+        {
+          "path": "source/scenes/advisors/demo_advisor.scene.dry",
+          "line": 21,
+          "excerpt": "20: Q.demo_advisor_trust = (Q.demo_advisor_trust || 0) + 1;\n21: Q.demo_support = (Q.demo_support || 0) + 1;\n22: !}"
+        },
+        {
+          "path": "source/scenes/demo_opening.scene.dry",
+          "line": 22,
+          "excerpt": "21: on-arrival: {!\n22: Q.demo_support = (Q.demo_support || 0) + 1;\n23: !}"
+        },
+        {
+          "path": "source/scenes/root.scene.dry",
+          "line": 4,
+          "excerpt": "3: on-arrival: {!\n4: if (Q.demo_support === undefined) { Q.demo_support = 0; }\n5: if (Q.demo_conflict === undefined) { Q.demo_conflict = 0; }"
+        }
+      ],
+      "definedIn": [
+        {
+          "path": "source/scenes/root.scene.dry",
+          "line": 4,
+          "excerpt": "3: on-arrival: {!\n4: if (Q.demo_support === undefined) { Q.demo_support = 0; }\n5: if (Q.demo_conflict === undefined) { Q.demo_conflict = 0; }"
+        }
+      ],
+      "confidence": "static_inferred",
+      "readCount": 7,
+      "writeCount": 3
+    }
+  ],
+  "semantic": {
+    "events": [
+      {
+        "id": "demo_opening",
+        "path": "source/scenes/demo_opening.scene.dry",
+        "title": "A Small Campaign Office",
+        "type": "event",
+        "confidence": "exact"
+      }
+    ],
+    "cards": [
+      {
+        "id": "demo_action_card",
+        "path": "source/scenes/cards/demo_action_card.scene.dry",
+        "title": "Starter Action Card",
+        "type": "card",
+        "confidence": "exact"
+      },
+      {
+        "id": "demo_advisor",
+        "path": "source/scenes/advisors/demo_advisor.scene.dry",
+        "title": "Starter Advisor",
+        "type": "pinned_card",
+        "confidence": "exact"
+      }
+    ],
+    "hands": [
+      {
+        "id": "main",
+        "path": "source/scenes/main.scene.dry",
+        "title": "Workspace Hand",
+        "type": "hand",
+        "confidence": "exact"
+      }
+    ],
+    "decks": [
+      {
+        "id": "demo_action_deck",
+        "path": "source/scenes/decks/demo_action_deck.scene.dry",
+        "title": "Starter Deck",
+        "type": "deck",
+        "confidence": "exact"
+      }
+    ],
+    "pinnedCards": [
+      {
+        "id": "demo_advisor",
+        "path": "source/scenes/advisors/demo_advisor.scene.dry",
+        "title": "Starter Advisor",
+        "type": "pinned_card",
+        "confidence": "exact"
+      }
+    ],
+    "news": {
+      "sources": [],
+      "items": [],
+      "confidence": "opaque",
+      "eventPopups": []
+    },
+    "surfaceText": {
+      "sources": [
+        "source/qdisplays/qdemo_level.qdisplay.dry",
+        "source/scenes/root.scene.dry",
+        "source/scenes/status.scene.dry"
+      ],
+      "items": [
+        {
+          "id": "surface_text_fde0204dd4",
+          "label": "This bundled project is a safe place to learn how a Dendry mod is built. The",
+          "area": "opening_text",
+          "source": {
+            "path": "source/scenes/root.scene.dry",
+            "line": 15,
+            "excerpt": "14: \n15: This bundled project is a safe place to learn how a Dendry mod is built. The\n16: next scene acts like a tiny in-game event: it has a title, a body, two choices,"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable",
+          "reason": "Source-backed Dendry display text; Studio can export a replacement proposal for manual review.",
+          "originalText": "This bundled project is a safe place to learn how a Dendry mod is built. The"
+        },
+        {
+          "id": "surface_text_4124d5d4e1",
+          "label": "next scene acts like a tiny in-game event: it has a title, a body, two choices,",
+          "area": "opening_text",
+          "source": {
+            "path": "source/scenes/root.scene.dry",
+            "line": 16,
+            "excerpt": "15: This bundled project is a safe place to learn how a Dendry mod is built. The\n16: next scene acts like a tiny in-game event: it has a title, a body, two choices,\n17: result text, and effects that change simple variables."
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable",
+          "reason": "Source-backed Dendry display text; Studio can export a replacement proposal for manual review.",
+          "originalText": "next scene acts like a tiny in-game event: it has a title, a body, two choices,"
+        },
+        {
+          "id": "surface_text_ecaa6e9e14",
+          "label": "result text, and effects that change simple variables.",
+          "area": "opening_text",
+          "source": {
+            "path": "source/scenes/root.scene.dry",
+            "line": 17,
+            "excerpt": "16: next scene acts like a tiny in-game event: it has a title, a body, two choices,\n17: result text, and effects that change simple variables.\n18: "
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable",
+          "reason": "Source-backed Dendry display text; Studio can export a replacement proposal for manual review.",
+          "originalText": "result text, and effects that change simple variables."
+        },
+        {
+          "id": "surface_text_bfe3598a2f",
+          "label": "In Studio, open Explore or Design after loading this template. Select",
+          "area": "opening_text",
+          "source": {
+            "path": "source/scenes/root.scene.dry",
+            "line": 19,
+            "excerpt": "18: \n19: In Studio, open Explore or Design after loading this template. Select\n20: **A Small Campaign Office** to see how the source-backed text maps to the"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable",
+          "reason": "Source-backed Dendry display text; Studio can export a replacement proposal for manual review.",
+          "originalText": "In Studio, open Explore or Design after loading this template. Select"
+        },
+        {
+          "id": "surface_text_29528bf264",
+          "label": "**A Small Campaign Office** to see how the source-backed text maps to the",
+          "area": "opening_text",
+          "source": {
+            "path": "source/scenes/root.scene.dry",
+            "line": 20,
+            "excerpt": "19: In Studio, open Explore or Design after loading this template. Select\n20: **A Small Campaign Office** to see how the source-backed text maps to the\n21: player-facing event. Select **Open the workspace hand** to see the minimal"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable",
+          "reason": "Source-backed Dendry display text; Studio can export a replacement proposal for manual review.",
+          "originalText": "**A Small Campaign Office** to see how the source-backed text maps to the"
+        },
+        {
+          "id": "surface_text_89d3ea23c1",
+          "label": "player-facing event. Select **Open the workspace hand** to see the minimal",
+          "area": "opening_text",
+          "source": {
+            "path": "source/scenes/root.scene.dry",
+            "line": 21,
+            "excerpt": "20: **A Small Campaign Office** to see how the source-backed text maps to the\n21: player-facing event. Select **Open the workspace hand** to see the minimal\n22: hand/deck/advisor skeleton used by card-style DendryNexus projects."
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable",
+          "reason": "Source-backed Dendry display text; Studio can export a replacement proposal for manual review.",
+          "originalText": "player-facing event. Select **Open the workspace hand** to see the minimal"
+        },
+        {
+          "id": "surface_text_2cac43cb67",
+          "label": "hand/deck/advisor skeleton used by card-style DendryNexus projects.",
+          "area": "opening_text",
+          "source": {
+            "path": "source/scenes/root.scene.dry",
+            "line": 22,
+            "excerpt": "21: player-facing event. Select **Open the workspace hand** to see the minimal\n22: hand/deck/advisor skeleton used by card-style DendryNexus projects.\n23: "
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable",
+          "reason": "Source-backed Dendry display text; Studio can export a replacement proposal for manual review.",
+          "originalText": "hand/deck/advisor skeleton used by card-style DendryNexus projects."
+        },
+        {
+          "id": "surface_text_214720af2f",
+          "label": "@main",
+          "area": "opening_text",
+          "source": {
+            "path": "source/scenes/root.scene.dry",
+            "line": 24,
+            "excerpt": "23: \n24: - @main: Open the workspace hand\n25: - @demo_opening: Start the demo event"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable",
+          "reason": "Source-backed Dendry display text; Studio can export a replacement proposal for manual review.",
+          "originalText": "- @main: Open the workspace hand"
+        },
+        {
+          "id": "surface_text_80942849b0",
+          "label": "Campaign Status",
+          "area": "status_scene",
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 5,
+            "excerpt": "4: \n5: = Campaign Status\n6: "
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable",
+          "reason": "Source-backed Dendry display text; Studio can export a replacement proposal for manual review.",
+          "originalText": "= Campaign Status"
+        },
+        {
+          "id": "surface_text_b2a72421bf",
+          "label": "Resources",
+          "area": "status_scene",
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 11,
+            "excerpt": "10: \n11: Resources: [+ demo_resources +]\n12: "
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable",
+          "reason": "Source-backed Dendry display text; Studio can export a replacement proposal for manual review.",
+          "originalText": "Resources: [+ demo_resources +]",
+          "variableName": "demo_resources"
+        },
+        {
+          "id": "surface_text_477bf88f4d",
+          "label": "Volunteer support",
+          "area": "status_scene",
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 13,
+            "excerpt": "12: \n13: Volunteer support: [+ demo_support : qdemo_level +]\n14: "
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable",
+          "reason": "Source-backed Dendry display text; Studio can export a replacement proposal for manual review.",
+          "originalText": "Volunteer support: [+ demo_support : qdemo_level +]",
+          "variableName": "demo_support"
+        },
+        {
+          "id": "surface_text_7c13bae586",
+          "label": "Advisor trust",
+          "area": "status_scene",
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 15,
+            "excerpt": "14: \n15: Advisor trust: [+ demo_advisor_trust : qdemo_level +]\n16: "
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable",
+          "reason": "Source-backed Dendry display text; Studio can export a replacement proposal for manual review.",
+          "originalText": "Advisor trust: [+ demo_advisor_trust : qdemo_level +]",
+          "variableName": "demo_advisor_trust"
+        },
+        {
+          "id": "surface_text_1a16394973",
+          "label": "Card progress",
+          "area": "status_scene",
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 17,
+            "excerpt": "16: \n17: Card progress: [+ demo_card_progress : qdemo_level +]\n18: "
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable",
+          "reason": "Source-backed Dendry display text; Studio can export a replacement proposal for manual review.",
+          "originalText": "Card progress: [+ demo_card_progress : qdemo_level +]",
+          "variableName": "demo_card_progress"
+        },
+        {
+          "id": "surface_text_4b7d9f315c",
+          "label": "Organization",
+          "area": "status_scene",
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 26,
+            "excerpt": "25: \n26: = Organization\n27: "
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable",
+          "reason": "Source-backed Dendry display text; Studio can export a replacement proposal for manual review.",
+          "originalText": "= Organization"
+        },
+        {
+          "id": "surface_text_38de08ae4e",
+          "label": "Cards",
+          "area": "status_scene",
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 33,
+            "excerpt": "32: \n33: = Cards\n34: "
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable",
+          "reason": "Source-backed Dendry display text; Studio can export a replacement proposal for manual review.",
+          "originalText": "= Cards"
+        },
+        {
+          "id": "surface_text_b402503cdb",
+          "label": "Advisors",
+          "area": "status_scene",
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 39,
+            "excerpt": "38: \n39: = Advisors\n40: "
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable",
+          "reason": "Source-backed Dendry display text; Studio can export a replacement proposal for manual review.",
+          "originalText": "= Advisors"
+        },
+        {
+          "id": "surface_text_aae8c20ffe",
+          "label": "Public Mood",
+          "area": "status_scene",
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 45,
+            "excerpt": "44: \n45: = Public Mood\n46: "
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable",
+          "reason": "Source-backed Dendry display text; Studio can export a replacement proposal for manual review.",
+          "originalText": "= Public Mood"
+        }
+      ],
+      "confidence": "static_inferred"
+    },
+    "textCorpus": {
+      "sources": [
+        "source/scenes/advisors/demo_advisor.scene.dry",
+        "source/scenes/cards/demo_action_card.scene.dry",
+        "source/scenes/decks/demo_action_deck.scene.dry",
+        "source/scenes/demo_opening.scene.dry",
+        "source/scenes/main.scene.dry",
+        "source/scenes/root.scene.dry",
+        "source/scenes/status.scene.dry"
+      ],
+      "items": [
+        {
+          "id": "text_8d5c4907a376",
+          "role": "title",
+          "text": "Starter Advisor",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_advisor",
+            "sectionId": "",
+            "sceneType": "pinned_card"
+          },
+          "source": {
+            "path": "source/scenes/advisors/demo_advisor.scene.dry",
+            "line": 1,
+            "startLine": 1,
+            "endLine": 1,
+            "anchorText": "title: Starter Advisor",
+            "endAnchorText": "title: Starter Advisor",
+            "excerpt": "1: title: Starter Advisor\n2: new-page: true"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable"
+        },
+        {
+          "id": "text_a0556504768e",
+          "role": "subtitle",
+          "text": "A minimal persistent advisor lane",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_advisor",
+            "sectionId": "",
+            "sceneType": "pinned_card"
+          },
+          "source": {
+            "path": "source/scenes/advisors/demo_advisor.scene.dry",
+            "line": 5,
+            "startLine": 5,
+            "endLine": 5,
+            "anchorText": "subtitle: A minimal persistent advisor lane",
+            "endAnchorText": "subtitle: A minimal persistent advisor lane",
+            "excerpt": "4: tags: demo_advisor\n5: subtitle: A minimal persistent advisor lane\n6: "
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable"
+        },
+        {
+          "id": "text_5c8a41ecd57b",
+          "role": "heading",
+          "text": "Starter Advisor",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_advisor",
+            "sectionId": "",
+            "sceneType": "pinned_card"
+          },
+          "source": {
+            "path": "source/scenes/advisors/demo_advisor.scene.dry",
+            "line": 7,
+            "startLine": 7,
+            "endLine": 7,
+            "anchorText": "= Starter Advisor",
+            "endAnchorText": "= Starter Advisor",
+            "excerpt": "6: \n7: = Starter Advisor\n8: "
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_202d918987a7",
+          "role": "body",
+          "text": "This pinned card acts like a tiny advisor, Circle, or standing organization surface. It stays available from the hand and can be replaced with the user's own persistent actor.",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_advisor",
+            "sectionId": "",
+            "sceneType": "pinned_card"
+          },
+          "source": {
+            "path": "source/scenes/advisors/demo_advisor.scene.dry",
+            "line": 9,
+            "startLine": 9,
+            "endLine": 11,
+            "anchorText": "This pinned card acts like a tiny advisor, Circle, or standing organization",
+            "endAnchorText": "own persistent actor.",
+            "excerpt": "8: \n9: This pinned card acts like a tiny advisor, Circle, or standing organization\n10: surface. It stays available from the hand and can be replaced with the user's"
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_866794cbacca",
+          "role": "option_label",
+          "text": "Ask for organizing help",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_advisor",
+            "sectionId": "",
+            "sceneType": "pinned_card"
+          },
+          "source": {
+            "path": "source/scenes/advisors/demo_advisor.scene.dry",
+            "line": 13,
+            "startLine": 13,
+            "endLine": 13,
+            "anchorText": "- @ask_for_help: Ask for organizing help",
+            "endAnchorText": "- @ask_for_help: Ask for organizing help",
+            "excerpt": "12: \n13: - @ask_for_help: Ask for organizing help\n14: - @wait_for_now: Wait for now"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable",
+          "optionId": "ask_for_help"
+        },
+        {
+          "id": "text_44dfbabad44c",
+          "role": "option_label",
+          "text": "Wait for now",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_advisor",
+            "sectionId": "",
+            "sceneType": "pinned_card"
+          },
+          "source": {
+            "path": "source/scenes/advisors/demo_advisor.scene.dry",
+            "line": 14,
+            "startLine": 14,
+            "endLine": 14,
+            "anchorText": "- @wait_for_now: Wait for now",
+            "endAnchorText": "- @wait_for_now: Wait for now",
+            "excerpt": "13: - @ask_for_help: Ask for organizing help\n14: - @wait_for_now: Wait for now\n15: "
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable",
+          "optionId": "wait_for_now"
+        },
+        {
+          "id": "text_31c2ab365402",
+          "role": "title",
+          "text": "Ask for organizing help",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_advisor",
+            "sectionId": "demo_advisor.ask_for_help",
+            "sceneType": "pinned_card"
+          },
+          "source": {
+            "path": "source/scenes/advisors/demo_advisor.scene.dry",
+            "line": 17,
+            "startLine": 17,
+            "endLine": 17,
+            "anchorText": "title: Ask for organizing help",
+            "endAnchorText": "title: Ask for organizing help",
+            "excerpt": "16: @ask_for_help\n17: title: Ask for organizing help\n18: subtitle: Gain a little trust."
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable"
+        },
+        {
+          "id": "text_b4b6221f1ee0",
+          "role": "subtitle",
+          "text": "Gain a little trust.",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_advisor",
+            "sectionId": "demo_advisor.ask_for_help",
+            "sceneType": "pinned_card"
+          },
+          "source": {
+            "path": "source/scenes/advisors/demo_advisor.scene.dry",
+            "line": 18,
+            "startLine": 18,
+            "endLine": 18,
+            "anchorText": "subtitle: Gain a little trust.",
+            "endAnchorText": "subtitle: Gain a little trust.",
+            "excerpt": "17: title: Ask for organizing help\n18: subtitle: Gain a little trust.\n19: on-arrival: {!"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable"
+        },
+        {
+          "id": "text_3b0da77f2c81",
+          "role": "body",
+          "text": "The advisor helps the organization turn a loose idea into a modest first step.",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_advisor",
+            "sectionId": "demo_advisor.ask_for_help",
+            "sceneType": "pinned_card"
+          },
+          "source": {
+            "path": "source/scenes/advisors/demo_advisor.scene.dry",
+            "line": 25,
+            "startLine": 25,
+            "endLine": 25,
+            "anchorText": "The advisor helps the organization turn a loose idea into a modest first step.",
+            "endAnchorText": "The advisor helps the organization turn a loose idea into a modest first step.",
+            "excerpt": "24: \n25: The advisor helps the organization turn a loose idea into a modest first step.\n26: "
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_605345697e41",
+          "role": "title",
+          "text": "Wait for now",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_advisor",
+            "sectionId": "demo_advisor.wait_for_now",
+            "sceneType": "pinned_card"
+          },
+          "source": {
+            "path": "source/scenes/advisors/demo_advisor.scene.dry",
+            "line": 28,
+            "startLine": 28,
+            "endLine": 28,
+            "anchorText": "title: Wait for now",
+            "endAnchorText": "title: Wait for now",
+            "excerpt": "27: @wait_for_now\n28: title: Wait for now\n29: go-to: main"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable"
+        },
+        {
+          "id": "text_0e7d609d6a77",
+          "role": "body",
+          "text": "The advisor remains available while the organization keeps listening.",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_advisor",
+            "sectionId": "demo_advisor.wait_for_now",
+            "sceneType": "pinned_card"
+          },
+          "source": {
+            "path": "source/scenes/advisors/demo_advisor.scene.dry",
+            "line": 31,
+            "startLine": 31,
+            "endLine": 31,
+            "anchorText": "The advisor remains available while the organization keeps listening.",
+            "endAnchorText": "The advisor remains available while the organization keeps listening.",
+            "excerpt": "30: \n31: The advisor remains available while the organization keeps listening."
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_a15b70575ab7",
+          "role": "title",
+          "text": "Starter Action Card",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_action_card",
+            "sectionId": "",
+            "sceneType": "card"
+          },
+          "source": {
+            "path": "source/scenes/cards/demo_action_card.scene.dry",
+            "line": 1,
+            "startLine": 1,
+            "endLine": 1,
+            "anchorText": "title: Starter Action Card",
+            "endAnchorText": "title: Starter Action Card",
+            "excerpt": "1: title: Starter Action Card\n2: new-page: true"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable"
+        },
+        {
+          "id": "text_1f57a44133ff",
+          "role": "heading",
+          "text": "Starter Action Card",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_action_card",
+            "sectionId": "",
+            "sceneType": "card"
+          },
+          "source": {
+            "path": "source/scenes/cards/demo_action_card.scene.dry",
+            "line": 8,
+            "startLine": 8,
+            "endLine": 8,
+            "anchorText": "= Starter Action Card",
+            "endAnchorText": "= Starter Action Card",
+            "excerpt": "7: \n8: = Starter Action Card\n9: "
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_58aa29afc364",
+          "role": "body",
+          "text": "This card is intentionally small. It demonstrates the action-card lane without copying an existing game system.",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_action_card",
+            "sectionId": "",
+            "sceneType": "card"
+          },
+          "source": {
+            "path": "source/scenes/cards/demo_action_card.scene.dry",
+            "line": 10,
+            "startLine": 10,
+            "endLine": 11,
+            "anchorText": "This card is intentionally small. It demonstrates the action-card lane without",
+            "endAnchorText": "copying an existing game system.",
+            "excerpt": "9: \n10: This card is intentionally small. It demonstrates the action-card lane without\n11: copying an existing game system."
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_938ac0ecf722",
+          "role": "option_label",
+          "text": "Spend resources",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_action_card",
+            "sectionId": "",
+            "sceneType": "card"
+          },
+          "source": {
+            "path": "source/scenes/cards/demo_action_card.scene.dry",
+            "line": 13,
+            "startLine": 13,
+            "endLine": 13,
+            "anchorText": "- @spend_resources: Spend resources",
+            "endAnchorText": "- @spend_resources: Spend resources",
+            "excerpt": "12: \n13: - @spend_resources: Spend resources\n14: - @save_capacity: Save capacity"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable",
+          "optionId": "spend_resources"
+        },
+        {
+          "id": "text_3982bd13a162",
+          "role": "option_label",
+          "text": "Save capacity",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_action_card",
+            "sectionId": "",
+            "sceneType": "card"
+          },
+          "source": {
+            "path": "source/scenes/cards/demo_action_card.scene.dry",
+            "line": 14,
+            "startLine": 14,
+            "endLine": 14,
+            "anchorText": "- @save_capacity: Save capacity",
+            "endAnchorText": "- @save_capacity: Save capacity",
+            "excerpt": "13: - @spend_resources: Spend resources\n14: - @save_capacity: Save capacity\n15: "
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable",
+          "optionId": "save_capacity"
+        },
+        {
+          "id": "text_cdf31ddf8558",
+          "role": "title",
+          "text": "Spend resources",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_action_card",
+            "sectionId": "demo_action_card.spend_resources",
+            "sceneType": "card"
+          },
+          "source": {
+            "path": "source/scenes/cards/demo_action_card.scene.dry",
+            "line": 17,
+            "startLine": 17,
+            "endLine": 17,
+            "anchorText": "title: Spend resources",
+            "endAnchorText": "title: Spend resources",
+            "excerpt": "16: @spend_resources\n17: title: Spend resources\n18: subtitle: Convert capacity into visible progress."
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable",
+          "conditions": [
+            "demo_resources >= 1"
+          ]
+        },
+        {
+          "id": "text_fcc4a5275cfe",
+          "role": "subtitle",
+          "text": "Convert capacity into visible progress.",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_action_card",
+            "sectionId": "demo_action_card.spend_resources",
+            "sceneType": "card"
+          },
+          "source": {
+            "path": "source/scenes/cards/demo_action_card.scene.dry",
+            "line": 18,
+            "startLine": 18,
+            "endLine": 18,
+            "anchorText": "subtitle: Convert capacity into visible progress.",
+            "endAnchorText": "subtitle: Convert capacity into visible progress.",
+            "excerpt": "17: title: Spend resources\n18: subtitle: Convert capacity into visible progress.\n19: choose-if: demo_resources >= 1"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable",
+          "conditions": [
+            "demo_resources >= 1"
+          ]
+        },
+        {
+          "id": "text_1d5a60e65d8e",
+          "role": "unavailable_text",
+          "text": "Resources are too low.",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_action_card",
+            "sectionId": "demo_action_card.spend_resources",
+            "sceneType": "card"
+          },
+          "source": {
+            "path": "source/scenes/cards/demo_action_card.scene.dry",
+            "line": 20,
+            "startLine": 20,
+            "endLine": 20,
+            "anchorText": "unavailable-subtitle: Resources are too low.",
+            "endAnchorText": "unavailable-subtitle: Resources are too low.",
+            "excerpt": "19: choose-if: demo_resources >= 1\n20: unavailable-subtitle: Resources are too low.\n21: on-arrival: {!"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable",
+          "conditions": [
+            "demo_resources >= 1"
+          ]
+        },
+        {
+          "id": "text_33317813fdc5",
+          "role": "body",
+          "text": "The organization spends a small amount of capacity to move the project forward.",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_action_card",
+            "sectionId": "demo_action_card.spend_resources",
+            "sceneType": "card"
+          },
+          "source": {
+            "path": "source/scenes/cards/demo_action_card.scene.dry",
+            "line": 27,
+            "startLine": 27,
+            "endLine": 27,
+            "anchorText": "The organization spends a small amount of capacity to move the project forward.",
+            "endAnchorText": "The organization spends a small amount of capacity to move the project forward.",
+            "excerpt": "26: \n27: The organization spends a small amount of capacity to move the project forward.\n28: "
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal",
+          "conditions": [
+            "demo_resources >= 1"
+          ]
+        },
+        {
+          "id": "text_2b56cceb4c6e",
+          "role": "title",
+          "text": "Save capacity",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_action_card",
+            "sectionId": "demo_action_card.save_capacity",
+            "sceneType": "card"
+          },
+          "source": {
+            "path": "source/scenes/cards/demo_action_card.scene.dry",
+            "line": 30,
+            "startLine": 30,
+            "endLine": 30,
+            "anchorText": "title: Save capacity",
+            "endAnchorText": "title: Save capacity",
+            "excerpt": "29: @save_capacity\n30: title: Save capacity\n31: subtitle: Keep resources for later."
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable"
+        },
+        {
+          "id": "text_1985bdd14cbe",
+          "role": "subtitle",
+          "text": "Keep resources for later.",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_action_card",
+            "sectionId": "demo_action_card.save_capacity",
+            "sceneType": "card"
+          },
+          "source": {
+            "path": "source/scenes/cards/demo_action_card.scene.dry",
+            "line": 31,
+            "startLine": 31,
+            "endLine": 31,
+            "anchorText": "subtitle: Keep resources for later.",
+            "endAnchorText": "subtitle: Keep resources for later.",
+            "excerpt": "30: title: Save capacity\n31: subtitle: Keep resources for later.\n32: on-arrival: {!"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable"
+        },
+        {
+          "id": "text_b26ec4260f38",
+          "role": "body",
+          "text": "The organization keeps its limited capacity available for another moment.",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_action_card",
+            "sectionId": "demo_action_card.save_capacity",
+            "sceneType": "card"
+          },
+          "source": {
+            "path": "source/scenes/cards/demo_action_card.scene.dry",
+            "line": 37,
+            "startLine": 37,
+            "endLine": 37,
+            "anchorText": "The organization keeps its limited capacity available for another moment.",
+            "endAnchorText": "The organization keeps its limited capacity available for another moment.",
+            "excerpt": "36: \n37: The organization keeps its limited capacity available for another moment."
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_e819d7e32927",
+          "role": "title",
+          "text": "Starter Deck",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_action_deck",
+            "sectionId": "",
+            "sceneType": "deck"
+          },
+          "source": {
+            "path": "source/scenes/decks/demo_action_deck.scene.dry",
+            "line": 1,
+            "startLine": 1,
+            "endLine": 1,
+            "anchorText": "title: Starter Deck",
+            "endAnchorText": "title: Starter Deck",
+            "excerpt": "1: title: Starter Deck\n2: subtitle: A minimal action-card deck"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable"
+        },
+        {
+          "id": "text_0e62037aabf5",
+          "role": "subtitle",
+          "text": "A minimal action-card deck",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_action_deck",
+            "sectionId": "",
+            "sceneType": "deck"
+          },
+          "source": {
+            "path": "source/scenes/decks/demo_action_deck.scene.dry",
+            "line": 2,
+            "startLine": 2,
+            "endLine": 2,
+            "anchorText": "subtitle: A minimal action-card deck",
+            "endAnchorText": "subtitle: A minimal action-card deck",
+            "excerpt": "1: title: Starter Deck\n2: subtitle: A minimal action-card deck\n3: is-deck: true"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable"
+        },
+        {
+          "id": "text_88b02c0e14c7",
+          "role": "title",
+          "text": "A Small Campaign Office",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_opening",
+            "sectionId": "",
+            "sceneType": "event"
+          },
+          "source": {
+            "path": "source/scenes/demo_opening.scene.dry",
+            "line": 1,
+            "startLine": 1,
+            "endLine": 1,
+            "anchorText": "title: A Small Campaign Office",
+            "endAnchorText": "title: A Small Campaign Office",
+            "excerpt": "1: title: A Small Campaign Office\n2: tags: event"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable"
+        },
+        {
+          "id": "text_b81d7886f7d0",
+          "role": "heading",
+          "text": "A Small Campaign Office",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_opening",
+            "sectionId": "",
+            "sceneType": "event"
+          },
+          "source": {
+            "path": "source/scenes/demo_opening.scene.dry",
+            "line": 7,
+            "startLine": 7,
+            "endLine": 7,
+            "anchorText": "= A Small Campaign Office",
+            "endAnchorText": "= A Small Campaign Office",
+            "excerpt": "6: \n7: = A Small Campaign Office\n8: "
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_362116ba4743",
+          "role": "body",
+          "text": "This paragraph is the event body. In Studio, it is the kind of text players edit when they change an Event or Scene body.",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_opening",
+            "sectionId": "",
+            "sceneType": "event"
+          },
+          "source": {
+            "path": "source/scenes/demo_opening.scene.dry",
+            "line": 9,
+            "startLine": 9,
+            "endLine": 10,
+            "anchorText": "This paragraph is the event body. In Studio, it is the kind of text players edit",
+            "endAnchorText": "when they change an Event or Scene body.",
+            "excerpt": "8: \n9: This paragraph is the event body. In Studio, it is the kind of text players edit\n10: when they change an Event or Scene body."
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_96affe571f22",
+          "role": "body",
+          "text": "The two choices below show how option text becomes a button. Each result writes a small variable so you can see how effects shape later conditions.",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_opening",
+            "sectionId": "",
+            "sceneType": "event"
+          },
+          "source": {
+            "path": "source/scenes/demo_opening.scene.dry",
+            "line": 12,
+            "startLine": 12,
+            "endLine": 13,
+            "anchorText": "The two choices below show how option text becomes a button. Each result writes",
+            "endAnchorText": "a small variable so you can see how effects shape later conditions.",
+            "excerpt": "11: \n12: The two choices below show how option text becomes a button. Each result writes\n13: a small variable so you can see how effects shape later conditions."
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_d2015fda8deb",
+          "role": "option_label",
+          "text": "Organize volunteers",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_opening",
+            "sectionId": "",
+            "sceneType": "event"
+          },
+          "source": {
+            "path": "source/scenes/demo_opening.scene.dry",
+            "line": 15,
+            "startLine": 15,
+            "endLine": 15,
+            "anchorText": "- @organize_volunteers: Organize volunteers",
+            "endAnchorText": "- @organize_volunteers: Organize volunteers",
+            "excerpt": "14: \n15: - @organize_volunteers: Organize volunteers\n16: - @observe_quietly: Wait and observe"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable",
+          "optionId": "organize_volunteers"
+        },
+        {
+          "id": "text_eba2a8ebde66",
+          "role": "option_label",
+          "text": "Wait and observe",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_opening",
+            "sectionId": "",
+            "sceneType": "event"
+          },
+          "source": {
+            "path": "source/scenes/demo_opening.scene.dry",
+            "line": 16,
+            "startLine": 16,
+            "endLine": 16,
+            "anchorText": "- @observe_quietly: Wait and observe",
+            "endAnchorText": "- @observe_quietly: Wait and observe",
+            "excerpt": "15: - @organize_volunteers: Organize volunteers\n16: - @observe_quietly: Wait and observe\n17: "
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable",
+          "optionId": "observe_quietly"
+        },
+        {
+          "id": "text_3295dc585e2c",
+          "role": "title",
+          "text": "Organize volunteers",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_opening",
+            "sectionId": "demo_opening.organize_volunteers",
+            "sceneType": "event"
+          },
+          "source": {
+            "path": "source/scenes/demo_opening.scene.dry",
+            "line": 19,
+            "startLine": 19,
+            "endLine": 19,
+            "anchorText": "title: Organize volunteers",
+            "endAnchorText": "title: Organize volunteers",
+            "excerpt": "18: @organize_volunteers\n19: title: Organize volunteers\n20: subtitle: Option result text"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable"
+        },
+        {
+          "id": "text_0a552bb30290",
+          "role": "subtitle",
+          "text": "Option result text",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_opening",
+            "sectionId": "demo_opening.organize_volunteers",
+            "sceneType": "event"
+          },
+          "source": {
+            "path": "source/scenes/demo_opening.scene.dry",
+            "line": 20,
+            "startLine": 20,
+            "endLine": 20,
+            "anchorText": "subtitle: Option result text",
+            "endAnchorText": "subtitle: Option result text",
+            "excerpt": "19: title: Organize volunteers\n20: subtitle: Option result text\n21: on-arrival: {!"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable"
+        },
+        {
+          "id": "text_828917f1da51",
+          "role": "heading",
+          "text": "Organize volunteers",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_opening",
+            "sectionId": "demo_opening.organize_volunteers",
+            "sceneType": "event"
+          },
+          "source": {
+            "path": "source/scenes/demo_opening.scene.dry",
+            "line": 25,
+            "startLine": 25,
+            "endLine": 25,
+            "anchorText": "= Organize volunteers",
+            "endAnchorText": "= Organize volunteers",
+            "excerpt": "24: \n25: = Organize volunteers\n26: "
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_ea16b292b090",
+          "role": "body",
+          "text": "This is result text. It appears after the player clicks the option. The effect `demo_support += 1` also unlocks a follow-up option on the starter screen.",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_opening",
+            "sectionId": "demo_opening.organize_volunteers",
+            "sceneType": "event"
+          },
+          "source": {
+            "path": "source/scenes/demo_opening.scene.dry",
+            "line": 27,
+            "startLine": 27,
+            "endLine": 28,
+            "anchorText": "This is result text. It appears after the player clicks the option. The effect",
+            "endAnchorText": "`demo_support += 1` also unlocks a follow-up option on the starter screen.",
+            "excerpt": "26: \n27: This is result text. It appears after the player clicks the option. The effect\n28: `demo_support += 1` also unlocks a follow-up option on the starter screen."
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_7ff1c03ee40d",
+          "role": "option_label",
+          "text": "Continue",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_opening",
+            "sectionId": "demo_opening.organize_volunteers",
+            "sceneType": "event"
+          },
+          "source": {
+            "path": "source/scenes/demo_opening.scene.dry",
+            "line": 30,
+            "startLine": 30,
+            "endLine": 30,
+            "anchorText": "- @demo_status: Continue",
+            "endAnchorText": "- @demo_status: Continue",
+            "excerpt": "29: \n30: - @demo_status: Continue\n31: "
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable",
+          "optionId": "demo_status"
+        },
+        {
+          "id": "text_40ab5d2ccf60",
+          "role": "title",
+          "text": "Wait and observe",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_opening",
+            "sectionId": "demo_opening.observe_quietly",
+            "sceneType": "event"
+          },
+          "source": {
+            "path": "source/scenes/demo_opening.scene.dry",
+            "line": 33,
+            "startLine": 33,
+            "endLine": 33,
+            "anchorText": "title: Wait and observe",
+            "endAnchorText": "title: Wait and observe",
+            "excerpt": "32: @observe_quietly\n33: title: Wait and observe\n34: subtitle: Option result text"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable"
+        },
+        {
+          "id": "text_6a57c106e9f4",
+          "role": "subtitle",
+          "text": "Option result text",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_opening",
+            "sectionId": "demo_opening.observe_quietly",
+            "sceneType": "event"
+          },
+          "source": {
+            "path": "source/scenes/demo_opening.scene.dry",
+            "line": 34,
+            "startLine": 34,
+            "endLine": 34,
+            "anchorText": "subtitle: Option result text",
+            "endAnchorText": "subtitle: Option result text",
+            "excerpt": "33: title: Wait and observe\n34: subtitle: Option result text\n35: on-arrival: {!"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable"
+        },
+        {
+          "id": "text_3df9c4d9b8c0",
+          "role": "heading",
+          "text": "Wait and observe",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_opening",
+            "sectionId": "demo_opening.observe_quietly",
+            "sceneType": "event"
+          },
+          "source": {
+            "path": "source/scenes/demo_opening.scene.dry",
+            "line": 39,
+            "startLine": 39,
+            "endLine": 39,
+            "anchorText": "= Wait and observe",
+            "endAnchorText": "= Wait and observe",
+            "excerpt": "38: \n39: = Wait and observe\n40: "
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_db371cb42e64",
+          "role": "body",
+          "text": "This is another result. The effect `demo_conflict += 1` changes the state summary, but it does not unlock the support follow-up.",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_opening",
+            "sectionId": "demo_opening.observe_quietly",
+            "sceneType": "event"
+          },
+          "source": {
+            "path": "source/scenes/demo_opening.scene.dry",
+            "line": 41,
+            "startLine": 41,
+            "endLine": 42,
+            "anchorText": "This is another result. The effect `demo_conflict += 1` changes the state",
+            "endAnchorText": "summary, but it does not unlock the support follow-up.",
+            "excerpt": "40: \n41: This is another result. The effect `demo_conflict += 1` changes the state\n42: summary, but it does not unlock the support follow-up."
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_756aaf35737c",
+          "role": "option_label",
+          "text": "Continue",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_opening",
+            "sectionId": "demo_opening.observe_quietly",
+            "sceneType": "event"
+          },
+          "source": {
+            "path": "source/scenes/demo_opening.scene.dry",
+            "line": 44,
+            "startLine": 44,
+            "endLine": 44,
+            "anchorText": "- @demo_status: Continue",
+            "endAnchorText": "- @demo_status: Continue",
+            "excerpt": "43: \n44: - @demo_status: Continue\n45: "
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable",
+          "optionId": "demo_status"
+        },
+        {
+          "id": "text_e85c62f890e9",
+          "role": "title",
+          "text": "Demo State",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_opening",
+            "sectionId": "demo_opening.demo_status",
+            "sceneType": "event"
+          },
+          "source": {
+            "path": "source/scenes/demo_opening.scene.dry",
+            "line": 47,
+            "startLine": 47,
+            "endLine": 47,
+            "anchorText": "title: Demo State",
+            "endAnchorText": "title: Demo State",
+            "excerpt": "46: @demo_status\n47: title: Demo State\n48: "
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable"
+        },
+        {
+          "id": "text_d5b6b7144270",
+          "role": "heading",
+          "text": "Demo State",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_opening",
+            "sectionId": "demo_opening.demo_status",
+            "sceneType": "event"
+          },
+          "source": {
+            "path": "source/scenes/demo_opening.scene.dry",
+            "line": 49,
+            "startLine": 49,
+            "endLine": 49,
+            "anchorText": "= Demo State",
+            "endAnchorText": "= Demo State",
+            "excerpt": "48: \n49: = Demo State\n50: "
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_d1f6fc737fa2",
+          "role": "conditional_body",
+          "text": "`demo_support` is above 0, so the support line can now appear.",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_opening",
+            "sectionId": "demo_opening.demo_status",
+            "sceneType": "event"
+          },
+          "source": {
+            "path": "source/scenes/demo_opening.scene.dry",
+            "line": 51,
+            "startLine": 51,
+            "endLine": 51,
+            "anchorText": "[? if demo_support > 0 : `demo_support` is above 0, so the support line can now appear. ?]",
+            "endAnchorText": "[? if demo_support > 0 : `demo_support` is above 0, so the support line can now appear. ?]",
+            "excerpt": "50: \n51: [? if demo_support > 0 : `demo_support` is above 0, so the support line can now appear. ?]\n52: [? if demo_conflict > 0 : `demo_conflict` is above 0, so the observation line can now appear. ?]"
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal",
+          "conditions": [
+            "demo_support > 0"
+          ]
+        },
+        {
+          "id": "text_6a6d68c810a7",
+          "role": "conditional_body",
+          "text": "`demo_conflict` is above 0, so the observation line can now appear.",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_opening",
+            "sectionId": "demo_opening.demo_status",
+            "sceneType": "event"
+          },
+          "source": {
+            "path": "source/scenes/demo_opening.scene.dry",
+            "line": 52,
+            "startLine": 52,
+            "endLine": 52,
+            "anchorText": "[? if demo_conflict > 0 : `demo_conflict` is above 0, so the observation line can now appear. ?]",
+            "endAnchorText": "[? if demo_conflict > 0 : `demo_conflict` is above 0, so the observation line can now appear. ?]",
+            "excerpt": "51: [? if demo_support > 0 : `demo_support` is above 0, so the support line can now appear. ?]\n52: [? if demo_conflict > 0 : `demo_conflict` is above 0, so the observation line can now appear. ?]\n53: "
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal",
+          "conditions": [
+            "demo_conflict > 0"
+          ]
+        },
+        {
+          "id": "text_329e904754f7",
+          "role": "body",
+          "text": "If neither line appears yet, choose one of the options in the demo event first.",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_opening",
+            "sectionId": "demo_opening.demo_status",
+            "sceneType": "event"
+          },
+          "source": {
+            "path": "source/scenes/demo_opening.scene.dry",
+            "line": 54,
+            "startLine": 54,
+            "endLine": 54,
+            "anchorText": "If neither line appears yet, choose one of the options in the demo event first.",
+            "endAnchorText": "If neither line appears yet, choose one of the options in the demo event first.",
+            "excerpt": "53: \n54: If neither line appears yet, choose one of the options in the demo event first.\n55: "
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_825fb5b8082d",
+          "role": "option_label",
+          "text": "Back to start",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_opening",
+            "sectionId": "demo_opening.demo_status",
+            "sceneType": "event"
+          },
+          "source": {
+            "path": "source/scenes/demo_opening.scene.dry",
+            "line": 56,
+            "startLine": 56,
+            "endLine": 56,
+            "anchorText": "- @root: Back to start",
+            "endAnchorText": "- @root: Back to start",
+            "excerpt": "55: \n56: - @root: Back to start\n57: "
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable",
+          "optionId": "root"
+        },
+        {
+          "id": "text_84fbe342170f",
+          "role": "title",
+          "text": "Follow up on support",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_opening",
+            "sectionId": "demo_opening.support_followup",
+            "sceneType": "event"
+          },
+          "source": {
+            "path": "source/scenes/demo_opening.scene.dry",
+            "line": 59,
+            "startLine": 59,
+            "endLine": 59,
+            "anchorText": "title: Follow up on support",
+            "endAnchorText": "title: Follow up on support",
+            "excerpt": "58: @support_followup\n59: title: Follow up on support\n60: view-if: demo_support > 0"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable",
+          "conditions": [
+            "demo_support > 0"
+          ]
+        },
+        {
+          "id": "text_607eaa463ebe",
+          "role": "heading",
+          "text": "Follow up on support",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_opening",
+            "sectionId": "demo_opening.support_followup",
+            "sceneType": "event"
+          },
+          "source": {
+            "path": "source/scenes/demo_opening.scene.dry",
+            "line": 62,
+            "startLine": 62,
+            "endLine": 62,
+            "anchorText": "= Follow up on support",
+            "endAnchorText": "= Follow up on support",
+            "excerpt": "61: \n62: = Follow up on support\n63: "
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal",
+          "conditions": [
+            "demo_support > 0"
+          ]
+        },
+        {
+          "id": "text_bf9e17fffcff",
+          "role": "body",
+          "text": "This section is hidden until `demo_support` is above 0. In Studio, conditions like this appear as `view-if` or requirements. They explain why some player choices are not visible at the start.",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_opening",
+            "sectionId": "demo_opening.support_followup",
+            "sceneType": "event"
+          },
+          "source": {
+            "path": "source/scenes/demo_opening.scene.dry",
+            "line": 64,
+            "startLine": 64,
+            "endLine": 66,
+            "anchorText": "This section is hidden until `demo_support` is above 0. In Studio, conditions",
+            "endAnchorText": "choices are not visible at the start.",
+            "excerpt": "63: \n64: This section is hidden until `demo_support` is above 0. In Studio, conditions\n65: like this appear as `view-if` or requirements. They explain why some player"
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal",
+          "conditions": [
+            "demo_support > 0"
+          ]
+        },
+        {
+          "id": "text_51d97fb8bb9a",
+          "role": "option_label",
+          "text": "Back to start",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "demo_opening",
+            "sectionId": "demo_opening.support_followup",
+            "sceneType": "event"
+          },
+          "source": {
+            "path": "source/scenes/demo_opening.scene.dry",
+            "line": 68,
+            "startLine": 68,
+            "endLine": 68,
+            "anchorText": "- @root: Back to start",
+            "endAnchorText": "- @root: Back to start",
+            "excerpt": "67: \n68: - @root: Back to start"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable",
+          "conditions": [
+            "demo_support > 0"
+          ],
+          "optionId": "root"
+        },
+        {
+          "id": "text_66ebe18d7003",
+          "role": "title",
+          "text": "Workspace Hand",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "main",
+            "sectionId": "",
+            "sceneType": "hand"
+          },
+          "source": {
+            "path": "source/scenes/main.scene.dry",
+            "line": 1,
+            "startLine": 1,
+            "endLine": 1,
+            "anchorText": "title: Workspace Hand",
+            "endAnchorText": "title: Workspace Hand",
+            "excerpt": "1: title: Workspace Hand\n2: new-page: true"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable"
+        },
+        {
+          "id": "text_45b7d718cf68",
+          "role": "heading",
+          "text": "Workspace Hand",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "main",
+            "sectionId": "",
+            "sceneType": "hand"
+          },
+          "source": {
+            "path": "source/scenes/main.scene.dry",
+            "line": 6,
+            "startLine": 6,
+            "endLine": 6,
+            "anchorText": "= Workspace Hand",
+            "endAnchorText": "= Workspace Hand",
+            "excerpt": "5: \n6: = Workspace Hand\n7: "
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_ad7c3090287a",
+          "role": "body",
+          "text": "This is a whiteboard hand scene. It gives the project a ready-made card surface: one deck lane for action cards and one pinned advisor lane.",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "main",
+            "sectionId": "",
+            "sceneType": "hand"
+          },
+          "source": {
+            "path": "source/scenes/main.scene.dry",
+            "line": 8,
+            "startLine": 8,
+            "endLine": 9,
+            "anchorText": "This is a whiteboard hand scene. It gives the project a ready-made card surface:",
+            "endAnchorText": "one deck lane for action cards and one pinned advisor lane.",
+            "excerpt": "7: \n8: This is a whiteboard hand scene. It gives the project a ready-made card surface:\n9: one deck lane for action cards and one pinned advisor lane."
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_71d8dae73a29",
+          "role": "body",
+          "text": "In a larger mod, this can become the place where monthly actions, party work, advisors, circles, or other repeatable systems live.",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "main",
+            "sectionId": "",
+            "sceneType": "hand"
+          },
+          "source": {
+            "path": "source/scenes/main.scene.dry",
+            "line": 11,
+            "startLine": 11,
+            "endLine": 12,
+            "anchorText": "In a larger mod, this can become the place where monthly actions, party work,",
+            "endAnchorText": "advisors, circles, or other repeatable systems live.",
+            "excerpt": "10: \n11: In a larger mod, this can become the place where monthly actions, party work,\n12: advisors, circles, or other repeatable systems live."
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_e6c7dd38e264",
+          "role": "option_label",
+          "text": "Draw from the starter deck",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "main",
+            "sectionId": "",
+            "sceneType": "hand"
+          },
+          "source": {
+            "path": "source/scenes/main.scene.dry",
+            "line": 14,
+            "startLine": 14,
+            "endLine": 14,
+            "anchorText": "- @demo_action_deck: Draw from the starter deck",
+            "endAnchorText": "- @demo_action_deck: Draw from the starter deck",
+            "excerpt": "13: \n14: - @demo_action_deck: Draw from the starter deck\n15: - #demo_advisor: Review starter advisor"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable",
+          "optionId": "demo_action_deck"
+        },
+        {
+          "id": "text_23679ef3518c",
+          "role": "option_label",
+          "text": "Back to start",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "main",
+            "sectionId": "",
+            "sceneType": "hand"
+          },
+          "source": {
+            "path": "source/scenes/main.scene.dry",
+            "line": 16,
+            "startLine": 16,
+            "endLine": 16,
+            "anchorText": "- @root: Back to start",
+            "endAnchorText": "- @root: Back to start",
+            "excerpt": "15: - #demo_advisor: Review starter advisor\n16: - @root: Back to start"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable",
+          "optionId": "root"
+        },
+        {
+          "id": "text_de21bfca3f57",
+          "role": "title",
+          "text": "Starter Demo",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "root",
+            "sectionId": "",
+            "sceneType": "root"
+          },
+          "source": {
+            "path": "source/scenes/root.scene.dry",
+            "line": 1,
+            "startLine": 1,
+            "endLine": 1,
+            "anchorText": "title: Starter Demo",
+            "endAnchorText": "title: Starter Demo",
+            "excerpt": "1: title: Starter Demo\n2: new-page: true"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable"
+        },
+        {
+          "id": "text_b3d65f3a7c70",
+          "role": "heading",
+          "text": "Dendry Mod Studio Starter Demo",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "root",
+            "sectionId": "",
+            "sceneType": "root"
+          },
+          "source": {
+            "path": "source/scenes/root.scene.dry",
+            "line": 13,
+            "startLine": 13,
+            "endLine": 13,
+            "anchorText": "= Dendry Mod Studio Starter Demo",
+            "endAnchorText": "= Dendry Mod Studio Starter Demo",
+            "excerpt": "12: \n13: = Dendry Mod Studio Starter Demo\n14: "
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_f67be36f16b6",
+          "role": "body",
+          "text": "This bundled project is a safe place to learn how a Dendry mod is built. The next scene acts like a tiny in-game event: it has a title, a body, two choices, result text, and effects that change simple variables.",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "root",
+            "sectionId": "",
+            "sceneType": "root"
+          },
+          "source": {
+            "path": "source/scenes/root.scene.dry",
+            "line": 15,
+            "startLine": 15,
+            "endLine": 17,
+            "anchorText": "This bundled project is a safe place to learn how a Dendry mod is built. The",
+            "endAnchorText": "result text, and effects that change simple variables.",
+            "excerpt": "14: \n15: This bundled project is a safe place to learn how a Dendry mod is built. The\n16: next scene acts like a tiny in-game event: it has a title, a body, two choices,"
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_c8ea51342813",
+          "role": "body",
+          "text": "In Studio, open Explore or Design after loading this template. Select **A Small Campaign Office** to see how the source-backed text maps to the player-facing event. Select **Open the workspace hand** to see the minimal hand/deck/advisor skeleton used by card-style DendryNexus projects.",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "root",
+            "sectionId": "",
+            "sceneType": "root"
+          },
+          "source": {
+            "path": "source/scenes/root.scene.dry",
+            "line": 19,
+            "startLine": 19,
+            "endLine": 22,
+            "anchorText": "In Studio, open Explore or Design after loading this template. Select",
+            "endAnchorText": "hand/deck/advisor skeleton used by card-style DendryNexus projects.",
+            "excerpt": "18: \n19: In Studio, open Explore or Design after loading this template. Select\n20: **A Small Campaign Office** to see how the source-backed text maps to the"
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_350925e6bf51",
+          "role": "option_label",
+          "text": "Open the workspace hand",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "root",
+            "sectionId": "",
+            "sceneType": "root"
+          },
+          "source": {
+            "path": "source/scenes/root.scene.dry",
+            "line": 24,
+            "startLine": 24,
+            "endLine": 24,
+            "anchorText": "- @main: Open the workspace hand",
+            "endAnchorText": "- @main: Open the workspace hand",
+            "excerpt": "23: \n24: - @main: Open the workspace hand\n25: - @demo_opening: Start the demo event"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable",
+          "optionId": "main"
+        },
+        {
+          "id": "text_c73c1def406a",
+          "role": "option_label",
+          "text": "Start the demo event",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "root",
+            "sectionId": "",
+            "sceneType": "root"
+          },
+          "source": {
+            "path": "source/scenes/root.scene.dry",
+            "line": 25,
+            "startLine": 25,
+            "endLine": 25,
+            "anchorText": "- @demo_opening: Start the demo event",
+            "endAnchorText": "- @demo_opening: Start the demo event",
+            "excerpt": "24: - @main: Open the workspace hand\n25: - @demo_opening: Start the demo event\n26: - @demo_opening.demo_status: Check demo state"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable",
+          "optionId": "demo_opening"
+        },
+        {
+          "id": "text_256e0035d398",
+          "role": "option_label",
+          "text": "Check demo state",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "root",
+            "sectionId": "",
+            "sceneType": "root"
+          },
+          "source": {
+            "path": "source/scenes/root.scene.dry",
+            "line": 26,
+            "startLine": 26,
+            "endLine": 26,
+            "anchorText": "- @demo_opening.demo_status: Check demo state",
+            "endAnchorText": "- @demo_opening.demo_status: Check demo state",
+            "excerpt": "25: - @demo_opening: Start the demo event\n26: - @demo_opening.demo_status: Check demo state\n27: - @demo_opening.support_followup: Follow up on support"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable",
+          "optionId": "demo_opening.demo_status"
+        },
+        {
+          "id": "text_1d230600cdca",
+          "role": "option_label",
+          "text": "Follow up on support",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "root",
+            "sectionId": "",
+            "sceneType": "root"
+          },
+          "source": {
+            "path": "source/scenes/root.scene.dry",
+            "line": 27,
+            "startLine": 27,
+            "endLine": 27,
+            "anchorText": "- @demo_opening.support_followup: Follow up on support",
+            "endAnchorText": "- @demo_opening.support_followup: Follow up on support",
+            "excerpt": "26: - @demo_opening.demo_status: Check demo state\n27: - @demo_opening.support_followup: Follow up on support"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable",
+          "optionId": "demo_opening.support_followup"
+        },
+        {
+          "id": "text_c475c4b701c3",
+          "role": "title",
+          "text": "Demo Status",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "status",
+            "sectionId": "",
+            "sceneType": "scene"
+          },
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 1,
+            "startLine": 1,
+            "endLine": 1,
+            "anchorText": "title: Demo Status",
+            "endAnchorText": "title: Demo Status",
+            "excerpt": "1: title: Demo Status\n2: new-page: true"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_extractable"
+        },
+        {
+          "id": "text_ab42a92db629",
+          "role": "heading",
+          "text": "Campaign Status",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "status",
+            "sectionId": "",
+            "sceneType": "scene"
+          },
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 5,
+            "startLine": 5,
+            "endLine": 5,
+            "anchorText": "= Campaign Status",
+            "endAnchorText": "= Campaign Status",
+            "excerpt": "4: \n5: = Campaign Status\n6: "
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_56030a2f9cfe",
+          "role": "body",
+          "text": "This sidebar belongs to the bundled demo template. It gives a whiteboard version of the common SDAAH-style dashboard: simple resources, support, card progress, advisor trust, and room for more status sections.",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "status",
+            "sectionId": "",
+            "sceneType": "scene"
+          },
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 7,
+            "startLine": 7,
+            "endLine": 9,
+            "anchorText": "This sidebar belongs to the bundled demo template. It gives a whiteboard version",
+            "endAnchorText": "advisor trust, and room for more status sections.",
+            "excerpt": "6: \n7: This sidebar belongs to the bundled demo template. It gives a whiteboard version\n8: of the common SDAAH-style dashboard: simple resources, support, card progress,"
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_6f9f445e751d",
+          "role": "body",
+          "text": "Volunteer support: [+ demo_support : qdemo_level +]",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "status",
+            "sectionId": "",
+            "sceneType": "scene"
+          },
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 13,
+            "startLine": 13,
+            "endLine": 13,
+            "anchorText": "Volunteer support: [+ demo_support : qdemo_level +]",
+            "endAnchorText": "Volunteer support: [+ demo_support : qdemo_level +]",
+            "excerpt": "12: \n13: Volunteer support: [+ demo_support : qdemo_level +]\n14: "
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_03c5979625cf",
+          "role": "body",
+          "text": "Advisor trust: [+ demo_advisor_trust : qdemo_level +]",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "status",
+            "sectionId": "",
+            "sceneType": "scene"
+          },
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 15,
+            "startLine": 15,
+            "endLine": 15,
+            "anchorText": "Advisor trust: [+ demo_advisor_trust : qdemo_level +]",
+            "endAnchorText": "Advisor trust: [+ demo_advisor_trust : qdemo_level +]",
+            "excerpt": "14: \n15: Advisor trust: [+ demo_advisor_trust : qdemo_level +]\n16: "
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_effab501132d",
+          "role": "body",
+          "text": "Card progress: [+ demo_card_progress : qdemo_level +]",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "status",
+            "sectionId": "",
+            "sceneType": "scene"
+          },
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 17,
+            "startLine": 17,
+            "endLine": 17,
+            "anchorText": "Card progress: [+ demo_card_progress : qdemo_level +]",
+            "endAnchorText": "Card progress: [+ demo_card_progress : qdemo_level +]",
+            "excerpt": "16: \n17: Card progress: [+ demo_card_progress : qdemo_level +]\n18: "
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_3e69a46bb751",
+          "role": "conditional_body",
+          "text": "Volunteer support is active.",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "status",
+            "sectionId": "",
+            "sceneType": "scene"
+          },
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 19,
+            "startLine": 19,
+            "endLine": 19,
+            "anchorText": "[? if demo_support > 0 : Volunteer support is active. ?]",
+            "endAnchorText": "[? if demo_support > 0 : Volunteer support is active. ?]",
+            "excerpt": "18: \n19: [? if demo_support > 0 : Volunteer support is active. ?]\n20: [? if demo_conflict > 0 : Observation pressure is active. ?]"
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal",
+          "conditions": [
+            "demo_support > 0"
+          ]
+        },
+        {
+          "id": "text_149cc566e7b8",
+          "role": "conditional_body",
+          "text": "Observation pressure is active.",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "status",
+            "sectionId": "",
+            "sceneType": "scene"
+          },
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 20,
+            "startLine": 20,
+            "endLine": 20,
+            "anchorText": "[? if demo_conflict > 0 : Observation pressure is active. ?]",
+            "endAnchorText": "[? if demo_conflict > 0 : Observation pressure is active. ?]",
+            "excerpt": "19: [? if demo_support > 0 : Volunteer support is active. ?]\n20: [? if demo_conflict > 0 : Observation pressure is active. ?]\n21: [? if demo_card_progress > 0 : The starter deck has changed project state. ?]"
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal",
+          "conditions": [
+            "demo_conflict > 0"
+          ]
+        },
+        {
+          "id": "text_0ab665461ecc",
+          "role": "conditional_body",
+          "text": "The starter deck has changed project state.",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "status",
+            "sectionId": "",
+            "sceneType": "scene"
+          },
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 21,
+            "startLine": 21,
+            "endLine": 21,
+            "anchorText": "[? if demo_card_progress > 0 : The starter deck has changed project state. ?]",
+            "endAnchorText": "[? if demo_card_progress > 0 : The starter deck has changed project state. ?]",
+            "excerpt": "20: [? if demo_conflict > 0 : Observation pressure is active. ?]\n21: [? if demo_card_progress > 0 : The starter deck has changed project state. ?]\n22: [? if demo_advisor_trust > 0 : The advisor lane has contributed trust. ?]"
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal",
+          "conditions": [
+            "demo_card_progress > 0"
+          ]
+        },
+        {
+          "id": "text_698261f7b7f9",
+          "role": "conditional_body",
+          "text": "The advisor lane has contributed trust.",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "status",
+            "sectionId": "",
+            "sceneType": "scene"
+          },
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 22,
+            "startLine": 22,
+            "endLine": 22,
+            "anchorText": "[? if demo_advisor_trust > 0 : The advisor lane has contributed trust. ?]",
+            "endAnchorText": "[? if demo_advisor_trust > 0 : The advisor lane has contributed trust. ?]",
+            "excerpt": "21: [? if demo_card_progress > 0 : The starter deck has changed project state. ?]\n22: [? if demo_advisor_trust > 0 : The advisor lane has contributed trust. ?]\n23: "
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal",
+          "conditions": [
+            "demo_advisor_trust > 0"
+          ]
+        },
+        {
+          "id": "text_20ed0f7602ac",
+          "role": "heading",
+          "text": "Organization",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "status",
+            "sectionId": "status.organization",
+            "sceneType": "scene"
+          },
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 26,
+            "startLine": 26,
+            "endLine": 26,
+            "anchorText": "= Organization",
+            "endAnchorText": "= Organization",
+            "excerpt": "25: \n26: = Organization\n27: "
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_87f82f7f0629",
+          "role": "body",
+          "text": "Use this section for party capacity, volunteers, funding, membership, or other core organization variables.",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "status",
+            "sectionId": "status.organization",
+            "sceneType": "scene"
+          },
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 28,
+            "startLine": 28,
+            "endLine": 29,
+            "anchorText": "Use this section for party capacity, volunteers, funding, membership, or other",
+            "endAnchorText": "core organization variables.",
+            "excerpt": "27: \n28: Use this section for party capacity, volunteers, funding, membership, or other\n29: core organization variables."
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_6f6a8a0b4bd2",
+          "role": "heading",
+          "text": "Cards",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "status",
+            "sectionId": "status.cards",
+            "sceneType": "scene"
+          },
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 33,
+            "startLine": 33,
+            "endLine": 33,
+            "anchorText": "= Cards",
+            "endAnchorText": "= Cards",
+            "excerpt": "32: \n33: = Cards\n34: "
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_6821bd1cd559",
+          "role": "body",
+          "text": "Use this section for hand, deck, cooldown, and card-progress variables.",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "status",
+            "sectionId": "status.cards",
+            "sceneType": "scene"
+          },
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 35,
+            "startLine": 35,
+            "endLine": 35,
+            "anchorText": "Use this section for hand, deck, cooldown, and card-progress variables.",
+            "endAnchorText": "Use this section for hand, deck, cooldown, and card-progress variables.",
+            "excerpt": "34: \n35: Use this section for hand, deck, cooldown, and card-progress variables.\n36: "
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_e9a0260a7404",
+          "role": "heading",
+          "text": "Advisors",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "status",
+            "sectionId": "status.advisors",
+            "sceneType": "scene"
+          },
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 39,
+            "startLine": 39,
+            "endLine": 39,
+            "anchorText": "= Advisors",
+            "endAnchorText": "= Advisors",
+            "excerpt": "38: \n39: = Advisors\n40: "
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_c3d74ef300bb",
+          "role": "body",
+          "text": "Use this section for advisor-like or Circle-style persistent cards.",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "status",
+            "sectionId": "status.advisors",
+            "sceneType": "scene"
+          },
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 41,
+            "startLine": 41,
+            "endLine": 41,
+            "anchorText": "Use this section for advisor-like or Circle-style persistent cards.",
+            "endAnchorText": "Use this section for advisor-like or Circle-style persistent cards.",
+            "excerpt": "40: \n41: Use this section for advisor-like or Circle-style persistent cards.\n42: "
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_64c0f744c205",
+          "role": "heading",
+          "text": "Public Mood",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "status",
+            "sectionId": "status.politics",
+            "sceneType": "scene"
+          },
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 45,
+            "startLine": 45,
+            "endLine": 45,
+            "anchorText": "= Public Mood",
+            "endAnchorText": "= Public Mood",
+            "excerpt": "44: \n45: = Public Mood\n46: "
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_266cdf7da503",
+          "role": "body",
+          "text": "Use this section for public support, opposition pressure, election context, or other map/dashboard variables.",
+          "owner": {
+            "kind": "scene",
+            "sceneId": "status",
+            "sectionId": "status.politics",
+            "sceneType": "scene"
+          },
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 47,
+            "startLine": 47,
+            "endLine": 48,
+            "anchorText": "Use this section for public support, opposition pressure, election context, or",
+            "endAnchorText": "other map/dashboard variables.",
+            "excerpt": "46: \n47: Use this section for public support, opposition pressure, election context, or\n48: other map/dashboard variables."
+          },
+          "confidence": "static_inferred",
+          "editability": "text_proposal"
+        },
+        {
+          "id": "text_245a225fa0d4",
+          "role": "surface_label",
+          "text": "This bundled project is a safe place to learn how a Dendry mod is built. The",
+          "owner": {
+            "kind": "surface_text",
+            "itemId": "surface_text_fde0204dd4",
+            "area": "opening_text",
+            "variableName": ""
+          },
+          "source": {
+            "path": "source/scenes/root.scene.dry",
+            "line": 15,
+            "excerpt": "14: \n15: This bundled project is a safe place to learn how a Dendry mod is built. The\n16: next scene acts like a tiny in-game event: it has a title, a body, two choices,"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable"
+        },
+        {
+          "id": "text_42f3390c96b1",
+          "role": "surface_label",
+          "text": "next scene acts like a tiny in-game event: it has a title, a body, two choices,",
+          "owner": {
+            "kind": "surface_text",
+            "itemId": "surface_text_4124d5d4e1",
+            "area": "opening_text",
+            "variableName": ""
+          },
+          "source": {
+            "path": "source/scenes/root.scene.dry",
+            "line": 16,
+            "excerpt": "15: This bundled project is a safe place to learn how a Dendry mod is built. The\n16: next scene acts like a tiny in-game event: it has a title, a body, two choices,\n17: result text, and effects that change simple variables."
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable"
+        },
+        {
+          "id": "text_dc5695692c24",
+          "role": "surface_label",
+          "text": "result text, and effects that change simple variables.",
+          "owner": {
+            "kind": "surface_text",
+            "itemId": "surface_text_ecaa6e9e14",
+            "area": "opening_text",
+            "variableName": ""
+          },
+          "source": {
+            "path": "source/scenes/root.scene.dry",
+            "line": 17,
+            "excerpt": "16: next scene acts like a tiny in-game event: it has a title, a body, two choices,\n17: result text, and effects that change simple variables.\n18: "
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable"
+        },
+        {
+          "id": "text_8a98bb4d7816",
+          "role": "surface_label",
+          "text": "In Studio, open Explore or Design after loading this template. Select",
+          "owner": {
+            "kind": "surface_text",
+            "itemId": "surface_text_bfe3598a2f",
+            "area": "opening_text",
+            "variableName": ""
+          },
+          "source": {
+            "path": "source/scenes/root.scene.dry",
+            "line": 19,
+            "excerpt": "18: \n19: In Studio, open Explore or Design after loading this template. Select\n20: **A Small Campaign Office** to see how the source-backed text maps to the"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable"
+        },
+        {
+          "id": "text_2d4d489a4583",
+          "role": "surface_label",
+          "text": "**A Small Campaign Office** to see how the source-backed text maps to the",
+          "owner": {
+            "kind": "surface_text",
+            "itemId": "surface_text_29528bf264",
+            "area": "opening_text",
+            "variableName": ""
+          },
+          "source": {
+            "path": "source/scenes/root.scene.dry",
+            "line": 20,
+            "excerpt": "19: In Studio, open Explore or Design after loading this template. Select\n20: **A Small Campaign Office** to see how the source-backed text maps to the\n21: player-facing event. Select **Open the workspace hand** to see the minimal"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable"
+        },
+        {
+          "id": "text_ede5c8b277ec",
+          "role": "surface_label",
+          "text": "player-facing event. Select **Open the workspace hand** to see the minimal",
+          "owner": {
+            "kind": "surface_text",
+            "itemId": "surface_text_89d3ea23c1",
+            "area": "opening_text",
+            "variableName": ""
+          },
+          "source": {
+            "path": "source/scenes/root.scene.dry",
+            "line": 21,
+            "excerpt": "20: **A Small Campaign Office** to see how the source-backed text maps to the\n21: player-facing event. Select **Open the workspace hand** to see the minimal\n22: hand/deck/advisor skeleton used by card-style DendryNexus projects."
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable"
+        },
+        {
+          "id": "text_f5392b2c6b6b",
+          "role": "surface_label",
+          "text": "hand/deck/advisor skeleton used by card-style DendryNexus projects.",
+          "owner": {
+            "kind": "surface_text",
+            "itemId": "surface_text_2cac43cb67",
+            "area": "opening_text",
+            "variableName": ""
+          },
+          "source": {
+            "path": "source/scenes/root.scene.dry",
+            "line": 22,
+            "excerpt": "21: player-facing event. Select **Open the workspace hand** to see the minimal\n22: hand/deck/advisor skeleton used by card-style DendryNexus projects.\n23: "
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable"
+        },
+        {
+          "id": "text_7ad0feb5c2ca",
+          "role": "surface_label",
+          "text": "@main",
+          "owner": {
+            "kind": "surface_text",
+            "itemId": "surface_text_214720af2f",
+            "area": "opening_text",
+            "variableName": ""
+          },
+          "source": {
+            "path": "source/scenes/root.scene.dry",
+            "line": 24,
+            "excerpt": "23: \n24: - @main: Open the workspace hand\n25: - @demo_opening: Start the demo event"
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable"
+        },
+        {
+          "id": "text_0aa84525a223",
+          "role": "surface_label",
+          "text": "Campaign Status",
+          "owner": {
+            "kind": "surface_text",
+            "itemId": "surface_text_80942849b0",
+            "area": "status_scene",
+            "variableName": ""
+          },
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 5,
+            "excerpt": "4: \n5: = Campaign Status\n6: "
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable"
+        },
+        {
+          "id": "text_00c6e2ee669e",
+          "role": "surface_label",
+          "text": "Resources",
+          "owner": {
+            "kind": "surface_text",
+            "itemId": "surface_text_b2a72421bf",
+            "area": "status_scene",
+            "variableName": "demo_resources"
+          },
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 11,
+            "excerpt": "10: \n11: Resources: [+ demo_resources +]\n12: "
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable"
+        },
+        {
+          "id": "text_d5d7d97ab595",
+          "role": "surface_label",
+          "text": "Volunteer support",
+          "owner": {
+            "kind": "surface_text",
+            "itemId": "surface_text_477bf88f4d",
+            "area": "status_scene",
+            "variableName": "demo_support"
+          },
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 13,
+            "excerpt": "12: \n13: Volunteer support: [+ demo_support : qdemo_level +]\n14: "
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable"
+        },
+        {
+          "id": "text_d969b8f71d15",
+          "role": "surface_label",
+          "text": "Advisor trust",
+          "owner": {
+            "kind": "surface_text",
+            "itemId": "surface_text_7c13bae586",
+            "area": "status_scene",
+            "variableName": "demo_advisor_trust"
+          },
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 15,
+            "excerpt": "14: \n15: Advisor trust: [+ demo_advisor_trust : qdemo_level +]\n16: "
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable"
+        },
+        {
+          "id": "text_4056742d478f",
+          "role": "surface_label",
+          "text": "Card progress",
+          "owner": {
+            "kind": "surface_text",
+            "itemId": "surface_text_1a16394973",
+            "area": "status_scene",
+            "variableName": "demo_card_progress"
+          },
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 17,
+            "excerpt": "16: \n17: Card progress: [+ demo_card_progress : qdemo_level +]\n18: "
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable"
+        },
+        {
+          "id": "text_9fc40705220c",
+          "role": "surface_label",
+          "text": "Organization",
+          "owner": {
+            "kind": "surface_text",
+            "itemId": "surface_text_4b7d9f315c",
+            "area": "status_scene",
+            "variableName": ""
+          },
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 26,
+            "excerpt": "25: \n26: = Organization\n27: "
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable"
+        },
+        {
+          "id": "text_4dee83eeebc6",
+          "role": "surface_label",
+          "text": "Cards",
+          "owner": {
+            "kind": "surface_text",
+            "itemId": "surface_text_38de08ae4e",
+            "area": "status_scene",
+            "variableName": ""
+          },
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 33,
+            "excerpt": "32: \n33: = Cards\n34: "
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable"
+        },
+        {
+          "id": "text_20d45fe5e701",
+          "role": "surface_label",
+          "text": "Advisors",
+          "owner": {
+            "kind": "surface_text",
+            "itemId": "surface_text_b402503cdb",
+            "area": "status_scene",
+            "variableName": ""
+          },
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 39,
+            "excerpt": "38: \n39: = Advisors\n40: "
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable"
+        },
+        {
+          "id": "text_bd26a749ac0c",
+          "role": "surface_label",
+          "text": "Public Mood",
+          "owner": {
+            "kind": "surface_text",
+            "itemId": "surface_text_aae8c20ffe",
+            "area": "status_scene",
+            "variableName": ""
+          },
+          "source": {
+            "path": "source/scenes/status.scene.dry",
+            "line": 45,
+            "excerpt": "44: \n45: = Public Mood\n46: "
+          },
+          "confidence": "static_inferred",
+          "editability": "draft_exportable"
+        }
+      ],
+      "confidence": "static_inferred",
+      "truncated": false
+    },
+    "assets": {
+      "items": [],
+      "confidence": "opaque"
+    },
+    "systems": [
+      {
+        "id": "cards",
+        "label": "Cards",
+        "members": [
+          "demo_action_card",
+          "demo_advisor"
+        ]
+      },
+      {
+        "id": "decks",
+        "label": "Decks",
+        "members": [
+          "demo_action_deck"
+        ]
+      },
+      {
+        "id": "events",
+        "label": "Events",
+        "members": [
+          "demo_opening"
+        ]
+      },
+      {
+        "id": "hands",
+        "label": "Hands",
+        "members": [
+          "main"
+        ]
+      },
+      {
+        "id": "monthly_tick",
+        "label": "Monthly Tick",
+        "members": [
+          "post_event"
+        ]
+      },
+      {
+        "id": "pinned_cards",
+        "label": "Pinned Cards",
+        "members": [
+          "demo_advisor"
+        ]
+      }
+    ],
+    "groups": [
+      {
+        "id": "events",
+        "label": "Events",
+        "members": [
+          "demo_opening"
+        ]
+      },
+      {
+        "id": "cards",
+        "label": "Cards",
+        "members": [
+          "demo_action_card",
+          "demo_advisor"
+        ]
+      },
+      {
+        "id": "hands",
+        "label": "Hands",
+        "members": [
+          "main"
+        ]
+      },
+      {
+        "id": "decks",
+        "label": "Decks",
+        "members": [
+          "demo_action_deck"
+        ]
+      },
+      {
+        "id": "pinned_cards",
+        "label": "Pinned Cards",
+        "members": [
+          "demo_advisor"
+        ]
+      }
+    ],
+    "labels": []
+  },
+  "diagnostics": [
+    {
+      "severity": "info",
+      "code": "project_map.post_event_opaque",
+      "message": "post_event.scene.dry is intentionally opaque; only bounded targeted routing/news summary is indexed.",
+      "path": "source/scenes/post_event.scene.dry",
+      "source": {
+        "path": "source/scenes/post_event.scene.dry"
+      },
+      "confidence": "opaque"
+    }
+  ],
+  "summary": {
+    "sceneCount": 8,
+    "edgeCount": 22,
+    "variableCount": 6,
+    "diagnosticCount": 1,
+    "bySceneType": {
+      "card": 1,
+      "deck": 1,
+      "event": 1,
+      "hand": 1,
+      "monthly_router": 1,
+      "pinned_card": 1,
+      "root": 1,
+      "scene": 1
+    },
+    "byVariableScope": {
+      "q": 6
+    },
+    "eventCount": 1,
+    "cardCount": 2,
+    "handCount": 1,
+    "deckCount": 1,
+    "pinnedCardCount": 1,
+    "newsItemCount": 0,
+    "eventPopupCount": 0,
+    "surfaceTextCount": 17,
+    "textCorpusCount": 100,
+    "assetCount": 0,
+    "imageAssetCount": 0,
+    "audioAssetCount": 0,
+    "opaqueJsBlockCount": 7,
+    "opaqueJsBlocksByPath": {
+      "source/scenes/advisors/demo_advisor.scene.dry": 1,
+      "source/scenes/cards/demo_action_card.scene.dry": 2,
+      "source/scenes/demo_opening.scene.dry": 3,
+      "source/scenes/root.scene.dry": 1
+    }
+  }
+}

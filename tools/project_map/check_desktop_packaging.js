@@ -31,6 +31,8 @@ function main() {
   assert(pkg.scripts && pkg.scripts['dist:linux'], 'desktop package should expose npm run dist:linux');
   assert(pkg.scripts && pkg.scripts['dist:win'], 'desktop package should expose npm run dist:win');
   assert(pkg.scripts['dist:linux'].includes('deb'), 'desktop Linux release build should include Deb');
+  assert(pkg.scripts['dist:linux'].includes('fetch:python'), 'desktop Linux release build should fetch bundled Python first');
+  assert(pkg.scripts['dist:win'].includes('fetch:python'), 'desktop Windows release build should fetch bundled Python first');
   assert(pkg.homepage && /github\.com\/Wen387\/DendryModStudio/.test(pkg.homepage), 'desktop package should define a release homepage');
   assert(pkg.author && pkg.author.email, 'desktop package should define maintainer email for Deb builds');
   assert(pkg.devDependencies && pkg.devDependencies['electron-builder'], 'desktop package should depend on electron-builder for release builds');
@@ -41,12 +43,19 @@ function main() {
   );
   assert(pkg.build.linux && pkg.build.linux.maintainer, 'desktop Linux config should define Deb maintainer');
   assert(pkg.build.deb && Array.isArray(pkg.build.deb.depends), 'desktop Deb config should declare runtime dependencies');
+  assert(!pkg.build.deb.depends.includes('python3'), 'desktop release Deb config should not require system Python');
+  assert(
+    pkg.build.extraResources && pkg.build.extraResources.some((item) => item.from === 'runtime' && item.to === 'app/runtime'),
+    'desktop builder config should include bundled runtime resources'
+  );
   assert(fs.existsSync(path.join(DESKTOP_DIR, 'scripts', 'package_portable.js')), 'package_portable.js should exist');
+  assert(fs.existsSync(path.join(DESKTOP_DIR, 'scripts', 'fetch_bundled_python.js')), 'fetch_bundled_python.js should exist');
   assert(fs.existsSync(path.join(DESKTOP_DIR, 'PACKAGING_NOTES.md')), 'PACKAGING_NOTES.md should exist');
 
   const notes = fs.readFileSync(path.join(DESKTOP_DIR, 'PACKAGING_NOTES.md'), 'utf8');
   assert(notes.includes(`v${pkg.version}`), `packaging notes should mention v${pkg.version}`);
-  assert(notes.includes('system Python 3'), 'packaging notes should state Python remains a system dependency');
+  assert(notes.includes('bundled Python runtime'), 'packaging notes should state release builds include bundled Python');
+  assert(notes.includes('users should not need to install Python separately'), 'packaging notes should remove Python as a user prerequisite');
   assert(notes.includes('.deb'), 'packaging notes should discuss .deb boundary');
   assert(notes.includes('AppImage'), 'packaging notes should discuss AppImage boundary');
   assert(notes.includes('Windows'), 'packaging notes should discuss Windows artifact boundary');
@@ -64,6 +73,8 @@ function main() {
   assert(fs.existsSync(archivePath), 'portable archive should exist');
   assert(fs.existsSync(manifestPath), 'portable manifest should exist');
   assert(fs.existsSync(path.join(appRoot, 'scripts', 'doctor.js')), 'packaged app should include doctor script');
+  assert(fs.existsSync(path.join(appRoot, 'scripts', 'fetch_bundled_python.js')), 'packaged app should include bundled Python fetch script');
+  assert(fs.existsSync(path.join(appRoot, 'runtime', 'README.md')), 'packaged app should include runtime staging notes');
   assert(fs.existsSync(path.join(appRoot, 'runtime_preview.js')), 'packaged app should include Runtime Preview core');
   assert(fs.existsSync(path.join(appRoot, 'update_notice.js')), 'packaged app should include Update Notice core');
   assert(fs.existsSync(path.join(appRoot, 'update_manifest.json')), 'packaged app should include bundled Update Notice manifest');
@@ -74,6 +85,14 @@ function main() {
   assert(
     fs.existsSync(path.join(appRoot, 'project_map', 'templates', 'starter-demo', 'package.json')),
     'packaged app should include bundled starter demo package.json for Runtime Preview builds'
+  );
+  assert(
+    fs.existsSync(path.join(appRoot, 'project_map', 'templates', 'starter-demo', 'project-index.json')),
+    'packaged app should include cached starter demo ProjectIndex'
+  );
+  assert(
+    fs.existsSync(path.join(appRoot, 'project_map', 'templates', 'starter-demo', 'project-index-excerpts.json')),
+    'packaged app should include cached starter demo excerpt ProjectIndex'
   );
   assert(
     fs.existsSync(path.join(appRoot, 'node_modules', 'dendrynexus', 'lib', 'cli', 'main.js')),

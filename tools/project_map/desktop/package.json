@@ -15,11 +15,12 @@
   },
   "scripts": {
     "start": "electron .",
+    "fetch:python": "node scripts/fetch_bundled_python.js",
     "package:dir": "node scripts/package_dir.js",
     "package:portable": "node scripts/package_portable.js",
     "package:deb": "node scripts/package_deb.js",
-    "dist:linux": "electron-builder --linux AppImage deb --x64",
-    "dist:win": "electron-builder --win nsis --x64",
+    "dist:linux": "npm run fetch:python && electron-builder --linux AppImage deb --x64",
+    "dist:win": "npm run fetch:python && electron-builder --win nsis --x64",
     "smoke": "node ../check_desktop_shell.js",
     "doctor": "node scripts/doctor.js"
   },
@@ -73,6 +74,10 @@
         "to": "app/project_map/build_project_map.py"
       },
       {
+        "from": "runtime",
+        "to": "app/runtime"
+      },
+      {
         "from": "../../../node_modules",
         "to": "app/node_modules"
       }
@@ -89,7 +94,6 @@
     },
     "deb": {
       "depends": [
-        "python3",
         "libgtk-3-0",
         "libnotify4",
         "libnss3",

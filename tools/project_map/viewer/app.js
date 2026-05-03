@@ -1719,7 +1719,7 @@
       elements.desktopRunDoctor.disabled = true;
     }
     setDesktopStatus(elements, t('desktop.checkingSetup', 'Checking setup...'));
-    setStatus(elements, t('desktop.checkingSetupLong', 'Checking desktop app files, Python 3, scratch storage, and project folder readiness.'));
+    setStatus(elements, t('desktop.checkingSetupLong', 'Checking desktop app files, bundled Python runtime, scratch storage, and project folder readiness.'));
     desktop.doctor({}).then((result) => {
       const message = desktopDoctorSummary(result);
       setDesktopStatus(elements, message, !result || !result.ok);
@@ -1752,7 +1752,7 @@
     const labels = {
       resources: t('desktop.doctor.resources', 'App files'),
       scratch: t('desktop.doctor.scratch', 'Scratch folder'),
-      python: t('desktop.doctor.python', 'Python 3'),
+      python: t('desktop.doctor.python', 'Python runtime'),
       projectRoot: t('desktop.doctor.projectRoot', 'Project folder')
     };
     const failed = Object.keys(labels).filter((key) => {

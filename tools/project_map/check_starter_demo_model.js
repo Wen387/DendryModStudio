@@ -42,13 +42,17 @@ async function main() {
     'source/qdisplays/qdemo_level.qdisplay.dry',
     'source/qualities/demo_resources.quality.dry',
     'source/qualities/demo_advisor_trust.quality.dry',
-    'source/qualities/demo_card_progress.quality.dry'
+    'source/qualities/demo_card_progress.quality.dry',
+    'project-index.json',
+    'project-index-excerpts.json'
   ].forEach((relativePath) => {
     assert(fs.existsSync(path.join(TEMPLATE_ROOT, relativePath)), 'starter demo should include ' + relativePath);
   });
 
   const info = read('source/info.dry');
   const packageJson = JSON.parse(read('package.json'));
+  const bundledProjectIndex = JSON.parse(read('project-index.json'));
+  const bundledProjectIndexExcerpts = JSON.parse(read('project-index-excerpts.json'));
   const root = read('source/scenes/root.scene.dry');
   const status = read('source/scenes/status.scene.dry');
   const main = read('source/scenes/main.scene.dry');
@@ -81,6 +85,8 @@ async function main() {
   assert(postEvent.includes('if (Q.demo_support === undefined)'), 'starter demo should include save migration guards');
   assert(postEvent.includes('if (Q.demo_resources === undefined)'), 'starter demo should migrate whiteboard card/advisor variables');
   assert(postEvent.includes('// Save compatibility: post_event split (post_event_news)'), 'starter demo should expose post_event install anchor');
+  assert(bundledProjectIndex.project.root === '__STARTER_DEMO_TEMPLATE_ROOT__', 'starter demo cached ProjectIndex should not store a developer absolute path');
+  assert(bundledProjectIndexExcerpts.project.root === '__STARTER_DEMO_TEMPLATE_ROOT__', 'starter demo cached excerpt ProjectIndex should not store a developer absolute path');
 
   const preparedRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dendry_starter_demo_model_'));
   const scratchRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dendry_starter_demo_index_'));
@@ -92,6 +98,30 @@ async function main() {
   assert(prepared.root.startsWith(preparedRoot), 'prepared starter demo should be a writable copy');
   assert(fs.existsSync(path.join(prepared.root, 'source', 'info.dry')), 'prepared starter demo should contain source/info.dry');
   assert(fs.existsSync(path.join(prepared.root, 'package.json')), 'prepared starter demo should contain package.json for Runtime Preview builds');
+
+  const cachedIndex = core.loadStarterDemoIndex({
+    desktopDir: DESKTOP_DIR,
+    prepared,
+    includeExcerpts: false
+  });
+  assert(cachedIndex.ok, 'starter demo should open from the bundled ProjectIndex cache');
+  assert(cachedIndex.fromCache === true, 'starter demo cached ProjectIndex should report cache usage');
+  assert(cachedIndex.root === prepared.root, 'starter demo cached ProjectIndex should use the writable template copy as root');
+  assert(cachedIndex.index.project.root === prepared.root, 'starter demo cached ProjectIndex should rewrite project.root');
+  assert(cachedIndex.projectName === 'Dendry Mod Studio Starter Demo', 'starter demo cached ProjectIndex should keep template title');
+  assert(cachedIndex.summary.sceneCount >= 3, 'starter demo cached ProjectIndex should expose multiple scenes');
+  assert(cachedIndex.summary.eventCount >= 1, 'starter demo cached ProjectIndex should expose one event-like scene');
+  assert(cachedIndex.summary.cardCount >= 1, 'starter demo cached ProjectIndex should expose one action card');
+  assert(cachedIndex.index.variables.some((item) => item.name === 'demo_support'), 'starter demo cached ProjectIndex should include demo_support variable');
+
+  const cachedExcerpts = core.loadStarterDemoIndex({
+    desktopDir: DESKTOP_DIR,
+    prepared,
+    includeExcerpts: true
+  });
+  assert(cachedExcerpts.ok, 'starter demo should open from the bundled excerpt ProjectIndex cache');
+  assert(cachedExcerpts.includeExcerpts === true, 'starter demo excerpt cache should report excerpts');
+  assert(JSON.stringify(cachedExcerpts.index).includes('"excerpt"'), 'starter demo excerpt cache should include source excerpts');
 
   fs.rmSync(path.join(prepared.root, 'package.json'), {force: true});
   fs.rmSync(path.join(prepared.root, 'source', 'scenes', 'main.scene.dry'), {force: true});
