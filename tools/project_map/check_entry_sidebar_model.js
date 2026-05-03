@@ -123,6 +123,16 @@ async function main() {
   assert(bundle.installPlan.operations.some((op) => op.id === 'entry_opening_section' && op.type === 'replace_section'), 'plan should replace root opening section');
   assert(bundle.installPlan.operations.some((op) => op.id === 'sidebar_section' && op.type === 'replace_section'), 'plan should replace sidebar section');
   assert(installPlan.operationSummary(bundle.installPlan).guardedApply >= 2, 'source-backed entry/sidebar changes should be guarded');
+  const zhBundle = entrySidebar.buildExportBundle(draft, syntheticIndex(), {locale: 'zh-Hant'});
+  assert(zhBundle.playerPreview.includes('開始選單'), 'localized player preview should translate the start menu label');
+  assert(zhBundle.playerPreview.includes('側邊欄'), 'localized player preview should translate the sidebar label');
+  assert(zhBundle.installChecklist.includes('安裝操作檢查清單'), 'localized install checklist should translate the checklist heading');
+
+  const noLineIndex = syntheticIndex();
+  delete noLineIndex.scenes[0].options[0].sourceSpan;
+  const noLineDraft = editedDraft(noLineIndex);
+  const noLineBundle = entrySidebar.buildExportBundle(noLineDraft, noLineIndex, {locale: 'zh-Hant'});
+  assert(noLineBundle.installChecklist.includes('第一路由缺少 source 行證據'), 'localized install checklist should translate first-route missing source evidence guidance');
 
   const generatedDraft = editedDraft(syntheticIndex({status: false, generatedSidebar: true}));
   const generatedModel = entrySidebar.buildEntryModel(syntheticIndex({status: false, generatedSidebar: true}));

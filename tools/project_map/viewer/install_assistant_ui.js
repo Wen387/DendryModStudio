@@ -72,6 +72,7 @@
       return;
     }
     bindIndexEvents();
+    bindLocaleEvents();
     elements.file.addEventListener('change', (event) => {
       const file = event.target.files && event.target.files[0];
       if (file) {
@@ -115,6 +116,18 @@
     EVENT_NAMES.forEach((name) => {
       global.document.addEventListener(name, handler);
       global.addEventListener(name, handler);
+    });
+  }
+
+  function bindLocaleEvents() {
+    global.document.addEventListener('project-map:locale-changed', () => {
+      render();
+      if (state.lastResult) {
+        setResult(state.lastResult);
+      }
+      if (state.runtimePreviewResult) {
+        setRuntimePreviewResult(state.runtimePreviewResult);
+      }
     });
   }
 
@@ -170,7 +183,7 @@
     }
     return {
       summary: installApi.operationSummary(plan),
-      checklist: installApi.renderOperationChecklist(plan),
+      checklist: installApi.renderOperationChecklist(plan, {locale: currentLocale()}),
       patchPreview: installApi.renderPatchPreview(plan)
     };
   }
@@ -472,16 +485,25 @@
 
   function renderHumanOperation(item) {
     const op = item.operation || {};
+    const reason = operationReason(item, op);
     return [
       '<article class="install-human-op">',
       '<strong>' + escapeHtml(operationActionLabel(op)) + '</strong>',
-      item.reason ? '<p>' + escapeHtml(item.reason) + '</p>' : '',
+      reason ? '<p>' + escapeHtml(reason) + '</p>' : '',
       '<details>',
       '<summary>' + escapeHtml(t('install.human.advancedDetails', 'Advanced details')) + '</summary>',
-      '<code>' + escapeHtml([op.type || 'operation', op.path || '(unknown path)'].join(' · ')) + '</code>',
+      '<code>' + escapeHtml([op.type || t('install.action.operation', 'operation'), op.path || t('install.unknownPath', '(unknown path)')].join(' · ')) + '</code>',
       '</details>',
       '</article>'
     ].join('');
+  }
+
+  function operationReason(item, operation) {
+    const installApi = installPlanApi();
+    if (installApi && typeof installApi.operationReason === 'function') {
+      return installApi.operationReason(operation || {}, item || {}, {locale: currentLocale()});
+    }
+    return item && item.reason || operation && operation.description || '';
   }
 
   function operationActionLabel(operation) {
@@ -492,11 +514,17 @@
     if (type === 'replace_text') {
       return t('install.action.replaceText', 'Replace player-facing text');
     }
+    if (type === 'replace_section') {
+      return t('install.action.replaceSection', 'Replace a source section');
+    }
     if (type === 'insert_text') {
       return t('install.action.insertText', 'Insert source text');
     }
     if (type === 'manual_snippet') {
       return t('install.action.manualSnippet', 'Copy a manual snippet');
+    }
+    if (type === 'copy_asset_file') {
+      return t('install.action.copyAssetFile', 'Copy an asset file');
     }
     return t('install.action.reviewOperation', 'Review this change');
   }
@@ -714,5 +742,10 @@
   function t(key, fallback) {
     const i18n = global.ProjectMapI18n;
     return i18n && typeof i18n.t === 'function' ? i18n.t(key, fallback) : fallback;
+  }
+
+  function currentLocale() {
+    const i18n = global.ProjectMapI18n;
+    return i18n && typeof i18n.getLocale === 'function' ? i18n.getLocale() : 'en';
   }
 })(typeof window !== 'undefined' ? window : globalThis);

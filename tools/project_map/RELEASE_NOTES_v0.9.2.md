@@ -39,9 +39,10 @@ must be rebuilt and retested before sharing.
   copies and serves a localhost comparison page.
 - Preview-only Debug Console for ProjectIndex-known variables and scenes inside
   the modified temporary preview.
-- Update Notice MVP: desktop builds can poll a hosted static
-  `update_manifest.json` and show an in-app announcement or update banner with
-  manual download / release-note links.
+- Announcement Preview MVP: desktop builds can poll a hosted static
+  `update_manifest.json`, show the newest unread item as a banner, and keep a
+  readable in-app notice preview split into Updates & History, Announcements,
+  and Testing & Contact, with manual download, release-note, or feedback links.
 
 ## Safety Boundary
 
@@ -66,10 +67,10 @@ does not match the currently opened project root.
   result.
 - The Linux `.deb`, Linux AppImage, and Windows installer are unsigned preview
   artifacts. Python 3 is still a system requirement.
-- Update Notice MVP is not an auto-updater. It does not silently download,
-  install, or identify a device; it only fetches a static HTTP(S) manifest and
-  opens links after the user clicks them. Hosted manifest reachability still
-  needs to be checked before sharing a package.
+- Announcement Preview / Update Notice MVP is not an auto-updater. It does not
+  silently download, install, or identify a device; it only fetches a static
+  HTTP(S) manifest and opens links after the user clicks them. Hosted manifest
+  reachability still needs to be checked before sharing a package.
 - The app has not been clean-VM tested across Linux distributions, Windows, or
   macOS.
 - Asset import is intentionally basic. The Studio can propose or guarded-copy a

@@ -78,6 +78,7 @@
     bindForm();
     bindVariables();
     bindDownloads();
+    bindLocaleEvents();
     renderEntryWizard();
   }
 
@@ -109,6 +110,13 @@
           setProjectIndex(detail.model.index, detail);
         }
       });
+    });
+  }
+
+  function bindLocaleEvents() {
+    global.document.addEventListener('project-map:locale-changed', () => {
+      refreshTargetOptions(fieldValue('entry-first-target'));
+      renderEntryWizard();
     });
   }
 
@@ -302,7 +310,7 @@
   function renderEntryOutput(draft) {
     const core = entryDraftApi();
     if (core && typeof core.buildExportBundle === 'function') {
-      const bundle = core.buildExportBundle(draft, state.projectIndex);
+      const bundle = core.buildExportBundle(draft, state.projectIndex, {locale: currentLocale()});
       return {
         coreUsed: true,
         diagnostics: bundle.diagnostics || [],
@@ -326,7 +334,7 @@
       ok: false,
       playerPreview: renderFallbackPreview(draft),
       draftJson: JSON.stringify(draft, null, 2) + '\n',
-      installNotes: 'Install manually: proposal only / not installed\n',
+      installNotes: t('create.installNotes.manualOnly', 'Install manually: proposal only / not installed') + '\n',
       installChecklist: '',
       installPlanJson: '',
       installPlan: null,
@@ -340,17 +348,17 @@
 
   function renderFallbackPreview(draft) {
     return [
-      'Start Menu',
-      draft.rootHeading || draft.rootTitle || 'Start',
+      t('entry.preview.startMenu', 'Start Menu'),
+      draft.rootHeading || draft.rootTitle || t('entry.preview.start', 'Start'),
       '',
-      draft.rootIntro || '(no opening text)',
+      draft.rootIntro || t('entry.preview.noOpeningText', '(no opening text)'),
       '',
-      '-> ' + (draft.firstOptionTitle || 'Start'),
+      '-> ' + (draft.firstOptionTitle || t('entry.preview.start', 'Start')),
       '',
-      'Sidebar',
-      draft.sidebarHeading || draft.sidebarTitle || 'Status',
+      t('entry.preview.sidebar', 'Sidebar'),
+      draft.sidebarHeading || draft.sidebarTitle || t('entry.preview.status', 'Status'),
       '',
-      draft.sidebarBody || '(no sidebar body)',
+      draft.sidebarBody || t('entry.preview.noSidebarBody', '(no sidebar body)'),
       draft.sidebarStatusLines || ''
     ].join('\n').replace(/\n+$/, '\n');
   }
@@ -709,6 +717,11 @@
   function t(key, fallback) {
     const i18n = global.ProjectMapI18n;
     return i18n && typeof i18n.t === 'function' ? i18n.t(key, fallback) : fallback;
+  }
+
+  function currentLocale() {
+    const i18n = global.ProjectMapI18n;
+    return i18n && typeof i18n.getLocale === 'function' ? i18n.getLocale() : 'en';
   }
 
   function escapeHtml(value) {

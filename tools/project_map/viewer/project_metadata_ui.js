@@ -72,6 +72,7 @@
     bindDraftLoading();
     bindForm();
     bindDownloads();
+    bindLocaleEvents();
     renderProjectMetadataWizard();
   }
 
@@ -103,6 +104,12 @@
           setProjectIndex(detail.model.index, detail);
         }
       });
+    });
+  }
+
+  function bindLocaleEvents() {
+    global.document.addEventListener('project-map:locale-changed', () => {
+      renderProjectMetadataWizard();
     });
   }
 
@@ -264,7 +271,7 @@
   function renderProjectMetadataOutput(draft) {
     const apiCore = projectMetadataApi();
     if (apiCore && typeof apiCore.buildExportBundle === 'function') {
-      const bundle = apiCore.buildExportBundle(draft, state.projectIndex);
+      const bundle = apiCore.buildExportBundle(draft, state.projectIndex, {locale: currentLocale()});
       return {
         coreUsed: true,
         diagnostics: bundle.diagnostics || [],
@@ -288,7 +295,7 @@
       ok: false,
       playerPreview: renderFallbackPreview(draft),
       draftJson: JSON.stringify(draft, null, 2) + '\n',
-      installNotes: 'Install manually: proposal only / not installed\n',
+      installNotes: t('create.installNotes.manualOnly', 'Install manually: proposal only / not installed') + '\n',
       installChecklist: '',
       installPlanJson: '',
       installPlan: null,
@@ -302,10 +309,10 @@
 
   function renderFallbackPreview(draft) {
     return [
-      'Game Info',
-      'Title: ' + (draft.gameTitle || '(missing title)'),
-      'Author: ' + (draft.author || '(missing author)'),
-      'IFID: ' + (draft.ifid || '(unchanged / missing)')
+      t('projectMetadata.preview.gameInfo', 'Game Info'),
+      t('projectMetadata.preview.title', 'Title') + ': ' + (draft.gameTitle || t('projectMetadata.preview.missingTitle', '(missing title)')),
+      t('projectMetadata.preview.author', 'Author') + ': ' + (draft.author || t('projectMetadata.preview.missingAuthor', '(missing author)')),
+      t('projectMetadata.preview.ifid', 'IFID') + ': ' + (draft.ifid || t('projectMetadata.preview.unchangedMissing', '(unchanged / missing)'))
     ].join('\n') + '\n';
   }
 
@@ -330,8 +337,8 @@
         ? (field.line ? t('projectMetadata.evidence.guarded', 'guarded') : t('projectMetadata.evidence.manual', 'needs review'))
         : t('projectMetadata.evidence.missing', 'missing');
       return '<div class="metadata-evidence-row ' + (field.exists && field.line ? 'ready' : 'warning') + '">' +
-        '<strong>' + escapeHtml(key) + '</strong>' +
-        '<span>' + escapeHtml(field.value || '(empty)') + '</span>' +
+        '<strong>' + escapeHtml(projectMetadataFieldLabel(key)) + '</strong>' +
+        '<span>' + escapeHtml(field.value || t('projectMetadata.evidence.empty', '(empty)')) + '</span>' +
         '<small>' + escapeHtml(stateLabel + (field.line ? ' / source/info.dry:' + field.line : '')) + '</small>' +
         '</div>';
     }).join('');
@@ -359,6 +366,14 @@
 
   function renderInstallPreview(output) {
     return [output.installChecklist, output.installNotes].filter(Boolean).join('\n');
+  }
+
+  function projectMetadataFieldLabel(key) {
+    return {
+      title: t('projectMetadata.preview.title', 'Title'),
+      author: t('projectMetadata.preview.author', 'Author'),
+      ifid: t('projectMetadata.preview.ifid', 'IFID')
+    }[key] || key;
   }
 
   function ensureOutput() {
@@ -447,6 +462,11 @@
     return i18n && typeof i18n.t === 'function'
       ? i18n.t(key, fallback)
       : fallback;
+  }
+
+  function currentLocale() {
+    const i18n = global.ProjectMapI18n;
+    return i18n && typeof i18n.getLocale === 'function' ? i18n.getLocale() : 'en';
   }
 
   function escapeHtml(value) {

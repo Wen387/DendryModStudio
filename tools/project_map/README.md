@@ -59,10 +59,12 @@ does not build or patch the real project folder. Runtime Preview Debug Console
 is preview-only: it can adjust ProjectIndex-known variables and jump to
 ProjectIndex-known scenes inside the temporary modified preview, but it does
 not edit source files, real saves, baseline output, or execute arbitrary JS.
-v0.9.2 also adds an **Update Notice MVP**: the desktop app can poll a static
-`update_manifest.json` URL and show an in-app notice or update banner. It opens
-release/download links only when the user clicks them; it does not silently
-download, install, or identify a device.
+v0.9.2 also adds an **Announcement Preview MVP**: the desktop app can poll a
+static `update_manifest.json` URL, show the latest unread announcement as a
+banner, and keep the full notice feed in a three-section in-app preview:
+Updates & History, Announcements, and Testing & Contact. It opens
+release/download/feedback links only when the user clicks them; it does not
+silently download, install, or identify a device.
 
 ## One-command local launch
 
@@ -144,8 +146,8 @@ The desktop shell:
   project-folder readiness;
 - runs the indexer into Electron's userData scratch directory;
 - sends the generated `ProjectIndex` to the viewer through a preload IPC bridge;
-- checks the configured update notice manifest and shows a manual download /
-  release-notes banner when needed;
+- checks the configured announcement manifest and shows an announcement preview
+  plus a manual download / release-notes banner when needed;
 - keeps Create mode / the World Event Wizard / News Wizard / Card Wizard /
   Surface Text proposals export-only.
 - in desktop mode, can dry-run or apply only install-plan operations classified
@@ -159,10 +161,10 @@ Current v0.9.2 limits:
 - system Python 3 is still required;
 - public release installers are unsigned and still need clean-machine QA,
   backup guidance, signing, and full release-channel hardening;
-- update notices are static manifest polling only. The default manifest URL is
-  configured in `desktop/package.json` and can be overridden with
-  `DMS_UPDATE_MANIFEST_URL`; `DMS_UPDATE_NOTICE_DISABLED=1` disables the check.
-  This is not an auto-updater or silent install channel.
+- announcements and update notices are static manifest polling only. The
+  default manifest URL is configured in `desktop/package.json` and can be
+  overridden with `DMS_UPDATE_MANIFEST_URL`; `DMS_UPDATE_NOTICE_DISABLED=1`
+  disables the check. This is not an auto-updater or silent install channel.
 - `npm run dist:linux` creates unsigned AppImage and Deb artifacts under
   ignored `dist-builder/`;
 - `npm run dist:win` creates an unsigned Windows NSIS installer under

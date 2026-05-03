@@ -97,6 +97,10 @@ assert(bundle.ok, 'metadata bundle should validate: ' + JSON.stringify(bundle.di
 assert(bundle.installPlan.draftKind === 'project_metadata', 'bundle should expose project_metadata install plan');
 assert(bundle.playerPreview.includes('Justice Party Campaign Office'), 'player preview should show new title');
 assert(bundle.installNotes.includes('local-save prefix'), 'install notes should warn about save key changes');
+const zhBundle = metadataDraft.buildExportBundle(draft, index, {locale: 'zh-Hant'});
+assert(zhBundle.playerPreview.includes('遊戲資訊'), 'localized player preview should translate the Game Info label');
+assert(zhBundle.installChecklist.includes('安裝操作檢查清單'), 'localized install checklist should translate the checklist heading');
+assert(zhBundle.installNotes.includes('遊戲資訊草稿'), 'localized install notes should translate the draft label');
 assert(bundle.installPlan.operations.length === 3, 'changing all metadata fields should generate three operations');
 assert(bundle.installPlan.operations.every((op) => op.path === 'source/info.dry'), 'metadata operations must target source/info.dry only');
 assert(bundle.installPlan.operations.every((op) => op.safety === 'guarded_apply'), 'source-backed metadata operations should be guarded');

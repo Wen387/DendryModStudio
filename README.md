@@ -34,7 +34,7 @@ To open your own project, choose a folder that contains `source/info.dry`.
 - Create proposal-first changes for supported event, card, text, news, and asset workflows.
 - Review install plans before applying changes.
 - Run desktop-only dry-runs and runtime previews on temporary project copies.
-- Check update notices from the bundled GitHub-hosted manifest.
+- Preview announcements, update history, and testing/contact links from the bundled GitHub-hosted manifest.
 
 ## Safety
 

@@ -8,6 +8,7 @@ const path = require('path');
 const DEFAULT_TIMEOUT_MS = 3500;
 const DISABLED_VALUES = new Set(['1', 'true', 'yes', 'on']);
 const SEVERITIES = new Set(['info', 'warning', 'critical']);
+const NOTICE_KINDS = new Set(['announcement', 'update', 'release', 'playtest', 'contact', 'tip']);
 
 function readPackageJson(options) {
   const desktopDir = path.resolve((options && options.desktopDir) || __dirname);
@@ -101,6 +102,38 @@ function validateLocalizedTextMap(manifest, key, diagnostics) {
   });
 }
 
+function validateNoticeItem(item, index, diagnostics) {
+  if (!item || typeof item !== 'object' || Array.isArray(item)) {
+    diagnostics.push('notices[' + index + '] must be an object');
+    return;
+  }
+  ['noticeId', 'kind', 'latestVersion', 'minimumRecommendedVersion', 'title', 'body', 'publishedAt', 'actionLabel'].forEach((key) => {
+    if (item[key] !== undefined && typeof item[key] !== 'string') {
+      diagnostics.push('notices[' + index + '].' + key + ' must be a string when present');
+    }
+  });
+  if (item.kind !== undefined && !NOTICE_KINDS.has(String(item.kind))) {
+    diagnostics.push('notices[' + index + '].kind must be announcement, update, release, playtest, contact, or tip');
+  }
+  if (item.severity !== undefined && !SEVERITIES.has(String(item.severity))) {
+    diagnostics.push('notices[' + index + '].severity must be info, warning, or critical');
+  }
+  if (item.announcementOnly !== undefined && typeof item.announcementOnly !== 'boolean') {
+    diagnostics.push('notices[' + index + '].announcementOnly must be a boolean when present');
+  }
+  if (item.notify !== undefined && typeof item.notify !== 'boolean') {
+    diagnostics.push('notices[' + index + '].notify must be a boolean when present');
+  }
+  validateLocalizedTextMap(item, 'titleLocalized', diagnostics);
+  validateLocalizedTextMap(item, 'bodyLocalized', diagnostics);
+  validateLocalizedTextMap(item, 'actionLabelLocalized', diagnostics);
+  ['downloadUrl', 'releaseNotesUrl', 'actionUrl'].forEach((key) => {
+    if (item[key] !== undefined && item[key] !== '' && !isHttpUrl(item[key])) {
+      diagnostics.push('notices[' + index + '].' + key + ' must be an http(s) URL');
+    }
+  });
+}
+
 function validateManifest(manifest) {
   const diagnostics = [];
   if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
@@ -123,24 +156,101 @@ function validateManifest(manifest) {
   }
   validateLocalizedTextMap(manifest, 'titleLocalized', diagnostics);
   validateLocalizedTextMap(manifest, 'bodyLocalized', diagnostics);
+  validateLocalizedTextMap(manifest, 'actionLabelLocalized', diagnostics);
   ['downloadUrl', 'releaseNotesUrl'].forEach((key) => {
     if (manifest[key] !== undefined && manifest[key] !== '' && !isHttpUrl(manifest[key])) {
       diagnostics.push(key + ' must be an http(s) URL');
     }
   });
+  if (manifest.actionUrl !== undefined && manifest.actionUrl !== '' && !isHttpUrl(manifest.actionUrl)) {
+    diagnostics.push('actionUrl must be an http(s) URL');
+  }
+  if (manifest.notices !== undefined) {
+    if (!Array.isArray(manifest.notices)) {
+      diagnostics.push('notices must be an array when present');
+    } else {
+      manifest.notices.forEach((item, index) => validateNoticeItem(item, index, diagnostics));
+    }
+  }
   return {ok: diagnostics.length === 0, diagnostics};
 }
 
-function noticeIdForManifest(manifest) {
+function noticeIdForManifest(manifest, item) {
+  const source = item && typeof item === 'object' ? item : manifest;
   return String(
-    manifest.noticeId ||
+    source.noticeId ||
+    source.id ||
     [
       manifest.channel || 'default',
-      manifest.latestVersion || 'announcement',
-      manifest.publishedAt || '',
-      manifest.title || ''
+      source.kind || 'announcement',
+      source.latestVersion || manifest.latestVersion || 'announcement',
+      source.publishedAt || manifest.publishedAt || '',
+      source.title || manifest.title || ''
     ].join(':')
   );
+}
+
+function localizedMap(value) {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? Object.assign({}, value)
+    : {};
+}
+
+function normalizeNoticeItem(manifest, item, options) {
+  const value = item && typeof item === 'object' && !Array.isArray(item) ? item : {};
+  const currentVersion = String((options && options.currentVersion) || '');
+  const latestVersion = String(value.latestVersion || manifest.latestVersion || '').trim();
+  const minimumRecommendedVersion = String(value.minimumRecommendedVersion || manifest.minimumRecommendedVersion || '').trim();
+  const updateAvailable = Boolean(latestVersion && compareVersions(currentVersion, latestVersion) < 0);
+  const belowRecommended = Boolean(minimumRecommendedVersion && compareVersions(currentVersion, minimumRecommendedVersion) < 0);
+  const kind = String(value.kind || (updateAvailable ? 'update' : 'announcement'));
+  const title = String(value.title || manifest.title || (updateAvailable ? 'Dendry Mod Studio update available' : 'Dendry Mod Studio notice'));
+  const body = String(value.body || manifest.body || '');
+  const announcementOnly = value.announcementOnly !== undefined
+    ? value.announcementOnly === true
+    : manifest.announcementOnly === true;
+  const streamNotice = item && typeof item === 'object';
+  const streamAnnouncement = streamNotice && kind !== 'update';
+  const notify = value.notify !== false && Boolean(
+    updateAvailable ||
+    belowRecommended ||
+    announcementOnly ||
+    streamAnnouncement ||
+    value.severity === 'critical' ||
+    manifest.severity === 'critical'
+  );
+  return {
+    ok: true,
+    channel: String(manifest.channel || 'dev-preview'),
+    kind: NOTICE_KINDS.has(kind) ? kind : 'announcement',
+    latestVersion,
+    minimumRecommendedVersion,
+    updateAvailable,
+    belowRecommended,
+    shouldNotify: notify,
+    announcementOnly,
+    severity: String(value.severity || manifest.severity || (belowRecommended ? 'warning' : 'info')),
+    title,
+    body,
+    titleLocalized: Object.assign({}, localizedMap(manifest.titleLocalized), localizedMap(value.titleLocalized)),
+    bodyLocalized: Object.assign({}, localizedMap(manifest.bodyLocalized), localizedMap(value.bodyLocalized)),
+    actionLabel: String(value.actionLabel || manifest.actionLabel || ''),
+    actionLabelLocalized: Object.assign({}, localizedMap(manifest.actionLabelLocalized), localizedMap(value.actionLabelLocalized)),
+    downloadUrl: String(value.downloadUrl || manifest.downloadUrl || ''),
+    releaseNotesUrl: String(value.releaseNotesUrl || manifest.releaseNotesUrl || ''),
+    actionUrl: String(value.actionUrl || manifest.actionUrl || ''),
+    publishedAt: String(value.publishedAt || manifest.publishedAt || ''),
+    noticeId: noticeIdForManifest(manifest, value),
+    streamNotice,
+    manifest: value
+  };
+}
+
+function normalizeManifestNotices(manifest, options) {
+  if (Array.isArray(manifest.notices) && manifest.notices.length) {
+    return manifest.notices.map((item) => normalizeNoticeItem(manifest, item, options));
+  }
+  return [normalizeNoticeItem(manifest, null, options)];
 }
 
 function evaluateManifest(manifest, options) {
@@ -155,35 +265,35 @@ function evaluateManifest(manifest, options) {
       message: 'Update notice manifest is invalid: ' + validation.diagnostics.join('; ')
     };
   }
-  const latestVersion = String(manifest.latestVersion || '').trim();
-  const minimumRecommendedVersion = String(manifest.minimumRecommendedVersion || '').trim();
-  const updateAvailable = Boolean(latestVersion && compareVersions(currentVersion, latestVersion) < 0);
-  const belowRecommended = Boolean(minimumRecommendedVersion && compareVersions(currentVersion, minimumRecommendedVersion) < 0);
-  const announcement = Boolean((manifest.title || manifest.body) && manifest.announcementOnly === true);
-  const shouldNotify = Boolean(updateAvailable || belowRecommended || announcement || manifest.severity === 'critical');
+  const notices = normalizeManifestNotices(manifest, {currentVersion});
+  const primaryNotice = notices.find((notice) => notice.shouldNotify) || notices[0] || normalizeNoticeItem(manifest, null, {currentVersion});
+  const updateAvailable = notices.some((notice) => notice.updateAvailable);
+  const belowRecommended = notices.some((notice) => notice.belowRecommended);
+  const shouldNotify = notices.some((notice) => notice.shouldNotify);
   return {
     ok: true,
     configured: true,
     currentVersion,
     channel: String(manifest.channel || 'dev-preview'),
-    latestVersion,
-    minimumRecommendedVersion,
+    latestVersion: primaryNotice.latestVersion,
+    minimumRecommendedVersion: primaryNotice.minimumRecommendedVersion,
     updateAvailable,
     belowRecommended,
     shouldNotify,
-    severity: String(manifest.severity || (belowRecommended ? 'warning' : 'info')),
-    title: String(manifest.title || (updateAvailable ? 'Dendry Mod Studio update available' : 'Dendry Mod Studio notice')),
-    body: String(manifest.body || ''),
-    titleLocalized: manifest.titleLocalized && typeof manifest.titleLocalized === 'object' && !Array.isArray(manifest.titleLocalized)
-      ? Object.assign({}, manifest.titleLocalized)
-      : {},
-    bodyLocalized: manifest.bodyLocalized && typeof manifest.bodyLocalized === 'object' && !Array.isArray(manifest.bodyLocalized)
-      ? Object.assign({}, manifest.bodyLocalized)
-      : {},
-    downloadUrl: String(manifest.downloadUrl || ''),
-    releaseNotesUrl: String(manifest.releaseNotesUrl || ''),
-    publishedAt: String(manifest.publishedAt || ''),
-    noticeId: noticeIdForManifest(manifest),
+    severity: primaryNotice.severity,
+    kind: primaryNotice.kind,
+    title: primaryNotice.title,
+    body: primaryNotice.body,
+    titleLocalized: primaryNotice.titleLocalized,
+    bodyLocalized: primaryNotice.bodyLocalized,
+    actionLabel: primaryNotice.actionLabel,
+    actionLabelLocalized: primaryNotice.actionLabelLocalized,
+    downloadUrl: primaryNotice.downloadUrl,
+    releaseNotesUrl: primaryNotice.releaseNotesUrl,
+    actionUrl: primaryNotice.actionUrl,
+    publishedAt: primaryNotice.publishedAt,
+    noticeId: primaryNotice.noticeId,
+    notices,
     manifest
   };
 }

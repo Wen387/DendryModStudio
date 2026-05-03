@@ -16,6 +16,135 @@
     "zh-Hant": "預覽版公告通道已啟用。這個版本包含快速開始、內建 Demo 模板、引導式審查與套用，以及桌面版 runtime preview。"
   },
   "announcementOnly": true,
+  "notices": [
+    {
+      "noticeId": "v0.9.2-release-history-2026-05-02",
+      "kind": "release",
+      "severity": "info",
+      "notify": false,
+      "title": "v0.9.2 preview release notes",
+      "titleLocalized": {
+        "en": "v0.9.2 preview release notes",
+        "zh-Hant": "v0.9.2 預覽版更新歷史"
+      },
+      "body": "Review the current preview release notes, download page, and build history before updating manually.",
+      "bodyLocalized": {
+        "en": "Review the current preview release notes, download page, and build history before updating manually.",
+        "zh-Hant": "手動更新前，可以先查看目前預覽版的版本說明、下載頁與建置歷史。"
+      },
+      "downloadUrl": "https://github.com/Wen387/DendryModStudio/releases",
+      "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.9.2.md",
+      "publishedAt": "2026-05-02"
+    },
+    {
+      "noticeId": "v0.9.2-preview-announcement-2026-05-02",
+      "kind": "announcement",
+      "severity": "info",
+      "title": "Dendry Mod Studio preview channel notice",
+      "titleLocalized": {
+        "en": "Dendry Mod Studio preview channel notice",
+        "zh-Hant": "Dendry Mod Studio 預覽版公告"
+      },
+      "body": "The preview announcement channel is active. This build includes Quick Start, the Starter Demo template, guided Review & Apply, and desktop runtime previews.",
+      "bodyLocalized": {
+        "en": "The preview announcement channel is active. This build includes Quick Start, the Starter Demo template, guided Review & Apply, and desktop runtime previews.",
+        "zh-Hant": "預覽版公告通道已啟用。這個版本包含快速開始、內建 Demo 模板、引導式審查與套用，以及桌面版 runtime preview。"
+      },
+      "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.9.2.md",
+      "publishedAt": "2026-05-02"
+    },
+    {
+      "noticeId": "v0.9.2-playtest-call-2026-05-02",
+      "kind": "playtest",
+      "severity": "info",
+      "title": "Preview playtest feedback is welcome",
+      "titleLocalized": {
+        "en": "Preview playtest feedback is welcome",
+        "zh-Hant": "歡迎回報預覽版測試體驗"
+      },
+      "body": "If you try the Starter Demo or a small SDAAH-like mod, the most useful feedback is where the editing flow felt confusing, missing, or unsafe.",
+      "bodyLocalized": {
+        "en": "If you try the Starter Demo or a small SDAAH-like mod, the most useful feedback is where the editing flow felt confusing, missing, or unsafe.",
+        "zh-Hant": "如果你嘗試 Starter Demo 或小型 SDAAH-like Mod，最有幫助的回饋是：哪裡的編輯流程讓你覺得困惑、缺功能，或不夠安全。"
+      },
+      "actionUrl": "https://github.com/Wen387/DendryModStudio/issues",
+      "actionLabel": "Open feedback issues",
+      "actionLabelLocalized": {
+        "en": "Open feedback issues",
+        "zh-Hant": "開啟回饋頁"
+      },
+      "publishedAt": "2026-05-02"
+    },
+    {
+      "noticeId": "v0.9.2-contact-bug-report-2026-05-02",
+      "kind": "contact",
+      "severity": "info",
+      "notify": false,
+      "title": "Report a problem",
+      "titleLocalized": {
+        "en": "Report a problem",
+        "zh-Hant": "回報問題"
+      },
+      "body": "Use GitHub Issues when Studio crashes, applies a confusing plan, or produces a broken preview.",
+      "bodyLocalized": {
+        "en": "Use GitHub Issues when Studio crashes, applies a confusing plan, or produces a broken preview.",
+        "zh-Hant": "如果 Studio 當機、產生令人困惑的套用計劃，或預覽結果壞掉，可以透過 GitHub Issues 回報。"
+      },
+      "actionUrl": "https://github.com/Wen387/DendryModStudio/issues/new?title=%5BBug%5D%20",
+      "actionLabel": "Report issue",
+      "actionLabelLocalized": {
+        "en": "Report issue",
+        "zh-Hant": "回報問題"
+      },
+      "publishedAt": "2026-05-02"
+    },
+    {
+      "noticeId": "v0.9.2-contact-feature-request-2026-05-02",
+      "kind": "contact",
+      "severity": "info",
+      "notify": false,
+      "title": "Request a feature",
+      "titleLocalized": {
+        "en": "Request a feature",
+        "zh-Hant": "提出功能請求"
+      },
+      "body": "Open a feature request when you find a missing editing surface, workflow shortcut, or compatibility need.",
+      "bodyLocalized": {
+        "en": "Open a feature request when you find a missing editing surface, workflow shortcut, or compatibility need.",
+        "zh-Hant": "如果你發現缺少某種編輯表面、工作流捷徑，或相容性需求，可以提出功能請求。"
+      },
+      "actionUrl": "https://github.com/Wen387/DendryModStudio/issues/new?title=%5BFeature%5D%20",
+      "actionLabel": "Request feature",
+      "actionLabelLocalized": {
+        "en": "Request feature",
+        "zh-Hant": "提出功能請求"
+      },
+      "publishedAt": "2026-05-02"
+    },
+    {
+      "noticeId": "v0.9.2-contact-playtest-feedback-2026-05-02",
+      "kind": "contact",
+      "severity": "info",
+      "notify": false,
+      "title": "Share playtest feedback",
+      "titleLocalized": {
+        "en": "Share playtest feedback",
+        "zh-Hant": "提交測試回饋"
+      },
+      "body": "The most useful playtest notes describe what you tried, what you expected, and where Studio felt unclear.",
+      "bodyLocalized": {
+        "en": "The most useful playtest notes describe what you tried, what you expected, and where Studio felt unclear.",
+        "zh-Hant": "最有幫助的測試筆記通常包含：你嘗試做什麼、原本期待什麼，以及 Studio 哪裡讓你困惑。"
+      },
+      "actionUrl": "https://github.com/Wen387/DendryModStudio/issues/new?title=%5BPlaytest%20Feedback%5D%20",
+      "actionLabel": "Share feedback",
+      "actionLabelLocalized": {
+        "en": "Share feedback",
+        "zh-Hant": "提交回饋"
+      },
+      "publishedAt": "2026-05-02"
+    }
+  ],
   "downloadUrl": "https://github.com/Wen387/DendryModStudio/releases",
   "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.9.2.md",
   "publishedAt": "2026-05-02"

@@ -6,6 +6,48 @@
   const ID_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
   const IFID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   const FIELD_ORDER = ['title', 'author', 'ifid'];
+  const TEXT = {
+    en: {
+      gameInfo: 'Game Info',
+      title: 'Title',
+      author: 'Author',
+      ifid: 'IFID',
+      missingTitle: '(missing title)',
+      missingAuthor: '(missing author)',
+      unchangedMissing: '(unchanged / missing)',
+      runtimeHeader: 'Runtime header after rebuild:',
+      by: 'by',
+      saveWarning: 'Save-key warning: changing title or author can make old local saves appear under a different key.',
+      installHeader: 'Install Assistant: proposal only / not installed',
+      draftLabel: 'Game Info draft',
+      generatedOperations: 'Generated operations:',
+      none: '- none',
+      safety: 'Safety:',
+      safetyInfo: '- Game Info edits are limited to source/info.dry title, author, and ifid lines.',
+      safetyRuntime: '- Runtime Preview must rebuild generated out/html files; install plans do not edit generated output.',
+      safetySave: '- Changing title or author changes the Dendry local-save prefix.'
+    },
+    'zh-Hant': {
+      gameInfo: '遊戲資訊',
+      title: '標題',
+      author: '作者',
+      ifid: 'IFID',
+      missingTitle: '（缺少標題）',
+      missingAuthor: '（缺少作者）',
+      unchangedMissing: '（不變 / 缺失）',
+      runtimeHeader: '重新建置後的遊戲標頭：',
+      by: '作者：',
+      saveWarning: '存檔鍵提醒：修改標題或作者後，舊的本地瀏覽器存檔可能會顯示在先前的鍵名底下。',
+      installHeader: '安裝助手：僅為提案 / 尚未安裝',
+      draftLabel: '遊戲資訊草稿',
+      generatedOperations: '產生的操作：',
+      none: '- 沒有',
+      safety: '安全邊界：',
+      safetyInfo: '- 遊戲資訊修改僅限 source/info.dry 的 title、author 與 ifid 行。',
+      safetyRuntime: '- Runtime Preview 必須重新建置 generated out/html 檔案；install plan 不會編輯 generated output。',
+      safetySave: '- 修改 title 或 author 會改變 Dendry 本地存檔前綴。'
+    }
+  };
 
   function isObject(value) {
     return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -105,17 +147,17 @@
     return {ok: diagnostics.every((item) => item.severity !== 'error'), draft, diagnostics};
   }
 
-  function buildExportBundle(input, projectIndex) {
+  function buildExportBundle(input, projectIndex, options) {
     const validation = validateDraft(input);
     const draft = validation.draft;
     const plan = buildInstallPlan(draft, projectIndex);
     const installApi = installPlanApi();
     const installPlanJson = installApi.renderInstallPlanJson(plan);
     const patchPreview = installApi.renderPatchPreview(plan);
-    const installChecklist = installApi.renderOperationChecklist(plan);
+    const installChecklist = installApi.renderOperationChecklist(plan, options);
     const draftJson = JSON.stringify(draft, null, 2) + '\n';
-    const playerPreview = renderPlayerPreview(draft);
-    const installNotes = renderInstallNotes(draft, plan);
+    const playerPreview = renderPlayerPreview(draft, options);
+    const installNotes = renderInstallNotes(draft, plan, options);
     return {
       ok: validation.ok,
       draft,
@@ -279,36 +321,49 @@
     };
   }
 
-  function renderPlayerPreview(draftInput) {
+  function renderPlayerPreview(draftInput, options) {
     const draft = normalizeDraft(draftInput);
+    const title = draft.gameTitle || text(options, 'missingTitle');
+    const author = draft.author || text(options, 'missingAuthor');
     return [
-      'Game Info',
-      'Title: ' + (draft.gameTitle || '(missing title)'),
-      'Author: ' + (draft.author || '(missing author)'),
-      'IFID: ' + (draft.ifid || '(unchanged / missing)'),
+      text(options, 'gameInfo'),
+      text(options, 'title') + ': ' + title,
+      text(options, 'author') + ': ' + author,
+      text(options, 'ifid') + ': ' + (draft.ifid || text(options, 'unchangedMissing')),
       '',
-      'Runtime header after rebuild:',
-      (draft.gameTitle || '(missing title)') + (draft.author ? ' by ' + draft.author : ''),
+      text(options, 'runtimeHeader'),
+      title + (draft.author ? ' ' + text(options, 'by') + ' ' + draft.author : ''),
       '',
-      'Save-key warning: changing title or author can make old local saves appear under a different key.'
+      text(options, 'saveWarning')
     ].join('\n') + '\n';
   }
 
-  function renderInstallNotes(draftInput, plan) {
+  function renderInstallNotes(draftInput, plan, options) {
     const draft = normalizeDraft(draftInput);
     return [
-      'Install Assistant: proposal only / not installed',
+      text(options, 'installHeader'),
       '',
-      'Game Info draft: ' + draft.id,
+      text(options, 'draftLabel') + ': ' + draft.id,
       '',
-      'Generated operations:',
-      (plan.operations || []).map((op) => '- ' + op.type + ' ' + op.path + ' (' + op.safety + ')').join('\n') || '- none',
+      text(options, 'generatedOperations'),
+      (plan.operations || []).map((op) => '- ' + op.type + ' ' + op.path + ' (' + op.safety + ')').join('\n') || text(options, 'none'),
       '',
-      'Safety:',
-      '- Game Info edits are limited to source/info.dry title, author, and ifid lines.',
-      '- Runtime Preview must rebuild generated out/html files; install plans do not edit generated output.',
-      '- Changing title or author changes the Dendry local-save prefix.'
+      text(options, 'safety'),
+      text(options, 'safetyInfo'),
+      text(options, 'safetyRuntime'),
+      text(options, 'safetySave')
     ].join('\n') + '\n';
+  }
+
+  function text(options, key) {
+    const locale = localeKey(options);
+    const dict = TEXT[locale] || TEXT.en;
+    return dict[key] || TEXT.en[key] || key;
+  }
+
+  function localeKey(options) {
+    const raw = isObject(options) ? String(options.locale || '') : '';
+    return raw.toLowerCase().startsWith('zh') ? 'zh-Hant' : 'en';
   }
 
   function generateIfid() {

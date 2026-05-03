@@ -4,6 +4,40 @@
   const ENTRY_SIDEBAR_VERSION = '0.1';
   const ENTRY_SIDEBAR_KIND = 'entry_sidebar';
   const ID_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+  const TEXT = {
+    en: {
+      startMenu: 'Start Menu',
+      start: 'Start',
+      noOpeningText: '(no opening text)',
+      sidebar: 'Sidebar',
+      status: 'Status',
+      noSidebarBody: '(no sidebar body)',
+      installHeader: 'Install Assistant: proposal only / not installed',
+      draftLabel: 'Entry & Sidebar draft',
+      generatedOperations: 'Generated operations:',
+      none: '- none',
+      safety: 'Safety:',
+      safetyRoot: '- Root edits are limited to exact source-backed Entry/Sidebar text and route lines.',
+      safetySidebar: '- Sidebar creation is limited to source/scenes/status*.scene.dry.',
+      safetyGenerated: '- Generated/custom UI evidence stays manual review.'
+    },
+    'zh-Hant': {
+      startMenu: '開始選單',
+      start: '開始',
+      noOpeningText: '（沒有開場文字）',
+      sidebar: '側邊欄',
+      status: '狀態',
+      noSidebarBody: '（沒有側邊欄正文）',
+      installHeader: '安裝助手：僅為提案 / 尚未安裝',
+      draftLabel: 'Entry & Sidebar 草稿',
+      generatedOperations: '產生的操作：',
+      none: '- 沒有',
+      safety: '安全邊界：',
+      safetyRoot: '- Root 修改僅限有精確 source 證據的 Entry/Sidebar 文字與路由行。',
+      safetySidebar: '- 側邊欄建立僅限 source/scenes/status*.scene.dry。',
+      safetyGenerated: '- Generated/custom UI 證據一律保留手動審查。'
+    }
+  };
 
   function ensureArray(value) {
     return Array.isArray(value) ? value : [];
@@ -221,17 +255,17 @@
     return {ok: diagnostics.every((item) => item.severity !== 'error'), draft, diagnostics};
   }
 
-  function buildExportBundle(input, projectIndex) {
+  function buildExportBundle(input, projectIndex, options) {
     const validation = validateDraft(input);
     const draft = validation.draft;
     const plan = buildInstallPlan(draft, projectIndex);
     const installApi = installPlanApi();
     const installPlanJson = installApi.renderInstallPlanJson(plan);
     const patchPreview = installApi.renderPatchPreview(plan);
-    const installChecklist = installApi.renderOperationChecklist(plan);
+    const installChecklist = installApi.renderOperationChecklist(plan, options);
     const draftJson = JSON.stringify(draft, null, 2) + '\n';
-    const playerPreview = renderPlayerPreview(draft);
-    const installNotes = renderInstallNotes(draft, plan);
+    const playerPreview = renderPlayerPreview(draft, options);
+    const installNotes = renderInstallNotes(draft, plan, options);
     return {
       ok: validation.ok,
       draft,
@@ -428,37 +462,48 @@
     return 50;
   }
 
-  function renderPlayerPreview(draft) {
+  function renderPlayerPreview(draft, options) {
     return [
-      'Start Menu',
-      draft.rootHeading || draft.rootTitle,
+      text(options, 'startMenu'),
+      draft.rootHeading || draft.rootTitle || text(options, 'start'),
       '',
-      draft.rootIntro || '(no opening text)',
+      draft.rootIntro || text(options, 'noOpeningText'),
       '',
-      '-> ' + (draft.firstOptionTitle || 'Start') + (draft.firstTargetId ? ' [' + draft.firstTargetId + ']' : ''),
+      '-> ' + (draft.firstOptionTitle || text(options, 'start')) + (draft.firstTargetId ? ' [' + draft.firstTargetId + ']' : ''),
       '',
-      'Sidebar',
-      draft.sidebarHeading || draft.sidebarTitle,
+      text(options, 'sidebar'),
+      draft.sidebarHeading || draft.sidebarTitle || text(options, 'status'),
       '',
-      draft.sidebarBody || '(no sidebar body)',
+      draft.sidebarBody || text(options, 'noSidebarBody'),
       draft.sidebarStatusLines ? '\n' + draft.sidebarStatusLines : ''
     ].join('\n').replace(/\n+$/, '\n');
   }
 
-  function renderInstallNotes(draft, plan) {
+  function renderInstallNotes(draft, plan, options) {
     return [
-      'Install Assistant: proposal only / not installed',
+      text(options, 'installHeader'),
       '',
-      'Entry & Sidebar draft: ' + draft.id,
+      text(options, 'draftLabel') + ': ' + draft.id,
       '',
-      'Generated operations:',
-      ensureArray(plan && plan.operations).map((op) => '- ' + op.type + ' ' + op.path + ' (' + op.safety + ')').join('\n') || '- none',
+      text(options, 'generatedOperations'),
+      ensureArray(plan && plan.operations).map((op) => '- ' + op.type + ' ' + op.path + ' (' + op.safety + ')').join('\n') || text(options, 'none'),
       '',
-      'Safety:',
-      '- Root edits are limited to exact source-backed Entry/Sidebar text and route lines.',
-      '- Sidebar creation is limited to source/scenes/status*.scene.dry.',
-      '- Generated/custom UI evidence stays manual review.'
+      text(options, 'safety'),
+      text(options, 'safetyRoot'),
+      text(options, 'safetySidebar'),
+      text(options, 'safetyGenerated')
     ].join('\n') + '\n';
+  }
+
+  function text(options, key) {
+    const locale = localeKey(options);
+    const dict = TEXT[locale] || TEXT.en;
+    return dict[key] || TEXT.en[key] || key;
+  }
+
+  function localeKey(options) {
+    const raw = isObject(options) ? String(options.locale || '') : '';
+    return raw.toLowerCase().startsWith('zh') ? 'zh-Hant' : 'en';
   }
 
   function renderOpeningSection(draft) {

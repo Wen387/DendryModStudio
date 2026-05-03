@@ -57,6 +57,11 @@ async function main() {
   assert(manifest.schemaVersion === 1, 'bundled update manifest should use schemaVersion 1');
   assert(manifest.latestVersion === packageJson.version, 'bundled update manifest should match desktop package version');
   assert(typeof manifest.announcementOnly === 'boolean', 'bundled update manifest should make announcement-only behavior explicit');
+  assert(Array.isArray(manifest.notices) && manifest.notices.length >= 2, 'bundled update manifest should expose a notice feed');
+  assert(manifest.notices.some((notice) => notice.kind === 'release'), 'bundled update manifest should include update history');
+  assert(manifest.notices.some((notice) => notice.kind === 'announcement'), 'bundled update manifest should include general announcements');
+  assert(manifest.notices.some((notice) => notice.kind === 'playtest'), 'bundled update manifest should include playtest notices');
+  assert(manifest.notices.some((notice) => notice.kind === 'contact'), 'bundled update manifest should include contact actions');
   assert(manifest.titleLocalized && manifest.titleLocalized['zh-Hant'], 'bundled update manifest should include zh-Hant title');
   assert(manifest.bodyLocalized && manifest.bodyLocalized['zh-Hant'], 'bundled update manifest should include zh-Hant body');
   assert(updateNotice.compareVersions('0.9.2', '0.9.3') < 0, 'compareVersions should detect newer patch releases');
@@ -91,6 +96,42 @@ async function main() {
     body: 'A current-version announcement should still notify.'
   }, {currentVersion: '0.9.2'});
   assert(announcement.ok && announcement.shouldNotify && !announcement.updateAvailable, 'announcementOnly should notify without a newer version');
+
+  const feed = updateNotice.evaluateManifest({
+    schemaVersion: 1,
+    latestVersion: '0.9.2',
+    notices: [
+      {
+        noticeId: 'feed-playtest',
+        kind: 'playtest',
+        title: 'Playtest call',
+        titleLocalized: {'zh-Hant': '測試邀請'},
+        body: 'Try the preview.',
+        bodyLocalized: {'zh-Hant': '請試用預覽版。'},
+        actionUrl: 'https://example.com/issues',
+        actionLabelLocalized: {'zh-Hant': '開啟回饋頁'}
+      },
+      {
+        noticeId: 'feed-tip',
+        kind: 'tip',
+        notify: false,
+        title: 'Tip',
+        body: 'Quiet preview item.'
+      },
+      {
+        noticeId: 'feed-contact',
+        kind: 'contact',
+        title: 'Contact',
+        body: 'Open the feedback form.',
+        actionUrl: 'https://example.com/contact'
+      }
+    ]
+  }, {currentVersion: '0.9.2'});
+  assert(feed.ok && feed.notices.length === 3, 'manifest notices should evaluate as a notice feed');
+  assert(feed.shouldNotify && feed.noticeId === 'feed-playtest', 'first notifying feed item should become the banner-compatible notice');
+  assert(feed.notices[0].kind === 'playtest' && feed.notices[0].actionUrl.includes('example.com'), 'feed item should preserve kind and action URL');
+  assert(feed.notices[1].shouldNotify === false, 'quiet feed items should stay in the preview without banner notification');
+  assert(feed.notices[2].kind === 'contact' && feed.notices[2].actionUrl.includes('contact'), 'contact feed items should be accepted');
 
   const bundledEvaluation = updateNotice.evaluateManifest(manifest, {currentVersion: packageJson.version});
   assert(bundledEvaluation.ok, 'bundled update manifest should evaluate successfully');
@@ -152,18 +193,31 @@ async function main() {
   assert(!controller.isDismissed({noticeId: 'demo-notice'}), 'notice should start visible');
   assert(controller.dismiss({noticeId: 'demo-notice'}), 'dismiss should persist notice key');
   assert(controller.isDismissed({noticeId: 'demo-notice'}), 'dismissed notice should be hidden next time');
+  assert(controller.unreadCount([{noticeId: 'demo-notice', shouldNotify: true}, {noticeId: 'new-notice', shouldNotify: true}]) === 1, 'controller should count unread feed notices');
+  assert(controller.dismissAll([{noticeId: 'new-notice'}]), 'controller should mark all feed notices read');
+  assert(controller.unreadCount([{noticeId: 'demo-notice', shouldNotify: true}, {noticeId: 'new-notice', shouldNotify: true}]) === 0, 'mark all read should clear unread count');
   assert(updateNoticeUi.canCheckUpdates({dendryDesktop: {checkUpdateNotice: () => null}}), 'viewer should detect desktop update API');
-  assert(updateNoticeSource.includes('titleLocalized'), 'desktop update evaluation should preserve localized title/body maps');
+  assert(updateNoticeSource.includes('normalizeManifestNotices'), 'desktop update evaluation should normalize notice feeds');
 
   [
     'id="update-notice-banner"',
+    'id="announcement-board"',
+    'id="announcement-board-tabs"',
+    'id="studio-open-announcements"',
     'id="studio-check-updates"',
+    'data-announcement-category="updates"',
+    'data-announcement-category="announcements"',
+    'data-announcement-category="testing"',
     'update_notice_ui.js'
   ].forEach((needle) => {
     assert(html.includes(needle), 'viewer HTML missing update notice surface: ' + needle);
   });
   [
     '.update-notice-banner',
+    '.announcement-board',
+    '.announcement-board-tabs',
+    '.announcement-board-tab',
+    '.announcement-card',
     '.update-notice-actions',
     '.update-notice-banner.is-critical'
   ].forEach((needle) => {
@@ -171,6 +225,12 @@ async function main() {
   });
   [
     'topbar.checkUpdates',
+    'topbar.announcements',
+    'announcementBoard.title',
+    'announcementBoard.category.updates',
+    'announcementBoard.category.announcements',
+    'announcementBoard.category.testing',
+    'announcementBoard.kind.contact',
     'updateNotice.download',
     'updateNotice.currentBody'
   ].forEach((key) => {
@@ -178,6 +238,7 @@ async function main() {
   });
   assert(mainJs.includes('dendry:update-notice-check'), 'desktop main should expose update notice check IPC');
   assert(read(path.join(VIEWER_DIR, 'update_notice_ui.js')).includes('localizedNoticeField'), 'viewer should render localized update notice title/body');
+  assert(read(path.join(VIEWER_DIR, 'update_notice_ui.js')).includes('categoryForNotice'), 'viewer should group notice preview items by category');
   assert(mainJs.includes('dendry:open-external-url'), 'desktop main should expose safe external link IPC');
   assert(preloadJs.includes('checkUpdateNotice'), 'preload should expose checkUpdateNotice');
   assert(preloadJs.includes('openExternalUrl'), 'preload should expose openExternalUrl');

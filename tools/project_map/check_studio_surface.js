@@ -154,6 +154,12 @@ assert(html.includes('id="onboarding-open-tutorial-library"'), 'Quick Start shou
 assert(html.includes('id="onboarding-load-demo"'), 'Quick Start should offer the bundled Demo Template');
 assert(html.includes('id="studio-check-updates"'), 'More menu should expose Check for Updates in desktop mode');
 assert(html.includes('id="update-notice-banner"'), 'viewer should expose the Update Notice banner');
+assert(html.includes('id="studio-open-announcements"'), 'More menu should expose the announcement preview');
+assert(html.includes('id="announcement-board"'), 'viewer should expose an in-app announcement preview');
+assert(html.includes('id="announcement-board-tabs"'), 'announcement preview should expose category buttons');
+assert(html.includes('data-announcement-category="updates"'), 'announcement preview should include Updates & History');
+assert(html.includes('data-announcement-category="announcements"'), 'announcement preview should include Announcements');
+assert(html.includes('data-announcement-category="testing"'), 'announcement preview should include Testing & Contact');
 assert(html.includes('tutorial_library_ui.js'), 'viewer should load Tutorial Library UI');
 assert(html.includes('update_notice_ui.js'), 'viewer should load Update Notice UI');
 assert(html.includes('wizard-field-help'), 'Create forms should explain what important fields change');
@@ -203,6 +209,8 @@ assert(css.includes('.tutorial-library-nav'), 'CSS should style Tutorial Library
 assert(css.includes('.tutorial-library-article'), 'CSS should style Tutorial Library articles');
 assert(css.includes('.update-notice-banner'), 'CSS should style the Update Notice banner');
 assert(css.includes('.update-notice-actions'), 'CSS should style Update Notice actions');
+assert(css.includes('.announcement-board-tabs'), 'CSS should style Announcement Preview category buttons');
+assert(css.includes('.announcement-board-tab.is-active'), 'CSS should style the active Announcement Preview category');
 assert(css.includes('.wizard-field-help'), 'CSS should style Create field help text');
 assert(css.includes('.wizard-action-group'), 'CSS should style grouped Create output actions');
 assert(css.includes('.wizard-action-advanced'), 'CSS should style advanced Create downloads');
@@ -368,5 +376,7 @@ assert(!appUi.includes('>Edit Text Proposal</button>'), 'Text proposal CTA shoul
 assert(updateNoticeUi.includes('checkUpdateNotice'), 'Update Notice UI should call the desktop check API');
 assert(updateNoticeUi.includes('dendry-mod-studio-update-notice-dismissed'), 'Update Notice UI should persist dismissed notice IDs');
 assert(updateNoticeUi.includes('openExternalUrl'), 'Update Notice UI should open update links through desktop IPC');
+assert(updateNoticeUi.includes('announcement-board-list'), 'Update Notice UI should render announcement preview items');
+assert(updateNoticeUi.includes('categoryForNotice'), 'Update Notice UI should categorize preview items');
 
 process.stdout.write('studio surface ok\n');

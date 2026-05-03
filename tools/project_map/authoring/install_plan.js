@@ -12,6 +12,124 @@
     manual_review: 4,
     refused: 5
   };
+  const CHECKLIST_TEXT = {
+    en: {
+      'checklist.title': 'Install operation checklist',
+      'checklist.status': 'Status: proposal only / not installed',
+      'group.safe_apply': 'Safe apply',
+      'group.guarded_apply': 'Guarded install',
+      'group.advanced_apply': 'Advanced install',
+      'group.manual_review': 'Manual review',
+      'group.refused': 'Protected / refused',
+      none: 'none',
+      unknownPath: '(unknown path)',
+      'reason.defaultManual': 'This operation must be reviewed and installed by hand.',
+      'reason.defaultEligible': 'This operation is eligible for guarded apply.',
+      'reason.type.create_file': 'Create a new source file from this proposal.',
+      'reason.type.replace_text': 'Replace one source-backed player-facing line after the original text still matches.',
+      'reason.type.insert_text': 'Insert source text after a known anchor and dedupe token still match.',
+      'reason.type.replace_section': 'Replace a source-backed section between exact begin and end anchors.',
+      'reason.type.manual_snippet': 'Review and paste this snippet manually.',
+      'reason.type.copy_asset_file': 'Copy the selected local asset into the project target path.',
+      'reason.create_scene': 'Create the exported world event or card scene.',
+      'reason.root_seen_flag': 'Insert the generated event-seen flag near the known root anchor.',
+      'reason.post_event_migration': 'Insert the generated old-save migration guard after the known compatibility anchor.',
+      'reason.post_event_news_snippet': 'Wire the news snippet into the detected post-event news route, or review it manually if no safe route was found.',
+      'reason.wire_card_flow': 'Review hand, deck, or sidebar wiring for this card manually.',
+      'reason.replace_label': 'Replace source-backed surface text after matching exact source evidence.',
+      'reason.manual_label_review': 'Review this surface text proposal manually because the source is generated, protected, or ambiguous.',
+      'reason.entry_root_title': 'Replace the root/start menu source title after exact line evidence matches.',
+      'reason.entry_opening_section': 'Replace the source-backed start menu heading and opening text between exact anchors.',
+      'reason.entry_opening_manual': 'Start menu source anchors are not exact enough for guarded apply; review the root opening manually.',
+      'reason.entry_first_route': 'Replace the first start-menu route line after exact source evidence matches.',
+      'reason.entry_first_route_manual': 'First route source line evidence is missing; review the root option manually.',
+      'reason.sidebar_generated_manual': 'Sidebar evidence appears generated or custom; review manually before editing UI-owned files.',
+      'reason.sidebar_title': 'Replace the source-backed sidebar scene title after exact line evidence matches.',
+      'reason.sidebar_section': 'Replace the source-backed sidebar/status display section between exact anchors.',
+      'reason.sidebar_section_manual': 'Sidebar source anchors are not exact enough for guarded apply; review the status scene manually.',
+      'reason.sidebar_create_status_scene': 'Create a source-backed status/sidebar scene for the default Dendry HTML shell.',
+      'reason.entry_sidebar_noop': 'No installable Entry/Sidebar change was generated.',
+      'reason.sidebar_status_generated_manual': 'Sidebar/status evidence appears generated or custom; review manually before editing UI-owned files.',
+      'reason.sidebar_status_title': 'Replace the source-backed sidebar/status scene title after exact line evidence matches.',
+      'reason.sidebar_status_section': 'Replace the source-backed sidebar/status display section between exact anchors.',
+      'reason.sidebar_status_section_manual': 'Sidebar/status source anchors are not exact enough for guarded apply; review manually.',
+      'reason.sidebar_status_create_status_scene': 'Create a source-backed status/sidebar scene.',
+      'reason.sidebar_status_noop': 'No installable Sidebar/Status change was generated.',
+      'reason.workspace_layout_deck': 'Create the proposed deck scene for this playable workspace.',
+      'reason.workspace_layout_card': 'Create the proposed starter card scene.',
+      'reason.workspace_layout_route': 'Insert the hand/deck route after the matching source anchor.',
+      'reason.workspace_layout_route_manual': 'Review the hand/deck route manually because exact source evidence is missing.',
+      'reason.workspace_layout_sidebar': 'Add the proposed sidebar category after the matching status/sidebar anchor.',
+      'reason.workspace_layout_sidebar_manual': 'Review the sidebar category manually because exact source evidence is missing.',
+      'reason.project_metadata_validation_manual': 'Fix Game Info validation errors before applying metadata changes.',
+      'reason.project_metadata_replace': 'Replace source/info.dry metadata after exact line evidence matches.',
+      'reason.project_metadata_insert': 'Insert missing source/info.dry metadata after matching a known metadata anchor.',
+      'reason.project_metadata_manual': 'Source evidence is missing for this metadata field; review source/info.dry manually.',
+      'reason.project_metadata_noop': 'No installable Game Info change was generated.',
+      'reason.existing_section': 'Replace existing scene section text after exact source anchors still match.',
+      'reason.existing_text': 'Replace existing scene text after the original source line still matches.',
+      'reason.existing_manual': 'Existing scene source evidence is missing or protected; review it manually.',
+      'reason.asset_file': 'Copy the selected local asset into the project, then review the asset reference path.'
+    },
+    'zh-Hant': {
+      'checklist.title': '安裝操作檢查清單',
+      'checklist.status': '狀態：僅為提案 / 尚未安裝',
+      'group.safe_apply': '可安全套用',
+      'group.guarded_apply': '受控安裝',
+      'group.advanced_apply': '進階安裝',
+      'group.manual_review': '手動審查',
+      'group.refused': '受保護 / 已拒絕',
+      none: '沒有',
+      unknownPath: '（未知路徑）',
+      'reason.defaultManual': '這項操作需要手動審查與安裝。',
+      'reason.defaultEligible': '這項操作符合受控套用條件。',
+      'reason.type.create_file': '從這份提案建立新的 source 檔案。',
+      'reason.type.replace_text': '在原文字仍匹配時，替換一行有 source 證據的玩家可見文字。',
+      'reason.type.insert_text': '在已知錨點與去重標記仍匹配時插入 source 文字。',
+      'reason.type.replace_section': '在精確開始與結束錨點之間替換 source-backed 區段。',
+      'reason.type.manual_snippet': '手動審查並貼上這段片段。',
+      'reason.type.copy_asset_file': '把已選的本地素材複製到專案目標路徑。',
+      'reason.create_scene': '建立匯出的世界事件或卡牌場景。',
+      'reason.root_seen_flag': '在已知 root 錨點附近插入產生的事件已讀旗標。',
+      'reason.post_event_migration': '在已知相容性錨點後插入舊存檔遷移 guard。',
+      'reason.post_event_news_snippet': '將新聞片段接入偵測到的 post-event news 路由；若沒有安全路由則手動審查。',
+      'reason.wire_card_flow': '手動審查這張卡牌的手牌、牌庫或側邊欄接線。',
+      'reason.replace_label': '在精確 source 證據匹配後替換 source-backed 介面文字。',
+      'reason.manual_label_review': '因為來源是 generated、受保護或不明確，請手動審查這項介面文字提案。',
+      'reason.entry_root_title': '在精確行證據匹配後替換 root / 開始選單 source 標題。',
+      'reason.entry_opening_section': '在精確錨點之間替換 source-backed 開始選單標題與開場文字。',
+      'reason.entry_opening_manual': '開始選單 source 錨點不夠精確，請手動審查 root 開場內容。',
+      'reason.entry_first_route': '在精確 source 證據匹配後替換開始選單第一路由行。',
+      'reason.entry_first_route_manual': '第一路由缺少 source 行證據；請手動審查 root 選項。',
+      'reason.sidebar_generated_manual': '側邊欄證據看起來是 generated 或 custom；修改 UI-owned 檔案前請手動審查。',
+      'reason.sidebar_title': '在精確行證據匹配後替換 source-backed 側邊欄場景標題。',
+      'reason.sidebar_section': '在精確錨點之間替換 source-backed 側邊欄 / 狀態顯示區段。',
+      'reason.sidebar_section_manual': '側邊欄 source 錨點不夠精確，請手動審查 status 場景。',
+      'reason.sidebar_create_status_scene': '為預設 Dendry HTML shell 建立 source-backed status / 側邊欄場景。',
+      'reason.entry_sidebar_noop': '沒有產生可安裝的 Entry/Sidebar 修改。',
+      'reason.sidebar_status_generated_manual': '側邊欄 / 狀態證據看起來是 generated 或 custom；修改 UI-owned 檔案前請手動審查。',
+      'reason.sidebar_status_title': '在精確行證據匹配後替換 source-backed 側邊欄 / 狀態場景標題。',
+      'reason.sidebar_status_section': '在精確錨點之間替換 source-backed 側邊欄 / 狀態顯示區段。',
+      'reason.sidebar_status_section_manual': '側邊欄 / 狀態 source 錨點不夠精確，請手動審查。',
+      'reason.sidebar_status_create_status_scene': '建立 source-backed status / 側邊欄場景。',
+      'reason.sidebar_status_noop': '沒有產生可安裝的 Sidebar/Status 修改。',
+      'reason.workspace_layout_deck': '為這個可玩工作區建立提案牌庫場景。',
+      'reason.workspace_layout_card': '建立提案起始卡牌場景。',
+      'reason.workspace_layout_route': '在匹配的 source 錨點後插入手牌 / 牌庫路由。',
+      'reason.workspace_layout_route_manual': '因為缺少精確 source 證據，請手動審查手牌 / 牌庫路由。',
+      'reason.workspace_layout_sidebar': '在匹配的 status / 側邊欄錨點後加入提案側邊欄類別。',
+      'reason.workspace_layout_sidebar_manual': '因為缺少精確 source 證據，請手動審查側邊欄類別。',
+      'reason.project_metadata_validation_manual': '套用遊戲資訊修改前，請先修正驗證錯誤。',
+      'reason.project_metadata_replace': '在精確行證據匹配後替換 source/info.dry metadata。',
+      'reason.project_metadata_insert': '在已知 metadata 錨點匹配後插入缺失的 source/info.dry metadata。',
+      'reason.project_metadata_manual': '這個 metadata 欄位缺少 source 證據；請手動審查 source/info.dry。',
+      'reason.project_metadata_noop': '沒有產生可安裝的遊戲資訊修改。',
+      'reason.existing_section': '在精確 source 錨點仍匹配時替換既有場景區段文字。',
+      'reason.existing_text': '在原 source 行仍匹配時替換既有場景文字。',
+      'reason.existing_manual': '既有場景缺少 source 證據或位於受保護區域；請手動審查。',
+      'reason.asset_file': '把已選的本地素材複製到專案中，然後審查素材引用路徑。'
+    }
+  };
 
   function ensureArray(value) {
     return Array.isArray(value) ? value : [];
@@ -513,35 +631,113 @@
     return summary;
   }
 
-  function renderOperationChecklist(plan) {
+  function renderOperationChecklist(plan, options) {
     const operations = ensureArray(plan && plan.operations);
     const groups = [
-      ['safe_apply', 'Safe apply'],
-      ['guarded_apply', 'Guarded install'],
-      ['advanced_apply', 'Advanced install'],
-      ['manual_review', 'Manual review'],
-      ['refused', 'Protected / refused']
+      ['safe_apply', localizedText(options, 'group.safe_apply', 'Safe apply')],
+      ['guarded_apply', localizedText(options, 'group.guarded_apply', 'Guarded install')],
+      ['advanced_apply', localizedText(options, 'group.advanced_apply', 'Advanced install')],
+      ['manual_review', localizedText(options, 'group.manual_review', 'Manual review')],
+      ['refused', localizedText(options, 'group.refused', 'Protected / refused')]
     ];
     const classifications = operations.map(classifyOperation);
     const lines = [
-      'Install operation checklist',
-      'Status: proposal only / not installed',
+      localizedText(options, 'checklist.title', 'Install operation checklist'),
+      localizedText(options, 'checklist.status', 'Status: proposal only / not installed'),
       ''
     ];
     groups.forEach(([status, title]) => {
       const group = classifications.filter((item) => item.status === status);
       lines.push(title + ' (' + group.length + ')');
       if (!group.length) {
-        lines.push('- none');
+        lines.push('- ' + localizedText(options, 'none', 'none'));
       } else {
         group.forEach((item) => {
           const op = item.operation;
-          lines.push('- ' + op.type + ' ' + (op.path || '(unknown path)') + ' — ' + item.reason);
+          lines.push('- ' + op.type + ' ' + (op.path || localizedText(options, 'unknownPath', '(unknown path)')) + ' — ' + operationReason(op, item, options));
         });
       }
       lines.push('');
     });
     return lines.join('\n').replace(/\n+$/, '\n');
+  }
+
+  function operationReason(operation, classification, options) {
+    const op = normalizeOperation(operation || {}, 0);
+    const item = isObject(classification) ? classification : {};
+    const key = operationReasonKey(op);
+    if (key) {
+      return localizedText(options, key, op.description || item.reason || '');
+    }
+    if (item.status === 'refused' && item.reason && !op.description) {
+      return item.reason;
+    }
+    if (op.description) {
+      return op.description;
+    }
+    if (item.reason) {
+      return item.reason;
+    }
+    return localizedText(options, op.safety === 'manual_review' ? 'reason.defaultManual' : 'reason.defaultEligible', '');
+  }
+
+  function operationReasonKey(operation) {
+    const op = operation || {};
+    const id = String(op.id || '');
+    if (CHECKLIST_TEXT.en['reason.' + id]) {
+      return 'reason.' + id;
+    }
+    if (/^project_metadata_(title|author|ifid)$/.test(id)) {
+      return 'reason.project_metadata_replace';
+    }
+    if (/^project_metadata_(title|author|ifid)_insert$/.test(id)) {
+      return 'reason.project_metadata_insert';
+    }
+    if (/^project_metadata_(title|author|ifid)_manual$/.test(id)) {
+      return 'reason.project_metadata_manual';
+    }
+    if (id === 'create_deck_scene') {
+      return 'reason.workspace_layout_deck';
+    }
+    if (id === 'create_starter_card') {
+      return 'reason.workspace_layout_card';
+    }
+    if (id === 'hand_deck_route') {
+      return 'reason.workspace_layout_route';
+    }
+    if (id === 'hand_deck_route_manual') {
+      return 'reason.workspace_layout_route_manual';
+    }
+    if (id === 'sidebar_category') {
+      return 'reason.workspace_layout_sidebar';
+    }
+    if (id === 'sidebar_category_manual') {
+      return 'reason.workspace_layout_sidebar_manual';
+    }
+    if (/^replace_existing_/.test(id)) {
+      return op.type === 'replace_section' ? 'reason.existing_section' : 'reason.existing_text';
+    }
+    if (/^manual_existing_/.test(id)) {
+      return 'reason.existing_manual';
+    }
+    if (/^copy_asset_file_/.test(id)) {
+      return 'reason.asset_file';
+    }
+    if (op.type && CHECKLIST_TEXT.en['reason.type.' + op.type]) {
+      return 'reason.type.' + op.type;
+    }
+    return '';
+  }
+
+  function localizedText(options, key, fallback) {
+    const locale = localeKey(options);
+    const dict = CHECKLIST_TEXT[locale] || CHECKLIST_TEXT.en;
+    return dict[key] || CHECKLIST_TEXT.en[key] || fallback || key;
+  }
+
+  function localeKey(options) {
+    const raw = isObject(options) ? String(options.locale || '') : '';
+    return raw.toLowerCase().startsWith('zh') ? 'zh-Hant' : 'en';
   }
 
   function renderPatchPreview(plan) {
@@ -1333,6 +1529,7 @@
     classifyOperation,
     operationSummary,
     renderOperationChecklist,
+    operationReason,
     renderPatchPreview,
     applyInstallPlan
   };

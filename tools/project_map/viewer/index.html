@@ -52,7 +52,11 @@
           <div class="topbar-more-menu">
             <button id="studio-open-onboarding" class="desktop-secondary-button" type="button" data-i18n="topbar.quickStart">Quick Start</button>
             <button id="studio-open-tutorial-library" class="desktop-secondary-button" type="button" data-i18n="topbar.tutorialLibrary">Tutorial Library</button>
-            <button id="studio-check-updates" class="desktop-secondary-button desktop-only-control hidden" type="button" data-i18n="topbar.checkUpdates">Check for Updates</button>
+            <button id="studio-open-announcements" class="desktop-secondary-button desktop-only-control hidden" type="button">
+              <span data-i18n="topbar.announcements">Notice Preview</span>
+              <span id="announcement-board-badge" class="announcement-board-badge hidden" aria-hidden="true"></span>
+            </button>
+            <button id="studio-check-updates" class="desktop-secondary-button desktop-only-control hidden" type="button" data-i18n="topbar.checkUpdates">Check Notices</button>
             <button id="desktop-run-doctor" class="desktop-secondary-button desktop-only-control hidden" type="button" data-i18n="topbar.checkSetup">Check Setup</button>
             <label class="desktop-excerpt-toggle desktop-only-control hidden">
               <input id="desktop-include-excerpts" type="checkbox">
@@ -76,8 +80,44 @@
       <div class="update-notice-actions">
         <button id="update-notice-download" class="primary-action" type="button" data-i18n="updateNotice.download">Download update</button>
         <button id="update-notice-release-notes" type="button" data-i18n="updateNotice.releaseNotes">Release notes</button>
+        <button id="update-notice-open-board" type="button" data-i18n="announcementBoard.open">Open preview</button>
         <button id="update-notice-later" type="button" data-i18n="updateNotice.later">Later</button>
         <button id="update-notice-dismiss" type="button" data-i18n="updateNotice.dismiss">Dismiss</button>
+      </div>
+    </section>
+
+    <section id="announcement-board" class="announcement-board hidden" role="dialog" aria-modal="true" aria-labelledby="announcement-board-title">
+      <div class="announcement-board-dialog">
+        <header class="announcement-board-header">
+          <div>
+            <p class="announcement-board-eyebrow" data-i18n="announcementBoard.eyebrow">Notice preview</p>
+            <h2 id="announcement-board-title" data-i18n="announcementBoard.title">Notice Preview</h2>
+            <p id="announcement-board-summary" data-i18n="announcementBoard.emptySummary">No notices loaded yet.</p>
+          </div>
+          <button id="announcement-board-close" class="announcement-board-close" type="button" aria-label="Close" data-i18n-aria-label="onboarding.dismiss">×</button>
+        </header>
+        <div id="announcement-board-tabs" class="announcement-board-tabs" role="tablist" aria-label="Announcement sections" data-i18n-aria-label="announcementBoard.tabsLabel">
+          <button class="announcement-board-tab is-active" type="button" role="tab" aria-selected="true" data-announcement-category="updates">
+            <strong data-i18n="announcementBoard.category.updates">Updates & History</strong>
+            <span data-i18n="announcementBoard.category.updatesHelp">Version notices, downloads, and release notes.</span>
+            <small data-announcement-category-count="updates">0</small>
+          </button>
+          <button class="announcement-board-tab" type="button" role="tab" aria-selected="false" data-announcement-category="announcements">
+            <strong data-i18n="announcementBoard.category.announcements">Announcements</strong>
+            <span data-i18n="announcementBoard.category.announcementsHelp">General Studio news and important reminders.</span>
+            <small data-announcement-category-count="announcements">0</small>
+          </button>
+          <button class="announcement-board-tab" type="button" role="tab" aria-selected="false" data-announcement-category="testing">
+            <strong data-i18n="announcementBoard.category.testing">Testing & Contact</strong>
+            <span data-i18n="announcementBoard.category.testingHelp">Preview build notes, feedback, feature requests, and issue reports.</span>
+            <small data-announcement-category-count="testing">0</small>
+          </button>
+        </div>
+        <div class="announcement-board-toolbar">
+          <button id="announcement-board-refresh" type="button" data-i18n="announcementBoard.refresh">Check now</button>
+          <button id="announcement-board-mark-read" type="button" data-i18n="announcementBoard.markAllRead">Mark all read</button>
+        </div>
+        <div id="announcement-board-list" class="announcement-board-list"></div>
       </div>
     </section>
 
