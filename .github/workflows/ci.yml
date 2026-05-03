@@ -27,3 +27,38 @@ jobs:
 
       - name: Run checks
         run: npm run check:ci
+
+  desktop-smoke:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install root dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Install desktop package metadata
+        run: npm ci --ignore-scripts
+        working-directory: tools/project_map/desktop
+
+      - name: Run desktop smoke
+        run: npm run smoke
+        working-directory: tools/project_map/desktop
+
+      - name: Run desktop doctor
+        run: npm run doctor
+        working-directory: tools/project_map/desktop
