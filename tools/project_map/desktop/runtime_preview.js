@@ -109,8 +109,9 @@ function createRuntimePreview(options) {
     allowAdvanced: opts.allowAdvanced === true
   });
   const buildRunner = typeof opts.buildRunner === 'function' ? opts.buildRunner : runBuild;
-  const baselineBuild = buildRunner(session.paths.baselineRoot, {lane: 'baseline'});
-  const modifiedBuild = buildRunner(session.paths.modifiedRoot, {lane: 'modified'});
+  const buildMeta = {allowProjectBuildWrapper: opts.allowProjectBuildWrapper === true};
+  const baselineBuild = buildRunner(session.paths.baselineRoot, Object.assign({lane: 'baseline'}, buildMeta));
+  const modifiedBuild = buildRunner(session.paths.modifiedRoot, Object.assign({lane: 'modified'}, buildMeta));
   const serverFactory = typeof opts.serverFactory === 'function' ? opts.serverFactory : ensurePreviewServer;
   const serverRoot = path.dirname(session.paths.root);
   const serverResult = serverFactory(serverRoot);
@@ -212,7 +213,7 @@ function shouldCopyPath(sourceRoot, source) {
 }
 
 function runBuild(root, meta) {
-  const command = resolveBuildCommand(root);
+  const command = resolveBuildCommand(root, meta || {});
   if (!command.ok) {
     return {
       ok: false,
@@ -231,19 +232,22 @@ function runBuild(root, meta) {
     env: Object.assign({}, process.env, command.env || {}),
     encoding: 'utf8',
     timeout: 120000,
-    maxBuffer: 1024 * 1024 * 4
+    maxBuffer: 1024 * 1024 * 4,
+    windowsHide: true
   });
   const htmlRoot = path.join(root, 'out', 'html');
   const ok = result.status === 0 && fs.existsSync(path.join(htmlRoot, 'index.html'));
+  const stdout = clipLog(result.stdout);
+  const stderr = clipLog(result.stderr || (result.error && result.error.message) || '');
   return {
     ok,
     root,
     lane: meta && meta.lane || '',
     command: [command.cmd].concat(command.args).join(' '),
     htmlRoot,
-    stdout: clipLog(result.stdout),
-    stderr: clipLog(result.stderr || (result.error && result.error.message) || ''),
-    diagnostics: ok ? [] : [diagnostic('error', 'runtime_preview.build_failed', 'Runtime preview build failed or out/html/index.html was not produced.')]
+    stdout,
+    stderr,
+    diagnostics: ok ? [] : buildFailureDiagnostics(result, stdout, stderr)
   };
 }
 
@@ -258,19 +262,47 @@ function prepareGeneratedHtmlForBuild(root) {
   });
 }
 
-function resolveBuildCommand(root) {
-  if (fs.existsSync(path.join(root, 'tools', 'build_and_validate.sh'))) {
-    return {ok: true, cmd: 'bash', args: ['tools/build_and_validate.sh']};
+function resolveBuildCommand(root, options) {
+  const wrapper = resolveBuildWrapperCommand(root, options);
+  if (wrapper) {
+    return wrapper;
   }
   const bundled = resolveBundledDendryCli();
   const localCli = path.join(root, 'dendrynexus-main', 'lib', 'cli', 'main.js');
-  if (fs.existsSync(localCli)) {
-    return dendryCliCommand(localCli, bundled.nodeModules);
-  }
   if (fs.existsSync(path.join(root, 'source', 'info.dry')) && bundled.ok) {
     return dendryCliCommand(bundled.cliPath, bundled.nodeModules);
   }
+  if (fs.existsSync(localCli)) {
+    return dendryCliCommand(localCli, bundled.nodeModules);
+  }
   return {ok: false, message: 'No supported Dendry build command was found in the sandbox copy or bundled Studio runtime.'};
+}
+
+function resolveBuildWrapperCommand(root, options) {
+  const wrapperPath = path.join(root, 'tools', 'build_and_validate.sh');
+  if (!fs.existsSync(wrapperPath)) {
+    return null;
+  }
+  if (!options || options.allowProjectBuildWrapper !== true) {
+    return null;
+  }
+  const platform = options && options.platform || process.platform;
+  const commandExists = options && typeof options.commandExists === 'function'
+    ? options.commandExists
+    : isCommandAvailable;
+  if (platform === 'win32' && !commandExists('bash')) {
+    return null;
+  }
+  return {ok: true, cmd: 'bash', args: ['tools/build_and_validate.sh']};
+}
+
+function isCommandAvailable(command) {
+  const result = spawnSync(command, ['--version'], {
+    encoding: 'utf8',
+    timeout: 5000,
+    windowsHide: true
+  });
+  return !result.error && result.status === 0;
 }
 
 function resolveBundledDendryCli() {
@@ -315,6 +347,24 @@ function dendryCliCommand(cliPath, nodeModules) {
 function clipLog(value) {
   const text = String(value || '');
   return text.length > 6000 ? text.slice(0, 6000) + '\n[truncated]\n' : text;
+}
+
+function buildFailureDiagnostics(result, stdout, stderr) {
+  const diagnostics = [
+    diagnostic('error', 'runtime_preview.build_failed', 'Runtime preview build failed or out/html/index.html was not produced.')
+  ];
+  const detail = firstBuildFailureLine(stderr || stdout || (result && result.error && result.error.message));
+  if (detail) {
+    diagnostics.push(diagnostic('error', 'runtime_preview.build_output', detail));
+  }
+  return diagnostics;
+}
+
+function firstBuildFailureLine(value) {
+  const text = String(value || '').replace(/\u001b\[[0-9;]*m/g, '');
+  return text.split(/\r?\n/)
+    .map((line) => line.trim())
+    .find((line) => line && !/^\(node:\d+\)\s+Warning:/.test(line)) || '';
 }
 
 function writeComparePage(session, report) {
@@ -634,6 +684,10 @@ module.exports = {
   validateProjectRoot,
   recordDebugCommandHistory,
   resolveBuildCommand,
+  resolveBuildWrapperCommand,
+  isCommandAvailable,
+  buildFailureDiagnostics,
+  firstBuildFailureLine,
   prepareGeneratedHtmlForBuild,
   fakeBuildRunner,
   fakeServerFactory

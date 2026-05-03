@@ -1241,6 +1241,51 @@
     return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
   }
 
+  function preferredEol(text) {
+    const crlf = (String(text || '').match(/\r\n/g) || []).length;
+    const lf = (String(text || '').replace(/\r\n/g, '').match(/\n/g) || []).length;
+    return crlf > lf ? '\r\n' : '\n';
+  }
+
+  function splitLogicalLines(text) {
+    const value = String(text || '');
+    const hadFinalNewline = /(?:\r\n|\n|\r)$/.test(value);
+    const body = hadFinalNewline ? value.replace(/(?:\r\n|\n|\r)$/, '') : value;
+    return {
+      lines: body ? body.split(/\r\n|\n|\r/) : [],
+      eol: preferredEol(value),
+      hadFinalNewline
+    };
+  }
+
+  function contentLines(content) {
+    const body = String(content || '').replace(/(?:\r\n|\n|\r)$/, '');
+    return body ? body.split(/\r\n|\n|\r/) : [];
+  }
+
+  function joinLogicalLines(parts) {
+    return parts.lines.join(parts.eol) + (parts.hadFinalNewline ? parts.eol : '');
+  }
+
+  function normalizeNewlines(value) {
+    return String(value || '').replace(/\r\n|\r/g, '\n');
+  }
+
+  function containsNormalizedBlock(text, content) {
+    const block = normalizeNewlines(content).replace(/\n$/, '');
+    return Boolean(block) && normalizeNewlines(text).includes(block);
+  }
+
+  function hasDedupeNearInsert(lines, insertAt, insertLineCount, dedupe, position) {
+    if (!dedupe) {
+      return false;
+    }
+    const width = Math.max(1, insertLineCount) + 2;
+    const start = position === 'before' ? Math.max(0, insertAt - width) : insertAt;
+    const end = position === 'before' ? insertAt : Math.min(lines.length, insertAt + width);
+    return lines.slice(start, end).join('\n').includes(dedupe);
+  }
+
   function replaceOnce(text, operation) {
     const search = operation.search || '';
     if (!search) {
@@ -1248,11 +1293,12 @@
     }
     const replacement = operation.replace || '';
     if (operation.line) {
-      const lines = text.split('\n');
+      const parts = splitLogicalLines(text);
+      const lines = parts.lines;
       const index = operation.line - 1;
       if (index >= 0 && index < lines.length && lines[index].includes(search)) {
         lines[index] = lines[index].replace(search, replacement);
-        return {ok: true, text: lines.join('\n')};
+        return {ok: true, text: joinLogicalLines(parts)};
       }
       if (replacement && index >= 0 && index < lines.length && lines[index].includes(replacement)) {
         return {ok: true, alreadyApplied: true, text};
@@ -1284,11 +1330,8 @@
       return {ok: false, code: 'install_plan.insert_empty_content', message: 'Insert content is empty.'};
     }
     const dedupe = operation.dedupeSearch || content.trim();
-    if (dedupe && text.includes(dedupe)) {
-      return {ok: true, alreadyApplied: true, text};
-    }
-    const hadFinalNewline = text.endsWith('\n');
-    const lines = hadFinalNewline ? text.slice(0, -1).split('\n') : text.split('\n');
+    const parts = splitLogicalLines(text);
+    const lines = parts.lines;
     const matches = [];
     lines.forEach((line, index) => {
       if (line.includes(anchor)) {
@@ -1302,10 +1345,13 @@
         message: 'Expected exactly one insert anchor match, found ' + matches.length + '.'
       };
     }
-    const insertLines = content.replace(/\n$/, '').split('\n');
+    const insertLines = contentLines(content);
     const insertAt = operation.position === 'before' ? matches[0] : matches[0] + 1;
+    if (hasDedupeNearInsert(lines, insertAt, insertLines.length, dedupe, operation.position)) {
+      return {ok: true, alreadyApplied: true, text};
+    }
     const nextLines = lines.slice(0, insertAt).concat(insertLines, lines.slice(insertAt));
-    return {ok: true, text: nextLines.join('\n') + (hadFinalNewline ? '\n' : '')};
+    return {ok: true, text: joinLogicalLines(Object.assign({}, parts, {lines: nextLines}))};
   }
 
   function replaceSection(text, operation) {
@@ -1321,9 +1367,8 @@
     if (!content) {
       return {ok: false, code: 'install_plan.section_empty_content', message: 'Section replacement content is empty.'};
     }
-    const dedupe = operation.dedupeSearch || content.trim();
-    const hadFinalNewline = text.endsWith('\n');
-    const lines = hadFinalNewline ? text.slice(0, -1).split('\n') : text.split('\n');
+    const parts = splitLogicalLines(text);
+    const lines = parts.lines;
     const starts = [];
     const ends = [];
     lines.forEach((line, index) => {
@@ -1335,7 +1380,7 @@
       }
     });
     if (starts.length !== 1) {
-      if (starts.length === 0 && dedupe && text.includes(dedupe)) {
+      if (starts.length === 0 && containsNormalizedBlock(text, content)) {
         return {ok: true, alreadyApplied: true, text};
       }
       return {
@@ -1368,9 +1413,9 @@
         message: 'Section end anchor matched line ' + (end + 1) + ', expected line ' + operation.endLine + '.'
       };
     }
-    const replacementLines = content.replace(/\n$/, '').split('\n');
+    const replacementLines = contentLines(content);
     const nextLines = lines.slice(0, start).concat(replacementLines, lines.slice(end + 1));
-    return {ok: true, text: nextLines.join('\n') + (hadFinalNewline ? '\n' : '')};
+    return {ok: true, text: joinLogicalLines(Object.assign({}, parts, {lines: nextLines}))};
   }
 
   function isEntrySidebarProtectedReplace(operation) {

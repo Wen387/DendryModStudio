@@ -68,9 +68,10 @@ function main() {
     encoding: 'utf8'
   });
   assert(run.status === 0, 'npm run package:portable should pass: ' + run.stderr);
-  const archivePath = path.join(DESKTOP_DIR, 'dist', 'DendryModStudio-linux-x64.tar.gz');
-  const appRoot = path.join(DESKTOP_DIR, 'dist', 'DendryModStudio-linux-x64', 'resources', 'app');
-  const manifestPath = path.join(DESKTOP_DIR, 'dist', 'DendryModStudio-linux-x64', 'portable-manifest.json');
+  const platformTag = process.platform + '-' + process.arch;
+  const archivePath = path.join(DESKTOP_DIR, 'dist', 'DendryModStudio-' + platformTag + '.tar.gz');
+  const appRoot = path.join(DESKTOP_DIR, 'dist', 'DendryModStudio-' + platformTag, 'resources', 'app');
+  const manifestPath = path.join(DESKTOP_DIR, 'dist', 'DendryModStudio-' + platformTag, 'portable-manifest.json');
   assert(archivePath.endsWith('.tar.gz'), 'portable package should produce a .tar.gz archive');
   assert(fs.existsSync(archivePath), 'portable archive should exist');
   assert(fs.existsSync(manifestPath), 'portable manifest should exist');

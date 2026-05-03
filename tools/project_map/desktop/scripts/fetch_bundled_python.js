@@ -79,7 +79,16 @@ function download(url, dest, redirectsLeft) {
 }
 
 function run(command, args) {
-  const result = spawnSync(command, args, {encoding: 'utf8'});
+  const result = spawnSync(command, args, {
+    encoding: 'utf8',
+    windowsHide: true
+  });
+  if (result.error && result.error.code === 'ENOENT') {
+    fail('Required command was not found: ' + command + '. Install it or use a shell/runtime that provides it before fetching bundled Python.');
+  }
+  if (result.error) {
+    fail(command + ' ' + args.join(' ') + ' failed: ' + result.error.message);
+  }
   if (result.status !== 0) {
     fail(command + ' ' + args.join(' ') + ' failed: ' + (result.stderr || result.stdout));
   }
@@ -135,6 +144,7 @@ async function main() {
   const extractRoot = path.join(workRoot, 'extract');
 
   try {
+    run('tar', ['--version']);
     await download(url, archivePath, 5);
     fs.mkdirSync(extractRoot, {recursive: true});
     run('tar', ['-xzf', archivePath, '-C', extractRoot]);

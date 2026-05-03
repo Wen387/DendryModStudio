@@ -6,7 +6,7 @@ const os = require('os');
 const path = require('path');
 const zlib = require('zlib');
 const core = require('../studio_core');
-const {packageDir} = require('./package_dir');
+const {packageDir, packagePlatformTag} = require('./package_dir');
 
 const desktopDir = path.resolve(__dirname, '..');
 
@@ -136,7 +136,7 @@ async function main() {
   const manifestPath = path.join(packaged.outDir, 'portable-manifest.json');
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n', 'utf8');
 
-  const archivePath = path.join(desktopDir, 'dist', 'DendryModStudio-linux-x64.tar.gz');
+  const archivePath = path.join(desktopDir, 'dist', 'DendryModStudio-' + packagePlatformTag() + '.tar.gz');
   writeTarGz(packaged.outDir, archivePath);
 
   console.log(JSON.stringify({

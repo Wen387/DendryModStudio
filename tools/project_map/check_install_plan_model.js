@@ -135,6 +135,16 @@ fs.writeFileSync(
   'utf8'
 );
 fs.writeFileSync(
+  path.join(tmpRoot, 'source', 'scenes', 'events', 'section_crlf.scene.dry'),
+  'title: CRLF Section\r\n\r\n= Old CRLF Section\r\n\r\nOld CRLF body.\r\nTail stays put.\r\n',
+  'utf8'
+);
+fs.writeFileSync(
+  path.join(tmpRoot, 'source', 'scenes', 'events', 'insert_dedupe.scene.dry'),
+  'title: Insert Dedupe\r\nMention @sample_route elsewhere.\r\nANCHOR ROUTES\r\nTail stays put.\r\n',
+  'utf8'
+);
+fs.writeFileSync(
   path.join(tmpRoot, 'source', 'scenes', 'events', 'already_applied.scene.dry'),
   'title: Already Applied\n\nOld label\n',
   'utf8'
@@ -314,6 +324,52 @@ assert(replacedSectionText.includes('Tail stays put.'), 'replace_section apply s
 assert(!replacedSectionText.includes('Old section body.'), 'replace_section apply should remove the old inclusive anchor range');
 const replaceSectionAgain = installPlan.applyInstallPlan(replaceSectionPlan, {projectRoot: tmpRoot, dryRun: false});
 assert(replaceSectionAgain.ok && replaceSectionAgain.results[0].status === 'already_applied', 'replace_section should be idempotent when dedupe text is present');
+
+const replaceSectionCrlfPlan = installPlan.buildInstallPlan({
+  id: 'replace_section_crlf',
+  draftKind: 'test',
+  operations: [
+    {
+      id: 'replace_section_crlf',
+      type: 'replace_section',
+      path: 'source/scenes/events/section_crlf.scene.dry',
+      anchorText: '= Old CRLF Section',
+      endAnchorText: 'Old CRLF body.',
+      content: '= New CRLF Section\n\nNew CRLF body.\n',
+      dedupeSearch: 'New CRLF body.',
+      safety: 'guarded_apply',
+      description: 'Replace a CRLF source-backed scene section between exact anchors.'
+    }
+  ]
+});
+const replaceSectionCrlfApply = installPlan.applyInstallPlan(replaceSectionCrlfPlan, {projectRoot: tmpRoot, dryRun: false});
+assert(replaceSectionCrlfApply.ok, 'replace_section should match CRLF anchors and apply: ' + JSON.stringify(replaceSectionCrlfApply));
+const replacedSectionCrlfText = fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'events', 'section_crlf.scene.dry'), 'utf8');
+assert(replacedSectionCrlfText.includes('= New CRLF Section\r\n\r\nNew CRLF body.\r\nTail stays put.\r\n'), 'replace_section should preserve CRLF line endings around replacement content');
+assert(!/[^\r]\n/.test(replacedSectionCrlfText), 'replace_section should not introduce bare LF into a CRLF source file');
+
+const insertScopedDedupePlan = installPlan.buildInstallPlan({
+  id: 'insert_scoped_dedupe',
+  draftKind: 'test',
+  operations: [
+    {
+      id: 'insert_scoped_dedupe',
+      type: 'insert_text',
+      path: 'source/scenes/events/insert_dedupe.scene.dry',
+      anchorText: 'ANCHOR ROUTES',
+      content: 'Inserted @sample_route link\n',
+      dedupeSearch: '@sample_route',
+      safety: 'guarded_apply',
+      description: 'Insert despite a broad dedupe token elsewhere in the file.'
+    }
+  ]
+});
+const insertScopedDedupeApply = installPlan.applyInstallPlan(insertScopedDedupePlan, {projectRoot: tmpRoot, dryRun: false});
+assert(insertScopedDedupeApply.ok && insertScopedDedupeApply.results[0].status === 'applied', 'insert_text should not treat a distant dedupe token as already applied: ' + JSON.stringify(insertScopedDedupeApply));
+const insertedScopedDedupeText = fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'events', 'insert_dedupe.scene.dry'), 'utf8');
+assert(insertedScopedDedupeText.includes('ANCHOR ROUTES\r\nInserted @sample_route link\r\nTail stays put.\r\n'), 'insert_text should preserve CRLF line endings for inserted content');
+const insertScopedDedupeAgain = installPlan.applyInstallPlan(insertScopedDedupePlan, {projectRoot: tmpRoot, dryRun: false});
+assert(insertScopedDedupeAgain.ok && insertScopedDedupeAgain.results[0].status === 'already_applied', 'insert_text should still be idempotent when dedupe appears near the intended anchor');
 
 const ambiguousSectionPlan = installPlan.buildInstallPlan({
   id: 'replace_section_ambiguous',

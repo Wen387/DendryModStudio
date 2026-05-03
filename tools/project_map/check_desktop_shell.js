@@ -133,7 +133,7 @@ async function main() {
   assert(packageJson.scripts && packageJson.scripts.doctor, 'desktop package should expose npm run doctor');
   assert(!packageJson.dependencies || !packageJson.dependencies.dendrynexus, 'desktop package should not duplicate root dendrynexus dependency');
   const distDir = path.join(DESKTOP_DIR, 'dist');
-  assert(!fs.existsSync(path.join(distDir, 'DendryModStudio-linux-x64')), 'desktop unpacked app workdir should not be left by default');
+  assert(!fs.existsSync(path.join(distDir, 'DendryModStudio-' + process.platform + '-' + process.arch)), 'desktop unpacked app workdir should not be left by default');
   assert(!fs.existsSync(path.join(distDir, 'deb-staging')), 'desktop deb staging workdir should not be left by default');
 
   const corePath = requireFile('studio_core.js');
@@ -144,15 +144,19 @@ async function main() {
   requireFile('preload.js');
   requireFile('update_notice.js');
   requireFile('update_manifest.json');
-  requireFile(path.join('scripts', 'doctor.js'));
+  const doctorPath = requireFile(path.join('scripts', 'doctor.js'));
 
   const packagedCoreDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dendry_packaged_core_' + process.pid + '_'));
   const packagedAppDir = path.join(packagedCoreDir, 'resources', 'app');
   fs.mkdirSync(path.join(packagedAppDir, 'project_map', 'authoring'), {recursive: true});
+  fs.mkdirSync(path.join(packagedAppDir, 'project_map', 'viewer'), {recursive: true});
+  fs.mkdirSync(path.join(packagedAppDir, 'project_map', 'templates', 'starter-demo', 'source'), {recursive: true});
   fs.copyFileSync(corePath, path.join(packagedAppDir, 'studio_core.js'));
   fs.copyFileSync(dendryCliRunnerPath, path.join(packagedAppDir, 'dendry_cli_runner.js'));
   fs.copyFileSync(runtimePreviewPath, path.join(packagedAppDir, 'runtime_preview.js'));
   fs.copyFileSync(runtimePreviewBridgePath, path.join(packagedAppDir, 'runtime_preview_debug_bridge.js'));
+  fs.writeFileSync(path.join(packagedAppDir, 'project_map', 'viewer', 'index.html'), '<!doctype html>\n', 'utf8');
+  fs.writeFileSync(path.join(packagedAppDir, 'project_map', 'templates', 'starter-demo', 'source', 'info.dry'), 'title: Packaged Starter\n', 'utf8');
   fs.writeFileSync(
     path.join(packagedAppDir, 'project_map', 'authoring', 'install_plan.js'),
     'module.exports = {applyInstallPlan: function () { return {ok: true}; }};\n',
@@ -170,6 +174,13 @@ async function main() {
   assert(typeof packagedCore.prepareStarterDemo === 'function', 'packaged studio_core should expose starter demo preparation');
   assert(typeof packagedCore.loadStarterDemoIndex === 'function', 'packaged studio_core should expose starter demo cached index loading');
   assert(typeof packagedCore.resolveBundledPython === 'function', 'packaged studio_core should expose bundled Python resolution');
+  const doctor = require(doctorPath);
+  assert(typeof doctor.defaultRoot === 'function', 'doctor script should expose defaultRoot for packaged path tests');
+  assert(doctor.defaultRoot({desktopDir: DESKTOP_DIR}) === VALID_PROJECT_ROOT, 'doctor default root should use dev starter demo path');
+  assert(
+    doctor.defaultRoot({desktopDir: packagedAppDir}) === path.join(packagedAppDir, 'project_map', 'templates', 'starter-demo'),
+    'doctor default root should use packaged starter demo path'
+  );
   fs.rmSync(packagedCoreDir, {recursive: true, force: true});
 
   const parser = require('./parse_dry_project.js');
@@ -248,6 +259,7 @@ async function main() {
   assert(pythonMissing.code === 'python_missing', 'Python missing check should have a stable code');
   assert(/Python 3/.test(pythonMissing.message), 'Python missing message should be human-readable');
   assert(!/ENOENT|Traceback|Error:/.test(pythonMissing.message), 'Python missing message should hide raw process noise');
+  const smokePython = core.checkPython({desktopDir: DESKTOP_DIR});
 
   const bundledPythonDesktop = fs.mkdtempSync(path.join(os.tmpdir(), 'dendry_bundled_python_desktop_' + process.pid + '_'));
   const bundledPythonExe = process.platform === 'win32'
@@ -273,23 +285,32 @@ async function main() {
   const doctorInvalid = await core.runDesktopDoctor({
     root: invalidRoot,
     outDir: path.join(os.tmpdir(), 'dendry_desktop_doctor_invalid_' + process.pid),
-    python: 'python3',
+    python: smokePython.ok ? smokePython.python : undefined,
     desktopDir: DESKTOP_DIR
   });
   assert(!doctorInvalid.ok, 'doctor should fail when project root is invalid');
   assert(doctorInvalid.checks.projectRoot && !doctorInvalid.checks.projectRoot.ok, 'doctor should include project root result');
   assert(doctorInvalid.checks.resources && doctorInvalid.checks.resources.ok, 'doctor should still report resource status');
-  assert(doctorInvalid.checks.python && doctorInvalid.checks.python.ok, 'doctor should still report Python status');
+  assert(doctorInvalid.checks.python, 'doctor should still report Python status');
+  if (smokePython.ok) {
+    assert(doctorInvalid.checks.python.ok, 'doctor should confirm Python when it is available');
+  } else {
+    assert(doctorInvalid.checks.python.code === 'python_missing', 'doctor should report friendly python_missing when Python is unavailable');
+  }
 
   const doctorValid = await core.runDesktopDoctor({
     root: VALID_PROJECT_ROOT,
     outDir: path.join(os.tmpdir(), 'dendry_desktop_doctor_valid_' + process.pid),
-    python: 'python3',
+    python: smokePython.ok ? smokePython.python : undefined,
     desktopDir: DESKTOP_DIR
   });
-  assert(doctorValid.ok, 'doctor should pass for bundled starter demo');
+  if (smokePython.ok) {
+    assert(doctorValid.ok, 'doctor should pass for bundled starter demo');
+  } else {
+    assert(!doctorValid.ok, 'doctor should fail clearly when Python is unavailable');
+    assert(doctorValid.checks.python.code === 'python_missing', 'doctor should report friendly python_missing for a valid project without Python');
+  }
   assert(doctorValid.checks.projectRoot.ok, 'doctor should confirm project root');
-  assert(doctorValid.checks.python.ok, 'doctor should confirm Python');
   assert(doctorValid.checks.resources.ok, 'doctor should confirm resources');
   assert(doctorValid.checks.scratch.ok, 'doctor should confirm scratch dir');
 
@@ -337,48 +358,68 @@ async function main() {
   fs.writeFileSync(parserOut, JSON.stringify(parserIndex, null, 2) + '\n', 'utf8');
 
   const seamOut = path.join(os.tmpdir(), 'dendry_desktop_index_from_parser_' + process.pid + '.json');
-  const seamRun = spawnSync(
-    'python3',
-    [
-      path.join(PROJECT_MAP_DIR, 'build_project_map.py'),
-      '--root', VALID_PROJECT_ROOT,
-      '--parser-index', parserOut,
-      '--out', seamOut,
-      '--summary'
-    ],
-    {encoding: 'utf8'}
-  );
-  assert(seamRun.status === 0, 'build_project_map should accept --parser-index: ' + seamRun.stderr);
-  const seamIndex = readJson(seamOut);
-  assertSummaryAtLeast(seamIndex.summary, {
-    sceneCount: parserIndex.sceneCount || 2,
-    edgeCount: 2,
-    variableCount: 3
-  }, 'parser-index seam starter demo summary');
-
   const scratchDir = path.join(os.tmpdir(), 'dendry_desktop_smoke_' + process.pid);
   const progressEvents = [];
-  const result = await core.buildProjectIndex({
-    root: VALID_PROJECT_ROOT,
-    outDir: scratchDir,
-    includeExcerpts: false,
-    python: 'python3',
-    onProgress: (update) => progressEvents.push(update)
-  });
-  assert(result.ok, 'desktop core should build ProjectIndex: ' + JSON.stringify(result.error || null));
-  assert(result.indexPath.startsWith(scratchDir), 'desktop ProjectIndex should be written to scratch dir');
-  assert(!result.indexPath.startsWith(REPO_ROOT), 'desktop ProjectIndex should not be written into repo');
-  assertSummaryAtLeast(result.summary, {
-    sceneCount: parserIndex.sceneCount || 2,
-    edgeCount: 2,
-    variableCount: 3
-  }, 'desktop core starter demo summary');
-  assert(progressEvents.length >= 5, 'desktop core should emit scan progress updates');
-  assert(progressEvents[0].stage === 'preflight', 'first progress stage should be preflight');
-  assert(progressEvents.some((event) => event.stage === 'parser'), 'progress should include parser stage');
-  assert(progressEvents.some((event) => event.stage === 'indexer'), 'progress should include indexer stage');
-  assert(progressEvents[progressEvents.length - 1].stage === 'complete', 'last progress stage should be complete');
-  assert(progressEvents[progressEvents.length - 1].percent === 100, 'complete progress should be 100 percent');
+  let result = {
+    indexPath: '',
+    summary: {
+      sceneCount: parserIndex.sceneCount || 0,
+      edgeCount: 0,
+      variableCount: 0
+    }
+  };
+  if (smokePython.ok) {
+    const seamRun = spawnSync(
+      smokePython.python,
+      [
+        path.join(PROJECT_MAP_DIR, 'build_project_map.py'),
+        '--root', VALID_PROJECT_ROOT,
+        '--parser-index', parserOut,
+        '--out', seamOut,
+        '--summary'
+      ],
+      {encoding: 'utf8', windowsHide: true}
+    );
+    assert(seamRun.status === 0, 'build_project_map should accept --parser-index: ' + seamRun.stderr);
+    const seamIndex = readJson(seamOut);
+    assertSummaryAtLeast(seamIndex.summary, {
+      sceneCount: parserIndex.sceneCount || 2,
+      edgeCount: 2,
+      variableCount: 3
+    }, 'parser-index seam starter demo summary');
+
+    result = await core.buildProjectIndex({
+      root: VALID_PROJECT_ROOT,
+      outDir: scratchDir,
+      includeExcerpts: false,
+      python: smokePython.python,
+      onProgress: (update) => progressEvents.push(update)
+    });
+    assert(result.ok, 'desktop core should build ProjectIndex: ' + JSON.stringify(result.error || null));
+    assert(result.indexPath.startsWith(scratchDir), 'desktop ProjectIndex should be written to scratch dir');
+    assert(!result.indexPath.startsWith(REPO_ROOT), 'desktop ProjectIndex should not be written into repo');
+    assertSummaryAtLeast(result.summary, {
+      sceneCount: parserIndex.sceneCount || 2,
+      edgeCount: 2,
+      variableCount: 3
+    }, 'desktop core starter demo summary');
+    assert(progressEvents.length >= 5, 'desktop core should emit scan progress updates');
+    assert(progressEvents[0].stage === 'preflight', 'first progress stage should be preflight');
+    assert(progressEvents.some((event) => event.stage === 'parser'), 'progress should include parser stage');
+    assert(progressEvents.some((event) => event.stage === 'indexer'), 'progress should include indexer stage');
+    assert(progressEvents[progressEvents.length - 1].stage === 'complete', 'last progress stage should be complete');
+    assert(progressEvents[progressEvents.length - 1].percent === 100, 'complete progress should be 100 percent');
+  } else {
+    const missingPythonIndex = await core.buildProjectIndex({
+      root: VALID_PROJECT_ROOT,
+      outDir: scratchDir,
+      includeExcerpts: false,
+      onProgress: (update) => progressEvents.push(update)
+    });
+    assert(!missingPythonIndex.ok, 'desktop core should fail clearly when Python is unavailable');
+    assert(missingPythonIndex.checks.python.code === 'python_missing', 'missing Python index build should report python_missing');
+    assert(progressEvents.some((event) => event.stage === 'preflight' && event.error), 'missing Python index build should report preflight progress error');
+  }
 
   const viewerHtml = fs.readFileSync(path.join(VIEWER_DIR, 'index.html'), 'utf8');
   const viewerApp = fs.readFileSync(path.join(VIEWER_DIR, 'app.js'), 'utf8');

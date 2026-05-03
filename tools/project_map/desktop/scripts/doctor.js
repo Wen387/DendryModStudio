@@ -25,10 +25,11 @@ function parseArgs(argv) {
   return args;
 }
 
-function defaultRoot() {
-  const repoRoot = path.resolve(__dirname, '..', '..', '..', '..');
-  const starterDemo = path.resolve(__dirname, '..', '..', 'templates', 'starter-demo');
-  return fs.existsSync(path.join(repoRoot, 'source', 'info.dry')) ? repoRoot : starterDemo;
+function defaultRoot(options) {
+  const desktopDir = path.resolve((options && options.desktopDir) || path.resolve(__dirname, '..'));
+  const repoRoot = path.resolve(desktopDir, '..', '..', '..');
+  const paths = core.resolveResourcePaths({desktopDir});
+  return fs.existsSync(path.join(repoRoot, 'source', 'info.dry')) ? repoRoot : paths.starterDemoTemplate;
 }
 
 function printText(result) {
@@ -47,11 +48,12 @@ function printText(result) {
 
 async function main() {
   const args = parseArgs(process.argv.slice(2));
+  const desktopDir = path.resolve(__dirname, '..');
   const result = await core.runDesktopDoctor({
-    root: args.root || defaultRoot(),
+    root: args.root || defaultRoot({desktopDir}),
     outDir: args.outDir,
     python: args.python,
-    desktopDir: path.resolve(__dirname, '..')
+    desktopDir
   });
   if (args.json) {
     console.log(JSON.stringify(result, null, 2));
@@ -61,7 +63,15 @@ async function main() {
   process.exit(result.ok ? 0 : 1);
 }
 
-main().catch((err) => {
-  console.error(err && err.stack ? err.stack : String(err));
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((err) => {
+    console.error(err && err.stack ? err.stack : String(err));
+    process.exit(1);
+  });
+}
+
+module.exports = {
+  parseArgs,
+  defaultRoot,
+  main
+};

@@ -27,12 +27,29 @@ function copyFile(src, dest) {
   fs.copyFileSync(src, dest);
 }
 
+function packagePlatformTag(options) {
+  const platform = String(options && options.platform || process.platform);
+  const arch = String(options && options.arch || process.arch);
+  return platform + '-' + arch;
+}
+
+function electronExecutable(outDir, options) {
+  const platform = String(options && options.platform || process.platform);
+  if (platform === 'win32') {
+    return path.join(outDir, 'electron.exe');
+  }
+  if (platform === 'darwin') {
+    return path.join(outDir, 'Electron.app');
+  }
+  return path.join(outDir, 'electron');
+}
+
 function packageDir(options) {
   const desktopDir = path.resolve((options && options.desktopDir) || path.resolve(__dirname, '..'));
   const projectMapDir = path.resolve(desktopDir, '..');
   const repoRoot = path.resolve(projectMapDir, '..', '..');
   const electronDist = path.join(desktopDir, 'node_modules', 'electron', 'dist');
-  const outDir = path.join(desktopDir, 'dist', 'DendryModStudio-linux-x64');
+  const outDir = path.join(desktopDir, 'dist', 'DendryModStudio-' + packagePlatformTag(options));
   const appRoot = path.join(outDir, 'resources', 'app');
 
   assertExists(electronDist, 'Electron runtime');
@@ -78,7 +95,7 @@ function packageDir(options) {
   return {
     ok: true,
     outDir,
-    executable: path.join(outDir, 'electron'),
+    executable: electronExecutable(outDir, options),
     appRoot
   };
 }
@@ -88,5 +105,7 @@ if (require.main === module) {
 }
 
 module.exports = {
-  packageDir
+  packageDir,
+  packagePlatformTag,
+  electronExecutable
 };

@@ -18,6 +18,22 @@ function assert(condition, message) {
   }
 }
 
+function htmlBuildRunner(commandLabel) {
+  return (root, meta) => {
+    const htmlRoot = path.join(root, 'out', 'html');
+    fs.mkdirSync(htmlRoot, {recursive: true});
+    fs.writeFileSync(path.join(htmlRoot, 'index.html'), '<!doctype html><title>' + (meta && meta.lane || 'build') + '</title>\n', 'utf8');
+    return {
+      ok: true,
+      root,
+      lane: meta && meta.lane || '',
+      command: commandLabel || 'html build runner',
+      htmlRoot,
+      diagnostics: []
+    };
+  };
+}
+
 const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dms_runtime_preview_source_'));
 fs.mkdirSync(path.join(sourceRoot, 'source', 'scenes'), {recursive: true});
 fs.mkdirSync(path.join(sourceRoot, '.git'), {recursive: true});
@@ -80,6 +96,31 @@ assert(sourceOnlyCommand.cmd === process.execPath, 'source-only project should u
 if (process.platform === 'win32') {
   assert(sourceOnlyCommand.args.some((item) => String(item).includes('dendry_cli_runner.js')), 'Windows source-only project should use Studio Dendry CLI runner: ' + JSON.stringify(sourceOnlyCommand));
 }
+const wrapperWithBash = runtimePreview.resolveBuildWrapperCommand(sourceRoot, {
+  allowProjectBuildWrapper: true,
+  platform: 'win32',
+  commandExists: () => true
+});
+assert(wrapperWithBash && wrapperWithBash.cmd === 'bash', 'Windows should use build_and_validate.sh when explicitly allowed and bash is available');
+const wrapperWithoutBash = runtimePreview.resolveBuildWrapperCommand(sourceRoot, {
+  allowProjectBuildWrapper: true,
+  platform: 'win32',
+  commandExists: () => false
+});
+assert(wrapperWithoutBash === null, 'Windows should skip build_and_validate.sh when bash is unavailable and allow bundled Dendry fallback');
+const wrapperWithoutConsent = runtimePreview.resolveBuildWrapperCommand(sourceRoot, {
+  platform: 'linux',
+  commandExists: () => true
+});
+assert(wrapperWithoutConsent === null, 'Runtime Preview should not run a project-local build wrapper without explicit opt-in');
+const commandWithoutConsent = runtimePreview.resolveBuildCommand(sourceRoot, {
+  platform: 'linux',
+  commandExists: () => true
+});
+assert(commandWithoutConsent.ok && !commandWithoutConsent.args.includes('tools/build_and_validate.sh'), 'Runtime Preview should prefer bundled Dendry CLI over project-local build wrappers by default');
+assert(runtimePreview.firstBuildFailureLine('\u001b[31mError: Cannot extract id or type from filename.\u001b[39m\n') === 'Error: Cannot extract id or type from filename.', 'build failure detail should strip ANSI color codes');
+const failureDiagnostics = runtimePreview.buildFailureDiagnostics({}, '', '(node:1) Warning: noisy\nError: useful build failure\n');
+assert(failureDiagnostics.some((diag) => diag.code === 'runtime_preview.build_output' && diag.message === 'Error: useful build failure'), 'build failure diagnostics should include the first useful stderr line');
 
 const staleHtmlRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dms_runtime_preview_stale_html_'));
 fs.mkdirSync(path.join(staleHtmlRoot, 'out', 'html'), {recursive: true});
@@ -170,18 +211,25 @@ assert(mismatchPreview.ok, 'preview should still be openable when an install ope
 assert(mismatchPreview.installResult && mismatchPreview.installResult.ok === false, 'preview should preserve install diagnostics when a guarded replace mismatches');
 assert(mismatchPreview.diagnostics.some((diag) => String(diag.code || '').indexOf('install_plan.replace_') === 0), 'preview diagnostics should include the replace mismatch reason');
 
+const realWrapperAvailable = Boolean(runtimePreview.resolveBuildWrapperCommand(sourceRoot, {allowProjectBuildWrapper: true}));
 const realBuildSession = runtimePreview.createRuntimePreview({
   projectRoot: sourceRoot,
   sessionsRoot: sessionRoot,
   plan: replacePlan,
   projectIndex: debugProjectIndex,
   dryRun: false,
+  allowProjectBuildWrapper: realWrapperAvailable,
+  buildRunner: realWrapperAvailable ? undefined : htmlBuildRunner('fallback html build runner'),
   serverFactory: runtimePreview.fakeServerFactory(48001),
   now: () => new Date('2026-04-29T12:10:00.000Z')
 });
 
 assert(realBuildSession.ok, 'real build runner session should succeed: ' + JSON.stringify(realBuildSession));
-assert(realBuildSession.baselineBuild.command.includes('tools/build_and_validate.sh'), 'build runner should prefer protected build wrapper');
+if (realWrapperAvailable) {
+  assert(realBuildSession.baselineBuild.command.includes('tools/build_and_validate.sh'), 'build runner should prefer protected build wrapper');
+} else {
+  assert(realBuildSession.baselineBuild.command.includes('fallback html build runner'), 'test should use a cross-platform fallback when bash is unavailable');
+}
 assert(realBuildSession.modifiedBuild.htmlRoot.endsWith(path.join('out', 'html')), 'build runner should expose out/html root');
 assert(fs.existsSync(path.join(realBuildSession.paths.root, 'compare', 'index.html')), 'compare page should be written');
 const compareHtml = fs.readFileSync(path.join(realBuildSession.paths.root, 'compare', 'index.html'), 'utf8');

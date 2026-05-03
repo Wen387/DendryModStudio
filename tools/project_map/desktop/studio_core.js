@@ -256,7 +256,11 @@ function findNestedProjectCandidates(rootPath) {
 function checkPython(options) {
   const resolved = resolvePythonExecutable(options);
   const python = resolved.python;
-  const result = spawnSync(python, ['--version'], {encoding: 'utf8'});
+  const result = spawnSync(python, ['--version'], {
+    encoding: 'utf8',
+    timeout: 5000,
+    windowsHide: true
+  });
   const versionText = String(result.stdout || result.stderr || '').trim();
   if (result.error && result.status !== 0 && !versionText) {
     return {
@@ -672,7 +676,13 @@ async function buildProjectIndex(options) {
   if (includeExcerpts) {
     args.push('--include-excerpts');
   }
-  const result = spawnSync(python, args, {cwd: root, encoding: 'utf8'});
+  const result = spawnSync(python, args, {
+    cwd: root,
+    encoding: 'utf8',
+    timeout: 180000,
+    maxBuffer: 1024 * 1024 * 8,
+    windowsHide: true
+  });
   if (result.status !== 0 || (result.error && result.status !== 0)) {
     emitProgress(options, {
       stage: 'indexer',
@@ -784,6 +794,7 @@ function createRuntimePreview(options) {
     sessionsRoot: opts.sessionsRoot,
     plan: opts.plan,
     allowAdvanced: opts.allowAdvanced === true,
+    allowProjectBuildWrapper: opts.allowProjectBuildWrapper === true,
     dryRun: false,
     projectIndex: opts.projectIndex || null
   });

@@ -137,9 +137,9 @@ It is not a public `.deb` or `.exe` installer.
 
 ## Current Deliverables
 
-- `npm run package:dir` creates `dist/DendryModStudio-linux-x64/`.
+- `npm run package:dir` creates `dist/DendryModStudio-<platform>-<arch>/`.
 - `npm run package:portable` creates
-  `dist/DendryModStudio-linux-x64.tar.gz`.
+  `dist/DendryModStudio-<platform>-<arch>.tar.gz`.
 - `npm run package:deb` creates
   `dist/dendry-mod-studio_<version>_amd64.deb` on Linux.
 - `npm run dist:linux` creates unsigned AppImage and Deb artifacts under
