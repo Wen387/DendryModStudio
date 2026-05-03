@@ -79,7 +79,7 @@
       </div>
       <div class="update-notice-actions">
         <button id="update-notice-download" class="primary-action" type="button" data-i18n="updateNotice.download">Download update</button>
-        <button id="update-notice-release-notes" type="button" data-i18n="updateNotice.releaseNotes">Release notes</button>
+        <button id="update-notice-release-notes" type="button" data-i18n="updateNotice.viewDetails">View details</button>
         <button id="update-notice-open-board" type="button" data-i18n="announcementBoard.open">Open preview</button>
         <button id="update-notice-later" type="button" data-i18n="updateNotice.later">Later</button>
         <button id="update-notice-dismiss" type="button" data-i18n="updateNotice.dismiss">Dismiss</button>
@@ -117,6 +117,17 @@
           <button id="announcement-board-refresh" type="button" data-i18n="announcementBoard.refresh">Check now</button>
           <button id="announcement-board-mark-read" type="button" data-i18n="announcementBoard.markAllRead">Mark all read</button>
         </div>
+        <section id="announcement-board-detail" class="announcement-board-detail hidden" aria-live="polite">
+          <header class="announcement-board-detail-header">
+            <div>
+              <p id="announcement-board-detail-meta"></p>
+              <h3 id="announcement-board-detail-title"></h3>
+            </div>
+            <button id="announcement-board-detail-close" type="button" data-i18n="announcementBoard.closeDetails">Close details</button>
+          </header>
+          <div id="announcement-board-detail-body" class="announcement-board-detail-body"></div>
+          <div id="announcement-board-detail-actions" class="announcement-board-detail-actions"></div>
+        </section>
         <div id="announcement-board-list" class="announcement-board-list"></div>
       </div>
     </section>

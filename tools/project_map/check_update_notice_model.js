@@ -203,6 +203,7 @@ async function main() {
     'id="update-notice-banner"',
     'id="announcement-board"',
     'id="announcement-board-tabs"',
+    'id="announcement-board-detail"',
     'id="studio-open-announcements"',
     'id="studio-check-updates"',
     'data-announcement-category="updates"',
@@ -217,6 +218,7 @@ async function main() {
     '.announcement-board',
     '.announcement-board-tabs',
     '.announcement-board-tab',
+    '.announcement-board-detail',
     '.announcement-card',
     '.update-notice-actions',
     '.update-notice-banner.is-critical'
@@ -230,7 +232,10 @@ async function main() {
     'announcementBoard.category.updates',
     'announcementBoard.category.announcements',
     'announcementBoard.category.testing',
+    'announcementBoard.openReleaseNotesBrowser',
+    'announcementBoard.closeDetails',
     'announcementBoard.kind.contact',
+    'updateNotice.viewDetails',
     'updateNotice.download',
     'updateNotice.currentBody'
   ].forEach((key) => {
@@ -239,6 +244,7 @@ async function main() {
   assert(mainJs.includes('dendry:update-notice-check'), 'desktop main should expose update notice check IPC');
   assert(read(path.join(VIEWER_DIR, 'update_notice_ui.js')).includes('localizedNoticeField'), 'viewer should render localized update notice title/body');
   assert(read(path.join(VIEWER_DIR, 'update_notice_ui.js')).includes('categoryForNotice'), 'viewer should group notice preview items by category');
+  assert(read(path.join(VIEWER_DIR, 'update_notice_ui.js')).includes('showNoticeDetail'), 'viewer should preview notice details in-app before opening external links');
   assert(mainJs.includes('dendry:open-external-url'), 'desktop main should expose safe external link IPC');
   assert(preloadJs.includes('checkUpdateNotice'), 'preload should expose checkUpdateNotice');
   assert(preloadJs.includes('openExternalUrl'), 'preload should expose openExternalUrl');

@@ -157,6 +157,7 @@ assert(html.includes('id="update-notice-banner"'), 'viewer should expose the Upd
 assert(html.includes('id="studio-open-announcements"'), 'More menu should expose the announcement preview');
 assert(html.includes('id="announcement-board"'), 'viewer should expose an in-app announcement preview');
 assert(html.includes('id="announcement-board-tabs"'), 'announcement preview should expose category buttons');
+assert(html.includes('id="announcement-board-detail"'), 'announcement preview should expose in-app notice details');
 assert(html.includes('data-announcement-category="updates"'), 'announcement preview should include Updates & History');
 assert(html.includes('data-announcement-category="announcements"'), 'announcement preview should include Announcements');
 assert(html.includes('data-announcement-category="testing"'), 'announcement preview should include Testing & Contact');
@@ -211,6 +212,7 @@ assert(css.includes('.update-notice-banner'), 'CSS should style the Update Notic
 assert(css.includes('.update-notice-actions'), 'CSS should style Update Notice actions');
 assert(css.includes('.announcement-board-tabs'), 'CSS should style Announcement Preview category buttons');
 assert(css.includes('.announcement-board-tab.is-active'), 'CSS should style the active Announcement Preview category');
+assert(css.includes('.announcement-board-detail'), 'CSS should style Announcement Preview details');
 assert(css.includes('.wizard-field-help'), 'CSS should style Create field help text');
 assert(css.includes('.wizard-action-group'), 'CSS should style grouped Create output actions');
 assert(css.includes('.wizard-action-advanced'), 'CSS should style advanced Create downloads');
@@ -378,5 +380,6 @@ assert(updateNoticeUi.includes('dendry-mod-studio-update-notice-dismissed'), 'Up
 assert(updateNoticeUi.includes('openExternalUrl'), 'Update Notice UI should open update links through desktop IPC');
 assert(updateNoticeUi.includes('announcement-board-list'), 'Update Notice UI should render announcement preview items');
 assert(updateNoticeUi.includes('categoryForNotice'), 'Update Notice UI should categorize preview items');
+assert(updateNoticeUi.includes('showNoticeDetail'), 'Update Notice UI should keep notice detail previews in-app');
 
 process.stdout.write('studio surface ok\n');

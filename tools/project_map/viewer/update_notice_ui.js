@@ -147,7 +147,8 @@
     lastResult: null,
     boardOpen: false,
     activeCategory: 'updates',
-    categoryTouched: false
+    categoryTouched: false,
+    detailNotice: null
   };
 
   const api = {
@@ -197,6 +198,12 @@
       boardTitle: document.getElementById('announcement-board-title'),
       boardSummary: document.getElementById('announcement-board-summary'),
       boardTabs: document.getElementById('announcement-board-tabs'),
+      boardDetail: document.getElementById('announcement-board-detail'),
+      boardDetailMeta: document.getElementById('announcement-board-detail-meta'),
+      boardDetailTitle: document.getElementById('announcement-board-detail-title'),
+      boardDetailBody: document.getElementById('announcement-board-detail-body'),
+      boardDetailActions: document.getElementById('announcement-board-detail-actions'),
+      boardDetailClose: document.getElementById('announcement-board-detail-close'),
       boardList: document.getElementById('announcement-board-list'),
       boardRefresh: document.getElementById('announcement-board-refresh'),
       boardMarkRead: document.getElementById('announcement-board-mark-read')
@@ -234,6 +241,12 @@
     if (state.elements.boardTabs) {
       state.elements.boardTabs.addEventListener('click', handleBoardTabClick);
     }
+    if (state.elements.boardDetailClose) {
+      state.elements.boardDetailClose.addEventListener('click', hideNoticeDetail);
+    }
+    if (state.elements.boardDetailActions) {
+      state.elements.boardDetailActions.addEventListener('click', handleDetailActionClick);
+    }
     if (state.elements.boardMarkRead) {
       state.elements.boardMarkRead.addEventListener('click', () => {
         state.controller.dismissAll(noticesForBoard());
@@ -260,13 +273,14 @@
       state.elements.download.addEventListener('click', () => openNoticeUrl(state.currentNotice && state.currentNotice.downloadUrl));
     }
     if (state.elements.releaseNotes) {
-      state.elements.releaseNotes.addEventListener('click', () => openNoticeUrl(state.currentNotice && state.currentNotice.releaseNotesUrl));
+      state.elements.releaseNotes.addEventListener('click', () => showNoticeDetail(state.currentNotice, {openBoard: true}));
     }
     document.addEventListener('project-map:locale-changed', () => {
       if (state.currentNotice && state.elements && !state.elements.banner.classList.contains('hidden')) {
         renderCurrentNotice();
       }
       renderBoard();
+      renderNoticeDetail();
     });
     checkForNotice(false);
   }
@@ -421,6 +435,7 @@
     ensureActiveCategory(notices);
     const unread = state.controller.unreadCount(notices);
     renderBoardTabs(notices);
+    renderNoticeDetail();
     if (state.elements.boardBadge) {
       state.elements.boardBadge.textContent = unread ? String(unread) : '';
       state.elements.boardBadge.classList.toggle('hidden', unread === 0);
@@ -571,14 +586,8 @@
 
   function boardNoticeActions(notice, key) {
     const actions = [];
-    if (notice.downloadUrl) {
-      actions.push('<button class="primary-action" type="button" data-announcement-url="' + escapeAttr(notice.downloadUrl) + '">' + escapeHtml(t('updateNotice.download', 'Download update')) + '</button>');
-    }
-    if (notice.releaseNotesUrl) {
-      actions.push('<button type="button" data-announcement-url="' + escapeAttr(notice.releaseNotesUrl) + '">' + escapeHtml(t('updateNotice.releaseNotes', 'Release notes')) + '</button>');
-    }
-    if (notice.actionUrl) {
-      actions.push('<button type="button" data-announcement-url="' + escapeAttr(notice.actionUrl) + '">' + escapeHtml(localizedNoticeField(notice, 'actionLabel', t('announcementBoard.openLink', 'Open link'))) + '</button>');
+    if (key) {
+      actions.push('<button class="primary-action" type="button" data-announcement-detail="' + escapeAttr(key) + '">' + escapeHtml(t('updateNotice.viewDetails', 'View details')) + '</button>');
     }
     if (!actions.length && key) {
       actions.push('<span class="announcement-card-no-action">' + escapeHtml(t('announcementBoard.noAction', 'No action needed')) + '</span>');
@@ -587,6 +596,15 @@
   }
 
   function handleBoardListClick(event) {
+    const detailButton = event.target.closest && event.target.closest('[data-announcement-detail]');
+    if (detailButton) {
+      const key = detailButton.getAttribute('data-announcement-detail');
+      const notice = noticesForBoard().find((item) => noticeKey(item) === key);
+      if (notice) {
+        showNoticeDetail(notice);
+      }
+      return;
+    }
     const readButton = event.target.closest && event.target.closest('[data-announcement-read]');
     if (readButton) {
       const key = readButton.getAttribute('data-announcement-read');
@@ -606,6 +624,93 @@
     }
   }
 
+  function showNoticeDetail(notice, options) {
+    if (!notice) {
+      return;
+    }
+    const opts = options || {};
+    state.detailNotice = notice;
+    state.controller.dismiss(notice);
+    if (state.currentNotice && noticeKey(state.currentNotice) === noticeKey(notice)) {
+      hideBanner();
+    }
+    if (opts.openBoard) {
+      openBoard();
+    } else {
+      renderBoard();
+    }
+    renderNoticeDetail();
+  }
+
+  function hideNoticeDetail() {
+    state.detailNotice = null;
+    renderNoticeDetail();
+    renderBoard();
+  }
+
+  function renderNoticeDetail() {
+    if (!state.elements || !state.elements.boardDetail) {
+      return;
+    }
+    const notice = state.detailNotice;
+    state.elements.boardDetail.classList.toggle('hidden', !notice);
+    if (!notice) {
+      return;
+    }
+    if (state.elements.boardDetailMeta) {
+      const parts = [kindLabel(notice)];
+      if (notice.publishedAt) {
+        parts.push(notice.publishedAt);
+      }
+      state.elements.boardDetailMeta.textContent = parts.join(' · ');
+    }
+    if (state.elements.boardDetailTitle) {
+      state.elements.boardDetailTitle.textContent = localizedNoticeField(notice, 'title', t('updateNotice.titleFallback', 'Dendry Mod Studio notice'));
+    }
+    if (state.elements.boardDetailBody) {
+      state.elements.boardDetailBody.innerHTML = renderDetailBody(localizedNoticeField(notice, 'body', ''));
+    }
+    if (state.elements.boardDetailActions) {
+      state.elements.boardDetailActions.innerHTML = renderDetailActions(notice);
+    }
+  }
+
+  function renderDetailBody(body) {
+    const text = String(body || '').trim();
+    if (!text) {
+      return '<p>' + escapeHtml(t('announcementBoard.noDetails', 'No additional details.')) + '</p>';
+    }
+    return text.split(/\n{2,}/).map((paragraph) => {
+      return '<p>' + escapeHtml(paragraph).replace(/\n/g, '<br>') + '</p>';
+    }).join('');
+  }
+
+  function renderDetailActions(notice) {
+    const actions = [];
+    if (notice.downloadUrl) {
+      actions.push('<button type="button" data-announcement-url="' + escapeAttr(notice.downloadUrl) + '">' + escapeHtml(t('announcementBoard.openDownloads', 'Open downloads in browser')) + '</button>');
+    }
+    if (notice.releaseNotesUrl) {
+      actions.push('<button type="button" data-announcement-url="' + escapeAttr(notice.releaseNotesUrl) + '">' + escapeHtml(t('announcementBoard.openReleaseNotesBrowser', 'Open release notes in browser')) + '</button>');
+    }
+    if (notice.actionUrl) {
+      actions.push('<button type="button" data-announcement-url="' + escapeAttr(notice.actionUrl) + '">' + escapeHtml(localizedNoticeField(notice, 'actionLabel', t('announcementBoard.openLink', 'Open link'))) + '</button>');
+    }
+    if (!actions.length) {
+      actions.push('<span class="announcement-card-no-action">' + escapeHtml(t('announcementBoard.noAction', 'No action needed')) + '</span>');
+    } else {
+      actions.push('<small>' + escapeHtml(t('announcementBoard.externalLinksNote', 'External links open in your browser only after you choose them.')) + '</small>');
+    }
+    return actions.join('');
+  }
+
+  function handleDetailActionClick(event) {
+    const linkButton = event.target.closest && event.target.closest('[data-announcement-url]');
+    if (linkButton) {
+      openNoticeUrl(linkButton.getAttribute('data-announcement-url'));
+    }
+  }
+
   function renderCurrentNotice() {
     const notice = state.currentNotice || {};
     state.elements.banner.classList.remove('hidden', 'is-info', 'is-warning', 'is-critical');
@@ -616,12 +721,12 @@
     state.elements.title.textContent = localizedNoticeField(notice, 'title', t('updateNotice.titleFallback', 'Dendry Mod Studio notice'));
     state.elements.body.textContent = localizedNoticeField(notice, 'body', '');
     setActionVisibility(state.elements.download, notice.downloadUrl);
-    setActionVisibility(state.elements.releaseNotes, notice.releaseNotesUrl);
+    setActionVisibility(state.elements.releaseNotes, noticeKey(notice) || notice.body || notice.releaseNotesUrl || notice.actionUrl);
   }
 
   function kindLabel(notice) {
     const kind = String(notice && notice.kind || 'announcement');
-    if (kind === 'update' || notice && notice.updateAvailable) {
+    if (kind === 'update' || (notice && notice.updateAvailable)) {
       return t('updateNotice.updateAvailable', 'Update available');
     }
     if (kind === 'release') {
