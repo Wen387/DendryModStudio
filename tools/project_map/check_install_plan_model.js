@@ -134,6 +134,11 @@ fs.writeFileSync(
   'title: Ambiguous Section\n\n= Old Section\n\nOld section body.\n= Old Section\n',
   'utf8'
 );
+fs.writeFileSync(
+  path.join(tmpRoot, 'source', 'scenes', 'events', 'already_applied.scene.dry'),
+  'title: Already Applied\n\nOld label\n',
+  'utf8'
+);
 const index = syntheticIndex(tmpRoot);
 
 const eventBundle = eventDraft.buildExportBundle(readJson(SAMPLE_EVENT), index);
@@ -722,6 +727,27 @@ const staleLinePlan = installPlan.buildInstallPlan({
 const staleLineResult = installPlan.applyInstallPlan(staleLinePlan, {projectRoot: tmpRoot, dryRun: false});
 assert(!staleLineResult.ok, 'stale line evidence should fail instead of falling back to global replacement');
 assert(fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'status.scene.dry'), 'utf8').includes('資源'), 'stale line replacement must not mutate status');
+
+const idempotentLinePlan = installPlan.buildInstallPlan({
+  id: 'idempotent_line',
+  draftKind: 'test',
+  operations: [
+    {
+      id: 'idempotent_line',
+      type: 'replace_text',
+      path: 'source/scenes/events/already_applied.scene.dry',
+      line: 3,
+      search: 'Old label',
+      replace: 'New label',
+      safety: 'guarded_apply'
+    }
+  ]
+});
+const idempotentApply = installPlan.applyInstallPlan(idempotentLinePlan, {projectRoot: tmpRoot, dryRun: false});
+assert(idempotentApply.ok && idempotentApply.results[0].status === 'applied', 'first line replacement should apply normally: ' + JSON.stringify(idempotentApply));
+const idempotentApplyAgain = installPlan.applyInstallPlan(idempotentLinePlan, {projectRoot: tmpRoot, dryRun: false});
+assert(idempotentApplyAgain.ok, 'reapplying a line replacement whose replacement is already present should not fail: ' + JSON.stringify(idempotentApplyAgain));
+assert(idempotentApplyAgain.results[0].status === 'already_applied', 'already-present line replacement should report already_applied');
 
 const dryRun = installPlan.applyInstallPlan(surfaceBundle.installPlan, {projectRoot: tmpRoot, dryRun: true});
 assert(dryRun.ok, 'surface dry-run should succeed: ' + JSON.stringify(dryRun));

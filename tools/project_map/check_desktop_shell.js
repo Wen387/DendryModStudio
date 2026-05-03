@@ -137,6 +137,7 @@ async function main() {
   assert(!fs.existsSync(path.join(distDir, 'deb-staging')), 'desktop deb staging workdir should not be left by default');
 
   const corePath = requireFile('studio_core.js');
+  const dendryCliRunnerPath = requireFile('dendry_cli_runner.js');
   const runtimePreviewPath = requireFile('runtime_preview.js');
   const runtimePreviewBridgePath = requireFile('runtime_preview_debug_bridge.js');
   requireFile('main.js');
@@ -149,6 +150,7 @@ async function main() {
   const packagedAppDir = path.join(packagedCoreDir, 'resources', 'app');
   fs.mkdirSync(path.join(packagedAppDir, 'project_map', 'authoring'), {recursive: true});
   fs.copyFileSync(corePath, path.join(packagedAppDir, 'studio_core.js'));
+  fs.copyFileSync(dendryCliRunnerPath, path.join(packagedAppDir, 'dendry_cli_runner.js'));
   fs.copyFileSync(runtimePreviewPath, path.join(packagedAppDir, 'runtime_preview.js'));
   fs.copyFileSync(runtimePreviewBridgePath, path.join(packagedAppDir, 'runtime_preview_debug_bridge.js'));
   fs.writeFileSync(
@@ -176,6 +178,11 @@ async function main() {
     parser.toPosixPath('source\\scenes\\root.scene.dry') === 'source/scenes/root.scene.dry',
     'parse_dry_project should normalize Windows separators before calling DendryNexus'
   );
+  const dendryCliRunner = require(dendryCliRunnerPath);
+  assert(
+    dendryCliRunner.normalizeParserFilename('source\\scenes\\root.scene.dry') === 'source/scenes/root.scene.dry',
+    'Dendry CLI runner should normalize Windows separators before calling DendryNexus'
+  );
 
   const core = require(corePath);
   [
@@ -194,6 +201,8 @@ async function main() {
     'createRuntimePreview',
     'recordRuntimePreviewHistory',
     'prepareStarterDemo',
+    'readProjectInfoSource',
+    'refreshCachedIndexInfo',
     'loadStarterDemoIndex'
   ].forEach((name) => {
     assert(typeof core[name] === 'function', 'studio_core should export ' + name);
@@ -292,6 +301,11 @@ async function main() {
   assert(starterPrepared.ok, 'starter demo should prepare a writable project copy');
   assert(starterPrepared.root.startsWith(starterWorkspace), 'starter demo should open from app-data-style workspace');
   assert(fs.existsSync(path.join(starterPrepared.root, 'source', 'info.dry')), 'starter demo workspace should contain source/info.dry');
+  fs.writeFileSync(
+    path.join(starterPrepared.root, 'source', 'info.dry'),
+    'title: Cached Workspace Title\nauthor: Cached Workspace Author\nifid: 00000000-0000-4000-8000-000000000004\n',
+    'utf8'
+  );
   const cachedStarter = core.loadStarterDemoIndex({
     desktopDir: DESKTOP_DIR,
     prepared: starterPrepared,
@@ -301,6 +315,8 @@ async function main() {
   assert(cachedStarter.fromCache === true, 'starter demo cached ProjectIndex result should mark fromCache');
   assert(cachedStarter.root === starterPrepared.root, 'cached starter demo should rewrite project root to writable workspace');
   assert(cachedStarter.index.project.root === starterPrepared.root, 'cached starter demo ProjectIndex should expose writable root');
+  assert(cachedStarter.index.project.info.title === 'Cached Workspace Title', 'cached starter demo should refresh Game Info from writable workspace source/info.dry');
+  assert(cachedStarter.index.project.infoSource.author.anchorText === 'author: Cached Workspace Author', 'cached starter demo should refresh Game Info source evidence from writable workspace source/info.dry');
   assert(cachedStarter.includeExcerpts === false, 'plain cached starter demo ProjectIndex should not claim excerpts');
   assertSummaryAtLeast(cachedStarter.summary, {
     sceneCount: 3,

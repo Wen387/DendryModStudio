@@ -466,6 +466,44 @@ function readJsonFile(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
 
+function readProjectInfoSource(root) {
+  const infoPath = path.join(root, 'source', 'info.dry');
+  const info = {};
+  const infoSource = {};
+  if (!fs.existsSync(infoPath)) {
+    return {info, infoSource};
+  }
+  fs.readFileSync(infoPath, 'utf8').split(/\r?\n/).forEach((raw, index) => {
+    if (!raw.includes(':')) {
+      return;
+    }
+    const parts = raw.split(':');
+    const key = String(parts.shift() || '').trim();
+    if (!key) {
+      return;
+    }
+    info[key] = parts.join(':').trim();
+    infoSource[key] = {
+      path: 'source/info.dry',
+      line: index + 1,
+      anchorText: raw
+    };
+  });
+  return {info, infoSource};
+}
+
+function refreshCachedIndexInfo(index, root) {
+  const metadata = readProjectInfoSource(root);
+  const project = Object.assign({}, index.project || {}, {
+    root,
+    info: metadata.info,
+    infoSource: metadata.infoSource
+  });
+  project.name = metadata.info.title || project.name || path.basename(root);
+  index.project = project;
+  return index;
+}
+
 function loadStarterDemoIndex(options) {
   const opts = options || {};
   const prepared = opts.prepared || null;
@@ -486,9 +524,7 @@ function loadStarterDemoIndex(options) {
     const root = prepared && prepared.root
       ? prepared.root
       : paths.starterDemoTemplate;
-    index.project = Object.assign({}, index.project || {}, {
-      root
-    });
+    refreshCachedIndexInfo(index, root);
     return {
       ok: true,
       root,
@@ -777,6 +813,8 @@ module.exports = {
   createRuntimePreview,
   recordRuntimePreviewHistory,
   prepareStarterDemo,
+  readProjectInfoSource,
+  refreshCachedIndexInfo,
   emitProgress,
   summarizeIndex
 };

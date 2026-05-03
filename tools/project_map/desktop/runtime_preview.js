@@ -294,6 +294,16 @@ function dendryCliCommand(cliPath, nodeModules) {
       ? nodeModules + path.delimiter + process.env.NODE_PATH
       : nodeModules;
   }
+  const runnerPath = path.join(__dirname, 'dendry_cli_runner.js');
+  if (process.platform === 'win32' && fs.existsSync(runnerPath)) {
+    env.DMS_DENDRY_CLI_PATH = cliPath;
+    return {
+      ok: true,
+      cmd: process.execPath,
+      args: [runnerPath, 'make-html', '--force'],
+      env
+    };
+  }
   return {
     ok: true,
     cmd: process.execPath,

@@ -63,7 +63,12 @@ fs.writeFileSync(path.join(packageOnlyRoot, 'package.json'), JSON.stringify({
 const packageOnlyCommand = runtimePreview.resolveBuildCommand(packageOnlyRoot);
 assert(packageOnlyCommand.ok, 'package-only project should resolve a bundled DendryNexus build command: ' + JSON.stringify(packageOnlyCommand));
 assert(packageOnlyCommand.cmd === process.execPath, 'package-only project should use the current Node executable, not npx: ' + JSON.stringify(packageOnlyCommand));
-assert(packageOnlyCommand.args.some((item) => String(item).includes(path.join('dendrynexus', 'lib', 'cli', 'main.js'))), 'package-only project should use bundled DendryNexus CLI: ' + JSON.stringify(packageOnlyCommand));
+if (process.platform === 'win32') {
+  assert(packageOnlyCommand.args.some((item) => String(item).includes('dendry_cli_runner.js')), 'Windows package-only project should use Studio Dendry CLI runner: ' + JSON.stringify(packageOnlyCommand));
+  assert(packageOnlyCommand.env && String(packageOnlyCommand.env.DMS_DENDRY_CLI_PATH || '').includes(path.join('dendrynexus', 'lib', 'cli', 'main.js')), 'Windows Dendry CLI runner should keep the bundled CLI path in env: ' + JSON.stringify(packageOnlyCommand));
+} else {
+  assert(packageOnlyCommand.args.some((item) => String(item).includes(path.join('dendrynexus', 'lib', 'cli', 'main.js'))), 'package-only project should use bundled DendryNexus CLI: ' + JSON.stringify(packageOnlyCommand));
+}
 assert(!packageOnlyCommand.args.includes('dendrynexus'), 'package-only project must not use bare npx dendrynexus resolution: ' + JSON.stringify(packageOnlyCommand));
 
 const sourceOnlyRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dms_runtime_preview_source_only_'));
@@ -72,6 +77,9 @@ fs.writeFileSync(path.join(sourceOnlyRoot, 'source', 'info.dry'), 'title: Source
 const sourceOnlyCommand = runtimePreview.resolveBuildCommand(sourceOnlyRoot);
 assert(sourceOnlyCommand.ok, 'source-only Dendry project should resolve bundled DendryNexus build command: ' + JSON.stringify(sourceOnlyCommand));
 assert(sourceOnlyCommand.cmd === process.execPath, 'source-only project should use the current Node executable, not npx: ' + JSON.stringify(sourceOnlyCommand));
+if (process.platform === 'win32') {
+  assert(sourceOnlyCommand.args.some((item) => String(item).includes('dendry_cli_runner.js')), 'Windows source-only project should use Studio Dendry CLI runner: ' + JSON.stringify(sourceOnlyCommand));
+}
 
 const staleHtmlRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dms_runtime_preview_stale_html_'));
 fs.mkdirSync(path.join(staleHtmlRoot, 'out', 'html'), {recursive: true});

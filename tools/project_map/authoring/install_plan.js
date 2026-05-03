@@ -1154,6 +1154,9 @@
       diagnostics.push(diagnostic('error', after.code, after.message, operation));
       return {id: operation.id, type: operation.type, path: operation.path, status: 'failed'};
     }
+    if (after.alreadyApplied) {
+      return {id: operation.id, type: operation.type, path: operation.path, status: 'already_applied'};
+    }
     if (!dryRun) {
       fs.writeFileSync(target, after.text, 'utf8');
     }
@@ -1250,6 +1253,9 @@
       if (index >= 0 && index < lines.length && lines[index].includes(search)) {
         lines[index] = lines[index].replace(search, replacement);
         return {ok: true, text: lines.join('\n')};
+      }
+      if (replacement && index >= 0 && index < lines.length && lines[index].includes(replacement)) {
+        return {ok: true, alreadyApplied: true, text};
       }
       return {
         ok: false,

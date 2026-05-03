@@ -47,6 +47,7 @@ function packageDir(options) {
     'main.js',
     'preload.js',
     'studio_core.js',
+    'dendry_cli_runner.js',
     'runtime_preview.js',
     'runtime_preview_debug_bridge.js',
     'update_notice.js',

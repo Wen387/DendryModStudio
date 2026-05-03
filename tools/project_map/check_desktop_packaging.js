@@ -78,6 +78,7 @@ function main() {
   assert(fs.existsSync(path.join(appRoot, 'scripts', 'fetch_bundled_python.js')), 'packaged app should include bundled Python fetch script');
   assert(fs.existsSync(path.join(appRoot, 'runtime', 'README.md')), 'packaged app should include runtime staging notes');
   assert(fs.existsSync(path.join(appRoot, 'runtime_preview.js')), 'packaged app should include Runtime Preview core');
+  assert(fs.existsSync(path.join(appRoot, 'dendry_cli_runner.js')), 'packaged app should include Windows-safe Dendry CLI runner');
   assert(fs.existsSync(path.join(appRoot, 'update_notice.js')), 'packaged app should include Update Notice core');
   assert(fs.existsSync(path.join(appRoot, 'update_manifest.json')), 'packaged app should include bundled Update Notice manifest');
   assert(
