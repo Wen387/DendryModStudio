@@ -241,19 +241,24 @@ async function main() {
   assert(!/ENOENT|Traceback|Error:/.test(pythonMissing.message), 'Python missing message should hide raw process noise');
 
   const bundledPythonDesktop = fs.mkdtempSync(path.join(os.tmpdir(), 'dendry_bundled_python_desktop_' + process.pid + '_'));
-  const bundledPythonBin = path.join(bundledPythonDesktop, 'runtime', 'python', 'bin');
-  const bundledPythonExe = path.join(bundledPythonBin, 'python3');
-  fs.mkdirSync(bundledPythonBin, {recursive: true});
+  const bundledPythonExe = process.platform === 'win32'
+    ? path.join(bundledPythonDesktop, 'runtime', 'python', 'python.exe')
+    : path.join(bundledPythonDesktop, 'runtime', 'python', 'bin', 'python3');
+  fs.mkdirSync(path.dirname(bundledPythonExe), {recursive: true});
   fs.writeFileSync(bundledPythonExe, '#!/bin/sh\necho "Python 3.13.12"\n', 'utf8');
-  fs.chmodSync(bundledPythonExe, 0o755);
+  if (process.platform !== 'win32') {
+    fs.chmodSync(bundledPythonExe, 0o755);
+  }
   const bundledResolved = core.resolveBundledPython({desktopDir: bundledPythonDesktop});
-  assert(bundledResolved.ok, 'bundled Python resolver should find runtime/python/bin/python3');
+  assert(bundledResolved.ok, 'bundled Python resolver should find the platform runtime executable');
   assert(bundledResolved.python === bundledPythonExe, 'bundled Python resolver should return the bundled executable');
-  const bundledPython = core.checkPython({desktopDir: bundledPythonDesktop});
-  assert(bundledPython.ok, 'Python preflight should prefer bundled runtime when present');
-  assert(bundledPython.source === 'bundled', 'Python preflight should report bundled source');
-  assert(bundledPython.python === bundledPythonExe, 'Python preflight should run bundled executable');
-  assert(/Bundled Python 3\.13\.12/.test(bundledPython.message), 'bundled Python message should identify bundled runtime');
+  if (process.platform !== 'win32') {
+    const bundledPython = core.checkPython({desktopDir: bundledPythonDesktop});
+    assert(bundledPython.ok, 'Python preflight should prefer bundled runtime when present');
+    assert(bundledPython.source === 'bundled', 'Python preflight should report bundled source');
+    assert(bundledPython.python === bundledPythonExe, 'Python preflight should run bundled executable');
+    assert(/Bundled Python 3\.13\.12/.test(bundledPython.message), 'bundled Python message should identify bundled runtime');
+  }
   fs.rmSync(bundledPythonDesktop, {recursive: true, force: true});
 
   const doctorInvalid = await core.runDesktopDoctor({
