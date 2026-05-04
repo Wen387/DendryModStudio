@@ -3,7 +3,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const {readViewerI18n} = require('./check_viewer_assets.js');
+const {readViewerI18n, readExploreBundle} = require('./check_viewer_assets.js');
 
 const ROOT = __dirname;
 const VIEWER_DIR = path.join(ROOT, 'viewer');
@@ -109,7 +109,7 @@ const html = fs.readFileSync(VIEWER_HTML, 'utf8');
 const i18nSource = readViewerI18n(VIEWER_DIR);
 const wizardSource = fs.readFileSync(path.join(VIEWER_DIR, 'wizard_ui.js'), 'utf8');
 const cardSource = fs.readFileSync(path.join(VIEWER_DIR, 'card_ui.js'), 'utf8');
-const appSource = fs.readFileSync(path.join(VIEWER_DIR, 'app.js'), 'utf8');
+const appSource = readExploreBundle(VIEWER_DIR);
 const eventDraftSource = fs.readFileSync(path.join(ROOT, 'authoring', 'event_draft.js'), 'utf8');
 const meaningLayerSource = fs.readFileSync(path.join(ROOT, 'authoring', 'meaning_layer.js'), 'utf8');
 const meaningLayerUiSource = fs.readFileSync(path.join(VIEWER_DIR, 'meaning_layer_ui.js'), 'utf8');

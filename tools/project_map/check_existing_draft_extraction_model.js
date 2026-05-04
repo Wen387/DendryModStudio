@@ -9,6 +9,7 @@ const newsDraft = require('./authoring/news_draft.js');
 const surfaceDraft = require('./authoring/surface_text_draft.js');
 const fs = require('fs');
 const path = require('path');
+const {readExploreBundle} = require('./check_viewer_assets.js');
 
 function fail(message) {
   process.stderr.write('FAIL: ' + message + '\n');
@@ -213,7 +214,7 @@ const missing = draftExtract.extractDraftFromItem(index, 'events', 'does_not_exi
 assert(!missing.ok && missing.status === 'unsupported', 'missing row should be a structured unsupported result');
 
 const viewerHtml = fs.readFileSync(path.join(__dirname, 'viewer', 'index.html'), 'utf8');
-const viewerApp = fs.readFileSync(path.join(__dirname, 'viewer', 'app.js'), 'utf8');
+const viewerApp = readExploreBundle(path.join(__dirname, 'viewer'));
 assert(viewerHtml.includes('../authoring/draft_extract.js'), 'viewer should load draft extraction bridge');
 assert(viewerHtml.includes('../authoring/existing_scene_edit_model.js'), 'viewer should load existing scene edit model');
 assert(viewerHtml.includes('existing_scene_edit_ui.js'), 'viewer should load existing scene editor UI');

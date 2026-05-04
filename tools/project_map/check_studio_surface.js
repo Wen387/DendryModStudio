@@ -3,7 +3,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const {readViewerCss, readViewerI18n} = require('./check_viewer_assets.js');
+const {readViewerCss, readViewerI18n, readExploreBundle} = require('./check_viewer_assets.js');
 
 const ROOT = __dirname;
 const VIEWER_HTML = path.join(ROOT, 'viewer', 'index.html');
@@ -20,7 +20,6 @@ const VARIABLE_EDITOR_UI = path.join(ROOT, 'viewer', 'variable_editor_ui.js');
 const INSTALL_UI = path.join(ROOT, 'viewer', 'install_assistant_ui.js');
 const DRAFT_WORKSPACE_UI = path.join(ROOT, 'viewer', 'draft_workspace_ui.js');
 const UPDATE_NOTICE_UI = path.join(ROOT, 'viewer', 'update_notice_ui.js');
-const APP_UI = path.join(ROOT, 'viewer', 'app.js');
 const DESIGN_UI = path.join(ROOT, 'viewer', 'design_ui.js');
 const DESKTOP_MAIN = path.join(ROOT, 'desktop', 'main.js');
 const DESKTOP_PRELOAD = path.join(ROOT, 'desktop', 'preload.js');
@@ -77,7 +76,7 @@ const installUi = fs.readFileSync(INSTALL_UI, 'utf8');
 const draftWorkspaceUi = fs.readFileSync(DRAFT_WORKSPACE_UI, 'utf8');
 const i18nUi = readViewerI18n(VIEWER_DIR);
 const updateNoticeUi = fs.readFileSync(UPDATE_NOTICE_UI, 'utf8');
-const appUi = fs.readFileSync(APP_UI, 'utf8');
+const appUi = readExploreBundle(VIEWER_DIR);
 const designUi = fs.readFileSync(DESIGN_UI, 'utf8');
 const desktopMain = fs.readFileSync(DESKTOP_MAIN, 'utf8');
 const desktopPreload = fs.readFileSync(DESKTOP_PRELOAD, 'utf8');

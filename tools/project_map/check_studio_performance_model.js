@@ -3,11 +3,11 @@
 
 const fs = require('fs');
 const path = require('path');
+const {readExploreBundle} = require('./check_viewer_assets.js');
 
 const viewer = require('./viewer/app.js');
 const design = require('./viewer/design_model.js');
 
-const APP_UI = path.join(__dirname, 'viewer', 'app.js');
 const DESIGN_UI = path.join(__dirname, 'viewer', 'design_ui.js');
 
 function fail(message) {
@@ -129,7 +129,7 @@ const elapsed = Date.now() - started;
 assert(designModel.summary.itemCount === index.scenes.length, 'Design model should preserve synthetic event count');
 assert(elapsed < 750, 'Design model should build from indexed variable refs without quadratic path scans; elapsed=' + elapsed + 'ms');
 
-const appUi = fs.readFileSync(APP_UI, 'utf8');
+const appUi = readExploreBundle(path.join(__dirname, 'viewer'));
 const designUi = fs.readFileSync(DESIGN_UI, 'utf8');
 assert(appUi.includes('SORT_COLLATOR'), 'Explore sorting should reuse one collator instead of rebuilding localeCompare options per comparison');
 assert(appUi.includes('EXPLORE_SEARCH_DEBOUNCE_MS'), 'Explore search should use a named debounce interval');

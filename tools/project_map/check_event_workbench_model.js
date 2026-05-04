@@ -4,6 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 const assert = require('assert');
+const {readExploreBundle} = require('./check_viewer_assets.js');
 
 const indexPath = process.argv[2] || '/tmp/dendry_project_map/project-index-state-review.json';
 const index = JSON.parse(fs.readFileSync(indexPath, 'utf8'));
@@ -92,7 +93,7 @@ assert(renderedWorkbench.includes('<details class="event-workbench-section event
 assert(renderedWorkbench.includes('data-event-workbench-section="conditions"'), 'Event Workbench should expose a collapsible conditions section');
 assert(eventWorkbenchUi.includes('sectionCount'), 'Event Workbench UI should compute section counts for badges');
 
-const app = fs.readFileSync(path.join(__dirname, 'viewer', 'app.js'), 'utf8');
+const app = readExploreBundle(path.join(__dirname, 'viewer'));
 const designUi = fs.readFileSync(path.join(__dirname, 'viewer', 'design_ui.js'), 'utf8');
 assert(app.includes('renderEventWorkbenchInspector'), 'Explore inspector should route events through Event Workbench');
 assert(designUi.includes('renderEventWorkbenchForSelected'), 'Design inspector should route events through Event Workbench');

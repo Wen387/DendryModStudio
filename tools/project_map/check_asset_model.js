@@ -4,6 +4,7 @@
 const viewer = require('./viewer/app.js');
 const assetModel = require('./authoring/asset_model.js');
 const previewModel = require('./authoring/preview_model.js');
+const {readExploreBundle} = require('./check_viewer_assets.js');
 
 function fail(message) {
   process.stderr.write('FAIL: ' + message + '\n');
@@ -268,7 +269,7 @@ assert(inspectorHtml.includes('assets/radio/radio-icon.svg'), 'asset reference h
 assert(inspectorHtml.includes('asset-usage-list'), 'asset inspector should render usage references');
 assert(inspectorHtml.includes('Asset Event'), 'asset inspector should include usage labels');
 
-const appUi = require('fs').readFileSync(require('path').join(__dirname, 'viewer', 'app.js'), 'utf8');
+const appUi = readExploreBundle(require('path').join(__dirname, 'viewer'));
 assert(appUi.includes('handleAssetDraftAction'), 'viewer should handle asset draft actions from the inspector');
 assert(appUi.includes('ProjectMap:asset-reference-selected'), 'viewer should dispatch asset reference selections to Create wizards');
 assert(appUi.includes('renderAssetPicker'), 'viewer should render an embeddable asset picker for Create forms');

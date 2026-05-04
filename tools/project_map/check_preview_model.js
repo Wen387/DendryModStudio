@@ -3,7 +3,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const {readViewerCss} = require('./check_viewer_assets.js');
+const {readViewerCss, readExploreBundle} = require('./check_viewer_assets.js');
 
 const previewModel = require('./authoring/preview_model.js');
 const assetModel = require('./authoring/asset_model.js');
@@ -290,7 +290,7 @@ assert(cardUi.includes('parseAssetRefsText'), 'Card wizard should parse assetRef
 assert(cardUi.includes('ProjectMap:asset-reference-selected'), 'Card wizard should accept asset references selected from Assets view');
 assert(cardUi.includes('renderAssetPicker'), 'Card wizard should render the asset picker from ProjectIndex assets');
 assert(cardUi.includes('renderAssetManifest'), 'Card wizard should render the asset manifest for selected refs');
-const appUi = fs.readFileSync(path.join(__dirname, 'viewer', 'app.js'), 'utf8');
+const appUi = readExploreBundle(path.join(__dirname, 'viewer'));
 const designUi = fs.readFileSync(path.join(__dirname, 'viewer', 'design_ui.js'), 'utf8');
 assert(appUi.includes('renderInspectorPreview'), 'Explore inspector should render a PreviewModel panel');
 assert(appUi.includes('previewModelForSelection'), 'Explore inspector should build previews from selected rows');

@@ -38,8 +38,25 @@ function readViewerI18n(viewerDir) {
   return parts.map(readText).join('\n');
 }
 
+function readViewerScripts(viewerDir, files) {
+  return files
+    .map((file) => readText(path.join(viewerDir, file)))
+    .join('\n');
+}
+
+function readExploreBundle(viewerDir) {
+  return readViewerScripts(viewerDir, [
+    'explore_model.js',
+    'explore_lists.js',
+    'explore_inspector.js',
+    'explore_ui.js',
+    'app.js'
+  ]);
+}
+
 module.exports = {
   readViewerCss,
-  readViewerI18n
+  readViewerI18n,
+  readViewerScripts,
+  readExploreBundle
 };
-

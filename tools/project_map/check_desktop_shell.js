@@ -5,7 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const vm = require('vm');
-const {readViewerCss} = require('./check_viewer_assets.js');
+const {readViewerCss, readExploreBundle} = require('./check_viewer_assets.js');
 const {spawnSync} = require('child_process');
 
 const PROJECT_MAP_DIR = __dirname;
@@ -423,7 +423,7 @@ async function main() {
   }
 
   const viewerHtml = fs.readFileSync(path.join(VIEWER_DIR, 'index.html'), 'utf8');
-  const viewerApp = fs.readFileSync(path.join(VIEWER_DIR, 'app.js'), 'utf8');
+  const viewerApp = readExploreBundle(VIEWER_DIR);
   const preloadJs = fs.readFileSync(path.join(DESKTOP_DIR, 'preload.js'), 'utf8');
   const mainJs = fs.readFileSync(path.join(DESKTOP_DIR, 'main.js'), 'utf8');
   assert(mainJs.includes('chooseProjectRootForOperation'), 'desktop main should choose a project root for install/preview operations');
