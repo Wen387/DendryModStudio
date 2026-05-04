@@ -72,7 +72,7 @@ function main() {
   });
 
   assertIncludes(readmeEn, 'latest non-draft Release', 'README.md');
-  assertIncludes(readmeZh, 'latest non-draft Release', 'README.zh-Hant.md');
+  assertIncludes(readmeZh, '最新的非草稿版本', 'README.zh-Hant.md');
   assertIncludes(releaseWorkflow, 'tools/project_map/desktop/dist-builder/*.AppImage', 'release workflow');
   assertIncludes(releaseWorkflow, 'tools/project_map/desktop/dist-builder/*.deb', 'release workflow');
   assertIncludes(releaseWorkflow, 'tools/project_map/desktop/dist-builder/*.exe', 'release workflow');
