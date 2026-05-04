@@ -2,6 +2,11 @@
   'use strict';
 
   const STORAGE_KEY = 'dendry-mod-studio-locale';
+  const LOCALE_MODE_KEY = 'dendry-mod-studio-locale-mode';
+  const LOCALE_MODE = {
+    AUTO: 'auto',
+    MANUAL: 'manual'
+  };
   const DEFAULT_LOCALE = 'en';
   const DICTIONARIES = {
     en: {
@@ -9,6 +14,9 @@
       'topbar.version': 'Dendry Mod Studio v0.9.3 dev preview',
       'topbar.author': 'by Wenmo',
       'topbar.language': 'Language',
+      'topbar.language.auto': 'Auto',
+      'topbar.language.en': 'English',
+      'topbar.language.zh': 'Traditional Chinese',
       'topbar.checkSetup': 'Check Setup',
       'topbar.openProject': 'Open Project Folder',
       'topbar.includeExcerpts': 'Include source excerpts',
@@ -1539,6 +1547,9 @@
       'topbar.version': 'Dendry Mod Studio v0.9.3 dev preview',
       'topbar.author': '作者 Wenmo',
       'topbar.language': '語言',
+      'topbar.language.auto': '跟隨系統',
+      'topbar.language.en': '英語',
+      'topbar.language.zh': '繁中',
       'topbar.checkSetup': '檢查設定',
       'topbar.openProject': '開啟專案',
       'topbar.includeExcerpts': '包含 source 摘錄',
@@ -3067,12 +3078,17 @@
   };
 
   const savedLocale = readStoredLocale();
-  let locale = normalizeLocale(savedLocale || detectNavigatorLocale() || DEFAULT_LOCALE);
+  let localeMode = readStoredLocaleMode();
+  let locale = normalizeLocale(
+    localeMode === LOCALE_MODE.MANUAL && savedLocale
+      ? savedLocale
+      : detectNavigatorLocale() || DEFAULT_LOCALE
+  );
 
   applyDetectedDesktopLocale();
 
   function applyDetectedDesktopLocale() {
-    if (savedLocale) {
+    if (localeMode !== LOCALE_MODE.AUTO) {
       return;
     }
 
@@ -3127,11 +3143,46 @@
     return raw ? 'en' : DEFAULT_LOCALE;
   }
 
-  function readStoredLocale() {
+  function readStoredValue(key) {
     try {
-      return global.localStorage && global.localStorage.getItem(STORAGE_KEY);
-    } catch (err) {
+      return global.localStorage && global.localStorage.getItem(key);
+    } catch (_err) {
       return '';
+    }
+  }
+
+  function readStoredLocale() {
+    return readStoredValue(STORAGE_KEY);
+  }
+
+  function readStoredLocaleMode() {
+    const value = readStoredValue(LOCALE_MODE_KEY);
+    if (value === LOCALE_MODE.MANUAL || value === LOCALE_MODE.AUTO) {
+      return value;
+    }
+    return LOCALE_MODE.AUTO;
+  }
+
+  function storeLocaleMode(mode) {
+    if (mode !== LOCALE_MODE.MANUAL && mode !== LOCALE_MODE.AUTO) {
+      return;
+    }
+    try {
+      if (global.localStorage) {
+        global.localStorage.setItem(LOCALE_MODE_KEY, mode);
+      }
+    } catch (_err) {
+      // localStorage can be unavailable in restricted browser contexts.
+    }
+  }
+
+  function clearStoredLocale() {
+    try {
+      if (global.localStorage) {
+        global.localStorage.removeItem(STORAGE_KEY);
+      }
+    } catch (_err) {
+      // localStorage can be unavailable in restricted browser contexts.
     }
   }
 
@@ -3151,12 +3202,26 @@
   }
 
   function setLocale(value) {
+    if (value === LOCALE_MODE.AUTO) {
+      localeMode = LOCALE_MODE.AUTO;
+      storeLocaleMode(localeMode);
+      clearStoredLocale();
+      applyDetectedDesktopLocale();
+      syncLocaleSelect();
+      return;
+    }
+    localeMode = LOCALE_MODE.MANUAL;
     applyLocale(value, true);
   }
 
   function applyLocale(value, persistLocale) {
     const next = normalizeLocale(value);
     if (next === locale) {
+      if (persistLocale) {
+        storeLocale(locale);
+        storeLocaleMode(LOCALE_MODE.MANUAL);
+        localeMode = LOCALE_MODE.MANUAL;
+      }
       applyTranslations(global.document);
       syncLocaleSelect(locale);
       return;
@@ -3164,8 +3229,10 @@
     locale = next;
     if (persistLocale) {
       storeLocale(locale);
+      storeLocaleMode(LOCALE_MODE.MANUAL);
+      localeMode = LOCALE_MODE.MANUAL;
     }
-    syncLocaleSelect(locale);
+    syncLocaleSelect();
     applyTranslations(global.document);
     if (global.document) {
       global.document.dispatchEvent(new CustomEvent('project-map:locale-changed', {
@@ -3180,8 +3247,12 @@
       return;
     }
     const select = global.document.getElementById('locale-select');
-    if (select && select.value !== nextLocale) {
-      select.value = nextLocale;
+    if (!select) {
+      return;
+    }
+    const targetLocale = localeMode === LOCALE_MODE.AUTO ? LOCALE_MODE.AUTO : (nextLocale || locale);
+    if (select.value !== targetLocale) {
+      select.value = targetLocale;
     }
   }
 
@@ -3246,7 +3317,7 @@
   onReady(() => {
     const select = global.document.getElementById('locale-select');
     if (select) {
-      select.value = locale;
+      syncLocaleSelect(locale);
       select.addEventListener('change', () => setLocale(select.value));
     }
     applyTranslations(global.document);
