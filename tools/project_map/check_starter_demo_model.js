@@ -10,6 +10,7 @@ const DESKTOP_DIR = path.join(ROOT, 'desktop');
 const TEMPLATE_ROOT = path.join(ROOT, 'templates', 'starter-demo');
 const core = require('./desktop/studio_core.js');
 const runtimePreview = require('./desktop/runtime_preview.js');
+const {pythonCommand} = require('./check_python_command.js');
 
 function fail(message) {
   process.stderr.write('FAIL: ' + message + '\n');
@@ -163,7 +164,7 @@ async function main() {
     root: prepared.root,
     outDir: scratchRoot,
     includeExcerpts: false,
-    python: 'python3',
+    python: pythonCommand(),
     desktopDir: DESKTOP_DIR
   });
   assert(indexed.ok, 'starter demo should build a ProjectIndex: ' + JSON.stringify(indexed.error || null));

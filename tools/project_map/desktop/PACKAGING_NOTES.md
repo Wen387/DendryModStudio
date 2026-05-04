@@ -1,8 +1,8 @@
 # Dendry Mod Studio Desktop Packaging Notes
 
-## v0.92.2 Dev Preview Scope
+## v0.9.3 Dev Preview Scope
 
-v0.92.2 aligns the desktop feasibility package with the current Mod Studio
+v0.9.3 aligns the desktop feasibility package with the current Mod Studio
 source/dev preview. It includes the v0.9 authoring and review surface, Existing
 Scene Editor condition edits, variable candidates, Runtime Preview sandbox /
 debug bridge, the latest localization/version cleanup, and the Explore / Design
@@ -49,9 +49,16 @@ runtime.
 resource directories during upgrade uninstall so preview rebuilds don't keep a
 stale app payload in place.
 
-2026-05-03 version note: the preview package version was advanced to v0.92.2 so
+2026-05-04 version note: the preview package version was advanced to v0.9.3 so
 Windows, Deb, and update-notice metadata can distinguish this build from older
 v0.9.2 preview artifacts.
+
+2026-05-04 Windows app icon note: Windows release builds now include a generated
+multi-size `assets/dendry-mod-studio.ico`, wire it into `win.icon`, the NSIS
+installer/uninstaller, the packaged portable assets, and the Electron
+`BrowserWindow` icon path. The app also sets the Windows AppUserModelId to the
+same value as `build.appId`, so pinned taskbar/start-menu entries should resolve
+the branded icon instead of Electron's fallback icon.
 
 2026-04-30 packaging note: local portable and Deb packaging checks cover the
 resource layout used by the desktop app. Run `npm run smoke` and
@@ -171,7 +178,7 @@ bundled runtime in doctor output and may depend on system Python 3.
 - `.exe` is produced by the release workflow on Windows.
 - Code signing, public maintainer metadata, full clean-VM dependency curation,
   uninstall UX beyond normal package-manager behavior, and full update channels
-  are not part of v0.92.2. The current update notice path only polls a static
+  are not part of v0.9.3. The current update notice path only polls a static
   manifest and opens manual links after a user action; it is not an auto-install
   updater.
 
@@ -186,7 +193,8 @@ creation:
 - Linux `.deb`: test installation on clean Debian/Ubuntu systems and confirm
   desktop-menu integration.
 - Windows installer: test bundled Python discovery, unsigned SmartScreen
-  behavior, and future code signing expectations.
+  behavior, start-menu/taskbar icon refresh after upgrading from older preview
+  builds, and future code signing expectations.
 - Bundled Python: add checksum verification and clean-VM install checks for each
   release artifact.
 

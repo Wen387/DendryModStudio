@@ -1575,6 +1575,11 @@
         handleEditTextProposal(state, elements);
         return;
       }
+      const variableAction = event.target.closest('[data-edit-variable]');
+      if (variableAction) {
+        handleEditVariable(state, elements);
+        return;
+      }
       const assetAction = event.target.closest('[data-asset-action]');
       if (assetAction) {
         handleAssetDraftAction(state, elements, assetAction);
@@ -3175,6 +3180,32 @@
     render(state, elements);
   }
 
+  function handleEditVariable(state, elements) {
+    if (!state.selected || !state.model || state.selected.view !== 'variables') {
+      return;
+    }
+    const core = global.ProjectMapVariableEditorDraft;
+    const draft = core && typeof core.draftFromVariable === 'function'
+      ? core.draftFromVariable(state.selected.item, state.model.index)
+      : {
+        schemaVersion: '0.1',
+        kind: 'variable_editor',
+        id: 'edit_' + String(state.selected.item && state.selected.item.name || 'variable').replace(/[^A-Za-z0-9_]+/g, '_'),
+        title: 'Edit ' + String(state.selected.item && state.selected.item.name || 'Variable'),
+        mode: 'edit_existing',
+        variableName: String(state.selected.item && state.selected.item.name || ''),
+        includeRootInit: false,
+        includePostEventInit: false,
+        includeQualityFile: false
+      };
+    const opened = openDraftInCreate('variables', draft, {template: 'variables'});
+    state.draftActionMessage = opened
+      ? t('variableEditor.loadedFromExplore', 'Variable loaded in Create mode. Review source evidence before applying.')
+      : t('variableEditor.openFailed', 'Could not open the Variable Editor.');
+    state.textActionMessage = '';
+    render(state, elements);
+  }
+
   function handleEventWorkbenchAction(state, elements, action) {
     if (!state.selected || !state.model) {
       return;
@@ -3260,6 +3291,10 @@
     }
     if (templateKey === 'project' && global.ProjectMapProjectMetadataWizard && typeof global.ProjectMapProjectMetadataWizard.loadDraft === 'function') {
       global.ProjectMapProjectMetadataWizard.loadDraft(draft, meta);
+      return true;
+    }
+    if (templateKey === 'variables' && global.ProjectMapVariableEditorWizard && typeof global.ProjectMapVariableEditorWizard.loadDraft === 'function') {
+      global.ProjectMapVariableEditorWizard.loadDraft(draft, meta);
       return true;
     }
     return false;
@@ -3426,6 +3461,9 @@
       '<dt>' + escapeHtml(t('inspector.reads', 'Reads')) + '</dt><dd>' + escapeHtml(variable.readCount || 0) + '</dd>',
       '<dt>' + escapeHtml(t('inspector.writes', 'Writes')) + '</dt><dd>' + escapeHtml(variable.writeCount || 0) + '</dd>',
       '</dl>',
+      '<div class="inspector-actions">',
+      '<button class="draft-action-button" type="button" data-edit-variable="true">' + escapeHtml(t('inspector.editVariable', 'Edit variable')) + '</button>',
+      '</div>',
       renderMiniSection(t('inspector.readRefs', 'Read refs'), reads),
       renderMiniSection(t('inspector.writeRefs', 'Write refs'), writes)
     ].join('');

@@ -5,6 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const {spawnSync} = require('child_process');
+const {pythonCommand} = require('./check_python_command.js');
 
 const metadataDraft = require('./authoring/project_metadata_draft.js');
 const installPlan = require('./authoring/install_plan.js');
@@ -152,7 +153,7 @@ const refused = installPlan.applyInstallPlan({
 assert(!refused.ok && refused.results[0].status === 'failed', 'non-metadata line replacement should be refused');
 
 const starterOut = path.join(os.tmpdir(), 'dendry_project_metadata_starter_' + process.pid + '.json');
-const starterIndexResult = spawnSync('python3', [
+const starterIndexResult = spawnSync(pythonCommand(), [
   path.join(__dirname, 'build_project_map.py'),
   '--root',
   path.join(__dirname, 'templates', 'starter-demo'),

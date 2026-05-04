@@ -1,6 +1,6 @@
 {
   "name": "dendry-mod-studio-desktop",
-  "version": "0.92.2",
+  "version": "0.9.3",
   "private": true,
   "author": {
     "name": "Wen387",
@@ -16,6 +16,7 @@
   "scripts": {
     "start": "electron .",
     "fetch:python": "node scripts/fetch_bundled_python.js",
+    "generate:icons": "node scripts/generate_windows_icon.js",
     "package:dir": "node scripts/package_dir.js",
     "package:portable": "node scripts/package_portable.js",
     "package:deb": "node scripts/package_deb.js",
@@ -108,6 +109,7 @@
     },
     "win": {
       "artifactName": "DendryModStudio-win-x64.${ext}",
+      "icon": "assets/dendry-mod-studio.ico",
       "target": [
         "nsis"
       ]
@@ -116,6 +118,8 @@
       "oneClick": false,
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
+      "installerIcon": "assets/dendry-mod-studio.ico",
+      "uninstallerIcon": "assets/dendry-mod-studio.ico",
       "include": "build/installer.nsh"
     }
   },

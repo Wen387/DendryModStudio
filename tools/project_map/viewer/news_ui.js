@@ -94,7 +94,7 @@
   }
 
   function setCreateTemplate(template) {
-    const templates = new Set(['event', 'news', 'card', 'play_surface', 'workspace_layout', 'sidebar_status', 'surface', 'entry', 'project']);
+    const templates = new Set(['event', 'news', 'card', 'play_surface', 'workspace_layout', 'sidebar_status', 'surface', 'entry', 'project', 'variables']);
     const next = templates.has(template) ? template : 'event';
     elements.templateButtons.forEach((button) => {
       const active = button.dataset.createTemplate === next;

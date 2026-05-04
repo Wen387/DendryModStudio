@@ -5,6 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const {spawnSync} = require('child_process');
+const {pythonCommand} = require('./project_map/check_python_command.js');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 const CONTRACT_PATH = path.join(REPO_ROOT, 'studio_contract', 'contract.json');
@@ -189,7 +190,7 @@ function buildFixture(contract) {
   const outPath = path.join(os.tmpdir(), 'dendry_project_map', 'islands-contract-' + process.pid + '-' + Date.now() + '.json');
   fs.mkdirSync(path.dirname(outPath), {recursive: true});
   const result = spawnSync(
-    'python3',
+    pythonCommand(),
     [
       path.join(REPO_ROOT, 'tools', 'project_map', 'build_project_map.py'),
       '--root',

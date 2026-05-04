@@ -15,6 +15,7 @@ const PLAY_SURFACE_UI = path.join(ROOT, 'viewer', 'play_surface_ui.js');
 const WORKSPACE_LAYOUT_UI = path.join(ROOT, 'viewer', 'workspace_layout_ui.js');
 const SIDEBAR_STATUS_UI = path.join(ROOT, 'viewer', 'sidebar_status_ui.js');
 const PROJECT_METADATA_UI = path.join(ROOT, 'viewer', 'project_metadata_ui.js');
+const VARIABLE_EDITOR_UI = path.join(ROOT, 'viewer', 'variable_editor_ui.js');
 const INSTALL_UI = path.join(ROOT, 'viewer', 'install_assistant_ui.js');
 const DRAFT_WORKSPACE_UI = path.join(ROOT, 'viewer', 'draft_workspace_ui.js');
 const I18N_UI = path.join(ROOT, 'viewer', 'i18n.js');
@@ -28,6 +29,7 @@ const DESKTOP_RUNTIME_PREVIEW = path.join(ROOT, 'desktop', 'runtime_preview.js')
 const PLAY_SURFACE_DRAFT = path.join(ROOT, 'authoring', 'play_surface_draft.js');
 const WORKSPACE_LAYOUT_DRAFT = path.join(ROOT, 'authoring', 'workspace_layout_draft.js');
 const SIDEBAR_STATUS_DRAFT = path.join(ROOT, 'authoring', 'sidebar_status_draft.js');
+const VARIABLE_EDITOR_DRAFT = path.join(ROOT, 'authoring', 'variable_editor_draft.js');
 
 function fail(message) {
   process.stderr.write('FAIL: ' + message + '\n');
@@ -70,6 +72,7 @@ const playSurfaceUi = fs.readFileSync(PLAY_SURFACE_UI, 'utf8');
 const workspaceLayoutUi = fs.readFileSync(WORKSPACE_LAYOUT_UI, 'utf8');
 const sidebarStatusUi = fs.readFileSync(SIDEBAR_STATUS_UI, 'utf8');
 const projectMetadataUi = fs.readFileSync(PROJECT_METADATA_UI, 'utf8');
+const variableEditorUi = fs.readFileSync(VARIABLE_EDITOR_UI, 'utf8');
 const installUi = fs.readFileSync(INSTALL_UI, 'utf8');
 const draftWorkspaceUi = fs.readFileSync(DRAFT_WORKSPACE_UI, 'utf8');
 const i18nUi = fs.readFileSync(I18N_UI, 'utf8');
@@ -83,11 +86,12 @@ const desktopRuntimePreview = fs.readFileSync(DESKTOP_RUNTIME_PREVIEW, 'utf8');
 const playSurfaceDraft = fs.readFileSync(PLAY_SURFACE_DRAFT, 'utf8');
 const workspaceLayoutDraft = fs.readFileSync(WORKSPACE_LAYOUT_DRAFT, 'utf8');
 const sidebarStatusDraft = fs.readFileSync(SIDEBAR_STATUS_DRAFT, 'utf8');
+const variableEditorDraft = fs.readFileSync(VARIABLE_EDITOR_DRAFT, 'utf8');
 
 assert(html.includes('data-studio-surface="direction-b"'), 'viewer should mark Direction B Studio as the active surface');
 assert(html.includes('brand-mark branch-mark'), 'viewer should expose a Branch brand mark');
 assert(html.includes('Dendry <span>Mod Studio</span>'), 'viewer should emphasize Mod Studio in the wordmark');
-assert(html.includes('Dendry Mod Studio v0.92.2 dev preview'), 'topbar should expose the Studio version for testers');
+assert(html.includes('Dendry Mod Studio v0.9.3 dev preview'), 'topbar should expose the Studio version for testers');
 assert(html.includes('https://github.com/Wen387'), 'topbar should link the author GitHub profile');
 assert(html.includes('nav-group-title'), 'Explore navigation should be grouped by authoring purpose');
 assert(html.includes('Story content'), 'Explore navigation should include a Story content group');
@@ -105,6 +109,7 @@ assert(html.includes('../authoring/play_surface_draft.js'), 'viewer should load 
 assert(html.includes('../authoring/workspace_layout_draft.js'), 'viewer should load Workspace Layout draft core');
 assert(html.includes('../authoring/sidebar_status_draft.js'), 'viewer should load Sidebar / Status draft core');
 assert(html.includes('../authoring/project_metadata_draft.js'), 'viewer should load Game Info draft core');
+assert(html.includes('../authoring/variable_editor_draft.js'), 'viewer should load Variable Editor draft core');
 assert(html.includes('id="existing-scene-editor-host"'), 'Create mode should expose an Existing Scene Editor host');
 assert(html.includes('existing_scene_edit_ui.js'), 'viewer should load Existing Scene Editor UI');
 assert(existingSceneEditUi.includes('data-existing-block'), 'Existing Scene Editor should expose section block editors');
@@ -114,6 +119,7 @@ assert(html.includes('play_surface_ui.js'), 'viewer should load Playable Surface
 assert(html.includes('workspace_layout_ui.js'), 'viewer should load Workspace Layout UI');
 assert(html.includes('sidebar_status_ui.js'), 'viewer should load Sidebar / Status UI');
 assert(html.includes('project_metadata_ui.js'), 'viewer should load Game Info UI');
+assert(html.includes('variable_editor_ui.js'), 'viewer should load Variable Editor UI');
 assert(html.includes('data-create-template="card"'), 'Create template switch should include Card');
 assert(html.includes('data-create-template="surface"'), 'Create template switch should include Surface Text');
 assert(html.includes('data-create-template="entry"'), 'Create template switch should include Entry & Sidebar');
@@ -121,6 +127,7 @@ assert(html.includes('data-create-template="play_surface"'), 'Create template sw
 assert(html.includes('data-create-template="workspace_layout"'), 'Create template switch should include Workspace Layout');
 assert(html.includes('data-create-template="sidebar_status"'), 'Create template switch should include Sidebar / Status');
 assert(html.includes('data-create-template="project"'), 'Create template switch should include Game Info');
+assert(html.includes('data-create-template="variables"'), 'Create template switch should include Variables');
 assert(html.includes('data-view="surfaceText"'), 'Explore navigation should include Surface Text');
 assert(html.includes('data-mode="design"'), 'Direction C Design mode should be exposed in the top-level mode switch');
 assert(html.includes('design-search-shell'), 'Design mode should place search in the Atelier topbar');
@@ -133,10 +140,12 @@ assert(html.includes('id="play-surface-form"'), 'Create mode should expose the P
 assert(html.includes('id="workspace-layout-form"'), 'Create mode should expose the Workspace Layout form');
 assert(html.includes('id="sidebar-status-form"'), 'Create mode should expose the Sidebar / Status form');
 assert(html.includes('id="project-metadata-form"'), 'Create mode should expose the Game Info form');
+assert(html.includes('id="variable-editor-form"'), 'Create mode should expose the Variable Editor form');
 assert(html.includes('id="event-readiness-checklist"'), 'Event editor should expose playable-event readiness checks');
 assert(html.includes('id="event-route-summary"'), 'Event editor should expose routing summary chips');
 assert(html.includes('data-i18n="create.section.playerScene"'), 'Event editor should prioritize player-facing scene fields');
 assert(html.includes('id="project-metadata-evidence"'), 'Create mode should expose Game Info source evidence');
+assert(html.includes('id="variable-editor-evidence"'), 'Create mode should expose variable source evidence');
 assert(html.includes('id="entry-playability-checklist"'), 'Entry & Sidebar should expose first-playable readiness checks');
 assert(html.includes('id="entry-route-map"'), 'Entry & Sidebar should expose a compact playable route map');
 assert(html.includes('id="play-surface-readiness"'), 'Playable Surface should expose hand/deck/card/advisor readiness checks');
@@ -189,6 +198,7 @@ assert(i18nUi.includes("'draftWorkspace.template.play_surface'"), 'saved changes
 assert(i18nUi.includes("'draftWorkspace.template.workspace_layout'"), 'saved changes should label Workspace Layout drafts');
 assert(i18nUi.includes("'draftWorkspace.template.sidebar_status'"), 'saved changes should label Sidebar / Status drafts');
 assert(i18nUi.includes("'draftWorkspace.template.project'"), 'saved changes should label Game Info drafts');
+assert(i18nUi.includes("'draftWorkspace.template.variables'"), 'saved changes should label Variable Editor drafts');
 assert(i18nUi.includes("'install.runtimePreview'"), 'Runtime Preview action should be localized');
 assert(i18nUi.includes("'existingScene.editExisting'"), 'Edit existing action should be localized');
 assert(i18nUi.includes("'existingScene.copyAsNew'"), 'Copy as new proposal action should be localized');
@@ -264,6 +274,8 @@ assert(entryUi.includes('renderPlayability'), 'Entry & Sidebar UI should render 
 assert(entryUi.includes('renderRouteMap'), 'Entry & Sidebar UI should render a compact playable route map');
 assert(projectMetadataUi.includes('ProjectMapProjectMetadataDraft'), 'Game Info UI should use the shared project metadata draft model');
 assert(projectMetadataUi.includes('project-metadata-review-install'), 'Game Info UI should route metadata drafts to Review & Apply');
+assert(variableEditorUi.includes('ProjectMapVariableEditorDraft'), 'Variable Editor UI should use the shared variable draft model');
+assert(variableEditorUi.includes('variable-editor-review-install'), 'Variable Editor UI should route variable drafts to Review & Apply');
 
 assert(installUi.includes('renderHumanChecklist'), 'Install should render a human checklist before raw technical details');
 assert(installUi.includes('install.human.safeApply'), 'Install should translate safe_apply into player-facing labels');
@@ -306,6 +318,8 @@ assert(workspaceLayoutDraft.includes('sidebar_category'), 'Workspace Layout draf
 assert(sidebarStatusDraft.includes('sidebar_status_section'), 'Sidebar / Status draft should replace source-backed sections');
 assert(sidebarStatusDraft.includes('replace_section'), 'Sidebar / Status draft should use guarded section replacement');
 assert(sidebarStatusDraft.includes('sidebar_status_create_status_scene'), 'Sidebar / Status draft should create a status scene for missing source-backed sidebar');
+assert(variableEditorDraft.includes('buildVariableModel'), 'Variable Editor draft should expose a ProjectIndex variable model');
+assert(variableEditorDraft.includes('variable_root_init'), 'Variable Editor draft should generate guarded root initialization for new variables');
 assert(playSurfaceUi.includes('sendOutputToInstall'), 'Playable Surface UI should route drafts to Review & Apply');
 assert(playSurfaceDraft.includes('buildSurfaceModel'), 'Playable Surface model should derive source-backed workspace surfaces');
 assert(playSurfaceDraft.includes("draftKind: PLAY_SURFACE_KIND"), 'Playable Surface model should build a typed install plan');

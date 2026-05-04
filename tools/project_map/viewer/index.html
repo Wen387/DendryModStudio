@@ -23,7 +23,7 @@
         <div class="brand-copy">
           <div class="wordmark">Dendry <span>Mod Studio</span></div>
           <div class="brand-meta">
-            <span data-i18n="topbar.version">Dendry Mod Studio v0.92.2 dev preview</span>
+            <span data-i18n="topbar.version">Dendry Mod Studio v0.9.3 dev preview</span>
             <a href="https://github.com/Wen387" target="_blank" rel="noreferrer" data-i18n="topbar.author">by Wenmo</a>
           </div>
           <div id="brand-subtitle" class="brand-subtitle" data-i18n="topbar.subtitle.default">Studio workspace for branching Dendry projects</div>
@@ -476,6 +476,7 @@
           <button class="template-button" type="button" role="tab" aria-selected="false" data-create-template="surface" data-i18n="create.editText">Edit Text</button>
           <button class="template-button" type="button" role="tab" aria-selected="false" data-create-template="entry" data-i18n="create.entrySidebar">Entry &amp; Sidebar</button>
           <button class="template-button" type="button" role="tab" aria-selected="false" data-create-template="project" data-i18n="create.gameInfo">Game Info</button>
+          <button class="template-button" type="button" role="tab" aria-selected="false" data-create-template="variables" data-i18n="create.variables">Variables</button>
         </div>
       </section>
 
@@ -621,6 +622,182 @@
               <button id="project-metadata-download-notes" type="button" data-i18n="create.downloadInstallNotes">Download install notes</button>
               <button id="project-metadata-download-plan" type="button" data-i18n="create.downloadInstallPlan">Download install plan</button>
               <button id="project-metadata-download-patch" type="button" data-i18n="create.downloadPatchPreview">Download patch preview</button>
+            </div>
+          </details>
+        </div>
+      </aside>
+
+      <section class="wizard-form-panel hidden" aria-labelledby="variable-editor-heading-label" data-create-template-panel="variables">
+        <div class="wizard-title-row">
+          <div>
+            <h1 id="variable-editor-heading-label" class="wizard-title" data-i18n="create.variableEditorWizard">Variable Editor</h1>
+            <div id="variable-editor-core-status" class="wizard-status" data-i18n="create.status.variableEditorCorePending">Variable editor model pending.</div>
+          </div>
+          <div class="wizard-status-stack">
+            <label class="draft-file-picker">
+              <span data-i18n="create.loadVariableEditorDraftJson">Load variable JSON</span>
+              <input id="variable-editor-draft-file" type="file" accept="application/json,.json">
+            </label>
+            <div id="variable-editor-draft-status" class="wizard-index-status" data-i18n="create.status.noVariableEditorDraftLoaded">No variable draft loaded.</div>
+            <div id="variable-editor-index-status" class="wizard-index-status" data-i18n="create.status.noIndexLoaded">No index loaded.</div>
+          </div>
+        </div>
+
+        <form id="variable-editor-form" class="wizard-form">
+          <div class="wizard-guidance" data-i18n="create.guidance.variableEditor">
+            Select an existing ProjectIndex variable to inspect and prepare manual edits, or add a new Q variable with guarded root initialization.
+          </div>
+
+          <section class="metadata-evidence-panel" aria-label="Variable source evidence" data-i18n-aria-label="variableEditor.evidenceAria">
+            <div>
+              <strong data-i18n="variableEditor.evidenceTitle">Variable evidence</strong>
+              <p data-i18n="variableEditor.evidenceBody">Studio shows reads, writes, and source-backed definition hints before any variable change reaches Review &amp; Apply.</p>
+            </div>
+            <div id="variable-editor-evidence" class="metadata-evidence-grid"></div>
+          </section>
+
+          <fieldset class="wizard-section">
+            <legend data-i18n="create.section.variableDraft">Draft</legend>
+            <div class="field-grid">
+              <label>
+                <span data-i18n="create.field.id">id</span>
+                <input id="variable-editor-id" name="id" type="text" value="variable_editor" autocomplete="off">
+                <small class="wizard-field-help" data-i18n="create.help.id">Internal file-safe name; players do not see it, but install plans use it.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.title">title</span>
+                <input id="variable-editor-title" name="title" type="text" value="Variable Editor Update" data-i18n-value="create.sample.variableEditorTitle">
+                <small class="wizard-field-help" data-i18n="create.help.variableDraftTitle">Short editor label for finding this variable proposal later.</small>
+              </label>
+            </div>
+          </fieldset>
+
+          <fieldset class="wizard-section">
+            <legend data-i18n="create.section.variableDetails">Variable</legend>
+            <div class="field-grid">
+              <label>
+                <span data-i18n="create.field.mode">mode</span>
+                <select id="variable-editor-mode" name="mode">
+                  <option value="edit_existing" data-i18n="create.option.editExisting">Edit existing</option>
+                  <option value="add_new" data-i18n="create.option.addNew">Add new</option>
+                </select>
+                <small class="wizard-field-help" data-i18n="create.help.variableMode">Existing variables stay manual-review; new variables can generate guarded root initialization.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.variableName">variable name</span>
+                <input id="variable-editor-name" name="variableName" type="text" list="variable-editor-options" value="new_variable" autocomplete="off">
+                <datalist id="variable-editor-options"></datalist>
+                <small class="wizard-field-help" data-i18n="create.help.variableName">Use the bare Q name, without the Q. prefix.</small>
+              </label>
+            </div>
+            <div class="field-grid">
+              <label>
+                <span data-i18n="create.field.variableLabel">label</span>
+                <input id="variable-editor-label" name="label" type="text" value="New Variable">
+                <small class="wizard-field-help" data-i18n="create.help.variableLabel">Human-readable label for generated quality metadata and review notes.</small>
+              </label>
+              <label>
+                <span data-i18n="create.field.valueType">value type</span>
+                <select id="variable-editor-value-type" name="valueType">
+                  <option value="number" data-i18n="create.option.number">Number</option>
+                  <option value="boolean" data-i18n="create.option.boolean">Boolean</option>
+                  <option value="string" data-i18n="create.option.string">String</option>
+                </select>
+                <small class="wizard-field-help" data-i18n="create.help.variableType">Controls how the initialization value is rendered in source.</small>
+              </label>
+            </div>
+            <label class="wide-field">
+              <span data-i18n="create.field.initialValue">initial value</span>
+              <input id="variable-editor-initial" name="initialValue" type="text" value="0">
+              <small class="wizard-field-help" data-i18n="create.help.variableInitialValue">Default value used when a new save has not seen this Q variable before.</small>
+            </label>
+            <label class="wide-field">
+              <span data-i18n="create.field.description">description</span>
+              <textarea id="variable-editor-description" name="description" rows="4"></textarea>
+              <small class="wizard-field-help" data-i18n="create.help.variableDescription">Review note for why the variable exists and where gameplay should consume it.</small>
+            </label>
+            <div class="field-grid">
+              <label class="checkbox-field">
+                <input id="variable-editor-root-init" type="checkbox" checked>
+                <span data-i18n="create.field.includeRootInit">include root initialization</span>
+                <small class="wizard-field-help" data-i18n="create.help.includeRootInit">Adds a guarded insert before the known root event-flag anchor.</small>
+              </label>
+              <label class="checkbox-field">
+                <input id="variable-editor-post-event-init" type="checkbox">
+                <span data-i18n="create.field.includePostEventInit">include post_event compatibility snippet</span>
+                <small class="wizard-field-help" data-i18n="create.help.includePostEventInit">Exports a manual snippet for projects that also initialize variables in post_event.</small>
+              </label>
+              <label class="checkbox-field">
+                <input id="variable-editor-quality-file" type="checkbox" checked>
+                <span data-i18n="create.field.includeQualityFile">include quality file</span>
+                <small class="wizard-field-help" data-i18n="create.help.includeQualityFile">Generates a quality.dry file for manual review when the project uses qualities.</small>
+              </label>
+            </div>
+          </fieldset>
+        </form>
+      </section>
+
+      <aside class="wizard-preview-panel hidden" aria-label="Variable editor previews" data-i18n-aria-label="create.variableEditorPreviewAria" data-create-template-panel="variables">
+        <section class="wizard-diagnostics">
+          <div class="preview-heading" data-i18n="create.diagnostics">Diagnostics</div>
+          <div id="variable-editor-diagnostics"></div>
+        </section>
+
+        <section class="preview-drawer" aria-label="Variable editor output" data-i18n-aria-label="create.variableEditorOutputAria">
+          <div class="preview-heading output-heading" data-i18n="create.output">Output</div>
+          <div class="output-tabs" role="tablist" aria-label="Generated variable editor output" data-i18n-aria-label="create.generatedVariableEditorOutputAria">
+            <button class="output-tab is-active" type="button" role="tab" aria-selected="true" data-variable-editor-preview-tab="preview" data-i18n="create.preview">Player preview</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-variable-editor-preview-tab="quality" data-i18n="create.qualityFile">Quality file</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-variable-editor-preview-tab="draft" data-i18n="create.draftJson">Draft JSON</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-variable-editor-preview-tab="patch" data-i18n="create.patchPreview">Patch preview</button>
+            <button class="output-tab" type="button" role="tab" aria-selected="false" data-variable-editor-preview-tab="install" data-i18n="create.install">Install</button>
+          </div>
+
+          <section class="preview-block is-active" data-variable-editor-preview-panel="preview">
+            <div class="preview-heading" data-i18n="create.preview">Player preview</div>
+            <pre id="variable-editor-player-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block" data-variable-editor-preview-panel="quality" hidden>
+            <div class="preview-heading" data-i18n="create.qualityFile">Quality file</div>
+            <pre id="variable-editor-quality-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block" data-variable-editor-preview-panel="draft" hidden>
+            <div class="preview-heading" data-i18n="create.variableEditorDraftJson">Variable draft JSON</div>
+            <pre id="variable-editor-json-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block" data-variable-editor-preview-panel="install" hidden>
+            <div class="preview-heading" data-i18n="create.installNotes">install notes</div>
+            <pre id="variable-editor-install-preview" class="code-preview"></pre>
+          </section>
+
+          <section class="preview-block" data-variable-editor-preview-panel="patch" hidden>
+            <div class="preview-heading" data-i18n="create.patchPreview">patch preview</div>
+            <pre id="variable-editor-patch-preview" class="code-preview"></pre>
+          </section>
+        </section>
+
+        <div class="wizard-actions">
+          <div class="wizard-action-group wizard-action-primary">
+            <div class="wizard-action-copy">
+              <strong data-i18n="create.action.recommendedNext">Recommended next step</strong>
+              <span data-i18n="create.action.reviewHelp">Review what can be applied, what needs checking, and what remains manual.</span>
+            </div>
+            <button id="variable-editor-review-install" class="primary-action" type="button" data-i18n="create.reviewInstall">Review &amp; Apply</button>
+          </div>
+          <details class="wizard-action-group wizard-action-advanced">
+            <summary>
+              <span data-i18n="create.action.advancedDownloads">Advanced downloads</span>
+              <small data-i18n="create.action.advancedHelp">Draft JSON, install notes, install plan, patch preview, and router snippets.</small>
+            </summary>
+            <div class="wizard-action-row">
+              <button id="variable-editor-download-json" type="button" data-i18n="create.saveVariableEditorDraftJson">Save variable draft JSON</button>
+              <button id="variable-editor-download-quality" type="button" data-i18n="create.downloadQualityFile">Download quality file</button>
+              <button id="variable-editor-download-notes" type="button" data-i18n="create.downloadInstallNotes">Download install notes</button>
+              <button id="variable-editor-download-plan" type="button" data-i18n="create.downloadInstallPlan">Download install plan</button>
+              <button id="variable-editor-download-patch" type="button" data-i18n="create.downloadPatchPreview">Download patch preview</button>
             </div>
           </details>
         </div>
@@ -2552,6 +2729,7 @@ media_reach += 1</textarea>
   <script src="../authoring/workspace_layout_draft.js"></script>
   <script src="../authoring/sidebar_status_draft.js"></script>
   <script src="../authoring/project_metadata_draft.js"></script>
+  <script src="../authoring/variable_editor_draft.js"></script>
   <script src="../authoring/draft_extract.js"></script>
   <script src="../authoring/existing_scene_edit_model.js"></script>
   <script src="../authoring/variable_suggestions.js"></script>
@@ -2575,6 +2753,7 @@ media_reach += 1</textarea>
   <script src="workspace_layout_ui.js"></script>
   <script src="sidebar_status_ui.js"></script>
   <script src="project_metadata_ui.js"></script>
+  <script src="variable_editor_ui.js"></script>
   <script src="install_assistant_ui.js"></script>
   <script src="draft_workspace_ui.js"></script>
   <script src="existing_scene_edit_ui.js"></script>

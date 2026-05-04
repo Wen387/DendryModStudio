@@ -11,6 +11,7 @@
     surface: 'Text',
     entry: 'Entry & Sidebar',
     project: 'Game Info',
+    variables: 'Variables',
     existing: 'Existing edit'
   };
 
@@ -283,6 +284,7 @@
       surface: global.ProjectMapSurfaceTextWizard,
       entry: global.ProjectMapEntrySidebarWizard,
       project: global.ProjectMapProjectMetadataWizard,
+      variables: global.ProjectMapVariableEditorWizard,
       existing: global.ProjectMapExistingSceneEditor
     }[template] || null;
   }

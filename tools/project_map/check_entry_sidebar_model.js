@@ -8,6 +8,7 @@ const path = require('path');
 const entrySidebar = require('./authoring/entry_sidebar_draft.js');
 const installPlan = require('./authoring/install_plan.js');
 const core = require('./desktop/studio_core.js');
+const {pythonCommand} = require('./check_python_command.js');
 
 const ROOT = __dirname;
 const DESKTOP_DIR = path.join(ROOT, 'desktop');
@@ -159,7 +160,7 @@ async function main() {
     root: prepared.root,
     outDir: scratchRoot,
     includeExcerpts: false,
-    python: 'python3',
+    python: pythonCommand(),
     desktopDir: DESKTOP_DIR
   });
   assert(indexed.ok, 'starter demo should build a ProjectIndex for Entry/Sidebar model: ' + JSON.stringify(indexed.error || null));

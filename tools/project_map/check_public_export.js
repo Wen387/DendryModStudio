@@ -47,7 +47,11 @@ function listFilesRecursive(dir, prefix) {
 function listFiles() {
   const result = spawnSync('git', ['ls-files'], {cwd: ROOT, encoding: 'utf8'});
   if (result.status === 0 && result.stdout.trim()) {
-    return result.stdout.split(/\r?\n/).filter(Boolean).sort();
+    return result.stdout
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .filter((file) => exists(file))
+      .sort();
   }
   return listFilesRecursive(ROOT, '').sort();
 }
@@ -115,7 +119,7 @@ function main() {
     'package-lock.json',
     'README.zh-Hant.md',
     'PUBLIC_EXPORT_MANIFEST.json',
-    'docs/releases/v0.92.2-dev-preview.md',
+    'docs/releases/v0.9.3-dev-preview.md',
     'tools/project_map/README.md',
     'tools/project_map/WORKFLOW.md',
     'tools/project_map/check_public_export.js',
@@ -127,7 +131,7 @@ function main() {
     'tools/project_map/desktop/package.json',
     'tools/project_map/desktop/build/installer.nsh',
     'tools/project_map/desktop/update_manifest.json',
-    'tools/project_map/RELEASE_NOTES_v0.92.2.md',
+    'tools/project_map/RELEASE_NOTES_v0.9.3.md',
     'tools/project_map/templates/starter-demo/source/info.dry',
     'studio_contract/contract.json',
     'studio_contract/parser_fixture/source/info.dry',

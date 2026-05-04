@@ -5,6 +5,9 @@ const {app, BrowserWindow, dialog, ipcMain, shell} = require('electron');
 const core = require('./studio_core');
 const updateNotice = require('./update_notice');
 
+const APP_ID = 'studio.dendry.mod';
+const WINDOWS_ICON = path.join(__dirname, 'assets', 'dendry-mod-studio.ico');
+
 let mainWindow = null;
 let lastProject = null;
 
@@ -34,7 +37,7 @@ function chooseProjectRootForOperation(options) {
 
 function createWindow() {
   const paths = core.resolveResourcePaths({desktopDir: __dirname});
-  mainWindow = new BrowserWindow({
+  const windowOptions = {
     width: 1320,
     height: 860,
     minWidth: 980,
@@ -46,7 +49,11 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true
     }
-  });
+  };
+  if (process.platform === 'win32') {
+    windowOptions.icon = WINDOWS_ICON;
+  }
+  mainWindow = new BrowserWindow(windowOptions);
   mainWindow.loadFile(paths.viewerIndex);
 }
 
@@ -262,6 +269,10 @@ ipcMain.handle('dendry:open-external-url', async (_event, options) => {
   await shell.openExternal(parsed.href);
   return {ok: true};
 });
+
+if (process.platform === 'win32') {
+  app.setAppUserModelId(APP_ID);
+}
 
 app.whenReady().then(() => {
   createWindow();

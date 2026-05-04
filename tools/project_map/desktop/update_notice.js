@@ -107,7 +107,7 @@ function validateNoticeItem(item, index, diagnostics) {
     diagnostics.push('notices[' + index + '] must be an object');
     return;
   }
-  ['noticeId', 'kind', 'latestVersion', 'minimumRecommendedVersion', 'title', 'body', 'publishedAt', 'actionLabel'].forEach((key) => {
+  ['noticeId', 'kind', 'latestVersion', 'minimumRecommendedVersion', 'title', 'body', 'details', 'publishedAt', 'actionLabel'].forEach((key) => {
     if (item[key] !== undefined && typeof item[key] !== 'string') {
       diagnostics.push('notices[' + index + '].' + key + ' must be a string when present');
     }
@@ -126,6 +126,7 @@ function validateNoticeItem(item, index, diagnostics) {
   }
   validateLocalizedTextMap(item, 'titleLocalized', diagnostics);
   validateLocalizedTextMap(item, 'bodyLocalized', diagnostics);
+  validateLocalizedTextMap(item, 'detailsLocalized', diagnostics);
   validateLocalizedTextMap(item, 'actionLabelLocalized', diagnostics);
   ['downloadUrl', 'releaseNotesUrl', 'actionUrl'].forEach((key) => {
     if (item[key] !== undefined && item[key] !== '' && !isHttpUrl(item[key])) {
@@ -148,6 +149,11 @@ function validateManifest(manifest) {
   if (manifest.minimumRecommendedVersion !== undefined && typeof manifest.minimumRecommendedVersion !== 'string') {
     diagnostics.push('minimumRecommendedVersion must be a string when present');
   }
+  ['title', 'body', 'details', 'publishedAt', 'actionLabel'].forEach((key) => {
+    if (manifest[key] !== undefined && typeof manifest[key] !== 'string') {
+      diagnostics.push(key + ' must be a string when present');
+    }
+  });
   if (manifest.severity !== undefined && !SEVERITIES.has(String(manifest.severity))) {
     diagnostics.push('severity must be info, warning, or critical');
   }
@@ -156,6 +162,7 @@ function validateManifest(manifest) {
   }
   validateLocalizedTextMap(manifest, 'titleLocalized', diagnostics);
   validateLocalizedTextMap(manifest, 'bodyLocalized', diagnostics);
+  validateLocalizedTextMap(manifest, 'detailsLocalized', diagnostics);
   validateLocalizedTextMap(manifest, 'actionLabelLocalized', diagnostics);
   ['downloadUrl', 'releaseNotesUrl'].forEach((key) => {
     if (manifest[key] !== undefined && manifest[key] !== '' && !isHttpUrl(manifest[key])) {
@@ -206,6 +213,8 @@ function normalizeNoticeItem(manifest, item, options) {
   const kind = String(value.kind || (updateAvailable ? 'update' : 'announcement'));
   const title = String(value.title || manifest.title || (updateAvailable ? 'Dendry Mod Studio update available' : 'Dendry Mod Studio notice'));
   const body = String(value.body || manifest.body || '');
+  const details = String(value.details || manifest.details || body);
+  const bodyLocalized = Object.assign({}, localizedMap(manifest.bodyLocalized), localizedMap(value.bodyLocalized));
   const announcementOnly = value.announcementOnly !== undefined
     ? value.announcementOnly === true
     : manifest.announcementOnly === true;
@@ -232,8 +241,10 @@ function normalizeNoticeItem(manifest, item, options) {
     severity: String(value.severity || manifest.severity || (belowRecommended ? 'warning' : 'info')),
     title,
     body,
+    details,
     titleLocalized: Object.assign({}, localizedMap(manifest.titleLocalized), localizedMap(value.titleLocalized)),
-    bodyLocalized: Object.assign({}, localizedMap(manifest.bodyLocalized), localizedMap(value.bodyLocalized)),
+    bodyLocalized,
+    detailsLocalized: Object.assign({}, bodyLocalized, localizedMap(manifest.detailsLocalized), localizedMap(value.detailsLocalized)),
     actionLabel: String(value.actionLabel || manifest.actionLabel || ''),
     actionLabelLocalized: Object.assign({}, localizedMap(manifest.actionLabelLocalized), localizedMap(value.actionLabelLocalized)),
     downloadUrl: String(value.downloadUrl || manifest.downloadUrl || ''),
@@ -284,8 +295,10 @@ function evaluateManifest(manifest, options) {
     kind: primaryNotice.kind,
     title: primaryNotice.title,
     body: primaryNotice.body,
+    details: primaryNotice.details,
     titleLocalized: primaryNotice.titleLocalized,
     bodyLocalized: primaryNotice.bodyLocalized,
+    detailsLocalized: primaryNotice.detailsLocalized,
     actionLabel: primaryNotice.actionLabel,
     actionLabelLocalized: primaryNotice.actionLabelLocalized,
     downloadUrl: primaryNotice.downloadUrl,

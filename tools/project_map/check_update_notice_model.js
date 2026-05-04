@@ -64,6 +64,8 @@ async function main() {
   assert(manifest.notices.some((notice) => notice.kind === 'contact'), 'bundled update manifest should include contact actions');
   assert(manifest.titleLocalized && manifest.titleLocalized['zh-Hant'], 'bundled update manifest should include zh-Hant title');
   assert(manifest.bodyLocalized && manifest.bodyLocalized['zh-Hant'], 'bundled update manifest should include zh-Hant body');
+  assert(manifest.detailsLocalized && manifest.detailsLocalized['zh-Hant'], 'bundled update manifest should include zh-Hant details');
+  assert(manifest.notices.every((notice) => notice.details && notice.detailsLocalized), 'bundled notice feed should include detail copy');
   assert(updateNotice.compareVersions('0.9.2', '0.9.3') < 0, 'compareVersions should detect newer patch releases');
   assert(updateNotice.compareVersions('v0.10.0', '0.9.9') > 0, 'compareVersions should handle v-prefixed versions');
 
@@ -245,6 +247,7 @@ async function main() {
   assert(read(path.join(VIEWER_DIR, 'update_notice_ui.js')).includes('localizedNoticeField'), 'viewer should render localized update notice title/body');
   assert(read(path.join(VIEWER_DIR, 'update_notice_ui.js')).includes('categoryForNotice'), 'viewer should group notice preview items by category');
   assert(read(path.join(VIEWER_DIR, 'update_notice_ui.js')).includes('showNoticeDetail'), 'viewer should preview notice details in-app before opening external links');
+  assert(read(path.join(VIEWER_DIR, 'update_notice_ui.js')).includes("localizedNoticeField(notice, 'details'"), 'viewer detail panel should render detail copy, not just the summary body');
   assert(mainJs.includes('dendry:open-external-url'), 'desktop main should expose safe external link IPC');
   assert(preloadJs.includes('checkUpdateNotice'), 'preload should expose checkUpdateNotice');
   assert(preloadJs.includes('openExternalUrl'), 'preload should expose openExternalUrl');

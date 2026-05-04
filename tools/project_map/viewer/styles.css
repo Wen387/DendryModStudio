@@ -4201,9 +4201,9 @@ body[data-mode="create"] .topbar {
 
 .create-template-header {
   grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(180px, max-content) minmax(0, 1fr);
+  align-items: start;
   gap: 12px;
   min-width: 0;
   padding: 10px 12px;
@@ -4314,9 +4314,11 @@ body[data-mode="create"] .topbar {
 }
 
 .template-switch {
-  display: inline-grid;
-  grid-template-columns: repeat(2, minmax(112px, 1fr));
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
   gap: 3px;
+  width: 100%;
+  min-width: 0;
   padding: 3px;
   border: 1px solid var(--border);
   border-radius: 7px;
@@ -4325,11 +4327,13 @@ body[data-mode="create"] .topbar {
 
 .template-button {
   min-height: 32px;
+  min-width: 0;
   border: 1px solid transparent;
   border-radius: 5px;
   background: transparent;
   color: var(--muted);
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .template-button:hover {
@@ -5267,8 +5271,7 @@ body[data-mode="create"] .topbar {
   }
 
   .create-template-header {
-    align-items: stretch;
-    flex-direction: column;
+    grid-template-columns: 1fr;
   }
 
   .draft-workspace-panel {

@@ -478,7 +478,10 @@
         '</div>';
       return;
     }
-    const filtered = notices.filter((notice) => categoryForNotice(notice) === state.activeCategory);
+    const detailKey = noticeKey(state.detailNotice);
+    const filtered = notices
+      .filter((notice) => categoryForNotice(notice) === state.activeCategory)
+      .filter((notice) => !detailKey || noticeKey(notice) !== detailKey);
     if (!filtered.length) {
       state.elements.boardList.innerHTML = '<div class="announcement-board-empty">' +
         escapeHtml(t('announcementBoard.emptyCategory', 'No notices in {category}.')
@@ -662,13 +665,14 @@
       if (notice.publishedAt) {
         parts.push(notice.publishedAt);
       }
-      state.elements.boardDetailMeta.textContent = parts.join(' · ');
+      state.elements.boardDetailMeta.textContent = parts.join(' - ');
     }
     if (state.elements.boardDetailTitle) {
       state.elements.boardDetailTitle.textContent = localizedNoticeField(notice, 'title', t('updateNotice.titleFallback', 'Dendry Mod Studio notice'));
     }
     if (state.elements.boardDetailBody) {
-      state.elements.boardDetailBody.innerHTML = renderDetailBody(localizedNoticeField(notice, 'body', ''));
+      const details = localizedNoticeField(notice, 'details', localizedNoticeField(notice, 'body', ''));
+      state.elements.boardDetailBody.innerHTML = renderDetailBody(details);
     }
     if (state.elements.boardDetailActions) {
       state.elements.boardDetailActions.innerHTML = renderDetailActions(notice);
@@ -721,7 +725,7 @@
     state.elements.title.textContent = localizedNoticeField(notice, 'title', t('updateNotice.titleFallback', 'Dendry Mod Studio notice'));
     state.elements.body.textContent = localizedNoticeField(notice, 'body', '');
     setActionVisibility(state.elements.download, notice.downloadUrl);
-    setActionVisibility(state.elements.releaseNotes, noticeKey(notice) || notice.body || notice.releaseNotesUrl || notice.actionUrl);
+    setActionVisibility(state.elements.releaseNotes, noticeKey(notice) || notice.body || notice.details || notice.releaseNotesUrl || notice.actionUrl);
   }
 
   function kindLabel(notice) {

@@ -5,6 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const {spawnSync} = require('child_process');
+const {pythonCommand} = require('./check_python_command.js');
 
 const ROOT = __dirname;
 const REPO_ROOT = path.resolve(ROOT, '..', '..');
@@ -15,7 +16,7 @@ const workspaceLayout = require('./authoring/workspace_layout_draft.js');
 const installPlan = require('./authoring/install_plan.js');
 
 function buildIndex(root, outPath) {
-  const result = spawnSync('python3', [
+  const result = spawnSync(pythonCommand(), [
     path.join(ROOT, 'build_project_map.py'),
     '--root',
     root,

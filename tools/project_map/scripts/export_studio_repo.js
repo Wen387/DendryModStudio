@@ -101,8 +101,10 @@ function trackedFiles() {
 }
 
 function includeFile(relativePath) {
-  return relativePath.startsWith('tools/project_map/') ||
+  return relativePath.startsWith('docs/') ||
+    relativePath.startsWith('tools/project_map/') ||
     relativePath.startsWith('studio_contract/') ||
+    relativePath === 'package-lock.json' ||
     relativePath === 'tools/check_studio_contract.js';
 }
 
@@ -143,7 +145,7 @@ function sanitizeExport(destRoot, commit) {
   const updateManifest = readJson(manifestPath);
   updateManifest.downloadUrl = 'https://github.com/' + TARGET_REPO + '/releases';
   updateManifest.releaseNotesUrl =
-    'https://raw.githubusercontent.com/' + TARGET_REPO + '/main/tools/project_map/RELEASE_NOTES_v0.92.2.md';
+    'https://raw.githubusercontent.com/' + TARGET_REPO + '/main/tools/project_map/RELEASE_NOTES_v0.9.3.md';
   writeJson(manifestPath, updateManifest);
 
   const profilePath = path.join(destRoot, 'tools/project_map/profiles/islands-sunrise.json');
@@ -242,187 +244,12 @@ function publicGitignore() {
 }
 
 function publicReadme() {
-  return [
-    '# Dendry Mod Studio',
-    '',
-    '[繁體中文](README.zh-Hant.md)',
-    '',
-    '[![Checks](https://github.com/Wen387/DendryModStudio/actions/workflows/ci.yml/badge.svg)](https://github.com/Wen387/DendryModStudio/actions/workflows/ci.yml)',
-    '[![Windows EXE](https://img.shields.io/badge/Download-Windows%20EXE-2563eb?style=for-the-badge&logo=windows)](https://github.com/Wen387/DendryModStudio/releases/latest/download/DendryModStudio-win-x64.exe)',
-    '[![Linux AppImage](https://img.shields.io/badge/Download-Linux%20AppImage-15803d?style=for-the-badge&logo=linux)](https://github.com/Wen387/DendryModStudio/releases/latest/download/DendryModStudio-linux-x64.AppImage)',
-    '[![Linux Deb](https://img.shields.io/badge/Download-Linux%20Deb-b45309?style=for-the-badge&logo=debian)](https://github.com/Wen387/DendryModStudio/releases/latest/download/DendryModStudio-linux-x64.deb)',
-    '',
-    'Dendry Mod Studio is a desktop tool for exploring and editing Dendry / DendryNexus projects. It helps mod authors inspect scenes, events, variables, assets, player-facing text, and install plans before changing project files.',
-    '',
-    'This repository contains the Studio source, desktop shell, compatibility fixtures, and release workflow used to build Dendry Mod Studio.',
-    '',
-    '## Status',
-    '',
-    'The current version is `v0.92.2`. It is an unsigned preview build, so Windows may show SmartScreen warnings. Release artifacts include the Python runtime used by the desktop indexer.',
-    '',
-    'The code in this repository is released under the MIT license.',
-    '',
-    '## Layout',
-    '',
-    '- `tools/project_map/` contains the Studio viewer, authoring models, desktop shell, schemas, fixtures, QA scenarios, and checks.',
-    '- `studio_contract/` contains the current IslandSunrise compatibility contract and parser fixture used by Studio compatibility checks.',
-    '- `PUBLIC_EXPORT_MANIFEST.json` records the repository package contents.',
-    '',
-    '## Quick Start',
-    '',
-    'Install the root dependencies once:',
-    '',
-    '```bash',
-    'npm ci',
-    '```',
-    '',
-    'Launch the browser viewer against a local project:',
-    '',
-    '```bash',
-    'python3 tools/project_map/launch_studio.py --no-open',
-    '```',
-    '',
-    'Then open the printed local URL in your browser.',
-    '',
-    'For the Electron desktop shell:',
-    '',
-    '```bash',
-    'cd tools/project_map/desktop',
-    'npm ci',
-    'npm run start',
-    '```',
-    '',
-    'First-time users can choose the bundled Demo Template from Quick Start. The desktop app copies that template into app data before opening it, so the packaged demo can be edited without mutating application resources.',
-    '',
-    '## Safety Model',
-    '',
-    '- Browser mode is review-only.',
-    '- Desktop mode can dry-run or apply only operations classified as safe, guarded, or explicitly advanced.',
-    '- Manual-review and refused operations are not applied.',
-    '- Runtime Preview builds temporary baseline/modified copies and does not patch the real project folder.',
-    '- Generated runtime output such as `out/html`, `out/game.json`, and `.git` is protected from automatic edits.',
-    '',
-    '## Update Notices',
-    '',
-    'The desktop app reads `tools/project_map/desktop/update_manifest.json` through a static raw GitHub URL. This is an announcement/update notice system, not a silent auto-updater. It opens release/download links only when the user clicks them.',
-    '',
-    '## Useful Checks',
-    '',
-    '```bash',
-    'npm run check:ci',
-    '```',
-    '',
-    'The GitHub Actions workflow runs the same core checks on every push and pull request.',
-    'Release preparation notes live in `docs/releases/v0.92.2-dev-preview.md`.',
-    '',
-    'Desktop release packaging is prepared through `.github/workflows/release.yml`.',
-    'Tagged pre-releases can build Windows `.exe`, Linux AppImage, and Linux Deb artifacts.',
-    '',
-    '## Repository Checks',
-    '',
-    'Before pushing changes, run:',
-    '',
-    '```bash',
-    'npm run check:ci',
-    'git status --short',
-    'git log --oneline --max-count=3',
-    '```',
-    '',
-    'Release builds are produced by GitHub Actions and should pass the checks above.',
-    '',
-    '## Reporting Issues',
-    '',
-    'When reporting a problem, include the Studio version, operating system, whether you used browser or desktop mode, and the action you were trying to complete. Do not upload private notes, access tokens, SSH private keys, or unreviewed save/project data.',
-    ''
-  ].join('\n');
+  return fs.readFileSync(path.join(REPO_ROOT, 'README.md'), 'utf8');
 }
 
 function publicReadmeZhHant() {
-  return [
-    '# Dendry Mod Studio',
-    '',
-    '[English](README.md)',
-    '',
-    '[![Checks](https://github.com/Wen387/DendryModStudio/actions/workflows/ci.yml/badge.svg)](https://github.com/Wen387/DendryModStudio/actions/workflows/ci.yml)',
-    '[![Windows EXE](https://img.shields.io/badge/下載-Windows%20EXE-2563eb?style=for-the-badge&logo=windows)](https://github.com/Wen387/DendryModStudio/releases/latest/download/DendryModStudio-win-x64.exe)',
-    '[![Linux AppImage](https://img.shields.io/badge/下載-Linux%20AppImage-15803d?style=for-the-badge&logo=linux)](https://github.com/Wen387/DendryModStudio/releases/latest/download/DendryModStudio-linux-x64.AppImage)',
-    '[![Linux Deb](https://img.shields.io/badge/下載-Linux%20Deb-b45309?style=for-the-badge&logo=debian)](https://github.com/Wen387/DendryModStudio/releases/latest/download/DendryModStudio-linux-x64.deb)',
-    '',
-    'Dendry Mod Studio 是給 Dendry / DendryNexus 專案使用的桌面工具。它幫助 Mod 作者檢查場景、事件、變數、素材、玩家可見文本與安裝計畫，先看清楚再修改專案檔案。',
-    '',
-    '這個 repo 包含 Studio source、桌面版 shell、相容性 fixture，以及用於建立 Dendry Mod Studio 的 release workflow。',
-    '',
-    '## 目前狀態',
-    '',
-    '目前版本是 `v0.92.2`。這是未簽章的 preview build，所以 Windows 可能會出現 SmartScreen 提示。Release artifacts 會包含桌面版 indexer 使用的 Python runtime。',
-    '',
-    '程式碼以 MIT license 發佈。',
-    '',
-    '## 下載',
-    '',
-    '最新測試版會放在 GitHub Releases：',
-    '',
-    '- Windows：`DendryModStudio-win-x64.exe`',
-    '- Linux AppImage：`DendryModStudio-linux-x64.AppImage`',
-    '- Linux Deb：`DendryModStudio-linux-x64.deb`',
-    '',
-    '上方按鈕使用 GitHub 的 latest non-draft Release。如果你把某次 build 標成 prerelease，請改用 Releases 頁面連結。',
-    '',
-    '## 快速開始',
-    '',
-    '安裝根目錄依賴：',
-    '',
-    '```bash',
-    'npm ci',
-    '```',
-    '',
-    '啟動瀏覽器版 Studio：',
-    '',
-    '```bash',
-    'python3 tools/project_map/launch_studio.py --no-open',
-    '```',
-    '',
-    '接著打開終端機列出的本機網址。',
-    '',
-    '啟動 Electron 桌面版：',
-    '',
-    '```bash',
-    'cd tools/project_map/desktop',
-    'npm ci',
-    'npm run start',
-    '```',
-    '',
-    '第一次使用時，可以從 Quick Start 載入內建 Demo Template。桌面版會把 demo 複製到 app data 內作為可寫專案，因此玩家可以直接在 demo 基礎上理解事件、選項、變數效果與條件。',
-    '',
-    '## 安全邊界',
-    '',
-    '- 瀏覽器版只做 review，不會直接套用修改。',
-    '- 桌面版只會 dry-run 或 apply 被分類為 safe、guarded、explicitly advanced 的操作。',
-    '- manual-review 與 refused 操作不會被自動套用。',
-    '- Runtime Preview 使用暫存 baseline / modified 複本，不會修改真實專案資料夾。',
-    '- `out/html`、`out/game.json`、`.git` 這類生成或版本控制輸出受到保護，不會被自動改寫。',
-    '',
-    '## 更新公告',
-    '',
-    '桌面版會讀取 `tools/project_map/desktop/update_manifest.json` 指向的靜態 GitHub raw URL。這是公告與更新通知系統，不是靜默自動更新器。只有使用者點擊時，才會開啟下載或 release notes 連結。',
-    '',
-    '## 常用檢查',
-    '',
-    '```bash',
-    'npm run check:ci',
-    '```',
-    '',
-    'GitHub Actions 會在每次 push / pull request 跑同一組核心檢查。發佈準備筆記在 `docs/releases/v0.92.2-dev-preview.md`。',
-    '',
-    '桌面版 `.exe` / AppImage / Deb 發佈流程由 `.github/workflows/release.yml` 準備。',
-    '',
-    '## 回報問題',
-    '',
-    '回報問題時，請附上 Studio 版本、作業系統、使用的是瀏覽器版或桌面版，以及你當時正在做的操作。請不要上傳私人筆記、access token、SSH private key，或未檢查過的完整遊戲 save / 專案資料。',
-    ''
-  ].join('\n');
+  return fs.readFileSync(path.join(REPO_ROOT, 'README.zh-Hant.md'), 'utf8');
 }
-
 function publicWorkflow() {
   return [
     '# Dendry Mod Studio Public Workflow',
@@ -555,33 +382,7 @@ function publicLicense() {
 }
 
 function publicPackageJson() {
-  return {
-    name: 'dendry-mod-studio',
-    version: '0.92.2',
-    private: true,
-    description: 'Desktop and browser tooling for Dendry Mod Studio.',
-    scripts: {
-      'check:public': 'node tools/project_map/check_public_export.js',
-      'check:contract': 'node tools/check_studio_contract.js --fixture-only',
-      'check:surface': 'node tools/project_map/check_studio_surface.js',
-      'check:localization': 'node tools/project_map/check_localization_surface.js',
-      'check:ci': [
-        'node tools/project_map/check_public_export.js',
-        'node tools/check_studio_contract.js --fixture-only',
-        'node tools/project_map/check_localization_surface.js',
-        'node tools/project_map/check_studio_surface.js',
-        'node tools/project_map/check_update_notice_model.js',
-        'node tools/project_map/check_entry_sidebar_model.js',
-        'node tools/project_map/check_starter_demo_model.js',
-        'node tools/project_map/check_player_like_qa_model.js',
-        'node tools/project_map/check_release_links_model.js'
-      ].join(' && ')
-    },
-    dependencies: {
-      dendrynexus: 'https://github.com/aucchen/dendrynexus/archive/aa4287ed2c03940c52b190c0a8c102b795ac1c79.tar.gz',
-      'parliament-svg': '^3.0.0'
-    }
-  };
+  return readJson(path.join(REPO_ROOT, 'package.json'));
 }
 
 function publicCiWorkflow() {
