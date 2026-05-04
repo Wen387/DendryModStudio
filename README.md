@@ -21,6 +21,14 @@ Download the latest preview build from [GitHub Releases](https://github.com/Wen3
 
 The badges point to GitHub's latest non-draft Release. If a build is published only as a prerelease, open the Releases page and choose the matching preview release there.
 
+### Platform Support
+
+The Studio is developed and tested primarily on Linux. Windows builds are provided and actively maintained, but may have more rough edges — please report any Windows-specific issues you encounter.
+
+macOS is not currently supported. The app is built on Electron, so a macOS build is technically feasible, and may be considered if demand grows. In the meantime, contributions toward macOS support or community forks are welcome.
+
+This is a hobby-driven project maintained in limited personal time. Platform coverage reflects that reality.
+
 ## First Run
 
 1. Install and open the desktop app.
@@ -52,6 +60,8 @@ The following are known limitations in the current preview. If you encounter any
 
 **Uneven mod support.** The Studio is developed and tested primarily against the original SDAAH and one unreleased first-party mod. Third-party mods that follow similar coding conventions to the original game will likely work, but compatibility is not guaranteed. If you hit a mod-specific issue, please include the mod name and version in your report — this information is often essential for diagnosis. Mods with highly idiosyncratic coding patterns may never be fully supported by the Studio; for these cases, direct source editing in an IDE remains the recommended workflow.
 
+**Large project performance.** Indexing and loading large mods can be noticeably slow. This is a known performance issue with no current fix. If you experience poor load times, including your hardware specs (CPU, RAM, disk type) in the report helps identify whether the bottleneck is I/O, parsing, or something else.
+
 ## What It Can Do
 
 - Explore scenes, events, cards, news, variables, assets, and diagnostics.
@@ -61,6 +71,43 @@ The following are known limitations in the current preview. If you encounter any
 - Dry-run safe changes in the desktop app.
 - Build Runtime Preview comparisons from temporary project copies.
 - Show update notices, release history, and testing/contact links from the bundled static manifest.
+
+## Reporting Issues
+
+You do not need to be a developer to file a useful bug report. If something looks wrong, crashes, or behaves unexpectedly, your report helps — even if you are not sure what caused it.
+
+### Where to report
+
+Open a GitHub Issue at [github.com/Wen387/DendryModStudio/issues](https://github.com/Wen387/DendryModStudio/issues). You will need a free GitHub account.
+
+### What to include
+
+A good report helps reproduce the problem. Try to cover as many of these as you can:
+
+1. **Studio version** — shown in the app's About or title bar (e.g. `v0.9.3`).
+2. **Operating system** — Windows 10, Windows 11, Ubuntu, etc.
+**Hardware specs** (if relevant) — CPU, RAM, and disk type (SSD/HDD). Particularly useful for performance-related reports such as slow loading or preview timeouts.
+3. **Desktop or browser mode.**
+4. **Which project** — the bundled Demo Template, the original SDAAH, or a third-party mod. If it is a mod, include the mod name and version — this is often the single most important detail for mod-related bugs.
+5. **What you did** — the steps that led to the problem, as specifically as you can. "I clicked Edit on the second event in chapter 3" is far more useful than "editing doesn't work."
+6. **What you expected to happen** vs. **what actually happened.**
+7. **Any error text or diagnostic message** — copy-paste is better than a screenshot of text, but a screenshot is better than nothing.
+
+If you are not sure whether something is a bug or just a feature that does not exist yet, report it anyway. The worst that happens is it gets recategorised.
+
+### What NOT to include
+
+Do not upload private access tokens, SSH keys, passwords, or personal save files. If reproducing the issue requires project files, either use the Demo Template or prepare a minimal test project that does not contain private data.
+
+## Feature Requests
+
+If you wish the Studio could do something it cannot, open a GitHub Issue with the title prefixed `[Feature Request]` and describe:
+
+- **What you are trying to accomplish** — not just "add X button," but the underlying task. "I want to preview how a card looks after I change its conditions" tells me more than "add a card preview button," because there may be multiple ways to solve the same problem.
+- **How you currently work around it** — if you are editing files manually, switching to another tool, or simply giving up, that context helps prioritise.
+- **Which mod or project type this matters for** — some requests may only make sense for specific game structures.
+
+Not every request will be implemented, and the Studio's scope is intentionally limited — it is meant to complement direct source editing, not replace it entirely. But knowing what real users actually need is the most valuable input the project can receive right now, so please do not hesitate.
 
 ## Safety Model
 
@@ -127,16 +174,3 @@ Desktop release packaging is handled by [.github/workflows/release.yml](.github/
 - Pushing a `v*` tag publishes a prerelease automatically.
 - Linux builds include AppImage and Deb packages.
 - Windows builds include an unsigned NSIS installer.
-
-## Reporting Issues
-
-When reporting a problem, include:
-
-- Studio version.
-- Operating system.
-- Browser or desktop mode.
-- Whether you used the Demo Template or your own project.
-- The action you were trying to complete.
-- Any visible diagnostic message.
-
-Do not upload private notes, access tokens, SSH private keys, unreviewed save files, or private project data unless you have intentionally prepared a safe reproduction project.
