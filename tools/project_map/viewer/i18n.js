@@ -3234,6 +3234,7 @@
         storeLocaleMode(LOCALE_MODE.MANUAL);
         localeMode = LOCALE_MODE.MANUAL;
       }
+      syncDocumentLanguage(locale);
       applyTranslations(global.document);
       syncLocaleSelect(locale);
       return;
@@ -3244,6 +3245,7 @@
       storeLocaleMode(LOCALE_MODE.MANUAL);
       localeMode = LOCALE_MODE.MANUAL;
     }
+    syncDocumentLanguage(locale);
     syncLocaleSelect();
     applyTranslations(global.document);
     if (global.document) {
@@ -3252,6 +3254,13 @@
         bubbles: true
       }));
     }
+  }
+
+  function syncDocumentLanguage(nextLocale) {
+    if (!global.document || !global.document.documentElement) {
+      return;
+    }
+    global.document.documentElement.lang = nextLocale === 'zh-Hant' ? 'zh-Hant' : 'en';
   }
 
   function syncLocaleSelect(nextLocale) {
@@ -3332,6 +3341,7 @@
       syncLocaleSelect(locale);
       select.addEventListener('change', () => setLocale(select.value));
     }
+    syncDocumentLanguage(locale);
     applyTranslations(global.document);
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
