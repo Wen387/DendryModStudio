@@ -42,6 +42,20 @@ To open your own project, choose a folder that contains:
 ```text
 source/info.dry
 ```
+## Community Mods
+
+The following community mods are known to work with Dendry and can be opened in the Studio. Compatibility varies — see Known Issues for details.
+
+- [Social Democracy: An Alternate History](https://github.com/aucchen/social_democracy_alternate_history) (original,well tested)
+- [Dynamic Social Democracy](https://github.com/originn0/dynamic_social_democracy) (partial tested)
+- [2 Steps, 1 Leap](https://github.com/passionario/2steps_1leap)
+- [Social Democracy Redux](https://github.com/cuttlecraft/social_democracy_redux)
+- [Biennio Rosso: An Alternate History](https://github.com/AwesDes/biennio_rosso_alternate_history)
+
+To open a community mod in the Studio: click the green **Code** button on its GitHub page, choose **Download ZIP**, and extract the archive. Then use **Open Project** in the Studio and select the extracted folder.
+
+Note that third-party mods may use coding patterns the Studio does not fully support. If you encounter issues, please include the mod name and version in your report.
+
 ## Preview Disclaimer
 
 Dendry Mod Studio is in early preview. It is published primarily to gather feedback on real-world usage, identify missing features, and surface environment-specific issues — not as a production-ready modding tool.
