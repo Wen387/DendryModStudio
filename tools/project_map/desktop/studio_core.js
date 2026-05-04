@@ -264,7 +264,10 @@ function checkPython(options) {
     windowsHide: true
   });
   const versionText = String(result.stdout || result.stderr || '').trim();
-  if (result.error && result.status !== 0 && !versionText) {
+  if (
+    (result.error && result.status !== 0 && !versionText) ||
+    isPythonUnavailable(versionText, result.error && result.error.code)
+  ) {
     return {
       ok: false,
       code: 'python_missing',
@@ -328,6 +331,21 @@ function checkScratchDir(outDir) {
       message: 'Dendry Mod Studio could not write to its scratch folder.'
     };
   }
+}
+
+function isPythonUnavailable(versionText, errorCode) {
+  if (errorCode === 'ENOENT') {
+    return true;
+  }
+  const lowered = String(versionText || '').toLowerCase();
+  return (
+    lowered.includes('python was not found') ||
+    lowered.includes('is not recognized') ||
+    lowered.includes('not recognized as an internal or external command') ||
+    lowered.includes('no such file or directory') ||
+    lowered.includes('no such file') ||
+    lowered.includes('cannot find the path specified')
+  );
 }
 
 function friendlyError(error) {
