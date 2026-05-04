@@ -1,10 +1,10 @@
-# Dendry Mod Studio v0.92.1 Dev Preview Notes
+# Dendry Mod Studio v0.92.2 Dev Preview Notes
 
 Date: 2026-05-03
 
 ## Status
 
-v0.92.1 is an unsigned developer-facing preview build. It advances the package
+v0.92.2 is an unsigned developer-facing preview build. It advances the package
 version from v0.9.2 so Windows, Deb, and update-notice metadata can recognize a
 real upgrade instead of another same-version rebuild.
 
@@ -21,13 +21,13 @@ must be rebuilt and retested before sharing.
 
 ## What Changed Since v0.9.2
 
-- The root and desktop package versions are now `0.92.1`.
+- The root and desktop package versions are now `0.92.2`.
 - Windows and Linux release builds fetch and package a bundled Python runtime
   before building desktop artifacts.
 - The Windows NSIS installer includes a cleanup script for stale packaged app
   runtime and Project Map resources during upgrade installs.
 - The bundled update manifest now reports `latestVersion` and
-  `minimumRecommendedVersion` as `0.92.1`.
+  `minimumRecommendedVersion` as `0.92.2`.
 
 ## Known Limits
 

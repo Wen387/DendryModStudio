@@ -1,8 +1,8 @@
 # Dendry Mod Studio Desktop Packaging Notes
 
-## v0.92.1 Dev Preview Scope
+## v0.92.2 Dev Preview Scope
 
-v0.92.1 aligns the desktop feasibility package with the current Mod Studio
+v0.92.2 aligns the desktop feasibility package with the current Mod Studio
 source/dev preview. It includes the v0.9 authoring and review surface, Existing
 Scene Editor condition edits, variable candidates, Runtime Preview sandbox /
 debug bridge, the latest localization/version cleanup, and the Explore / Design
@@ -49,7 +49,7 @@ runtime.
 resource directories during upgrade uninstall so preview rebuilds don't keep a
 stale app payload in place.
 
-2026-05-03 version note: the preview package version was advanced to v0.92.1 so
+2026-05-03 version note: the preview package version was advanced to v0.92.2 so
 Windows, Deb, and update-notice metadata can distinguish this build from older
 v0.9.2 preview artifacts.
 
@@ -171,7 +171,7 @@ bundled runtime in doctor output and may depend on system Python 3.
 - `.exe` is produced by the release workflow on Windows.
 - Code signing, public maintainer metadata, full clean-VM dependency curation,
   uninstall UX beyond normal package-manager behavior, and full update channels
-  are not part of v0.92.1. The current update notice path only polls a static
+  are not part of v0.92.2. The current update notice path only polls a static
   manifest and opens manual links after a user action; it is not an auto-install
   updater.
 

@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "channel": "dev-preview",
-  "latestVersion": "0.92.1",
-  "minimumRecommendedVersion": "0.92.1",
+  "latestVersion": "0.92.2",
+  "minimumRecommendedVersion": "0.92.2",
   "severity": "info",
-  "noticeId": "v0.92.1-preview-announcement-2026-05-03",
+  "noticeId": "v0.92.2-preview-announcement-2026-05-03",
   "title": "Dendry Mod Studio preview channel notice",
   "titleLocalized": {
     "en": "Dendry Mod Studio preview channel notice",
@@ -18,14 +18,14 @@
   "announcementOnly": true,
   "notices": [
     {
-      "noticeId": "v0.92.1-release-history-2026-05-03",
+      "noticeId": "v0.92.2-release-history-2026-05-03",
       "kind": "release",
       "severity": "info",
       "notify": false,
-      "title": "v0.92.1 preview release notes",
+      "title": "v0.92.2 preview release notes",
       "titleLocalized": {
-        "en": "v0.92.1 preview release notes",
-        "zh-Hant": "v0.92.1 預覽版更新歷史"
+        "en": "v0.92.2 preview release notes",
+        "zh-Hant": "v0.92.2 預覽版更新歷史"
       },
       "body": "Review the current preview release notes, download page, and build history before updating manually.",
       "bodyLocalized": {
@@ -33,11 +33,11 @@
         "zh-Hant": "手動更新前，可以先查看目前預覽版的版本說明、下載頁與建置歷史。"
       },
       "downloadUrl": "https://github.com/Wen387/DendryModStudio/releases",
-      "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.92.1.md",
+      "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.92.2.md",
       "publishedAt": "2026-05-03"
     },
     {
-      "noticeId": "v0.92.1-preview-announcement-2026-05-03",
+      "noticeId": "v0.92.2-preview-announcement-2026-05-03",
       "kind": "announcement",
       "severity": "info",
       "title": "Dendry Mod Studio preview channel notice",
@@ -50,11 +50,11 @@
         "en": "The preview announcement channel is active. This build includes Quick Start, the Starter Demo template, guided Review & Apply, and desktop runtime previews.",
         "zh-Hant": "預覽版公告通道已啟用。這個版本包含快速開始、內建 Demo 模板、引導式審查與套用，以及桌面版 runtime preview。"
       },
-      "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.92.1.md",
+      "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.92.2.md",
       "publishedAt": "2026-05-03"
     },
     {
-      "noticeId": "v0.92.1-playtest-call-2026-05-03",
+      "noticeId": "v0.92.2-playtest-call-2026-05-03",
       "kind": "playtest",
       "severity": "info",
       "title": "Preview playtest feedback is welcome",
@@ -76,7 +76,7 @@
       "publishedAt": "2026-05-03"
     },
     {
-      "noticeId": "v0.92.1-contact-bug-report-2026-05-03",
+      "noticeId": "v0.92.2-contact-bug-report-2026-05-03",
       "kind": "contact",
       "severity": "info",
       "notify": false,
@@ -99,7 +99,7 @@
       "publishedAt": "2026-05-03"
     },
     {
-      "noticeId": "v0.92.1-contact-feature-request-2026-05-03",
+      "noticeId": "v0.92.2-contact-feature-request-2026-05-03",
       "kind": "contact",
       "severity": "info",
       "notify": false,
@@ -122,7 +122,7 @@
       "publishedAt": "2026-05-03"
     },
     {
-      "noticeId": "v0.92.1-contact-playtest-feedback-2026-05-03",
+      "noticeId": "v0.92.2-contact-playtest-feedback-2026-05-03",
       "kind": "contact",
       "severity": "info",
       "notify": false,
@@ -146,6 +146,6 @@
     }
   ],
   "downloadUrl": "https://github.com/Wen387/DendryModStudio/releases",
-  "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.92.1.md",
+  "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.92.2.md",
   "publishedAt": "2026-05-03"
 }
