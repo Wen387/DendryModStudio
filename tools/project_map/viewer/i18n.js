@@ -2,7 +2,7 @@
   'use strict';
 
   const STORAGE_KEY = 'dendry-mod-studio-locale';
-  const DEFAULT_LOCALE = 'zh-Hant';
+  const DEFAULT_LOCALE = 'en';
   const DICTIONARIES = {
     en: {
       'topbar.subtitle.default': 'Studio workspace for branching Dendry projects',
@@ -3066,10 +3066,65 @@
     }
   };
 
-  let locale = normalizeLocale(readStoredLocale() || DEFAULT_LOCALE);
+  const savedLocale = readStoredLocale();
+  let locale = normalizeLocale(savedLocale || detectNavigatorLocale() || DEFAULT_LOCALE);
+
+  applyDetectedDesktopLocale();
+
+  function applyDetectedDesktopLocale() {
+    if (savedLocale) {
+      return;
+    }
+
+    if (!(global && global.dendryDesktop && typeof global.dendryDesktop.getLocale === 'function')) {
+      return;
+    }
+
+    try {
+      const detected = global.dendryDesktop.getLocale();
+      if (typeof detected === 'string') {
+        applyLocale(detected, false);
+        return;
+      }
+      if (detected && typeof detected.then === 'function') {
+        detected.then((value) => applyLocale(value, false)).catch(() => {});
+      }
+    } catch (_err) {
+      return;
+    }
+  }
+
+  function detectNavigatorLocale() {
+    try {
+      const candidates = [];
+      if (global && global.navigator) {
+        if (Array.isArray(global.navigator.languages)) {
+          candidates.push.apply(candidates, global.navigator.languages);
+        }
+        candidates.push(global.navigator.language || '');
+      }
+
+      for (let i = 0; i < candidates.length; i += 1) {
+        const candidate = String(candidates[i] || '').trim();
+        if (candidate) {
+          return candidate;
+        }
+      }
+    } catch (_err) {
+      return '';
+    }
+    return '';
+  }
 
   function normalizeLocale(value) {
-    return value === 'en' ? 'en' : 'zh-Hant';
+    const raw = String(value || '').trim().toLowerCase();
+    if (raw === 'en' || raw.startsWith('en-')) {
+      return 'en';
+    }
+    if (raw.startsWith('zh')) {
+      return 'zh-Hant';
+    }
+    return raw ? 'en' : DEFAULT_LOCALE;
   }
 
   function readStoredLocale() {
@@ -3096,19 +3151,37 @@
   }
 
   function setLocale(value) {
+    applyLocale(value, true);
+  }
+
+  function applyLocale(value, persistLocale) {
     const next = normalizeLocale(value);
     if (next === locale) {
       applyTranslations(global.document);
+      syncLocaleSelect(locale);
       return;
     }
     locale = next;
-    storeLocale(locale);
+    if (persistLocale) {
+      storeLocale(locale);
+    }
+    syncLocaleSelect(locale);
     applyTranslations(global.document);
     if (global.document) {
       global.document.dispatchEvent(new CustomEvent('project-map:locale-changed', {
         detail: {locale},
         bubbles: true
       }));
+    }
+  }
+
+  function syncLocaleSelect(nextLocale) {
+    if (!global.document) {
+      return;
+    }
+    const select = global.document.getElementById('locale-select');
+    if (select && select.value !== nextLocale) {
+      select.value = nextLocale;
     }
   }
 

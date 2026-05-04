@@ -78,6 +78,7 @@ ipcRenderer.on('dendry:scan-progress', (_event, update) => {
 contextBridge.exposeInMainWorld('dendryDesktop', {
   isDesktop: true,
   getState: () => ipcRenderer.invoke('dendry:desktop-state'),
+  getLocale: () => ipcRenderer.invoke('dendry:locale'),
   doctor: (options) => ipcRenderer.invoke('dendry:doctor', options || {}),
   openProject: async (options) => {
     const result = await ipcRenderer.invoke('dendry:open-project', options || {});

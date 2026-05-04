@@ -121,6 +121,10 @@ ipcMain.handle('dendry:desktop-state', () => ({
   lastProject
 }));
 
+ipcMain.handle('dendry:locale', () => {
+  return app.getLocale();
+});
+
 ipcMain.handle('dendry:doctor', async (_event, options) => {
   return core.runDesktopDoctor({
     root: options && options.root,
