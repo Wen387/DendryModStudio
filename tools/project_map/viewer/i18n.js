@@ -3085,29 +3085,41 @@
       : detectNavigatorLocale() || DEFAULT_LOCALE
   );
 
-  applyDetectedDesktopLocale();
+  applyAutoLocale();
 
-  function applyDetectedDesktopLocale() {
+  function applyAutoLocale() {
     if (localeMode !== LOCALE_MODE.AUTO) {
       return;
     }
 
+    const fallback = detectNavigatorLocale() || DEFAULT_LOCALE;
+
     if (!(global && global.dendryDesktop && typeof global.dendryDesktop.getLocale === 'function')) {
+      applyLocale(fallback, false);
       return;
     }
 
+    let detected;
     try {
-      const detected = global.dendryDesktop.getLocale();
-      if (typeof detected === 'string') {
-        applyLocale(detected, false);
-        return;
-      }
-      if (detected && typeof detected.then === 'function') {
-        detected.then((value) => applyLocale(value, false)).catch(() => {});
-      }
+      detected = global.dendryDesktop.getLocale();
     } catch (_err) {
+      applyLocale(fallback, false);
       return;
     }
+
+    if (typeof detected === 'string') {
+      applyLocale(detected || fallback, false);
+      return;
+    }
+    if (detected && typeof detected.then === 'function') {
+      detected
+        .then((value) => applyLocale(value || fallback, false))
+        .catch(() => {
+          applyLocale(fallback, false);
+        });
+      return;
+    }
+    applyLocale(fallback, false);
   }
 
   function detectNavigatorLocale() {
@@ -3206,7 +3218,7 @@
       localeMode = LOCALE_MODE.AUTO;
       storeLocaleMode(localeMode);
       clearStoredLocale();
-      applyDetectedDesktopLocale();
+      applyAutoLocale();
       syncLocaleSelect();
       return;
     }
