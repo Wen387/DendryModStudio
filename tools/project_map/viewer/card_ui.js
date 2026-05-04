@@ -100,6 +100,7 @@
     bindEffectHelper();
     bindVariableAssistant();
     bindAssetReferenceEvents();
+    bindLocaleRefresh();
     updateOptionVisibility();
     renderCardWizard();
   }
@@ -132,6 +133,12 @@
           setProjectIndex(detail.model.index, detail);
         }
       });
+    });
+  }
+
+  function bindLocaleRefresh() {
+    global.document.addEventListener('project-map:locale-changed', () => {
+      renderCardWizard();
     });
   }
 

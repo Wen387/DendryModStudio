@@ -141,6 +141,7 @@
     initPreviewTabs();
     bindDownloads();
     bindIndexEvents();
+    bindLocaleRefresh();
     setMode('explore');
     renderWizard();
   }
@@ -170,6 +171,12 @@
     if (nextMode === 'create') {
       renderWizard();
     }
+  }
+
+  function bindLocaleRefresh() {
+    global.document.addEventListener('project-map:locale-changed', () => {
+      renderWizard();
+    });
   }
 
   function bindIndexLoading() {

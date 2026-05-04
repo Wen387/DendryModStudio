@@ -83,6 +83,7 @@
     bindDraftLoading();
     bindForm();
     bindDownloads();
+    bindLocaleRefresh();
     updateDeliverySections();
     renderNewsWizard();
   }
@@ -142,6 +143,12 @@
           setProjectIndex(detail.model.index, detail);
         }
       });
+    });
+  }
+
+  function bindLocaleRefresh() {
+    global.document.addEventListener('project-map:locale-changed', () => {
+      renderNewsWizard();
     });
   }
 

@@ -78,6 +78,7 @@
     bindDraftLoading();
     bindForm();
     bindDownloads();
+    bindLocaleRefresh();
     renderSurfaceWizard();
   }
 
@@ -109,6 +110,12 @@
           setProjectIndex(detail.model.index, detail);
         }
       });
+    });
+  }
+
+  function bindLocaleRefresh() {
+    global.document.addEventListener('project-map:locale-changed', () => {
+      renderSurfaceWizard();
     });
   }
 

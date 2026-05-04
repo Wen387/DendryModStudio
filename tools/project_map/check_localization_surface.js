@@ -108,6 +108,8 @@ function sameList(left, right) {
 const html = fs.readFileSync(VIEWER_HTML, 'utf8');
 const i18nSource = fs.readFileSync(I18N_UI, 'utf8');
 const wizardSource = fs.readFileSync(path.join(VIEWER_DIR, 'wizard_ui.js'), 'utf8');
+const cardSource = fs.readFileSync(path.join(VIEWER_DIR, 'card_ui.js'), 'utf8');
+const appSource = fs.readFileSync(path.join(VIEWER_DIR, 'app.js'), 'utf8');
 const eventDraftSource = fs.readFileSync(path.join(ROOT, 'authoring', 'event_draft.js'), 'utf8');
 const meaningLayerSource = fs.readFileSync(path.join(ROOT, 'authoring', 'meaning_layer.js'), 'utf8');
 const meaningLayerUiSource = fs.readFileSync(path.join(VIEWER_DIR, 'meaning_layer_ui.js'), 'utf8');
@@ -298,9 +300,46 @@ function tagForId(id) {
   ['install result aria', 'data-i18n-aria-label="install.resultAria"'],
   ['create template aria', 'data-i18n-aria-label="create.templateAria"'],
   ['my changes aria', 'data-i18n-aria-label="draftWorkspace.panelAria"'],
-  ['existing scene editor aria', 'data-i18n-aria-label="existingScene.editorAria"']
+  ['existing scene editor aria', 'data-i18n-aria-label="existingScene.editorAria"'],
+  ['event variable assistant aria', 'data-i18n-aria-label="variableAssistant.aria"'],
+  ['asset install picker label', 'data-i18n="assets.installPicker"'],
+  ['asset advanced panel label', 'data-i18n="assets.advancedRawData"'],
+  ['asset install request label', 'data-i18n="assets.installRequests"']
 ].forEach(([label, snippet]) => {
   assert(html.includes(snippet), label + ' should be localized');
+});
+
+[
+  ['event variable insert action', wizardSource, 'variableAssistant.insertCondition'],
+  ['event variable effect action', wizardSource, 'variableAssistant.useEffect'],
+  ['card variable insert action', cardSource, 'variableAssistant.insertCondition'],
+  ['card variable effect action', cardSource, 'variableAssistant.useEffect']
+].forEach(([label, source, snippet]) => {
+  assert(source.includes(snippet), label + ' should use localized dynamic text');
+});
+
+[
+  ['event dynamic Create renderer', wizardSource],
+  ['card dynamic Create renderer', cardSource]
+].forEach(([label, source]) => {
+  assert(source.includes('project-map:locale-changed'), label + ' should refresh after locale changes');
+  assert(source.includes('renderVariableAssistant();'), label + ' should rerender variable candidate actions');
+  assert(source.includes('renderDraftAssetPanel(draft);'), label + ' should rerender draft asset configuration');
+  assert(source.includes('renderAssetPicker(draft);'), label + ' should rerender asset picker configuration');
+  assert(source.includes('renderAssetManifest(draft);'), label + ' should rerender asset manifest configuration');
+});
+
+[
+  ['asset picker heading', 'assets.picker'],
+  ['draft asset panel heading', 'assets.draftPanel'],
+  ['asset slots heading', 'assets.slots'],
+  ['asset manifest heading', 'assets.manifest'],
+  ['asset slot empty state', 'assets.slotState.empty'],
+  ['asset slot selected state', 'assets.slotState.selected'],
+  ['asset slot pending install state', 'assets.slotState.pendingInstall'],
+  ['asset copy action badge', 'install.action.copyAssetFile']
+].forEach(([label, snippet]) => {
+  assert(appSource.includes(snippet), label + ' should use localized dynamic asset text');
 });
 
 process.stdout.write(JSON.stringify({

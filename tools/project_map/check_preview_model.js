@@ -277,6 +277,7 @@ assert(html.includes('id="card-asset-manifest"'), 'Card wizard should expose an 
   const content = fs.readFileSync(path.join(__dirname, 'viewer', fileName), 'utf8');
   assert(content.includes('ProjectMapPreviewModel'), fileName + ' should use ProjectMapPreviewModel for player preview');
   assert(content.includes('renderFallbackPlayerPreview'), fileName + ' should keep a fallback preview path');
+  assert(content.includes('project-map:locale-changed'), fileName + ' should refresh generated preview localization on locale changes');
 });
 const wizardUi = fs.readFileSync(path.join(__dirname, 'viewer', 'wizard_ui.js'), 'utf8');
 const cardUi = fs.readFileSync(path.join(__dirname, 'viewer', 'card_ui.js'), 'utf8');
