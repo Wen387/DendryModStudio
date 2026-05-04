@@ -34,6 +34,23 @@ To open your own project, choose a folder that contains:
 ```text
 source/info.dry
 ```
+## Preview Disclaimer
+
+Dendry Mod Studio is in early preview. It is published primarily to gather feedback on real-world usage, identify missing features, and surface environment-specific issues — not as a production-ready modding tool.
+
+**If you are planning to build a mod you intend to maintain, consider using an IDE and editing project source directly.** The Studio's internal representation of Dendry projects is still changing, and future releases may alter how edits are stored or applied. This means mods created or modified with the current version are **not guaranteed to be forward-compatible** with later Studio releases.
+
+You are welcome to experiment, file issues, and help shape the tool's direction — but please treat any work done in the Studio as potentially breakable across updates.
+
+## Known Issues
+
+The following are known limitations in the current preview. If you encounter any of these (or anything else), filing a GitHub Issue with details is always appreciated.
+
+**Incomplete language switching.** The Studio supports both English and Chinese, but switching languages mid-session may leave some UI text unrefreshed. If you see mixed-language labels after switching, restart the app. Most text is dynamically rendered, but some static strings may have been missed — if you spot one, please report it so it can be fixed.
+
+**Fragile event editing.** The Studio edits existing game events by pattern-matching against source code and inferring replacement targets. This heuristic approach means edit operations can misfire, especially on non-standard code structures. Expect bugs in this area; always review install plans carefully before applying changes.
+
+**Uneven mod support.** The Studio is developed and tested primarily against the original SDAAH and one unreleased first-party mod. Third-party mods that follow similar coding conventions to the original game will likely work, but compatibility is not guaranteed. If you hit a mod-specific issue, please include the mod name and version in your report — this information is often essential for diagnosis. Mods with highly idiosyncratic coding patterns may never be fully supported by the Studio; for these cases, direct source editing in an IDE remains the recommended workflow.
 
 ## What It Can Do
 
