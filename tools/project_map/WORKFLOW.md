@@ -32,6 +32,16 @@ npm ci --ignore-scripts
 npm run check:ci
 ```
 
+For large Studio feature work or refactors, also run the advisory source-size
+report before and after the change:
+
+```bash
+node tools/project_map/check_llm_friendliness.js
+```
+
+The report is intentionally advisory. It highlights files that are becoming
+hard for LLM-assisted edits and points to likely split seams.
+
 Desktop checks after `npm ci` in `tools/project_map/desktop`:
 
 ```bash

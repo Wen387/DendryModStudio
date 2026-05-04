@@ -1,0 +1,110 @@
+.mode-switch {
+  justify-self: center;
+  display: inline-grid;
+  grid-template-columns: repeat(4, minmax(72px, 1fr));
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-alt);
+}
+
+.mode-button {
+  min-height: 28px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 650;
+}
+
+.mode-button:hover {
+  color: var(--text);
+  background: var(--surface);
+}
+
+.mode-button.is-active {
+  border-color: var(--accent);
+  background: var(--surface);
+  color: var(--accent-strong);
+}
+
+body[data-mode="create"] .topbar {
+  background: linear-gradient(180deg, #fbfaf6 0%, #f6efe8 100%);
+}
+
+.file-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 30px;
+  padding: 5px 10px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent);
+  color: #ffffff;
+  font-weight: 650;
+}
+
+.drop-target {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition: border-color 120ms ease, outline-color 120ms ease, background 120ms ease;
+}
+
+.drop-target.is-drag-over {
+  border-color: var(--warn);
+  outline-color: #f3c767;
+  background: #7a4f06;
+}
+
+.file-picker-label {
+  white-space: nowrap;
+}
+
+.file-picker input {
+  width: 220px;
+  max-width: 34vw;
+  color: #ffffff;
+}
+
+.file-picker input::file-selector-button {
+  margin-right: 8px;
+  border: 0;
+  border-radius: 4px;
+  padding: 4px 8px;
+  background: #ffffff;
+  color: var(--accent-strong);
+  font-weight: 650;
+}
+
+.workspace {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 200px minmax(320px, 1fr) 8px minmax(280px, var(--explore-inspector-width, 340px));
+  overflow: hidden;
+}
+
+.explore-inspector-resizer {
+  position: relative;
+  z-index: 8;
+  cursor: col-resize;
+  background: linear-gradient(90deg, transparent 0, transparent 3px, var(--border) 3px, var(--border) 5px, transparent 5px);
+}
+
+.explore-inspector-resizer::after {
+  content: "";
+  position: absolute;
+  inset: 0 -4px;
+}
+
+.explore-inspector-resizer:hover,
+.explore-inspector-resizer.is-dragging {
+  background: linear-gradient(90deg, transparent 0, transparent 2px, var(--accent) 2px, var(--accent) 6px, transparent 6px);
+}
+
+.workspace.is-resizing-inspector,
+.workspace.is-resizing-inspector * {
+  user-select: none;
+  cursor: col-resize;
+}

@@ -3,11 +3,11 @@
 
 const fs = require('fs');
 const path = require('path');
+const {readViewerI18n} = require('./check_viewer_assets.js');
 
 const ROOT = __dirname;
 const VIEWER_DIR = path.join(ROOT, 'viewer');
 const VIEWER_HTML = path.join(VIEWER_DIR, 'index.html');
-const I18N_UI = path.join(VIEWER_DIR, 'i18n.js');
 
 function fail(message) {
   process.stderr.write('FAIL: ' + message + '\n');
@@ -106,7 +106,7 @@ function sameList(left, right) {
 }
 
 const html = fs.readFileSync(VIEWER_HTML, 'utf8');
-const i18nSource = fs.readFileSync(I18N_UI, 'utf8');
+const i18nSource = readViewerI18n(VIEWER_DIR);
 const wizardSource = fs.readFileSync(path.join(VIEWER_DIR, 'wizard_ui.js'), 'utf8');
 const cardSource = fs.readFileSync(path.join(VIEWER_DIR, 'card_ui.js'), 'utf8');
 const appSource = fs.readFileSync(path.join(VIEWER_DIR, 'app.js'), 'utf8');

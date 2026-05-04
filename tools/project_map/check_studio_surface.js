@@ -3,10 +3,11 @@
 
 const fs = require('fs');
 const path = require('path');
+const {readViewerCss, readViewerI18n} = require('./check_viewer_assets.js');
 
 const ROOT = __dirname;
 const VIEWER_HTML = path.join(ROOT, 'viewer', 'index.html');
-const VIEWER_CSS = path.join(ROOT, 'viewer', 'styles.css');
+const VIEWER_DIR = path.join(ROOT, 'viewer');
 const WIZARD_UI = path.join(ROOT, 'viewer', 'wizard_ui.js');
 const CARD_UI = path.join(ROOT, 'viewer', 'card_ui.js');
 const EXISTING_SCENE_EDIT_UI = path.join(ROOT, 'viewer', 'existing_scene_edit_ui.js');
@@ -18,7 +19,6 @@ const PROJECT_METADATA_UI = path.join(ROOT, 'viewer', 'project_metadata_ui.js');
 const VARIABLE_EDITOR_UI = path.join(ROOT, 'viewer', 'variable_editor_ui.js');
 const INSTALL_UI = path.join(ROOT, 'viewer', 'install_assistant_ui.js');
 const DRAFT_WORKSPACE_UI = path.join(ROOT, 'viewer', 'draft_workspace_ui.js');
-const I18N_UI = path.join(ROOT, 'viewer', 'i18n.js');
 const UPDATE_NOTICE_UI = path.join(ROOT, 'viewer', 'update_notice_ui.js');
 const APP_UI = path.join(ROOT, 'viewer', 'app.js');
 const DESIGN_UI = path.join(ROOT, 'viewer', 'design_ui.js');
@@ -63,7 +63,7 @@ function mediaBlock(source, marker) {
 }
 
 const html = fs.readFileSync(VIEWER_HTML, 'utf8');
-const css = fs.readFileSync(VIEWER_CSS, 'utf8');
+const css = readViewerCss(VIEWER_DIR);
 const wizardUi = fs.readFileSync(WIZARD_UI, 'utf8');
 const cardUi = fs.readFileSync(CARD_UI, 'utf8');
 const existingSceneEditUi = fs.readFileSync(EXISTING_SCENE_EDIT_UI, 'utf8');
@@ -75,7 +75,7 @@ const projectMetadataUi = fs.readFileSync(PROJECT_METADATA_UI, 'utf8');
 const variableEditorUi = fs.readFileSync(VARIABLE_EDITOR_UI, 'utf8');
 const installUi = fs.readFileSync(INSTALL_UI, 'utf8');
 const draftWorkspaceUi = fs.readFileSync(DRAFT_WORKSPACE_UI, 'utf8');
-const i18nUi = fs.readFileSync(I18N_UI, 'utf8');
+const i18nUi = readViewerI18n(VIEWER_DIR);
 const updateNoticeUi = fs.readFileSync(UPDATE_NOTICE_UI, 'utf8');
 const appUi = fs.readFileSync(APP_UI, 'utf8');
 const designUi = fs.readFileSync(DESIGN_UI, 'utf8');

@@ -3,12 +3,12 @@
 
 const fs = require('fs');
 const path = require('path');
+const {readViewerCss} = require('./check_viewer_assets.js');
 
 const suggestions = require('./authoring/variable_suggestions.js');
 
 const ROOT = __dirname;
 const VIEWER_HTML = path.join(ROOT, 'viewer', 'index.html');
-const VIEWER_CSS = path.join(ROOT, 'viewer', 'styles.css');
 const WIZARD_UI = path.join(ROOT, 'viewer', 'wizard_ui.js');
 const CARD_UI = path.join(ROOT, 'viewer', 'card_ui.js');
 const ENTRY_UI = path.join(ROOT, 'viewer', 'entry_sidebar_ui.js');
@@ -81,7 +81,7 @@ assert(snippet.jsCondition === 'Q.worker_unrest', 'JS condition snippet should u
 assert(snippet.effectVariable === 'worker_unrest', 'effect snippet should be just the variable name');
 
 const html = fs.readFileSync(VIEWER_HTML, 'utf8');
-const css = fs.readFileSync(VIEWER_CSS, 'utf8');
+const css = readViewerCss(path.join(ROOT, 'viewer'));
 const wizardUi = fs.readFileSync(WIZARD_UI, 'utf8');
 const cardUi = fs.readFileSync(CARD_UI, 'utf8');
 const entryUi = fs.readFileSync(ENTRY_UI, 'utf8');

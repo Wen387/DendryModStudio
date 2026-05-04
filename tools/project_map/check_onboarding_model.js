@@ -3,6 +3,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const {readViewerI18n} = require('./check_viewer_assets.js');
 
 const contracts = require('./authoring/studio_contracts.js');
 const onboarding = require('./viewer/onboarding_ui.js');
@@ -12,7 +13,6 @@ const ROOT = __dirname;
 const VIEWER_HTML = path.join(ROOT, 'viewer', 'index.html');
 const ONBOARDING_UI = path.join(ROOT, 'viewer', 'onboarding_ui.js');
 const TUTORIAL_UI = path.join(ROOT, 'viewer', 'tutorial_library_ui.js');
-const I18N_UI = path.join(ROOT, 'viewer', 'i18n.js');
 
 function fail(message) {
   process.stderr.write('FAIL: ' + message + '\n');
@@ -37,7 +37,7 @@ function memoryStorage() {
 const html = fs.readFileSync(VIEWER_HTML, 'utf8');
 const onboardingUi = fs.readFileSync(ONBOARDING_UI, 'utf8');
 const tutorialUi = fs.existsSync(TUTORIAL_UI) ? fs.readFileSync(TUTORIAL_UI, 'utf8') : '';
-const i18nUi = fs.readFileSync(I18N_UI, 'utf8');
+const i18nUi = readViewerI18n(path.join(ROOT, 'viewer'));
 
 assert(contracts.STORAGE_KEYS.onboardingSeen === 'dendry-mod-studio-onboarding-seen', 'onboarding storage key should be centralized');
 assert(contracts.EVENT_NAMES.openOnboarding === 'ProjectMap:open-onboarding', 'onboarding open event should be centralized');

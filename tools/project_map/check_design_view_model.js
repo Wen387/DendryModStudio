@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const viewer = require('./viewer/app.js');
 const design = require('./viewer/design_model.js');
+const {readViewerCss} = require('./check_viewer_assets.js');
 
 const args = process.argv.slice(2);
 const fixtureIslands = args.includes('--fixture-islands');
@@ -248,7 +249,7 @@ assertEqual(
 assertEqual(design.designItemDraftSupport(byKey('event:missing_event')).supported, false, 'missing baseline item should not be draft editable');
 
 const html = fs.readFileSync(path.join(__dirname, 'viewer', 'index.html'), 'utf8');
-const css = fs.readFileSync(path.join(__dirname, 'viewer', 'styles.css'), 'utf8');
+const css = readViewerCss(path.join(__dirname, 'viewer'));
 const wizardUi = fs.readFileSync(path.join(__dirname, 'viewer', 'wizard_ui.js'), 'utf8');
 assert(html.includes('data-mode="design"'), 'Direction C Design mode should be exposed in the top-level mode switch');
 assert(html.includes('id="design-pane"'), 'viewer should expose the Design pane');

@@ -3,6 +3,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const {readViewerCss} = require('./check_viewer_assets.js');
 
 const previewModel = require('./authoring/preview_model.js');
 const assetModel = require('./authoring/asset_model.js');
@@ -297,7 +298,7 @@ assert(appUi.includes('renderAssetGallery'), 'Explore assets view should render 
 assert(designUi.includes('renderDesignPreview'), 'Design inspector should render a PreviewModel panel');
 assert(designUi.includes('previewModelForDesignItem'), 'Design inspector should build previews from selected nodes');
 const meaningUi = fs.readFileSync(path.join(__dirname, 'viewer', 'meaning_layer_ui.js'), 'utf8');
-const css = fs.readFileSync(path.join(__dirname, 'viewer', 'styles.css'), 'utf8');
+const css = readViewerCss(path.join(__dirname, 'viewer'));
 assert(meaningUi.includes('renderPreviewReadiness'), 'Meaning preview should render preview readiness summary');
 assert(meaningUi.includes('renderPreviewAssets'), 'Meaning preview should render structured asset references');
 assert(meaningUi.includes('meaning-collapsible'), 'Meaning preview should render collapsible information categories');

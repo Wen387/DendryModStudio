@@ -4,6 +4,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const {readViewerI18n} = require('./check_viewer_assets.js');
 
 const ROOT = __dirname;
 const variableDraft = require('./authoring/variable_editor_draft.js');
@@ -101,7 +102,7 @@ const rootText = fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'root.sc
 assert(rootText.includes('if (Q.campaign_energy === undefined) { Q.campaign_energy = 3; }'), 'root init should be inserted into root.scene.dry');
 
 const html = fs.readFileSync(path.join(ROOT, 'viewer', 'index.html'), 'utf8');
-const i18n = fs.readFileSync(path.join(ROOT, 'viewer', 'i18n.js'), 'utf8');
+const i18n = readViewerI18n(path.join(ROOT, 'viewer'));
 const app = fs.readFileSync(path.join(ROOT, 'viewer', 'app.js'), 'utf8');
 assert(html.includes('data-create-template="variables"'), 'Create template switch should include Variables');
 assert(html.includes('id="variable-editor-name"'), 'Variable Editor should expose a variable selector/input');

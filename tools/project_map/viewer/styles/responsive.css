@@ -1,0 +1,310 @@
+@media (max-width: 1050px) {
+  .workspace {
+    grid-template-columns: 168px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .explore-inspector-resizer {
+    display: none;
+  }
+
+  .design-graph-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .design-inspector-resizer {
+    display: none;
+  }
+
+  .inspector {
+    grid-column: 1 / -1;
+    border-left: 0;
+    border-top: 1px solid var(--border);
+    max-height: 42vh;
+  }
+
+  .create-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .design-inspector {
+    grid-column: 1 / -1;
+    border-left: 0;
+    border-top: 1px solid var(--border);
+    max-height: 40vh;
+  }
+
+  .design-summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .design-flow-board {
+    display: grid;
+  }
+
+  .create-template-header {
+    grid-template-columns: 1fr;
+  }
+
+  .draft-workspace-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .draft-workspace-actions {
+    justify-content: flex-start;
+  }
+
+  .template-switch {
+    width: 100%;
+  }
+}
+
+@media (max-width: 720px) {
+  .app-shell {
+    grid-template-rows: auto auto minmax(0, 1fr);
+  }
+
+  .topbar {
+    grid-template-columns: 1fr;
+    align-items: flex-start;
+  }
+
+  .topbar-actions {
+    width: 100%;
+    align-items: stretch;
+    justify-content: space-between;
+  }
+
+  .topbar-more {
+    margin-left: auto;
+  }
+
+  .topbar-more-menu {
+    right: 0;
+  }
+
+  .desktop-controls {
+    align-items: stretch;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .desktop-status {
+    max-width: none;
+  }
+
+  .update-notice-banner {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  .update-notice-actions {
+    justify-content: flex-start;
+  }
+
+  .announcement-board {
+    justify-items: stretch;
+  }
+
+  .announcement-board-dialog {
+    width: 100vw;
+    padding: 14px;
+  }
+
+  .announcement-board-tabs {
+    grid-template-columns: 1fr;
+  }
+
+  .announcement-board-tab {
+    min-height: 0;
+  }
+
+  .announcement-board-detail-header {
+    flex-direction: column;
+  }
+
+  .announcement-board-detail-header button {
+    align-self: flex-start;
+  }
+
+  .announcement-board-list {
+    grid-template-columns: 1fr;
+  }
+
+  .tutorial-library-dialog {
+    max-height: calc(100vh - 28px);
+    padding: 18px;
+  }
+
+  .tutorial-library-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .tutorial-library-nav {
+    max-height: 180px;
+  }
+
+  .mode-switch {
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .file-picker,
+  .file-picker input {
+    width: 100%;
+    max-width: none;
+  }
+
+  .workspace {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+
+  .sidebar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+    gap: 8px;
+    max-height: 260px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav-group {
+    margin-bottom: 0;
+  }
+
+  .design-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .design-field-inline,
+  .design-field input,
+  .design-baseline-picker,
+  .design-baseline-picker input {
+    width: 100%;
+    max-width: none;
+  }
+
+  .design-graph-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .design-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .design-inspector {
+    max-height: 320px;
+    border-left: 0;
+    border-top: 1px solid var(--atelier-border);
+  }
+
+  .design-status-bar {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .output-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .icon-button {
+    align-self: stretch;
+  }
+
+  .main-panel {
+    padding: 10px;
+  }
+
+  .inspector {
+    grid-column: auto;
+    max-height: none;
+  }
+
+  .list {
+    max-height: none;
+  }
+
+  .list-row {
+    grid-template-columns: 1fr;
+  }
+
+  .create-workspace {
+    padding: 10px;
+  }
+
+  .draft-workspace-list {
+    grid-template-columns: 1fr;
+  }
+
+  .wizard-title-row {
+    flex-direction: column;
+  }
+
+  .existing-scene-header {
+    grid-template-columns: 1fr;
+  }
+
+  .wizard-status-stack {
+    justify-items: stretch;
+    width: 100%;
+  }
+
+  .draft-file-picker {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .draft-file-picker input {
+    max-width: none;
+    width: 100%;
+  }
+
+  .field-grid,
+  .option-grid,
+  .effect-helper {
+    grid-template-columns: 1fr;
+  }
+
+  .event-core-grid label,
+  .event-core-grid .event-wide-control,
+  .event-core-grid .event-technical-field,
+  .event-choice-count-field {
+    grid-column: auto;
+  }
+
+  .wizard-subsection-title {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .wizard-subsection-title span {
+    text-align: left;
+  }
+
+  .metadata-evidence-row,
+  .event-readiness-row,
+  .entry-playability-row {
+    grid-template-columns: 1fr;
+  }
+
+  .wizard-actions {
+    align-content: stretch;
+  }
+
+  .wizard-action-group {
+    grid-template-columns: 1fr;
+  }
+
+  .wizard-actions button {
+    width: 100%;
+  }
+}

@@ -4,6 +4,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const {readViewerCss, readViewerI18n} = require('./check_viewer_assets.js');
 
 const PROJECT_MAP_DIR = __dirname;
 const DESKTOP_DIR = path.join(PROJECT_MAP_DIR, 'desktop');
@@ -35,8 +36,8 @@ async function main() {
   const packageJson = readJson(path.join(DESKTOP_DIR, 'package.json'));
   const manifest = readJson(path.join(DESKTOP_DIR, 'update_manifest.json'));
   const html = read(path.join(VIEWER_DIR, 'index.html'));
-  const css = read(path.join(VIEWER_DIR, 'styles.css'));
-  const i18n = read(path.join(VIEWER_DIR, 'i18n.js'));
+  const css = readViewerCss(VIEWER_DIR);
+  const i18n = readViewerI18n(VIEWER_DIR);
   const mainJs = read(path.join(DESKTOP_DIR, 'main.js'));
   const preloadJs = read(path.join(DESKTOP_DIR, 'preload.js'));
   const packageDir = read(path.join(DESKTOP_DIR, 'scripts', 'package_dir.js'));

@@ -5,6 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const vm = require('vm');
+const {readViewerCss} = require('./check_viewer_assets.js');
 const {spawnSync} = require('child_process');
 
 const PROJECT_MAP_DIR = __dirname;
@@ -435,7 +436,7 @@ async function main() {
     viewerHtml.indexOf('id="desktop-progress"') > viewerHtml.indexOf('</header>'),
     'desktop scan progress should live outside the topbar controls'
   );
-  const viewerCss = fs.readFileSync(path.join(VIEWER_DIR, 'styles.css'), 'utf8');
+  const viewerCss = readViewerCss(VIEWER_DIR);
   assert(viewerCss.includes('.desktop-progress-overlay'), 'CSS should style the desktop progress overlay');
   assert(viewerCss.includes('position: fixed'), 'desktop progress overlay should be fixed over the app');
   assert(viewerCss.includes('place-items: center'), 'desktop progress overlay should center its contents');
