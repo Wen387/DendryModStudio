@@ -1080,7 +1080,7 @@
       return;
     }
     const support = global.ProjectMapDesignModel.designItemDraftSupport(item);
-    const editor = global.ProjectMapExistingSceneEditor;
+    const editor = global.ProjectMapEditingWorkspace || global.ProjectMapExistingSceneEditor;
     if (!support.supported || !canEditExistingSupport(support.view) || !editor || typeof editor.openFromSelection !== 'function') {
       setDesignStatus(t('existingScene.openFailed', 'This scene needs more source evidence before Studio can edit it here.'), true);
       return;

@@ -265,6 +265,10 @@
   }
 
   function activeTemplate() {
+    const editingWorkspace = global.ProjectMapEditingWorkspace;
+    if (editingWorkspace && typeof editingWorkspace.isActive === 'function' && editingWorkspace.isActive()) {
+      return 'existing';
+    }
     const existingEditor = global.ProjectMapExistingSceneEditor;
     if (existingEditor && typeof existingEditor.isActive === 'function' && existingEditor.isActive()) {
       return 'existing';
@@ -285,7 +289,7 @@
       entry: global.ProjectMapEntrySidebarWizard,
       project: global.ProjectMapProjectMetadataWizard,
       variables: global.ProjectMapVariableEditorWizard,
-      existing: global.ProjectMapExistingSceneEditor
+      existing: global.ProjectMapEditingWorkspace || global.ProjectMapExistingSceneEditor
     }[template] || null;
   }
 

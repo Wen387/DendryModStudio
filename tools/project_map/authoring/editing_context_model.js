@@ -1,0 +1,569 @@
+(function initProjectMapEditingContextModel(global) {
+  'use strict';
+
+  const EDITING_CONTEXT_VERSION = '0.1';
+  const MODEL_KIND = 'editing_context_model';
+
+  function isObject(value) {
+    return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+  }
+
+  function ensureArray(value) {
+    return Array.isArray(value) ? value : [];
+  }
+
+  function existingSceneApi() {
+    if (global && global.ProjectMapExistingSceneEdit) {
+      return global.ProjectMapExistingSceneEdit;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./existing_scene_edit_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function installPlanApi() {
+    if (global && global.ProjectMapInstallPlan) {
+      return global.ProjectMapInstallPlan;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./install_plan.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function buildContextModel(projectIndex, view, itemOrId, options) {
+    const opts = isObject(options) ? options : {};
+    const index = isObject(projectIndex) ? projectIndex : {};
+    const existingApi = existingSceneApi();
+    if (!existingApi || typeof existingApi.buildEditModel !== 'function') {
+      return emptyContext(index, view, itemOrId, diagnostic('error', 'editing_context.existing_missing', 'Existing scene edit model is unavailable.'));
+    }
+    const editModel = existingApi.buildEditModel(index, view, itemOrId, opts.editorOptions || {});
+    if (!editModel || !editModel.ok) {
+      return emptyContext(index, view, itemOrId, diagnostic('warning', 'editing_context.not_editable', 'This selection cannot be edited as an existing Event/Card.'), editModel);
+    }
+    const values = normalizeValues(opts.values);
+    const proposal = existingApi.buildProposal(editModel, values, opts.proposalOptions || {});
+    const output = existingApi.buildExportBundle(proposal, index);
+    const summary = operationSummary(output && output.installPlan);
+    const scene = resolveScene(index, editModel.sceneId, itemOrId);
+    const editors = buildEditorGroups(editModel, values);
+    const relationships = buildRelationships(index, editModel, scene);
+    const context = buildContextRows(index, editModel, scene, relationships);
+    const graph = buildGraph(editModel, relationships, editors, context);
+    const diagnostics = ensureArray(editModel.diagnostics).concat(ensureArray(proposal.diagnostics));
+
+    return {
+      schemaVersion: EDITING_CONTEXT_VERSION,
+      kind: MODEL_KIND,
+      ok: true,
+      view: String(view || ''),
+      sceneId: editModel.sceneId || '',
+      sceneKind: editModel.sceneKind || 'event',
+      title: editModel.title || editModel.sceneId || '',
+      source: sourceRef(editModel.source || {}),
+      editModel,
+      proposal,
+      output,
+      operationSummary: summary,
+      editabilitySummary: summarizeEditability(editors, summary),
+      editors,
+      relationships,
+      context,
+      graph,
+      warnings: ensureArray(editModel.warnings),
+      diagnostics
+    };
+  }
+
+  function buildContextFromProposal(projectIndex, proposalInput, options) {
+    const existingApi = existingSceneApi();
+    const proposal = existingApi && typeof existingApi.normalizeProposal === 'function'
+      ? existingApi.normalizeProposal(proposalInput || {})
+      : normalizeProposalFallback(proposalInput);
+    const view = proposal.sceneKind === 'card' ? 'cards' : 'events';
+    const values = proposalValues(proposal);
+    return buildContextModel(projectIndex, view, proposal.sceneId, Object.assign({}, options || {}, {values}));
+  }
+
+  function emptyContext(index, view, itemOrId, extraDiagnostic, editModel) {
+    const diagnostics = extraDiagnostic ? [extraDiagnostic] : [];
+    return {
+      schemaVersion: EDITING_CONTEXT_VERSION,
+      kind: MODEL_KIND,
+      ok: false,
+      view: String(view || ''),
+      sceneId: String(isObject(itemOrId) ? (itemOrId.sceneId || itemOrId.id || '') : (itemOrId || '')),
+      sceneKind: String(view || '') === 'cards' ? 'card' : 'event',
+      title: '',
+      source: {},
+      editModel: editModel || null,
+      proposal: null,
+      output: null,
+      operationSummary: operationSummary(null),
+      editabilitySummary: {guarded: 0, manual: 0, readOnly: 0, total: 0},
+      editors: emptyEditorGroups(),
+      relationships: {incoming: [], outgoing: [], options: []},
+      context: {variables: [], effects: [], assets: [], sourceEvidence: [], manualBoundaries: []},
+      graph: {nodes: [], edges: []},
+      warnings: [],
+      diagnostics
+    };
+  }
+
+  function emptyEditorGroups() {
+    return {
+      pageSections: [],
+      optionText: [],
+      conditions: [],
+      playerText: [],
+      all: []
+    };
+  }
+
+  function buildEditorGroups(editModel, values) {
+    const groups = emptyEditorGroups();
+    const coveredFieldIds = new Set();
+    ensureArray(editModel.textBlocks).forEach((block) => {
+      ensureArray(block.fieldIds).forEach((fieldId) => coveredFieldIds.add(fieldId));
+      groups.pageSections.push(editorFromBlock(block, values));
+    });
+    ensureArray(editModel.fields).forEach((field) => {
+      const editor = editorFromField(field, values);
+      if (String(field.role || '') === 'condition') {
+        groups.conditions.push(editor);
+      } else if (String(field.role || '').startsWith('option_') || field.optionId) {
+        groups.optionText.push(editor);
+      } else if (!coveredFieldIds.has(field.id)) {
+        groups.playerText.push(editor);
+      }
+    });
+    groups.all = groups.pageSections.concat(groups.optionText, groups.conditions, groups.playerText);
+    return groups;
+  }
+
+  function editorFromBlock(block, values) {
+    const id = 'block:' + String(block.id || '');
+    return {
+      id,
+      fieldId: String(block.id || ''),
+      group: 'page_sections',
+      role: String(block.role || 'section_text'),
+      label: String(block.label || block.id || 'Page section'),
+      original: String(block.original || ''),
+      value: Object.prototype.hasOwnProperty.call(values, id) ? String(values[id] || '') : String(block.value || block.original || ''),
+      editability: String(block.editability || 'guarded_replace_section'),
+      source: sourceRef(block.source || {}),
+      sectionId: String(block.sectionId || ''),
+      operationType: 'replace_section',
+      status: editorStatus(block.editability || 'guarded_replace_section')
+    };
+  }
+
+  function editorFromField(field, values) {
+    const id = String(field.id || '');
+    return {
+      id,
+      fieldId: id,
+      group: editorGroupForField(field),
+      role: String(field.role || 'text'),
+      label: String(field.label || field.role || id || 'Text'),
+      original: String(field.original || ''),
+      value: Object.prototype.hasOwnProperty.call(values, id) ? String(values[id] || '') : String(field.value || field.original || ''),
+      editability: String(field.editability || 'manual_review'),
+      source: sourceRef(field.source || {}),
+      sectionId: String(field.sectionId || ''),
+      optionId: String(field.optionId || ''),
+      operationType: 'replace_text',
+      status: editorStatus(field.editability || 'manual_review')
+    };
+  }
+
+  function editorGroupForField(field) {
+    const role = String(field && field.role || '');
+    if (role === 'condition') {
+      return 'conditions';
+    }
+    if (role.startsWith('option_') || field && field.optionId) {
+      return 'option_text';
+    }
+    return 'player_text';
+  }
+
+  function editorStatus(editability) {
+    const text = String(editability || '');
+    if (text === 'guarded_replace_text' || text === 'guarded_replace_section') {
+      return 'guarded';
+    }
+    if (text === 'manual_review') {
+      return 'manual';
+    }
+    return text ? 'review' : 'read_only';
+  }
+
+  function buildRelationships(index, editModel, scene) {
+    const sceneId = String(editModel.sceneId || '');
+    const scenesById = sceneLookup(index);
+    const incoming = [];
+    const outgoing = [];
+    ensureArray(index.edges).forEach((edge) => {
+      const from = endpointId(edge.from || edge.source || edge.sourceId);
+      const to = endpointId(edge.to || edge.target || edge.targetId);
+      if (!from || !to) {
+        return;
+      }
+      const row = {
+        from,
+        to,
+        kind: String(edge.kind || edge.type || 'link'),
+        label: String(edge.label || edge.title || ''),
+        source: sourceRef(edge.source || {}),
+        scene: null
+      };
+      if (to === sceneId) {
+        row.scene = sceneSummary(scenesById.get(from), from);
+        incoming.push(row);
+      }
+      if (from === sceneId) {
+        row.scene = sceneSummary(scenesById.get(to), to);
+        outgoing.push(row);
+      }
+    });
+    const options = ensureArray(editModel.options).map((option, index) => ({
+      id: String(option.id || 'option_' + (index + 1)),
+      label: String(option.label || option.id || 'Option ' + (index + 1)),
+      subtitle: String(option.subtitle || ''),
+      targetId: String(option.targetId || ''),
+      chooseIf: String(option.chooseIf || ''),
+      source: sourceRef(option.source || {}),
+      target: sceneSummary(scenesById.get(String(option.targetId || '')), String(option.targetId || ''))
+    }));
+    if (!outgoing.length) {
+      options.filter((option) => option.targetId).forEach((option) => {
+        outgoing.push({
+          from: sceneId,
+          to: option.targetId,
+          kind: 'option',
+          label: option.label,
+          source: option.source,
+          scene: option.target
+        });
+      });
+    }
+    return {incoming, outgoing, options, current: sceneSummary(scene, sceneId)};
+  }
+
+  function buildContextRows(index, editModel, scene, relationships) {
+    const sourcePath = String(editModel.source && editModel.source.path || scene && scene.path || '');
+    const variables = variablesForPath(index, sourcePath);
+    const effects = ensureArray(editModel.effects).map((effect) => ({
+      variable: String(effect.variable || ''),
+      op: String(effect.op || effect.operator || ''),
+      value: String(effect.value === undefined || effect.value === null ? '' : effect.value),
+      sectionId: String(effect.sectionId || ''),
+      source: sourceRef(effect.source || {}),
+      status: 'read_only'
+    })).filter((effect) => effect.variable);
+    const assets = ensureArray(editModel.assets).map((asset) => ({
+      label: String(asset.label || asset.path || asset.role || ''),
+      path: String(asset.path || ''),
+      role: String(asset.role || asset.type || ''),
+      status: 'read_only'
+    }));
+    const sourceEvidence = [
+      sourceEvidenceRow('scene', editModel.source),
+    ].concat(ensureArray(editModel.textBlocks).map((block) => sourceEvidenceRow(block.label || block.id, block.source)))
+      .concat(ensureArray(editModel.fields).map((field) => sourceEvidenceRow(field.label || field.id, field.source)))
+      .filter((row) => row.path);
+    const manualBoundaries = manualBoundaryRows(editModel, relationships);
+    return {variables, effects, assets, sourceEvidence, manualBoundaries};
+  }
+
+  function variablesForPath(index, sourcePath) {
+    const path = String(sourcePath || '');
+    if (!path) {
+      return [];
+    }
+    return ensureArray(index.variables).map((variable) => {
+      const reads = ensureArray(variable && variable.reads).filter((ref) => samePath(ref, path));
+      const writes = ensureArray(variable && variable.writes).filter((ref) => samePath(ref, path));
+      const definedIn = ensureArray(variable && variable.definedIn).filter((ref) => samePath(ref, path));
+      if (!reads.length && !writes.length && !definedIn.length) {
+        return null;
+      }
+      return {
+        name: String(variable.name || ''),
+        reads: reads.map(sourceRef),
+        writes: writes.map(sourceRef),
+        definedIn: definedIn.map(sourceRef),
+        readCount: Number(variable.readCount || reads.length || 0),
+        writeCount: Number(variable.writeCount || writes.length || 0),
+        tags: ensureArray(variable.tags).map(String),
+        status: 'read_only'
+      };
+    }).filter((variable) => variable && variable.name);
+  }
+
+  function manualBoundaryRows(editModel, relationships) {
+    const rows = [];
+    ensureArray(editModel.fields).forEach((field) => {
+      if (field.editability === 'manual_review') {
+        rows.push({
+          label: String(field.label || field.id || 'Manual review'),
+          reason: String(field.reason || 'Needs manual review.'),
+          source: sourceRef(field.source || {}),
+          status: 'manual_review'
+        });
+      }
+    });
+    ensureArray(editModel.effects).forEach((effect) => {
+      rows.push({
+        label: 'Effect: Q.' + String(effect.variable || ''),
+        reason: 'Effects are context-only in this Goal.',
+        source: sourceRef(effect.source || {}),
+        status: 'read_only'
+      });
+    });
+    ensureArray(relationships.options).filter((option) => option.chooseIf).forEach((option) => {
+      rows.push({
+        label: 'Option condition: ' + option.label,
+        reason: 'Option choose-if is shown as context; direct editing is outside this Goal.',
+        source: option.source,
+        status: 'manual_review'
+      });
+    });
+    return rows;
+  }
+
+  function buildGraph(editModel, relationships, editors, context) {
+    const nodes = [];
+    const edges = [];
+    const seen = new Set();
+    function addNode(node) {
+      if (!node || !node.id || seen.has(node.id)) {
+        return;
+      }
+      seen.add(node.id);
+      nodes.push(node);
+    }
+    function addEdge(edge) {
+      if (edge && edge.from && edge.to) {
+        edges.push(edge);
+      }
+    }
+    const sceneNodeId = 'scene:' + editModel.sceneId;
+    addNode({
+      id: sceneNodeId,
+      type: 'current_scene',
+      label: editModel.title || editModel.sceneId,
+      subtitle: editModel.source && editModel.source.path || '',
+      status: 'current'
+    });
+    relationships.incoming.slice(0, 12).forEach((rel, index) => {
+      const nodeId = 'incoming:' + rel.from;
+      addNode({id: nodeId, type: 'incoming', label: rel.scene.title || rel.from, subtitle: rel.label || rel.kind, status: 'context'});
+      addEdge({id: 'incoming-edge-' + index, from: nodeId, to: sceneNodeId, label: rel.label || rel.kind, type: 'incoming'});
+    });
+    relationships.outgoing.slice(0, 12).forEach((rel, index) => {
+      const nodeId = 'outgoing:' + rel.to;
+      addNode({id: nodeId, type: 'outgoing', label: rel.scene.title || rel.to, subtitle: rel.label || rel.kind, status: 'context'});
+      addEdge({id: 'outgoing-edge-' + index, from: sceneNodeId, to: nodeId, label: rel.label || rel.kind, type: 'outgoing'});
+    });
+    editors.pageSections.concat(editors.optionText, editors.conditions).slice(0, 18).forEach((editor, index) => {
+      const nodeId = 'editor:' + editor.id;
+      addNode({id: nodeId, type: editor.group, label: editor.label, subtitle: sourceLabel(editor.source), status: editor.status});
+      addEdge({id: 'editor-edge-' + index, from: sceneNodeId, to: nodeId, label: editor.status, type: 'editor'});
+    });
+    context.variables.slice(0, 10).forEach((variable, index) => {
+      const nodeId = 'variable:' + variable.name;
+      addNode({id: nodeId, type: 'variable', label: 'Q.' + variable.name, subtitle: variable.readCount + ' reads / ' + variable.writeCount + ' writes', status: 'read_only'});
+      addEdge({id: 'variable-edge-' + index, from: sceneNodeId, to: nodeId, label: 'uses', type: 'variable'});
+    });
+    context.effects.slice(0, 10).forEach((effect, index) => {
+      const nodeId = 'effect:' + index + ':' + effect.variable;
+      addNode({id: nodeId, type: 'effect', label: 'Q.' + effect.variable + ' ' + effect.op + ' ' + effect.value, subtitle: sourceLabel(effect.source), status: 'read_only'});
+      addEdge({id: 'effect-edge-' + index, from: sceneNodeId, to: nodeId, label: 'effect', type: 'effect'});
+    });
+    return {nodes, edges};
+  }
+
+  function summarizeEditability(editors, summary) {
+    const counts = {guarded: 0, manual: 0, readOnly: 0, total: 0};
+    ensureArray(editors && editors.all).forEach((editor) => {
+      counts.total += 1;
+      if (editor.status === 'guarded') {
+        counts.guarded += 1;
+      } else if (editor.status === 'manual') {
+        counts.manual += 1;
+      } else {
+        counts.readOnly += 1;
+      }
+    });
+    counts.operations = summary || operationSummary(null);
+    return counts;
+  }
+
+  function operationSummary(plan) {
+    const installApi = installPlanApi();
+    if (installApi && typeof installApi.operationSummary === 'function') {
+      return installApi.operationSummary(plan || {operations: []});
+    }
+    const summary = {safeApply: 0, guardedApply: 0, advancedApply: 0, manualReview: 0, refused: 0, total: 0};
+    ensureArray(plan && plan.operations).forEach((operation) => {
+      summary.total += 1;
+      const safety = String(operation && operation.safety || 'manual_review');
+      if (safety === 'safe_apply') {
+        summary.safeApply += 1;
+      } else if (safety === 'guarded_apply') {
+        summary.guardedApply += 1;
+      } else if (safety === 'advanced_apply') {
+        summary.advancedApply += 1;
+      } else {
+        summary.manualReview += 1;
+      }
+    });
+    return summary;
+  }
+
+  function proposalValues(proposal) {
+    const values = {};
+    ensureArray(proposal && proposal.changes).forEach((change) => {
+      const key = change.operationType === 'replace_section'
+        ? 'block:' + String(change.fieldId || '')
+        : String(change.fieldId || '');
+      if (key) {
+        values[key] = String(change.after || '');
+      }
+    });
+    return values;
+  }
+
+  function normalizeValues(values) {
+    const out = {};
+    if (!isObject(values)) {
+      return out;
+    }
+    Object.keys(values).forEach((key) => {
+      out[key] = String(values[key] === undefined || values[key] === null ? '' : values[key]);
+    });
+    return out;
+  }
+
+  function normalizeProposalFallback(input) {
+    const value = isObject(input) ? input : {};
+    return {
+      kind: 'existing_scene_edit',
+      id: String(value.id || 'existing_scene_edit'),
+      title: String(value.title || value.sceneId || 'Existing scene edit'),
+      sceneId: String(value.sceneId || ''),
+      sceneKind: String(value.sceneKind || 'event') === 'card' ? 'card' : 'event',
+      sourcePath: String(value.sourcePath || ''),
+      source: sourceRef(value.source || {path: value.sourcePath}),
+      changes: ensureArray(value.changes)
+    };
+  }
+
+  function resolveScene(index, sceneId, itemOrId) {
+    if (isObject(itemOrId) && itemOrId.id && String(itemOrId.id) === String(sceneId || '')) {
+      return itemOrId.scene || itemOrId;
+    }
+    return sceneLookup(index).get(String(sceneId || '')) || null;
+  }
+
+  function sceneLookup(index) {
+    const map = new Map();
+    ensureArray(index && index.scenes).forEach((scene) => {
+      if (scene && scene.id) {
+        map.set(String(scene.id), scene);
+      }
+    });
+    return map;
+  }
+
+  function sceneSummary(scene, fallbackId) {
+    const value = isObject(scene) ? scene : {};
+    const id = String(value.id || fallbackId || '');
+    return {
+      id,
+      title: String(value.title || value.name || id || ''),
+      path: String(value.path || value.sourceSpan && value.sourceSpan.path || ''),
+      kind: value.flags && value.flags.isCard || value.type === 'card' ? 'card' : 'event',
+      source: sourceRef(value.sourceSpan || value.topLevelSpan || {path: value.path})
+    };
+  }
+
+  function endpointId(value) {
+    if (isObject(value)) {
+      return String(value.id || value.sceneId || value.targetId || value.name || '');
+    }
+    return String(value || '');
+  }
+
+  function sourceEvidenceRow(label, source) {
+    const ref = sourceRef(source || {});
+    return {
+      label: String(label || 'source'),
+      path: ref.path || '',
+      line: ref.line || ref.startLine || null,
+      endLine: ref.endLine || null,
+      status: ref.path ? 'evidence' : 'missing'
+    };
+  }
+
+  function sourceRef(ref) {
+    const value = isObject(ref) ? ref : {};
+    const line = numberOrNull(value.line || value.startLine);
+    const endLine = numberOrNull(value.endLine || value.line || value.startLine);
+    return {
+      path: String(value.path || value.sourcePath || '').trim(),
+      line,
+      startLine: line,
+      endLine,
+      anchorText: String(value.anchorText || '').trim(),
+      endAnchorText: String(value.endAnchorText || '').trim()
+    };
+  }
+
+  function sourceLabel(source) {
+    const ref = source || {};
+    return ref.path ? ref.path + (ref.line ? ':' + ref.line : '') : '';
+  }
+
+  function samePath(ref, path) {
+    return String(ref && ref.path || ref && ref.sourcePath || '') === path;
+  }
+
+  function numberOrNull(value) {
+    const number = Number(value || 0);
+    return Number.isFinite(number) && number > 0 ? Math.floor(number) : null;
+  }
+
+  function diagnostic(severity, code, message) {
+    return {severity, code, message, confidence: 'static_inferred'};
+  }
+
+  const api = {
+    EDITING_CONTEXT_VERSION,
+    MODEL_KIND,
+    buildContextModel,
+    buildContextFromProposal,
+    proposalValues,
+    operationSummary
+  };
+
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = api;
+  }
+  if (global) {
+    global.ProjectMapEditingContextModel = api;
+  }
+})(typeof window !== 'undefined' ? window : globalThis);

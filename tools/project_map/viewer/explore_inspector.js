@@ -339,7 +339,7 @@
     if (!state.selected || !state.model || !canEditExisting(state.selected.view)) {
       return;
     }
-    const editor = global.ProjectMapExistingSceneEditor;
+    const editor = global.ProjectMapEditingWorkspace || global.ProjectMapExistingSceneEditor;
     if (!editor || typeof editor.openFromSelection !== 'function') {
       showError(elements, t('existingScene.unavailable', 'Existing Scene Editor is not loaded.'));
       return;

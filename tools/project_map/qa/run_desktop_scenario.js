@@ -638,13 +638,13 @@ async function scenarioExploreDesignExistingEdit(win, args, artifactDir, log) {
   log('Design list selects same existing event', 'PASS', '04-design-event-selected.png');
 
   await click(win, '#design-inspector [data-design-edit-existing]');
-  await expectVisible(win, '#existing-scene-editor-host [data-existing-scene-editor="true"]', 'Existing Scene Editor should open from Design');
+  await expectVisible(win, '#existing-scene-editor-host [data-editing-workspace="true"]', 'Contextual Editing workspace should open from Design');
   await replaceExistingBlockByOriginal(
     win,
     '= Generic Intro\n\nThis scene has a simple variable write and no project-specific systems.\n',
     '= Generic Intro\n\nThis edited section proves Design can open a guarded existing scene section proposal.\n'
   );
-  await expectText(win, '#existing-scene-editor-host [data-existing-preview="true"]', 'This edited section proves Design can open a guarded existing scene section proposal.');
+  await expectText(win, '#existing-scene-editor-host [data-editing-preview="true"]', 'This edited section proves Design can open a guarded existing scene section proposal.');
   await screenshot(win, artifactDir, '05-existing-edit');
   log('Existing editor updates a source-backed page section', 'PASS', '05-existing-edit.png');
 
@@ -1782,7 +1782,7 @@ async function expectFieldContains(win, selector, expected) {
 
 async function replaceExistingFieldByOriginal(win, original, replacement) {
   const ok = await evalInPage(win, (originalText, replacementText) => {
-    const field = Array.from(document.querySelectorAll('#existing-scene-editor-host [data-existing-field]')).find((input) => {
+    const field = Array.from(document.querySelectorAll('#existing-scene-editor-host [data-existing-field], #existing-scene-editor-host [data-editing-field]')).find((input) => {
       return input.value === originalText;
     });
     if (!field) {
@@ -1801,7 +1801,7 @@ async function replaceExistingFieldByOriginal(win, original, replacement) {
 
 async function replaceExistingBlockByOriginal(win, original, replacement) {
   const ok = await evalInPage(win, (originalText, replacementText) => {
-    const field = Array.from(document.querySelectorAll('#existing-scene-editor-host [data-existing-block]')).find((input) => {
+    const field = Array.from(document.querySelectorAll('#existing-scene-editor-host [data-existing-block], #existing-scene-editor-host [data-editing-field]')).find((input) => {
       return input.value === originalText;
     });
     if (!field) {

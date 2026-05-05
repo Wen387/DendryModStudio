@@ -1,0 +1,254 @@
+.editing-workspace {
+  display: grid;
+  gap: 12px;
+}
+
+.editing-workspace-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 360px);
+  gap: 14px;
+  align-items: start;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  background: var(--surface);
+}
+
+.editing-workspace-header h2 {
+  margin: 2px 0 6px;
+}
+
+.editing-workspace-header p,
+.editing-status-line {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.editing-status-line {
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.editing-meta {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 10px;
+  margin: 0;
+  font-size: 12px;
+}
+
+.editing-meta dt {
+  color: var(--muted);
+  font-weight: 750;
+}
+
+.editing-meta dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.editing-workspace-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.editing-main-column,
+.editing-side-column,
+.editing-field-panels,
+.editing-readonly-panels {
+  display: grid;
+  gap: 12px;
+}
+
+.editing-context-graph,
+.editing-summary,
+.editing-preview,
+.editing-panel {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.editing-context-graph {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+}
+
+.editing-context-graph header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: start;
+}
+
+.editing-context-graph h3,
+.editing-context-graph h4,
+.editing-summary h3 {
+  margin: 0;
+}
+
+.editing-context-graph header span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.editing-graph-lanes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.editing-graph-lane {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.editing-graph-lane h4 {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.editing-graph-node {
+  display: grid;
+  gap: 4px;
+  min-height: 72px;
+  padding: 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--surface-alt);
+}
+
+.editing-graph-node strong,
+.editing-graph-node small,
+.editing-graph-node span {
+  overflow-wrap: anywhere;
+}
+
+.editing-graph-node small,
+.editing-graph-node span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.editing-status-current {
+  border-color: var(--accent);
+}
+
+.editing-status-guarded {
+  border-color: var(--success);
+}
+
+.editing-status-manual,
+.editing-status-read-only {
+  border-color: var(--warning);
+}
+
+.editing-panel summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.editing-panel[open] summary {
+  border-bottom: 1px solid var(--border);
+}
+
+.editing-field {
+  display: grid;
+  gap: 5px;
+  padding: 10px 12px;
+}
+
+.editing-field + .editing-field {
+  border-top: 1px solid var(--border-soft);
+}
+
+.editing-field span {
+  font-weight: 750;
+}
+
+.editing-field small {
+  color: var(--muted);
+}
+
+.editing-field textarea {
+  width: 100%;
+  min-height: 76px;
+  resize: vertical;
+}
+
+.editing-field-guarded textarea {
+  border-color: color-mix(in srgb, var(--success) 45%, var(--border));
+}
+
+.editing-field-manual textarea {
+  border-color: color-mix(in srgb, var(--warning) 45%, var(--border));
+}
+
+.editing-summary {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.editing-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.editing-summary-box {
+  display: grid;
+  gap: 2px;
+  padding: 9px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--surface-alt);
+}
+
+.editing-summary-box strong {
+  font-size: 20px;
+}
+
+.editing-summary-box span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.editing-preview {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.editing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.editing-readonly-line,
+.editing-empty {
+  margin: 0;
+  padding: 9px 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 980px) {
+  .editing-workspace-header,
+  .editing-workspace-layout,
+  .editing-graph-lanes {
+    grid-template-columns: 1fr;
+  }
+}

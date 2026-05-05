@@ -94,6 +94,7 @@ const postEvent = read(path.join(QA_FIXTURE, 'source', 'scenes', 'post_event.sce
   'post_event_news',
   'ProjectMapInstallAssistant',
   'data-design-edit-existing',
+  'data-editing-workspace',
   'reloadStudioWindow',
   'dendry:open-starter-demo',
   'dendry:update-notice-check',
@@ -150,8 +151,12 @@ assert(
   'runner should include bundled starter demo scenario and assert the loaded project name'
 );
 assert(
-  existingScenarioCard.includes('Persona:') && existingScenarioCard.includes('Required checkpoints:') && existingScenarioCard.includes('Allowed shortcut:'),
-  'existing edit scenario card should be written as a player journey'
+  existingScenarioCard.includes('Persona:') &&
+    existingScenarioCard.includes('Required checkpoints:') &&
+    existingScenarioCard.includes('Allowed shortcut:') &&
+    existingScenarioCard.includes('contextual Editing') &&
+    existingScenarioCard.includes('graph-like context surface'),
+  'existing edit scenario card should be written as a contextual player journey'
 );
 assert(
   persistenceScenarioCard.includes('Persona:') && persistenceScenarioCard.includes('Required checkpoints:') && persistenceScenarioCard.includes('Allowed shortcut:'),
