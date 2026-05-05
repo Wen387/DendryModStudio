@@ -40,6 +40,20 @@
     return null;
   }
 
+  function contentAdaptersApi() {
+    if (global && global.ProjectMapObjectCanvasContentAdapters) {
+      return global.ProjectMapObjectCanvasContentAdapters;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./object_canvas_content_adapters.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   function installPlanApi() {
     if (global && global.ProjectMapInstallPlan) {
       return global.ProjectMapInstallPlan;
@@ -59,6 +73,12 @@
     const mode = String(value.mode || value.type || '').trim();
     if (mode === 'existing') {
       return buildExistingCanvas(projectIndex, value.view, value.item || value.itemOrId || value.sceneId, options);
+    }
+    const adapters = contentAdaptersApi();
+    if (adapters && typeof adapters.buildTemplateCanvas === 'function') {
+      const draft = value.draft || value;
+      const template = value.template || adapters.templateFromDraft && adapters.templateFromDraft(draft) || 'event';
+      return adapters.buildTemplateCanvas(projectIndex, template, draft, options);
     }
     return buildNewEventCanvas(projectIndex, value.draft || value, options);
   }
@@ -103,6 +123,10 @@
   }
 
   function buildNewEventCanvas(projectIndex, draftInput, options) {
+    const adapters = contentAdaptersApi();
+    if (adapters && typeof adapters.buildTemplateCanvas === 'function') {
+      return adapters.buildTemplateCanvas(projectIndex, 'event', draftInput, options);
+    }
     const opts = isObject(options) ? options : {};
     const draft = draftFromValues(normalizeEventInput(draftInput), opts.values || {});
     const api = eventDraftApi();
@@ -145,6 +169,30 @@
       legacy: {template: 'event'},
       rawContext: null
     };
+  }
+
+  function buildTemplateCanvas(projectIndex, template, draftInput, options) {
+    const adapters = contentAdaptersApi();
+    if (adapters && typeof adapters.buildTemplateCanvas === 'function') {
+      return adapters.buildTemplateCanvas(projectIndex, template, draftInput, options);
+    }
+    return buildNewEventCanvas(projectIndex, draftInput, options);
+  }
+
+  function defaultDraftForTemplate(projectIndex, template) {
+    const adapters = contentAdaptersApi();
+    if (adapters && typeof adapters.defaultDraftForTemplate === 'function') {
+      return adapters.defaultDraftForTemplate(projectIndex, template);
+    }
+    return normalizeEventInput({});
+  }
+
+  function templateFromDraft(draft) {
+    const adapters = contentAdaptersApi();
+    if (adapters && typeof adapters.templateFromDraft === 'function') {
+      return adapters.templateFromDraft(draft);
+    }
+    return 'event';
   }
 
   function eventBodyForExisting(context) {
@@ -555,7 +603,7 @@
     if (!isObject(values)) {
       return 0;
     }
-    return Object.keys(values).filter((key) => String(values[key] || '').trim()).length;
+    return Object.keys(values).length;
   }
 
   function emptyCanvas(mode, extraDiagnostic, rawContext) {
@@ -655,7 +703,10 @@
     MODEL_KIND,
     buildCanvasModel,
     buildExistingCanvas,
+    buildTemplateCanvas,
     buildNewEventCanvas,
+    defaultDraftForTemplate,
+    templateFromDraft,
     normalizeEventInput,
     draftFromValues
   };

@@ -12,6 +12,7 @@
   const state = {
     active: false,
     mode: 'new_event',
+    template: 'event',
     projectIndex: null,
     view: '',
     item: null,
@@ -25,13 +26,14 @@
 
   const api = {
     openFromSelection,
+    openTemplate,
     openNewEvent,
     loadDraft,
     refresh,
     getDraft: () => state.model && state.model.changeState && state.model.changeState.draft,
     getOutput: () => state.model && state.model.changeState && state.model.changeState.output,
     isActive: () => state.active,
-    activeTemplate: () => state.mode === 'existing' ? 'existing' : 'event',
+    activeTemplate: () => state.mode === 'existing' ? 'existing' : state.template || 'event',
     setProjectIndex
   };
 
@@ -77,8 +79,8 @@
   function bindTemplateEvents(document) {
     document.addEventListener('ProjectMap:create-template-changed', (event) => {
       const template = event && event.detail && event.detail.template;
-      if (template === 'event') {
-        openNewEventFromCreate();
+      if (isCanvasTemplate(template)) {
+        openTemplateFromCreate(template);
       } else if (template && template !== 'existing' && template !== 'object_canvas') {
         deactivate();
       }
@@ -88,8 +90,8 @@
       if (modeButton) {
         schedule(() => {
           const active = document.querySelector('[data-create-template].is-active');
-          if (active && active.dataset.createTemplate === 'event') {
-            openNewEventFromCreate();
+          if (active && isCanvasTemplate(active.dataset.createTemplate)) {
+            openTemplateFromCreate(active.dataset.createTemplate);
           }
         });
       }
@@ -110,6 +112,7 @@
       state.projectIndex = projectIndex;
     }
     state.mode = 'existing';
+    state.template = 'existing';
     state.view = view || '';
     state.item = item || null;
     state.baseDraft = null;
@@ -125,26 +128,31 @@
   }
 
   function openNewEvent(draft, meta) {
-    state.mode = 'new_event';
-    state.view = 'events';
+    return openTemplate('event', draft, meta);
+  }
+
+  function openTemplate(template, draft, meta) {
+    const nextTemplate = normalizeTemplate(template) || templateFromDraft(draft) || 'event';
+    state.template = nextTemplate;
+    state.mode = nextTemplate === 'event' ? 'new_event' : nextTemplate;
+    state.view = nextTemplate;
     state.item = null;
-    state.baseDraft = draft || defaultDraftFromWizard();
+    state.baseDraft = draft || defaultDraftForTemplate(nextTemplate);
     state.values = {};
-    state.model = buildNewEventModel(meta || {});
+    state.model = buildTemplateModel(meta || {});
     state.active = true;
-    state.status = meta && meta.source
-      ? t('objectCanvas.status.seedLoaded', 'Event Canvas opened from the selected context.')
-      : t('objectCanvas.status.newLoaded', 'Event Canvas opened for a new event.');
-    showWorkspace('event');
+    state.status = statusForTemplate(nextTemplate, meta);
+    showWorkspace(nextTemplate);
     render();
     return Boolean(state.model && state.model.ok);
   }
 
-  function openNewEventFromCreate() {
-    if (state.active && state.mode === 'new_event') {
+  function openTemplateFromCreate(template) {
+    const nextTemplate = normalizeTemplate(template) || 'event';
+    if (state.active && state.mode !== 'existing' && state.template === nextTemplate) {
       return;
     }
-    openNewEvent(defaultDraftFromWizard(), {source: 'Create'});
+    openTemplate(nextTemplate, defaultDraftForTemplate(nextTemplate), {source: 'Create'});
   }
 
   function loadDraft(draft, meta) {
@@ -156,7 +164,7 @@
         : {};
       return openFromSelection(state.projectIndex, value.sceneKind === 'card' ? 'cards' : 'events', value.sceneId, {values, entry: meta});
     }
-    return openNewEvent(value, meta || {source: 'Create'});
+    return openTemplate(templateFromDraft(value) || meta && meta.template || 'event', value, meta || {source: 'Create'});
   }
 
   function refresh() {
@@ -164,7 +172,7 @@
       return;
     }
     state.values = collectValues();
-    state.model = state.mode === 'existing' ? buildExistingModel({values: state.values}) : buildNewEventModel({values: state.values});
+    state.model = state.mode === 'existing' ? buildExistingModel({values: state.values}) : buildTemplateModel({values: state.values});
     updateDynamicSurfaces();
   }
 
@@ -182,13 +190,21 @@
       : null;
   }
 
+  function buildTemplateModel(options) {
+    const apiModel = modelApi();
+    if (apiModel && typeof apiModel.buildTemplateCanvas === 'function') {
+      return apiModel.buildTemplateCanvas(state.projectIndex, state.template || 'event', state.baseDraft || {}, options || {});
+    }
+    return buildNewEventModel(options);
+  }
+
   function showWorkspace(template) {
     activateCreateMode();
     if (!elements || !elements.host) {
       return;
     }
     elements.templateButtons.forEach((button) => {
-      const active = template === 'event' && button.dataset.createTemplate === 'event';
+      const active = button.dataset.createTemplate === template;
       button.classList.toggle('is-active', active);
       button.setAttribute('aria-selected', active ? 'true' : 'false');
     });
@@ -237,7 +253,8 @@
     const source = model.source || {};
     const modeLabel = model.mode === 'existing'
       ? t('objectCanvas.mode.existing', 'Editing existing object')
-      : t('objectCanvas.mode.newEvent', 'Creating new event');
+      : t('objectCanvas.mode.newObject', 'Authoring object');
+    const kindLabel = model.templateLabel || model.objectKind || state.template || 'event';
     return [
       '<header class="object-canvas-header editing-workspace-header">',
       '<div>',
@@ -248,7 +265,7 @@
       '</div>',
       '<dl class="editing-meta">',
       '<dt>' + escapeHtml(t('objectCanvas.mode', 'Mode')) + '</dt><dd>' + escapeHtml(modeLabel) + '</dd>',
-      '<dt>' + escapeHtml(t('existingScene.kind', 'Kind')) + '</dt><dd>' + escapeHtml(model.objectKind || 'event') + '</dd>',
+      '<dt>' + escapeHtml(t('existingScene.kind', 'Kind')) + '</dt><dd>' + escapeHtml(kindLabel) + '</dd>',
       '<dt>' + escapeHtml(t('existingScene.sceneId', 'Scene')) + '</dt><dd>' + escapeHtml(model.objectId || '') + '</dd>',
       '<dt>' + escapeHtml(t('existingScene.source', 'Source')) + '</dt><dd>' + escapeHtml(source.path ? source.path + (source.line ? ':' + source.line : '') : '') + '</dd>',
       '</dl>',
@@ -330,11 +347,11 @@
   function renderEventBody(body) {
     return [
       '<section class="object-event-body" data-object-canvas-event-body="true">',
-      '<div class="template-eyebrow">' + escapeHtml(t('objectCanvas.eventEyebrow', 'Event body')) + '</div>',
+      '<div class="template-eyebrow">' + escapeHtml(body.bodyEyebrow || t('objectCanvas.eventEyebrow', 'Event body')) + '</div>',
       renderTitleField(body),
       renderSections(body.sections || []),
-      renderOptions(body.options || []),
-      renderMetaFields(body.metaFields || []),
+      renderOptions(body.options || [], body.optionsLabel),
+      renderMetaFields(body.metaFields || [], body.metaLabel),
       '</section>'
     ].join('');
   }
@@ -359,11 +376,11 @@
     ].join('');
   }
 
-  function renderOptions(options) {
+  function renderOptions(options, label) {
     const items = Array.isArray(options) ? options : [];
     return [
       '<section class="object-event-options">',
-      '<h3>' + escapeHtml(t('existingScene.options', 'Options')) + '</h3>',
+      '<h3>' + escapeHtml(label || t('existingScene.options', 'Options')) + '</h3>',
       items.length ? items.map(renderOption).join('') : '<p class="editing-empty">' + escapeHtml(t('objectCanvas.noOptions', 'No options found for this object.')) + '</p>',
       '</section>'
     ].join('');
@@ -382,14 +399,14 @@
     ].join('');
   }
 
-  function renderMetaFields(fields) {
+  function renderMetaFields(fields, label) {
     const items = Array.isArray(fields) ? fields : [];
     if (!items.length) {
       return '';
     }
     return [
       '<details class="object-event-meta">',
-      '<summary>' + escapeHtml(t('objectCanvas.advancedFields', 'Timing and advanced fields')) + '</summary>',
+      '<summary>' + escapeHtml(label || t('objectCanvas.advancedFields', 'Timing and advanced fields')) + '</summary>',
       '<div class="object-event-meta-grid">',
       items.map((field) => renderInlineField(field, {element: 'input'})).join(''),
       '</div>',
@@ -457,7 +474,7 @@
       '<button type="button" data-object-canvas-action="refresh">' + escapeHtml(t('existingScene.refresh', 'Refresh proposal')) + '</button>',
       '<button type="button" data-object-canvas-action="save">' + escapeHtml(t('editing.saveToChanges', 'Save to My Changes')) + '</button>',
       '<button class="primary-action" type="button" data-object-canvas-action="review">' + escapeHtml(t('existingScene.review', 'Review & Apply')) + '</button>',
-      model.mode === 'new_event' ? '<button type="button" data-object-canvas-action="legacy_event">' + escapeHtml(t('objectCanvas.legacyEventForm', 'Advanced Event Form')) + '</button>' : '',
+      model.mode !== 'existing' ? '<button type="button" data-object-canvas-action="legacy_form">' + escapeHtml(t('objectCanvas.legacyForm', 'Advanced Form')) + '</button>' : '',
       '</div>'
     ].join('');
   }
@@ -498,8 +515,8 @@
       updateDynamicSurfaces();
     } else if (action === 'review') {
       reviewCurrentPlan();
-    } else if (action === 'legacy_event') {
-      openLegacyEventForm();
+    } else if (action === 'legacy_form') {
+      openLegacyForm();
     }
   }
 
@@ -520,20 +537,22 @@
     }
   }
 
-  function openLegacyEventForm() {
+  function openLegacyForm() {
     const draft = state.model && state.model.changeState && state.model.changeState.draft;
+    const template = state.template || 'event';
     deactivate();
     elements.templateButtons.forEach((button) => {
-      const active = button.dataset.createTemplate === 'event';
+      const active = button.dataset.createTemplate === template;
       button.classList.toggle('is-active', active);
       button.setAttribute('aria-selected', active ? 'true' : 'false');
     });
     elements.templatePanels.forEach((panel) => {
-      const active = panel.dataset.createTemplatePanel === 'event';
+      const active = panel.dataset.createTemplatePanel === template;
       panel.classList.toggle('hidden', !active);
     });
-    if (draft && global.ProjectMapWizard && typeof global.ProjectMapWizard.loadDraft === 'function') {
-      global.ProjectMapWizard.loadDraft(draft, {source: 'Object Canvas Advanced Event Form'});
+    const wizard = wizardForTemplate(template);
+    if (draft && wizard && typeof wizard.loadDraft === 'function') {
+      wizard.loadDraft(draft, {source: 'Object Canvas Advanced Form'});
     }
   }
 
@@ -544,7 +563,7 @@
     }
     elements.host.querySelectorAll('[data-object-canvas-field]').forEach((input) => {
       const key = input.dataset.objectCanvasField;
-      if (key) {
+      if (key && input.value !== input.defaultValue) {
         values[key] = input.value;
       }
     });
@@ -570,8 +589,12 @@
     }
   }
 
-  function defaultDraftFromWizard() {
-    const wizard = global.ProjectMapWizard;
+  function defaultDraftForTemplate(template) {
+    const apiModel = modelApi();
+    if (apiModel && typeof apiModel.defaultDraftForTemplate === 'function') {
+      return apiModel.defaultDraftForTemplate(state.projectIndex, template || 'event');
+    }
+    const wizard = wizardForTemplate(template || 'event');
     if (wizard && typeof wizard.refresh === 'function') {
       wizard.refresh();
     }
@@ -581,19 +604,59 @@
         return draft;
       }
     }
-    return {
-      schemaVersion: '0.1',
-      kind: 'world_event',
-      id: 'new_world_event',
-      title: 'New World Event',
-      heading: 'New World Event',
-      when: {year: 1936, monthStart: 1, monthEnd: 3, requires: '', priority: 0},
-      introParagraphs: ['Write the opening event text here.'],
-      options: [
-        {id: 'option_1', label: 'Take the first path', narrativeParagraphs: ['The first consequence appears.']},
-        {id: 'option_2', label: 'Choose another path', narrativeParagraphs: ['The second consequence appears.']}
-      ]
+    return {};
+  }
+
+  function templateFromDraft(draft) {
+    const apiModel = modelApi();
+    if (apiModel && typeof apiModel.templateFromDraft === 'function') {
+      return apiModel.templateFromDraft(draft);
+    }
+    const value = draft || {};
+    return value.kind === 'news_item' ? 'news' : value.kind === 'card' ? 'card' : 'event';
+  }
+
+  function isCanvasTemplate(template) {
+    return Boolean(normalizeTemplate(template));
+  }
+
+  function normalizeTemplate(template) {
+    const text = String(template || '').trim();
+    const supported = {
+      event: true,
+      news: true,
+      card: true,
+      play_surface: true,
+      workspace_layout: true,
+      sidebar_status: true,
+      surface: true,
+      entry: true,
+      project: true,
+      variables: true
     };
+    return supported[text] ? text : '';
+  }
+
+  function statusForTemplate(template, meta) {
+    if (meta && meta.source && meta.source !== 'Create') {
+      return t('objectCanvas.status.seedLoaded', 'Object Canvas opened from the selected context.');
+    }
+    return t('objectCanvas.status.newLoaded', 'Object Canvas opened for this template.');
+  }
+
+  function wizardForTemplate(template) {
+    return {
+      event: global.ProjectMapWizard,
+      news: global.ProjectMapNewsWizard,
+      card: global.ProjectMapCardWizard,
+      play_surface: global.ProjectMapPlaySurfaceWizard,
+      workspace_layout: global.ProjectMapWorkspaceLayoutWizard,
+      sidebar_status: global.ProjectMapSidebarStatusWizard,
+      surface: global.ProjectMapSurfaceTextWizard,
+      entry: global.ProjectMapEntrySidebarWizard,
+      project: global.ProjectMapProjectMetadataWizard,
+      variables: global.ProjectMapVariableEditorWizard
+    }[template] || null;
   }
 
   function modelApi() {

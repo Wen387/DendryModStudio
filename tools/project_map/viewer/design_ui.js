@@ -1189,7 +1189,7 @@
     clickSelector('[data-mode="create"]');
     clickSelector('[data-create-template="' + template + '"]');
     const meta = {source: 'Design mode Edit as Draft', extraction: result};
-    if (template === 'event' && global.ProjectMapObjectAuthoringCanvas && typeof global.ProjectMapObjectAuthoringCanvas.loadDraft === 'function') {
+    if (global.ProjectMapObjectAuthoringCanvas && typeof global.ProjectMapObjectAuthoringCanvas.loadDraft === 'function') {
       global.ProjectMapObjectAuthoringCanvas.loadDraft(draft, meta);
     } else if (template === 'event' && global.ProjectMapWizard && typeof global.ProjectMapWizard.loadDraft === 'function') {
       global.ProjectMapWizard.loadDraft(draft, meta);

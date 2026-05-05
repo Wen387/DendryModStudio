@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Authoring Canvas Screenshot Harness</title>
+  <style>
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #f4f2ec;
+      font: 13px/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    iframe {
+      width: 100vw;
+      height: 100vh;
+      border: 0;
+      display: block;
+    }
+
+    .harness-badge {
+      position: fixed;
+      right: 12px;
+      bottom: 12px;
+      z-index: 10;
+      max-width: min(460px, calc(100vw - 24px));
+      padding: 8px 10px;
+      border: 1px solid rgba(25, 30, 40, 0.16);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.92);
+      color: #1f2933;
+      box-shadow: 0 6px 18px rgba(25, 30, 40, 0.12);
+    }
+
+    .harness-badge strong {
+      display: block;
+      font-size: 12px;
+    }
+
+    .harness-badge span {
+      color: #52606d;
+      font-size: 11px;
+    }
+
+    body[data-ready="true"] .harness-badge {
+      border-color: rgba(33, 129, 88, 0.32);
+    }
+
+    body[data-error="true"] .harness-badge {
+      border-color: rgba(190, 42, 42, 0.45);
+      color: #8a1f1f;
+    }
+  </style>
+</head>
+<body>
+  <iframe id="studio-frame" title="Dendry Mod Studio"></iframe>
+  <div class="harness-badge">
+    <strong id="harness-title">Authoring Canvas screenshot</strong>
+    <span id="harness-status">Loading Studio...</span>
+  </div>
+  <script>
+    (function initHarness() {
+      'use strict';
+
+      const scenarioId = new URLSearchParams(window.location.search).get('scenario') || 'create-unified-canvas';
+      const frame = document.getElementById('studio-frame');
+      const title = document.getElementById('harness-title');
+      const status = document.getElementById('harness-status');
+      const index = fixtureIndex();
+
+      const scenarios = {
+        'create-unified-canvas': () => openTemplate('event', {}, 'Create opens unified Canvas'),
+        'event-inline-edit': () => openTemplate('event', {'event.title': 'Player-facing event title', 'event.intro': 'The event body is edited directly in the Canvas.'}, 'Event inline editing'),
+        'design-existing-event-canvas': () => openExisting('events', 'generic_intro', {generic_intro_body: 'The campaign office opens to a sharper morning.'}, 'Design existing Event Canvas'),
+        'explore-existing-card-canvas': () => openExisting('cards', 'policy_card', {policy_card_body: 'The policy card body is edited from Explore context.'}, 'Explore existing Card Canvas'),
+        'template-news': () => openTemplate('news', {'news.headline': 'Canvas headline'}, 'News Canvas'),
+        'template-card': () => openTemplate('card', {'card.title': 'Canvas Action Card', 'card.option.0.label': 'Use the Canvas card'}, 'Card Canvas'),
+        'template-surface': () => openTemplate('surface', {'surface.replacementLabel': 'Canvas replacement text'}, 'Surface/Text Canvas'),
+        'template-entry': () => openTemplate('entry', {'entry.rootTitle': 'Canvas Start'}, 'Entry & Sidebar Canvas'),
+        'template-play-surface': () => openTemplate('play_surface', {'play.title': 'Canvas Playable Surface'}, 'Playable Surface Canvas'),
+        'template-workspace-layout': () => openTemplate('workspace_layout', {'layout.deckTitle': 'Canvas Policy Deck'}, 'Workspace Layout Canvas'),
+        'template-sidebar-status': () => openTemplate('sidebar_status', {'sidebar.sectionHeading': 'Canvas Status'}, 'Sidebar / Status Canvas'),
+        'template-project': () => openTemplate('project', {'project.gameTitle': 'Canvas Project Title'}, 'Game Info Canvas'),
+        'template-variables': () => openTemplate('variables', {'variables.label': 'Canvas Variable'}, 'Variables Canvas'),
+        'reload-event': () => saveAndReload('event', {'event.title': 'Reloaded Event Draft'}, 'My Changes reload Event'),
+        'reload-card': () => saveAndReload('card', {'card.title': 'Reloaded Card Draft'}, 'My Changes reload Card'),
+        'reload-surface': () => saveAndReload('surface', {'surface.replacementLabel': 'Reloaded replacement'}, 'My Changes reload Surface/Text'),
+        'reload-workspace-layout': () => saveAndReload('workspace_layout', {'layout.deckTitle': 'Reloaded Layout Draft'}, 'My Changes reload Workspace Layout'),
+        'review-event': () => reviewTemplate('event', {'event.title': 'Review Event Draft'}, 'Review & Apply Event'),
+        'review-existing': () => reviewExisting('events', 'generic_intro', {generic_intro_body: 'Review existing event replacement.'}, 'Review & Apply Existing Edit'),
+        'review-surface': () => reviewTemplate('surface', {'surface.replacementLabel': 'Review replacement text'}, 'Review & Apply Surface/Text'),
+        'review-workspace-layout': () => reviewTemplate('workspace_layout', {'layout.deckTitle': 'Review Policy Deck'}, 'Review & Apply Workspace Layout')
+      };
+
+      try {
+        window.localStorage.setItem('dendry-mod-studio-onboarding-seen', 'true');
+      } catch (_err) {
+        // Ignore storage restrictions in screenshot mode.
+      }
+
+      frame.addEventListener('load', () => {
+        runScenario().catch(showError);
+      }, {once: true});
+      frame.src = '../viewer/index.html';
+
+      async function runScenario() {
+        const win = frame.contentWindow;
+        dismissOnboarding(win);
+        await waitFor(() => win.ProjectMapObjectAuthoringCanvas && win.ProjectMapObjectAuthoringCanvasModel, 6000);
+        dismissOnboarding(win);
+        seedIndex(win);
+        const run = scenarios[scenarioId] || scenarios['create-unified-canvas'];
+        await run();
+        await delay(350);
+        document.body.dataset.ready = 'true';
+        window.__DMS_SCREENSHOT_READY__ = true;
+      }
+
+      function seedIndex(win) {
+        const model = {index};
+        const detail = {
+          index: model.index || index,
+          model,
+          fileName: 'authoring-canvas-screenshot-fixture.json',
+          fileSize: 1,
+          sourceExcerpts: true
+        };
+        win.document.dispatchEvent(new win.CustomEvent('project-map:index-loaded', {detail, bubbles: true}));
+      }
+
+      function dismissOnboarding(win) {
+        const dialog = win.document.getElementById('studio-onboarding');
+        const closeButton = win.document.querySelector('[data-onboarding-close]');
+        if (closeButton && typeof closeButton.click === 'function') {
+          closeButton.click();
+        }
+        if (dialog) {
+          dialog.classList.add('hidden');
+          dialog.hidden = true;
+        }
+      }
+
+      async function openTemplate(template, values, label) {
+        const win = frame.contentWindow;
+        setBadge(label, template);
+        click(win, '[data-mode="create"]');
+        click(win, '[data-create-template="' + template + '"]');
+        const draft = win.ProjectMapObjectAuthoringCanvasModel.defaultDraftForTemplate(index, template);
+        win.ProjectMapObjectAuthoringCanvas.openTemplate(template, draft, {source: 'Screenshot Harness'});
+        await applyValues(win, values);
+      }
+
+      async function openExisting(view, sceneId, values, label) {
+        const win = frame.contentWindow;
+        setBadge(label, view + ' / ' + sceneId);
+        click(win, '[data-mode="create"]');
+        win.ProjectMapObjectAuthoringCanvas.openFromSelection(index, view, sceneId, {
+          values,
+          entry: {source: label}
+        });
+        await delay(160);
+      }
+
+      async function saveAndReload(template, values, label) {
+        const win = frame.contentWindow;
+        try {
+          win.localStorage.removeItem('dendry_mod_studio.draft_workspace.v0.1');
+        } catch (_err) {
+          // Ignore storage restrictions in screenshot mode.
+        }
+        await openTemplate(template, values, label);
+        click(win, '[data-object-canvas-action="save"]');
+        await delay(180);
+        click(win, '[data-draft-action="load"]');
+        await delay(240);
+      }
+
+      async function reviewTemplate(template, values, label) {
+        const win = frame.contentWindow;
+        await openTemplate(template, values, label);
+        click(win, '[data-object-canvas-action="review"]');
+        await delay(260);
+      }
+
+      async function reviewExisting(view, sceneId, values, label) {
+        const win = frame.contentWindow;
+        await openExisting(view, sceneId, values, label);
+        click(win, '[data-object-canvas-action="review"]');
+        await delay(260);
+      }
+
+      async function applyValues(win, values) {
+        Object.keys(values || {}).forEach((key) => {
+          const field = win.document.querySelector('[data-object-canvas-field="' + cssEscape(key) + '"]');
+          if (field) {
+            field.value = values[key];
+            field.dispatchEvent(new win.Event('input', {bubbles: true}));
+          }
+        });
+        await delay(180);
+      }
+
+      function click(win, selector) {
+        const node = win.document.querySelector(selector);
+        if (node && typeof node.click === 'function') {
+          node.click();
+        }
+      }
+
+      function setBadge(label, detail) {
+        title.textContent = label || scenarioId;
+        status.textContent = detail || scenarioId;
+      }
+
+      function showError(err) {
+        document.body.dataset.error = 'true';
+        title.textContent = 'Screenshot harness failed';
+        status.textContent = err && err.stack ? err.stack : String(err);
+        window.__DMS_SCREENSHOT_ERROR__ = status.textContent;
+      }
+
+      function waitFor(predicate, timeoutMs) {
+        const started = Date.now();
+        return new Promise((resolve, reject) => {
+          const tick = () => {
+            try {
+              if (predicate()) {
+                resolve();
+                return;
+              }
+            } catch (_err) {
+              // Keep waiting until timeout.
+            }
+            if (Date.now() - started > timeoutMs) {
+              reject(new Error('Timed out waiting for Studio screenshot readiness.'));
+              return;
+            }
+            setTimeout(tick, 50);
+          };
+          tick();
+        });
+      }
+
+      function delay(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+      }
+
+      function cssEscape(value) {
+        if (window.CSS && typeof window.CSS.escape === 'function') {
+          return window.CSS.escape(String(value || ''));
+        }
+        return String(value || '').replace(/"/g, '\\"');
+      }
+
+      function fixtureIndex() {
+        const eventPath = 'source/scenes/events/generic_intro.scene.dry';
+        const cardPath = 'source/scenes/cards/policy_card.scene.dry';
+        return {
+          schemaVersion: '0.1',
+          project: {name: 'Authoring Canvas Screenshot Fixture', root: '/tmp/authoring-canvas'},
+          scenes: [
+            {
+              id: 'generic_intro',
+              title: 'Generic Intro',
+              path: eventPath,
+              type: 'event',
+              flags: {isCard: false},
+              viewIf: 'year = 1936',
+              options: [{target: {id: 'target_scene'}, title: 'Continue'}],
+              sourceSpan: {path: eventPath, startLine: 1, endLine: 80},
+              metadata: {viewIf: {path: eventPath, line: 4}},
+              assetRefs: []
+            },
+            {
+              id: 'target_scene',
+              title: 'Target Scene',
+              path: 'source/scenes/events/target_scene.scene.dry',
+              type: 'event',
+              flags: {isCard: false},
+              sourceSpan: {path: 'source/scenes/events/target_scene.scene.dry', startLine: 1, endLine: 40}
+            },
+            {
+              id: 'policy_card',
+              title: 'Policy Card',
+              path: cardPath,
+              type: 'card',
+              flags: {isCard: true},
+              tags: ['cards'],
+              options: [{target: {id: 'root'}, title: 'Use policy'}],
+              sourceSpan: {path: cardPath, startLine: 1, endLine: 90},
+              assetRefs: []
+            },
+            {
+              id: 'root',
+              title: 'Root',
+              path: 'source/scenes/root.scene.dry',
+              type: 'event',
+              sourceSpan: {path: 'source/scenes/root.scene.dry', startLine: 1, endLine: 40}
+            },
+            {
+              id: 'main',
+              title: 'Workspace Hand',
+              path: 'source/scenes/main.scene.dry',
+              type: 'event',
+              sourceSpan: {path: 'source/scenes/main.scene.dry', startLine: 1, endLine: 60}
+            }
+          ],
+          edges: [
+            {from: 'generic_intro', to: 'target_scene', kind: 'go_to', label: 'continues', source: {path: eventPath, line: 20}},
+            {from: 'policy_card', to: 'root', kind: 'go_to', label: 'returns', source: {path: cardPath, line: 26}}
+          ],
+          variables: [
+            {name: 'public_order', readCount: 1, writeCount: 1, reads: [{path: eventPath, line: 8}], writes: [{path: eventPath, line: 25}], tags: ['politics']},
+            {name: 'policy_momentum', readCount: 0, writeCount: 0, reads: [], writes: [], tags: ['policy']},
+            {name: 'policy_capacity', readCount: 0, writeCount: 0, reads: [], writes: [], tags: ['policy']}
+          ],
+          semantic: {
+            events: [{id: 'generic_intro', title: 'Generic Intro', path: eventPath}],
+            cards: [{id: 'policy_card', title: 'Policy Card', path: cardPath, tags: ['cards']}],
+            hands: [{id: 'main', title: 'Workspace Hand', path: 'source/scenes/main.scene.dry'}],
+            news: {sources: ['source/scenes/post_event_news.scene.dry'], items: []},
+            textCorpus: {
+              items: [
+                textItem('generic_intro_title', 'Generic Intro', 'title', 'generic_intro', eventPath, 1),
+                textItem('generic_intro_body', 'The campaign office wakes before dawn.', 'body', 'generic_intro', eventPath, 8),
+                textItem('generic_intro_option', 'Continue', 'option_label', 'generic_intro', eventPath, 14, 'target_scene'),
+                textItem('generic_intro_effect', 'Q.public_order += 1;', 'script', 'generic_intro', eventPath, 25, 'target_scene'),
+                textItem('policy_card_title', 'Policy Card', 'title', 'policy_card', cardPath, 1),
+                textItem('policy_card_body', 'The policy card asks what the team should do.', 'body', 'policy_card', cardPath, 8),
+                textItem('policy_card_option', 'Use policy', 'option_label', 'policy_card', cardPath, 18, 'root')
+              ]
+            }
+          }
+        };
+      }
+
+      function textItem(id, text, role, sceneId, path, line, itemId) {
+        return {
+          id,
+          text,
+          role,
+          owner: {kind: 'scene', sceneId, sectionId: itemId || 'start', itemId: itemId || ''},
+          source: {path, line}
+        };
+      }
+    })();
+  </script>
+</body>
+</html>

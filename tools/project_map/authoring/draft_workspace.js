@@ -145,6 +145,9 @@
     if (text === 'project' || text === 'project_metadata' || text === 'game_info') {
       return 'project';
     }
+    if (text === 'variables' || text === 'variable' || text === 'variable_editor') {
+      return 'variables';
+    }
     if (text === 'existing_scene_edit' || text === 'existing' || text === 'scene_edit') {
       return 'existing';
     }
@@ -195,6 +198,9 @@
     if (template === 'project') {
       return [draft.gameTitle, draft.author].filter(Boolean).join(' / ');
     }
+    if (template === 'variables') {
+      return [draft.mode, draft.variableName, draft.valueType].filter(Boolean).join(' / ');
+    }
     if (template === 'existing') {
       return [draft.sceneKind || 'scene', draft.sceneId, draft.sourcePath].filter(Boolean).join(' / ');
     }
@@ -212,6 +218,7 @@
       draft.intro,
       draft.description,
       draft.gameTitle,
+      draft.variableName,
       draft.heading,
       draft.headline,
       existingScenePreviewText(draft),
@@ -275,6 +282,7 @@
       surface: 'Text Proposal',
       entry: 'Entry & Sidebar Draft',
       project: 'Game Info Draft',
+      variables: 'Variable Draft',
       existing: 'Existing Scene Edit'
     }[template] || 'Draft';
   }

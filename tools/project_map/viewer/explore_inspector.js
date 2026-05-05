@@ -467,7 +467,7 @@
     activateMode('create');
     activateCreateTemplate(templateKey);
     const meta = {source: 'Explore Edit as Draft', extraction: result};
-    if (templateKey === 'event' && global.ProjectMapObjectAuthoringCanvas && typeof global.ProjectMapObjectAuthoringCanvas.loadDraft === 'function') {
+    if (global.ProjectMapObjectAuthoringCanvas && typeof global.ProjectMapObjectAuthoringCanvas.loadDraft === 'function') {
       global.ProjectMapObjectAuthoringCanvas.loadDraft(draft, meta);
       return true;
     }
