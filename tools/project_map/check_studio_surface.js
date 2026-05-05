@@ -140,6 +140,8 @@ assert(objectAuthoringCanvasUi.includes('ProjectMapObjectAuthoringCanvas'), 'Obj
 assert(objectAuthoringCanvasUi.includes('openTemplate'), 'Object Authoring Canvas should route template authoring through Canvas');
 assert(objectAuthoringCanvasUi.includes('ProjectMapEditingWorkspace = api'), 'Object Authoring Canvas should bridge the existing editing API');
 assert(objectAuthoringCanvasUi.includes('data-object-authoring-canvas'), 'Object Authoring Canvas should expose a stable QA marker');
+assert(objectAuthoringCanvasUi.includes('data-object-canvas-stage'), 'Object Authoring Canvas should render a visible Canvas stage');
+assert(objectAuthoringCanvasUi.includes('data-object-canvas-stage-node'), 'Object Authoring Canvas should render clickable Canvas nodes');
 assert(objectAuthoringCanvasUi.includes('data-object-canvas-event-body'), 'Object Authoring Canvas should expose the inline event body surface');
 assert(objectAuthoringCanvasUi.includes('data-object-canvas-review-plan'), 'Object Authoring Canvas should show modification plan rows before Review & Apply');
 assert(objectAuthoringCanvasModel.includes('buildExistingCanvas'), 'Object Authoring Canvas model should support existing objects');
@@ -239,6 +241,7 @@ assert(i18nUi.includes("'install.runtimePreview'"), 'Runtime Preview action shou
 assert(i18nUi.includes("'existingScene.editExisting'"), 'Edit existing action should be localized');
 assert(i18nUi.includes("'existingScene.copyAsNew'"), 'Copy as new proposal action should be localized');
 assert(i18nUi.includes("'objectCanvas.eyebrow'"), 'Object Authoring Canvas title should be localized');
+assert(i18nUi.includes("'objectCanvas.stageEyebrow'"), 'Object Authoring Canvas stage should be localized');
 assert(i18nUi.includes("'objectCanvas.eventEyebrow'"), 'Object Authoring Canvas event body should be localized');
 assert(i18nUi.includes("'objectCanvas.planTitle'"), 'Object Authoring Canvas modification plan should be localized');
 assert(!i18nUi.includes('人話分類'), 'Text replacement area helper should avoid unclear 人話 jargon');
@@ -247,6 +250,7 @@ assert(i18nUi.includes('用來標記這段文字在遊戲裡大概出現的位�
 assert(css.includes('--studio-accent'), 'CSS should define Studio design tokens');
 assert(css.includes('.existing-scene-editor-host') && css.includes('grid-column: 1 / -1'), 'Object Canvas host should occupy the full Create workspace width');
 assert(css.includes('.draft-workspace-panel') && css.includes('order: 2'), 'My Changes should sit after the active Canvas or form workspace');
+assert(css.includes('.object-canvas-stage') && css.includes('.object-canvas-stage-links'), 'Object Canvas should style a visible graphical stage');
 assert(css.includes('--studio-paper'), 'CSS should define a warm Studio paper token');
 assert(css.includes('.brand-mark'), 'CSS should style the Branch brand mark');
 assert(css.includes('.wordmark span'), 'CSS should style Mod Studio as the functional emphasis');

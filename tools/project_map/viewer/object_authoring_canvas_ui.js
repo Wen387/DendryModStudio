@@ -242,6 +242,7 @@
     elements.host.innerHTML = [
       '<section class="object-canvas editing-workspace" data-object-authoring-canvas="true" data-editing-workspace="true">',
       renderHeader(model),
+      model.ok ? renderCanvasStage(model) : '',
       model.ok ? renderBody(model) : renderUnavailable(model),
       '</section>'
     ].join('');
@@ -286,6 +287,75 @@
       renderChangePanel(model),
       '</aside>',
       '</div>'
+    ].join('');
+  }
+
+  function renderCanvasStage(model) {
+    const board = model.contextBoard || {};
+    const change = model.changeState || {};
+    const summary = change.operationSummary || {};
+    const contextCount = countRows(board.flow) + countRows(board.variables) + countRows(board.effects) + countRows(board.sourceEvidence) + countRows(board.manualBoundaries);
+    const changedCount = Number(change.changedCount || 0);
+    const operationCount = Number(summary.total || 0) ||
+      Number(summary.safeApply || 0) +
+      Number(summary.guardedApply || 0) +
+      Number(summary.advancedApply || 0) +
+      Number(summary.manualReview || 0) +
+      Number(summary.refused || 0);
+    const manualCount = Number(summary.manualReview || 0) + Number(summary.refused || 0);
+    const nodes = [
+      {
+        key: 'context',
+        label: t('objectCanvas.stage.context.label', 'Context'),
+        title: t('objectCanvas.stage.context.title', 'Related state'),
+        detail: contextCount + ' ' + t('objectCanvas.stage.context.detail', 'context rows'),
+        jump: 'context'
+      },
+      {
+        key: 'object',
+        label: t('objectCanvas.stage.object.label', 'Object'),
+        title: model.title || model.objectId || t('objectCanvas.titleFallback', 'Author object'),
+        detail: changedCount + ' ' + t('objectCanvas.stage.object.detail', 'edited fields'),
+        jump: 'body',
+        main: true
+      },
+      {
+        key: 'plan',
+        label: t('objectCanvas.stage.plan.label', 'Plan'),
+        title: operationCount + ' ' + t('objectCanvas.stage.plan.title', 'operations'),
+        detail: Number(summary.guardedApply || 0) + ' ' + t('editing.summary.guarded', 'Guarded') + ' / ' + manualCount + ' ' + t('editing.summary.manual', 'Manual'),
+        jump: 'plan'
+      },
+      {
+        key: 'review',
+        label: t('objectCanvas.stage.review.label', 'Review'),
+        title: t('objectCanvas.stage.review.title', 'Review & Apply'),
+        detail: t('objectCanvas.stage.review.detail', 'Open the final safety workspace'),
+        jump: 'review'
+      }
+    ];
+    return [
+      '<section class="object-canvas-stage" data-object-canvas-stage="true" aria-label="' + escapeAttr(t('objectCanvas.stageAria', 'Object Canvas')) + '">',
+      '<div class="template-eyebrow">' + escapeHtml(t('objectCanvas.stageEyebrow', 'Canvas')) + '</div>',
+      '<div class="object-canvas-stage-board">',
+      '<svg class="object-canvas-stage-links" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true">',
+      '<path d="M12 14 C28 3 39 3 50 14 S72 25 88 14"></path>',
+      '<path d="M12 18 C30 28 44 28 50 18 S70 8 88 18"></path>',
+      '</svg>',
+      nodes.map(renderStageNode).join(''),
+      '</div>',
+      '</section>'
+    ].join('');
+  }
+
+  function renderStageNode(node) {
+    const className = 'object-canvas-stage-node object-canvas-stage-node-' + escapeAttr(node.key) + (node.main ? ' is-main' : '');
+    return [
+      '<button type="button" class="' + className + '" data-object-canvas-stage-node="' + escapeAttr(node.key) + '" data-object-canvas-stage-jump="' + escapeAttr(node.jump) + '">',
+      '<span>' + escapeHtml(node.label) + '</span>',
+      '<strong>' + escapeHtml(node.title) + '</strong>',
+      '<small>' + escapeHtml(node.detail) + '</small>',
+      '</button>'
     ].join('');
   }
 
@@ -519,6 +589,10 @@
     ].join('');
   }
 
+  function countRows(rows) {
+    return Array.isArray(rows) ? rows.length : 0;
+  }
+
   function bindCanvasEvents() {
     if (!elements || !elements.host) {
       return;
@@ -529,6 +603,25 @@
     elements.host.querySelectorAll('[data-object-canvas-action]').forEach((button) => {
       button.addEventListener('click', () => handleAction(button.dataset.objectCanvasAction || ''));
     });
+    elements.host.querySelectorAll('[data-object-canvas-stage-jump]').forEach((button) => {
+      button.addEventListener('click', () => handleStageJump(button.dataset.objectCanvasStageJump || ''));
+    });
+  }
+
+  function handleStageJump(target) {
+    if (target === 'review') {
+      reviewCurrentPlan();
+      return;
+    }
+    const selector = {
+      context: '[data-object-canvas-context]',
+      body: '[data-object-canvas-event-body]',
+      plan: '[data-object-canvas-review-plan]'
+    }[target] || '';
+    const node = selector && elements && elements.host && elements.host.querySelector(selector);
+    if (node && typeof node.scrollIntoView === 'function') {
+      node.scrollIntoView({block: 'start', inline: 'nearest'});
+    }
   }
 
   function handleAction(action) {

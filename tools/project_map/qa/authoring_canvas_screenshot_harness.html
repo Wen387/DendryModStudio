@@ -235,15 +235,18 @@
         const fieldCount = host ? host.querySelectorAll('[data-object-canvas-field]').length : 0;
         const preview = host && host.querySelector('[data-object-canvas-preview]');
         const title = host && host.querySelector('.object-canvas-header h2');
+        const stage = host && host.querySelector('[data-object-canvas-stage]');
+        const stageNodes = host ? host.querySelectorAll('[data-object-canvas-stage-node]').length : 0;
         const draftPanel = doc.querySelector('.draft-workspace-panel');
         const visible = Boolean(host && canvas && isVisible(win, host) && isVisible(win, canvas));
         const hasCoreSurface = fieldCount >= 3 && preview && collapse(preview.textContent).length > 0 && title && collapse(title.textContent).length > 0;
+        const hasVisibleCanvasStage = stage && isVisible(win, stage) && stageNodes >= 4;
         const noLegacyPanelVisible = Array.from(doc.querySelectorAll('[data-create-template-panel]')).every((panel) => !isVisible(win, panel));
         const canvasBeforeChanges = !draftPanel || host.getBoundingClientRect().top <= draftPanel.getBoundingClientRect().top;
         const activeTemplate = win.ProjectMapObjectAuthoringCanvas && typeof win.ProjectMapObjectAuthoringCanvas.activeTemplate === 'function'
           ? win.ProjectMapObjectAuthoringCanvas.activeTemplate()
           : '';
-        return visible && hasCoreSurface && noLegacyPanelVisible && canvasBeforeChanges && (!template || template === activeTemplate || template === 'existing');
+        return visible && hasCoreSurface && hasVisibleCanvasStage && noLegacyPanelVisible && canvasBeforeChanges && (!template || template === activeTemplate || template === 'existing');
       }
 
       function isReviewVisible(win) {
