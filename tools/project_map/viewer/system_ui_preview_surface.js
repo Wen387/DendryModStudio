@@ -20,8 +20,8 @@
       '<header class="object-canvas-stage-toolbar">',
       '<div>',
       '<div class="template-eyebrow">' + escapeHtml(t('authoring.surface.systemUiPreview', 'System Screen Workspace')) + '</div>',
-      '<h3>' + escapeHtml(model.title || t('authoring.workspace.systemUi', 'System UI Authoring')) + '</h3>',
-      '<p>' + escapeHtml(t(screen.recipe.intentKey, screen.recipe.intentFallback)) + '</p>',
+      '<h3>' + escapeHtml(t('authoring.template.systemUiScreen', 'System UI Screen')) + '</h3>',
+      '<p>' + escapeHtml(t('systemUi.unifiedIntent', 'Click a visible UI region to edit the object behind it. Studio keeps the internal draft type in the background.')) + '</p>',
       renderFamilyPills(screen),
       '</div>',
       '<div class="system-ui-fixtures" data-system-ui-fixtures="true">',
@@ -70,7 +70,6 @@
       '<p>' + escapeHtml(region.body) + '</p>',
       '<dl class="system-screen-selection-meta">',
       '<dt>' + escapeHtml(t('systemUi.objectFamily', 'Object family')) + '</dt><dd>' + escapeHtml(t(family.labelKey, family.fallback || region.family)) + '</dd>',
-      '<dt>' + escapeHtml(t('systemUi.recipe', 'Recipe')) + '</dt><dd>' + escapeHtml(t(screen.recipe.labelKey, screen.recipe.fallback)) + '</dd>',
       '</dl>',
       '</section>'
     ].join('');

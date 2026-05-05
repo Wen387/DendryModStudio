@@ -35,15 +35,18 @@
       {key: 'surface', labelKey: 'create.editText', fallback: 'Edit Text'}
     ],
     system_ui: [
-      {key: 'entry', labelKey: 'create.entrySidebar', fallback: 'Entry & Sidebar'},
-      {key: 'play_surface', labelKey: 'create.playSurface', fallback: 'Playable Surface'},
-      {key: 'workspace_layout', labelKey: 'create.workspaceLayout', fallback: 'Workspace Layout'},
-      {key: 'sidebar_status', labelKey: 'create.sidebarStatus', fallback: 'Sidebar / Status'}
+      {key: 'entry', labelKey: 'authoring.template.systemUiScreen', fallback: 'System UI Screen'}
     ],
     project_state: [
       {key: 'variables', labelKey: 'create.variables', fallback: 'Variables'},
       {key: 'project', labelKey: 'create.gameInfo', fallback: 'Game Info'}
     ]
+  };
+
+  const SYSTEM_UI_SCREEN_ITEM = {
+    key: 'entry',
+    labelKey: 'authoring.template.systemUiScreen',
+    fallback: 'System UI Screen'
   };
 
   const state = {
@@ -239,6 +242,9 @@
   }
 
   function templateItemsForWorkspace(workspace) {
+    if (workspace === 'system_ui') {
+      return [SYSTEM_UI_SCREEN_ITEM];
+    }
     const registry = registryApi();
     return registry && typeof registry.templatesForWorkspace === 'function'
       ? registry.templatesForWorkspace(workspace)

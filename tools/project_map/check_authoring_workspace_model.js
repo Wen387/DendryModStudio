@@ -19,6 +19,7 @@ const CONTENT_GRAPH_INTERACTIONS = path.join(VIEWER, 'content_graph_interactions
 const PROJECT_STATE_SURFACE = path.join(VIEWER, 'project_state_surface.js');
 const SYSTEM_UI_SCREEN_MODEL = path.join(VIEWER, 'system_ui_screen_model.js');
 const SYSTEM_UI_SCREEN_PREVIEW = path.join(VIEWER, 'system_ui_screen_preview.js');
+const SYSTEM_UI_REGION_ROUTER = path.join(VIEWER, 'system_ui_region_router.js');
 const SYSTEM_UI_PREVIEW_SURFACE = path.join(VIEWER, 'system_ui_preview_surface.js');
 const AUTHORING_WORKSPACE_UI = path.join(VIEWER, 'authoring_workspace_ui.js');
 const OBJECT_CANVAS_UI = path.join(VIEWER, 'object_authoring_canvas_ui.js');
@@ -52,6 +53,7 @@ const contentInteractions = read(CONTENT_GRAPH_INTERACTIONS);
 const projectStateSurface = read(PROJECT_STATE_SURFACE);
 const systemUiScreenModel = read(SYSTEM_UI_SCREEN_MODEL);
 const systemUiScreenPreview = read(SYSTEM_UI_SCREEN_PREVIEW);
+const systemUiRegionRouter = read(SYSTEM_UI_REGION_ROUTER);
 const systemUiPreviewSurface = read(SYSTEM_UI_PREVIEW_SURFACE);
 const workspaceUi = read(AUTHORING_WORKSPACE_UI);
 const canvasUi = read(OBJECT_CANVAS_UI);
@@ -60,9 +62,10 @@ const harness = read(HARNESS);
 const workspaces = ['content', 'system_ui', 'project_state'];
 const groupedTemplates = {
   content: ['event', 'news', 'card', 'surface'],
-  system_ui: ['entry', 'play_surface', 'workspace_layout', 'sidebar_status'],
+  system_ui: ['entry'],
   project_state: ['variables', 'project']
 };
+const internalSystemUiTemplates = ['entry', 'play_surface', 'workspace_layout', 'sidebar_status'];
 
 assert(html.includes('data-authoring-workspace-nav'), 'Create should keep a small Authoring Workspace host in index.html');
 assert(html.includes('../authoring/content_storyboard_model.js'), 'viewer should load the Content Storyboard model');
@@ -77,6 +80,7 @@ assert(html.includes('content_graph_interactions.js'), 'viewer should load Conte
 assert(html.includes('project_state_surface.js'), 'viewer should load Project State Dependency Board surface');
 assert(html.includes('system_ui_screen_model.js'), 'viewer should load System UI Screen model');
 assert(html.includes('system_ui_screen_preview.js'), 'viewer should load System UI Screen preview');
+assert(html.includes('system_ui_region_router.js'), 'viewer should load System UI region router');
 assert(html.includes('system_ui_preview_surface.js'), 'viewer should load System UI Live Preview surface');
 assert(surfaceRegistry.includes('content_storyboard'), 'Surface registry should define the Content Storyboard surface');
 assert(surfaceRegistry.includes('system_ui_preview'), 'Surface registry should define the System UI Preview surface');
@@ -95,6 +99,14 @@ Object.keys(groupedTemplates).forEach((workspace) => {
     assert(surfaceRegistry.includes("workspace: '" + workspace + "'"), workspace + ' workspace mappings should live in the registry');
   });
 });
+internalSystemUiTemplates.forEach((template) => {
+  assert(surfaceRegistry.includes("key: '" + template + "'"), template + ' should remain registered as an internal System UI draft template');
+});
+assert(workspaceUi.includes('SYSTEM_UI_SCREEN_ITEM'), 'System UI workspace should expose one visible screen entry');
+assert(workspaceUi.includes('return [SYSTEM_UI_SCREEN_ITEM]'), 'System UI workspace should collapse the four internal draft templates into one visible choice');
+assert(canvasUi.includes('systemUiTemplateForRegion'), 'Object Canvas should switch internal System UI draft type from preview-region clicks');
+assert(systemUiRegionRouter.includes('ProjectMapSystemUiRegionRouter'), 'System UI region router should expose a browser API');
+assert(systemUiRegionRouter.includes("deck_lane: 'workspace_layout'"), 'System UI region router should map deck clicks to the layout draft');
 
 assert(surfaceRegistry.includes("defaultTemplate: 'entry'"), 'System UI workspace should default to Entry & Sidebar');
 assert(surfaceRegistry.includes("defaultTemplate: 'variables'"), 'Project State workspace should default to Variables');

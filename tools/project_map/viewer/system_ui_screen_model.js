@@ -155,8 +155,6 @@
 
   function buildDiagnostics(template, recipe, selected) {
     return [
-      {id: 'recipe', label: 'Recipe', value: recipe.fallback},
-      {id: 'template', label: 'Template', value: template},
       {id: 'selected_family', label: 'Selected family', value: selected && selected.family || ''},
       {id: 'selected_region', label: 'Selected region', value: selected && selected.key || ''}
     ];

@@ -169,7 +169,12 @@
         const win = frame.contentWindow;
         setBadge(label, template);
         click(win, '[data-mode="create"]');
-        click(win, '[data-create-template="' + template + '"]');
+        const templateButton = win.document.querySelector('[data-create-template="' + template + '"]');
+        if (templateButton) {
+          templateButton.click();
+        } else if (win.ProjectMapObjectAuthoringCanvas && typeof win.ProjectMapObjectAuthoringCanvas.openTemplate === 'function') {
+          win.ProjectMapObjectAuthoringCanvas.openTemplate(template, {}, {source: label});
+        }
         await waitFor(() => isCanvasVisible(win, template), 4000);
         await applyValues(win, values);
         await waitFor(() => isCanvasVisible(win, template), 4000);
@@ -380,7 +385,7 @@
 
       async function systemUiLiveEditScenario() {
         const win = frame.contentWindow;
-        await openTemplate('workspace_layout', {}, 'System UI live edit');
+        await openTemplate('entry', {}, 'System UI live edit');
         click(win, '[data-system-ui-region="deck_lane"]');
         await waitFor(() => win.document.querySelector('[data-object-canvas-field="layout.deckTitle"]'), 3000);
         await applyValues(win, {'layout.deckTitle': 'Live Edited Policy Deck'});
@@ -389,7 +394,10 @@
 
       async function sidebarStatusFixtureScenario() {
         const win = frame.contentWindow;
-        await openTemplate('sidebar_status', {'sidebar.sectionHeading': 'Canvas Status'}, 'Sidebar / Status Canvas');
+        await openTemplate('entry', {}, 'Sidebar / Status Canvas');
+        click(win, '[data-system-ui-region="sidebar_status"]');
+        await waitFor(() => win.document.querySelector('[data-object-canvas-field="sidebar.sectionHeading"]'), 3000);
+        await applyValues(win, {'sidebar.sectionHeading': 'Canvas Status'});
         click(win, '[data-system-ui-fixture="busy"]');
         await waitFor(() => collapse(win.document.querySelector('[data-system-ui-live-preview]') && win.document.querySelector('[data-system-ui-live-preview]').textContent).indexOf('Internal dissent: rising') >= 0, 3000);
       }

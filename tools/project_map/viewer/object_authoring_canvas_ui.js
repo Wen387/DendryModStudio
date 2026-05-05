@@ -299,16 +299,18 @@
 
   function renderHeader(model, surface) {
     const source = model.source || {};
+    const systemUi = surface && surface.key === 'system_ui_preview';
     const modeLabel = model.mode === 'existing'
       ? t('objectCanvas.mode.existing', 'Editing existing object')
       : t('objectCanvas.mode.newObject', 'Authoring object');
-    const kindLabel = model.templateLabel || model.objectKind || state.template || 'event';
+    const kindLabel = systemUi ? t('authoring.template.systemUiScreen', 'System UI Screen') : model.templateLabel || model.objectKind || state.template || 'event';
     const surfaceLabel = surface && surfaceLabelFor(surface) || t('objectCanvas.eyebrow', 'Object Authoring Canvas');
+    const title = systemUi ? t('authoring.template.systemUiScreen', 'System UI Screen') : model.title || t('objectCanvas.titleFallback', 'Author object');
     return [
       '<header class="object-canvas-header editing-workspace-header">',
       '<div>',
       '<div class="template-eyebrow" data-authoring-surface-label="true">' + escapeHtml(surfaceLabel) + '</div>',
-      '<h2>' + escapeHtml(model.title || t('objectCanvas.titleFallback', 'Author object')) + '</h2>',
+      '<h2>' + escapeHtml(title) + '</h2>',
       '<p>' + escapeHtml(t('objectCanvas.body', 'Design the object itself: keep context beside it, edit player-facing text directly, then review the exact change operations.')) + '</p>',
       '<div class="editing-status-line" data-object-canvas-status="true">' + escapeHtml(state.status || '') + '</div>',
       '</div>',
@@ -770,9 +772,31 @@
   function selectCanvasNode(nodeKey) {
     const next = String(nodeKey || 'object').trim() || 'object';
     state.values = collectValues();
+    if (switchSystemUiTemplateForRegion(next)) {
+      return;
+    }
     state.model = state.mode === 'existing' ? buildExistingModel({values: state.values}) : buildTemplateModel({values: state.values});
     state.selectedCanvasNode = next;
     render();
+  }
+
+  function switchSystemUiTemplateForRegion(nodeKey) {
+    if (state.mode === 'existing' || workspaceForTemplate(state.template || '') !== 'system_ui') {
+      return false;
+    }
+    const nextTemplate = systemUiTemplateForRegion(nodeKey);
+    if (!nextTemplate || nextTemplate === state.template) {
+      return false;
+    }
+    state.template = nextTemplate; state.mode = nextTemplate; state.view = nextTemplate;
+    state.workspace = 'system_ui';
+    state.baseDraft = defaultDraftForTemplate(nextTemplate);
+    state.selectedCanvasNode = nodeKey;
+    state.model = buildTemplateModel({values: state.values, entry: {source: 'System UI region'}});
+    state.status = t('objectCanvas.status.systemUiRegion', 'Opened the matching System UI draft for this region.');
+    showWorkspace(nextTemplate);
+    render();
+    return true;
   }
 
   function setStoryboardView(view) {
@@ -935,7 +959,8 @@
     const template = state.template || 'event';
     deactivate();
     elements.templateButtons.forEach((button) => {
-      const active = button.dataset.createTemplate === template;
+      const active = button.dataset.createTemplate === template ||
+        workspaceForTemplate(template) === 'system_ui' && workspaceForTemplate(button.dataset.createTemplate) === 'system_ui';
       button.classList.toggle('is-active', active);
       button.setAttribute('aria-selected', active ? 'true' : 'false');
     });
@@ -1057,6 +1082,11 @@
       return 'project_state';
     }
     return 'content';
+  }
+
+  function systemUiTemplateForRegion(nodeKey) {
+    const router = global.ProjectMapSystemUiRegionRouter;
+    return router && typeof router.templateForRegion === 'function' ? router.templateForRegion(nodeKey) : '';
   }
 
   function surfaceForTemplate(template) {

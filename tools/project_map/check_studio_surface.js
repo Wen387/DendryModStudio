@@ -24,6 +24,7 @@ const CONTENT_GRAPH_INTERACTIONS = path.join(ROOT, 'viewer', 'content_graph_inte
 const PROJECT_STATE_SURFACE = path.join(ROOT, 'viewer', 'project_state_surface.js');
 const SYSTEM_UI_SCREEN_MODEL = path.join(ROOT, 'viewer', 'system_ui_screen_model.js');
 const SYSTEM_UI_SCREEN_PREVIEW = path.join(ROOT, 'viewer', 'system_ui_screen_preview.js');
+const SYSTEM_UI_REGION_ROUTER = path.join(ROOT, 'viewer', 'system_ui_region_router.js');
 const SYSTEM_UI_PREVIEW_SURFACE = path.join(ROOT, 'viewer', 'system_ui_preview_surface.js');
 const AUTHORING_WORKSPACE_UI = path.join(ROOT, 'viewer', 'authoring_workspace_ui.js');
 const EDITING_CONTEXT_MODEL = path.join(ROOT, 'authoring', 'editing_context_model.js');
@@ -99,6 +100,7 @@ const contentGraphInteractions = fs.readFileSync(CONTENT_GRAPH_INTERACTIONS, 'ut
 const projectStateSurface = fs.readFileSync(PROJECT_STATE_SURFACE, 'utf8');
 const systemUiScreenModel = fs.readFileSync(SYSTEM_UI_SCREEN_MODEL, 'utf8');
 const systemUiScreenPreview = fs.readFileSync(SYSTEM_UI_SCREEN_PREVIEW, 'utf8');
+const systemUiRegionRouter = fs.readFileSync(SYSTEM_UI_REGION_ROUTER, 'utf8');
 const systemUiPreviewSurface = fs.readFileSync(SYSTEM_UI_PREVIEW_SURFACE, 'utf8');
 const authoringWorkspaceUi = fs.readFileSync(AUTHORING_WORKSPACE_UI, 'utf8');
 const objectAuthoringCanvasUi = fs.readFileSync(OBJECT_AUTHORING_CANVAS_UI, 'utf8');
@@ -168,6 +170,7 @@ assert(html.includes('content_graph_interactions.js'), 'viewer should load Conte
 assert(html.includes('project_state_surface.js'), 'viewer should load Project State Dependency Board surface');
 assert(html.includes('system_ui_screen_model.js'), 'viewer should load System UI Screen model');
 assert(html.includes('system_ui_screen_preview.js'), 'viewer should load System UI Screen preview');
+assert(html.includes('system_ui_region_router.js'), 'viewer should load System UI region router');
 assert(html.includes('system_ui_preview_surface.js'), 'viewer should load System UI Live Preview surface');
 assert(html.includes('authoring_workspace_ui.js'), 'viewer should load Authoring Workspace navigation UI');
 assert(html.includes('object_authoring_canvas_ui.js'), 'viewer should load Object Authoring Canvas UI');
@@ -191,6 +194,7 @@ assert(systemUiScreenModel.includes('ProjectMapSystemUiScreenModel'), 'System UI
 assert(systemUiScreenModel.includes('FAMILY_ORDER'), 'System UI Screen model should define object families');
 assert(systemUiScreenPreview.includes('ProjectMapSystemUiScreenPreview'), 'System UI Screen preview should expose a browser API');
 assert(systemUiScreenPreview.includes('data-system-screen-shell'), 'System UI Screen preview should render a shared shell');
+assert(systemUiRegionRouter.includes('ProjectMapSystemUiRegionRouter'), 'System UI region router should expose a browser API');
 assert(systemUiPreviewSurface.includes('ProjectMapSystemUiPreviewSurface'), 'System UI Preview surface should expose a browser API');
 assert(systemUiPreviewSurface.includes('data-system-screen-workspace'), 'System UI Preview surface should use the unified System Screen Workspace');
 assert(authoringWorkspaceUi.includes("key: 'content'"), 'Create mode should expose Content Authoring as a workspace');
@@ -231,10 +235,10 @@ assert(html.includes('project_metadata_ui.js'), 'viewer should load Game Info UI
 assert(html.includes('variable_editor_ui.js'), 'viewer should load Variable Editor UI');
 assert(authoringWorkspaceUi.includes("key: 'card'"), 'Create template switch should include Card');
 assert(authoringWorkspaceUi.includes("key: 'surface'"), 'Create template switch should include Surface Text');
-assert(authoringWorkspaceUi.includes("key: 'entry'"), 'Create template switch should include Entry & Sidebar');
-assert(authoringWorkspaceUi.includes("key: 'play_surface'"), 'Create template switch should include Playable Surface');
-assert(authoringWorkspaceUi.includes("key: 'workspace_layout'"), 'Create template switch should include Workspace Layout');
-assert(authoringWorkspaceUi.includes("key: 'sidebar_status'"), 'Create template switch should include Sidebar / Status');
+assert(authoringWorkspaceUi.includes('SYSTEM_UI_SCREEN_ITEM'), 'Create template switch should collapse System UI to one visible screen entry');
+assert(authoringWorkspaceUi.includes("key: 'entry'"), 'System UI screen entry should open the default Entry draft internally');
+assert(authoringWorkspaceUi.includes('return [SYSTEM_UI_SCREEN_ITEM]'), 'System UI workspace should not show four parallel UI template choices');
+assert(objectAuthoringCanvasUi.includes('systemUiTemplateForRegion'), 'Object Canvas should route preview-region clicks to internal System UI draft templates');
 assert(authoringWorkspaceUi.includes("key: 'project'"), 'Create template switch should include Game Info');
 assert(authoringWorkspaceUi.includes("key: 'variables'"), 'Create template switch should include Variables');
 assert(html.includes('data-view="surfaceText"'), 'Explore navigation should include Surface Text');
