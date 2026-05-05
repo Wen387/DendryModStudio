@@ -109,7 +109,7 @@
       if (modeButton) {
         schedule(() => {
           const active = document.querySelector('[data-create-template].is-active');
-          if (active && isCanvasTemplate(active.dataset.createTemplate)) {
+          if (active && isCanvasTemplate(active.dataset.createTemplate) && !(state.active && workspaceForTemplate(state.template) === 'system_ui' && workspaceForTemplate(active.dataset.createTemplate) === 'system_ui')) {
             openTemplateFromCreate(active.dataset.createTemplate);
           }
         });
@@ -250,7 +250,7 @@
       return;
     }
     elements.templateButtons.forEach((button) => {
-      const active = button.dataset.createTemplate === template;
+      const active = button.dataset.createTemplate === template || workspaceForTemplate(template) === 'system_ui' && workspaceForTemplate(button.dataset.createTemplate) === 'system_ui';
       button.classList.toggle('is-active', active);
       button.setAttribute('aria-selected', active ? 'true' : 'false');
     });
@@ -975,7 +975,7 @@
   }
 
   function collectValues() {
-    const values = {};
+    const values = Object.assign({}, state.values || {});
     if (!elements || !elements.host) {
       return values;
     }
@@ -1075,10 +1075,10 @@
       return registry.workspaceForTemplate(template);
     }
     const key = normalizeTemplate(template) || (template === 'existing' ? 'existing' : 'event');
-    if (key === 'entry' || key === 'play_surface' || key === 'workspace_layout' || key === 'sidebar_status') {
+    if (key === 'entry' || key === 'play_surface' || key === 'workspace_layout' || key === 'sidebar_status' || key === 'project') {
       return 'system_ui';
     }
-    if (key === 'project' || key === 'variables') {
+    if (key === 'variables') {
       return 'project_state';
     }
     return 'content';

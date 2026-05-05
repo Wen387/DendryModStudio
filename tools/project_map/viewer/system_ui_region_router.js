@@ -8,7 +8,7 @@
     workspace_hand: 'play_surface',
     advisor_lane: 'play_surface',
     sidebar_status: 'sidebar_status',
-    screen_header: 'entry',
+    screen_header: 'project',
     main_content: 'entry',
     main_options: 'entry'
   };

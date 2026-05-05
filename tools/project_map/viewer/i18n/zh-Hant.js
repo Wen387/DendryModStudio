@@ -397,6 +397,7 @@
       'systemUi.recipe.playSurface.intent': '在同一個畫面裡修改手牌、牌組、卡牌與顧問等可重複互動物件。',
       'systemUi.recipe.workspaceLayout.intent': '修改畫面結構：路由、欄位、牌組區、起始牌與側邊欄位置。',
       'systemUi.recipe.sidebarStatus.intent': '修改有狀態的側邊欄區塊，並用只影響預覽的 fixture 狀態檢查輸出。',
+      'systemUi.recipe.project.intent': '在玩家看見遊戲身份的位置修改遊戲標題、作者與 IFID。',
       'objectCanvas.graph.source.label': '來源',
       'objectCanvas.graph.source.title': '來源證據',
       'objectCanvas.graph.routes.label': '路由',

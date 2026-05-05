@@ -44,7 +44,8 @@ const DEFAULT_SCENARIOS = [
   ['32-content-timeline-source-order', 'content-timeline-source-order'],
   ['33-content-zoomed-out', 'content-zoomed-out'],
   ['34-content-zoomed-in-drag', 'content-zoomed-in-drag'],
-  ['35-content-zoom-fit', 'content-zoom-fit']
+  ['35-content-zoom-fit', 'content-zoom-fit'],
+  ['36-system-ui-game-info-header', 'system-ui-game-info-header']
 ];
 
 function parseArgs(argv) {

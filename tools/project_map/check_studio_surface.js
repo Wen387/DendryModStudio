@@ -239,7 +239,8 @@ assert(authoringWorkspaceUi.includes('SYSTEM_UI_SCREEN_ITEM'), 'Create template 
 assert(authoringWorkspaceUi.includes("key: 'entry'"), 'System UI screen entry should open the default Entry draft internally');
 assert(authoringWorkspaceUi.includes('return [SYSTEM_UI_SCREEN_ITEM]'), 'System UI workspace should not show four parallel UI template choices');
 assert(objectAuthoringCanvasUi.includes('systemUiTemplateForRegion'), 'Object Canvas should route preview-region clicks to internal System UI draft templates');
-assert(authoringWorkspaceUi.includes("key: 'project'"), 'Create template switch should include Game Info');
+assert(authoringSurfaceRegistry.includes("key: 'project'") && authoringSurfaceRegistry.includes("surface: 'system_ui_preview'"), 'Game Info should author through the System UI Preview surface');
+assert(systemUiRegionRouter.includes("screen_header: 'project'"), 'System UI header clicks should open the Game Info draft');
 assert(authoringWorkspaceUi.includes("key: 'variables'"), 'Create template switch should include Variables');
 assert(html.includes('data-view="surfaceText"'), 'Explore navigation should include Surface Text');
 assert(html.includes('data-mode="design"'), 'Direction C Design mode should be exposed in the top-level mode switch');

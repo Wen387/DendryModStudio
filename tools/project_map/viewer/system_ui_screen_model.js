@@ -37,6 +37,15 @@
       fallback: 'Sidebar / Status',
       intentKey: 'systemUi.recipe.sidebarStatus.intent',
       intentFallback: 'Edit stateful sidebar and status sections with preview-only fixture values.'
+    },
+    project: {
+      key: 'project',
+      family: 'structure',
+      selected: 'screen_header',
+      labelKey: 'create.gameInfo',
+      fallback: 'Game Info',
+      intentKey: 'systemUi.recipe.project.intent',
+      intentFallback: 'Edit the game title, author, and IFID where the player sees the game identity.'
     }
   };
 
@@ -76,7 +85,8 @@
   }
 
   function buildRegions(fields, template, fixture) {
-    const rootTitle = value(fields, ['entry.rootTitle', 'play.title', 'layout.title', 'sidebar.statusTitle'], 'Dynamic Social Democracy');
+    const rootTitle = value(fields, ['project.gameTitle', 'entry.rootTitle', 'play.title', 'layout.title', 'sidebar.statusTitle'], 'Dynamic Social Democracy');
+    const headerBody = value(fields, ['project.author', 'project.ifid'], 'Library / Save/Load / Options');
     const sidebarTitle = value(fields, ['sidebar.statusTitle', 'entry.sidebarTitle', 'layout.sidebarHeading'], 'Status');
     const sidebarBody = value(fields, ['sidebar.sectionBody', 'entry.sidebarBody', 'layout.sidebarBody'], 'Resources available: 0');
     const statusLines = value(fields, ['sidebar.sectionStatusLines', 'entry.sidebarStatusLines', 'layout.sidebarStatusLines'], fixture === 'busy' ? 'Internal dissent: rising\nPolicy work has started moving.' : 'Internal dissent: very low\nResources available: 0');
@@ -93,7 +103,7 @@
 
     return [
       region('layout_frame', 'structure', 'systemUi.region.layoutFrame', 'Screen frame', rootTitle, 'Header, sidebar, main card, and interactive lane share one screen shell.', fieldsFor(fields, fieldIdsForTemplate(template, 'structure'))),
-      region('screen_header', 'structure', 'systemUi.region.header', 'Header / menu', rootTitle, 'Library / Save/Load / Options', fieldsFor(fields, ['entry.rootTitle', 'play.title', 'layout.title', 'sidebar.statusTitle'])),
+      region('screen_header', 'structure', 'systemUi.region.header', 'Header / menu', rootTitle, headerBody, fieldsFor(fields, ['project.gameTitle', 'project.author', 'project.ifid', 'entry.rootTitle', 'play.title', 'layout.title', 'sidebar.statusTitle'])),
       region('main_content', 'main', 'systemUi.region.mainContent', 'Main content', mainHeading, mainBody, fieldsFor(fields, fieldIdsForTemplate(template, 'main'))),
       region('main_options', 'main', 'systemUi.region.options', 'Options', mainOption, value(fields, ['entry.firstTargetId', 'layout.starterCardReturnTarget'], ''), fieldsFor(fields, ['entry.firstOptionTitle', 'entry.firstTargetId', 'layout.handOptionLabel', 'play.handDeckOptionLabel', 'play.handAdvisorOptionLabel'])),
       region('workspace_hand', 'interactive', 'systemUi.region.hand', 'Hand', value(fields, ['play.handTitle', 'play.handHeading'], 'Workspace Hand'), value(fields, ['play.handBody'], 'This area holds repeatable player actions.'), fieldsFor(fields, ['play.handTitle', 'play.handHeading', 'play.handBody', 'play.handDeckOptionLabel', 'play.handAdvisorOptionLabel'])),
@@ -106,8 +116,8 @@
 
   function buildShell(fields, template, fixture) {
     return {
-      title: value(fields, ['entry.rootTitle', 'play.title', 'layout.title', 'sidebar.statusTitle'], 'Dynamic Social Democracy'),
-      subtitle: value(fields, ['entry.rootHeading', 'play.handHeading', 'layout.deckSubtitle', 'sidebar.sectionHeading'], 'An alternate history'),
+      title: value(fields, ['project.gameTitle', 'entry.rootTitle', 'play.title', 'layout.title', 'sidebar.statusTitle'], 'Dynamic Social Democracy'),
+      subtitle: value(fields, ['project.author', 'entry.rootHeading', 'play.handHeading', 'layout.deckSubtitle', 'sidebar.sectionHeading'], 'An alternate history'),
       menu: ['Library', 'Save/Load', 'Options'],
       fixture,
       template
@@ -116,6 +126,9 @@
 
   function fieldIdsForTemplate(template, family) {
     if (family === 'structure') {
+      if (template === 'project') {
+        return ['project.gameTitle', 'project.author', 'project.ifid'];
+      }
       return template === 'workspace_layout'
         ? ['layout.title', 'layout.deckTitle', 'layout.deckSubtitle', 'layout.handOptionLabel', 'layout.handInsertMode', 'layout.sidebarHeading', 'layout.sidebarInsertMode', 'layout.createStarterCard']
         : ['entry.rootTitle', 'play.title', 'sidebar.statusTitle'];

@@ -11,7 +11,7 @@
     play_surface: 'system_ui',
     workspace_layout: 'system_ui',
     sidebar_status: 'system_ui',
-    project: 'project_state',
+    project: 'system_ui',
     variables: 'project_state'
   };
 
@@ -35,11 +35,11 @@
       {key: 'surface', labelKey: 'create.editText', fallback: 'Edit Text'}
     ],
     system_ui: [
-      {key: 'entry', labelKey: 'authoring.template.systemUiScreen', fallback: 'System UI Screen'}
+      {key: 'entry', labelKey: 'authoring.template.systemUiScreen', fallback: 'System UI Screen'},
+      {key: 'project', labelKey: 'create.gameInfo', fallback: 'Game Info'}
     ],
     project_state: [
-      {key: 'variables', labelKey: 'create.variables', fallback: 'Variables'},
-      {key: 'project', labelKey: 'create.gameInfo', fallback: 'Game Info'}
+      {key: 'variables', labelKey: 'create.variables', fallback: 'Variables'}
     ]
   };
 

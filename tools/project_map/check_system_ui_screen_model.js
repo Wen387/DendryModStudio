@@ -53,7 +53,8 @@ const expected = {
   entry: {family: 'main', selected: 'ui:main_content'},
   play_surface: {family: 'interactive', selected: 'ui:workspace_hand'},
   workspace_layout: {family: 'structure', selected: 'ui:layout_frame'},
-  sidebar_status: {family: 'sidebar', selected: 'ui:sidebar_status'}
+  sidebar_status: {family: 'sidebar', selected: 'ui:sidebar_status'},
+  project: {family: 'structure', selected: 'ui:screen_header'}
 };
 
 Object.keys(expected).forEach((template) => {
@@ -85,6 +86,14 @@ const edited = objectCanvasModel.buildTemplateCanvas(index, 'workspace_layout', 
 const editedHtml = surface.render(edited, {selected: 'ui:deck_lane'});
 assert(editedHtml.includes('Live Edited Policy Deck'), 'live field values should update the shared screen preview');
 assert(editedHtml.includes('data-system-ui-selected-region="deck_lane"'), 'selected region editor should follow clicked preview object');
+
+const project = objectCanvasModel.buildTemplateCanvas(index, 'project', {}, {
+  values: {'project.gameTitle': 'Live Edited Game Title', 'project.author': 'Studio Tester'}
+});
+const projectHtml = surface.render(project, {selected: 'ui:screen_header'});
+assert(projectHtml.includes('Live Edited Game Title'), 'Game Info title edits should render in the System UI header preview');
+assert(projectHtml.includes('Studio Tester'), 'Game Info author edits should render in the System UI header subtitle');
+assert(projectHtml.includes('data-system-ui-selected-region="screen_header"'), 'Game Info should edit through the selected header region');
 
 process.stdout.write(JSON.stringify({
   ok: true,

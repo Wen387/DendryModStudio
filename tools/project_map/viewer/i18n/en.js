@@ -397,6 +397,7 @@
       'systemUi.recipe.playSurface.intent': 'Edit repeatable hand, deck, card, and advisor objects inside the same screen.',
       'systemUi.recipe.workspaceLayout.intent': 'Edit screen structure: routes, columns, deck lane, starter card, and sidebar placement.',
       'systemUi.recipe.sidebarStatus.intent': 'Edit stateful sidebar and status sections with preview-only fixture values.',
+      'systemUi.recipe.project.intent': 'Edit the game title, author, and IFID where the player sees the game identity.',
       'objectCanvas.graph.source.label': 'Source',
       'objectCanvas.graph.source.title': 'Source evidence',
       'objectCanvas.graph.routes.label': 'Routes',

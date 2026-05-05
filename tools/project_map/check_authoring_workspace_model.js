@@ -62,10 +62,10 @@ const harness = read(HARNESS);
 const workspaces = ['content', 'system_ui', 'project_state'];
 const groupedTemplates = {
   content: ['event', 'news', 'card', 'surface'],
-  system_ui: ['entry'],
-  project_state: ['variables', 'project']
+  system_ui: ['entry', 'project'],
+  project_state: ['variables']
 };
-const internalSystemUiTemplates = ['entry', 'play_surface', 'workspace_layout', 'sidebar_status'];
+const internalSystemUiTemplates = ['entry', 'play_surface', 'workspace_layout', 'sidebar_status', 'project'];
 
 assert(html.includes('data-authoring-workspace-nav'), 'Create should keep a small Authoring Workspace host in index.html');
 assert(html.includes('../authoring/content_storyboard_model.js'), 'viewer should load the Content Storyboard model');
@@ -107,6 +107,7 @@ assert(workspaceUi.includes('return [SYSTEM_UI_SCREEN_ITEM]'), 'System UI worksp
 assert(canvasUi.includes('systemUiTemplateForRegion'), 'Object Canvas should switch internal System UI draft type from preview-region clicks');
 assert(systemUiRegionRouter.includes('ProjectMapSystemUiRegionRouter'), 'System UI region router should expose a browser API');
 assert(systemUiRegionRouter.includes("deck_lane: 'workspace_layout'"), 'System UI region router should map deck clicks to the layout draft');
+assert(systemUiRegionRouter.includes("screen_header: 'project'"), 'System UI region router should map header clicks to the Game Info draft');
 
 assert(surfaceRegistry.includes("defaultTemplate: 'entry'"), 'System UI workspace should default to Entry & Sidebar');
 assert(surfaceRegistry.includes("defaultTemplate: 'variables'"), 'Project State workspace should default to Variables');

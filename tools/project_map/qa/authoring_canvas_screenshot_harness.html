@@ -89,6 +89,7 @@
         'content-zoomed-in-drag': () => contentZoomedInDragScenario(),
         'content-zoom-fit': () => contentZoomFitScenario(),
         'system-ui-live-edit': () => systemUiLiveEditScenario(),
+        'system-ui-game-info-header': () => systemUiGameInfoHeaderScenario(),
         'design-existing-event-canvas': () => openExisting('events', 'generic_intro', {generic_intro_body: 'The campaign office opens to a sharper morning.'}, 'Design existing Event Canvas'),
         'explore-existing-card-canvas': () => openExisting('cards', 'policy_card', {policy_card_body: 'The policy card body is edited from Explore context.'}, 'Explore existing Card Canvas'),
         'template-news': () => openTemplate('news', {'news.headline': 'Canvas headline'}, 'News Canvas'),
@@ -388,6 +389,15 @@
         await waitFor(() => collapse(win.document.querySelector('[data-system-ui-live-preview]') && win.document.querySelector('[data-system-ui-live-preview]').textContent).indexOf('Live Edited Policy Deck') >= 0, 3000);
       }
 
+      async function systemUiGameInfoHeaderScenario() {
+        const win = frame.contentWindow;
+        await openTemplate('entry', {}, 'System UI Game Info header');
+        click(win, '[data-system-ui-region="screen_header"]');
+        await waitFor(() => win.document.querySelector('[data-object-canvas-field="project.gameTitle"]'), 3000);
+        await applyValues(win, {'project.gameTitle': 'Header Edited Game Title', 'project.author': 'Studio Header Tester'});
+        await waitFor(() => collapse(win.document.querySelector('[data-system-ui-live-preview]') && win.document.querySelector('[data-system-ui-live-preview]').textContent).indexOf('Header Edited Game Title') >= 0, 3000);
+      }
+
       async function sidebarStatusFixtureScenario() {
         const win = frame.contentWindow;
         await openTemplate('entry', {}, 'Sidebar / Status Canvas');
@@ -498,10 +508,10 @@
       }
 
       function workspaceForTemplate(template) {
-        if (template === 'entry' || template === 'play_surface' || template === 'workspace_layout' || template === 'sidebar_status') {
+        if (template === 'entry' || template === 'play_surface' || template === 'workspace_layout' || template === 'sidebar_status' || template === 'project') {
           return 'system_ui';
         }
-        if (template === 'project' || template === 'variables') {
+        if (template === 'variables') {
           return 'project_state';
         }
         return 'content';

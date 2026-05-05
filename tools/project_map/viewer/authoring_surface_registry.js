@@ -20,14 +20,14 @@
       workspace: 'system_ui',
       labelKey: 'authoring.surface.systemUiPreview',
       fallback: 'System UI Live Preview',
-      templates: ['entry', 'play_surface', 'workspace_layout', 'sidebar_status']
+      templates: ['entry', 'play_surface', 'workspace_layout', 'sidebar_status', 'project']
     },
     {
       key: 'project_state_board',
       workspace: 'project_state',
       labelKey: 'authoring.surface.projectStateBoard',
       fallback: 'Project State Board',
-      templates: ['variables', 'project']
+      templates: ['variables']
     }
   ];
 
@@ -41,8 +41,8 @@
     {key: 'play_surface', workspace: 'system_ui', surface: 'system_ui_preview', labelKey: 'create.playSurface', fallback: 'Playable Surface'},
     {key: 'workspace_layout', workspace: 'system_ui', surface: 'system_ui_preview', labelKey: 'create.workspaceLayout', fallback: 'Workspace Layout'},
     {key: 'sidebar_status', workspace: 'system_ui', surface: 'system_ui_preview', labelKey: 'create.sidebarStatus', fallback: 'Sidebar / Status'},
+    {key: 'project', workspace: 'system_ui', surface: 'system_ui_preview', labelKey: 'create.gameInfo', fallback: 'Game Info'},
     {key: 'variables', workspace: 'project_state', surface: 'project_state_board', labelKey: 'create.variables', fallback: 'Variables'},
-    {key: 'project', workspace: 'project_state', surface: 'project_state_board', labelKey: 'create.gameInfo', fallback: 'Game Info'}
   ];
 
   const templatesByKey = indexBy(TEMPLATES, 'key');
