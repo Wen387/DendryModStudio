@@ -3,77 +3,87 @@
 
   function render(model, options) {
     const opts = options && typeof options === 'object' ? options : {};
-    const template = model.template || templateFromMode(model.mode);
-    const regions = regionsForTemplate(template, fieldMap(model));
-    const selectedKey = String(opts.selected || '');
-    const selected = regions.find((region) => 'ui:' + region.key === selectedKey) || regions[0] || null;
+    const screen = buildScreen(model, opts);
     return [
-      '<section class="object-canvas-stage system-ui-preview-surface" data-object-canvas-stage="true" data-system-ui-preview-surface="true" data-object-canvas-workspace="system_ui" aria-label="' + escapeAttr(t('systemUi.surfaceAria', 'System UI Live Preview')) + '">',
-      '<header class="object-canvas-stage-toolbar">',
-      '<div><div class="template-eyebrow">' + escapeHtml(t('authoring.surface.systemUiPreview', 'System UI Live Preview')) + '</div><h3>' + escapeHtml(model.title || t('authoring.workspace.systemUi', 'System UI Authoring')) + '</h3></div>',
-      '<div class="system-ui-fixtures" data-system-ui-fixtures="true">',
-      '<button type="button" data-system-ui-fixture="default">' + escapeHtml(t('systemUi.fixture.default', 'Default')) + '</button>',
-      '<button type="button" data-system-ui-fixture="busy">' + escapeHtml(t('systemUi.fixture.busy', 'Busy state')) + '</button>',
-      '</div>',
-      '</header>',
+      '<section class="object-canvas-stage system-ui-preview-surface system-screen-workspace" data-object-canvas-stage="true" data-system-ui-preview-surface="true" data-system-screen-workspace="true" data-object-canvas-workspace="system_ui" data-system-ui-recipe="' + escapeAttr(screen.template) + '" aria-label="' + escapeAttr(t('systemUi.surfaceAria', 'System UI Live Preview')) + '">',
+      renderToolbar(model, screen),
       '<div class="system-ui-layout">',
-      renderPreview(template, regions, selected),
-      renderInspector(model, selected),
+      renderPreview(screen),
+      renderInspector(model, screen),
       '</div>',
       '</section>'
     ].join('');
   }
 
-  function renderPreview(template, regions, selected) {
+  function renderToolbar(model, screen) {
     return [
-      '<section class="system-ui-live-preview system-ui-live-preview-' + escapeAttr(template) + '" data-system-ui-live-preview="true">',
-      '<div class="template-eyebrow">' + escapeHtml(t('systemUi.preview', 'Live preview')) + '</div>',
-      '<div class="system-ui-device">',
-      regions.map((region) => renderRegion(region, selected)).join(''),
+      '<header class="object-canvas-stage-toolbar">',
+      '<div>',
+      '<div class="template-eyebrow">' + escapeHtml(t('authoring.surface.systemUiPreview', 'System Screen Workspace')) + '</div>',
+      '<h3>' + escapeHtml(model.title || t('authoring.workspace.systemUi', 'System UI Authoring')) + '</h3>',
+      '<p>' + escapeHtml(t(screen.recipe.intentKey, screen.recipe.intentFallback)) + '</p>',
+      renderFamilyPills(screen),
       '</div>',
-      '</section>'
+      '<div class="system-ui-fixtures" data-system-ui-fixtures="true">',
+      renderFixtureButton('default', screen.fixture, t('systemUi.fixture.default', 'Default')),
+      renderFixtureButton('busy', screen.fixture, t('systemUi.fixture.busy', 'Busy state')),
+      '</div>',
+      '</header>'
     ].join('');
   }
 
-  function renderRegion(region, selected) {
-    const active = selected && selected.key === region.key;
+  function renderFamilyPills(screen) {
     return [
-      '<button type="button" class="system-ui-region system-ui-region-' + escapeAttr(region.key) + (active ? ' is-selected' : '') + '" data-object-canvas-graph-node="ui:' + escapeAttr(region.key) + '" data-system-ui-region="' + escapeAttr(region.key) + '">',
-      '<span>' + escapeHtml(region.label) + '</span>',
-      '<strong>' + escapeHtml(region.title) + '</strong>',
-      '<small>' + escapeHtml(region.body) + '</small>',
-      '</button>'
+      '<div class="system-screen-families" data-system-screen-families="true">',
+      ensureArray(screen.families).map((family) => '<span class="' + (family.active ? 'is-active' : '') + '" data-system-screen-family-pill="' + escapeAttr(family.key) + '">' + escapeHtml(t(family.labelKey, family.fallback)) + '</span>').join(''),
+      '</div>'
     ].join('');
   }
 
-  function renderInspector(model, selected) {
+  function renderFixtureButton(fixture, current, label) {
+    return '<button type="button" class="' + (fixture === current ? 'is-active' : '') + '" data-system-ui-fixture="' + escapeAttr(fixture) + '" aria-pressed="' + (fixture === current ? 'true' : 'false') + '">' + escapeHtml(label) + '</button>';
+  }
+
+  function renderPreview(screen) {
+    const api = previewApi();
+    return api && typeof api.render === 'function' ? api.render(screen) : '';
+  }
+
+  function renderInspector(model, screen) {
+    const selected = screen.selected || null;
     return [
       '<aside class="system-ui-inspector" data-system-ui-inspector="true">',
-      selected ? renderSelectedRegion(selected) : '',
-      renderRegionFields(model, selected),
+      selected ? renderSelectedRegion(screen, selected) : '',
+      renderRegionFields(selected),
+      renderDiagnostics(screen),
       renderActions(model),
       '</aside>'
     ].join('');
   }
 
-  function renderSelectedRegion(region) {
+  function renderSelectedRegion(screen, region) {
+    const family = (screen.families || []).find((item) => item.key === region.family) || {};
     return [
-      '<section class="object-canvas-inspector-card" data-system-ui-selected-region="' + escapeAttr(region.key) + '">',
+      '<section class="object-canvas-inspector-card" data-system-ui-selected-region="' + escapeAttr(region.key) + '" data-system-ui-selected-family="' + escapeAttr(region.family) + '">',
       '<div class="template-eyebrow">' + escapeHtml(t('systemUi.selectedRegion', 'Selected UI region')) + '</div>',
       '<h3>' + escapeHtml(region.title) + '</h3>',
       '<p>' + escapeHtml(region.body) + '</p>',
+      '<dl class="system-screen-selection-meta">',
+      '<dt>' + escapeHtml(t('systemUi.objectFamily', 'Object family')) + '</dt><dd>' + escapeHtml(t(family.labelKey, family.fallback || region.family)) + '</dd>',
+      '<dt>' + escapeHtml(t('systemUi.recipe', 'Recipe')) + '</dt><dd>' + escapeHtml(t(screen.recipe.labelKey, screen.recipe.fallback)) + '</dd>',
+      '</dl>',
       '</section>'
     ].join('');
   }
 
-  function renderRegionFields(model, selected) {
-    const fields = selected ? selected.fields : flattenFields(model.eventBody || {});
+  function renderRegionFields(selected) {
+    const fields = selected && selected.fields || [];
     return [
       '<section class="object-event-body" data-object-canvas-event-body="true" data-system-ui-region-fields="true">',
       '<div class="template-eyebrow">' + escapeHtml(t('systemUi.editRegion', 'Edit selected region')) + '</div>',
       fields.length
         ? fields.map(renderField).join('')
-        : '<p class="editing-empty">' + escapeHtml(t('objectCanvas.noBodyFields', 'No player-facing body fields are available yet.')) + '</p>',
+        : '<p class="editing-empty">' + escapeHtml(t('systemUi.noRegionFields', 'This region is visible for context; this recipe has no direct fields for it.')) + '</p>',
       '</section>'
     ].join('');
   }
@@ -81,11 +91,24 @@
   function renderField(field) {
     const value = String(field && field.value !== undefined ? field.value : field && field.original || '');
     const id = field && field.id || '';
+    const multiline = value.indexOf('\n') >= 0 || value.length > 72 || /Body|text|lines/i.test(field && field.label || id);
+    const common = ' class="object-inline-input" data-object-canvas-field="' + escapeAttr(id) + '" data-editing-field="' + escapeAttr(id) + '"' + (field && field.readOnly ? ' readonly' : '');
     return [
       '<label class="object-inline-field">',
       '<span>' + escapeHtml(field && field.label || id || '') + '</span>',
-      '<input type="text" class="object-inline-input" data-object-canvas-field="' + escapeAttr(id) + '" data-editing-field="' + escapeAttr(id) + '" value="' + escapeAttr(value) + '"' + (field && field.readOnly ? ' readonly' : '') + '>',
+      multiline
+        ? '<textarea rows="' + rowsFor(value) + '"' + common + '>' + escapeHtml(value) + '</textarea>'
+        : '<input type="text"' + common + ' value="' + escapeAttr(value) + '">',
       '</label>'
+    ].join('');
+  }
+
+  function renderDiagnostics(screen) {
+    return [
+      '<section class="content-storyboard-detail system-screen-diagnostics" data-system-screen-diagnostics="true">',
+      '<div class="template-eyebrow">' + escapeHtml(t('systemUi.previewIntent', 'Preview intent')) + '</div>',
+      ensureArray(screen.diagnostics).map((row) => '<div><span>' + escapeHtml(row.label) + '</span><strong>' + escapeHtml(row.value) + '</strong></div>').join(''),
+      '</section>'
     ].join('');
   }
 
@@ -100,70 +123,43 @@
     ].join('');
   }
 
-  function regionsForTemplate(template, fields) {
-    if (template === 'play_surface') {
-      return [
-        region('hand', t('systemUi.region.hand', 'Hand'), value(fields, 'play.handTitle', 'Workspace Hand'), value(fields, 'play.handBody', ''), pick(fields, ['play.handTitle', 'play.handHeading', 'play.handBody', 'play.handDeckOptionLabel', 'play.handAdvisorOptionLabel'])),
-        region('deck', t('systemUi.region.deck', 'Deck'), value(fields, 'play.deckTitle', 'Starter Deck'), value(fields, 'play.deckSubtitle', ''), pick(fields, ['play.deckTitle', 'play.deckSubtitle'])),
-        region('card', t('systemUi.region.card', 'Card'), value(fields, 'play.cardTitle', 'Action Card'), value(fields, 'play.cardBody', ''), pick(fields, ['play.cardTitle', 'play.cardHeading', 'play.cardBody', 'play.cardOption0Label', 'play.cardOption1Label'])),
-        region('advisor', t('systemUi.region.advisor', 'Advisor'), value(fields, 'play.advisorTitle', 'Advisor'), value(fields, 'play.advisorBody', ''), pick(fields, ['play.advisorTitle', 'play.advisorHeading', 'play.advisorBody', 'play.advisorOption0Label']))
-      ];
-    }
-    if (template === 'workspace_layout') {
-      return [
-        region('hand', t('systemUi.region.hand', 'Hand'), value(fields, 'layout.handOptionLabel', 'Open deck'), value(fields, 'layout.deckTag', ''), pick(fields, ['layout.handOptionLabel', 'layout.handInsertMode', 'layout.handAnchorId'])),
-        region('deck', t('systemUi.region.deck', 'Deck'), value(fields, 'layout.deckTitle', 'Policy Deck'), value(fields, 'layout.deckSubtitle', ''), pick(fields, ['layout.deckTitle', 'layout.deckSubtitle', 'layout.deckId', 'layout.deckTag'])),
-        region('starter_card', t('systemUi.region.card', 'Card'), value(fields, 'layout.starterCardTitle', 'Starter Card'), value(fields, 'layout.starterCardBody', ''), pick(fields, ['layout.starterCardTitle', 'layout.starterCardHeading', 'layout.starterCardBody', 'layout.starterCardOption0Label', 'layout.starterCardOption1Label'])),
-        region('sidebar', t('systemUi.region.sidebar', 'Sidebar'), value(fields, 'layout.sidebarHeading', 'Policy Desk'), value(fields, 'layout.sidebarBody', ''), pick(fields, ['layout.sidebarHeading', 'layout.sidebarBody', 'layout.sidebarStatusLines', 'layout.sidebarInsertMode']))
-      ];
-    }
-    if (template === 'sidebar_status') {
-      return [
-        region('sidebar', t('systemUi.region.sidebar', 'Sidebar'), value(fields, 'sidebar.statusTitle', 'Status'), value(fields, 'sidebar.sectionBody', ''), pick(fields, ['sidebar.statusTitle', 'sidebar.sectionHeading', 'sidebar.sectionBody', 'sidebar.sectionStatusLines', 'sidebar.sectionId']))
-      ];
-    }
-    return [
-      region('entry', t('systemUi.region.entry', 'Entry'), value(fields, 'entry.rootTitle', 'Start'), value(fields, 'entry.rootIntro', ''), pick(fields, ['entry.rootTitle', 'entry.rootHeading', 'entry.rootIntro', 'entry.firstOptionTitle', 'entry.firstTargetId'])),
-      region('sidebar', t('systemUi.region.sidebar', 'Sidebar'), value(fields, 'entry.sidebarTitle', 'Status'), value(fields, 'entry.sidebarBody', ''), pick(fields, ['entry.sidebarTitle', 'entry.sidebarHeading', 'entry.sidebarBody', 'entry.sidebarStatusLines']))
-    ];
+  function buildScreen(model, options) {
+    const api = screenModelApi();
+    return api && typeof api.buildScreen === 'function'
+      ? api.buildScreen(model, options || {})
+      : {template: 'entry', fixture: 'default', recipe: {}, families: [], regions: [], diagnostics: []};
   }
 
-  function region(key, label, title, body, fields) {
-    return {key, label, title, body, fields};
-  }
-
-  function fieldMap(model) {
-    const fields = {};
-    flattenFields(model.eventBody || model || {}).forEach((field) => {
-      if (field && field.id) {
-        fields[field.id] = field;
+  function screenModelApi() {
+    if (global && global.ProjectMapSystemUiScreenModel) {
+      return global.ProjectMapSystemUiScreenModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./system_ui_screen_model.js');
+      } catch (_err) {
+        return null;
       }
-    });
-    return fields;
-  }
-
-  function flattenFields(body) {
-    return [body.title, body.heading].filter(Boolean)
-      .concat(ensureArray(body.sections))
-      .concat(ensureArray(body.options).reduce((all, option) => all.concat(ensureArray(option.fields)), []))
-      .concat(ensureArray(body.metaFields));
-  }
-
-  function pick(fields, ids) {
-    return ids.map((id) => fields[id]).filter(Boolean);
-  }
-
-  function value(fields, id, fallback) {
-    const field = fields[id] || {};
-    return String(field.value !== undefined ? field.value : field.original || fallback || '');
-  }
-
-  function templateFromMode(mode) {
-    const value = String(mode || '');
-    if (value === 'entry_sidebar') {
-      return 'entry';
     }
-    return value || 'entry';
+    return null;
+  }
+
+  function previewApi() {
+    if (global && global.ProjectMapSystemUiScreenPreview) {
+      return global.ProjectMapSystemUiScreenPreview;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./system_ui_screen_preview.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function rowsFor(value) {
+    return String(Math.max(3, Math.min(8, String(value || '').split('\n').length + 1)));
   }
 
   function ensureArray(value) {
@@ -189,7 +185,7 @@
     }[char]));
   }
 
-  const api = {render, renderPreview};
+  const api = {render};
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;
   }

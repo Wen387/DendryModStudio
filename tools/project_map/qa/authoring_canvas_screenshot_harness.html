@@ -90,7 +90,7 @@
         'template-entry': () => openTemplate('entry', {'entry.rootTitle': 'Canvas Start'}, 'Entry & Sidebar Canvas'),
         'template-play-surface': () => openTemplate('play_surface', {'play.title': 'Canvas Playable Surface'}, 'Playable Surface Canvas'),
         'template-workspace-layout': () => openTemplate('workspace_layout', {'layout.deckTitle': 'Canvas Policy Deck'}, 'Workspace Layout Canvas'),
-        'template-sidebar-status': () => openTemplate('sidebar_status', {'sidebar.sectionHeading': 'Canvas Status'}, 'Sidebar / Status Canvas'),
+        'template-sidebar-status': () => sidebarStatusFixtureScenario(),
         'template-project': () => openTemplate('project', {'project.gameTitle': 'Canvas Project Title'}, 'Game Info Canvas'),
         'template-variables': () => openTemplate('variables', {'variables.label': 'Canvas Variable'}, 'Variables Canvas'),
         'reload-event': () => saveAndReload('event', {'event.title': 'Reloaded Event Draft'}, 'My Changes reload Event'),
@@ -289,10 +289,17 @@
       async function systemUiLiveEditScenario() {
         const win = frame.contentWindow;
         await openTemplate('workspace_layout', {}, 'System UI live edit');
-        click(win, '[data-system-ui-region="deck"]');
+        click(win, '[data-system-ui-region="deck_lane"]');
         await waitFor(() => win.document.querySelector('[data-object-canvas-field="layout.deckTitle"]'), 3000);
         await applyValues(win, {'layout.deckTitle': 'Live Edited Policy Deck'});
         await waitFor(() => collapse(win.document.querySelector('[data-system-ui-live-preview]') && win.document.querySelector('[data-system-ui-live-preview]').textContent).indexOf('Live Edited Policy Deck') >= 0, 3000);
+      }
+
+      async function sidebarStatusFixtureScenario() {
+        const win = frame.contentWindow;
+        await openTemplate('sidebar_status', {'sidebar.sectionHeading': 'Canvas Status'}, 'Sidebar / Status Canvas');
+        click(win, '[data-system-ui-fixture="busy"]');
+        await waitFor(() => collapse(win.document.querySelector('[data-system-ui-live-preview]') && win.document.querySelector('[data-system-ui-live-preview]').textContent).indexOf('Internal dissent: rising') >= 0, 3000);
       }
 
       async function applyValues(win, values) {
@@ -363,13 +370,14 @@
         const projectInspector = host && host.querySelector('[data-project-state-inspector]');
         const systemSurface = host && host.querySelector('[data-system-ui-preview-surface]');
         const systemPreview = host && host.querySelector('[data-system-ui-live-preview]');
+        const systemShell = host && host.querySelector('[data-system-screen-shell]');
         const systemInspector = host && host.querySelector('[data-system-ui-inspector]');
         const draftPanel = doc.querySelector('.draft-workspace-panel');
         const workspaceNav = doc.querySelector('[data-authoring-workspace-nav]');
         const activeGroup = doc.querySelector('[data-authoring-template-group].is-active');
         const visible = Boolean(host && canvas && isVisible(win, host) && isVisible(win, canvas));
         const hasProjectSurface = stage && projectSurface && projectBoard && projectInspector && isVisible(win, projectSurface) && isVisible(win, projectBoard) && isVisible(win, projectInspector);
-        const hasSystemSurface = stage && systemSurface && systemPreview && systemInspector && isVisible(win, systemSurface) && isVisible(win, systemPreview) && isVisible(win, systemInspector);
+        const hasSystemSurface = stage && systemSurface && systemPreview && systemShell && systemInspector && isVisible(win, systemSurface) && isVisible(win, systemPreview) && isVisible(win, systemShell) && isVisible(win, systemInspector);
         const hasStoryboardSurface = stage && storyboardSurface && storyboardCanvas && storyboardEditor && storyboardCards >= 1 && isVisible(win, storyboardSurface) && isVisible(win, storyboardCanvas) && isVisible(win, storyboardEditor);
         const hasCoreSurface = hasProjectSurface || hasSystemSurface || hasStoryboardSurface || fieldCount >= 3 && preview && collapse(preview.textContent).length > 0 && title && collapse(title.textContent).length > 0;
         const hasVisibleCanvasStage = hasProjectSurface || hasSystemSurface || hasStoryboardSurface || stage && graphCanvas && graphInspector && isVisible(win, stage) && isVisible(win, graphCanvas) && isVisible(win, graphInspector) && graphNodes >= 6;

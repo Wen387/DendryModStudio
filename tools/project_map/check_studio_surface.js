@@ -20,6 +20,8 @@ const CONTENT_STORYBOARD_SURFACE = path.join(ROOT, 'viewer', 'content_storyboard
 const CONTENT_STORYBOARD_INTERACTIONS = path.join(ROOT, 'viewer', 'content_storyboard_interactions.js');
 const CONTENT_GRAPH_INTERACTIONS = path.join(ROOT, 'viewer', 'content_graph_interactions.js');
 const PROJECT_STATE_SURFACE = path.join(ROOT, 'viewer', 'project_state_surface.js');
+const SYSTEM_UI_SCREEN_MODEL = path.join(ROOT, 'viewer', 'system_ui_screen_model.js');
+const SYSTEM_UI_SCREEN_PREVIEW = path.join(ROOT, 'viewer', 'system_ui_screen_preview.js');
 const SYSTEM_UI_PREVIEW_SURFACE = path.join(ROOT, 'viewer', 'system_ui_preview_surface.js');
 const AUTHORING_WORKSPACE_UI = path.join(ROOT, 'viewer', 'authoring_workspace_ui.js');
 const EDITING_CONTEXT_MODEL = path.join(ROOT, 'authoring', 'editing_context_model.js');
@@ -91,6 +93,8 @@ const contentStoryboardSurface = fs.readFileSync(CONTENT_STORYBOARD_SURFACE, 'ut
 const contentStoryboardInteractions = fs.readFileSync(CONTENT_STORYBOARD_INTERACTIONS, 'utf8');
 const contentGraphInteractions = fs.readFileSync(CONTENT_GRAPH_INTERACTIONS, 'utf8');
 const projectStateSurface = fs.readFileSync(PROJECT_STATE_SURFACE, 'utf8');
+const systemUiScreenModel = fs.readFileSync(SYSTEM_UI_SCREEN_MODEL, 'utf8');
+const systemUiScreenPreview = fs.readFileSync(SYSTEM_UI_SCREEN_PREVIEW, 'utf8');
 const systemUiPreviewSurface = fs.readFileSync(SYSTEM_UI_PREVIEW_SURFACE, 'utf8');
 const authoringWorkspaceUi = fs.readFileSync(AUTHORING_WORKSPACE_UI, 'utf8');
 const objectAuthoringCanvasUi = fs.readFileSync(OBJECT_AUTHORING_CANVAS_UI, 'utf8');
@@ -156,6 +160,8 @@ assert(html.includes('content_storyboard_surface.js'), 'viewer should load Conte
 assert(html.includes('content_storyboard_interactions.js'), 'viewer should load Content Storyboard interactions');
 assert(html.includes('content_graph_interactions.js'), 'viewer should load Content Graph interactions');
 assert(html.includes('project_state_surface.js'), 'viewer should load Project State Dependency Board surface');
+assert(html.includes('system_ui_screen_model.js'), 'viewer should load System UI Screen model');
+assert(html.includes('system_ui_screen_preview.js'), 'viewer should load System UI Screen preview');
 assert(html.includes('system_ui_preview_surface.js'), 'viewer should load System UI Live Preview surface');
 assert(html.includes('authoring_workspace_ui.js'), 'viewer should load Authoring Workspace navigation UI');
 assert(html.includes('object_authoring_canvas_ui.js'), 'viewer should load Object Authoring Canvas UI');
@@ -173,7 +179,12 @@ assert(contentStoryboardSurface.includes('data-content-storyboard-card'), 'Conte
 assert(contentStoryboardInteractions.includes('ProjectMapContentStoryboardInteractions'), 'Content Storyboard interactions should expose a browser API');
 assert(contentGraphInteractions.includes('ProjectMapContentGraphInteractions'), 'Content Graph interactions should expose a browser API');
 assert(projectStateSurface.includes('ProjectMapProjectStateSurface'), 'Project State surface should expose a browser API');
+assert(systemUiScreenModel.includes('ProjectMapSystemUiScreenModel'), 'System UI Screen model should expose a browser API');
+assert(systemUiScreenModel.includes('FAMILY_ORDER'), 'System UI Screen model should define object families');
+assert(systemUiScreenPreview.includes('ProjectMapSystemUiScreenPreview'), 'System UI Screen preview should expose a browser API');
+assert(systemUiScreenPreview.includes('data-system-screen-shell'), 'System UI Screen preview should render a shared shell');
 assert(systemUiPreviewSurface.includes('ProjectMapSystemUiPreviewSurface'), 'System UI Preview surface should expose a browser API');
+assert(systemUiPreviewSurface.includes('data-system-screen-workspace'), 'System UI Preview surface should use the unified System Screen Workspace');
 assert(authoringWorkspaceUi.includes("key: 'content'"), 'Create mode should expose Content Authoring as a workspace');
 assert(authoringWorkspaceUi.includes("key: 'system_ui'"), 'Create mode should expose System UI Authoring as a workspace');
 assert(authoringWorkspaceUi.includes("key: 'project_state'"), 'Create mode should expose Project State as a workspace');

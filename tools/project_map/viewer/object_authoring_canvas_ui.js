@@ -19,6 +19,7 @@
     workspace: 'content',
     selectedCanvasNode: 'object',
     storyboardView: 'timeline',
+    systemUiFixture: 'default',
     canvasZoom: 1,
     canvasPanX: 0,
     canvasPanY: 0,
@@ -135,6 +136,7 @@
     state.workspace = 'content';
     state.selectedCanvasNode = 'object';
     state.storyboardView = 'timeline';
+    state.systemUiFixture = 'default';
     state.canvasPanX = 0;
     state.canvasPanY = 0;
     state.nodePositions = {};
@@ -165,6 +167,7 @@
     state.workspace = workspaceForTemplate(nextTemplate);
     state.selectedCanvasNode = 'object';
     state.storyboardView = 'timeline';
+    state.systemUiFixture = 'default';
     state.canvasPanX = 0;
     state.canvasPanY = 0;
     state.nodePositions = {};
@@ -378,7 +381,7 @@
   function renderSystemUiPreviewStage(model) {
     const surface = global.ProjectMapSystemUiPreviewSurface;
     return surface && typeof surface.render === 'function'
-      ? surface.render(model, {projectIndex: state.projectIndex, selected: state.selectedCanvasNode})
+      ? surface.render(model, {projectIndex: state.projectIndex, selected: state.selectedCanvasNode, fixture: state.systemUiFixture})
       : '';
   }
 
@@ -737,6 +740,9 @@
     elements.host.querySelectorAll('[data-content-storyboard-view]').forEach((button) => {
       button.addEventListener('click', () => setStoryboardView(button.dataset.contentStoryboardView || 'timeline'));
     });
+    elements.host.querySelectorAll('[data-system-ui-fixture]').forEach((button) => {
+      button.addEventListener('click', () => setSystemUiFixture(button.dataset.systemUiFixture || 'default'));
+    });
     const storyboardInteractions = global.ProjectMapContentStoryboardInteractions;
     if (storyboardInteractions && typeof storyboardInteractions.bind === 'function' && (state.workspace || 'content') === 'content') {
       storyboardInteractions.bind(elements.host, {
@@ -770,6 +776,13 @@
 
   function setStoryboardView(view) {
     state.storyboardView = String(view || '') === 'chain' ? 'chain' : 'timeline';
+    state.values = collectValues();
+    state.model = state.mode === 'existing' ? buildExistingModel({values: state.values}) : buildTemplateModel({values: state.values});
+    render();
+  }
+
+  function setSystemUiFixture(fixture) {
+    state.systemUiFixture = String(fixture || '') === 'busy' ? 'busy' : 'default';
     state.values = collectValues();
     state.model = state.mode === 'existing' ? buildExistingModel({values: state.values}) : buildTemplateModel({values: state.values});
     render();
