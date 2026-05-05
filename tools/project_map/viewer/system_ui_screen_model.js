@@ -63,39 +63,48 @@
     const template = normalizeTemplate(source.template || source.objectKind || source.mode);
     const recipe = RECIPES[template] || RECIPES.entry;
     const fields = fieldMap(source);
-    const fixture = normalizeFixture(opts.fixture);
-    const regions = buildRegions(fields, template, fixture);
+    const fixtureState = systemUiFixtureState(opts.fixture);
+    const sourceEvidence = ensureArray(source.contextBoard && source.contextBoard.sourceEvidence);
+    const rawRegions = buildRegions(fields, template, fixtureState);
+    const regions = enrichRegions(rawRegions, {template, sourceEvidence, fixtureState});
     const selectedKey = selectRegionKey(regions, opts.selected, recipe.selected);
     const selected = regionByKey(regions, selectedKey) || regions[0] || null;
     const focusFamilies = recipeFocusFamilies(recipe, selected);
-    return {
+    const screen = {
       schemaVersion: '0.1',
       kind: 'system_ui_screen_model',
       template,
-      fixture,
+      fixture: fixtureState.key,
+      fixtureState,
+      fixtures: systemUiFixtures(),
       recipe,
       families: FAMILY_ORDER.map((key) => Object.assign({key, active: focusFamilies.includes(key)}, FAMILY_LABELS[key])),
       focusFamilies,
       selectedKey: selected ? 'ui:' + selected.key : '',
       selected,
       regions,
-      shell: buildShell(fields, template, fixture),
-      diagnostics: buildDiagnostics(template, recipe, selected)
+      shell: buildShell(fields, template, fixtureState),
+      diagnostics: []
     };
+    screen.regionContext = buildRegionContext(screen, {recipe, fixture: fixtureState});
+    screen.diagnostics = buildDiagnostics(template, recipe, selected, screen.regionContext, fixtureState);
+    return screen;
   }
 
   function buildRegions(fields, template, fixture) {
     const rootTitle = value(fields, ['project.gameTitle', 'entry.rootTitle', 'play.title', 'layout.title', 'sidebar.statusTitle'], 'Dynamic Social Democracy');
     const headerBody = value(fields, ['project.author', 'project.ifid'], 'Library / Save/Load / Options');
     const sidebarTitle = value(fields, ['sidebar.statusTitle', 'entry.sidebarTitle', 'layout.sidebarHeading'], 'Status');
-    const sidebarBody = value(fields, ['sidebar.sectionBody', 'entry.sidebarBody', 'layout.sidebarBody'], 'Resources available: 0');
-    const statusLines = value(fields, ['sidebar.sectionStatusLines', 'entry.sidebarStatusLines', 'layout.sidebarStatusLines'], fixture === 'busy' ? 'Internal dissent: rising\nPolicy work has started moving.' : 'Internal dissent: very low\nResources available: 0');
+    const sidebarBody = value(fields, ['sidebar.sectionBody', 'entry.sidebarBody', 'layout.sidebarBody'], fixture.sidebarBody || 'Resources available: 0');
+    const authoredStatusLines = value(fields, ['sidebar.sectionStatusLines', 'entry.sidebarStatusLines', 'layout.sidebarStatusLines'], '');
+    const fixtureStatusLines = ensureArray(fixture.statusLines).join('\n');
+    const statusLines = [authoredStatusLines, fixture.key === 'default' ? '' : fixtureStatusLines].filter(Boolean).join('\n') || fixtureStatusLines;
     const mainTitle = value(fields, ['entry.rootTitle', 'play.handTitle', 'layout.starterCardTitle', 'sidebar.sectionHeading'], 'Read.');
     const mainHeading = value(fields, ['entry.rootHeading', 'play.handHeading', 'layout.starterCardHeading', 'sidebar.sectionHeading'], mainTitle);
-    const mainBody = value(fields, ['entry.rootIntro', 'play.handBody', 'layout.starterCardBody', 'sidebar.sectionBody'], 'This is the player-facing reading area.');
-    const mainOption = value(fields, ['entry.firstOptionTitle', 'play.handDeckOptionLabel', 'layout.handOptionLabel'], 'Continue');
+    const mainBody = value(fields, ['entry.rootIntro', 'play.handBody', 'layout.starterCardBody', 'sidebar.sectionBody'], fixture.mainHint || 'This is the player-facing reading area.');
+    const mainOption = value(fields, ['entry.firstOptionTitle', 'play.handDeckOptionLabel', 'layout.handOptionLabel'], fixture.optionHint || 'Continue');
     const deckTitle = value(fields, ['play.deckTitle', 'layout.deckTitle'], 'Starter Deck');
-    const deckSubtitle = value(fields, ['play.deckSubtitle', 'layout.deckSubtitle'], 'Repeatable actions');
+    const deckSubtitle = value(fields, ['play.deckSubtitle', 'layout.deckSubtitle'], fixture.interactiveHint || 'Repeatable actions');
     const cardTitle = value(fields, ['play.cardTitle', 'layout.starterCardTitle'], 'Action Card');
     const cardBody = value(fields, ['play.cardBody', 'layout.starterCardBody'], 'A playable card appears here.');
     const advisorTitle = value(fields, ['play.advisorTitle'], 'Advisor');
@@ -119,7 +128,8 @@
       title: value(fields, ['project.gameTitle', 'entry.rootTitle', 'play.title', 'layout.title', 'sidebar.statusTitle'], 'Dynamic Social Democracy'),
       subtitle: value(fields, ['project.author', 'entry.rootHeading', 'play.handHeading', 'layout.deckSubtitle', 'sidebar.sectionHeading'], 'An alternate history'),
       menu: ['Library', 'Save/Load', 'Options'],
-      fixture,
+      fixture: fixture.key || 'default',
+      fixtureClass: fixture.bodyClass || '',
       template
     };
   }
@@ -166,11 +176,13 @@
     return regions[0] && regions[0].key || '';
   }
 
-  function buildDiagnostics(template, recipe, selected) {
+  function buildDiagnostics(template, recipe, selected, regionContext, fixture) {
     return [
-      {id: 'selected_family', label: 'Selected family', value: selected && selected.family || ''},
-      {id: 'selected_region', label: 'Selected region', value: selected && selected.key || ''}
-    ];
+      {id: 'selected_family', labelKey: 'systemUi.diagnostic.selectedFamily', label: 'Selected family', value: selected && selected.family || ''},
+      {id: 'selected_region', labelKey: 'systemUi.diagnostic.selectedRegion', label: 'Selected region', value: selected && selected.key || ''},
+      {id: 'owner_template', labelKey: 'systemUi.diagnostic.ownerTemplate', label: 'Owner template', value: regionContext && regionContext.ownership && regionContext.ownership.ownerTemplate || ''},
+      {id: 'fixture', labelKey: 'systemUi.diagnostic.fixture', label: 'Fixture', value: fixture && fixture.fallback || ''}
+    ].concat(ensureArray(fixture && fixture.diagnostics));
   }
 
   function fieldMap(model) {
@@ -231,8 +243,59 @@
     return RECIPES[text] ? text : 'entry';
   }
 
-  function normalizeFixture(value) {
-    return String(value || '') === 'busy' ? 'busy' : 'default';
+  function enrichRegions(regions, options) {
+    const api = regionContextApi();
+    return api && typeof api.enrichRegions === 'function' ? api.enrichRegions(regions, options || {}) : regions;
+  }
+
+  function buildRegionContext(screen, options) {
+    const api = regionContextApi();
+    return api && typeof api.buildContext === 'function' ? api.buildContext(screen, options || {}) : {};
+  }
+
+  function systemUiFixtures() {
+    const api = fixtureApi();
+    return api && typeof api.fixtureList === 'function' ? api.fixtureList() : [{key: 'default', labelKey: 'systemUi.fixture.default', fallback: 'Default'}];
+  }
+
+  function systemUiFixtureState(value) {
+    const api = fixtureApi();
+    if (api && typeof api.fixtureState === 'function') {
+      return api.fixtureState(value);
+    }
+    return {
+      key: String(value || '') === 'busy' ? 'changed' : 'default',
+      fallback: String(value || '') === 'busy' ? 'Changed state' : 'Default',
+      statusLines: String(value || '') === 'busy' ? ['Internal dissent: rising', 'Policy work has started moving.'] : ['Internal dissent: very low', 'Resources available: 0']
+    };
+  }
+
+  function fixtureApi() {
+    if (global && global.ProjectMapSystemUiFixtureState) {
+      return global.ProjectMapSystemUiFixtureState;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./system_ui_fixture_state.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function regionContextApi() {
+    if (global && global.ProjectMapSystemUiRegionContext) {
+      return global.ProjectMapSystemUiRegionContext;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./system_ui_region_context.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
   }
 
   function ensureArray(value) {

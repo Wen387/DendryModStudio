@@ -96,6 +96,14 @@
         'content-narrow': () => contentNarrowScenario(),
         'system-ui-live-edit': () => systemUiLiveEditScenario(),
         'system-ui-game-info-header': () => systemUiGameInfoHeaderScenario(),
+        'system-ui-shared-screen': () => systemUiSharedScreenScenario(),
+        'system-ui-main-options': () => systemUiMainOptionsScenario(),
+        'system-ui-interactive-objects': () => systemUiInteractiveObjectsScenario(),
+        'system-ui-layout-frame': () => systemUiLayoutFrameScenario(),
+        'system-ui-status-heavy': () => systemUiStatusHeavyScenario(),
+        'system-ui-editor-overlay': () => systemUiEditorOverlayScenario(),
+        'system-ui-reload-context': () => systemUiReloadContextScenario(),
+        'system-ui-narrow': () => systemUiNarrowScenario(),
         'design-existing-event-canvas': () => openExisting('events', 'generic_intro', {generic_intro_body: 'The campaign office opens to a sharper morning.'}, 'Design existing Event Canvas'),
         'explore-existing-card-canvas': () => openExisting('cards', 'policy_card', {policy_card_body: 'The policy card body is edited from Explore context.'}, 'Explore existing Card Canvas'),
         'template-news': () => openTemplate('news', {'news.headline': 'Canvas headline'}, 'News Canvas'),
@@ -115,6 +123,10 @@
         'review-existing': () => reviewExisting('events', 'generic_intro', {generic_intro_body: 'Review existing event replacement.'}, 'Review & Apply Existing Edit'),
         'review-surface': () => reviewTemplate('surface', {'surface.replacementLabel': 'Review replacement text'}, 'Review & Apply Surface/Text'),
         'review-workspace-layout': () => reviewTemplate('workspace_layout', {'layout.deckTitle': 'Review Policy Deck'}, 'Review & Apply Workspace Layout'),
+        'review-system-ui-entry': () => reviewTemplate('entry', {'entry.rootTitle': 'Review Entry Screen'}, 'Review & Apply System UI Entry'),
+        'review-system-ui-project': () => reviewTemplate('project', {'project.gameTitle': 'Review Game Info'}, 'Review & Apply Game Info'),
+        'review-system-ui-play-surface': () => reviewTemplate('play_surface', {'play.handTitle': 'Review Play Surface'}, 'Review & Apply Playable Surface'),
+        'review-system-ui-sidebar-status': () => reviewTemplate('sidebar_status', {'sidebar.sectionHeading': 'Review Status Section'}, 'Review & Apply Sidebar Status'),
         'legacy-fallback': () => showLegacyFallback()
       };
 
@@ -493,13 +505,116 @@
         await waitFor(() => collapse(win.document.querySelector('[data-system-ui-live-preview]') && win.document.querySelector('[data-system-ui-live-preview]').textContent).indexOf('Header Edited Game Title') >= 0, 3000);
       }
 
+      async function systemUiSharedScreenScenario() {
+        const win = frame.contentWindow;
+        await openTemplate('entry', {}, 'System UI shared screen');
+        await waitFor(() => win.document.querySelector('[data-system-screen-shell] [data-system-screen-region="screen_header"]'), 3000);
+        const preview = win.document.querySelector('[data-system-ui-live-preview]');
+        const required = ['screen_header', 'sidebar_status', 'main_content', 'main_options', 'workspace_hand', 'deck_lane', 'action_card', 'advisor_lane'];
+        const missing = required.filter((key) => !preview.querySelector('[data-system-screen-region="' + key + '"]'));
+        if (missing.length) {
+          throw new Error('Shared System UI screen missed regions: ' + missing.join(', '));
+        }
+      }
+
+      async function systemUiMainOptionsScenario() {
+        const win = frame.contentWindow;
+        await openTemplate('entry', {}, 'System UI main and options');
+        click(win, '[data-system-ui-region="main_content"]');
+        await waitFor(() => win.document.querySelector('[data-object-canvas-field="entry.rootTitle"]'), 3000);
+        await applyValues(win, {'entry.rootTitle': 'Canvas Opening Screen'});
+        click(win, '[data-system-ui-region="main_options"]');
+        await waitFor(() => win.document.querySelector('[data-object-canvas-field="entry.firstOptionTitle"]'), 3000);
+        await applyValues(win, {'entry.firstOptionTitle': 'Begin the alternate history'});
+        const text = collapse(win.document.querySelector('[data-system-ui-live-preview]').textContent);
+        if (!text.includes('Canvas Opening Screen') || !text.includes('Begin the alternate history')) {
+          throw new Error('Main/options live edit did not update the central player screen.');
+        }
+      }
+
+      async function systemUiInteractiveObjectsScenario() {
+        const win = frame.contentWindow;
+        await openTemplate('play_surface', {}, 'System UI interactive objects');
+        click(win, '[data-system-ui-region="advisor_lane"]');
+        await waitFor(() => win.document.querySelector('[data-object-canvas-field="play.advisorTitle"]'), 3000);
+        await applyValues(win, {'play.advisorTitle': 'Canvas Advisor', 'play.advisorBody': 'The advisor text changes in place.'});
+        click(win, '[data-system-ui-fixture="interactive"]');
+        await waitFor(() => collapse(win.document.querySelector('[data-system-ui-live-preview]').textContent).includes('Canvas Advisor'), 3000);
+      }
+
+      async function systemUiLayoutFrameScenario() {
+        const win = frame.contentWindow;
+        await openTemplate('workspace_layout', {'layout.deckTitle': 'Layout Policy Deck'}, 'System UI layout frame');
+        click(win, '[data-system-ui-region="layout_frame"]');
+        await waitFor(() => win.document.querySelector('[data-system-ui-selected-region="layout_frame"]'), 3000);
+        if (!win.document.querySelector('[data-system-ui-owner-template="workspace_layout"]')) {
+          throw new Error('Layout frame did not show Workspace Layout ownership.');
+        }
+      }
+
+      async function systemUiStatusHeavyScenario() {
+        const win = frame.contentWindow;
+        await openTemplate('sidebar_status', {}, 'System UI status-heavy fixture');
+        click(win, '[data-system-ui-region="sidebar_status"]');
+        click(win, '[data-system-ui-fixture="status_heavy"]');
+        await waitFor(() => collapse(win.document.querySelector('[data-system-ui-live-preview]').textContent).includes('Reichstag composition'), 3000);
+      }
+
+      async function systemUiEditorOverlayScenario() {
+        const win = frame.contentWindow;
+        await openTemplate('project', {'project.gameTitle': 'Overlay Game Info'}, 'System UI editor overlay');
+        click(win, '[data-system-ui-region="screen_header"]');
+        click(win, '[data-object-canvas-action="toggle_overlay"]');
+        await waitFor(() => win.document.querySelector('[data-object-authoring-canvas].is-editor-overlay [data-system-ui-inspector]'), 3000);
+      }
+
+      async function systemUiReloadContextScenario() {
+        const win = frame.contentWindow;
+        try {
+          win.localStorage.removeItem('dendry_mod_studio.draft_workspace.v0.1');
+        } catch (_err) {
+          // Ignore storage restrictions in screenshot mode.
+        }
+        await openTemplate('workspace_layout', {'layout.deckTitle': 'Reloaded Context Deck'}, 'System UI reload context');
+        click(win, '[data-system-ui-region="deck_lane"]');
+        click(win, '[data-system-ui-fixture="interactive"]');
+        await waitFor(() => win.document.querySelector('[data-system-ui-selected-region="deck_lane"]'), 3000);
+        click(win, '[data-object-canvas-action="save"]');
+        await delay(180);
+        click(win, '[data-draft-action="load"]');
+        await waitFor(() => win.document.querySelector('[data-system-ui-selected-region="deck_lane"]'), 3000);
+        const preview = win.document.querySelector('[data-system-ui-live-preview]');
+        if (!preview || preview.dataset.systemUiFixtureCurrent !== 'interactive') {
+          throw new Error('System UI reload did not preserve selected region and fixture context.');
+        }
+      }
+
+      async function systemUiNarrowScenario() {
+        frame.style.width = '430px';
+        frame.style.maxWidth = '430px';
+        frame.style.boxShadow = '0 0 0 1px rgba(25, 30, 40, 0.14), 0 10px 30px rgba(25, 30, 40, 0.18)';
+        await delay(120);
+        const win = frame.contentWindow;
+        await openTemplate('entry', {}, 'System UI narrow viewport');
+        click(win, '[data-system-ui-region="screen_header"]');
+        await waitFor(() => win.document.querySelector('[data-system-ui-selected-region="screen_header"]'), 3000);
+        const preview = win.document.querySelector('[data-system-ui-live-preview]');
+        const inspector = win.document.querySelector('[data-system-ui-inspector]');
+        const header = win.document.querySelector('[data-system-screen-region="screen_header"]');
+        if (!isVisible(win, preview) || !isVisible(win, inspector) || !isVisible(win, header)) {
+          throw new Error('Narrow System UI viewport lost preview, header, or inspector.');
+        }
+        preview.scrollIntoView({block: 'start', inline: 'nearest'});
+        await delay(180);
+      }
+
       async function sidebarStatusFixtureScenario() {
         const win = frame.contentWindow;
         await openTemplate('entry', {}, 'Sidebar / Status Canvas');
         click(win, '[data-system-ui-region="sidebar_status"]');
         await waitFor(() => win.document.querySelector('[data-object-canvas-field="sidebar.sectionHeading"]'), 3000);
         await applyValues(win, {'sidebar.sectionHeading': 'Canvas Status'});
-        click(win, '[data-system-ui-fixture="busy"]');
+        click(win, '[data-system-ui-fixture="changed"]');
         await waitFor(() => collapse(win.document.querySelector('[data-system-ui-live-preview]') && win.document.querySelector('[data-system-ui-live-preview]').textContent).indexOf('Internal dissent: rising') >= 0, 3000);
       }
 

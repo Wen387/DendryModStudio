@@ -9,7 +9,7 @@
       renderToolbar(model, screen),
       '<div class="system-ui-layout">',
       renderPreview(screen),
-      renderInspector(model, screen),
+      renderInspector(model, screen, opts),
       '</div>',
       '</section>'
     ].join('');
@@ -23,10 +23,10 @@
       '<h3>' + escapeHtml(t('authoring.template.systemUiScreen', 'System UI Screen')) + '</h3>',
       '<p>' + escapeHtml(t('systemUi.unifiedIntent', 'Click a visible UI region to edit the object behind it. Studio keeps the internal draft type in the background.')) + '</p>',
       renderFamilyPills(screen),
+      renderRecipeIntents(screen),
       '</div>',
       '<div class="system-ui-fixtures" data-system-ui-fixtures="true">',
-      renderFixtureButton('default', screen.fixture, t('systemUi.fixture.default', 'Default')),
-      renderFixtureButton('busy', screen.fixture, t('systemUi.fixture.busy', 'Busy state')),
+      ensureArray(screen.fixtures).map((fixture) => renderFixtureButton(fixture.key, screen.fixture, t(fixture.labelKey, fixture.fallback))).join(''),
       '</div>',
       '</header>'
     ].join('');
@@ -40,6 +40,14 @@
     ].join('');
   }
 
+  function renderRecipeIntents(screen) {
+    return [
+      '<div class="system-ui-recipe-intents" data-system-ui-recipe-intents="true">',
+      screenRecipes().map((recipe) => '<button type="button" class="' + (recipe.key === screen.template ? 'is-active' : '') + '" data-system-ui-template="' + escapeAttr(recipe.key) + '" aria-pressed="' + (recipe.key === screen.template ? 'true' : 'false') + '">' + escapeHtml(t(recipe.labelKey, recipe.fallback)) + '</button>').join(''),
+      '</div>'
+    ].join('');
+  }
+
   function renderFixtureButton(fixture, current, label) {
     return '<button type="button" class="' + (fixture === current ? 'is-active' : '') + '" data-system-ui-fixture="' + escapeAttr(fixture) + '" aria-pressed="' + (fixture === current ? 'true' : 'false') + '">' + escapeHtml(label) + '</button>';
   }
@@ -49,77 +57,11 @@
     return api && typeof api.render === 'function' ? api.render(screen) : '';
   }
 
-  function renderInspector(model, screen) {
-    const selected = screen.selected || null;
-    return [
-      '<aside class="system-ui-inspector" data-system-ui-inspector="true">',
-      selected ? renderSelectedRegion(screen, selected) : '',
-      renderRegionFields(selected),
-      renderDiagnostics(screen),
-      renderActions(model),
-      '</aside>'
-    ].join('');
-  }
-
-  function renderSelectedRegion(screen, region) {
-    const family = (screen.families || []).find((item) => item.key === region.family) || {};
-    return [
-      '<section class="object-canvas-inspector-card" data-system-ui-selected-region="' + escapeAttr(region.key) + '" data-system-ui-selected-family="' + escapeAttr(region.family) + '">',
-      '<div class="template-eyebrow">' + escapeHtml(t('systemUi.selectedRegion', 'Selected UI region')) + '</div>',
-      '<h3>' + escapeHtml(region.title) + '</h3>',
-      '<p>' + escapeHtml(region.body) + '</p>',
-      '<dl class="system-screen-selection-meta">',
-      '<dt>' + escapeHtml(t('systemUi.objectFamily', 'Object family')) + '</dt><dd>' + escapeHtml(t(family.labelKey, family.fallback || region.family)) + '</dd>',
-      '</dl>',
-      '</section>'
-    ].join('');
-  }
-
-  function renderRegionFields(selected) {
-    const fields = selected && selected.fields || [];
-    return [
-      '<section class="object-event-body" data-object-canvas-event-body="true" data-system-ui-region-fields="true">',
-      '<div class="template-eyebrow">' + escapeHtml(t('systemUi.editRegion', 'Edit selected region')) + '</div>',
-      fields.length
-        ? fields.map(renderField).join('')
-        : '<p class="editing-empty">' + escapeHtml(t('systemUi.noRegionFields', 'This region is visible for context; this recipe has no direct fields for it.')) + '</p>',
-      '</section>'
-    ].join('');
-  }
-
-  function renderField(field) {
-    const value = String(field && field.value !== undefined ? field.value : field && field.original || '');
-    const id = field && field.id || '';
-    const multiline = value.indexOf('\n') >= 0 || value.length > 72 || /Body|text|lines/i.test(field && field.label || id);
-    const common = ' class="object-inline-input" data-object-canvas-field="' + escapeAttr(id) + '" data-editing-field="' + escapeAttr(id) + '"' + (field && field.readOnly ? ' readonly' : '');
-    return [
-      '<label class="object-inline-field">',
-      '<span>' + escapeHtml(field && field.label || id || '') + '</span>',
-      multiline
-        ? '<textarea rows="' + rowsFor(value) + '"' + common + '>' + escapeHtml(value) + '</textarea>'
-        : '<input type="text"' + common + ' value="' + escapeAttr(value) + '">',
-      '</label>'
-    ].join('');
-  }
-
-  function renderDiagnostics(screen) {
-    return [
-      '<section class="content-storyboard-detail system-screen-diagnostics" data-system-screen-diagnostics="true">',
-      '<div class="template-eyebrow">' + escapeHtml(t('systemUi.previewIntent', 'Preview intent')) + '</div>',
-      ensureArray(screen.diagnostics).map((row) => '<div><span>' + escapeHtml(row.label) + '</span><strong>' + escapeHtml(row.value) + '</strong></div>').join(''),
-      '</section>'
-    ].join('');
-  }
-
-  function renderActions(model) {
-    return [
-      '<div class="editing-actions object-canvas-actions">',
-      '<button type="button" data-object-canvas-action="refresh">' + escapeHtml(t('existingScene.refresh', 'Refresh proposal')) + '</button>',
-      '<button type="button" data-object-canvas-action="save">' + escapeHtml(t('editing.saveToChanges', 'Save to My Changes')) + '</button>',
-      '<button class="primary-action" type="button" data-object-canvas-action="review">' + escapeHtml(t('existingScene.review', 'Review & Apply')) + '</button>',
-      model.mode !== 'existing' ? '<button type="button" data-object-canvas-action="legacy_form">' + escapeHtml(t('objectCanvas.legacyForm', 'Advanced Form')) + '</button>' : '',
-      '</div>'
-    ].join('');
+  function renderInspector(model, screen, options) {
+    const editor = regionEditorApi();
+    return editor && typeof editor.render === 'function'
+      ? editor.render(model, screen, options || {})
+      : '';
   }
 
   function buildScreen(model, options) {
@@ -157,8 +99,28 @@
     return null;
   }
 
-  function rowsFor(value) {
-    return String(Math.max(3, Math.min(8, String(value || '').split('\n').length + 1)));
+  function regionEditorApi() {
+    if (global && global.ProjectMapSystemUiRegionEditor) {
+      return global.ProjectMapSystemUiRegionEditor;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./system_ui_region_editor.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function screenRecipes() {
+    return [
+      {key: 'entry', labelKey: 'create.entrySidebar', fallback: 'Entry & Sidebar'},
+      {key: 'project', labelKey: 'create.gameInfo', fallback: 'Game Info'},
+      {key: 'play_surface', labelKey: 'create.playSurface', fallback: 'Playable Surface'},
+      {key: 'workspace_layout', labelKey: 'create.workspaceLayout', fallback: 'Workspace Layout'},
+      {key: 'sidebar_status', labelKey: 'create.sidebarStatus', fallback: 'Sidebar / Status'}
+    ];
   }
 
   function ensureArray(value) {

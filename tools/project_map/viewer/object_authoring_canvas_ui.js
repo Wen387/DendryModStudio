@@ -40,7 +40,7 @@
     openNewEvent,
     loadDraft,
     refresh,
-    getDraft: () => state.model && state.model.changeState && state.model.changeState.draft,
+    getDraft: draftWithAuthoringContext,
     getOutput: () => state.model && state.model.changeState && state.model.changeState.output,
     isActive: () => state.active,
     activeTemplate: () => state.mode === 'existing' ? 'existing' : state.template || 'event',
@@ -201,7 +201,12 @@
         : {};
       return openFromSelection(state.projectIndex, value.sceneKind === 'card' ? 'cards' : 'events', value.sceneId, {values, entry: meta});
     }
-    return openTemplate(templateFromDraft(value) || meta && meta.template || 'event', value, meta || {source: 'Create'});
+    const context = value.studioAuthoringContext || value.authoringContext || {};
+    const ok = openTemplate(templateFromDraft(value) || meta && meta.template || 'event', value, meta || {source: 'Create'});
+    if (ok) {
+      restoreAuthoringContext(context, meta);
+    }
+    return ok;
   }
 
   function refresh() {
@@ -384,7 +389,7 @@
   function renderSystemUiPreviewStage(model) {
     const surface = global.ProjectMapSystemUiPreviewSurface;
     return surface && typeof surface.render === 'function'
-      ? surface.render(model, {projectIndex: state.projectIndex, selected: state.selectedCanvasNode, fixture: state.systemUiFixture})
+      ? surface.render(model, {projectIndex: state.projectIndex, selected: state.selectedCanvasNode, fixture: state.systemUiFixture, editorOverlay: state.editorOverlay})
       : '';
   }
 
@@ -744,9 +749,10 @@
     elements.host.querySelectorAll('button[data-content-storyboard-view]').forEach((button) => {
       button.addEventListener('click', () => setStoryboardView(button.dataset.contentStoryboardView || 'timeline'));
     });
-    elements.host.querySelectorAll('[data-system-ui-fixture]').forEach((button) => {
-      button.addEventListener('click', () => setSystemUiFixture(button.dataset.systemUiFixture || 'default'));
-    });
+    const systemUiWorkspace = systemUiWorkspaceApi();
+    if (systemUiWorkspace && typeof systemUiWorkspace.bind === 'function') {
+      systemUiWorkspace.bind(elements.host, {onFixture: setSystemUiFixture, onTemplate: switchSystemUiTemplate});
+    }
     const storyboardInteractions = global.ProjectMapContentStoryboardInteractions;
     if (storyboardInteractions && typeof storyboardInteractions.bind === 'function' && (state.workspace || 'content') === 'content') {
       storyboardInteractions.bind(elements.host, {
@@ -782,22 +788,13 @@
   }
 
   function switchSystemUiTemplateForRegion(nodeKey) {
-    if (state.mode === 'existing' || workspaceForTemplate(state.template || '') !== 'system_ui') {
-      return false;
-    }
-    const nextTemplate = systemUiTemplateForRegion(nodeKey);
-    if (!nextTemplate || nextTemplate === state.template) {
-      return false;
-    }
-    state.template = nextTemplate; state.mode = nextTemplate; state.view = nextTemplate;
-    state.workspace = 'system_ui';
-    state.baseDraft = defaultDraftForTemplate(nextTemplate);
-    state.selectedCanvasNode = nodeKey;
-    state.model = buildTemplateModel({values: state.values, entry: {source: 'System UI region'}});
-    state.status = t('objectCanvas.status.systemUiRegion', 'Opened the matching System UI draft for this region.');
-    showWorkspace(nextTemplate);
-    render();
-    return true;
+    const api = systemUiWorkspaceApi();
+    return Boolean(api && typeof api.switchForRegion === 'function' && api.switchForRegion(state, nodeKey, systemUiDeps()));
+  }
+
+  function switchSystemUiTemplate(template) {
+    const api = systemUiWorkspaceApi();
+    if (api && typeof api.switchTemplate === 'function') { api.switchTemplate(state, template, systemUiDeps()); }
   }
 
   function setStoryboardView(view) {
@@ -808,10 +805,8 @@
   }
 
   function setSystemUiFixture(fixture) {
-    state.systemUiFixture = String(fixture || '') === 'busy' ? 'busy' : 'default';
-    state.values = collectValues();
-    state.model = state.mode === 'existing' ? buildExistingModel({values: state.values}) : buildTemplateModel({values: state.values});
-    render();
+    const api = systemUiWorkspaceApi();
+    if (api && typeof api.setFixture === 'function') { api.setFixture(state, fixture, systemUiDeps()); }
   }
 
   function handleCanvasZoom(action, event) {
@@ -1014,6 +1009,17 @@
     return {};
   }
 
+  function draftWithAuthoringContext() {
+    const api = systemUiWorkspaceApi();
+    const draft = state.model && state.model.changeState && state.model.changeState.draft;
+    return api && typeof api.draftWithContext === 'function' ? api.draftWithContext(state, draft, workspaceForTemplate) : draft;
+  }
+
+  function restoreAuthoringContext(context, meta) {
+    const api = systemUiWorkspaceApi();
+    if (api && typeof api.restoreContext === 'function') { api.restoreContext(state, context, systemUiDeps(meta || {source: 'My Changes'})); }
+  }
+
   function templateFromDraft(draft) {
     const apiModel = modelApi();
     if (apiModel && typeof apiModel.templateFromDraft === 'function') {
@@ -1090,6 +1096,14 @@
 
   function registryApi() {
     return global.ProjectMapAuthoringSurfaceRegistry || null;
+  }
+
+  function systemUiWorkspaceApi() {
+    return global.ProjectMapSystemUiWorkspaceState || null;
+  }
+
+  function systemUiDeps(entry) {
+    return {buildExistingModel, buildTemplateModel, collectValues, defaultDraftForTemplate, entry, normalizeTemplate, render, showWorkspace, t, templateForRegion: systemUiTemplateForRegion, workspaceForTemplate};
   }
 
   function statusForTemplate(template, meta) {

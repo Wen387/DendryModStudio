@@ -4,8 +4,9 @@
   function render(screen) {
     const model = screen || {};
     const selectedKey = String(model.selectedKey || '').replace(/^ui:/, '');
+    const shell = model.shell || {};
     return [
-      '<section class="system-ui-live-preview system-screen-preview" data-system-ui-live-preview="true" data-system-ui-screen-preview="true">',
+      '<section class="system-ui-live-preview system-screen-preview ' + escapeAttr(shell.fixtureClass || '') + '" data-system-ui-live-preview="true" data-system-ui-screen-preview="true" data-system-ui-fixture-current="' + escapeAttr(model.fixture || '') + '">',
       '<div class="template-eyebrow">' + escapeHtml(t('systemUi.preview', 'Live preview')) + '</div>',
       '<div class="system-screen-shell" data-system-screen-shell="true" data-system-ui-recipe="' + escapeAttr(model.template || '') + '">',
       renderTopbar(model, selectedKey),
@@ -25,6 +26,7 @@
     return [
       '<header class="system-screen-topbar">',
       renderRegionButton(model, 'screen_header', selectedKey, [
+        '<span class="system-screen-label">' + escapeHtml(t('systemUi.region.header', 'Header / menu')) + '</span>',
         '<strong>' + escapeHtml(shell.title || '') + '</strong>',
         '<span>' + escapeHtml(shell.subtitle || '') + '</span>'
       ].join('')),
@@ -43,10 +45,10 @@
       '<div class="system-screen-tabs"><span>Main</span><span>Politics</span><span>Defense</span><span>Polls</span></div>',
       renderRegionButton(model, 'sidebar_status', selectedKey, [
         '<span class="system-screen-label">' + escapeHtml(t(region.labelKey, region.fallback || 'Sidebar / Status')) + '</span>',
-        '<strong>' + escapeHtml(region.title || '') + '</strong>',
-        '<div class="system-screen-status-lines">',
-        lines.length ? lines.map((line) => '<span>' + escapeHtml(line) + '</span>').join('') : '<span>' + escapeHtml(t('systemUi.emptyStatus', 'No status lines yet.')) + '</span>',
-        '</div>'
+      '<strong>' + escapeHtml(region.title || '') + '</strong>',
+      '<div class="system-screen-status-lines">',
+      lines.length ? lines.map((line, index) => '<span data-system-screen-status-line="' + String(index) + '">' + escapeHtml(line) + '</span>').join('') : '<span>' + escapeHtml(t('systemUi.emptyStatus', 'No status lines yet.')) + '</span>',
+      '</div>'
       ].join('')),
       '</aside>'
     ].join('');
@@ -61,7 +63,8 @@
       renderRegionButton(model, 'main_content', selectedKey, [
         '<span class="system-screen-label">' + escapeHtml(t(main.labelKey, main.fallback || 'Main content')) + '</span>',
         '<h2>' + escapeHtml(main.title || '') + '</h2>',
-        '<p>' + escapeHtml(main.body || '') + '</p>'
+        '<p>' + escapeHtml(main.body || '') + '</p>',
+        renderFixtureHint(model)
       ].join('')),
       renderRegionButton(model, 'main_options', selectedKey, [
         '<span class="system-screen-label">' + escapeHtml(t(options.labelKey, options.fallback || 'Options')) + '</span>',
@@ -77,8 +80,10 @@
     return [
       '<aside class="system-screen-interactions">',
       renderCompactRegion(model, 'workspace_hand', selectedKey),
+      '<div class="system-screen-object-row">',
       renderCompactRegion(model, 'deck_lane', selectedKey),
       renderCompactRegion(model, 'action_card', selectedKey),
+      '</div>',
       renderCompactRegion(model, 'advisor_lane', selectedKey),
       '</aside>'
     ].join('');
@@ -106,6 +111,7 @@
     const activeFamilies = ensureArray(model.focusFamilies);
     const selected = selectedKey === key;
     const focus = activeFamilies.includes(region.family);
+    const owner = region.ownerTemplate || '';
     const className = [
       'system-screen-region',
       'system-screen-region-' + safeClass(key),
@@ -114,7 +120,13 @@
       focus ? 'is-recipe-focus' : '',
       extraClass || ''
     ].filter(Boolean).join(' ');
-    return '<button type="button" class="' + className + '" data-object-canvas-graph-node="ui:' + escapeAttr(key) + '" data-system-ui-region="' + escapeAttr(key) + '" data-system-screen-region="' + escapeAttr(key) + '" data-system-screen-family="' + escapeAttr(region.family || '') + '">' + inner + '</button>';
+    return '<button type="button" class="' + className + '" data-object-canvas-graph-node="ui:' + escapeAttr(key) + '" data-system-ui-region="' + escapeAttr(key) + '" data-system-screen-region="' + escapeAttr(key) + '" data-system-screen-family="' + escapeAttr(region.family || '') + '" data-system-screen-owner-template="' + escapeAttr(owner) + '" aria-pressed="' + (selected ? 'true' : 'false') + '">' + inner + '</button>';
+  }
+
+  function renderFixtureHint(model) {
+    const fixture = model.fixtureState || {};
+    const hint = String(fixture.mainHint || '').trim();
+    return hint ? '<small class="system-screen-fixture-hint">' + escapeHtml(hint) + '</small>' : '';
   }
 
   function regionByKey(model, key) {

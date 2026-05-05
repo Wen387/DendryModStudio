@@ -2,10 +2,13 @@
 'use strict';
 
 const objectCanvasModel = require('./authoring/object_authoring_canvas_model.js');
+global.ProjectMapSystemUiFixtureState = require('./viewer/system_ui_fixture_state.js');
+global.ProjectMapSystemUiRegionContext = require('./viewer/system_ui_region_context.js');
 const screenModel = require('./viewer/system_ui_screen_model.js');
 global.ProjectMapSystemUiScreenModel = screenModel;
 const screenPreview = require('./viewer/system_ui_screen_preview.js');
 global.ProjectMapSystemUiScreenPreview = screenPreview;
+global.ProjectMapSystemUiRegionEditor = require('./viewer/system_ui_region_editor.js');
 const surface = require('./viewer/system_ui_preview_surface.js');
 
 function fail(message) {
@@ -62,6 +65,9 @@ Object.keys(expected).forEach((template) => {
   assert(model.ok, template + ' template model should build');
   const screen = screenModel.buildScreen(model, {fixture: template === 'sidebar_status' ? 'busy' : 'default'});
   assert(screen.kind === 'system_ui_screen_model', template + ' should build a screen model');
+  assert(screen.fixtureState && screen.fixtureState.key, template + ' should expose fixture state');
+  assert(screen.fixtures.some((fixture) => fixture.key === 'status_heavy'), template + ' should expose status-heavy fixture');
+  assert(screen.regionContext && screen.regionContext.ownership, template + ' should expose selected-region ownership context');
   assert(screen.recipe.family === expected[template].family, template + ' should map to the expected recipe family');
   assert(screen.selectedKey === expected[template].selected, template + ' should select the expected default region');
   ['structure', 'main', 'interactive', 'sidebar'].forEach((family) => {
@@ -77,6 +83,8 @@ Object.keys(expected).forEach((template) => {
   assert(html.includes('data-system-screen-region="sidebar_status"'), template + ' surface should render the sidebar/status region');
   assert(html.includes('data-system-screen-family="interactive"'), template + ' surface should render interactive-object regions');
   assert(html.includes('data-system-screen-diagnostics="true"'), template + ' surface should explain recipe and selection intent');
+  assert(html.includes('data-system-ui-region-context="true"'), template + ' surface should render selected-region context');
+  assert(html.includes('data-system-ui-owner-template='), template + ' surface should render region owner evidence');
   assert(!html.includes('system-ui-device'), template + ' should not render the old abstract device grid');
 });
 
@@ -86,6 +94,7 @@ const edited = objectCanvasModel.buildTemplateCanvas(index, 'workspace_layout', 
 const editedHtml = surface.render(edited, {selected: 'ui:deck_lane'});
 assert(editedHtml.includes('Live Edited Policy Deck'), 'live field values should update the shared screen preview');
 assert(editedHtml.includes('data-system-ui-selected-region="deck_lane"'), 'selected region editor should follow clicked preview object');
+assert(editedHtml.includes('data-system-ui-owner-template="workspace_layout"'), 'deck lane should identify Workspace Layout as owner');
 
 const project = objectCanvasModel.buildTemplateCanvas(index, 'project', {}, {
   values: {'project.gameTitle': 'Live Edited Game Title', 'project.author': 'Studio Tester'}
@@ -94,6 +103,12 @@ const projectHtml = surface.render(project, {selected: 'ui:screen_header'});
 assert(projectHtml.includes('Live Edited Game Title'), 'Game Info title edits should render in the System UI header preview');
 assert(projectHtml.includes('Studio Tester'), 'Game Info author edits should render in the System UI header subtitle');
 assert(projectHtml.includes('data-system-ui-selected-region="screen_header"'), 'Game Info should edit through the selected header region');
+
+const statusHeavy = surface.render(edited, {fixture: 'status_heavy', selected: 'ui:sidebar_status'});
+assert(statusHeavy.includes('Reichstag composition'), 'status-heavy fixture should visibly change the sidebar');
+
+const interactive = surface.render(edited, {fixture: 'interactive', selected: 'ui:action_card'});
+assert(interactive.includes('data-system-ui-fixture-current="interactive"'), 'interactive fixture should be selectable');
 
 process.stdout.write(JSON.stringify({
   ok: true,

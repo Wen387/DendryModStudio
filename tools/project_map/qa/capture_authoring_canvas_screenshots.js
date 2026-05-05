@@ -51,7 +51,19 @@ const DEFAULT_SCENARIOS = [
   ['39-content-create-from-lane', 'content-create-from-lane'],
   ['40-content-chain-evidence', 'content-chain-evidence'],
   ['41-content-editor-dock-restore', 'content-editor-dock-restore'],
-  ['42-content-narrow', 'content-narrow']
+  ['42-content-narrow', 'content-narrow'],
+  ['43-system-ui-shared-screen', 'system-ui-shared-screen'],
+  ['44-system-ui-main-options', 'system-ui-main-options'],
+  ['45-system-ui-interactive-objects', 'system-ui-interactive-objects'],
+  ['46-system-ui-layout-frame', 'system-ui-layout-frame'],
+  ['47-system-ui-status-heavy', 'system-ui-status-heavy'],
+  ['48-system-ui-editor-overlay', 'system-ui-editor-overlay'],
+  ['49-system-ui-reload-context', 'system-ui-reload-context'],
+  ['50-review-system-ui-entry', 'review-system-ui-entry'],
+  ['51-review-system-ui-project', 'review-system-ui-project'],
+  ['52-review-system-ui-play-surface', 'review-system-ui-play-surface'],
+  ['53-review-system-ui-sidebar-status', 'review-system-ui-sidebar-status'],
+  ['54-system-ui-narrow', 'system-ui-narrow']
 ];
 
 function parseArgs(argv) {
@@ -107,7 +119,7 @@ function ensureDir(dir) {
 }
 
 function capture(chrome, url, filePath, scenario) {
-  const windowSize = scenario === 'content-narrow' ? '430,1000' : '1440,1000';
+  const windowSize = scenario === 'content-narrow' || scenario === 'system-ui-narrow' ? '430,1000' : '1440,1000';
   const args = [
     '--headless=new',
     '--disable-gpu',
