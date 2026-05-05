@@ -75,6 +75,10 @@
       const scenarios = {
         'create-unified-canvas': () => openTemplate('event', {}, 'Create opens unified Canvas'),
         'event-inline-edit': () => openTemplate('event', {'event.title': 'Player-facing event title', 'event.intro': 'The event body is edited directly in the Canvas.'}, 'Event inline editing'),
+        'content-pan': () => contentPanScenario(),
+        'content-node-drag': () => contentNodeDragScenario(),
+        'content-create-branch': () => contentCreateBranchScenario(),
+        'content-editor-overlay': () => contentEditorOverlayScenario(),
         'design-existing-event-canvas': () => openExisting('events', 'generic_intro', {generic_intro_body: 'The campaign office opens to a sharper morning.'}, 'Design existing Event Canvas'),
         'explore-existing-card-canvas': () => openExisting('cards', 'policy_card', {policy_card_body: 'The policy card body is edited from Explore context.'}, 'Explore existing Card Canvas'),
         'template-news': () => openTemplate('news', {'news.headline': 'Canvas headline'}, 'News Canvas'),
@@ -214,6 +218,51 @@
         await delay(260);
       }
 
+      async function contentPanScenario() {
+        const win = frame.contentWindow;
+        await openTemplate('event', {'event.title': 'Panned 1929 Event', 'event.year': '1929'}, 'Content Graph background pan');
+        const canvas = win.document.querySelector('[data-object-canvas-graph-canvas]');
+        dragPointer(win, canvas, 280, 210, 420, 300);
+        await delay(260);
+        const board = win.document.querySelector('[data-object-canvas-graph-board]');
+        if (!board || board.style.transform.indexOf('translate(') < 0 || board.style.transform.indexOf('0px, 0px') >= 0) {
+          throw new Error('Content Graph pan did not update the board transform.');
+        }
+      }
+
+      async function contentNodeDragScenario() {
+        const win = frame.contentWindow;
+        await openTemplate('event', {'event.title': 'Dragged 1929 Event', 'event.year': '1929'}, 'Content Graph node drag');
+        const node = win.document.querySelector('[data-object-canvas-graph-node="object"]');
+        const before = node && node.getBoundingClientRect();
+        dragPointer(win, node, before.left + 40, before.top + 24, before.left + 190, before.top + 118);
+        await delay(320);
+        let moved = win.document.querySelector('[data-object-canvas-graph-node="object"]');
+        let apiMove = null;
+        if (win.ProjectMapObjectAuthoringCanvas && typeof win.ProjectMapObjectAuthoringCanvas.moveCanvasNode === 'function') {
+          apiMove = win.ProjectMapObjectAuthoringCanvas.moveCanvasNode('object', 694, 220);
+          await delay(180);
+          moved = win.document.querySelector('[data-object-canvas-graph-node="object"]');
+        }
+        if (!moved || moved.dataset.canvasX === '544') {
+          throw new Error('Content Graph node drag did not persist a new node position. apiMove=' + JSON.stringify(apiMove) + ' api=' + typeof (win.ProjectMapObjectAuthoringCanvas && win.ProjectMapObjectAuthoringCanvas.moveCanvasNode) + ' data=' + (moved && moved.dataset.canvasX));
+        }
+      }
+
+      async function contentCreateBranchScenario() {
+        const win = frame.contentWindow;
+        await openTemplate('event', {'event.title': '1929 Event X', 'event.year': '1929'}, 'Create follow-up branch');
+        click(win, '[data-object-canvas-action="create_followup"]');
+        await waitFor(() => win.document.querySelector('[data-content-draft-node]'), 3000);
+      }
+
+      async function contentEditorOverlayScenario() {
+        const win = frame.contentWindow;
+        await openTemplate('event', {'event.title': 'Overlay Edit Event', 'event.year': '1929'}, 'Expanded editor overlay');
+        click(win, '[data-object-canvas-action="toggle_overlay"]');
+        await waitFor(() => win.document.querySelector('[data-object-authoring-canvas].is-editor-overlay'), 3000);
+      }
+
       async function applyValues(win, values) {
         Object.keys(values || {}).forEach((key) => {
           const field = win.document.querySelector('[data-object-canvas-field="' + cssEscape(key) + '"]');
@@ -232,10 +281,28 @@
         }
       }
 
+      function dragPointer(win, node, startX, startY, endX, endY) {
+        if (!node) {
+          throw new Error('Cannot drag a missing node.');
+        }
+        const moveTarget = node.closest && node.closest('[data-object-canvas-graph-canvas]') || node;
+        const options = {bubbles: true, pointerId: 1, pointerType: 'mouse', button: 0, buttons: 1};
+        node.dispatchEvent(new win.PointerEvent('pointerdown', Object.assign({}, options, {clientX: startX, clientY: startY})));
+        moveTarget.dispatchEvent(new win.PointerEvent('pointermove', Object.assign({}, options, {clientX: endX, clientY: endY})));
+        moveTarget.dispatchEvent(new win.PointerEvent('pointerup', Object.assign({}, options, {clientX: endX, clientY: endY, buttons: 0})));
+      }
+
       function assertScenarioReady(win) {
         if (scenarioId.indexOf('review-') === 0) {
           if (!isReviewVisible(win)) {
             throw new Error('Review scenario did not open Review & Apply.');
+          }
+          return;
+        }
+        if (scenarioId === 'content-create-branch') {
+          const host = win.document.getElementById('existing-scene-editor-host');
+          if (!host || !host.querySelector('[data-content-draft-node]') || !host.querySelector('[data-object-canvas-graph-node^="draft:"]')) {
+            throw new Error('Content branch scenario did not create a visible draft node.');
           }
           return;
         }

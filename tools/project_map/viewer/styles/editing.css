@@ -393,11 +393,16 @@
   min-height: 520px;
   overflow: auto;
   border-right: 1px solid var(--border);
+  cursor: grab;
   background:
     linear-gradient(rgba(221, 215, 198, 0.72) 1px, transparent 1px),
     linear-gradient(90deg, rgba(221, 215, 198, 0.72) 1px, transparent 1px),
     radial-gradient(circle at 44% 32%, #fbfaf6 0%, #f4f1ea 68%);
   background-size: 32px 32px, 32px 32px, auto;
+}
+
+.object-canvas-graph-canvas:active {
+  cursor: grabbing;
 }
 
 .object-canvas-graph-edges,
@@ -432,6 +437,8 @@
   color: var(--text);
   text-align: left;
   box-shadow: 0 8px 22px rgba(31, 29, 24, 0.1);
+  cursor: move;
+  touch-action: none;
 }
 
 .object-canvas-graph-node:hover,
@@ -501,6 +508,90 @@
   color: var(--muted);
   font-size: 12px;
   line-height: 1.4;
+}
+
+.object-canvas-identity,
+.object-canvas-branch-actions {
+  display: grid;
+  gap: 10px;
+  padding: 11px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--surface-alt);
+}
+
+.object-canvas-identity-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.object-canvas-identity-grid div,
+.object-canvas-flow-summary {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.object-canvas-identity-grid span,
+.object-canvas-flow-summary strong {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.object-canvas-identity-grid strong,
+.object-canvas-flow-summary span {
+  overflow-wrap: anywhere;
+}
+
+.object-canvas-flow-summary span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.object-canvas-branch-actions > div:last-child {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.object-canvas-branch-actions button {
+  min-height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 750;
+}
+
+.object-canvas-graph-node-draft {
+  border-color: color-mix(in srgb, var(--success) 44%, var(--border));
+  background: #f4fbf5;
+}
+
+.object-canvas.is-editor-overlay .object-canvas-graph-shell {
+  position: relative;
+  grid-template-columns: 1fr;
+}
+
+.object-canvas.is-editor-overlay .object-canvas-graph-canvas {
+  min-height: 660px;
+  border-right: 0;
+}
+
+.object-canvas.is-editor-overlay .object-canvas-graph-inspector {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  bottom: 18px;
+  z-index: 4;
+  width: min(620px, calc(100% - 36px));
+  max-height: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 18px 46px rgba(31, 29, 24, 0.22);
 }
 
 .object-canvas-inspector-preview {
