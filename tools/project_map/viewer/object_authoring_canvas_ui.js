@@ -396,7 +396,8 @@
         selected: state.selectedCanvasNode,
         view: state.storyboardView,
         nodePositions: state.nodePositions || {},
-        draftBranches: state.draftBranches || []
+        draftBranches: state.draftBranches || [],
+        editorOverlay: state.editorOverlay
       })
       : '';
   }
@@ -727,7 +728,7 @@
       input.addEventListener('input', refresh);
     });
     elements.host.querySelectorAll('[data-object-canvas-action]').forEach((button) => {
-      button.addEventListener('click', () => handleAction(button.dataset.objectCanvasAction || ''));
+      button.addEventListener('click', () => handleAction(button.dataset.objectCanvasAction || '', button));
     });
     elements.host.querySelectorAll('[data-object-canvas-graph-node]').forEach((button) => {
       button.addEventListener('click', (event) => {
@@ -872,7 +873,7 @@
     }
   }
 
-  function handleAction(action) {
+  function handleAction(action, target) {
     if (action === 'refresh') {
       refresh();
       state.status = t('objectCanvas.status.refreshed', 'Object Canvas refreshed.');
@@ -892,16 +893,20 @@
     } else if (action === 'toggle_overlay') {
       toggleEditorOverlay();
     } else if (action.indexOf('create_') === 0) {
-      createRelatedDraft(action.replace('create_', ''));
+      createRelatedDraft(action.replace('create_', ''), target);
     }
   }
 
-  function createRelatedDraft(action) {
+  function createRelatedDraft(action, target) {
     const api = global.ProjectMapAuthoringReferenceIndex;
     if (!api || typeof api.branchDraft !== 'function') {
       return;
     }
-    const draft = api.branchDraft(action, state.model || {});
+    const draft = api.branchDraft(action, state.model || {}, {
+      insertKey: target && target.dataset && target.dataset.contentStoryboardInsert || '',
+      view: state.storyboardView,
+      selectedKey: state.selectedCanvasNode
+    });
     state.draftBranches.push(draft);
     state.selectedCanvasNode = 'draft:' + draft.id;
     state.status = t('objectCanvas.status.branchCreated', 'A related draft card was added to the Storyboard.');

@@ -89,6 +89,11 @@
         'content-zoomed-in-drag': () => contentZoomedInDragScenario(),
         'content-zoom-fit': () => contentZoomFitScenario(),
         'content-wheel-zoom': () => contentWheelZoomScenario(),
+        'content-global-context': () => contentGlobalContextScenario(),
+        'content-create-from-lane': () => contentCreateFromLaneScenario(),
+        'content-chain-evidence': () => contentChainEvidenceScenario(),
+        'content-editor-dock-restore': () => contentEditorDockRestoreScenario(),
+        'content-narrow': () => contentNarrowScenario(),
         'system-ui-live-edit': () => systemUiLiveEditScenario(),
         'system-ui-game-info-header': () => systemUiGameInfoHeaderScenario(),
         'design-existing-event-canvas': () => openExisting('events', 'generic_intro', {generic_intro_body: 'The campaign office opens to a sharper morning.'}, 'Design existing Event Canvas'),
@@ -398,6 +403,75 @@
         const label = collapse(win.document.querySelector('[data-object-canvas-zoom-label]').textContent);
         if (label !== '110%') {
           throw new Error('Mouse wheel zoom did not update the label to 110%. label=' + label);
+        }
+      }
+
+      async function contentGlobalContextScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, denseStoryboardFixtureIndex());
+        await openExisting('events', 'election_start', {}, 'Storyboard global story context');
+        await waitFor(() => win.document.querySelector('[data-content-storyboard-global-context]'), 3000);
+        const context = collapse(win.document.querySelector('[data-content-storyboard-global-context]').textContent);
+        const overview = win.document.querySelector('[data-content-storyboard-overview] .is-selected');
+        if (!context.includes('1929') || !overview) {
+          throw new Error('Storyboard global context did not expose the selected 1929 position.');
+        }
+      }
+
+      async function contentCreateFromLaneScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, denseStoryboardFixtureIndex());
+        await openExisting('events', 'election_start', {}, 'Storyboard create from lane');
+        click(win, '[data-content-storyboard-insert="time:1929"][data-object-canvas-action="create_followup"]');
+        await waitFor(() => win.document.querySelector('[data-content-storyboard-card^="draft:"]'), 3000);
+        const draft = win.document.querySelector('[data-content-storyboard-card^="draft:"]');
+        const context = collapse(win.document.querySelector('[data-content-storyboard-global-context]').textContent);
+        if (!draft || !context.includes('1929')) {
+          throw new Error('Storyboard lane creation did not keep the draft visible in 1929 context.');
+        }
+      }
+
+      async function contentChainEvidenceScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, denseStoryboardFixtureIndex());
+        await openExisting('events', 'election_start', {}, 'Storyboard chain evidence');
+        click(win, 'button[data-content-storyboard-view="chain"]');
+        await waitFor(() => win.document.querySelector('[data-content-storyboard-chain-evidence]'), 3000);
+        const evidence = collapse(win.document.querySelector('[data-content-storyboard-chain-evidence]').textContent);
+        if (!evidence.includes('Open rally route')) {
+          throw new Error('Storyboard chain evidence did not show the route label.');
+        }
+      }
+
+      async function contentEditorDockRestoreScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, denseStoryboardFixtureIndex());
+        await openExisting('events', 'election_start', {}, 'Storyboard editor overlay dock restore');
+        zoomCanvas(win, 'in');
+        click(win, '[data-object-canvas-action="toggle_overlay"]');
+        await waitFor(() => win.document.querySelector('[data-object-authoring-canvas].is-editor-overlay'), 3000);
+        click(win, '[data-object-canvas-action="toggle_overlay"]');
+        await waitFor(() => !win.document.querySelector('[data-object-authoring-canvas].is-editor-overlay'), 3000);
+        const label = collapse(win.document.querySelector('[data-object-canvas-zoom-label]').textContent);
+        if (label !== '110%' || !win.document.querySelector('[data-content-storyboard-card="event:election_start"].is-selected, [data-content-storyboard-card="event:election_start"].is-current')) {
+          throw new Error('Storyboard editor dock restore lost zoom or selected story context. label=' + label);
+        }
+      }
+
+      async function contentNarrowScenario() {
+        frame.style.width = '430px';
+        frame.style.maxWidth = '430px';
+        frame.style.boxShadow = '0 0 0 1px rgba(25, 30, 40, 0.14), 0 10px 30px rgba(25, 30, 40, 0.18)';
+        await delay(120);
+        const win = frame.contentWindow;
+        seedCustomIndex(win, denseStoryboardFixtureIndex());
+        await openExisting('events', 'election_start', {}, 'Storyboard narrow viewport');
+        await waitFor(() => win.document.querySelector('[data-content-storyboard-global-context]'), 3000);
+        const canvas = win.document.querySelector('[data-content-storyboard-canvas]');
+        const controls = win.document.querySelector('[data-content-storyboard-floating-controls]');
+        const editor = win.document.querySelector('[data-content-storyboard-editor]');
+        if (!isVisible(win, canvas) || !isVisible(win, controls) || !isVisible(win, editor)) {
+          throw new Error('Narrow Storyboard viewport lost canvas controls or editor.');
         }
       }
 
@@ -750,6 +824,54 @@
         ];
         base.edges = [];
         base.semantic.events = base.scenes.map((scene) => ({id: scene.id, title: scene.title, path: scene.path}));
+        return base;
+      }
+
+      function denseStoryboardFixtureIndex() {
+        const base = fixtureIndex();
+        const eventPath = 'source/scenes/events/election_start.scene.dry';
+        const rallyPath = 'source/scenes/events/election_rally.scene.dry';
+        const backlashPath = 'source/scenes/events/election_backlash.scene.dry';
+        base.scenes = [
+          fixtureScene('prelude_1928', '1928 Prelude', 'source/scenes/events/prelude_1928.scene.dry', {viewIf: 'year = 1928'}),
+          fixtureScene('election_start', '1929 Election Begins', eventPath, {
+            viewIf: 'year = 1929 and month >= 1 and month <= 3',
+            options: [{target: {id: 'election_rally'}, title: 'Open rally route'}]
+          }),
+          fixtureScene('election_rally', '1929 Rally Response', rallyPath, {
+            viewIf: 'year = 1929 and month >= 2 and month <= 4',
+            options: [{target: {id: 'election_backlash'}, title: 'Let backlash form'}]
+          }),
+          fixtureScene('election_backlash', 'Backlash Builds', backlashPath, {viewIf: 'year = 1930'}),
+          fixtureScene('policy_card', 'Campaign Organizing Card', 'source/scenes/cards/campaign_card.scene.dry', {
+            type: 'card',
+            flags: {isCard: true},
+            tags: ['cards'],
+            options: [{target: {id: 'election_rally'}, title: 'Organize the rally'}]
+          })
+        ];
+        base.edges = [
+          {from: 'prelude_1928', to: 'election_start', kind: 'go_to', label: 'prelude opens'},
+          {from: 'election_start', to: 'election_rally', kind: 'go_to', label: 'Open rally route', source: {path: eventPath, line: 18}},
+          {from: 'election_rally', to: 'election_backlash', kind: 'go_to', label: 'backlash branch', source: {path: rallyPath, line: 22}}
+        ];
+        base.semantic.events = base.scenes.filter((scene) => scene.type !== 'card').map((scene) => ({id: scene.id, title: scene.title, path: scene.path}));
+        base.semantic.cards = [{id: 'policy_card', title: 'Campaign Organizing Card', path: 'source/scenes/cards/campaign_card.scene.dry'}];
+        base.semantic.news = {
+          sources: ['source/scenes/post_event_news.scene.dry'],
+          items: [{
+            id: 'rally_news',
+            headline: 'Rally news reaches the papers',
+            description: 'The public reads the first response.',
+            when: {year: 1929, month: 2},
+            source: {path: 'source/scenes/post_event_news.scene.dry', line: 40}
+          }]
+        };
+        base.semantic.textCorpus.items = [
+          textItem('election_start_title', '1929 Election Begins', 'title', 'election_start', eventPath, 1),
+          textItem('election_start_body', 'The election chain opens in 1929.', 'body', 'election_start', eventPath, 8),
+          textItem('election_start_option', 'Open rally route', 'option_label', 'election_start', eventPath, 16, 'election_rally')
+        ];
         return base;
       }
 

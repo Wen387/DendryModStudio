@@ -24,10 +24,12 @@
     };
   }
 
-  function branchDraft(action, model) {
+  function branchDraft(action, model, context) {
     const baseId = safeId(model && (model.objectId || model.title) || 'object');
-    const year = eventYear(model);
-    const branchId = baseId + '_' + action;
+    const target = context && typeof context === 'object' ? context : {};
+    const year = insertYear(target.insertKey) || eventYear(model);
+    const laneSuffix = safeId(target.insertKey || target.view || '');
+    const branchId = baseId + (laneSuffix ? '_' + laneSuffix : '') + '_' + action;
     const titles = {
       followup: t('objectCanvas.branch.followup', 'Follow-up event'),
       counterfactual: t('objectCanvas.branch.counterfactual', 'Counterfactual branch'),
@@ -40,7 +42,7 @@
         id: branchId + '_card',
         title: titles.card,
         detail: t('objectCanvas.branch.card.detail', 'Card created from the selected beat.'),
-        draft: {kind: 'card', id: branchId + '_card', title: titles.card, heading: titles.card}
+        draft: {kind: 'card', id: branchId + '_card', title: titles.card, heading: titles.card, when: year ? {year, monthStart: 1, monthEnd: 3} : {}}
       };
     }
     if (action === 'news') {
@@ -49,7 +51,7 @@
         id: branchId + '_news',
         title: titles.news,
         detail: t('objectCanvas.branch.news.detail', 'News item attached to this story moment.'),
-        draft: {kind: 'news_item', id: branchId + '_news', headline: titles.news}
+        draft: {kind: 'news_item', id: branchId + '_news', headline: titles.news, when: year ? {year, month: 1} : {}}
       };
     }
     return {
@@ -92,6 +94,11 @@
   function eventYear(model) {
     const draft = model && model.changeState && model.changeState.draft || {};
     return draft.when && draft.when.year || draft.year || '';
+  }
+
+  function insertYear(insertKey) {
+    const match = String(insertKey || '').match(/^time:(\d{3,4})$/);
+    return match ? Number(match[1]) : '';
   }
 
   function projectSummary(projectIndex) {

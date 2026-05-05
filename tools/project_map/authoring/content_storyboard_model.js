@@ -14,6 +14,8 @@
     const storyboardCards = ensureArray(timeline.cards).length ? timeline.cards : deduped;
     const selected = cardByKey(storyboardCards, selectedKey) || selectedBase;
     const view = normalizeView(opts.view);
+    const chain = buildChain(projectIndex, storyboardCards, selected, model);
+    const storyContext = buildStoryContext(projectIndex, storyboardCards, selected, timeline, chain);
     return {
       schemaVersion: '0.1',
       kind: 'content_storyboard_model',
@@ -22,8 +24,9 @@
       currentKey: current.key,
       cards: storyboardCards,
       timeline,
-      chain: buildChain(projectIndex, storyboardCards, selected, model),
-      editor: buildEditor(projectIndex, model, selected, timeline.profile),
+      chain,
+      storyContext,
+      editor: buildEditor(projectIndex, model, selected, timeline.profile, storyContext),
       metrics: {
         cardCount: storyboardCards.length,
         branchCount: draftBranches.length,
@@ -217,7 +220,7 @@
     };
   }
 
-  function buildEditor(projectIndex, model, selected, profile) {
+  function buildEditor(projectIndex, model, selected, profile, storyContext) {
     const board = model.contextBoard || {};
     const source = selected && selected.source || {};
     const placement = selected && selected.timelinePlacement || null;
@@ -230,6 +233,7 @@
         pair('Source', source.path ? source.path + (source.line ? ':' + source.line : '') : '')
       ].filter((row) => row.value),
       timelinePlacement: placement,
+      storyContext: storyContext || null,
       context: {
         flow: ensureArray(board.flow),
         variables: ensureArray(board.variables),
@@ -319,6 +323,11 @@
         monthEnd: numberOr(monthEnd && monthEnd.value, numberOr(monthStart && monthStart.value, 1))
       };
     }
+    const condition = fieldById(fields, 'metadata_viewIf') || fields.find((field) => field && field.role === 'condition');
+    const fromCondition = scheduleFromCondition(fieldValue(condition, ''));
+    if (fromCondition.year) {
+      return fromCondition;
+    }
     return scheduleForScene(model && model.rawContext && model.rawContext.scene || {});
   }
 
@@ -397,6 +406,27 @@
     if (typeof require === 'function') {
       try {
         return require('./timeline_coordinate_adapter.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function buildStoryContext(projectIndex, cards, selected, timeline, chain) {
+    const api = storyContextApi();
+    return api && typeof api.buildContext === 'function'
+      ? api.buildContext(projectIndex, cards, selected, timeline, chain)
+      : null;
+  }
+
+  function storyContextApi() {
+    if (global && global.ProjectMapContentStoryboardContext) {
+      return global.ProjectMapContentStoryboardContext;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./content_storyboard_context.js');
       } catch (_err) {
         return null;
       }

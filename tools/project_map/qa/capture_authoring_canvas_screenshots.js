@@ -46,7 +46,12 @@ const DEFAULT_SCENARIOS = [
   ['34-content-zoomed-in-drag', 'content-zoomed-in-drag'],
   ['35-content-zoom-fit', 'content-zoom-fit'],
   ['36-system-ui-game-info-header', 'system-ui-game-info-header'],
-  ['37-content-wheel-zoom', 'content-wheel-zoom']
+  ['37-content-wheel-zoom', 'content-wheel-zoom'],
+  ['38-content-global-context', 'content-global-context'],
+  ['39-content-create-from-lane', 'content-create-from-lane'],
+  ['40-content-chain-evidence', 'content-chain-evidence'],
+  ['41-content-editor-dock-restore', 'content-editor-dock-restore'],
+  ['42-content-narrow', 'content-narrow']
 ];
 
 function parseArgs(argv) {
@@ -101,7 +106,8 @@ function ensureDir(dir) {
   return dir;
 }
 
-function capture(chrome, url, filePath) {
+function capture(chrome, url, filePath, scenario) {
+  const windowSize = scenario === 'content-narrow' ? '430,1000' : '1440,1000';
   const args = [
     '--headless=new',
     '--disable-gpu',
@@ -109,7 +115,7 @@ function capture(chrome, url, filePath) {
     '--allow-file-access-from-files',
     '--disable-dev-shm-usage',
     '--hide-scrollbars',
-    '--window-size=1440,1000',
+    '--window-size=' + windowSize,
     '--virtual-time-budget=8000',
     '--screenshot=' + filePath,
     url
@@ -173,7 +179,7 @@ async function main() {
   scenarios.forEach(([name, scenario]) => {
     const filePath = path.join(args.artifactDir, name + '.png');
     const url = pathToFileURL(HARNESS_FILE).href + '?scenario=' + encodeURIComponent(scenario);
-    const size = capture(args.chrome, url, filePath);
+    const size = capture(args.chrome, url, filePath, scenario);
     manifest.push({name, scenario, file: filePath, bytes: size});
     process.stdout.write('captured ' + name + ' -> ' + filePath + '\n');
   });
