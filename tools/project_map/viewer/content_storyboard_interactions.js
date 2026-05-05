@@ -41,8 +41,12 @@
           moved: false
         };
       }
-      if (typeof canvas.setPointerCapture === 'function') {
-        canvas.setPointerCapture(event.pointerId);
+      try {
+        if (typeof canvas.setPointerCapture === 'function') {
+          canvas.setPointerCapture(event.pointerId);
+        }
+      } catch (_err) {
+        // Synthetic QA drags and older embedded Chromium can reject capture.
       }
       event.preventDefault();
     });

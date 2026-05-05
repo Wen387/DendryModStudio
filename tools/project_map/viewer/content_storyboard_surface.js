@@ -23,6 +23,7 @@
       '<h3>' + escapeHtml(storyboard.view === 'chain' ? t('storyboard.chain.title', 'Story chain') : t('storyboard.timeline.title', 'Timeline storyboard')) + '</h3>',
       '</div>',
       '<div class="content-storyboard-controls">',
+      renderProfileBadge(storyboard.timeline && storyboard.timeline.profile),
       renderViewButton('timeline', storyboard.view === 'timeline', t('storyboard.timeline', 'Timeline')),
       renderViewButton('chain', storyboard.view === 'chain', t('storyboard.chain', 'Chain')),
       '<span data-object-canvas-zoom-label="true">100%</span>',
@@ -33,6 +34,16 @@
       '</div>',
       '</header>'
     ].join('');
+  }
+
+  function renderProfileBadge(profile) {
+    if (!profile) {
+      return '';
+    }
+    const label = profile.inferred
+      ? t('storyboard.profileInferred', 'Inferred')
+      : t('storyboard.profileProject', 'Profile');
+    return '<span class="content-storyboard-profile" data-content-storyboard-profile="' + escapeAttr(profile.mode || '') + '">' + escapeHtml(label + ': ' + (profile.unitLabel || profile.mode || 'Timeline')) + '</span>';
   }
 
   function renderViewButton(view, active, label) {
@@ -60,10 +71,14 @@
   function renderTimelineLane(lane, laneIndex, laneWidth, laneGap, positions, storyboard) {
     const left = 36 + laneIndex * (laneWidth + laneGap);
     const cards = lane.cards || [];
+    const laneKey = lane.key || lane.year || laneIndex;
+    const insertKey = lane.insertionKey || 'time:' + laneKey;
+    const laneLabel = lane.unitLabel || t('storyboard.lane', 'Lane');
+    const title = lane.label || lane.year || laneKey;
     return [
-      '<section class="content-storyboard-lane" data-content-storyboard-lane="' + escapeAttr(lane.year) + '" style="left: ' + left + 'px; top: 24px; width: ' + laneWidth + 'px;">',
-      '<header><span>' + escapeHtml(t('storyboard.year', 'Year')) + '</span><strong>' + escapeHtml(String(lane.year)) + '</strong><em>' + cards.length + ' ' + escapeHtml(t('storyboard.beats', 'beats')) + '</em></header>',
-      '<button type="button" class="content-storyboard-insert" data-object-canvas-action="create_followup" data-content-storyboard-insert="time:' + escapeAttr(lane.year) + '">' + escapeHtml(t('storyboard.addHere', 'Add story here')) + '</button>',
+      '<section class="content-storyboard-lane" data-content-storyboard-lane="' + escapeAttr(laneKey) + '" style="left: ' + left + 'px; top: 24px; width: ' + laneWidth + 'px;">',
+      '<header><span>' + escapeHtml(laneLabel) + '</span><strong>' + escapeHtml(String(title)) + '</strong><em>' + cards.length + ' ' + escapeHtml(t('storyboard.beats', 'beats')) + '</em></header>',
+      '<button type="button" class="content-storyboard-insert" data-object-canvas-action="create_followup" data-content-storyboard-insert="' + escapeAttr(insertKey) + '">' + escapeHtml(t('storyboard.addHere', 'Add story here')) + '</button>',
       cards.map((card, cardIndex) => renderCard(card, defaultPosition(18, 132 + cardIndex * 326, positions[card.key]), storyboard)).join(''),
       '</section>'
     ].join('');
@@ -77,6 +92,7 @@
     return [
       '<section class="content-storyboard-lane content-storyboard-lane-undated" data-content-storyboard-lane="undated" style="left: ' + left + 'px; top: 24px; width: ' + laneWidth + 'px;">',
       '<header><span>' + escapeHtml(t('storyboard.undated', 'Undated')) + '</span><strong>' + escapeHtml(t('storyboard.needsSchedule', 'Needs schedule')) + '</strong><em>' + cards.length + ' ' + escapeHtml(t('storyboard.beats', 'beats')) + '</em></header>',
+      '<button type="button" class="content-storyboard-insert" data-object-canvas-action="create_followup" data-content-storyboard-insert="undated">' + escapeHtml(t('storyboard.addHere', 'Add story here')) + '</button>',
       cards.slice(0, 8).map((card, cardIndex) => renderCard(card, defaultPosition(18, 132 + cardIndex * 326, positions[card.key]), storyboard)).join(''),
       '</section>'
     ].join('');
@@ -128,7 +144,7 @@
     ].filter(Boolean).join(' ');
     return [
       '<article class="' + classes + '" tabindex="0" data-content-storyboard-card="' + escapeAttr(card.key) + '" data-object-canvas-graph-node="' + escapeAttr(card.key) + '" data-canvas-x="' + pos.x + '" data-canvas-y="' + pos.y + '" style="left: ' + pos.x + 'px; top: ' + pos.y + 'px;">',
-      '<div class="content-storyboard-card-kicker"><span>' + escapeHtml(kindLabel(card.kind)) + '</span><em>' + escapeHtml(formatSchedule(card.schedule)) + '</em></div>',
+      '<div class="content-storyboard-card-kicker"><span>' + escapeHtml(kindLabel(card.kind)) + '</span><em>' + escapeHtml(card.timelineLabel || formatSchedule(card.schedule)) + '</em></div>',
       renderCardTitle(card),
       renderCardBody(card),
       renderCardTiming(card),
@@ -190,6 +206,7 @@
       '<p>' + escapeHtml(t('storyboard.editorHint', 'Canvas shows story structure. Technical context, plan, and review stay here.')) + '</p>',
       '</section>',
       renderIdentity(editor.identity || []),
+      renderPlacement(editor.timelinePlacement || {}),
       renderContext(editor.context || {}),
       renderPreview(model),
       renderPlan(model),
@@ -216,6 +233,20 @@
       renderContextCount(t('editing.group.effects', 'Effects'), context.effects),
       renderContextCount(t('editing.group.sourceEvidence', 'Source evidence'), context.sourceEvidence),
       renderContextCount(t('editing.group.manualBoundaries', 'Manual-review boundaries'), context.manualBoundaries),
+      '</section>'
+    ].join('');
+  }
+
+  function renderPlacement(placement) {
+    if (!placement || !placement.reason) {
+      return '';
+    }
+    return [
+      '<section class="content-storyboard-detail" data-content-storyboard-placement="true">',
+      '<div class="template-eyebrow">' + escapeHtml(t('storyboard.placement', 'Timeline placement')) + '</div>',
+      '<div><span>' + escapeHtml(t('storyboard.placementLane', 'Lane')) + '</span><strong>' + escapeHtml(placement.label || placement.laneKey || '') + '</strong></div>',
+      '<div><span>' + escapeHtml(t('storyboard.placementWhy', 'Why here')) + '</span><strong>' + escapeHtml(placement.reason || '') + '</strong></div>',
+      '<div><span>' + escapeHtml(t('storyboard.placementEvidence', 'Evidence')) + '</span><strong>' + escapeHtml([placement.confidence, placement.profileSource].filter(Boolean).join(' / ')) + '</strong></div>',
       '</section>'
     ].join('');
   }

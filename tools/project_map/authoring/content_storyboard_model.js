@@ -9,7 +9,10 @@
     const cards = collectProjectCards(projectIndex, current).concat([current]).concat(draftBranches);
     const deduped = dedupeCards(cards);
     const selectedKey = cardByKey(deduped, opts.selected) ? String(opts.selected) : current.key;
-    const selected = cardByKey(deduped, selectedKey) || current;
+    const selectedBase = cardByKey(deduped, selectedKey) || current;
+    const timeline = buildTimeline(projectIndex, deduped, selectedBase, opts);
+    const storyboardCards = ensureArray(timeline.cards).length ? timeline.cards : deduped;
+    const selected = cardByKey(storyboardCards, selectedKey) || selectedBase;
     const view = normalizeView(opts.view);
     return {
       schemaVersion: '0.1',
@@ -17,12 +20,12 @@
       view,
       selectedKey,
       currentKey: current.key,
-      cards: deduped,
-      timeline: buildTimeline(deduped, selected),
-      chain: buildChain(projectIndex, deduped, selected, model),
-      editor: buildEditor(projectIndex, model, selected),
+      cards: storyboardCards,
+      timeline,
+      chain: buildChain(projectIndex, storyboardCards, selected, model),
+      editor: buildEditor(projectIndex, model, selected, timeline.profile),
       metrics: {
-        cardCount: deduped.length,
+        cardCount: storyboardCards.length,
         branchCount: draftBranches.length,
         edgeCount: ensureArray(projectIndex && projectIndex.edges).length
       }
@@ -130,7 +133,11 @@
     };
   }
 
-  function buildTimeline(cards, selected) {
+  function buildTimeline(projectIndex, cards, selected, options) {
+    const adapter = timelineAdapterApi();
+    if (adapter && typeof adapter.buildTimeline === 'function') {
+      return adapter.buildTimeline(projectIndex, cards, selected, options);
+    }
     const scheduled = cards.slice().sort(compareBySchedule);
     const years = scheduled.map((card) => Number(card.schedule && card.schedule.year || 0)).filter(Boolean);
     const selectedYear = Number(selected && selected.schedule && selected.schedule.year || 0);
@@ -152,9 +159,11 @@
     }
     const undated = scheduled.filter((card) => !Number(card.schedule && card.schedule.year || 0));
     return {
+      profile: {mode: 'year_month', unitLabel: 'Year', laneLabel: 'Year', source: 'legacy', lanes: [], rules: []},
       range: {startYear: lanes[0] && lanes[0].year || startYear, endYear: lanes[lanes.length - 1] && lanes[lanes.length - 1].year || endYear},
       lanes,
       undated,
+      cards,
       insertionPoints: lanes.map((lane) => ({
         key: 'time:' + lane.year,
         year: lane.year,
@@ -208,16 +217,19 @@
     };
   }
 
-  function buildEditor(projectIndex, model, selected) {
+  function buildEditor(projectIndex, model, selected, profile) {
     const board = model.contextBoard || {};
     const source = selected && selected.source || {};
+    const placement = selected && selected.timelinePlacement || null;
     return {
       identity: [
         pair('ID', selected && selected.id),
         pair('Kind', selected && selected.kind),
-        pair('Time', formatSchedule(selected && selected.schedule)),
+        pair('Timeline', placement && placement.label || formatSchedule(selected && selected.schedule)),
+        pair('Profile', profile && profile.unitLabel),
         pair('Source', source.path ? source.path + (source.line ? ':' + source.line : '') : '')
       ].filter((row) => row.value),
+      timelinePlacement: placement,
       context: {
         flow: ensureArray(board.flow),
         variables: ensureArray(board.variables),
@@ -376,6 +388,20 @@
     return Number(a.schedule && a.schedule.year || 9999) - Number(b.schedule && b.schedule.year || 9999) ||
       Number(a.schedule && a.schedule.monthStart || 99) - Number(b.schedule && b.schedule.monthStart || 99) ||
       String(a.title || '').localeCompare(String(b.title || ''));
+  }
+
+  function timelineAdapterApi() {
+    if (global && global.ProjectMapTimelineCoordinateAdapter) {
+      return global.ProjectMapTimelineCoordinateAdapter;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./timeline_coordinate_adapter.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
   }
 
   function fieldById(fields, id) {

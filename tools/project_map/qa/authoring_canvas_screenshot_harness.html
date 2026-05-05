@@ -71,6 +71,7 @@
       const title = document.getElementById('harness-title');
       const status = document.getElementById('harness-status');
       const index = fixtureIndex();
+      let activeIndex = index;
 
       const scenarios = {
         'create-unified-canvas': () => openTemplate('event', {}, 'Create opens unified Canvas'),
@@ -81,6 +82,12 @@
         'content-editor-overlay': () => contentEditorOverlayScenario(),
         'content-chain-view': () => contentChainViewScenario(),
         'content-chain-branch': () => contentChainBranchScenario(),
+        'content-timeline-turn': () => contentTimelineTurnScenario(),
+        'content-timeline-phase': () => contentTimelinePhaseScenario(),
+        'content-timeline-source-order': () => contentTimelineSourceOrderScenario(),
+        'content-zoomed-out': () => contentZoomedOutScenario(),
+        'content-zoomed-in-drag': () => contentZoomedInDragScenario(),
+        'content-zoom-fit': () => contentZoomFitScenario(),
         'system-ui-live-edit': () => systemUiLiveEditScenario(),
         'design-existing-event-canvas': () => openExisting('events', 'generic_intro', {generic_intro_body: 'The campaign office opens to a sharper morning.'}, 'Design existing Event Canvas'),
         'explore-existing-card-canvas': () => openExisting('cards', 'policy_card', {policy_card_body: 'The policy card body is edited from Explore context.'}, 'Explore existing Card Canvas'),
@@ -130,9 +137,14 @@
       }
 
       function seedIndex(win) {
-        const model = {index};
+        seedCustomIndex(win, activeIndex);
+      }
+
+      function seedCustomIndex(win, nextIndex) {
+        activeIndex = nextIndex || index;
+        const model = {index: activeIndex};
         const detail = {
-          index: model.index || index,
+          index: model.index || activeIndex,
           model,
           fileName: 'authoring-canvas-screenshot-fixture.json',
           fileSize: 1,
@@ -167,7 +179,7 @@
         const win = frame.contentWindow;
         setBadge(label, view + ' / ' + sceneId);
         click(win, '[data-mode="create"]');
-        win.ProjectMapObjectAuthoringCanvas.openFromSelection(index, view, sceneId, {
+        win.ProjectMapObjectAuthoringCanvas.openFromSelection(activeIndex, view, sceneId, {
           values,
           entry: {source: label}
         });
@@ -286,6 +298,86 @@
         await waitFor(() => win.document.querySelector('[data-content-storyboard-card^="draft:"]'), 3000);
       }
 
+      async function contentTimelineTurnScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, turnTimelineFixtureIndex());
+        await openExisting('events', 'turn_choice', {}, 'Turn timeline profile');
+        await waitFor(() => win.document.querySelector('[data-content-storyboard-profile="turn"]'), 3000);
+        if (!collapse(win.document.querySelector('[data-content-storyboard-surface]').textContent).includes('Turn 2')) {
+          throw new Error('Turn profile did not render a Turn 2 lane.');
+        }
+      }
+
+      async function contentTimelinePhaseScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, phaseTimelineFixtureIndex());
+        await openExisting('events', 'vote_a', {}, 'Phase timeline profile');
+        await waitFor(() => win.document.querySelector('[data-content-storyboard-profile="phase"]'), 3000);
+        if (!collapse(win.document.querySelector('[data-content-storyboard-placement]').textContent).includes('path rule')) {
+          throw new Error('Phase profile did not show path-rule placement diagnostics.');
+        }
+      }
+
+      async function contentTimelineSourceOrderScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, sparseTimelineFixtureIndex());
+        await openExisting('events', 'first', {}, 'Source-order timeline fallback');
+        await waitFor(() => win.document.querySelector('[data-content-storyboard-profile="source_order"]'), 3000);
+        if (!collapse(win.document.querySelector('[data-content-storyboard-placement]').textContent).includes('source order')) {
+          throw new Error('Source-order fallback did not show placement diagnostics.');
+        }
+      }
+
+      async function contentZoomedOutScenario() {
+        const win = frame.contentWindow;
+        await openTemplate('event', {'event.title': 'Zoomed out 1929 Event', 'event.year': '1929'}, 'Storyboard zoomed out');
+        zoomCanvas(win, 'out');
+        zoomCanvas(win, 'out');
+        await delay(180);
+        const label = collapse(win.document.querySelector('[data-object-canvas-zoom-label]').textContent);
+        if (label !== '80%') {
+          throw new Error('Zoom out did not update the label to 80%. label=' + label);
+        }
+      }
+
+      async function contentZoomedInDragScenario() {
+        const win = frame.contentWindow;
+        await openTemplate('event', {'event.title': 'Zoomed drag 1929 Event', 'event.year': '1929'}, 'Storyboard zoomed card drag');
+        zoomCanvas(win, 'in');
+        zoomCanvas(win, 'in');
+        await delay(180);
+        const node = win.document.querySelector('[data-content-storyboard-card]');
+        const before = node && node.getBoundingClientRect();
+        const startX = node && node.dataset.canvasX;
+        const key = node && (node.dataset.contentStoryboardCard || node.dataset.objectCanvasGraphNode);
+        dragPointer(win, node, before.left + 40, before.top + 24, before.left + 190, before.top + 118);
+        await delay(320);
+        const moved = win.document.querySelector('[data-content-storyboard-card="' + cssEscape(key) + '"]');
+        if (!moved || moved.dataset.canvasX === startX) {
+          throw new Error('Zoomed Storyboard card drag did not move the card.');
+        }
+        const label = collapse(win.document.querySelector('[data-object-canvas-zoom-label]').textContent);
+        if (label !== '120%') {
+          throw new Error('Zoom in did not update the label to 120%. label=' + label);
+        }
+      }
+
+      async function contentZoomFitScenario() {
+        const win = frame.contentWindow;
+        await openTemplate('event', {'event.title': 'Fit returns 1929 Event', 'event.year': '1929'}, 'Storyboard fit after pan');
+        zoomCanvas(win, 'in');
+        const canvas = win.document.querySelector('[data-content-storyboard-canvas]');
+        dragPointer(win, canvas, 260, 210, 460, 320);
+        await delay(180);
+        zoomCanvas(win, 'reset');
+        await delay(180);
+        const board = win.document.querySelector('[data-content-storyboard-board]');
+        const label = collapse(win.document.querySelector('[data-object-canvas-zoom-label]').textContent);
+        if (!board || board.style.transform.indexOf('translate(0px, 0px)') < 0 || board.style.transform.indexOf('scale(1') < 0 || label !== '100%') {
+          throw new Error('Fit did not restore useful Storyboard framing. transform=' + (board && board.style.transform) + ' label=' + label);
+        }
+      }
+
       async function systemUiLiveEditScenario() {
         const win = frame.contentWindow;
         await openTemplate('workspace_layout', {}, 'System UI live edit');
@@ -324,11 +416,19 @@
         if (!node) {
           throw new Error('Cannot drag a missing node.');
         }
-        const moveTarget = node.closest && node.closest('[data-object-canvas-graph-canvas]') || node;
+        const moveTarget = node.closest && node.closest('[data-object-canvas-graph-canvas], [data-content-storyboard-canvas]') || node;
         const options = {bubbles: true, pointerId: 1, pointerType: 'mouse', button: 0, buttons: 1};
         node.dispatchEvent(new win.PointerEvent('pointerdown', Object.assign({}, options, {clientX: startX, clientY: startY})));
         moveTarget.dispatchEvent(new win.PointerEvent('pointermove', Object.assign({}, options, {clientX: endX, clientY: endY})));
         moveTarget.dispatchEvent(new win.PointerEvent('pointerup', Object.assign({}, options, {clientX: endX, clientY: endY, buttons: 0})));
+      }
+
+      function zoomCanvas(win, action) {
+        if (win.ProjectMapObjectAuthoringCanvas && typeof win.ProjectMapObjectAuthoringCanvas.zoomCanvas === 'function') {
+          win.ProjectMapObjectAuthoringCanvas.zoomCanvas(action);
+          return;
+        }
+        click(win, '[data-object-canvas-zoom="' + action + '"]');
       }
 
       function assertScenarioReady(win) {
@@ -552,6 +652,83 @@
             }
           }
         };
+      }
+
+      function turnTimelineFixtureIndex() {
+        const base = fixtureIndex();
+        base.timelineProfile = {
+          mode: 'turn',
+          unitLabel: 'Turn',
+          lanes: [
+            {id: 1, label: 'Turn 1'},
+            {id: 2, label: 'Turn 2'},
+            {id: 3, label: 'Turn 3'}
+          ]
+        };
+        base.scenes = [
+          fixtureScene('turn_open', 'Turn Opening', 'source/scenes/events/turn_open.scene.dry', {metadata: {turn: 1}}),
+          fixtureScene('turn_choice', 'Turn Choice', 'source/scenes/events/turn_choice.scene.dry', {metadata: {turn: 2}}),
+          fixtureScene('turn_result', 'Turn Result', 'source/scenes/events/turn_result.scene.dry', {condition: 'turn >= 3'})
+        ];
+        base.edges = [
+          {from: 'turn_open', to: 'turn_choice', kind: 'go_to', label: 'next turn'},
+          {from: 'turn_choice', to: 'turn_result', kind: 'go_to', label: 'result'}
+        ];
+        base.semantic.events = base.scenes.map((scene) => ({id: scene.id, title: scene.title, path: scene.path}));
+        return base;
+      }
+
+      function phaseTimelineFixtureIndex() {
+        const base = fixtureIndex();
+        base.timelineProfile = {
+          mode: 'phase',
+          unitLabel: 'Phase',
+          lanes: [
+            {id: 'opening', label: 'Opening'},
+            {id: 'election', label: 'Election'},
+            {id: 'crisis', label: 'Crisis'}
+          ],
+          rules: [
+            {source: 'path', match: 'source/scenes/election/**', lane: 'election'},
+            {source: 'field', path: 'metadata.phase'}
+          ]
+        };
+        base.scenes = [
+          fixtureScene('opening_a', 'Opening Beat', 'source/scenes/events/opening_a.scene.dry', {metadata: {phase: 'opening'}}),
+          fixtureScene('vote_a', 'Election Vote', 'source/scenes/election/vote_a.scene.dry', {}),
+          fixtureScene('crisis_a', 'Crisis Beat', 'source/scenes/events/crisis_a.scene.dry', {metadata: {phase: 'crisis'}})
+        ];
+        base.edges = [
+          {from: 'opening_a', to: 'vote_a', kind: 'go_to', label: 'election route'},
+          {from: 'vote_a', to: 'crisis_a', kind: 'go_to', label: 'crisis route'}
+        ];
+        base.semantic.events = base.scenes.map((scene) => ({id: scene.id, title: scene.title, path: scene.path}));
+        return base;
+      }
+
+      function sparseTimelineFixtureIndex() {
+        const base = fixtureIndex();
+        delete base.timelineProfile;
+        base.scenes = [
+          fixtureScene('first', 'First Sparse Beat', 'source/scenes/events/first.scene.dry', {}),
+          fixtureScene('second', 'Second Sparse Beat', 'source/scenes/events/second.scene.dry', {})
+        ];
+        base.edges = [];
+        base.semantic.events = base.scenes.map((scene) => ({id: scene.id, title: scene.title, path: scene.path}));
+        return base;
+      }
+
+      function fixtureScene(id, title, path, extras) {
+        return Object.assign({
+          id,
+          title,
+          path,
+          type: 'event',
+          flags: {isCard: false},
+          options: [],
+          sourceSpan: {path, startLine: 1, endLine: 80},
+          assetRefs: []
+        }, extras || {});
       }
 
       function textItem(id, text, role, sceneId, path, line, itemId) {

@@ -38,7 +38,13 @@ const DEFAULT_SCENARIOS = [
   ['26-review-existing', 'review-existing'],
   ['27-review-surface', 'review-surface'],
   ['28-review-workspace-layout', 'review-workspace-layout'],
-  ['29-legacy-fallback', 'legacy-fallback']
+  ['29-legacy-fallback', 'legacy-fallback'],
+  ['30-content-timeline-turn', 'content-timeline-turn'],
+  ['31-content-timeline-phase', 'content-timeline-phase'],
+  ['32-content-timeline-source-order', 'content-timeline-source-order'],
+  ['33-content-zoomed-out', 'content-zoomed-out'],
+  ['34-content-zoomed-in-drag', 'content-zoomed-in-drag'],
+  ['35-content-zoom-fit', 'content-zoom-fit']
 ];
 
 function parseArgs(argv) {

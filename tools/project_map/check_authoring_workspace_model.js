@@ -8,6 +8,8 @@ const ROOT = __dirname;
 const VIEWER = path.join(ROOT, 'viewer');
 const INDEX = path.join(VIEWER, 'index.html');
 const CONTENT_STORYBOARD_MODEL = path.join(ROOT, 'authoring', 'content_storyboard_model.js');
+const TIMELINE_PROFILE_MODEL = path.join(ROOT, 'authoring', 'timeline_profile_model.js');
+const TIMELINE_COORDINATE_ADAPTER = path.join(ROOT, 'authoring', 'timeline_coordinate_adapter.js');
 const AUTHORING_SURFACE_REGISTRY = path.join(VIEWER, 'authoring_surface_registry.js');
 const AUTHORING_SURFACE_GRAPHS = path.join(VIEWER, 'authoring_surface_graphs.js');
 const AUTHORING_REFERENCE_INDEX = path.join(VIEWER, 'authoring_reference_index.js');
@@ -39,6 +41,8 @@ function read(filePath) {
 
 const html = read(INDEX);
 const contentStoryboardModel = read(CONTENT_STORYBOARD_MODEL);
+const timelineProfileModel = read(TIMELINE_PROFILE_MODEL);
+const timelineCoordinateAdapter = read(TIMELINE_COORDINATE_ADAPTER);
 const surfaceRegistry = read(AUTHORING_SURFACE_REGISTRY);
 const surfaceGraphs = read(AUTHORING_SURFACE_GRAPHS);
 const referenceIndex = read(AUTHORING_REFERENCE_INDEX);
@@ -62,6 +66,8 @@ const groupedTemplates = {
 
 assert(html.includes('data-authoring-workspace-nav'), 'Create should keep a small Authoring Workspace host in index.html');
 assert(html.includes('../authoring/content_storyboard_model.js'), 'viewer should load the Content Storyboard model');
+assert(html.includes('../authoring/timeline_profile_model.js'), 'viewer should load the Timeline Profile model');
+assert(html.includes('../authoring/timeline_coordinate_adapter.js'), 'viewer should load the Timeline Coordinate adapter');
 assert(html.includes('authoring_surface_registry.js'), 'viewer should load the Authoring Surface registry before workspace UI');
 assert(html.includes('authoring_surface_graphs.js'), 'viewer should load authoring surface graph builders');
 assert(html.includes('authoring_reference_index.js'), 'viewer should load authoring reference index helpers');
@@ -96,6 +102,9 @@ assert(workspaceUi.includes('ProjectMapAuthoringSurfaceRegistry'), 'Workspace na
 assert(canvasUi.includes('ProjectMapAuthoringSurfaceRegistry'), 'Object Canvas should consume the shared surface registry');
 assert(canvasUi.includes('data-authoring-surface'), 'Object Canvas should expose the active authoring surface');
 assert(contentStoryboardModel.includes('ProjectMapContentStoryboardModel'), 'Content Storyboard model should expose a browser API');
+assert(timelineProfileModel.includes('ProjectMapTimelineProfileModel'), 'Timeline Profile model should expose a browser API');
+assert(timelineCoordinateAdapter.includes('ProjectMapTimelineCoordinateAdapter'), 'Timeline Coordinate adapter should expose a browser API');
+assert(contentStoryboardModel.includes('ProjectMapTimelineCoordinateAdapter'), 'Content Storyboard should consume the Timeline Coordinate adapter');
 assert(contentStoryboardModel.includes('buildTimeline'), 'Content Storyboard model should build timeline lanes');
 assert(contentStoryboardModel.includes('buildChain'), 'Content Storyboard model should build story chains');
 assert(contentStoryboardSurface.includes('ProjectMapContentStoryboardSurface'), 'Content Storyboard surface should expose a browser API');

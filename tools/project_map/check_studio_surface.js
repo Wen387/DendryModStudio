@@ -16,6 +16,8 @@ const AUTHORING_SURFACE_REGISTRY = path.join(ROOT, 'viewer', 'authoring_surface_
 const AUTHORING_SURFACE_GRAPHS = path.join(ROOT, 'viewer', 'authoring_surface_graphs.js');
 const AUTHORING_REFERENCE_INDEX = path.join(ROOT, 'viewer', 'authoring_reference_index.js');
 const CONTENT_STORYBOARD_MODEL = path.join(ROOT, 'authoring', 'content_storyboard_model.js');
+const TIMELINE_PROFILE_MODEL = path.join(ROOT, 'authoring', 'timeline_profile_model.js');
+const TIMELINE_COORDINATE_ADAPTER = path.join(ROOT, 'authoring', 'timeline_coordinate_adapter.js');
 const CONTENT_STORYBOARD_SURFACE = path.join(ROOT, 'viewer', 'content_storyboard_surface.js');
 const CONTENT_STORYBOARD_INTERACTIONS = path.join(ROOT, 'viewer', 'content_storyboard_interactions.js');
 const CONTENT_GRAPH_INTERACTIONS = path.join(ROOT, 'viewer', 'content_graph_interactions.js');
@@ -89,6 +91,8 @@ const authoringSurfaceRegistry = fs.readFileSync(AUTHORING_SURFACE_REGISTRY, 'ut
 const authoringSurfaceGraphs = fs.readFileSync(AUTHORING_SURFACE_GRAPHS, 'utf8');
 const authoringReferenceIndex = fs.readFileSync(AUTHORING_REFERENCE_INDEX, 'utf8');
 const contentStoryboardModel = fs.readFileSync(CONTENT_STORYBOARD_MODEL, 'utf8');
+const timelineProfileModel = fs.readFileSync(TIMELINE_PROFILE_MODEL, 'utf8');
+const timelineCoordinateAdapter = fs.readFileSync(TIMELINE_COORDINATE_ADAPTER, 'utf8');
 const contentStoryboardSurface = fs.readFileSync(CONTENT_STORYBOARD_SURFACE, 'utf8');
 const contentStoryboardInteractions = fs.readFileSync(CONTENT_STORYBOARD_INTERACTIONS, 'utf8');
 const contentGraphInteractions = fs.readFileSync(CONTENT_GRAPH_INTERACTIONS, 'utf8');
@@ -143,6 +147,8 @@ assert(html.includes('../authoring/editing_context_model.js'), 'viewer should lo
 assert(html.includes('../authoring/object_canvas_content_bodies.js'), 'viewer should load Object Canvas content body builders');
 assert(html.includes('../authoring/object_canvas_content_adapters.js'), 'viewer should load Object Canvas content adapters');
 assert(html.includes('../authoring/object_authoring_canvas_model.js'), 'viewer should load Object Authoring Canvas model');
+assert(html.includes('../authoring/timeline_profile_model.js'), 'viewer should load Timeline Profile model');
+assert(html.includes('../authoring/timeline_coordinate_adapter.js'), 'viewer should load Timeline Coordinate adapter');
 assert(html.includes('../authoring/content_storyboard_model.js'), 'viewer should load Content Storyboard model');
 assert(html.includes('../authoring/entry_sidebar_draft.js'), 'viewer should load Entry & Sidebar draft core');
 assert(html.includes('../authoring/play_surface_draft.js'), 'viewer should load Playable Surface draft core');
@@ -173,6 +179,8 @@ assert(authoringSurfaceGraphs.includes('ProjectMapAuthoringSurfaceGraphs'), 'Aut
 assert(authoringReferenceIndex.includes('ProjectMapAuthoringReferenceIndex'), 'Authoring Reference Index should expose a browser API');
 assert(contentStoryboardModel.includes('ProjectMapContentStoryboardModel'), 'Content Storyboard model should expose a browser API');
 assert(contentStoryboardModel.includes('buildStoryboard'), 'Content Storyboard model should build storyboard state');
+assert(timelineProfileModel.includes('ProjectMapTimelineProfileModel'), 'Timeline Profile model should expose a browser API');
+assert(timelineCoordinateAdapter.includes('ProjectMapTimelineCoordinateAdapter'), 'Timeline Coordinate adapter should expose a browser API');
 assert(contentStoryboardSurface.includes('ProjectMapContentStoryboardSurface'), 'Content Storyboard surface should expose a browser API');
 assert(contentStoryboardSurface.includes('data-content-storyboard-surface'), 'Content Storyboard surface should expose a stable QA marker');
 assert(contentStoryboardSurface.includes('data-content-storyboard-card'), 'Content Storyboard surface should render content cards');

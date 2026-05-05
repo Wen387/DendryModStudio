@@ -48,6 +48,7 @@
     activeSurface: () => surfaceForTemplate(state.mode === 'existing' ? 'existing' : state.template || 'event').key,
     selectCanvasNode,
     setStoryboardView,
+    zoomCanvas: handleCanvasZoom,
     moveCanvasNode,
     panCanvas,
     createRelatedDraft,
@@ -795,6 +796,8 @@
       state.canvasZoom = Math.max(0.7, Number(state.canvasZoom || 1) - 0.1);
     } else {
       state.canvasZoom = 1;
+      state.canvasPanX = 0;
+      state.canvasPanY = 0;
     }
     applyCanvasViewport();
   }
