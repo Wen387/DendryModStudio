@@ -18,6 +18,7 @@
     item: null,
     workspace: 'content',
     selectedCanvasNode: 'object',
+    storyboardView: 'timeline',
     canvasZoom: 1,
     canvasPanX: 0,
     canvasPanY: 0,
@@ -45,6 +46,7 @@
     activeWorkspace: () => state.workspace || workspaceForTemplate(state.template || 'event'),
     activeSurface: () => surfaceForTemplate(state.mode === 'existing' ? 'existing' : state.template || 'event').key,
     selectCanvasNode,
+    setStoryboardView,
     moveCanvasNode,
     panCanvas,
     createRelatedDraft,
@@ -132,6 +134,7 @@
     state.item = item || null;
     state.workspace = 'content';
     state.selectedCanvasNode = 'object';
+    state.storyboardView = 'timeline';
     state.canvasPanX = 0;
     state.canvasPanY = 0;
     state.nodePositions = {};
@@ -161,6 +164,7 @@
     state.item = null;
     state.workspace = workspaceForTemplate(nextTemplate);
     state.selectedCanvasNode = 'object';
+    state.storyboardView = 'timeline';
     state.canvasPanX = 0;
     state.canvasPanY = 0;
     state.nodePositions = {};
@@ -326,6 +330,9 @@
     if (surface.key === 'system_ui_preview') {
       return renderSystemUiPreviewStage(model);
     }
+    if (surface.key === 'content_storyboard' || (state.workspace || 'content') === 'content') {
+      return renderContentStoryboardStage(model);
+    }
     const graph = canvasGraphForModel(model);
     let selected = graph.nodes.find((node) => node.key === state.selectedCanvasNode);
     if (!selected) {
@@ -375,6 +382,19 @@
       : '';
   }
 
+  function renderContentStoryboardStage(model) {
+    const surface = global.ProjectMapContentStoryboardSurface;
+    return surface && typeof surface.render === 'function'
+      ? surface.render(model, {
+        projectIndex: state.projectIndex,
+        selected: state.selectedCanvasNode,
+        view: state.storyboardView,
+        nodePositions: state.nodePositions || {},
+        draftBranches: state.draftBranches || []
+      })
+      : '';
+  }
+
   function renderGraphNode(node, selected) {
     const className = [
       'object-canvas-graph-node',
@@ -418,7 +438,6 @@
     if (selected.panel === 'draft') {
       return [
         renderInspectorIntro(selected),
-        renderDraftBranchPanel(selected),
         renderActions(model)
       ].join('');
     }
@@ -432,75 +451,12 @@
   function renderObjectInspector(model, node) {
     return [
       renderInspectorIntro(node),
-      renderContentIdentity(model),
       renderEventBody(model.eventBody || {}),
       '<section class="editing-preview object-canvas-inspector-preview">',
       '<div class="preview-heading">' + escapeHtml(t('objectCanvas.preview', 'Player-facing preview')) + '</div>',
       '<pre class="code-preview" data-object-canvas-preview="true" data-editing-preview="true">' + escapeHtml(model.changeState && model.changeState.output && (model.changeState.output.playerPreview || model.changeState.output.proposalText || model.changeState.output.previewText || model.changeState.output.sceneDry) || '') + '</pre>',
       '</section>',
-      renderContentCreationActions(),
       renderActions(model)
-    ].join('');
-  }
-
-  function renderContentIdentity(model) {
-    const api = global.ProjectMapAuthoringReferenceIndex;
-    const context = api && typeof api.contentContext === 'function' ? api.contentContext(state.projectIndex, model) : null;
-    if (!context) {
-      return '';
-    }
-    return [
-      '<section class="object-canvas-identity" data-content-global-context="true">',
-      '<div class="template-eyebrow">' + escapeHtml(t('objectCanvas.identity.eyebrow', 'Global context')) + '</div>',
-      '<div class="object-canvas-identity-grid">',
-      context.identity.map((row) => '<div><span>' + escapeHtml(row.label) + '</span><strong>' + escapeHtml(row.value) + '</strong></div>').join(''),
-      '</div>',
-      renderFlowSummary(t('objectCanvas.identity.incoming', 'Incoming'), context.incoming),
-      renderFlowSummary(t('objectCanvas.identity.outgoing', 'Outgoing'), context.outgoing),
-      '</section>'
-    ].join('');
-  }
-
-  function renderFlowSummary(label, rows) {
-    const items = Array.isArray(rows) ? rows : [];
-    return [
-      '<div class="object-canvas-flow-summary">',
-      '<strong>' + escapeHtml(label) + '</strong>',
-      items.length
-        ? items.slice(0, 4).map((row) => '<span>' + escapeHtml(row.title || row.id || '') + (row.detail ? ' / ' + escapeHtml(row.detail) : '') + '</span>').join('')
-        : '<span>' + escapeHtml(t('objectCanvas.identity.noFlow', 'No linked flow found.')) + '</span>',
-      '</div>'
-    ].join('');
-  }
-
-  function renderContentCreationActions() {
-    if ((state.workspace || 'content') !== 'content') {
-      return '';
-    }
-    const actions = [
-      ['create_followup', t('objectCanvas.action.followup', 'Create follow-up')],
-      ['create_counterfactual', t('objectCanvas.action.counterfactual', 'Create counterfactual')],
-      ['create_card', t('objectCanvas.action.card', 'Create related card')],
-      ['create_news', t('objectCanvas.action.news', 'Create related news')]
-    ];
-    return [
-      '<section class="object-canvas-branch-actions" data-content-creation-actions="true">',
-      '<div class="template-eyebrow">' + escapeHtml(t('objectCanvas.nextSteps', 'Next creation')) + '</div>',
-      '<div>',
-      actions.map((item) => '<button type="button" data-object-canvas-action="' + item[0] + '">' + escapeHtml(item[1]) + '</button>').join(''),
-      '</div>',
-      '</section>'
-    ].join('');
-  }
-
-  function renderDraftBranchPanel(node) {
-    const branch = (state.draftBranches || []).find((item) => 'draft:' + item.id === node.key) || {};
-    return [
-      '<section class="object-canvas-inspector-card" data-content-draft-node="true">',
-      '<div class="template-eyebrow">' + escapeHtml(branch.template || t('objectCanvas.branch.label', 'Draft')) + '</div>',
-      '<h3>' + escapeHtml(branch.title || node.title || '') + '</h3>',
-      '<p>' + escapeHtml(branch.detail || node.detail || '') + '</p>',
-      '</section>'
     ].join('');
   }
 
@@ -768,13 +724,31 @@
       button.addEventListener('click', () => handleAction(button.dataset.objectCanvasAction || ''));
     });
     elements.host.querySelectorAll('[data-object-canvas-graph-node]').forEach((button) => {
-      button.addEventListener('click', () => selectCanvasNode(button.dataset.objectCanvasGraphNode || 'object'));
+      button.addEventListener('click', (event) => {
+        if (event.target.closest && event.target.closest('input, textarea, select, a')) {
+          return;
+        }
+        selectCanvasNode(button.dataset.objectCanvasGraphNode || 'object');
+      });
     });
     elements.host.querySelectorAll('[data-object-canvas-zoom]').forEach((button) => {
       button.addEventListener('click', () => handleCanvasZoom(button.dataset.objectCanvasZoom || 'reset'));
     });
+    elements.host.querySelectorAll('[data-content-storyboard-view]').forEach((button) => {
+      button.addEventListener('click', () => setStoryboardView(button.dataset.contentStoryboardView || 'timeline'));
+    });
+    const storyboardInteractions = global.ProjectMapContentStoryboardInteractions;
+    if (storyboardInteractions && typeof storyboardInteractions.bind === 'function' && (state.workspace || 'content') === 'content') {
+      storyboardInteractions.bind(elements.host, {
+        getViewport: () => ({x: state.canvasPanX, y: state.canvasPanY, zoom: state.canvasZoom}),
+        onSelect: selectCanvasNode,
+        onCardMove: setCanvasNodePosition,
+        onViewport: setCanvasPan,
+        onZoom: handleCanvasZoom
+      });
+    }
     const interactions = global.ProjectMapContentGraphInteractions;
-    if (interactions && typeof interactions.bind === 'function' && (state.workspace || 'content') === 'content') {
+    if (interactions && typeof interactions.bind === 'function' && (state.workspace || 'content') === 'content' && elements.host.querySelector('[data-object-canvas-graph-canvas]')) {
       interactions.bind(elements.host, {
         getViewport: () => ({x: state.canvasPanX, y: state.canvasPanY, zoom: state.canvasZoom}),
         onSelect: selectCanvasNode,
@@ -791,6 +765,13 @@
     state.values = collectValues();
     state.model = state.mode === 'existing' ? buildExistingModel({values: state.values}) : buildTemplateModel({values: state.values});
     state.selectedCanvasNode = next;
+    render();
+  }
+
+  function setStoryboardView(view) {
+    state.storyboardView = String(view || '') === 'chain' ? 'chain' : 'timeline';
+    state.values = collectValues();
+    state.model = state.mode === 'existing' ? buildExistingModel({values: state.values}) : buildTemplateModel({values: state.values});
     render();
   }
 
@@ -905,7 +886,7 @@
     const draft = api.branchDraft(action, state.model || {});
     state.draftBranches.push(draft);
     state.selectedCanvasNode = 'draft:' + draft.id;
-    state.status = t('objectCanvas.status.branchCreated', 'A related draft node was added to the Content Graph.');
+    state.status = t('objectCanvas.status.branchCreated', 'A related draft card was added to the Storyboard.');
     render();
   }
 
@@ -1067,7 +1048,7 @@
     if (registry && typeof registry.surfaceForTemplate === 'function') {
       return registry.surfaceForTemplate(template);
     }
-    return {key: 'content_graph', workspace: workspaceForTemplate(template), fallback: 'Content Graph', labelKey: 'authoring.surface.contentGraph'};
+    return {key: 'content_storyboard', workspace: workspaceForTemplate(template), fallback: 'Content Storyboard', labelKey: 'authoring.surface.contentStoryboard'};
   }
 
   function surfaceLabelFor(surface) {

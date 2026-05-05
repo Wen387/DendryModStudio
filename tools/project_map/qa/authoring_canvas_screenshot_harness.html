@@ -79,6 +79,8 @@
         'content-node-drag': () => contentNodeDragScenario(),
         'content-create-branch': () => contentCreateBranchScenario(),
         'content-editor-overlay': () => contentEditorOverlayScenario(),
+        'content-chain-view': () => contentChainViewScenario(),
+        'content-chain-branch': () => contentChainBranchScenario(),
         'system-ui-live-edit': () => systemUiLiveEditScenario(),
         'design-existing-event-canvas': () => openExisting('events', 'generic_intro', {generic_intro_body: 'The campaign office opens to a sharper morning.'}, 'Design existing Event Canvas'),
         'explore-existing-card-canvas': () => openExisting('cards', 'policy_card', {policy_card_body: 'The policy card body is edited from Explore context.'}, 'Explore existing Card Canvas'),
@@ -222,31 +224,33 @@
       async function contentPanScenario() {
         const win = frame.contentWindow;
         await openTemplate('event', {'event.title': 'Panned 1929 Event', 'event.year': '1929'}, 'Content Graph background pan');
-        const canvas = win.document.querySelector('[data-object-canvas-graph-canvas]');
+        const canvas = win.document.querySelector('[data-content-storyboard-canvas]');
         dragPointer(win, canvas, 280, 210, 420, 300);
         await delay(260);
-        const board = win.document.querySelector('[data-object-canvas-graph-board]');
+        const board = win.document.querySelector('[data-content-storyboard-board]');
         if (!board || board.style.transform.indexOf('translate(') < 0 || board.style.transform.indexOf('0px, 0px') >= 0) {
-          throw new Error('Content Graph pan did not update the board transform.');
+          throw new Error('Content Storyboard pan did not update the board transform.');
         }
       }
 
       async function contentNodeDragScenario() {
         const win = frame.contentWindow;
         await openTemplate('event', {'event.title': 'Dragged 1929 Event', 'event.year': '1929'}, 'Content Graph node drag');
-        const node = win.document.querySelector('[data-object-canvas-graph-node="object"]');
+        const node = win.document.querySelector('[data-content-storyboard-card]');
+        const initialCanvasX = node && node.dataset.canvasX;
         const before = node && node.getBoundingClientRect();
         dragPointer(win, node, before.left + 40, before.top + 24, before.left + 190, before.top + 118);
         await delay(320);
-        let moved = win.document.querySelector('[data-object-canvas-graph-node="object"]');
+        let moved = win.document.querySelector('[data-content-storyboard-card]');
+        const key = moved && (moved.dataset.contentStoryboardCard || moved.dataset.objectCanvasGraphNode);
         let apiMove = null;
-        if (win.ProjectMapObjectAuthoringCanvas && typeof win.ProjectMapObjectAuthoringCanvas.moveCanvasNode === 'function') {
-          apiMove = win.ProjectMapObjectAuthoringCanvas.moveCanvasNode('object', 694, 220);
+        if (key && win.ProjectMapObjectAuthoringCanvas && typeof win.ProjectMapObjectAuthoringCanvas.moveCanvasNode === 'function') {
+          apiMove = win.ProjectMapObjectAuthoringCanvas.moveCanvasNode(key, 420, 260);
           await delay(180);
-          moved = win.document.querySelector('[data-object-canvas-graph-node="object"]');
+          moved = win.document.querySelector('[data-content-storyboard-card="' + cssEscape(key) + '"]');
         }
-        if (!moved || moved.dataset.canvasX === '544') {
-          throw new Error('Content Graph node drag did not persist a new node position. apiMove=' + JSON.stringify(apiMove) + ' api=' + typeof (win.ProjectMapObjectAuthoringCanvas && win.ProjectMapObjectAuthoringCanvas.moveCanvasNode) + ' data=' + (moved && moved.dataset.canvasX));
+        if (!moved || moved.dataset.canvasX === initialCanvasX) {
+          throw new Error('Content Storyboard card drag did not persist a new card position. apiMove=' + JSON.stringify(apiMove) + ' api=' + typeof (win.ProjectMapObjectAuthoringCanvas && win.ProjectMapObjectAuthoringCanvas.moveCanvasNode) + ' data=' + (moved && moved.dataset.canvasX));
         }
       }
 
@@ -254,7 +258,7 @@
         const win = frame.contentWindow;
         await openTemplate('event', {'event.title': '1929 Event X', 'event.year': '1929'}, 'Create follow-up branch');
         click(win, '[data-object-canvas-action="create_followup"]');
-        await waitFor(() => win.document.querySelector('[data-content-draft-node]'), 3000);
+        await waitFor(() => win.document.querySelector('[data-content-storyboard-card^="draft:"]'), 3000);
       }
 
       async function contentEditorOverlayScenario() {
@@ -262,6 +266,24 @@
         await openTemplate('event', {'event.title': 'Overlay Edit Event', 'event.year': '1929'}, 'Expanded editor overlay');
         click(win, '[data-object-canvas-action="toggle_overlay"]');
         await waitFor(() => win.document.querySelector('[data-object-authoring-canvas].is-editor-overlay'), 3000);
+      }
+
+      async function contentChainViewScenario() {
+        const win = frame.contentWindow;
+        await openExisting('events', 'generic_intro', {generic_intro_body: 'The 1929 story chain opens with sharper stakes.'}, 'Story chain view');
+        if (win.ProjectMapObjectAuthoringCanvas && typeof win.ProjectMapObjectAuthoringCanvas.setStoryboardView === 'function') {
+          win.ProjectMapObjectAuthoringCanvas.setStoryboardView('chain');
+        } else {
+          click(win, '[data-content-storyboard-view="chain"]');
+        }
+        await waitFor(() => win.document.querySelector('[data-storyboard-kind="chain"]'), 3000);
+      }
+
+      async function contentChainBranchScenario() {
+        const win = frame.contentWindow;
+        await contentChainViewScenario();
+        click(win, '[data-object-canvas-action="create_counterfactual"]');
+        await waitFor(() => win.document.querySelector('[data-content-storyboard-card^="draft:"]'), 3000);
       }
 
       async function systemUiLiveEditScenario() {
@@ -309,9 +331,9 @@
           }
           return;
         }
-        if (scenarioId === 'content-create-branch') {
+        if (scenarioId === 'content-create-branch' || scenarioId === 'content-chain-branch') {
           const host = win.document.getElementById('existing-scene-editor-host');
-          if (!host || !host.querySelector('[data-content-draft-node]') || !host.querySelector('[data-object-canvas-graph-node^="draft:"]')) {
+          if (!host || !host.querySelector('[data-content-storyboard-card^="draft:"]')) {
             throw new Error('Content branch scenario did not create a visible draft node.');
           }
           return;
@@ -332,6 +354,10 @@
         const graphCanvas = host && host.querySelector('[data-object-canvas-graph-canvas]');
         const graphInspector = host && host.querySelector('[data-object-canvas-graph-inspector]');
         const graphNodes = host ? host.querySelectorAll('[data-object-canvas-graph-node]').length : 0;
+        const storyboardSurface = host && host.querySelector('[data-content-storyboard-surface]');
+        const storyboardCanvas = host && host.querySelector('[data-content-storyboard-canvas]');
+        const storyboardEditor = host && host.querySelector('[data-content-storyboard-editor]');
+        const storyboardCards = host ? host.querySelectorAll('[data-content-storyboard-card]').length : 0;
         const projectSurface = host && host.querySelector('[data-project-state-surface]');
         const projectBoard = host && host.querySelector('[data-project-state-board]');
         const projectInspector = host && host.querySelector('[data-project-state-inspector]');
@@ -344,8 +370,9 @@
         const visible = Boolean(host && canvas && isVisible(win, host) && isVisible(win, canvas));
         const hasProjectSurface = stage && projectSurface && projectBoard && projectInspector && isVisible(win, projectSurface) && isVisible(win, projectBoard) && isVisible(win, projectInspector);
         const hasSystemSurface = stage && systemSurface && systemPreview && systemInspector && isVisible(win, systemSurface) && isVisible(win, systemPreview) && isVisible(win, systemInspector);
-        const hasCoreSurface = hasProjectSurface || hasSystemSurface || fieldCount >= 3 && preview && collapse(preview.textContent).length > 0 && title && collapse(title.textContent).length > 0;
-        const hasVisibleCanvasStage = hasProjectSurface || hasSystemSurface || stage && graphCanvas && graphInspector && isVisible(win, stage) && isVisible(win, graphCanvas) && isVisible(win, graphInspector) && graphNodes >= 6;
+        const hasStoryboardSurface = stage && storyboardSurface && storyboardCanvas && storyboardEditor && storyboardCards >= 1 && isVisible(win, storyboardSurface) && isVisible(win, storyboardCanvas) && isVisible(win, storyboardEditor);
+        const hasCoreSurface = hasProjectSurface || hasSystemSurface || hasStoryboardSurface || fieldCount >= 3 && preview && collapse(preview.textContent).length > 0 && title && collapse(title.textContent).length > 0;
+        const hasVisibleCanvasStage = hasProjectSurface || hasSystemSurface || hasStoryboardSurface || stage && graphCanvas && graphInspector && isVisible(win, stage) && isVisible(win, graphCanvas) && isVisible(win, graphInspector) && graphNodes >= 6;
         const noLegacyPanelVisible = Array.from(doc.querySelectorAll('[data-create-template-panel]')).every((panel) => !isVisible(win, panel));
         const canvasBeforeChanges = !draftPanel || host.getBoundingClientRect().top <= draftPanel.getBoundingClientRect().top;
         const activeTemplate = win.ProjectMapObjectAuthoringCanvas && typeof win.ProjectMapObjectAuthoringCanvas.activeTemplate === 'function'

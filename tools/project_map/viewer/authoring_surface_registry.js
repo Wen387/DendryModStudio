@@ -9,10 +9,10 @@
 
   const SURFACES = [
     {
-      key: 'content_graph',
+      key: 'content_storyboard',
       workspace: 'content',
-      labelKey: 'authoring.surface.contentGraph',
-      fallback: 'Content Graph',
+      labelKey: 'authoring.surface.contentStoryboard',
+      fallback: 'Content Storyboard',
       templates: ['event', 'news', 'card', 'surface', 'existing']
     },
     {
@@ -32,11 +32,11 @@
   ];
 
   const TEMPLATES = [
-    {key: 'event', workspace: 'content', surface: 'content_graph', labelKey: 'create.worldEvent', fallback: 'World Event'},
-    {key: 'news', workspace: 'content', surface: 'content_graph', labelKey: 'create.news', fallback: 'News'},
-    {key: 'card', workspace: 'content', surface: 'content_graph', labelKey: 'create.card', fallback: 'Card'},
-    {key: 'surface', workspace: 'content', surface: 'content_graph', labelKey: 'create.editText', fallback: 'Edit Text'},
-    {key: 'existing', workspace: 'content', surface: 'content_graph', labelKey: 'objectCanvas.mode.existing', fallback: 'Existing Object'},
+    {key: 'event', workspace: 'content', surface: 'content_storyboard', labelKey: 'create.worldEvent', fallback: 'World Event'},
+    {key: 'news', workspace: 'content', surface: 'content_storyboard', labelKey: 'create.news', fallback: 'News'},
+    {key: 'card', workspace: 'content', surface: 'content_storyboard', labelKey: 'create.card', fallback: 'Card'},
+    {key: 'surface', workspace: 'content', surface: 'content_storyboard', labelKey: 'create.editText', fallback: 'Edit Text'},
+    {key: 'existing', workspace: 'content', surface: 'content_storyboard', labelKey: 'objectCanvas.mode.existing', fallback: 'Existing Object'},
     {key: 'entry', workspace: 'system_ui', surface: 'system_ui_preview', labelKey: 'create.entrySidebar', fallback: 'Entry & Sidebar'},
     {key: 'play_surface', workspace: 'system_ui', surface: 'system_ui_preview', labelKey: 'create.playSurface', fallback: 'Playable Surface'},
     {key: 'workspace_layout', workspace: 'system_ui', surface: 'system_ui_preview', labelKey: 'create.workspaceLayout', fallback: 'Workspace Layout'},
@@ -55,7 +55,7 @@
 
   function surfaceForTemplate(template) {
     const def = templateDefinition(template) || templatesByKey.event;
-    return surfacesByKey[def.surface] || surfacesByKey.content_graph;
+    return surfacesByKey[def.surface] || surfacesByKey.content_storyboard;
   }
 
   function workspaceForTemplate(template) {
