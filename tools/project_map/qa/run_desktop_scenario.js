@@ -638,7 +638,9 @@ async function scenarioExploreDesignExistingEdit(win, args, artifactDir, log) {
   log('Design list selects same existing event', 'PASS', '04-design-event-selected.png');
 
   await click(win, '#design-inspector [data-design-edit-existing]');
-  await expectVisible(win, '#existing-scene-editor-host [data-editing-workspace="true"]', 'Contextual Editing workspace should open from Design');
+  await expectVisible(win, '#existing-scene-editor-host [data-object-authoring-canvas="true"]', 'Object Authoring Canvas should open from Design');
+  await expectVisible(win, '#existing-scene-editor-host [data-editing-workspace="true"]', 'Object Authoring Canvas should keep the existing editing QA marker');
+  await expectVisible(win, '#existing-scene-editor-host [data-object-canvas-event-body="true"]', 'Object Authoring Canvas should show the inline event body');
   await replaceExistingBlockByOriginal(
     win,
     '= Generic Intro\n\nThis scene has a simple variable write and no project-specific systems.\n',

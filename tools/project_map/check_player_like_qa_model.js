@@ -95,6 +95,8 @@ const postEvent = read(path.join(QA_FIXTURE, 'source', 'scenes', 'post_event.sce
   'ProjectMapInstallAssistant',
   'data-design-edit-existing',
   'data-editing-workspace',
+  'data-object-authoring-canvas',
+  'data-object-canvas-event-body',
   'reloadStudioWindow',
   'dendry:open-starter-demo',
   'dendry:update-notice-check',
@@ -154,9 +156,10 @@ assert(
   existingScenarioCard.includes('Persona:') &&
     existingScenarioCard.includes('Required checkpoints:') &&
     existingScenarioCard.includes('Allowed shortcut:') &&
-    existingScenarioCard.includes('contextual Editing') &&
-    existingScenarioCard.includes('graph-like context surface'),
-  'existing edit scenario card should be written as a contextual player journey'
+    existingScenarioCard.includes('Object Authoring Canvas') &&
+    existingScenarioCard.includes('context board') &&
+    existingScenarioCard.includes('inline event body'),
+  'existing edit scenario card should be written as a unified object authoring journey'
 );
 assert(
   persistenceScenarioCard.includes('Persona:') && persistenceScenarioCard.includes('Required checkpoints:') && persistenceScenarioCard.includes('Allowed shortcut:'),

@@ -265,6 +265,10 @@
   }
 
   function activeTemplate() {
+    const objectCanvas = global.ProjectMapObjectAuthoringCanvas;
+    if (objectCanvas && typeof objectCanvas.isActive === 'function' && objectCanvas.isActive()) {
+      return typeof objectCanvas.activeTemplate === 'function' ? objectCanvas.activeTemplate() : 'event';
+    }
     const editingWorkspace = global.ProjectMapEditingWorkspace;
     if (editingWorkspace && typeof editingWorkspace.isActive === 'function' && editingWorkspace.isActive()) {
       return 'existing';
@@ -278,6 +282,13 @@
   }
 
   function wizardForTemplate(template) {
+    const objectCanvas = global.ProjectMapObjectAuthoringCanvas;
+    if (objectCanvas && typeof objectCanvas.isActive === 'function' && objectCanvas.isActive()) {
+      const active = typeof objectCanvas.activeTemplate === 'function' ? objectCanvas.activeTemplate() : template;
+      if (active === template) {
+        return objectCanvas;
+      }
+    }
     return {
       event: global.ProjectMapWizard,
       news: global.ProjectMapNewsWizard,
@@ -289,7 +300,7 @@
       entry: global.ProjectMapEntrySidebarWizard,
       project: global.ProjectMapProjectMetadataWizard,
       variables: global.ProjectMapVariableEditorWizard,
-      existing: global.ProjectMapEditingWorkspace || global.ProjectMapExistingSceneEditor
+      existing: global.ProjectMapObjectAuthoringCanvas || global.ProjectMapEditingWorkspace || global.ProjectMapExistingSceneEditor
     }[template] || null;
   }
 

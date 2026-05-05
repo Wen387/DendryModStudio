@@ -1087,7 +1087,7 @@
     }
     const opened = editor.openFromSelection(state.projectModel.index, support.view, item.raw);
     setDesignStatus(opened
-      ? t('existingScene.loaded', 'Existing scene edit opened in Create. Save it to My Changes when ready.')
+      ? t('objectCanvas.status.designExisting', 'Object Canvas opened from Design. Save it to My Changes when ready.')
       : t('existingScene.openFailed', 'This scene needs more source evidence before Studio can edit it here.'),
     !opened);
   }
@@ -1189,7 +1189,9 @@
     clickSelector('[data-mode="create"]');
     clickSelector('[data-create-template="' + template + '"]');
     const meta = {source: 'Design mode Edit as Draft', extraction: result};
-    if (template === 'event' && global.ProjectMapWizard && typeof global.ProjectMapWizard.loadDraft === 'function') {
+    if (template === 'event' && global.ProjectMapObjectAuthoringCanvas && typeof global.ProjectMapObjectAuthoringCanvas.loadDraft === 'function') {
+      global.ProjectMapObjectAuthoringCanvas.loadDraft(draft, meta);
+    } else if (template === 'event' && global.ProjectMapWizard && typeof global.ProjectMapWizard.loadDraft === 'function') {
       global.ProjectMapWizard.loadDraft(draft, meta);
     } else if (template === 'news' && global.ProjectMapNewsWizard && typeof global.ProjectMapNewsWizard.loadDraft === 'function') {
       global.ProjectMapNewsWizard.loadDraft(draft, meta);

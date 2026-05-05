@@ -245,10 +245,184 @@
   overflow-wrap: anywhere;
 }
 
+.object-canvas {
+  display: grid;
+  gap: 12px;
+}
+
+.object-canvas-layout {
+  display: grid;
+  grid-template-columns: minmax(230px, 0.72fr) minmax(420px, 1.25fr) minmax(280px, 0.72fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.object-canvas-context,
+.object-canvas-event-body,
+.object-canvas-change-panel {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.object-canvas-board,
+.object-event-body {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  background: var(--surface);
+}
+
+.object-canvas-board h3,
+.object-event-body h3 {
+  margin: 0;
+}
+
+.object-canvas-board-group {
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--surface-alt);
+}
+
+.object-canvas-board-group summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.object-canvas-board-group[open] summary {
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.object-canvas-context-row {
+  display: grid;
+  gap: 3px;
+  padding: 8px 10px;
+}
+
+.object-canvas-context-row + .object-canvas-context-row {
+  border-top: 1px solid var(--border-soft);
+}
+
+.object-canvas-context-row strong,
+.object-canvas-context-row span {
+  overflow-wrap: anywhere;
+}
+
+.object-canvas-context-row span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.object-event-title-block,
+.object-event-sections,
+.object-event-options,
+.object-event-option-fields,
+.object-event-meta-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.object-event-title-block {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.object-inline-field {
+  display: grid;
+  gap: 5px;
+}
+
+.object-inline-field span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.object-inline-field small {
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.object-inline-input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-alt);
+  font: inherit;
+}
+
+.object-inline-input:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent) 32%, transparent);
+  border-color: var(--accent);
+}
+
+.object-field-title {
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.object-inline-field-guarded .object-inline-input {
+  border-color: color-mix(in srgb, var(--success) 40%, var(--border));
+}
+
+.object-inline-field-manual .object-inline-input {
+  border-color: color-mix(in srgb, var(--warning) 42%, var(--border));
+}
+
+.object-event-option {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--surface-alt);
+}
+
+.object-event-option-index {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 800;
+}
+
+.object-event-meta {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.object-event-meta summary {
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.object-event-meta-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 10px;
+}
+
+.object-canvas-actions {
+  align-items: center;
+}
+
 @media (max-width: 980px) {
   .editing-workspace-header,
   .editing-workspace-layout,
-  .editing-graph-lanes {
+  .editing-graph-lanes,
+  .object-canvas-layout,
+  .object-event-meta-grid {
     grid-template-columns: 1fr;
   }
 }
