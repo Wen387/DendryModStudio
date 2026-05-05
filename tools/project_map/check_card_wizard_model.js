@@ -85,6 +85,7 @@ const advisorBundle = cardDraft.buildExportBundle(advisorDraft, index);
 const invalidResult = cardDraft.validateDraft(invalidDraft, index);
 const viewerHtml = fs.readFileSync(VIEWER_INDEX, 'utf8');
 const cardUi = fs.readFileSync(path.join(__dirname, 'viewer', 'card_ui.js'), 'utf8');
+const authoringWorkspaceUi = fs.readFileSync(path.join(__dirname, 'viewer', 'authoring_workspace_ui.js'), 'utf8');
 
 assert(actionBundle.ok, 'sample action card should be valid: ' + JSON.stringify(actionBundle.diagnostics));
 assert(advisorBundle.ok, 'sample advisor-like card should be valid: ' + JSON.stringify(advisorBundle.diagnostics));
@@ -237,7 +238,7 @@ assert(invalidCodes.includes('card_draft.title'), 'invalid card should diagnose 
 assert(invalidCodes.includes('card_draft.choice_count'), 'invalid card should diagnose bad choice count');
 assert(invalidCodes.includes('card_draft.missing_variable'), 'invalid card should diagnose unknown effect variable');
 
-assert(viewerHtml.includes('data-create-template="card"'), 'viewer should expose Card template switch');
+assert(authoringWorkspaceUi.includes("key: 'card'"), 'viewer should expose Card template switch');
 assert(viewerHtml.includes('id="card-wizard-form"'), 'viewer should expose card wizard form');
 assert(viewerHtml.includes('id="card-kind"'), 'viewer should expose card kind selector');
 assert(viewerHtml.includes('id="card-option-0-choose-if"'), 'viewer should expose option choose-if');

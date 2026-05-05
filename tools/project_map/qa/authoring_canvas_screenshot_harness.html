@@ -93,7 +93,8 @@
         'review-event': () => reviewTemplate('event', {'event.title': 'Review Event Draft'}, 'Review & Apply Event'),
         'review-existing': () => reviewExisting('events', 'generic_intro', {generic_intro_body: 'Review existing event replacement.'}, 'Review & Apply Existing Edit'),
         'review-surface': () => reviewTemplate('surface', {'surface.replacementLabel': 'Review replacement text'}, 'Review & Apply Surface/Text'),
-        'review-workspace-layout': () => reviewTemplate('workspace_layout', {'layout.deckTitle': 'Review Policy Deck'}, 'Review & Apply Workspace Layout')
+        'review-workspace-layout': () => reviewTemplate('workspace_layout', {'layout.deckTitle': 'Review Policy Deck'}, 'Review & Apply Workspace Layout'),
+        'legacy-fallback': () => showLegacyFallback()
       };
 
       try {
@@ -198,6 +199,21 @@
         await delay(260);
       }
 
+      async function showLegacyFallback() {
+        const win = frame.contentWindow;
+        await openTemplate('event', {'event.title': 'Legacy fallback is secondary'}, 'Legacy fallback position');
+        const button = win.document.querySelector('[data-object-canvas-action="legacy_form"]');
+        if (!button) {
+          throw new Error('Legacy advanced form fallback button is missing.');
+        }
+        const inspector = win.document.querySelector('[data-object-canvas-graph-inspector]');
+        if (inspector) {
+          inspector.scrollTop = inspector.scrollHeight;
+        }
+        button.scrollIntoView({block: 'center', inline: 'nearest'});
+        await delay(260);
+      }
+
       async function applyValues(win, values) {
         Object.keys(values || {}).forEach((key) => {
           const field = win.document.querySelector('[data-object-canvas-field="' + cssEscape(key) + '"]');
@@ -236,17 +252,35 @@
         const preview = host && host.querySelector('[data-object-canvas-preview]');
         const title = host && host.querySelector('.object-canvas-header h2');
         const stage = host && host.querySelector('[data-object-canvas-stage]');
-        const stageNodes = host ? host.querySelectorAll('[data-object-canvas-stage-node]').length : 0;
+        const graphCanvas = host && host.querySelector('[data-object-canvas-graph-canvas]');
+        const graphInspector = host && host.querySelector('[data-object-canvas-graph-inspector]');
+        const graphNodes = host ? host.querySelectorAll('[data-object-canvas-graph-node]').length : 0;
         const draftPanel = doc.querySelector('.draft-workspace-panel');
+        const workspaceNav = doc.querySelector('[data-authoring-workspace-nav]');
+        const activeGroup = doc.querySelector('[data-authoring-template-group].is-active');
         const visible = Boolean(host && canvas && isVisible(win, host) && isVisible(win, canvas));
         const hasCoreSurface = fieldCount >= 3 && preview && collapse(preview.textContent).length > 0 && title && collapse(title.textContent).length > 0;
-        const hasVisibleCanvasStage = stage && isVisible(win, stage) && stageNodes >= 4;
+        const hasVisibleCanvasStage = stage && graphCanvas && graphInspector && isVisible(win, stage) && isVisible(win, graphCanvas) && isVisible(win, graphInspector) && graphNodes >= 6;
         const noLegacyPanelVisible = Array.from(doc.querySelectorAll('[data-create-template-panel]')).every((panel) => !isVisible(win, panel));
         const canvasBeforeChanges = !draftPanel || host.getBoundingClientRect().top <= draftPanel.getBoundingClientRect().top;
         const activeTemplate = win.ProjectMapObjectAuthoringCanvas && typeof win.ProjectMapObjectAuthoringCanvas.activeTemplate === 'function'
           ? win.ProjectMapObjectAuthoringCanvas.activeTemplate()
           : '';
-        return visible && hasCoreSurface && hasVisibleCanvasStage && noLegacyPanelVisible && canvasBeforeChanges && (!template || template === activeTemplate || template === 'existing');
+        const activeWorkspace = win.ProjectMapAuthoringWorkspace && typeof win.ProjectMapAuthoringWorkspace.activeWorkspace === 'function'
+          ? win.ProjectMapAuthoringWorkspace.activeWorkspace()
+          : '';
+        const workspaceMatches = !template || template === 'existing' || activeWorkspace === workspaceForTemplate(template);
+        return visible && workspaceNav && activeGroup && hasCoreSurface && hasVisibleCanvasStage && noLegacyPanelVisible && canvasBeforeChanges && workspaceMatches && (!template || template === activeTemplate || template === 'existing');
+      }
+
+      function workspaceForTemplate(template) {
+        if (template === 'entry' || template === 'play_surface' || template === 'workspace_layout' || template === 'sidebar_status') {
+          return 'system_ui';
+        }
+        if (template === 'project' || template === 'variables') {
+          return 'project_state';
+        }
+        return 'content';
       }
 
       function isReviewVisible(win) {

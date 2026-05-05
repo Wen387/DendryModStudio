@@ -78,8 +78,9 @@ assert(invalidResult.diagnostics.some((diag) => diag.code === 'news_draft.headli
 assert(invalidResult.diagnostics.some((diag) => diag.code === 'news_draft.pool'), 'invalid draft should diagnose bad pool');
 assert(invalidResult.diagnostics.some((diag) => diag.code === 'news_draft.requires_js'), 'invalid draft should diagnose Chinese string comparison');
 
-assert(viewerHtml.includes('data-create-template="event"'), 'viewer should expose event template switch');
-assert(viewerHtml.includes('data-create-template="news"'), 'viewer should expose news template switch');
+const authoringWorkspaceUi = fs.readFileSync(path.join(__dirname, 'viewer', 'authoring_workspace_ui.js'), 'utf8');
+assert(authoringWorkspaceUi.includes("key: 'event'"), 'viewer should expose event template switch');
+assert(authoringWorkspaceUi.includes("key: 'news'"), 'viewer should expose news template switch');
 assert(viewerHtml.includes('id="news-wizard-form"'), 'viewer should expose news wizard form');
 assert(viewerHtml.includes('id="news-delivery"'), 'viewer should expose news delivery selector');
 assert(viewerHtml.includes('id="news-pool-name"'), 'viewer should expose background pool selector');

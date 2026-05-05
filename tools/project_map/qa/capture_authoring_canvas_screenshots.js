@@ -30,7 +30,8 @@ const DEFAULT_SCENARIOS = [
   ['18-review-event', 'review-event'],
   ['19-review-existing', 'review-existing'],
   ['20-review-surface', 'review-surface'],
-  ['21-review-workspace-layout', 'review-workspace-layout']
+  ['21-review-workspace-layout', 'review-workspace-layout'],
+  ['22-legacy-fallback', 'legacy-fallback']
 ];
 
 function parseArgs(argv) {

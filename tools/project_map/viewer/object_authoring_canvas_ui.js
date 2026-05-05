@@ -16,6 +16,9 @@
     projectIndex: null,
     view: '',
     item: null,
+    workspace: 'content',
+    selectedCanvasNode: 'object',
+    canvasZoom: 1,
     baseDraft: null,
     values: {},
     model: null,
@@ -34,6 +37,8 @@
     getOutput: () => state.model && state.model.changeState && state.model.changeState.output,
     isActive: () => state.active,
     activeTemplate: () => state.mode === 'existing' ? 'existing' : state.template || 'event',
+    activeWorkspace: () => state.workspace || workspaceForTemplate(state.template || 'event'),
+    selectCanvasNode,
     setProjectIndex
   };
 
@@ -115,6 +120,8 @@
     state.template = 'existing';
     state.view = view || '';
     state.item = item || null;
+    state.workspace = 'content';
+    state.selectedCanvasNode = 'object';
     state.baseDraft = null;
     state.values = options && options.values || {};
     state.model = buildExistingModel(options || {});
@@ -137,6 +144,8 @@
     state.mode = nextTemplate === 'event' ? 'new_event' : nextTemplate;
     state.view = nextTemplate;
     state.item = null;
+    state.workspace = workspaceForTemplate(nextTemplate);
+    state.selectedCanvasNode = 'object';
     state.baseDraft = draft || defaultDraftForTemplate(nextTemplate);
     state.values = {};
     state.model = buildTemplateModel(meta || {});
@@ -200,6 +209,11 @@
 
   function showWorkspace(template) {
     activateCreateMode();
+    state.workspace = workspaceForTemplate(template);
+    const workspaceUi = global.ProjectMapAuthoringWorkspace;
+    if (workspaceUi && typeof workspaceUi.setTemplate === 'function') {
+      workspaceUi.setTemplate(template, {silent: true});
+    }
     if (!elements || !elements.host) {
       return;
     }
@@ -240,7 +254,7 @@
     }
     const model = state.model || {};
     elements.host.innerHTML = [
-      '<section class="object-canvas editing-workspace" data-object-authoring-canvas="true" data-editing-workspace="true">',
+      '<section class="object-canvas editing-workspace" data-object-authoring-canvas="true" data-editing-workspace="true" data-authoring-workspace="' + escapeAttr(state.workspace || 'content') + '">',
       renderHeader(model),
       model.ok ? renderCanvasStage(model) : '',
       model.ok ? renderBody(model) : renderUnavailable(model),
@@ -275,88 +289,236 @@
   }
 
   function renderBody(model) {
-    return [
-      '<div class="object-canvas-layout">',
-      '<aside class="object-canvas-context">',
-      renderContextBoard(model.contextBoard || {}),
-      '</aside>',
-      '<main class="object-canvas-event-body">',
-      renderEventBody(model.eventBody || {}),
-      '</main>',
-      '<aside class="object-canvas-change-panel">',
-      renderChangePanel(model),
-      '</aside>',
-      '</div>'
-    ].join('');
+    return '<div class="object-canvas-layout object-canvas-layout-retired" hidden data-object-canvas-support-panels="true"></div>';
   }
 
   function renderCanvasStage(model) {
+    const graph = canvasGraphForModel(model);
+    let selected = graph.nodes.find((node) => node.key === state.selectedCanvasNode);
+    if (!selected) {
+      state.selectedCanvasNode = 'object';
+      selected = graph.nodes.find((node) => node.key === 'object') || graph.nodes[0];
+    }
+    return [
+      '<section class="object-canvas-stage object-canvas-graph-stage" data-object-canvas-stage="true" data-object-canvas-workspace="' + escapeAttr(graph.workspace) + '" aria-label="' + escapeAttr(t('objectCanvas.stageAria', 'Object Canvas')) + '">',
+      '<header class="object-canvas-stage-toolbar">',
+      '<div><div class="template-eyebrow">' + escapeHtml(t('objectCanvas.stageEyebrow', 'Canvas')) + '</div><h3>' + escapeHtml(graph.title) + '</h3></div>',
+      '<div class="object-canvas-zoom-controls" aria-label="' + escapeAttr(t('objectCanvas.zoomAria', 'Canvas zoom')) + '">',
+      '<button type="button" data-object-canvas-zoom="out" title="' + escapeAttr(t('objectCanvas.zoomOut', 'Zoom out')) + '">-</button>',
+      '<span data-object-canvas-zoom-label="true">' + escapeHtml(String(Math.round(state.canvasZoom * 100))) + '%</span>',
+      '<button type="button" data-object-canvas-zoom="in" title="' + escapeAttr(t('objectCanvas.zoomIn', 'Zoom in')) + '">+</button>',
+      '<button type="button" data-object-canvas-zoom="reset" title="' + escapeAttr(t('objectCanvas.zoomReset', 'Reset')) + '">' + escapeHtml(t('objectCanvas.fit', 'Fit')) + '</button>',
+      '</div>',
+      '</header>',
+      '<div class="object-canvas-graph-shell">',
+      '<div class="object-canvas-graph-canvas" data-object-canvas-graph-canvas="true" style="--object-canvas-graph-width: ' + String(graph.width) + 'px; --object-canvas-graph-height: ' + String(graph.height) + 'px;">',
+      '<svg class="object-canvas-graph-edges" data-object-canvas-graph-edges="true" viewBox="0 0 ' + String(graph.width) + ' ' + String(graph.height) + '" aria-hidden="true">',
+      graph.edges.map((edge) => renderGraphEdge(edge, graph.nodeByKey)).join(''),
+      '</svg>',
+      '<div class="object-canvas-graph-board" data-object-canvas-graph-board="true">',
+      graph.nodes.map((node) => renderGraphNode(node, selected)).join(''),
+      '</div>',
+      '</div>',
+      '<aside class="object-canvas-graph-inspector" data-object-canvas-graph-inspector="true">',
+      renderCanvasInspector(model, selected),
+      '</aside>',
+      '</div>',
+      '</section>'
+    ].join('');
+  }
+
+  function renderGraphNode(node, selected) {
+    const className = [
+      'object-canvas-graph-node',
+      'object-canvas-graph-node-' + escapeAttr(node.kind || 'context'),
+      selected && selected.key === node.key ? 'is-selected' : ''
+    ].filter(Boolean).join(' ');
+    return [
+      '<button type="button" class="' + className + '" data-object-canvas-graph-node="' + escapeAttr(node.key) + '" style="left: ' + String(node.x) + 'px; top: ' + String(node.y) + 'px;">',
+      '<span>' + escapeHtml(node.label) + '</span>',
+      '<strong>' + escapeHtml(node.title) + '</strong>',
+      '<small>' + escapeHtml(node.detail) + '</small>',
+      '</button>'
+    ].join('');
+  }
+
+  function renderGraphEdge(edge, nodeByKey) {
+    const from = nodeByKey[edge.from];
+    const to = nodeByKey[edge.to];
+    if (!from || !to) {
+      return '';
+    }
+    const x1 = Number(from.x || 0) + 122;
+    const y1 = Number(from.y || 0) + 56;
+    const x2 = Number(to.x || 0) + 122;
+    const y2 = Number(to.y || 0) + 56;
+    const bend = Math.max(80, Math.abs(x2 - x1) * 0.44);
+    return '<path data-object-canvas-graph-edge="' + escapeAttr(edge.from + '-' + edge.to) + '" d="M ' + x1 + ' ' + y1 + ' C ' + (x1 + bend) + ' ' + y1 + ', ' + (x2 - bend) + ' ' + y2 + ', ' + x2 + ' ' + y2 + '"></path>';
+  }
+
+  function renderCanvasInspector(model, node) {
+    const selected = node || {key: 'object', title: model.title || '', label: t('objectCanvas.stage.object.label', 'Object')};
+    if (selected.panel === 'object') {
+      return renderObjectInspector(model, selected);
+    }
+    if (selected.panel === 'plan' || selected.panel === 'review') {
+      return [
+        renderInspectorIntro(selected),
+        renderChangePanel(model)
+      ].join('');
+    }
+    return [
+      renderInspectorIntro(selected),
+      renderContextBoard(model.contextBoard || {}),
+      renderActions(model)
+    ].join('');
+  }
+
+  function renderObjectInspector(model, node) {
+    return [
+      renderInspectorIntro(node),
+      renderEventBody(model.eventBody || {}),
+      '<section class="editing-preview object-canvas-inspector-preview">',
+      '<div class="preview-heading">' + escapeHtml(t('objectCanvas.preview', 'Player-facing preview')) + '</div>',
+      '<pre class="code-preview" data-object-canvas-preview="true" data-editing-preview="true">' + escapeHtml(model.changeState && model.changeState.output && (model.changeState.output.playerPreview || model.changeState.output.proposalText || model.changeState.output.previewText || model.changeState.output.sceneDry) || '') + '</pre>',
+      '</section>',
+      renderActions(model)
+    ].join('');
+  }
+
+  function renderInspectorIntro(node) {
+    return [
+      '<section class="object-canvas-inspector-card">',
+      '<div class="template-eyebrow">' + escapeHtml(node.label || t('objectCanvas.inspect', 'Inspect')) + '</div>',
+      '<h3>' + escapeHtml(node.title || '') + '</h3>',
+      '<p>' + escapeHtml(node.detail || '') + '</p>',
+      '</section>'
+    ].join('');
+  }
+
+  function canvasGraphForModel(model) {
+    const workspace = state.workspace || workspaceForTemplate(state.mode === 'existing' ? 'existing' : state.template || model.template || 'event');
+    const metrics = graphMetrics(model);
+    const templates = {
+      content: contentGraphNodes(model, metrics),
+      system_ui: systemUiGraphNodes(model, metrics),
+      project_state: projectStateGraphNodes(model, metrics)
+    };
+    const graph = templates[workspace] || templates.content;
+    const nodeByKey = {};
+    graph.nodes.forEach((node) => {
+      nodeByKey[node.key] = node;
+    });
+    return Object.assign({}, graph, {workspace, nodeByKey});
+  }
+
+  function graphMetrics(model) {
     const board = model.contextBoard || {};
     const change = model.changeState || {};
     const summary = change.operationSummary || {};
-    const contextCount = countRows(board.flow) + countRows(board.variables) + countRows(board.effects) + countRows(board.sourceEvidence) + countRows(board.manualBoundaries);
-    const changedCount = Number(change.changedCount || 0);
     const operationCount = Number(summary.total || 0) ||
       Number(summary.safeApply || 0) +
       Number(summary.guardedApply || 0) +
       Number(summary.advancedApply || 0) +
       Number(summary.manualReview || 0) +
       Number(summary.refused || 0);
-    const manualCount = Number(summary.manualReview || 0) + Number(summary.refused || 0);
-    const nodes = [
-      {
-        key: 'context',
-        label: t('objectCanvas.stage.context.label', 'Context'),
-        title: t('objectCanvas.stage.context.title', 'Related state'),
-        detail: contextCount + ' ' + t('objectCanvas.stage.context.detail', 'context rows'),
-        jump: 'context'
-      },
-      {
-        key: 'object',
-        label: t('objectCanvas.stage.object.label', 'Object'),
-        title: model.title || model.objectId || t('objectCanvas.titleFallback', 'Author object'),
-        detail: changedCount + ' ' + t('objectCanvas.stage.object.detail', 'edited fields'),
-        jump: 'body',
-        main: true
-      },
-      {
-        key: 'plan',
-        label: t('objectCanvas.stage.plan.label', 'Plan'),
-        title: operationCount + ' ' + t('objectCanvas.stage.plan.title', 'operations'),
-        detail: Number(summary.guardedApply || 0) + ' ' + t('editing.summary.guarded', 'Guarded') + ' / ' + manualCount + ' ' + t('editing.summary.manual', 'Manual'),
-        jump: 'plan'
-      },
-      {
-        key: 'review',
-        label: t('objectCanvas.stage.review.label', 'Review'),
-        title: t('objectCanvas.stage.review.title', 'Review & Apply'),
-        detail: t('objectCanvas.stage.review.detail', 'Open the final safety workspace'),
-        jump: 'review'
-      }
-    ];
-    return [
-      '<section class="object-canvas-stage" data-object-canvas-stage="true" aria-label="' + escapeAttr(t('objectCanvas.stageAria', 'Object Canvas')) + '">',
-      '<div class="template-eyebrow">' + escapeHtml(t('objectCanvas.stageEyebrow', 'Canvas')) + '</div>',
-      '<div class="object-canvas-stage-board">',
-      '<svg class="object-canvas-stage-links" viewBox="0 0 100 28" preserveAspectRatio="none" aria-hidden="true">',
-      '<path d="M12 14 C28 3 39 3 50 14 S72 25 88 14"></path>',
-      '<path d="M12 18 C30 28 44 28 50 18 S70 8 88 18"></path>',
-      '</svg>',
-      nodes.map(renderStageNode).join(''),
-      '</div>',
-      '</section>'
-    ].join('');
+    return {
+      contextCount: countRows(board.flow) + countRows(board.variables) + countRows(board.effects) + countRows(board.sourceEvidence) + countRows(board.manualBoundaries),
+      flowCount: countRows(board.flow),
+      variableCount: countRows(board.variables),
+      effectCount: countRows(board.effects),
+      sourceCount: countRows(board.sourceEvidence),
+      boundaryCount: countRows(board.manualBoundaries),
+      changedCount: Number(change.changedCount || 0),
+      operationCount,
+      manualCount: Number(summary.manualReview || 0) + Number(summary.refused || 0),
+      guardedCount: Number(summary.guardedApply || 0)
+    };
   }
 
-  function renderStageNode(node) {
-    const className = 'object-canvas-stage-node object-canvas-stage-node-' + escapeAttr(node.key) + (node.main ? ' is-main' : '');
-    return [
-      '<button type="button" class="' + className + '" data-object-canvas-stage-node="' + escapeAttr(node.key) + '" data-object-canvas-stage-jump="' + escapeAttr(node.jump) + '">',
-      '<span>' + escapeHtml(node.label) + '</span>',
-      '<strong>' + escapeHtml(node.title) + '</strong>',
-      '<small>' + escapeHtml(node.detail) + '</small>',
-      '</button>'
-    ].join('');
+  function contentGraphNodes(model, metrics) {
+    const nodes = [
+      graphNode('source', 'source', t('objectCanvas.graph.source.label', 'Source'), t('objectCanvas.graph.source.title', 'Source evidence'), metrics.sourceCount + ' ' + t('editing.group.sourceEvidence', 'Source evidence'), 40, 86, 'context'),
+      graphNode('context', 'context', t('objectCanvas.stage.context.label', 'Context'), t('objectCanvas.stage.context.title', 'Related state'), metrics.contextCount + ' ' + t('objectCanvas.stage.context.detail', 'context rows'), 292, 40, 'context'),
+      graphNode('object', 'object', t('objectCanvas.stage.object.label', 'Object'), model.title || model.objectId || t('objectCanvas.titleFallback', 'Author object'), metrics.changedCount + ' ' + t('objectCanvas.stage.object.detail', 'edited fields'), 544, 126, 'object'),
+      graphNode('routes', 'routes', t('objectCanvas.graph.routes.label', 'Routes'), t('objectCanvas.graph.routes.title', 'Flow and choices'), metrics.flowCount + ' ' + t('objectCanvas.group.flow', 'Flow'), 804, 50, 'context'),
+      graphNode('state', 'state', t('objectCanvas.graph.state.label', 'State'), t('editing.group.variables', 'Variables touched'), metrics.variableCount + ' / ' + metrics.effectCount + ' ' + t('editing.group.effects', 'Effects'), 804, 246, 'context'),
+      graphNode('plan', 'plan', t('objectCanvas.stage.plan.label', 'Plan'), metrics.operationCount + ' ' + t('objectCanvas.stage.plan.title', 'operations'), metrics.guardedCount + ' ' + t('editing.summary.guarded', 'Guarded') + ' / ' + metrics.manualCount + ' ' + t('editing.summary.manual', 'Manual'), 1068, 88, 'plan'),
+      graphNode('review', 'review', t('objectCanvas.stage.review.label', 'Review'), t('objectCanvas.stage.review.title', 'Review & Apply'), t('objectCanvas.stage.review.detail', 'Open the final safety workspace'), 1068, 268, 'review')
+    ];
+    return {
+      title: t('authoring.workspace.content', 'Content Authoring'),
+      width: 1360,
+      height: 480,
+      nodes,
+      edges: [
+        {from: 'source', to: 'object'},
+        {from: 'context', to: 'object'},
+        {from: 'object', to: 'routes'},
+        {from: 'object', to: 'state'},
+        {from: 'routes', to: 'plan'},
+        {from: 'state', to: 'plan'},
+        {from: 'plan', to: 'review'}
+      ]
+    };
+  }
+
+  function systemUiGraphNodes(model, metrics) {
+    const nodes = [
+      graphNode('entry', 'source', t('objectCanvas.graph.entry.label', 'Entry'), t('objectCanvas.graph.entry.title', 'Entry point'), metrics.flowCount + ' ' + t('objectCanvas.group.flow', 'Flow'), 40, 92, 'context'),
+      graphNode('layout', 'context', t('objectCanvas.graph.layout.label', 'Layout'), t('objectCanvas.graph.layout.title', 'Workspace structure'), metrics.contextCount + ' ' + t('objectCanvas.stage.context.detail', 'context rows'), 292, 44, 'context'),
+      graphNode('object', 'object', t('authoring.workspace.systemUi', 'System UI Authoring'), model.title || model.objectId || t('objectCanvas.titleFallback', 'Author object'), metrics.changedCount + ' ' + t('objectCanvas.stage.object.detail', 'edited fields'), 544, 126, 'object'),
+      graphNode('sidebar', 'state', t('objectCanvas.graph.sidebar.label', 'Sidebar'), t('objectCanvas.graph.sidebar.title', 'Sidebar and status'), metrics.variableCount + ' ' + t('editing.group.variables', 'Variables touched'), 804, 50, 'context'),
+      graphNode('preview', 'routes', t('objectCanvas.graph.preview.label', 'Preview'), t('objectCanvas.preview', 'Player-facing preview'), metrics.sourceCount + ' ' + t('editing.group.sourceEvidence', 'Source evidence'), 804, 246, 'context'),
+      graphNode('plan', 'plan', t('objectCanvas.stage.plan.label', 'Plan'), metrics.operationCount + ' ' + t('objectCanvas.stage.plan.title', 'operations'), metrics.guardedCount + ' ' + t('editing.summary.guarded', 'Guarded') + ' / ' + metrics.manualCount + ' ' + t('editing.summary.manual', 'Manual'), 1068, 88, 'plan'),
+      graphNode('review', 'review', t('objectCanvas.stage.review.label', 'Review'), t('objectCanvas.stage.review.title', 'Review & Apply'), t('objectCanvas.stage.review.detail', 'Open the final safety workspace'), 1068, 268, 'review')
+    ];
+    return {
+      title: t('authoring.workspace.systemUi', 'System UI Authoring'),
+      width: 1360,
+      height: 480,
+      nodes,
+      edges: [
+        {from: 'entry', to: 'object'},
+        {from: 'layout', to: 'object'},
+        {from: 'object', to: 'sidebar'},
+        {from: 'object', to: 'preview'},
+        {from: 'sidebar', to: 'plan'},
+        {from: 'preview', to: 'plan'},
+        {from: 'plan', to: 'review'}
+      ]
+    };
+  }
+
+  function projectStateGraphNodes(model, metrics) {
+    const nodes = [
+      graphNode('evidence', 'source', t('objectCanvas.graph.evidence.label', 'Evidence'), t('editing.group.sourceEvidence', 'Source evidence'), metrics.sourceCount + ' ' + t('editing.group.sourceEvidence', 'Source evidence'), 40, 92, 'context'),
+      graphNode('project', 'context', t('objectCanvas.graph.project.label', 'Project'), t('authoring.workspace.projectState', 'Project State'), metrics.contextCount + ' ' + t('objectCanvas.stage.context.detail', 'context rows'), 292, 44, 'context'),
+      graphNode('object', 'object', t('objectCanvas.graph.variable.label', 'State object'), model.title || model.objectId || t('objectCanvas.titleFallback', 'Author object'), metrics.changedCount + ' ' + t('objectCanvas.stage.object.detail', 'edited fields'), 544, 126, 'object'),
+      graphNode('init', 'state', t('objectCanvas.graph.init.label', 'Initialization'), t('objectCanvas.graph.init.title', 'Root and defaults'), metrics.variableCount + ' ' + t('editing.group.variables', 'Variables touched'), 804, 50, 'context'),
+      graphNode('consumers', 'routes', t('objectCanvas.graph.consumers.label', 'Consumers'), t('objectCanvas.graph.consumers.title', 'Where state is read'), metrics.effectCount + ' ' + t('editing.group.effects', 'Effects'), 804, 246, 'context'),
+      graphNode('plan', 'plan', t('objectCanvas.stage.plan.label', 'Plan'), metrics.operationCount + ' ' + t('objectCanvas.stage.plan.title', 'operations'), metrics.guardedCount + ' ' + t('editing.summary.guarded', 'Guarded') + ' / ' + metrics.manualCount + ' ' + t('editing.summary.manual', 'Manual'), 1068, 88, 'plan'),
+      graphNode('review', 'review', t('objectCanvas.stage.review.label', 'Review'), t('objectCanvas.stage.review.title', 'Review & Apply'), t('objectCanvas.stage.review.detail', 'Open the final safety workspace'), 1068, 268, 'review')
+    ];
+    return {
+      title: t('authoring.workspace.projectState', 'Project State'),
+      width: 1360,
+      height: 480,
+      nodes,
+      edges: [
+        {from: 'evidence', to: 'object'},
+        {from: 'project', to: 'object'},
+        {from: 'object', to: 'init'},
+        {from: 'object', to: 'consumers'},
+        {from: 'init', to: 'plan'},
+        {from: 'consumers', to: 'plan'},
+        {from: 'plan', to: 'review'}
+      ]
+    };
+  }
+
+  function graphNode(key, kind, label, title, detail, x, y, panel) {
+    return {key, kind, label, title, detail, x, y, panel};
   }
 
   function renderUnavailable(model) {
@@ -603,9 +765,21 @@
     elements.host.querySelectorAll('[data-object-canvas-action]').forEach((button) => {
       button.addEventListener('click', () => handleAction(button.dataset.objectCanvasAction || ''));
     });
-    elements.host.querySelectorAll('[data-object-canvas-stage-jump]').forEach((button) => {
-      button.addEventListener('click', () => handleStageJump(button.dataset.objectCanvasStageJump || ''));
+    elements.host.querySelectorAll('[data-object-canvas-graph-node]').forEach((button) => {
+      button.addEventListener('click', () => selectCanvasNode(button.dataset.objectCanvasGraphNode || 'object'));
     });
+    elements.host.querySelectorAll('[data-object-canvas-zoom]').forEach((button) => {
+      button.addEventListener('click', () => handleCanvasZoom(button.dataset.objectCanvasZoom || 'reset'));
+    });
+    applyCanvasViewport();
+  }
+
+  function selectCanvasNode(nodeKey) {
+    const next = String(nodeKey || 'object').trim() || 'object';
+    state.values = collectValues();
+    state.model = state.mode === 'existing' ? buildExistingModel({values: state.values}) : buildTemplateModel({values: state.values});
+    state.selectedCanvasNode = next;
+    render();
   }
 
   function handleStageJump(target) {
@@ -621,6 +795,40 @@
     const node = selector && elements && elements.host && elements.host.querySelector(selector);
     if (node && typeof node.scrollIntoView === 'function') {
       node.scrollIntoView({block: 'start', inline: 'nearest'});
+    }
+  }
+
+  function handleCanvasZoom(action) {
+    if (action === 'in') {
+      state.canvasZoom = Math.min(1.4, Number(state.canvasZoom || 1) + 0.1);
+    } else if (action === 'out') {
+      state.canvasZoom = Math.max(0.7, Number(state.canvasZoom || 1) - 0.1);
+    } else {
+      state.canvasZoom = 1;
+    }
+    applyCanvasViewport();
+  }
+
+  function applyCanvasViewport() {
+    if (!elements || !elements.host) {
+      return;
+    }
+    const scale = Math.max(0.7, Math.min(1.4, Number(state.canvasZoom || 1)));
+    state.canvasZoom = scale;
+    const transform = 'scale(' + scale.toFixed(3) + ')';
+    const board = elements.host.querySelector('[data-object-canvas-graph-board]');
+    const edges = elements.host.querySelector('[data-object-canvas-graph-edges]');
+    const label = elements.host.querySelector('[data-object-canvas-zoom-label]');
+    if (board) {
+      board.style.transform = transform;
+      board.style.transformOrigin = '0 0';
+    }
+    if (edges) {
+      edges.style.transform = transform;
+      edges.style.transformOrigin = '0 0';
+    }
+    if (label) {
+      label.textContent = Math.round(scale * 100) + '%';
     }
   }
 
@@ -765,6 +973,17 @@
       variables: true
     };
     return supported[text] ? text : '';
+  }
+
+  function workspaceForTemplate(template) {
+    const key = normalizeTemplate(template) || (template === 'existing' ? 'existing' : 'event');
+    if (key === 'entry' || key === 'play_surface' || key === 'workspace_layout' || key === 'sidebar_status') {
+      return 'system_ui';
+    }
+    if (key === 'project' || key === 'variables') {
+      return 'project_state';
+    }
+    return 'content';
   }
 
   function statusForTemplate(template, meta) {

@@ -467,18 +467,7 @@
           <div class="template-eyebrow" data-i18n="create.heading">Create</div>
           <h1 class="wizard-title" data-i18n="create.heading">Authoring Studio</h1>
         </div>
-        <div class="template-switch" role="tablist" aria-label="Create template" data-i18n-aria-label="create.templateAria">
-          <button class="template-button is-active" type="button" role="tab" aria-selected="true" data-create-template="event" data-i18n="create.worldEvent">World Event</button>
-          <button class="template-button" type="button" role="tab" aria-selected="false" data-create-template="news" data-i18n="create.news">News</button>
-          <button class="template-button" type="button" role="tab" aria-selected="false" data-create-template="card" data-i18n="create.card">Card</button>
-          <button class="template-button" type="button" role="tab" aria-selected="false" data-create-template="play_surface" data-i18n="create.playSurface">Playable Surface</button>
-          <button class="template-button" type="button" role="tab" aria-selected="false" data-create-template="workspace_layout" data-i18n="create.workspaceLayout">Workspace Layout</button>
-          <button class="template-button" type="button" role="tab" aria-selected="false" data-create-template="sidebar_status" data-i18n="create.sidebarStatus">Sidebar / Status</button>
-          <button class="template-button" type="button" role="tab" aria-selected="false" data-create-template="surface" data-i18n="create.editText">Edit Text</button>
-          <button class="template-button" type="button" role="tab" aria-selected="false" data-create-template="entry" data-i18n="create.entrySidebar">Entry &amp; Sidebar</button>
-          <button class="template-button" type="button" role="tab" aria-selected="false" data-create-template="project" data-i18n="create.gameInfo">Game Info</button>
-          <button class="template-button" type="button" role="tab" aria-selected="false" data-create-template="variables" data-i18n="create.variables">Variables</button>
-        </div>
+        <div class="authoring-workspace-nav" data-authoring-workspace-nav="true"></div>
       </section>
 
       <section class="draft-workspace-panel" aria-label="My Changes saved change proposals" data-i18n-aria-label="draftWorkspace.panelAria">
@@ -2750,6 +2739,7 @@ media_reach += 1</textarea>
   <script src="explore_model.js"></script>
   <script src="editing_context_graph.js"></script>
   <script src="editing_field_panels.js"></script>
+  <script src="authoring_workspace_ui.js"></script>
   <script src="editing_workspace_ui.js"></script>
   <script src="object_authoring_canvas_ui.js"></script>
   <script src="explore_lists.js"></script>

@@ -114,6 +114,53 @@
   text-transform: uppercase;
 }
 
+.authoring-workspace-nav {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.authoring-workspace-switch {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-alt);
+}
+
+.authoring-workspace-button {
+  min-width: 0;
+  min-height: 34px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+.authoring-workspace-button:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.authoring-workspace-button.is-active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.authoring-template-palette {
+  min-width: 0;
+}
+
+.authoring-template-group[hidden],
+.authoring-template-group:not(.is-active) {
+  display: none;
+}
+
 .template-switch {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));

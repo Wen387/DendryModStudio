@@ -145,7 +145,8 @@ assert(surfaceSearch.length === 2, 'surface text search should match label');
 assert(surfaceSearch.some((item) => item.raw && item.raw.editability === 'ide_escape_hatch'), 'surface text search should preserve escape hatch items');
 
 assert(viewerHtml.includes('data-view="surfaceText"'), 'viewer should expose Surface Text explore nav');
-assert(viewerHtml.includes('data-create-template="surface"'), 'viewer should expose Surface Text create template');
+const authoringWorkspaceUi = fs.readFileSync(path.join(__dirname, 'viewer', 'authoring_workspace_ui.js'), 'utf8');
+assert(authoringWorkspaceUi.includes("key: 'surface'"), 'viewer should expose Surface Text create template');
 assert(viewerHtml.includes('id="surface-text-form"'), 'viewer should expose Surface Text form');
 assert(viewerHtml.includes('id="surface-label-original"'), 'viewer should expose original label field');
 assert(viewerHtml.includes('id="surface-label-replacement"'), 'viewer should expose replacement label field');
