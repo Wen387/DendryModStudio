@@ -740,7 +740,7 @@
     elements.host.querySelectorAll('[data-object-canvas-zoom]').forEach((button) => {
       button.addEventListener('click', () => handleCanvasZoom(button.dataset.objectCanvasZoom || 'reset'));
     });
-    elements.host.querySelectorAll('[data-content-storyboard-view]').forEach((button) => {
+    elements.host.querySelectorAll('button[data-content-storyboard-view]').forEach((button) => {
       button.addEventListener('click', () => setStoryboardView(button.dataset.contentStoryboardView || 'timeline'));
     });
     elements.host.querySelectorAll('[data-system-ui-fixture]').forEach((button) => {

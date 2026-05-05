@@ -288,11 +288,7 @@
       async function contentChainViewScenario() {
         const win = frame.contentWindow;
         await openExisting('events', 'generic_intro', {generic_intro_body: 'The 1929 story chain opens with sharper stakes.'}, 'Story chain view');
-        if (win.ProjectMapObjectAuthoringCanvas && typeof win.ProjectMapObjectAuthoringCanvas.setStoryboardView === 'function') {
-          win.ProjectMapObjectAuthoringCanvas.setStoryboardView('chain');
-        } else {
-          click(win, '[data-content-storyboard-view="chain"]');
-        }
+        click(win, 'button[data-content-storyboard-view="chain"]');
         await waitFor(() => win.document.querySelector('[data-storyboard-kind="chain"]'), 3000);
       }
 
