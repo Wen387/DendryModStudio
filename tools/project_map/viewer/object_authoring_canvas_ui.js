@@ -202,6 +202,10 @@
     }
     state.values = collectValues();
     state.model = state.mode === 'existing' ? buildExistingModel({values: state.values}) : buildTemplateModel({values: state.values});
+    if (surfaceForTemplate(state.mode === 'existing' ? 'existing' : state.template || 'event').key === 'system_ui_preview') {
+      render();
+      return;
+    }
     updateDynamicSurfaces();
   }
 
@@ -319,6 +323,9 @@
     if (surface.key === 'project_state_board') {
       return renderProjectStateStage(model);
     }
+    if (surface.key === 'system_ui_preview') {
+      return renderSystemUiPreviewStage(model);
+    }
     const graph = canvasGraphForModel(model);
     let selected = graph.nodes.find((node) => node.key === state.selectedCanvasNode);
     if (!selected) {
@@ -356,6 +363,13 @@
 
   function renderProjectStateStage(model) {
     const surface = global.ProjectMapProjectStateSurface;
+    return surface && typeof surface.render === 'function'
+      ? surface.render(model, {projectIndex: state.projectIndex, selected: state.selectedCanvasNode})
+      : '';
+  }
+
+  function renderSystemUiPreviewStage(model) {
+    const surface = global.ProjectMapSystemUiPreviewSurface;
     return surface && typeof surface.render === 'function'
       ? surface.render(model, {projectIndex: state.projectIndex, selected: state.selectedCanvasNode})
       : '';
@@ -778,22 +792,6 @@
     state.model = state.mode === 'existing' ? buildExistingModel({values: state.values}) : buildTemplateModel({values: state.values});
     state.selectedCanvasNode = next;
     render();
-  }
-
-  function handleStageJump(target) {
-    if (target === 'review') {
-      reviewCurrentPlan();
-      return;
-    }
-    const selector = {
-      context: '[data-object-canvas-context]',
-      body: '[data-object-canvas-event-body]',
-      plan: '[data-object-canvas-review-plan]'
-    }[target] || '';
-    const node = selector && elements && elements.host && elements.host.querySelector(selector);
-    if (node && typeof node.scrollIntoView === 'function') {
-      node.scrollIntoView({block: 'start', inline: 'nearest'});
-    }
   }
 
   function handleCanvasZoom(action) {

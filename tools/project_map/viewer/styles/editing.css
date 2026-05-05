@@ -902,6 +902,107 @@
   overflow-wrap: anywhere;
 }
 
+.system-ui-preview-surface {
+  display: grid;
+  gap: 0;
+  padding: 0;
+}
+
+.system-ui-fixtures {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.system-ui-fixtures button {
+  min-height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 750;
+}
+
+.system-ui-layout {
+  display: grid;
+  grid-template-columns: minmax(500px, 1fr) minmax(360px, 0.55fr);
+  min-height: 620px;
+}
+
+.system-ui-live-preview,
+.system-ui-inspector {
+  min-width: 0;
+  padding: 12px;
+}
+
+.system-ui-live-preview {
+  border-right: 1px solid var(--border);
+  background: linear-gradient(180deg, #f7f5ef, #ece8dd);
+}
+
+.system-ui-device {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(220px, 0.6fr);
+  grid-auto-rows: minmax(130px, auto);
+  gap: 12px;
+  margin-top: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fbfaf6;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+}
+
+.system-ui-region {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+  min-height: 120px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+}
+
+.system-ui-region:hover,
+.system-ui-region:focus-visible,
+.system-ui-region.is-selected {
+  border-color: var(--accent);
+  background: #fffefa;
+}
+
+.system-ui-region span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.system-ui-region strong,
+.system-ui-region small {
+  overflow-wrap: anywhere;
+}
+
+.system-ui-region small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.system-ui-region-hand,
+.system-ui-region-entry {
+  grid-row: span 2;
+}
+
+.system-ui-inspector {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  background: var(--surface-alt);
+  overflow: auto;
+}
+
 @media (max-width: 980px) {
   .editing-workspace-header,
   .editing-workspace-layout,
@@ -911,6 +1012,8 @@
   .object-canvas-stage-board,
   .project-state-layout,
   .project-state-consumer-columns,
+  .system-ui-layout,
+  .system-ui-device,
   .object-event-meta-grid {
     grid-template-columns: 1fr;
   }
@@ -932,5 +1035,10 @@
 
   .project-state-row {
     grid-template-columns: minmax(140px, 1fr) 56px 56px minmax(86px, 0.7fr);
+  }
+
+  .system-ui-live-preview {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
   }
 }

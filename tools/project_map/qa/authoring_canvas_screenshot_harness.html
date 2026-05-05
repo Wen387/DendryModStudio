@@ -79,6 +79,7 @@
         'content-node-drag': () => contentNodeDragScenario(),
         'content-create-branch': () => contentCreateBranchScenario(),
         'content-editor-overlay': () => contentEditorOverlayScenario(),
+        'system-ui-live-edit': () => systemUiLiveEditScenario(),
         'design-existing-event-canvas': () => openExisting('events', 'generic_intro', {generic_intro_body: 'The campaign office opens to a sharper morning.'}, 'Design existing Event Canvas'),
         'explore-existing-card-canvas': () => openExisting('cards', 'policy_card', {policy_card_body: 'The policy card body is edited from Explore context.'}, 'Explore existing Card Canvas'),
         'template-news': () => openTemplate('news', {'news.headline': 'Canvas headline'}, 'News Canvas'),
@@ -263,6 +264,15 @@
         await waitFor(() => win.document.querySelector('[data-object-authoring-canvas].is-editor-overlay'), 3000);
       }
 
+      async function systemUiLiveEditScenario() {
+        const win = frame.contentWindow;
+        await openTemplate('workspace_layout', {}, 'System UI live edit');
+        click(win, '[data-system-ui-region="deck"]');
+        await waitFor(() => win.document.querySelector('[data-object-canvas-field="layout.deckTitle"]'), 3000);
+        await applyValues(win, {'layout.deckTitle': 'Live Edited Policy Deck'});
+        await waitFor(() => collapse(win.document.querySelector('[data-system-ui-live-preview]') && win.document.querySelector('[data-system-ui-live-preview]').textContent).indexOf('Live Edited Policy Deck') >= 0, 3000);
+      }
+
       async function applyValues(win, values) {
         Object.keys(values || {}).forEach((key) => {
           const field = win.document.querySelector('[data-object-canvas-field="' + cssEscape(key) + '"]');
@@ -325,13 +335,17 @@
         const projectSurface = host && host.querySelector('[data-project-state-surface]');
         const projectBoard = host && host.querySelector('[data-project-state-board]');
         const projectInspector = host && host.querySelector('[data-project-state-inspector]');
+        const systemSurface = host && host.querySelector('[data-system-ui-preview-surface]');
+        const systemPreview = host && host.querySelector('[data-system-ui-live-preview]');
+        const systemInspector = host && host.querySelector('[data-system-ui-inspector]');
         const draftPanel = doc.querySelector('.draft-workspace-panel');
         const workspaceNav = doc.querySelector('[data-authoring-workspace-nav]');
         const activeGroup = doc.querySelector('[data-authoring-template-group].is-active');
         const visible = Boolean(host && canvas && isVisible(win, host) && isVisible(win, canvas));
         const hasProjectSurface = stage && projectSurface && projectBoard && projectInspector && isVisible(win, projectSurface) && isVisible(win, projectBoard) && isVisible(win, projectInspector);
-        const hasCoreSurface = hasProjectSurface || fieldCount >= 3 && preview && collapse(preview.textContent).length > 0 && title && collapse(title.textContent).length > 0;
-        const hasVisibleCanvasStage = hasProjectSurface || stage && graphCanvas && graphInspector && isVisible(win, stage) && isVisible(win, graphCanvas) && isVisible(win, graphInspector) && graphNodes >= 6;
+        const hasSystemSurface = stage && systemSurface && systemPreview && systemInspector && isVisible(win, systemSurface) && isVisible(win, systemPreview) && isVisible(win, systemInspector);
+        const hasCoreSurface = hasProjectSurface || hasSystemSurface || fieldCount >= 3 && preview && collapse(preview.textContent).length > 0 && title && collapse(title.textContent).length > 0;
+        const hasVisibleCanvasStage = hasProjectSurface || hasSystemSurface || stage && graphCanvas && graphInspector && isVisible(win, stage) && isVisible(win, graphCanvas) && isVisible(win, graphInspector) && graphNodes >= 6;
         const noLegacyPanelVisible = Array.from(doc.querySelectorAll('[data-create-template-panel]')).every((panel) => !isVisible(win, panel));
         const canvasBeforeChanges = !draftPanel || host.getBoundingClientRect().top <= draftPanel.getBoundingClientRect().top;
         const activeTemplate = win.ProjectMapObjectAuthoringCanvas && typeof win.ProjectMapObjectAuthoringCanvas.activeTemplate === 'function'
