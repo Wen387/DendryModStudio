@@ -26,6 +26,7 @@ const SYSTEM_UI_SCREEN_MODEL = path.join(ROOT, 'viewer', 'system_ui_screen_model
 const SYSTEM_UI_SCREEN_PREVIEW = path.join(ROOT, 'viewer', 'system_ui_screen_preview.js');
 const SYSTEM_UI_REGION_ROUTER = path.join(ROOT, 'viewer', 'system_ui_region_router.js');
 const SYSTEM_UI_PREVIEW_SURFACE = path.join(ROOT, 'viewer', 'system_ui_preview_surface.js');
+const OBJECT_CANVAS_VIEWPORT = path.join(ROOT, 'viewer', 'object_canvas_viewport.js');
 const AUTHORING_WORKSPACE_UI = path.join(ROOT, 'viewer', 'authoring_workspace_ui.js');
 const EDITING_CONTEXT_MODEL = path.join(ROOT, 'authoring', 'editing_context_model.js');
 const OBJECT_CANVAS_CONTENT_BODIES = path.join(ROOT, 'authoring', 'object_canvas_content_bodies.js');
@@ -102,6 +103,7 @@ const systemUiScreenModel = fs.readFileSync(SYSTEM_UI_SCREEN_MODEL, 'utf8');
 const systemUiScreenPreview = fs.readFileSync(SYSTEM_UI_SCREEN_PREVIEW, 'utf8');
 const systemUiRegionRouter = fs.readFileSync(SYSTEM_UI_REGION_ROUTER, 'utf8');
 const systemUiPreviewSurface = fs.readFileSync(SYSTEM_UI_PREVIEW_SURFACE, 'utf8');
+const objectCanvasViewport = fs.readFileSync(OBJECT_CANVAS_VIEWPORT, 'utf8');
 const authoringWorkspaceUi = fs.readFileSync(AUTHORING_WORKSPACE_UI, 'utf8');
 const objectAuthoringCanvasUi = fs.readFileSync(OBJECT_AUTHORING_CANVAS_UI, 'utf8');
 const entryUi = fs.readFileSync(ENTRY_UI, 'utf8');
@@ -172,6 +174,7 @@ assert(html.includes('system_ui_screen_model.js'), 'viewer should load System UI
 assert(html.includes('system_ui_screen_preview.js'), 'viewer should load System UI Screen preview');
 assert(html.includes('system_ui_region_router.js'), 'viewer should load System UI region router');
 assert(html.includes('system_ui_preview_surface.js'), 'viewer should load System UI Live Preview surface');
+assert(html.includes('object_canvas_viewport.js'), 'viewer should load Object Canvas viewport controls');
 assert(html.includes('authoring_workspace_ui.js'), 'viewer should load Authoring Workspace navigation UI');
 assert(html.includes('object_authoring_canvas_ui.js'), 'viewer should load Object Authoring Canvas UI');
 assert(authoringSurfaceRegistry.includes('ProjectMapAuthoringSurfaceRegistry'), 'Authoring Surface registry should expose a browser API');
@@ -196,6 +199,8 @@ assert(systemUiScreenPreview.includes('ProjectMapSystemUiScreenPreview'), 'Syste
 assert(systemUiScreenPreview.includes('data-system-screen-shell'), 'System UI Screen preview should render a shared shell');
 assert(systemUiRegionRouter.includes('ProjectMapSystemUiRegionRouter'), 'System UI region router should expose a browser API');
 assert(systemUiPreviewSurface.includes('ProjectMapSystemUiPreviewSurface'), 'System UI Preview surface should expose a browser API');
+assert(objectCanvasViewport.includes('ProjectMapObjectCanvasViewport'), 'Object Canvas viewport helper should expose a browser API');
+assert(objectCanvasViewport.includes('fitContentStoryboard'), 'Object Canvas viewport helper should fit the Storyboard canvas');
 assert(systemUiPreviewSurface.includes('data-system-screen-workspace'), 'System UI Preview surface should use the unified System Screen Workspace');
 assert(authoringWorkspaceUi.includes("key: 'content'"), 'Create mode should expose Content Authoring as a workspace');
 assert(authoringWorkspaceUi.includes("key: 'system_ui'"), 'Create mode should expose System UI Authoring as a workspace');

@@ -813,17 +813,11 @@
     render();
   }
 
-  function handleCanvasZoom(action) {
-    if (action === 'in') {
-      state.canvasZoom = Math.min(1.4, Number(state.canvasZoom || 1) + 0.1);
-    } else if (action === 'out') {
-      state.canvasZoom = Math.max(0.7, Number(state.canvasZoom || 1) - 0.1);
-    } else {
-      state.canvasZoom = 1;
-      state.canvasPanX = 0;
-      state.canvasPanY = 0;
+  function handleCanvasZoom(action, event) {
+    const viewport = global.ProjectMapObjectCanvasViewport;
+    if (viewport && typeof viewport.zoom === 'function') {
+      viewport.zoom(elements && elements.host, state, action, event);
     }
-    applyCanvasViewport();
   }
 
   function setCanvasPan(x, y, options) {
@@ -872,25 +866,9 @@
   }
 
   function applyCanvasViewport() {
-    if (!elements || !elements.host) {
-      return;
-    }
-    const scale = Math.max(0.7, Math.min(1.4, Number(state.canvasZoom || 1)));
-    state.canvasZoom = scale;
-    const transform = 'translate(' + Number(state.canvasPanX || 0) + 'px, ' + Number(state.canvasPanY || 0) + 'px) scale(' + scale.toFixed(3) + ')';
-    const board = elements.host.querySelector('[data-object-canvas-graph-board]');
-    const edges = elements.host.querySelector('[data-object-canvas-graph-edges]');
-    const label = elements.host.querySelector('[data-object-canvas-zoom-label]');
-    if (board) {
-      board.style.transform = transform;
-      board.style.transformOrigin = '0 0';
-    }
-    if (edges) {
-      edges.style.transform = transform;
-      edges.style.transformOrigin = '0 0';
-    }
-    if (label) {
-      label.textContent = Math.round(scale * 100) + '%';
+    const viewport = global.ProjectMapObjectCanvasViewport;
+    if (viewport && typeof viewport.apply === 'function') {
+      viewport.apply(elements && elements.host, state);
     }
   }
 

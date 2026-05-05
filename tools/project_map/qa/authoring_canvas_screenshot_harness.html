@@ -88,6 +88,7 @@
         'content-zoomed-out': () => contentZoomedOutScenario(),
         'content-zoomed-in-drag': () => contentZoomedInDragScenario(),
         'content-zoom-fit': () => contentZoomFitScenario(),
+        'content-wheel-zoom': () => contentWheelZoomScenario(),
         'system-ui-live-edit': () => systemUiLiveEditScenario(),
         'system-ui-game-info-header': () => systemUiGameInfoHeaderScenario(),
         'design-existing-event-canvas': () => openExisting('events', 'generic_intro', {generic_intro_body: 'The campaign office opens to a sharper morning.'}, 'Design existing Event Canvas'),
@@ -375,8 +376,28 @@
         await delay(180);
         const board = win.document.querySelector('[data-content-storyboard-board]');
         const label = collapse(win.document.querySelector('[data-object-canvas-zoom-label]').textContent);
-        if (!board || board.style.transform.indexOf('translate(0px, 0px)') < 0 || board.style.transform.indexOf('scale(1') < 0 || label !== '100%') {
+        const percent = Number(label.replace('%', ''));
+        if (!board || board.style.transform.indexOf('translate(') < 0 || board.style.transform.indexOf('scale(') < 0 || !(percent > 0 && percent <= 100)) {
           throw new Error('Fit did not restore useful Storyboard framing. transform=' + (board && board.style.transform) + ' label=' + label);
+        }
+      }
+
+      async function contentWheelZoomScenario() {
+        const win = frame.contentWindow;
+        await openTemplate('event', {'event.title': 'Wheel zoom 1929 Event', 'event.year': '1929'}, 'Storyboard wheel zoom');
+        const canvas = win.document.querySelector('[data-content-storyboard-canvas]');
+        const rect = canvas.getBoundingClientRect();
+        canvas.dispatchEvent(new win.WheelEvent('wheel', {
+          bubbles: true,
+          cancelable: true,
+          deltaY: -120,
+          clientX: rect.left + rect.width / 2,
+          clientY: rect.top + rect.height / 2
+        }));
+        await delay(180);
+        const label = collapse(win.document.querySelector('[data-object-canvas-zoom-label]').textContent);
+        if (label !== '110%') {
+          throw new Error('Mouse wheel zoom did not update the label to 110%. label=' + label);
         }
       }
 

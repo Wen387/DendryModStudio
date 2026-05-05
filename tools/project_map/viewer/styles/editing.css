@@ -632,6 +632,18 @@
   text-align: center;
 }
 
+.content-storyboard-floating-controls {
+  position: absolute;
+  right: 16px;
+  top: 16px;
+  z-index: 8;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: rgba(251, 250, 246, 0.94);
+  box-shadow: 0 8px 22px rgba(43, 36, 23, 0.12);
+}
+
 .content-storyboard-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(360px, 0.38fr);

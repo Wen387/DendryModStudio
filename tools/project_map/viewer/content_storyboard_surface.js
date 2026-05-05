@@ -26,10 +26,6 @@
       renderProfileBadge(storyboard.timeline && storyboard.timeline.profile),
       renderViewButton('timeline', storyboard.view === 'timeline', t('storyboard.timeline', 'Timeline')),
       renderViewButton('chain', storyboard.view === 'chain', t('storyboard.chain', 'Chain')),
-      '<span data-object-canvas-zoom-label="true">100%</span>',
-      '<button type="button" data-object-canvas-zoom="out" title="' + escapeAttr(t('objectCanvas.zoomOut', 'Zoom out')) + '">-</button>',
-      '<button type="button" data-object-canvas-zoom="in" title="' + escapeAttr(t('objectCanvas.zoomIn', 'Zoom in')) + '">+</button>',
-      '<button type="button" data-object-canvas-zoom="reset">' + escapeHtml(t('objectCanvas.fit', 'Fit')) + '</button>',
       '<button type="button" data-object-canvas-action="toggle_overlay">' + escapeHtml(t('objectCanvas.editorOverlay', 'Expand editor')) + '</button>',
       '</div>',
       '</header>'
@@ -60,6 +56,7 @@
     const height = Math.max(620, maxCards * 340 + 150);
     return [
       '<section class="content-storyboard-canvas" data-content-storyboard-canvas="true" data-storyboard-kind="timeline" style="--content-storyboard-width: ' + width + 'px; --content-storyboard-height: ' + height + 'px;">',
+      renderCanvasControls(),
       '<div class="content-storyboard-board" data-content-storyboard-board="true" data-object-canvas-graph-board="true">',
       lanes.map((lane, laneIndex) => renderTimelineLane(lane, laneIndex, laneWidth, laneGap, positions, storyboard)).join(''),
       renderUndatedLane(storyboard.timeline && storyboard.timeline.undated || [], lanes.length, laneWidth, laneGap, positions, storyboard),
@@ -107,10 +104,22 @@
     const height = Math.max(620, maxCards * 320 + 180);
     return [
       '<section class="content-storyboard-canvas" data-content-storyboard-canvas="true" data-storyboard-kind="chain" style="--content-storyboard-width: ' + width + 'px; --content-storyboard-height: ' + height + 'px;">',
+      renderCanvasControls(),
       '<div class="content-storyboard-board content-storyboard-chain-board" data-content-storyboard-board="true" data-object-canvas-graph-board="true">',
       levels.map((level, levelIndex) => renderChainLevel(level, levelIndex, columnWidth, positions, storyboard)).join(''),
       '</div>',
       '</section>'
+    ].join('');
+  }
+
+  function renderCanvasControls() {
+    return [
+      '<div class="content-storyboard-floating-controls object-canvas-zoom-controls" data-content-storyboard-floating-controls="true" aria-label="' + escapeAttr(t('objectCanvas.zoomAria', 'Canvas zoom')) + '">',
+      '<button type="button" data-object-canvas-zoom="out" title="' + escapeAttr(t('objectCanvas.zoomOut', 'Zoom out')) + '">-</button>',
+      '<span data-object-canvas-zoom-label="true">100%</span>',
+      '<button type="button" data-object-canvas-zoom="in" title="' + escapeAttr(t('objectCanvas.zoomIn', 'Zoom in')) + '">+</button>',
+      '<button type="button" data-object-canvas-zoom="reset" title="' + escapeAttr(t('objectCanvas.zoomReset', 'Reset')) + '">' + escapeHtml(t('objectCanvas.fit', 'Fit')) + '</button>',
+      '</div>'
     ].join('');
   }
 

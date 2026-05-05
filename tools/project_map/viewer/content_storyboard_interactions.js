@@ -15,7 +15,7 @@
         return;
       }
       const card = event.target.closest && event.target.closest('[data-content-storyboard-card]');
-      if (event.target.closest && event.target.closest('input, textarea, button, select, a')) {
+      if (event.target.closest && event.target.closest('input, textarea, button, select, a, [data-content-storyboard-floating-controls]')) {
         return;
       }
       const viewport = options.getViewport ? options.getViewport() : {x: 0, y: 0, zoom: 1};
@@ -107,12 +107,12 @@
     });
 
     canvas.addEventListener('wheel', (event) => {
-      if (!event.ctrlKey && !event.metaKey) {
+      if (event.target.closest && event.target.closest('input, textarea, button, select, a, [data-content-storyboard-floating-controls]')) {
         return;
       }
       event.preventDefault();
       if (options.onZoom) {
-        options.onZoom(event.deltaY < 0 ? 'in' : 'out');
+        options.onZoom(event.deltaY < 0 ? 'in' : 'out', event);
       }
     }, {passive: false});
   }
