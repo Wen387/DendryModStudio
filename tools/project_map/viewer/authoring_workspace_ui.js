@@ -57,6 +57,7 @@
     setWorkspace,
     setTemplate,
     workspaceForTemplate,
+    surfaceForTemplate,
     activeWorkspace: () => state.activeWorkspace,
     activeTemplate: () => state.activeTemplate
   };
@@ -119,7 +120,7 @@
     state.activeWorkspace = next;
     render();
     if (shouldOpenDefault && !(options && options.silent)) {
-      clickTemplate(DEFAULT_TEMPLATES[next] || 'event');
+      clickTemplate(defaultTemplateForWorkspace(next));
     }
   }
 
@@ -159,10 +160,10 @@
   function renderWorkspaceNav() {
     return [
       '<div class="authoring-workspace-switch" role="tablist" aria-label="Authoring workspace" data-i18n-aria-label="authoring.workspaceAria">',
-      WORKSPACE_ITEMS.map(renderWorkspaceButton).join(''),
+      workspaceItems().map(renderWorkspaceButton).join(''),
       '</div>',
       '<div class="authoring-template-palette" data-authoring-template-palette="true">',
-      WORKSPACE_ITEMS.map((workspace) => renderTemplateGroup(workspace.key)).join(''),
+      workspaceItems().map((workspace) => renderTemplateGroup(workspace.key)).join(''),
       '</div>'
     ].join('');
   }
@@ -174,10 +175,11 @@
 
   function renderTemplateGroup(workspace) {
     const active = workspace === 'content';
-    const item = WORKSPACE_ITEMS.find((candidate) => candidate.key === workspace) || WORKSPACE_ITEMS[0];
+    const items = workspaceItems();
+    const item = items.find((candidate) => candidate.key === workspace) || items[0];
     return [
       '<div class="template-switch authoring-template-group' + (active ? ' is-active' : '') + '" role="group" aria-label="' + item.fallback + '" data-i18n-aria-label="' + item.labelKey + '" data-authoring-template-group="' + workspace + '"' + (active ? '' : ' hidden') + '>',
-      (TEMPLATE_ITEMS[workspace] || []).map((template, index) => renderTemplateButton(template, active && index === 0)).join(''),
+      templateItemsForWorkspace(workspace).map((template, index) => renderTemplateButton(template, active && index === 0)).join(''),
       '</div>'
     ].join('');
   }
@@ -192,15 +194,58 @@
   }
 
   function workspaceForTemplate(template) {
+    const registry = registryApi();
+    if (registry && typeof registry.workspaceForTemplate === 'function') {
+      return registry.workspaceForTemplate(template);
+    }
     return TEMPLATE_WORKSPACES[normalizeTemplate(template)] || 'content';
   }
 
+  function surfaceForTemplate(template) {
+    const registry = registryApi();
+    return registry && typeof registry.surfaceForTemplate === 'function'
+      ? registry.surfaceForTemplate(template)
+      : null;
+  }
+
   function normalizeTemplate(template) {
+    const registry = registryApi();
+    if (registry && typeof registry.normalizeTemplate === 'function') {
+      return registry.normalizeTemplate(template);
+    }
     return String(template || '').trim();
   }
 
   function normalizeWorkspace(workspace) {
+    const registry = registryApi();
+    if (registry && typeof registry.normalizeWorkspace === 'function') {
+      return registry.normalizeWorkspace(workspace);
+    }
     const value = String(workspace || '').trim();
     return DEFAULT_TEMPLATES[value] ? value : 'content';
+  }
+
+  function defaultTemplateForWorkspace(workspace) {
+    const registry = registryApi();
+    if (registry && typeof registry.defaultTemplateForWorkspace === 'function') {
+      return registry.defaultTemplateForWorkspace(workspace);
+    }
+    return DEFAULT_TEMPLATES[workspace] || 'event';
+  }
+
+  function workspaceItems() {
+    const registry = registryApi();
+    return registry && typeof registry.workspaces === 'function' ? registry.workspaces() : WORKSPACE_ITEMS;
+  }
+
+  function templateItemsForWorkspace(workspace) {
+    const registry = registryApi();
+    return registry && typeof registry.templatesForWorkspace === 'function'
+      ? registry.templatesForWorkspace(workspace)
+      : TEMPLATE_ITEMS[workspace] || [];
+  }
+
+  function registryApi() {
+    return global.ProjectMapAuthoringSurfaceRegistry || null;
   }
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -38,6 +38,7 @@
     isActive: () => state.active,
     activeTemplate: () => state.mode === 'existing' ? 'existing' : state.template || 'event',
     activeWorkspace: () => state.workspace || workspaceForTemplate(state.template || 'event'),
+    activeSurface: () => surfaceForTemplate(state.mode === 'existing' ? 'existing' : state.template || 'event').key,
     selectCanvasNode,
     setProjectIndex
   };
@@ -253,9 +254,10 @@
       return;
     }
     const model = state.model || {};
+    const surface = surfaceForTemplate(state.mode === 'existing' ? 'existing' : state.template || model.template || 'event');
     elements.host.innerHTML = [
-      '<section class="object-canvas editing-workspace" data-object-authoring-canvas="true" data-editing-workspace="true" data-authoring-workspace="' + escapeAttr(state.workspace || 'content') + '">',
-      renderHeader(model),
+      '<section class="object-canvas editing-workspace" data-object-authoring-canvas="true" data-editing-workspace="true" data-authoring-workspace="' + escapeAttr(state.workspace || 'content') + '" data-authoring-surface="' + escapeAttr(surface.key || 'content_graph') + '">',
+      renderHeader(model, surface),
       model.ok ? renderCanvasStage(model) : '',
       model.ok ? renderBody(model) : renderUnavailable(model),
       '</section>'
@@ -264,16 +266,17 @@
     updateDynamicSurfaces();
   }
 
-  function renderHeader(model) {
+  function renderHeader(model, surface) {
     const source = model.source || {};
     const modeLabel = model.mode === 'existing'
       ? t('objectCanvas.mode.existing', 'Editing existing object')
       : t('objectCanvas.mode.newObject', 'Authoring object');
     const kindLabel = model.templateLabel || model.objectKind || state.template || 'event';
+    const surfaceLabel = surface && surfaceLabelFor(surface) || t('objectCanvas.eyebrow', 'Object Authoring Canvas');
     return [
       '<header class="object-canvas-header editing-workspace-header">',
       '<div>',
-      '<div class="template-eyebrow">' + escapeHtml(t('objectCanvas.eyebrow', 'Object Authoring Canvas')) + '</div>',
+      '<div class="template-eyebrow" data-authoring-surface-label="true">' + escapeHtml(surfaceLabel) + '</div>',
       '<h2>' + escapeHtml(model.title || t('objectCanvas.titleFallback', 'Author object')) + '</h2>',
       '<p>' + escapeHtml(t('objectCanvas.body', 'Design the object itself: keep context beside it, edit player-facing text directly, then review the exact change operations.')) + '</p>',
       '<div class="editing-status-line" data-object-canvas-status="true">' + escapeHtml(state.status || '') + '</div>',
@@ -955,10 +958,18 @@
   }
 
   function isCanvasTemplate(template) {
+    const registry = registryApi();
+    if (registry && typeof registry.isTemplateSupported === 'function') {
+      return registry.isTemplateSupported(template) && normalizeTemplate(template) !== 'existing';
+    }
     return Boolean(normalizeTemplate(template));
   }
 
   function normalizeTemplate(template) {
+    const registry = registryApi();
+    if (registry && typeof registry.normalizeTemplate === 'function') {
+      return registry.normalizeTemplate(template);
+    }
     const text = String(template || '').trim();
     const supported = {
       event: true,
@@ -976,6 +987,10 @@
   }
 
   function workspaceForTemplate(template) {
+    const registry = registryApi();
+    if (registry && typeof registry.workspaceForTemplate === 'function') {
+      return registry.workspaceForTemplate(template);
+    }
     const key = normalizeTemplate(template) || (template === 'existing' ? 'existing' : 'event');
     if (key === 'entry' || key === 'play_surface' || key === 'workspace_layout' || key === 'sidebar_status') {
       return 'system_ui';
@@ -984,6 +999,26 @@
       return 'project_state';
     }
     return 'content';
+  }
+
+  function surfaceForTemplate(template) {
+    const registry = registryApi();
+    if (registry && typeof registry.surfaceForTemplate === 'function') {
+      return registry.surfaceForTemplate(template);
+    }
+    return {key: 'content_graph', workspace: workspaceForTemplate(template), fallback: 'Content Graph', labelKey: 'authoring.surface.contentGraph'};
+  }
+
+  function surfaceLabelFor(surface) {
+    const registry = registryApi();
+    if (registry && typeof registry.surfaceLabel === 'function') {
+      return registry.surfaceLabel(surface, t);
+    }
+    return surface && surface.fallback || '';
+  }
+
+  function registryApi() {
+    return global.ProjectMapAuthoringSurfaceRegistry || null;
   }
 
   function statusForTemplate(template, meta) {
