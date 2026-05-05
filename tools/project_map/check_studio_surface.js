@@ -16,6 +16,7 @@ const AUTHORING_SURFACE_REGISTRY = path.join(ROOT, 'viewer', 'authoring_surface_
 const AUTHORING_SURFACE_GRAPHS = path.join(ROOT, 'viewer', 'authoring_surface_graphs.js');
 const AUTHORING_REFERENCE_INDEX = path.join(ROOT, 'viewer', 'authoring_reference_index.js');
 const CONTENT_GRAPH_INTERACTIONS = path.join(ROOT, 'viewer', 'content_graph_interactions.js');
+const PROJECT_STATE_SURFACE = path.join(ROOT, 'viewer', 'project_state_surface.js');
 const AUTHORING_WORKSPACE_UI = path.join(ROOT, 'viewer', 'authoring_workspace_ui.js');
 const EDITING_CONTEXT_MODEL = path.join(ROOT, 'authoring', 'editing_context_model.js');
 const OBJECT_CANVAS_CONTENT_BODIES = path.join(ROOT, 'authoring', 'object_canvas_content_bodies.js');
@@ -82,6 +83,7 @@ const authoringSurfaceRegistry = fs.readFileSync(AUTHORING_SURFACE_REGISTRY, 'ut
 const authoringSurfaceGraphs = fs.readFileSync(AUTHORING_SURFACE_GRAPHS, 'utf8');
 const authoringReferenceIndex = fs.readFileSync(AUTHORING_REFERENCE_INDEX, 'utf8');
 const contentGraphInteractions = fs.readFileSync(CONTENT_GRAPH_INTERACTIONS, 'utf8');
+const projectStateSurface = fs.readFileSync(PROJECT_STATE_SURFACE, 'utf8');
 const authoringWorkspaceUi = fs.readFileSync(AUTHORING_WORKSPACE_UI, 'utf8');
 const objectAuthoringCanvasUi = fs.readFileSync(OBJECT_AUTHORING_CANVAS_UI, 'utf8');
 const entryUi = fs.readFileSync(ENTRY_UI, 'utf8');
@@ -142,6 +144,7 @@ assert(html.includes('authoring_surface_registry.js'), 'viewer should load Autho
 assert(html.includes('authoring_surface_graphs.js'), 'viewer should load Authoring Surface graph builders');
 assert(html.includes('authoring_reference_index.js'), 'viewer should load Authoring Reference Index');
 assert(html.includes('content_graph_interactions.js'), 'viewer should load Content Graph interactions');
+assert(html.includes('project_state_surface.js'), 'viewer should load Project State Dependency Board surface');
 assert(html.includes('authoring_workspace_ui.js'), 'viewer should load Authoring Workspace navigation UI');
 assert(html.includes('object_authoring_canvas_ui.js'), 'viewer should load Object Authoring Canvas UI');
 assert(authoringSurfaceRegistry.includes('ProjectMapAuthoringSurfaceRegistry'), 'Authoring Surface registry should expose a browser API');
@@ -151,6 +154,7 @@ assert(authoringSurfaceRegistry.includes('project_state_board'), 'Authoring Surf
 assert(authoringSurfaceGraphs.includes('ProjectMapAuthoringSurfaceGraphs'), 'Authoring Surface graph builders should expose a browser API');
 assert(authoringReferenceIndex.includes('ProjectMapAuthoringReferenceIndex'), 'Authoring Reference Index should expose a browser API');
 assert(contentGraphInteractions.includes('ProjectMapContentGraphInteractions'), 'Content Graph interactions should expose a browser API');
+assert(projectStateSurface.includes('ProjectMapProjectStateSurface'), 'Project State surface should expose a browser API');
 assert(authoringWorkspaceUi.includes("key: 'content'"), 'Create mode should expose Content Authoring as a workspace');
 assert(authoringWorkspaceUi.includes("key: 'system_ui'"), 'Create mode should expose System UI Authoring as a workspace');
 assert(authoringWorkspaceUi.includes("key: 'project_state'"), 'Create mode should expose Project State as a workspace');

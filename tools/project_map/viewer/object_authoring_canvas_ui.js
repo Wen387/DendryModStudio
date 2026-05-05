@@ -315,6 +315,10 @@
   }
 
   function renderCanvasStage(model) {
+    const surface = surfaceForTemplate(state.mode === 'existing' ? 'existing' : state.template || model.template || 'event');
+    if (surface.key === 'project_state_board') {
+      return renderProjectStateStage(model);
+    }
     const graph = canvasGraphForModel(model);
     let selected = graph.nodes.find((node) => node.key === state.selectedCanvasNode);
     if (!selected) {
@@ -348,6 +352,13 @@
       '</div>',
       '</section>'
     ].join('');
+  }
+
+  function renderProjectStateStage(model) {
+    const surface = global.ProjectMapProjectStateSurface;
+    return surface && typeof surface.render === 'function'
+      ? surface.render(model, {projectIndex: state.projectIndex, selected: state.selectedCanvasNode})
+      : '';
   }
 
   function renderGraphNode(node, selected) {

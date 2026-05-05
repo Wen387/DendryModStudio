@@ -322,12 +322,16 @@
         const graphCanvas = host && host.querySelector('[data-object-canvas-graph-canvas]');
         const graphInspector = host && host.querySelector('[data-object-canvas-graph-inspector]');
         const graphNodes = host ? host.querySelectorAll('[data-object-canvas-graph-node]').length : 0;
+        const projectSurface = host && host.querySelector('[data-project-state-surface]');
+        const projectBoard = host && host.querySelector('[data-project-state-board]');
+        const projectInspector = host && host.querySelector('[data-project-state-inspector]');
         const draftPanel = doc.querySelector('.draft-workspace-panel');
         const workspaceNav = doc.querySelector('[data-authoring-workspace-nav]');
         const activeGroup = doc.querySelector('[data-authoring-template-group].is-active');
         const visible = Boolean(host && canvas && isVisible(win, host) && isVisible(win, canvas));
-        const hasCoreSurface = fieldCount >= 3 && preview && collapse(preview.textContent).length > 0 && title && collapse(title.textContent).length > 0;
-        const hasVisibleCanvasStage = stage && graphCanvas && graphInspector && isVisible(win, stage) && isVisible(win, graphCanvas) && isVisible(win, graphInspector) && graphNodes >= 6;
+        const hasProjectSurface = stage && projectSurface && projectBoard && projectInspector && isVisible(win, projectSurface) && isVisible(win, projectBoard) && isVisible(win, projectInspector);
+        const hasCoreSurface = hasProjectSurface || fieldCount >= 3 && preview && collapse(preview.textContent).length > 0 && title && collapse(title.textContent).length > 0;
+        const hasVisibleCanvasStage = hasProjectSurface || stage && graphCanvas && graphInspector && isVisible(win, stage) && isVisible(win, graphCanvas) && isVisible(win, graphInspector) && graphNodes >= 6;
         const noLegacyPanelVisible = Array.from(doc.querySelectorAll('[data-create-template-panel]')).every((panel) => !isVisible(win, panel));
         const canvasBeforeChanges = !draftPanel || host.getBoundingClientRect().top <= draftPanel.getBoundingClientRect().top;
         const activeTemplate = win.ProjectMapObjectAuthoringCanvas && typeof win.ProjectMapObjectAuthoringCanvas.activeTemplate === 'function'

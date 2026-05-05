@@ -798,6 +798,110 @@
   align-items: center;
 }
 
+.project-state-surface {
+  display: grid;
+  gap: 0;
+  padding: 0;
+}
+
+.project-state-layout {
+  display: grid;
+  grid-template-columns: minmax(420px, 1fr) minmax(360px, 0.62fr);
+  min-height: 560px;
+}
+
+.project-state-board,
+.project-state-inspector {
+  min-width: 0;
+  padding: 12px;
+}
+
+.project-state-board {
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.project-state-inspector {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  background: var(--surface-alt);
+  overflow: auto;
+}
+
+.project-state-table {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.project-state-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) 72px 72px minmax(100px, 0.8fr);
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: 7px;
+  background: var(--surface-alt);
+  color: var(--text);
+  text-align: left;
+}
+
+.project-state-row-head {
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.project-state-row.is-selected,
+.project-state-row:hover,
+.project-state-row:focus-visible {
+  border-color: var(--accent);
+  background: #fffefa;
+}
+
+.project-state-row strong,
+.project-state-row span,
+.project-state-row em {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.project-state-row em {
+  color: var(--muted);
+  font-style: normal;
+  font-size: 12px;
+}
+
+.project-state-consumer-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.project-state-ref-list {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.project-state-ref-list strong {
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.project-state-ref-list span {
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 980px) {
   .editing-workspace-header,
   .editing-workspace-layout,
@@ -805,6 +909,8 @@
   .object-canvas-graph-shell,
   .object-canvas-layout,
   .object-canvas-stage-board,
+  .project-state-layout,
+  .project-state-consumer-columns,
   .object-event-meta-grid {
     grid-template-columns: 1fr;
   }
@@ -817,5 +923,14 @@
 
   .object-canvas-graph-inspector {
     max-height: none;
+  }
+
+  .project-state-board {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .project-state-row {
+    grid-template-columns: minmax(140px, 1fr) 56px 56px minmax(86px, 0.7fr);
   }
 }
