@@ -436,6 +436,7 @@
     const change = model.changeState || {};
     const summary = change.operationSummary || {};
     const output = change.output || {};
+    const installPlan = change.installPlan || output.installPlan || parseJson(output.installPlanJson);
     return [
       '<section class="editing-summary" data-object-canvas-operation-summary="true">',
       '<h3>' + escapeHtml(t('objectCanvas.changeTitle', 'Change and safety')) + '</h3>',
@@ -450,8 +451,38 @@
       '<div class="preview-heading">' + escapeHtml(t('objectCanvas.preview', 'Player-facing preview')) + '</div>',
       '<pre class="code-preview" data-object-canvas-preview="true" data-editing-preview="true">' + escapeHtml(output.playerPreview || output.proposalText || output.previewText || output.sceneDry || '') + '</pre>',
       '</section>',
+      renderPlanPreview(installPlan),
       renderDiagnostics(change.diagnostics || []),
       renderActions(model)
+    ].join('');
+  }
+
+  function renderPlanPreview(plan) {
+    const operations = Array.isArray(plan && plan.operations) ? plan.operations : [];
+    return [
+      '<section class="editing-panel object-canvas-plan" data-object-canvas-review-plan="true">',
+      '<h3>' + escapeHtml(t('objectCanvas.planTitle', 'Modification plan')) + '</h3>',
+      operations.length
+        ? operations.slice(0, 6).map(renderPlanOperation).join('')
+        : '<p class="editing-empty">' + escapeHtml(t('objectCanvas.planEmpty', 'No install operations are available for review yet.')) + '</p>',
+      operations.length > 6 ? '<p class="editing-readonly-line">' + escapeHtml(t('objectCanvas.planMore', 'More operations are available in Review & Apply.')) + '</p>' : '',
+      '</section>'
+    ].join('');
+  }
+
+  function renderPlanOperation(operation) {
+    const op = operation && typeof operation === 'object' ? operation : {};
+    const title = op.description || op.id || op.type || t('objectCanvas.planOperation', 'Operation');
+    const meta = [
+      op.safety || '',
+      op.type || '',
+      op.path || op.targetPath || ''
+    ].filter(Boolean).join(' / ');
+    return [
+      '<article class="object-canvas-plan-row">',
+      '<strong>' + escapeHtml(title) + '</strong>',
+      meta ? '<span>' + escapeHtml(meta) + '</span>' : '',
+      '</article>'
     ].join('');
   }
 
@@ -582,6 +613,12 @@
     const summary = elements.host.querySelector('[data-object-canvas-operation-summary]');
     if (summary) {
       summary.outerHTML = renderChangePanel(state.model).split('<section class="editing-preview">')[0];
+    }
+    const plan = elements.host.querySelector('[data-object-canvas-review-plan]');
+    if (plan) {
+      const change = state.model.changeState || {};
+      const output = change.output || {};
+      plan.outerHTML = renderPlanPreview(change.installPlan || output.installPlan || parseJson(output.installPlanJson));
     }
     const status = elements.host.querySelector('[data-object-canvas-status]');
     if (status) {

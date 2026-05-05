@@ -153,6 +153,9 @@
   }
 
   function deactivate() {
+    if (!state.active) {
+      return;
+    }
     state.active = false;
     if (elements && elements.host) {
       elements.host.hidden = true;

@@ -413,6 +413,35 @@
   margin-top: 10px;
 }
 
+.object-canvas-plan {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.object-canvas-plan h3 {
+  margin: 0;
+}
+
+.object-canvas-plan-row {
+  display: grid;
+  gap: 3px;
+  padding: 9px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--surface-alt);
+}
+
+.object-canvas-plan-row strong,
+.object-canvas-plan-row span {
+  overflow-wrap: anywhere;
+}
+
+.object-canvas-plan-row span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .object-canvas-actions {
   align-items: center;
 }

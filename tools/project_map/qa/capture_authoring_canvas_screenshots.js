@@ -109,7 +109,35 @@ function capture(chrome, url, filePath) {
   if (stat.size < 10000) {
     throw new Error('Screenshot is unexpectedly small: ' + filePath + ' (' + stat.size + ' bytes)');
   }
+  verifyHarnessDom(chrome, url);
   return stat.size;
+}
+
+function verifyHarnessDom(chrome, url) {
+  const args = [
+    '--headless=new',
+    '--disable-gpu',
+    '--no-sandbox',
+    '--allow-file-access-from-files',
+    '--disable-dev-shm-usage',
+    '--virtual-time-budget=8000',
+    '--dump-dom',
+    url
+  ];
+  const result = spawnSync(chrome, args, {encoding: 'utf8', timeout: 30000});
+  if (result.error) {
+    throw result.error;
+  }
+  if (result.status !== 0) {
+    throw new Error('Chrome DOM verification failed for ' + url + '\n' + (result.stderr || result.stdout || ''));
+  }
+  const dom = String(result.stdout || '');
+  if (/<body\b[^>]*data-error="true"/.test(dom)) {
+    throw new Error('Screenshot harness reported an error for ' + url + '\n' + dom.slice(0, 2000));
+  }
+  if (!/<body\b[^>]*data-ready="true"/.test(dom)) {
+    throw new Error('Screenshot harness did not report ready for ' + url + '\n' + dom.slice(0, 2000));
+  }
 }
 
 async function main() {
