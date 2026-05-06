@@ -92,6 +92,9 @@ templates.forEach((template) => {
   assert(model.changeState.output.installPlan, template + ' should expose an install plan for Review & Apply');
   assert(model.contextBoard && Array.isArray(model.contextBoard.flow), template + ' should expose context board flow rows');
   assert(canvasModel.templateFromDraft(model.changeState.draft) === template, template + ' draft should round-trip to its Canvas template');
+  if (template === 'card') {
+    assert(model.changeState.draft.heading === 'Edited Card', 'Card Canvas should keep visible heading in sync when only the title changes');
+  }
   summary[template] = {
     title: model.eventBody.title.value,
     operations: model.changeState.operationSummary.total,

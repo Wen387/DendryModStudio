@@ -113,6 +113,20 @@
         'content-story-palette-reload-context': () => contentStoryPaletteReloadContextScenario(),
         'content-story-palette-review-context': () => contentStoryPaletteReviewContextScenario(),
         'content-story-palette-narrow': () => contentStoryPaletteNarrowScenario(),
+        'card-board-open': () => cardBoardOpenScenario(),
+        'card-board-lanes': () => cardBoardLanesScenario(),
+        'card-board-pool': () => cardBoardPoolScenario(),
+        'card-board-filter': () => cardBoardFilterScenario(),
+        'card-board-select-existing': () => cardBoardSelectExistingScenario(),
+        'card-board-edit-preview': () => cardBoardEditPreviewScenario(),
+        'card-board-create-deck': () => cardBoardCreateDeckScenario(),
+        'card-board-drop-deck': () => cardBoardDropDeckScenario(),
+        'card-board-create-advisor': () => cardBoardCreateAdvisorScenario(),
+        'card-board-unwired': () => cardBoardUnwiredScenario(),
+        'card-board-reload-context': () => cardBoardReloadContextScenario(),
+        'card-board-system-deeplink': () => cardBoardSystemDeepLinkScenario(),
+        'review-card-board': () => reviewCardBoardScenario(),
+        'card-board-narrow': () => cardBoardNarrowScenario(),
         'system-ui-live-edit': () => systemUiLiveEditScenario(),
         'system-ui-game-info-header': () => systemUiGameInfoHeaderScenario(),
         'system-ui-shared-screen': () => systemUiSharedScreenScenario(),
@@ -739,6 +753,141 @@
         }
       }
 
+      async function cardBoardOpenScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, cardBoardFixtureIndex());
+        await openTemplate('card', {'card.title': 'Canvas Action Card', 'card.intro': 'This card is edited on the board.'}, 'Card Board opens');
+        await waitFor(() => win.document.querySelector('[data-card-board-surface] [data-card-face-editor]'), 3000);
+      }
+
+      async function cardBoardLanesScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, cardBoardFixtureIndex());
+        await openExisting('cards', 'policy_card', {}, 'Card Board hand/deck/advisor lanes');
+        const required = ['hand', 'deck', 'advisor', 'pool'];
+        const missing = required.filter((key) => !win.document.querySelector('[data-card-board-lane="' + key + '"]'));
+        if (missing.length) {
+          throw new Error('Card Board missed lanes: ' + missing.join(', '));
+        }
+      }
+
+      async function cardBoardPoolScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, cardBoardFixtureIndex());
+        await openTemplate('card', {'card.title': 'Pool Draft Card'}, 'Card Board flat pool');
+        const cards = win.document.querySelectorAll('[data-card-board-lane="pool"] [data-card-board-card]').length;
+        if (cards < 3) {
+          throw new Error('Card Board pool did not show the full card pile. cards=' + cards);
+        }
+      }
+
+      async function cardBoardFilterScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, cardBoardFixtureIndex());
+        await openTemplate('card', {}, 'Card Board advisor filter');
+        click(win, '[data-card-board-type="advisor"]');
+        await waitFor(() => win.document.querySelector('[data-card-board-card="advisor:advisor_card"]'), 3000);
+        if (win.document.querySelector('[data-card-board-lane="pool"] [data-card-board-card="card:policy_card"]')) {
+          throw new Error('Advisor filter did not hide regular cards from the pool.');
+        }
+      }
+
+      async function cardBoardSelectExistingScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, cardBoardFixtureIndex());
+        await openTemplate('card', {}, 'Card Board select existing card');
+        click(win, '[data-card-board-card="card:policy_card"]');
+        await waitFor(() => collapse(win.document.querySelector('.object-canvas-header h2').textContent).includes('Policy Card'), 3000);
+      }
+
+      async function cardBoardEditPreviewScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, cardBoardFixtureIndex());
+        await openTemplate('card', {'card.title': 'Board Edited Card', 'card.intro': 'The board preview follows the card draft.'}, 'Card Board card face edit');
+        await waitFor(() => collapse(win.document.querySelector('[data-card-face-preview]').textContent).includes('Board Edited Card'), 3000);
+      }
+
+      async function cardBoardCreateDeckScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, cardBoardFixtureIndex());
+        await openTemplate('card', {}, 'Card Board create in deck');
+        click(win, '[data-card-board-lane="deck"] [data-card-board-create-lane]');
+        await waitFor(() => win.document.querySelector('[data-card-board-drop-context]'), 3000);
+      }
+
+      async function cardBoardDropDeckScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, cardBoardFixtureIndex());
+        await openTemplate('card', {'card.title': 'Dragged deck card'}, 'Card Board drag card to deck');
+        dragCardTo(win, '[data-card-board-card^="draft:card:"]', '[data-card-board-lane="deck"]');
+        await waitFor(() => win.document.querySelector('[data-card-board-drop-context]'), 3000);
+      }
+
+      async function cardBoardCreateAdvisorScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, cardBoardFixtureIndex());
+        await openTemplate('card', {}, 'Card Board create advisor');
+        click(win, '[data-card-board-lane="advisor"] [data-card-board-create-lane]');
+        await waitFor(() => win.document.querySelector('[data-card-board-drop-context]'), 3000);
+      }
+
+      async function cardBoardUnwiredScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, cardBoardFixtureIndex());
+        await openTemplate('card', {}, 'Card Board unwired cards');
+        click(win, '[data-card-board-type="unwired"]');
+        await waitFor(() => win.document.querySelector('[data-card-board-card="card:loose_card"]'), 3000);
+      }
+
+      async function cardBoardReloadContextScenario() {
+        const win = frame.contentWindow;
+        try {
+          win.localStorage.removeItem('dendry_mod_studio.draft_workspace.v0.1');
+        } catch (_err) {
+          // Ignore storage restrictions in screenshot mode.
+        }
+        seedCustomIndex(win, cardBoardFixtureIndex());
+        await openTemplate('card', {'card.title': 'Reloaded board card'}, 'Card Board reload context');
+        dragCardTo(win, '[data-card-board-card^="draft:card:"]', '[data-card-board-lane="deck"]');
+        await waitFor(() => win.document.querySelector('[data-card-board-drop-context]'), 3000);
+        click(win, '[data-object-canvas-action="save"]');
+        await delay(220);
+        click(win, '[data-draft-action="load"]');
+        await waitFor(() => win.document.querySelector('[data-card-board-drop-context]'), 3000);
+      }
+
+      async function cardBoardSystemDeepLinkScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, fixtureIndex());
+        await openTemplate('play_surface', {}, 'System UI to Card Board');
+        click(win, '[data-system-ui-region="action_card"]');
+        await waitFor(() => win.document.querySelector('[data-system-ui-card-board-handoff]'), 3000);
+        click(win, '[data-object-canvas-action="open_card_board"]');
+        await waitFor(() => win.document.querySelector('[data-card-board-surface]'), 3000);
+      }
+
+      async function reviewCardBoardScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, cardBoardFixtureIndex());
+        await openTemplate('card', {'card.title': 'Review Board Card', 'card.intro': 'Review keeps the card board proposal.'}, 'Review Card Board');
+        click(win, '[data-object-canvas-action="review"]');
+        await waitFor(() => isReviewVisible(win), 4000);
+      }
+
+      async function cardBoardNarrowScenario() {
+        frame.style.width = '430px';
+        frame.style.maxWidth = '430px';
+        await delay(120);
+        const win = frame.contentWindow;
+        seedCustomIndex(win, cardBoardFixtureIndex());
+        await openTemplate('card', {'card.title': 'Narrow Board Card'}, 'Card Board narrow');
+        const board = win.document.querySelector('[data-card-board-canvas]');
+        const editor = win.document.querySelector('[data-card-face-editor]');
+        if (!isVisible(win, board) || !isVisible(win, editor)) {
+          throw new Error('Narrow Card Board viewport lost board or editor.');
+        }
+      }
+
       async function systemUiLiveEditScenario() {
         const win = frame.contentWindow;
         await openTemplate('entry', {}, 'System UI live edit');
@@ -909,6 +1058,18 @@
         target.dispatchEvent(new win.DragEvent('drop', {bubbles: true, cancelable: true, dataTransfer: transfer}));
       }
 
+      function dragCardTo(win, itemSelector, targetSelector) {
+        const item = win.document.querySelector(itemSelector);
+        const target = win.document.querySelector(targetSelector);
+        if (!item || !target) {
+          throw new Error('Cannot drag Card Board item. item=' + itemSelector + ' target=' + targetSelector);
+        }
+        const transfer = new win.DataTransfer();
+        item.dispatchEvent(new win.DragEvent('dragstart', {bubbles: true, cancelable: true, dataTransfer: transfer}));
+        target.dispatchEvent(new win.DragEvent('dragover', {bubbles: true, cancelable: true, dataTransfer: transfer}));
+        target.dispatchEvent(new win.DragEvent('drop', {bubbles: true, cancelable: true, dataTransfer: transfer}));
+      }
+
       function dropRawPalettePayload(win, target, payload) {
         const transfer = new win.DataTransfer();
         transfer.setData('application/x-dms-story-palette', JSON.stringify(payload || {}));
@@ -969,6 +1130,10 @@
         const storyboardCanvas = host && host.querySelector('[data-content-storyboard-canvas]');
         const storyboardEditor = host && host.querySelector('[data-content-storyboard-editor]');
         const storyboardCards = host ? host.querySelectorAll('[data-content-storyboard-card]').length : 0;
+        const cardBoardSurface = host && host.querySelector('[data-card-board-surface]');
+        const cardBoardCanvas = host && host.querySelector('[data-card-board-canvas]');
+        const cardFaceEditor = host && host.querySelector('[data-card-face-editor]');
+        const cardBoardCards = host ? host.querySelectorAll('[data-card-board-card]').length : 0;
         const projectSurface = host && host.querySelector('[data-project-state-surface]');
         const projectBoard = host && host.querySelector('[data-project-state-board]');
         const projectInspector = host && host.querySelector('[data-project-state-inspector]');
@@ -983,8 +1148,9 @@
         const hasProjectSurface = stage && projectSurface && projectBoard && projectInspector && isVisible(win, projectSurface) && isVisible(win, projectBoard) && isVisible(win, projectInspector);
         const hasSystemSurface = stage && systemSurface && systemPreview && systemShell && systemInspector && isVisible(win, systemSurface) && isVisible(win, systemPreview) && isVisible(win, systemShell) && isVisible(win, systemInspector);
         const hasStoryboardSurface = stage && storyboardSurface && storyboardCanvas && storyboardEditor && storyboardCards >= 1 && isVisible(win, storyboardSurface) && isVisible(win, storyboardCanvas) && isVisible(win, storyboardEditor);
-        const hasCoreSurface = hasProjectSurface || hasSystemSurface || hasStoryboardSurface || fieldCount >= 3 && preview && collapse(preview.textContent).length > 0 && title && collapse(title.textContent).length > 0;
-        const hasVisibleCanvasStage = hasProjectSurface || hasSystemSurface || hasStoryboardSurface || stage && graphCanvas && graphInspector && isVisible(win, stage) && isVisible(win, graphCanvas) && isVisible(win, graphInspector) && graphNodes >= 6;
+        const hasCardBoardSurface = stage && cardBoardSurface && cardBoardCanvas && cardFaceEditor && cardBoardCards >= 1 && isVisible(win, cardBoardSurface) && isVisible(win, cardBoardCanvas) && isVisible(win, cardFaceEditor);
+        const hasCoreSurface = hasProjectSurface || hasSystemSurface || hasStoryboardSurface || hasCardBoardSurface || fieldCount >= 3 && preview && collapse(preview.textContent).length > 0 && title && collapse(title.textContent).length > 0;
+        const hasVisibleCanvasStage = hasProjectSurface || hasSystemSurface || hasStoryboardSurface || hasCardBoardSurface || stage && graphCanvas && graphInspector && isVisible(win, stage) && isVisible(win, graphCanvas) && isVisible(win, graphInspector) && graphNodes >= 6;
         const noLegacyPanelVisible = Array.from(doc.querySelectorAll('[data-create-template-panel]')).every((panel) => !isVisible(win, panel));
         const canvasBeforeChanges = !draftPanel || host.getBoundingClientRect().top <= draftPanel.getBoundingClientRect().top;
         const activeTemplate = win.ProjectMapObjectAuthoringCanvas && typeof win.ProjectMapObjectAuthoringCanvas.activeTemplate === 'function'
@@ -1156,6 +1322,75 @@
             }
           }
         };
+      }
+
+      function cardBoardFixtureIndex() {
+        const base = fixtureIndex();
+        const main = base.scenes.find((scene) => scene.id === 'main');
+        const policy = base.scenes.find((scene) => scene.id === 'policy_card');
+        const deckPath = 'source/scenes/decks/policy_deck.scene.dry';
+        const advisorPath = 'source/scenes/advisors/advisor_card.scene.dry';
+        const loosePath = 'source/scenes/cards/loose_card.scene.dry';
+        if (main) {
+          main.type = 'hand';
+          main.flags = {isCard: false, isHand: true, isDeck: false};
+          main.options = [
+            {id: '@policy_deck', target: {kind: 'scene', id: 'policy_deck'}, title: 'Draw policy card', sourceSpan: {path: main.path, line: 12}},
+            {id: '#advisor_tag', target: {kind: 'tag', id: 'advisor_tag'}, title: 'Ask board advisor', sourceSpan: {path: main.path, line: 13}}
+          ];
+        }
+        if (policy) {
+          policy.tags = ['policy'];
+          policy.options = [{id: 'use_policy', target: {kind: 'scene', id: 'root'}, title: 'Use policy card'}];
+        }
+        base.scenes = base.scenes.concat([
+          {
+            id: 'policy_deck',
+            title: 'Policy Deck',
+            path: deckPath,
+            type: 'deck',
+            flags: {isDeck: true, isCard: false},
+            options: [{id: '#policy', target: {kind: 'tag', id: 'policy'}, title: 'Draw policy cards', sourceSpan: {path: deckPath, line: 5}}],
+            sourceSpan: {path: deckPath, startLine: 1, endLine: 36}
+          },
+          {
+            id: 'advisor_card',
+            title: 'Board Advisor',
+            path: advisorPath,
+            type: 'pinned_card',
+            flags: {isPinnedCard: true, isCard: true},
+            tags: ['advisor_tag'],
+            options: [{id: 'advisor_help', target: {kind: 'scene', id: 'root'}, title: 'Take advice'}],
+            sourceSpan: {path: advisorPath, startLine: 1, endLine: 70}
+          },
+          {
+            id: 'loose_card',
+            title: 'Loose Card',
+            path: loosePath,
+            type: 'card',
+            flags: {isCard: true},
+            tags: ['loose'],
+            options: [{id: 'loose_return', target: {kind: 'scene', id: 'root'}, title: 'Leave it aside'}],
+            sourceSpan: {path: loosePath, startLine: 1, endLine: 70}
+          }
+        ]);
+        base.semantic.cards = [
+          {id: 'policy_card', title: 'Policy Card', path: 'source/scenes/cards/policy_card.scene.dry', tags: ['policy']},
+          {id: 'advisor_card', title: 'Board Advisor', path: advisorPath, tags: ['advisor_tag']},
+          {id: 'loose_card', title: 'Loose Card', path: loosePath, tags: ['loose']}
+        ];
+        base.semantic.decks = [{id: 'policy_deck', title: 'Policy Deck', path: deckPath}];
+        base.semantic.hands = [{id: 'main', title: 'Workspace Hand', path: 'source/scenes/main.scene.dry'}];
+        base.semantic.textCorpus.items = base.semantic.textCorpus.items.concat([
+          textItem('policy_deck_title', 'Policy Deck', 'title', 'policy_deck', deckPath, 1),
+          textItem('advisor_card_title', 'Board Advisor', 'title', 'advisor_card', advisorPath, 1),
+          textItem('advisor_card_body', 'The advisor card stays pinned beside the hand.', 'body', 'advisor_card', advisorPath, 8),
+          textItem('advisor_card_option', 'Take advice', 'option_label', 'advisor_card', advisorPath, 18, 'root'),
+          textItem('loose_card_title', 'Loose Card', 'title', 'loose_card', loosePath, 1),
+          textItem('loose_card_body', 'This card is intentionally not wired into a deck.', 'body', 'loose_card', loosePath, 8),
+          textItem('loose_card_option', 'Leave it aside', 'option_label', 'loose_card', loosePath, 18, 'root')
+        ]);
+        return base;
       }
 
       function turnTimelineFixtureIndex() {

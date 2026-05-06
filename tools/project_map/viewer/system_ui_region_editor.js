@@ -30,6 +30,7 @@
       '<dt>' + escapeHtml(t('systemUi.ownerSlot', 'Visible slot')) + '</dt><dd>' + escapeHtml(ownership.ownerSlot || region.ownerSlot || '') + '</dd>',
       '</dl>',
       renderRegionMirror(region),
+      renderCardBoardHandoff(region),
       '</section>'
     ].join('');
   }
@@ -42,6 +43,28 @@
       region.body ? '<small>' + escapeHtml(region.body) + '</small>' : '',
       '</div>'
     ].join('');
+  }
+
+  function renderCardBoardHandoff(region) {
+    const lane = cardBoardLaneForRegion(region && region.key);
+    if (!lane) {
+      return '';
+    }
+    return [
+      '<div class="system-ui-card-board-handoff" data-system-ui-card-board-handoff="true">',
+      '<p>' + escapeHtml(t('cardBoard.openFromSystemHelp', 'This UI object belongs to the card play area. Open Card Board to edit hand, deck, advisor, and card faces together.')) + '</p>',
+      '<button type="button" data-object-canvas-action="open_card_board" data-system-ui-region-key="' + escapeAttr(region.key || '') + '" data-system-ui-card-board-lane="' + escapeAttr(lane.key) + '" data-system-ui-card-board-lane-label="' + escapeAttr(t(lane.labelKey, lane.fallback)) + '">' + escapeHtml(t('cardBoard.openFromSystem', 'Open Card Board')) + '</button>',
+      '</div>'
+    ].join('');
+  }
+
+  function cardBoardLaneForRegion(key) {
+    return {
+      workspace_hand: {key: 'hand', labelKey: 'cardBoard.lane.hand', fallback: 'Hand'},
+      deck_lane: {key: 'deck', labelKey: 'cardBoard.lane.deck', fallback: 'Deck'},
+      action_card: {key: 'deck', labelKey: 'cardBoard.lane.deck', fallback: 'Deck'},
+      advisor_lane: {key: 'advisor', labelKey: 'cardBoard.lane.advisor', fallback: 'Advisor / pinned'}
+    }[String(key || '')] || null;
   }
 
   function renderRegionFields(selected) {

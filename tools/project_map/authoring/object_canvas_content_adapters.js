@@ -644,6 +644,8 @@
   function applyCardValues(baseDraft, values) {
     const draft = clone(baseDraft);
     const data = isObject(values) ? values : {};
+    const titleChanged = has(data, 'card.title');
+    const headingChanged = has(data, 'card.heading');
     setString(data, draft, 'card.id', 'id', safeId);
     setString(data, draft, 'card.title', 'title');
     setString(data, draft, 'card.heading', 'heading');
@@ -671,7 +673,9 @@
       }
       return next;
     });
-    if (!draft.heading) {
+    if (titleChanged && !headingChanged) {
+      draft.heading = draft.title;
+    } else if (!draft.heading) {
       draft.heading = draft.title;
     }
     return draft;

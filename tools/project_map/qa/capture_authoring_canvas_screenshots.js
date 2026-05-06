@@ -82,7 +82,21 @@ const DEFAULT_SCENARIOS = [
   ['70-story-palette-unsupported-drop', 'content-story-palette-unsupported-drop'],
   ['71-story-palette-reload-context', 'content-story-palette-reload-context'],
   ['72-story-palette-review-context', 'content-story-palette-review-context'],
-  ['73-story-palette-narrow', 'content-story-palette-narrow']
+  ['73-story-palette-narrow', 'content-story-palette-narrow'],
+  ['74-card-board-open', 'card-board-open'],
+  ['75-card-board-lanes', 'card-board-lanes'],
+  ['76-card-board-pool', 'card-board-pool'],
+  ['77-card-board-filter', 'card-board-filter'],
+  ['78-card-board-select-existing', 'card-board-select-existing'],
+  ['79-card-board-edit-preview', 'card-board-edit-preview'],
+  ['80-card-board-create-deck', 'card-board-create-deck'],
+  ['81-card-board-drop-deck', 'card-board-drop-deck'],
+  ['82-card-board-create-advisor', 'card-board-create-advisor'],
+  ['83-card-board-unwired', 'card-board-unwired'],
+  ['84-card-board-reload-context', 'card-board-reload-context'],
+  ['85-card-board-system-deeplink', 'card-board-system-deeplink'],
+  ['86-review-card-board', 'review-card-board'],
+  ['87-card-board-narrow', 'card-board-narrow']
 ];
 
 function parseArgs(argv) {
@@ -138,7 +152,7 @@ function ensureDir(dir) {
 }
 
 function capture(chrome, url, filePath, scenario) {
-  const windowSize = scenario === 'content-narrow' || scenario === 'content-story-palette-narrow' || scenario === 'system-ui-narrow' ? '430,1000' : '1440,1000';
+  const windowSize = scenario === 'content-narrow' || scenario === 'content-story-palette-narrow' || scenario === 'system-ui-narrow' || scenario === 'card-board-narrow' ? '430,1000' : '1440,1000';
   const args = [
     '--headless=new',
     '--disable-gpu',
