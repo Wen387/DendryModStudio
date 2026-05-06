@@ -1,6 +1,10 @@
 from .common import *
 from .text_corpus import stable_surface_id
 
+VARIABLE_TOKEN_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+VARIABLE_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
 def surface_area_for_path(rel: str) -> str:
     if rel.startswith("source/qdisplays/"):
         return "qdisplay"
@@ -45,8 +49,26 @@ def candidate_surface_files(root: Path) -> list[str]:
     return sorted(rels)
 
 
-def variable_near_line(line: str, variable_names: set[str]) -> str | None:
-    for name in sorted(variable_names, key=len, reverse=True):
+def prepare_variable_name_lookup(variable_names: set[str]) -> dict[str, tuple[str, ...]]:
+    names = {str(name) for name in variable_names if name}
+    ordered = sorted(names, key=lambda name: (-len(name), name))
+    return {
+        "simple": tuple(name for name in ordered if VARIABLE_NAME_RE.match(name)),
+        "complex": tuple(name for name in ordered if not VARIABLE_NAME_RE.match(name)),
+    }
+
+
+def variable_near_line(line: str, variable_lookup: dict[str, tuple[str, ...]] | set[str]) -> str | None:
+    lookup = (
+        variable_lookup
+        if isinstance(variable_lookup, dict)
+        else prepare_variable_name_lookup(variable_lookup)
+    )
+    tokens = set(VARIABLE_TOKEN_RE.findall(line))
+    for name in lookup.get("simple", ()):
+        if name in tokens:
+            return name
+    for name in lookup.get("complex", ()):
         if re.search(rf"\b{re.escape(name)}\b", line):
             return name
     return None
@@ -168,6 +190,7 @@ def extract_surface_text(root: Path, variables: list[dict[str, Any]]) -> dict[st
     seen: set[tuple[str, int, str]] = set()
     sources: list[str] = []
     variable_names = {str(variable.get("name", "")) for variable in variables if variable.get("name")}
+    variable_lookup = prepare_variable_name_lookup(variable_names)
     for rel in candidate_surface_files(root):
         path = root / rel
         sources.append(rel)
@@ -197,7 +220,7 @@ def extract_surface_text(root: Path, variables: list[dict[str, Any]]) -> dict[st
                     "reason": surface_reason_for_path(rel),
                     "originalText": line.strip() if include_prose and label == line.strip() else truncate_excerpt_line(line.strip()),
                 }
-                variable_name = variable_near_line(line, variable_names)
+                variable_name = variable_near_line(line, variable_lookup)
                 if variable_name:
                     item["variableName"] = variable_name
                 items.append(item)

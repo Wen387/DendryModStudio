@@ -365,6 +365,17 @@ def compile_regex(pattern: str) -> re.Pattern[str] | None:
     except re.error:
         return None
 
+
+SCRIPT_WRITE_RE = re.compile(
+    r"\bQ(?:\.[A-Za-z_][A-Za-z0-9_]*|\[\s*['\"][^'\"]+['\"]\s*\])\s*(?:[+\-*/%]?=|\+\+|--)"
+)
+
+SCRIPT_STATEMENT_RE = re.compile(
+    r"^(?:if\s*\(|else\b|for\s*\(|while\s*\(|switch\s*\(|case\s+|break\b|continue\b|return\b|"
+    r"var\s+|let\s+|const\s+|function\b|console\.|\}\s*(?:else\b)?|\{|\);?|\};?)"
+)
+
+
 def compact_visible_text(value: str) -> str:
     return re.sub(r"\s+", " ", value.strip())
 

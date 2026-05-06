@@ -704,19 +704,23 @@ async function buildProjectIndex(options) {
     windowsHide: true
   });
   if (result.status !== 0 || (result.error && result.status !== 0)) {
+    const error = friendlyError(result.error || result.stderr || ('exit ' + result.status));
+    const message = result.error && result.error.code === 'ENOENT'
+      ? pythonCheck.message
+      : ['Could not build the Project Map index.', error && error.message]
+        .filter(Boolean)
+        .join(' ');
     emitProgress(options, {
       stage: 'indexer',
       percent: 100,
-      label: 'Could not build the Project Map index.',
+      label: message,
       error: true
     });
     return {
       ok: false,
       stage: 'indexer',
-      error: friendlyError(result.error || result.stderr || ('exit ' + result.status)),
-      message: result.error && result.error.code === 'ENOENT'
-        ? pythonCheck.message
-        : 'Could not build the Project Map index.'
+      error,
+      message
     };
   }
 
