@@ -81,11 +81,12 @@
       'card-board-lane-' + safeClass(value.key),
       options && options.primary ? 'is-primary' : '',
       options && options.pool ? 'is-pool' : '',
-      options && options.compact ? 'is-compact' : ''
+      options && options.compact ? 'is-compact' : '',
+      value.selected ? 'is-selected' : ''
     ].filter(Boolean).join(' ');
     return [
       '<section class="' + classes + '" data-card-board-lane="' + escapeAttr(value.key) + '" data-card-board-drop-target="' + escapeAttr(value.key) + '" data-card-board-lane-label="' + escapeAttr(laneLabel) + '" data-card-board-lane-tag="' + escapeAttr(value.tag || '') + '">',
-      '<header>',
+      '<header tabindex="0" role="button" data-card-board-lane-select="' + escapeAttr(value.key) + '" aria-pressed="' + (value.selected ? 'true' : 'false') + '">',
       '<span>' + escapeHtml(laneLabel) + '</span>',
       '<strong>' + escapeHtml(String(value.totalCount || cards.length || 0)) + '</strong>',
       '</header>',
@@ -102,7 +103,7 @@
     return [
       '<div class="card-board-hand-routes">',
       entries.map((entry) => [
-        '<article class="card-board-hand-route" data-card-board-hand-route="' + escapeAttr(entry.key || '') + '">',
+        '<article class="card-board-hand-route' + (entry.selected ? ' is-selected' : '') + '" tabindex="0" role="button" data-card-board-hand-route="' + escapeAttr(entry.key || '') + '" data-card-board-hand-target-kind="' + escapeAttr(entry.targetKind || '') + '" data-card-board-hand-target-id="' + escapeAttr(entry.targetId || '') + '">',
         '<span>' + escapeHtml(typeLabel(entry.kind)) + '</span>',
         '<strong>' + escapeHtml(entry.title || '') + '</strong>',
         '<small>' + escapeHtml(entry.detail || '') + '</small>',
@@ -134,7 +135,11 @@
       card.subtitle ? '<small>' + escapeHtml(card.subtitle) + '</small>' : '',
       card.body ? '<p>' + escapeHtml(card.body) + '</p>' : '',
       '<div class="card-board-card-options">',
-      ensureArray(card.options).slice(0, 3).map((option) => '<span>' + escapeHtml(option.label || option.id || '') + '</span>').join(''),
+      ensureArray(card.options).slice(0, 3).map((option, index) => [
+        '<button type="button" class="' + (Number(card.selectedOptionIndex) === index ? 'is-selected' : '') + '" data-card-board-option="' + escapeAttr(card.key + ':' + index) + '" data-card-board-option-card="' + escapeAttr(card.key || '') + '" data-card-board-option-index="' + escapeAttr(String(option.index !== undefined ? option.index : index)) + '" data-card-board-option-id="' + escapeAttr(option.id || '') + '">',
+        escapeHtml(option.label || option.id || ''),
+        '</button>'
+      ].join('')).join(''),
       '</div>',
       '<div class="card-board-card-tags">',
       ensureArray(card.stateTags).slice(0, 3).map((tag) => '<b>' + escapeHtml(stateLabel(tag)) + '</b>').join(''),
@@ -144,7 +149,7 @@
   }
 
   function renderCreateButton(lane, label) {
-    return '<button type="button" class="card-board-create-in-lane" data-card-board-create-lane="' + escapeAttr(lane.key || '') + '" data-card-board-lane-tag="' + escapeAttr(lane.tag || '') + '">' + escapeHtml(t('cardBoard.createHere', 'New card here')) + '</button>';
+    return '<button type="button" class="card-board-create-in-lane" data-card-board-create-lane="' + escapeAttr(lane.key || '') + '" data-card-board-lane-label="' + escapeAttr(label || lane.key || '') + '" data-card-board-lane-tag="' + escapeAttr(lane.tag || '') + '">' + escapeHtml(t('cardBoard.createHere', 'New card here')) + '</button>';
   }
 
   function renderEditor(model, board) {

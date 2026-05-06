@@ -97,7 +97,12 @@ const DEFAULT_SCENARIOS = [
   ['85-card-board-system-deeplink', 'card-board-system-deeplink'],
   ['86-review-card-board', 'review-card-board'],
   ['87-card-board-narrow', 'card-board-narrow'],
-  ['88-card-board-template-switch', 'card-board-template-switch']
+  ['88-card-board-template-switch', 'card-board-template-switch'],
+  ['89-card-board-route-inspector', 'card-board-route-inspector'],
+  ['90-card-board-option-inspector', 'card-board-option-inspector'],
+  ['91-card-board-lane-inspector', 'card-board-lane-inspector'],
+  ['92-card-board-duplicate-draft', 'card-board-duplicate-draft'],
+  ['93-card-board-intent-action', 'card-board-intent-action']
 ];
 
 function parseArgs(argv) {

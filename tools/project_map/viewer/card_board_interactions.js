@@ -13,6 +13,8 @@
     bindFilters(host, callbacks);
     bindDrops(host, callbacks);
     bindCreate(host, callbacks);
+    bindObjectSelection(host, callbacks);
+    bindActions(host, callbacks);
   }
 
   function bindCards(host, callbacks) {
@@ -89,6 +91,86 @@
       button.dataset.cardBoardCreateBound = 'true';
       button.addEventListener('click', () => callbacks.onCreate && callbacks.onCreate(button));
     });
+  }
+
+  function bindObjectSelection(host, callbacks) {
+    host.querySelectorAll('[data-card-board-lane-select]').forEach((header) => {
+      if (header.dataset.cardBoardLaneSelectBound === 'true') {
+        return;
+      }
+      header.dataset.cardBoardLaneSelectBound = 'true';
+      const select = () => callbacks.onObjectSelect && callbacks.onObjectSelect({
+        kind: 'lane',
+        key: 'lane:' + (header.dataset.cardBoardLaneSelect || ''),
+        laneKey: header.dataset.cardBoardLaneSelect || ''
+      });
+      header.addEventListener('click', select);
+      header.addEventListener('keydown', (event) => runOnConfirmKey(event, select));
+    });
+    host.querySelectorAll('[data-card-board-hand-route]').forEach((route) => {
+      if (route.dataset.cardBoardHandRouteBound === 'true') {
+        return;
+      }
+      route.dataset.cardBoardHandRouteBound = 'true';
+      const select = () => callbacks.onObjectSelect && callbacks.onObjectSelect({
+        kind: 'route',
+        key: route.dataset.cardBoardHandRoute || '',
+        laneKey: 'hand'
+      });
+      route.addEventListener('click', select);
+      route.addEventListener('keydown', (event) => runOnConfirmKey(event, select));
+    });
+    host.querySelectorAll('[data-card-board-option]').forEach((option) => {
+      if (option.dataset.cardBoardOptionBound === 'true') {
+        return;
+      }
+      option.dataset.cardBoardOptionBound = 'true';
+      const select = () => callbacks.onObjectSelect && callbacks.onObjectSelect({
+        kind: 'option',
+        key: option.dataset.cardBoardOption || '',
+        cardKey: option.dataset.cardBoardOptionCard || '',
+        optionIndex: Number(option.dataset.cardBoardOptionIndex || 0),
+        optionId: option.dataset.cardBoardOptionId || ''
+      });
+      option.addEventListener('click', (event) => {
+        event.stopPropagation();
+        select();
+      });
+      option.addEventListener('keydown', (event) => {
+        event.stopPropagation();
+        runOnConfirmKey(event, select);
+      });
+    });
+    host.querySelectorAll('[data-card-board-intent]').forEach((intent) => {
+      if (intent.dataset.cardBoardIntentBound === 'true') {
+        return;
+      }
+      intent.dataset.cardBoardIntentBound = 'true';
+      const select = () => callbacks.onObjectSelect && callbacks.onObjectSelect({
+        kind: 'intent',
+        key: intent.dataset.cardBoardIntent || 'intent'
+      });
+      intent.addEventListener('click', select);
+      intent.addEventListener('keydown', (event) => runOnConfirmKey(event, select));
+    });
+  }
+
+  function bindActions(host, callbacks) {
+    host.querySelectorAll('[data-card-board-action]').forEach((button) => {
+      if (button.dataset.cardBoardActionBound === 'true') {
+        return;
+      }
+      button.dataset.cardBoardActionBound = 'true';
+      button.addEventListener('click', () => callbacks.onAction && callbacks.onAction(button.dataset.cardBoardAction || '', button));
+    });
+  }
+
+  function runOnConfirmKey(event, callback) {
+    if (event.key !== 'Enter' && event.key !== ' ') {
+      return;
+    }
+    event.preventDefault();
+    callback();
   }
 
   function hasCardPayload(event) {

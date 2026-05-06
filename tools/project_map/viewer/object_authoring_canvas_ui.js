@@ -177,7 +177,10 @@
     if (!isCanvasTemplate(template)) {
       return false;
     }
-    const currentTemplate = state.mode === 'existing' ? '' : normalizeTemplate(state.template) || '';
+    if (state.mode === 'existing') {
+      return false;
+    }
+    const currentTemplate = normalizeTemplate(state.template) || '';
     if (
       currentTemplate &&
       currentTemplate !== template &&
@@ -669,7 +672,7 @@
       systemUiWorkspace.bind(elements.host, {onFixture: setSystemUiFixture, onTemplate: switchSystemUiTemplate});
     }
     const cardWorkspace = cardWorkspaceApi();
-    if (cardWorkspace && typeof cardWorkspace.bind === 'function' && currentSurface().key === 'card_board') {
+    if (cardWorkspace && typeof cardWorkspace.bind === 'function' && elements.host.querySelector('[data-card-board-surface]')) {
       cardWorkspace.bind(elements.host, state, cardDeps());
     }
     const storyboardInteractions = global.ProjectMapContentStoryboardInteractions;
@@ -704,7 +707,7 @@
       return;
     }
     const cardWorkspace = cardWorkspaceApi();
-    if (cardWorkspace && typeof cardWorkspace.selectCard === 'function' && currentSurface().key === 'card_board' && cardWorkspace.selectCard(state, next, cardDeps())) {
+    if (cardWorkspace && typeof cardWorkspace.selectCard === 'function' && elements.host.querySelector('[data-card-board-surface]') && cardWorkspace.selectCard(state, next, cardDeps())) {
       return;
     }
     const storyboard = storyboardWorkspaceApi();

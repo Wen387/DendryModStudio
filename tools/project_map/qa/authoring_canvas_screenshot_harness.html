@@ -128,6 +128,11 @@
         'review-card-board': () => reviewCardBoardScenario(),
         'card-board-narrow': () => cardBoardNarrowScenario(),
         'card-board-template-switch': () => cardBoardTemplateSwitchScenario(),
+        'card-board-route-inspector': () => cardBoardRouteInspectorScenario(),
+        'card-board-option-inspector': () => cardBoardOptionInspectorScenario(),
+        'card-board-lane-inspector': () => cardBoardLaneInspectorScenario(),
+        'card-board-duplicate-draft': () => cardBoardDuplicateDraftScenario(),
+        'card-board-intent-action': () => cardBoardIntentActionScenario(),
         'system-ui-live-edit': () => systemUiLiveEditScenario(),
         'system-ui-game-info-header': () => systemUiGameInfoHeaderScenario(),
         'system-ui-shared-screen': () => systemUiSharedScreenScenario(),
@@ -823,7 +828,11 @@
         seedCustomIndex(win, cardBoardFixtureIndex());
         await openTemplate('card', {}, 'Card Board select existing card');
         click(win, '[data-card-board-card="card:policy_card"]');
-        await waitFor(() => collapse(win.document.querySelector('.object-canvas-header h2').textContent).includes('Policy Card'), 3000);
+        await waitFor(() => {
+          const active = win.ProjectMapObjectAuthoringCanvas && win.ProjectMapObjectAuthoringCanvas.activeTemplate && win.ProjectMapObjectAuthoringCanvas.activeTemplate();
+          const editorText = collapse(win.document.querySelector('[data-card-face-editor]') && win.document.querySelector('[data-card-face-editor]').textContent);
+          return active === 'existing' && editorText.includes('Policy Card');
+        }, 3000);
       }
 
       async function cardBoardEditPreviewScenario() {
@@ -925,6 +934,63 @@
         }
         await applyValues(win, {'card.title': 'Switched Card Board'});
         await waitFor(() => collapse(win.document.querySelector('[data-card-face-preview]') && win.document.querySelector('[data-card-face-preview]').textContent).includes('Switched Card Board'), 3000);
+      }
+
+      async function cardBoardRouteInspectorScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, cardBoardFixtureIndex());
+        await openTemplate('card', {}, 'Card Board route inspector');
+        click(win, '[data-card-board-hand-route]');
+        await waitFor(() => win.document.querySelector('[data-card-board-route-inspector]'), 3000);
+      }
+
+      async function cardBoardOptionInspectorScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, cardBoardFixtureIndex());
+        await openTemplate('card', {}, 'Card Board option inspector');
+        click(win, '[data-card-board-card="card:policy_card"]');
+        await waitFor(() => collapse(win.document.querySelector('[data-card-face-editor]') && win.document.querySelector('[data-card-face-editor]').textContent).includes('Policy Card'), 3000);
+        click(win, '[data-card-board-card="card:policy_card"] [data-card-board-option]');
+        await waitFor(() => {
+          const active = win.ProjectMapObjectAuthoringCanvas && win.ProjectMapObjectAuthoringCanvas.activeTemplate && win.ProjectMapObjectAuthoringCanvas.activeTemplate();
+          const inspector = win.document.querySelector('[data-card-board-option-inspector]');
+          const editorText = collapse(win.document.querySelector('[data-card-face-editor]') && win.document.querySelector('[data-card-face-editor]').textContent);
+          return active === 'existing' && inspector && editorText.includes('Use policy card');
+        }, 3000);
+      }
+
+      async function cardBoardLaneInspectorScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, cardBoardFixtureIndex());
+        await openTemplate('card', {}, 'Card Board lane inspector');
+        click(win, '[data-card-board-lane-select="deck"]');
+        await waitFor(() => win.document.querySelector('[data-card-board-lane-inspector]'), 3000);
+      }
+
+      async function cardBoardDuplicateDraftScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, cardBoardFixtureIndex());
+        await openTemplate('card', {}, 'Card Board duplicate draft');
+        click(win, '[data-card-board-card="card:policy_card"]');
+        await waitFor(() => win.document.querySelector('[data-card-board-action="duplicate_card"]'), 3000);
+        click(win, '[data-card-board-action="duplicate_card"]');
+        await waitFor(() => {
+          const active = win.ProjectMapObjectAuthoringCanvas && win.ProjectMapObjectAuthoringCanvas.activeTemplate && win.ProjectMapObjectAuthoringCanvas.activeTemplate();
+          return active === 'card' && win.document.querySelector('[data-card-board-card^="draft:card:policy_card_draft"]') && win.document.querySelector('[data-card-face-fields]');
+        }, 3000);
+      }
+
+      async function cardBoardIntentActionScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, cardBoardFixtureIndex());
+        await openTemplate('card', {}, 'Card Board lane intent action');
+        click(win, '[data-card-board-card="card:policy_card"]');
+        await waitFor(() => win.document.querySelector('[data-card-board-action="add_to_deck"]'), 3000);
+        click(win, '[data-card-board-action="add_to_deck"]');
+        await waitFor(() => {
+          const inspector = win.document.querySelector('[data-card-board-intent-inspector]');
+          return inspector && collapse(inspector.textContent).includes('Policy Card') && win.document.querySelector('[data-card-board-drop-context]');
+        }, 3000);
       }
 
       function cardBoardIsActive(win) {

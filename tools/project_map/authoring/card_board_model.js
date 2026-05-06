@@ -13,7 +13,13 @@
     const selectedKey = selectedCardKey(filteredCards, cards, model, opts);
     const selected = cardByKey(cards, selectedKey) || filteredCards[0] || cards[0] || null;
     const selectedLane = laneForSelected(lanes, selected, opts);
-    const laneList = decorateLanes(lanes, filteredCards, Object.assign({}, opts, {selectedKey: selected && selected.key || ''}));
+    const dropContext = normalizeDropContext(opts.cardBoardDropContext);
+    const selection = normalizeSelection(opts.cardBoardSelection, selected, selectedLane, dropContext);
+    const laneList = decorateLanes(lanes, filteredCards, Object.assign({}, opts, {
+      selectedKey: selected && selected.key || '',
+      selection
+    }));
+    const selectedObject = selectedObjectFor(selection, laneList, cards, dropContext, model);
     return {
       schemaVersion: '0.1',
       kind: 'card_board_model',
@@ -22,6 +28,8 @@
       selectedKey: selected && selected.key || '',
       selectedLane,
       selected,
+      selection,
+      selectedObject,
       labels: advisorLabels(index),
       lanes: laneList,
       metrics: {
@@ -31,7 +39,7 @@
         unwiredCount: cards.filter((card) => card.laneKeys.length === 0).length,
         draftCount: cards.filter((card) => card.stateTags.includes('draft')).length
       },
-      dropContext: normalizeDropContext(opts.cardBoardDropContext)
+      dropContext
     };
   }
 
@@ -58,7 +66,9 @@
     const options = ensureArray(scene.options).map((option, index) => ({
       id: String(option && option.target && option.target.id || option && option.id || 'option_' + (index + 1)),
       label: String(option && (option.title || option.label) || text.optionLabels[index] || 'Choice ' + (index + 1)),
-      targetId: String(option && option.target && option.target.id || '')
+      targetId: String(option && option.target && option.target.id || ''),
+      index,
+      source: sourceRef(option && option.sourceSpan || {})
     }));
     return {
       key: kind + ':' + scene.id,
@@ -99,7 +109,9 @@
       options: ensureArray(draft.options).map((option, index) => ({
         id: String(option && option.id || 'option_' + (index + 1)),
         label: String(option && (option.label || option.title) || 'Choice ' + (index + 1)),
-        targetId: String(option && option.gotoAfter || '')
+        targetId: String(option && option.gotoAfter || ''),
+        index,
+        source: {path: 'draft workspace'}
       })),
       tags: ensureArray(draft.tags).map(String).filter(Boolean),
       source: {path: 'draft workspace'},
@@ -155,6 +167,8 @@
           kind: target.kind === 'scene' && linkedScene && linkedScene.type === 'deck' ? 'deck' : matchedCards[0] && matchedCards[0].kind || 'route',
           title: option && option.title || linkedScene && linkedScene.title || target.id || 'Hand route',
           detail: target.kind === 'tag' ? '#' + target.id : '@' + target.id,
+          targetKind: String(target.kind || ''),
+          targetId: String(target.id || ''),
           source: sourceRef(option && option.sourceSpan || hand.sourceSpan || hand.source || {}),
           linkedCardKeys: matchedCards.map((card) => card.key)
         });
@@ -183,11 +197,19 @@
 
   function decorateLanes(lanes, filteredCards, opts) {
     const visible = new Set(filteredCards.map((card) => card.key));
+    const selection = opts.selection || {};
     return lanes.map((laneValue) => {
       const allCards = ensureArray(laneValue.cards || laneValue.entries);
-      const cards = laneValue.key === 'hand' ? allCards : allCards.filter((card) => visible.has(card.key)).map((card) => Object.assign({}, card, {selected: card.key === opts.selectedKey}));
+      const cards = laneValue.key === 'hand'
+        ? allCards.map((entry) => Object.assign({}, entry, {selected: selection.kind === 'route' && selection.key === entry.key}))
+        : allCards.filter((card) => visible.has(card.key)).map((card) => Object.assign({}, card, {
+          selected: card.key === opts.selectedKey,
+          selectedOptionIndex: selection.kind === 'option' && selection.cardKey === card.key ? Number(selection.optionIndex) : -1
+        }));
       return Object.assign({}, laneValue, {
-        selected: String(opts.cardBoardLane || '') === laneValue.key,
+        selected: selection.kind === 'lane'
+          ? selection.laneKey === laneValue.key
+          : String(opts.cardBoardLane || '') === laneValue.key,
         totalCount: allCards.length,
         cards
       });
@@ -351,6 +373,159 @@
       laneTag: String(ctx.laneTag || ''),
       action: String(ctx.action || '')
     };
+  }
+
+  function normalizeSelection(value, selected, selectedLane, dropContext) {
+    const raw = isObject(value) ? value : {};
+    const kind = String(raw.kind || '').trim();
+    if (kind === 'option') {
+      const cardKey = String(raw.cardKey || selected && selected.key || '');
+      return {
+        kind: 'option',
+        key: String(raw.key || 'option:' + cardKey + ':' + Number(raw.optionIndex || 0)),
+        cardKey,
+        optionIndex: Number(raw.optionIndex || 0),
+        optionId: String(raw.optionId || ''),
+        laneKey: String(raw.laneKey || selectedLane || 'pool')
+      };
+    }
+    if (kind === 'route') {
+      return {
+        kind: 'route',
+        key: String(raw.key || ''),
+        laneKey: 'hand'
+      };
+    }
+    if (kind === 'lane') {
+      const laneKey = String(raw.laneKey || selectedLane || 'pool');
+      return {
+        kind: 'lane',
+        key: 'lane:' + laneKey,
+        laneKey
+      };
+    }
+    if (kind === 'card') {
+      return {
+        kind: 'card',
+        key: String(raw.key || selected && selected.key || ''),
+        cardKey: String(raw.cardKey || raw.key || selected && selected.key || ''),
+        laneKey: String(raw.laneKey || selectedLane || 'pool')
+      };
+    }
+    if (kind === 'intent' || (!kind && (dropContext.itemKey || dropContext.laneKey))) {
+      return {
+        kind: 'intent',
+        key: 'intent:' + (dropContext.itemKey || '') + ':' + (dropContext.laneKey || ''),
+        cardKey: String(dropContext.itemKey || selected && selected.key || ''),
+        laneKey: String(dropContext.laneKey || selectedLane || 'pool')
+      };
+    }
+    return {
+      kind: 'card',
+      key: String(raw.key || selected && selected.key || ''),
+      cardKey: String(raw.cardKey || raw.key || selected && selected.key || ''),
+      laneKey: String(raw.laneKey || selectedLane || 'pool')
+    };
+  }
+
+  function selectedObjectFor(selection, lanes, cards, dropContext, model) {
+    const value = selection || {};
+    if (value.kind === 'option') {
+      const card = cardByKey(cards, value.cardKey);
+      const option = optionForSelection(card, value);
+      return {
+        kind: 'option',
+        key: value.key,
+        title: option && (option.label || option.id) || 'Option',
+        card,
+        option,
+        optionIndex: option ? option.index : Number(value.optionIndex || 0),
+        laneKey: value.laneKey || laneForCard(card),
+        editability: editabilityForCard(card, model)
+      };
+    }
+    if (value.kind === 'route') {
+      const route = routeByKey(lanes, value.key);
+      return {
+        kind: 'route',
+        key: value.key,
+        title: route && route.title || 'Hand route',
+        route,
+        laneKey: 'hand',
+        editability: {editable: false, reason: 'route_intent'}
+      };
+    }
+    if (value.kind === 'lane') {
+      const laneValue = laneByKey(lanes, value.laneKey);
+      return {
+        kind: 'lane',
+        key: value.key,
+        title: laneValue && (laneValue.fallback || laneValue.key) || value.laneKey,
+        lane: laneValue,
+        laneKey: value.laneKey,
+        editability: {editable: true, reason: 'lane_intent'}
+      };
+    }
+    if (value.kind === 'intent') {
+      const card = cardByKey(cards, value.cardKey || dropContext.itemKey);
+      return {
+        kind: 'intent',
+        key: value.key,
+        title: [dropContext.itemTitle || dropContext.itemKey, dropContext.laneLabel || dropContext.laneKey].filter(Boolean).join(' -> '),
+        intent: dropContext,
+        card,
+        laneKey: value.laneKey,
+        editability: {editable: false, reason: 'manual_review'}
+      };
+    }
+    const card = cardByKey(cards, value.cardKey || value.key);
+    return {
+      kind: 'card',
+      key: card && card.key || value.key || '',
+      title: card && (card.title || card.heading) || '',
+      card,
+      laneKey: value.laneKey || laneForCard(card),
+      editability: editabilityForCard(card, model)
+    };
+  }
+
+  function optionForSelection(card, selection) {
+    const options = ensureArray(card && card.options);
+    const optionId = String(selection && selection.optionId || '');
+    if (optionId) {
+      const found = options.find((option) => String(option.id || '') === optionId);
+      if (found) {
+        return found;
+      }
+    }
+    return options[Number(selection && selection.optionIndex || 0)] || null;
+  }
+
+  function routeByKey(lanes, key) {
+    const hand = laneByKey(lanes, 'hand');
+    return ensureArray(hand && hand.cards).find((route) => route.key === String(key || '')) || null;
+  }
+
+  function laneByKey(lanes, key) {
+    return ensureArray(lanes).find((laneValue) => laneValue.key === String(key || '')) || null;
+  }
+
+  function laneForCard(card) {
+    const laneKeys = ensureArray(card && card.laneKeys).filter((key) => key !== 'pool');
+    return laneKeys[0] || 'pool';
+  }
+
+  function editabilityForCard(card, model) {
+    if (!card) {
+      return {editable: false, reason: 'missing'};
+    }
+    if (ensureArray(card.stateTags).includes('draft')) {
+      return {editable: true, reason: 'draft'};
+    }
+    if (model && model.mode === 'existing' && String(model.objectId || '') === String(card.id || '')) {
+      return {editable: true, reason: 'source_proposal'};
+    }
+    return {editable: false, reason: 'open_source_card'};
   }
 
   function normalizeType(value) {

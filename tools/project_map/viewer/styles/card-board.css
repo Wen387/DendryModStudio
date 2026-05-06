@@ -88,6 +88,8 @@
 
 .card-board-type-filters button,
 .card-board-create-in-lane,
+.card-board-card-options button,
+.card-board-object-actions button,
 .system-ui-card-board-handoff button {
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -100,6 +102,8 @@
 
 .card-board-type-filters button.is-active,
 .card-board-create-in-lane,
+.card-board-card-options button.is-selected,
+.card-board-object-actions button:hover,
 .system-ui-card-board-handoff button {
   border-color: var(--studio-accent);
   background: color-mix(in srgb, var(--studio-accent) 11%, var(--surface));
@@ -145,6 +149,11 @@
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--studio-accent) 25%, transparent);
 }
 
+.card-board-lane.is-selected {
+  border-color: var(--studio-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--studio-accent) 18%, transparent);
+}
+
 .card-board-lane > header {
   display: flex;
   align-items: center;
@@ -156,10 +165,19 @@
   color: var(--muted);
   text-transform: uppercase;
   font-size: 12px;
+  cursor: pointer;
 }
 
 .card-board-lane > header strong {
   color: var(--text);
+}
+
+.card-board-lane > header:focus-visible,
+.card-board-card:focus-visible,
+.card-board-hand-route:focus-visible,
+.card-board-drop-context:focus-visible {
+  outline: 2px solid var(--studio-accent);
+  outline-offset: 2px;
 }
 
 .card-board-card-list,
@@ -190,11 +208,16 @@
   cursor: grab;
 }
 
+.card-board-hand-route {
+  cursor: pointer;
+}
+
 .card-board-card:active {
   cursor: grabbing;
 }
 
-.card-board-card.is-selected {
+.card-board-card.is-selected,
+.card-board-hand-route.is-selected {
   border-color: var(--studio-accent);
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--studio-accent) 20%, transparent);
 }
@@ -231,7 +254,7 @@
   line-height: 1.45;
 }
 
-.card-board-card-options span,
+.card-board-card-options button,
 .card-board-card-tags b,
 .card-face-options span {
   display: inline-flex;
@@ -243,6 +266,17 @@
   padding: 2px 8px;
   color: var(--muted);
   font-size: 11px;
+}
+
+.card-board-card-options button {
+  min-height: 24px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.card-face-options span.is-selected {
+  background: color-mix(in srgb, var(--studio-accent) 16%, var(--surface));
+  color: var(--studio-accent-strong);
 }
 
 .card-board-card-options {
@@ -278,6 +312,7 @@
 .card-face-readonly,
 .card-board-drop-context,
 .card-face-change-summary,
+.card-board-object-actions,
 .system-ui-card-board-handoff {
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -287,7 +322,9 @@
 
 .card-face-editor-header span,
 .card-face-change-summary span,
-.card-board-drop-context span {
+.card-board-drop-context span,
+.card-board-inspector-facts span,
+.card-face-readonly > span {
   display: block;
   margin-bottom: 5px;
   color: var(--muted);
@@ -309,6 +346,23 @@
 .card-face-fields {
   display: grid;
   gap: 12px;
+}
+
+.card-board-inspector-facts {
+  display: grid;
+  gap: 8px;
+}
+
+.card-board-inspector-facts > div {
+  display: grid;
+  grid-template-columns: minmax(96px, 0.36fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+.card-board-inspector-facts strong {
+  overflow-wrap: anywhere;
+  font-weight: 500;
 }
 
 .card-face-title-input {
@@ -336,6 +390,25 @@
 .card-board-drop-context strong {
   display: block;
   overflow-wrap: anywhere;
+}
+
+.card-board-drop-context {
+  cursor: pointer;
+}
+
+.card-board-object-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.card-board-object-actions button {
+  min-height: 34px;
+}
+
+.card-face-readonly-note {
+  color: var(--muted);
+  line-height: 1.45;
 }
 
 .system-ui-card-board-handoff {

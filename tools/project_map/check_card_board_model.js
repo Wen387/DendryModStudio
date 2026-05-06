@@ -95,6 +95,31 @@ assert(cardKeys(lane(searched, 'pool')).includes('card:demo_action_card'), 'Sear
 const existingBoard = cardBoardModel.buildBoard(index, existingCardModel, {cardBoardSelectedKey: 'card:demo_action_card'});
 assert(existingBoard.selected && existingBoard.selected.id === 'demo_action_card', 'Existing source-backed card should be selectable');
 
+const optionBoard = cardBoardModel.buildBoard(index, existingCardModel, {
+  cardBoardSelectedKey: 'card:demo_action_card',
+  cardBoardSelection: {kind: 'option', cardKey: 'card:demo_action_card', optionIndex: 0}
+});
+assert(optionBoard.selectedObject && optionBoard.selectedObject.kind === 'option', 'Card Board should expose selected option objects');
+assert(optionBoard.selectedObject.option && optionBoard.selectedObject.option.label === 'Spend resources', 'Selected option should retain its card choice label');
+
+const routeKey = lane(board, 'hand').cards[0] && lane(board, 'hand').cards[0].key;
+const routeBoard = cardBoardModel.buildBoard(index, draftModel, {
+  cardBoardSelection: {kind: 'route', key: routeKey}
+});
+assert(routeBoard.selectedObject && routeBoard.selectedObject.kind === 'route', 'Card Board should expose selected hand route objects');
+
+const laneBoard = cardBoardModel.buildBoard(index, draftModel, {
+  cardBoardSelection: {kind: 'lane', laneKey: 'deck'}
+});
+assert(laneBoard.selectedObject && laneBoard.selectedObject.kind === 'lane', 'Card Board should expose selected lane objects');
+assert(lane(laneBoard, 'deck').selected, 'Selected lane should be marked for rendering');
+
+const intentBoard = cardBoardModel.buildBoard(index, draftModel, {
+  cardBoardDropContext: {itemKey: 'draft:card:new_action_card', itemTitle: 'New Action Card', laneKey: 'deck', laneLabel: 'Deck', action: 'move'},
+  cardBoardSelection: {kind: 'intent'}
+});
+assert(intentBoard.selectedObject && intentBoard.selectedObject.kind === 'intent', 'Card Board should expose selected board intents');
+
 const html = cardBoardSurface.render(draftModel, {projectIndex: index, cardBoardSelectedKey: 'draft:card:new_action_card'});
 assert(html.includes('data-card-board-surface="true"'), 'Card Board surface should expose a stable QA marker');
 assert(html.includes('data-card-board-canvas="true"'), 'Card Board surface should render a visual board canvas');
@@ -102,6 +127,27 @@ assert(html.includes('data-card-board-lane="deck"'), 'Card Board surface should 
 assert(html.includes('data-card-board-lane="advisor"'), 'Card Board surface should render the advisor lane');
 assert(html.includes('data-card-face-editor="true"'), 'Card Board surface should render the card face editor');
 assert(html.includes('data-card-board-create-lane="deck"'), 'Card Board should offer lane-aware card creation');
+assert(html.includes('data-card-board-option-card="draft:card:new_action_card"'), 'Card Board cards should expose clickable card options');
+assert(html.includes('data-card-board-lane-select="deck"'), 'Card Board lanes should expose selectable lane headers');
+
+const optionHtml = cardBoardSurface.render(existingCardModel, {
+  projectIndex: index,
+  cardBoardSelectedKey: 'card:demo_action_card',
+  cardBoardSelection: {kind: 'option', cardKey: 'card:demo_action_card', optionIndex: 0}
+});
+assert(optionHtml.includes('data-card-board-option-inspector="true"'), 'Card Board should render a selected option inspector');
+
+const routeHtml = cardBoardSurface.render(draftModel, {
+  projectIndex: index,
+  cardBoardSelection: {kind: 'route', key: routeKey}
+});
+assert(routeHtml.includes('data-card-board-route-inspector="true"'), 'Card Board should render a selected route inspector');
+
+const laneHtml = cardBoardSurface.render(draftModel, {
+  projectIndex: index,
+  cardBoardSelection: {kind: 'lane', laneKey: 'deck'}
+});
+assert(laneHtml.includes('data-card-board-lane-inspector="true"'), 'Card Board should render a selected lane inspector');
 
 process.stdout.write(JSON.stringify({
   ok: true,
