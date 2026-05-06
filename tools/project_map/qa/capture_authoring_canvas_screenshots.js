@@ -96,7 +96,8 @@ const DEFAULT_SCENARIOS = [
   ['84-card-board-reload-context', 'card-board-reload-context'],
   ['85-card-board-system-deeplink', 'card-board-system-deeplink'],
   ['86-review-card-board', 'review-card-board'],
-  ['87-card-board-narrow', 'card-board-narrow']
+  ['87-card-board-narrow', 'card-board-narrow'],
+  ['88-card-board-template-switch', 'card-board-template-switch']
 ];
 
 function parseArgs(argv) {

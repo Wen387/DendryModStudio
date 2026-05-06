@@ -127,6 +127,7 @@
         'card-board-system-deeplink': () => cardBoardSystemDeepLinkScenario(),
         'review-card-board': () => reviewCardBoardScenario(),
         'card-board-narrow': () => cardBoardNarrowScenario(),
+        'card-board-template-switch': () => cardBoardTemplateSwitchScenario(),
         'system-ui-live-edit': () => systemUiLiveEditScenario(),
         'system-ui-game-info-header': () => systemUiGameInfoHeaderScenario(),
         'system-ui-shared-screen': () => systemUiSharedScreenScenario(),
@@ -911,6 +912,38 @@
         if (!isVisible(win, board) || !isVisible(win, editor)) {
           throw new Error('Narrow Card Board viewport lost board or editor.');
         }
+      }
+
+      async function cardBoardTemplateSwitchScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, cardBoardFixtureIndex({defaultDraftCollision: true}));
+        const previousTemplates = ['event', 'news', 'surface'];
+        for (const previousTemplate of previousTemplates) {
+          await openTemplate(previousTemplate, {}, 'Switch from ' + previousTemplate + ' to Card Board');
+          click(win, '[data-create-template="card"]');
+          await waitFor(() => isCanvasVisible(win, 'card') && cardBoardIsActive(win), 4000);
+        }
+        await applyValues(win, {'card.title': 'Switched Card Board'});
+        await waitFor(() => collapse(win.document.querySelector('[data-card-face-preview]') && win.document.querySelector('[data-card-face-preview]').textContent).includes('Switched Card Board'), 3000);
+      }
+
+      function cardBoardIsActive(win) {
+        const doc = win.document;
+        const host = doc.getElementById('existing-scene-editor-host');
+        const api = win.ProjectMapObjectAuthoringCanvas;
+        const activeButton = doc.querySelector('[data-create-template].is-active');
+        return Boolean(
+          host &&
+          host.querySelector('[data-card-board-surface]') &&
+          !host.querySelector('[data-content-storyboard-surface]') &&
+          activeButton &&
+          activeButton.dataset.createTemplate === 'card' &&
+          api &&
+          typeof api.activeTemplate === 'function' &&
+          api.activeTemplate() === 'card' &&
+          typeof api.activeSurface === 'function' &&
+          api.activeSurface() === 'card_board'
+        );
       }
 
       async function systemUiLiveEditScenario() {

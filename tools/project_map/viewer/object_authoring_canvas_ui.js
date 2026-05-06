@@ -42,6 +42,7 @@
 
   let elements = null;
   let templateClickToken = 0;
+  let reconcileToken = 0;
 
   const api = {
     openFromSelection,
@@ -93,6 +94,7 @@
     }
     bindIndexEvents();
     bindTemplateEvents(document);
+    bindTemplateReconciler(document);
   }
 
   function bindIndexEvents() {
@@ -109,6 +111,7 @@
       const template = event && event.detail && event.detail.template;
       if (isCanvasTemplate(template)) {
         openTemplateFromCreate(template);
+        scheduleTemplateReconcile(document);
       } else if (template && template !== 'existing' && template !== 'object_canvas') {
         deactivate();
       }
@@ -121,6 +124,7 @@
         schedule(() => {
           if (token === templateClickToken) {
             syncTemplateButtonClick(clickedTemplate);
+            scheduleTemplateReconcile(document);
           }
         });
       }
@@ -131,9 +135,58 @@
           if (active && isCanvasTemplate(active.dataset.createTemplate) && !(state.active && workspaceForTemplate(state.template) === 'system_ui' && workspaceForTemplate(active.dataset.createTemplate) === 'system_ui')) {
             openTemplateFromCreate(active.dataset.createTemplate);
           }
+          scheduleTemplateReconcile(document);
         });
       }
     });
+  }
+
+  function bindTemplateReconciler(document) {
+    const target = document.querySelector('[data-authoring-workspace-nav]') || document.body;
+    if (!target || typeof MutationObserver === 'undefined') {
+      return;
+    }
+    const observer = new MutationObserver(() => {
+      scheduleTemplateReconcile(document);
+    });
+    observer.observe(target, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class', 'aria-selected', 'hidden']
+    });
+    scheduleTemplateReconcile(document);
+  }
+
+  function scheduleTemplateReconcile(document) {
+    const token = ++reconcileToken;
+    schedule(() => {
+      if (token === reconcileToken) {
+        reconcileActiveTemplate(document);
+      }
+    });
+  }
+
+  function reconcileActiveTemplate(document) {
+    const template = activeTemplateFromDom(document);
+    if (shouldReconcileTemplate(template)) {
+      openTemplateFromCreate(template);
+    }
+  }
+
+  function shouldReconcileTemplate(template) {
+    if (!isCanvasTemplate(template)) {
+      return false;
+    }
+    const currentTemplate = state.mode === 'existing' ? '' : normalizeTemplate(state.template) || '';
+    if (
+      currentTemplate &&
+      currentTemplate !== template &&
+      workspaceForTemplate(currentTemplate) === 'system_ui' &&
+      workspaceForTemplate(template) === 'system_ui'
+    ) {
+      return false;
+    }
+    return true;
   }
 
   function setProjectIndex(index) {
@@ -236,6 +289,13 @@
       return;
     }
     openTemplateFromCreate(nextTemplate);
+  }
+
+  function activeTemplateFromDom(document) {
+    const root = document.querySelector('[data-authoring-template-group].is-active') || document;
+    const active = Array.from(root.querySelectorAll('[data-create-template].is-active'));
+    const button = active.length ? active[active.length - 1] : document.querySelector('[data-create-template].is-active');
+    return button && button.dataset.createTemplate || '';
   }
 
   function isCurrentTemplateRendered(template) {

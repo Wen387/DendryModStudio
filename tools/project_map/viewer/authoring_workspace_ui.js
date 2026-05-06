@@ -171,6 +171,18 @@
       group.classList.toggle('is-active', active);
       group.hidden = !active;
     });
+    elements.templateButtons.forEach((button) => {
+      const active = templateButtonIsActive(button.dataset.createTemplate, state.activeTemplate);
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+  }
+
+  function templateButtonIsActive(buttonTemplate, activeTemplate) {
+    if (buttonTemplate === activeTemplate) {
+      return true;
+    }
+    return workspaceForTemplate(activeTemplate) === 'system_ui' && workspaceForTemplate(buttonTemplate) === 'system_ui';
   }
 
   function clickTemplate(template) {
