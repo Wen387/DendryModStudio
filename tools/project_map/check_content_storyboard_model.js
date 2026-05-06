@@ -4,6 +4,7 @@
 const canvasModel = require('./authoring/object_authoring_canvas_model.js');
 const storyboardModel = require('./authoring/content_storyboard_model.js');
 global.ProjectMapContentStoryboardModel = storyboardModel;
+global.ProjectMapRuntimeLensUi = require('./viewer/runtime_lens_ui.js');
 const storyboardSurface = require('./viewer/content_storyboard_surface.js');
 const storyPaletteModel = require('./authoring/story_palette_model.js');
 
@@ -169,6 +170,8 @@ assert(timelineHtml.includes('data-storyboard-card-face="event"'), 'surface shou
 assert(timelineHtml.includes('data-storyboard-card-state='), 'surface should render card state markers');
 assert(timelineHtml.includes('data-content-storyboard-create-menu="true"'), 'surface should render create-here event/card/news affordances');
 assert(timelineHtml.includes('data-content-storyboard-story-context="true"'), 'editor should render story context outside the canvas cards');
+assert(timelineHtml.includes('data-runtime-lens-panel="true"'), 'editor should render the focused Runtime Lens panel');
+assert(timelineHtml.includes('Runtime Lens'), 'Runtime Lens panel should be visible in the Storyboard editor');
 assert(!timelineHtml.includes('data-object-canvas-graph-inspector'), 'content storyboard should not render the old graph inspector');
 assert(!timelineHtml.includes('>Object</span><strong>'), 'content storyboard should not render the old Object workflow node');
 assert(!timelineHtml.includes('>Plan</span><strong>'), 'content storyboard should not render Plan as a canvas node');

@@ -102,7 +102,10 @@ const DEFAULT_SCENARIOS = [
   ['90-card-board-option-inspector', 'card-board-option-inspector'],
   ['91-card-board-lane-inspector', 'card-board-lane-inspector'],
   ['92-card-board-duplicate-draft', 'card-board-duplicate-draft'],
-  ['93-card-board-intent-action', 'card-board-intent-action']
+  ['93-card-board-intent-action', 'card-board-intent-action'],
+  ['94-content-runtime-lens-ready', 'content-runtime-lens-ready'],
+  ['95-content-runtime-lens-expanded', 'content-runtime-lens-expanded'],
+  ['96-content-runtime-lens-browser', 'content-runtime-lens-browser']
 ];
 
 function parseArgs(argv) {

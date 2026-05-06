@@ -34,6 +34,10 @@
     nodePositions: {},
     draftBranches: [],
     editorOverlay: false,
+    runtimeLensSession: null,
+    runtimeLensStatus: 'idle',
+    runtimeLensFocusKey: '',
+    runtimeLensExpanded: false,
     baseDraft: null,
     values: {},
     model: null,
@@ -221,6 +225,7 @@
     state.selectedCanvasNode = 'object';
     resetStoryboardState();
     resetCardBoardState();
+    resetRuntimeLens();
     if (view === 'cards' && item) {
       state.cardBoardSelectedKey = 'card:' + item;
       state.selectedCanvasNode = state.cardBoardSelectedKey;
@@ -257,6 +262,7 @@
     state.selectedCanvasNode = 'object';
     resetStoryboardState();
     resetCardBoardState();
+    resetRuntimeLens();
     state.systemUiFixture = 'default';
     state.canvasPanX = 0;
     state.canvasPanY = 0;
@@ -698,6 +704,7 @@
     }
     applyCanvasViewport();
     const storyboard = storyboardWorkspaceApi(); if (storyboard && typeof storyboard.bindPalette === 'function' && currentSurface().key !== 'card_board') { storyboard.bindPalette(elements.host, state, storyboardDeps()); }
+    const runtimeLens = runtimeLensWorkspaceApi(); if (runtimeLens && typeof runtimeLens.bind === 'function') { runtimeLens.bind(elements.host, state, runtimeLensDeps()); }
   }
 
   function selectCanvasNode(nodeKey) {
@@ -820,6 +827,18 @@
     } else if (action.indexOf('create_') === 0) {
       createRelatedDraft(action.replace('create_', ''), target);
     }
+  }
+
+  function resetRuntimeLens() {
+    const api = runtimeLensWorkspaceApi();
+    if (api && typeof api.reset === 'function') {
+      api.reset(state);
+      return;
+    }
+    state.runtimeLensSession = null;
+    state.runtimeLensStatus = 'idle';
+    state.runtimeLensFocusKey = '';
+    state.runtimeLensExpanded = false;
   }
 
   function handleCardBoardAction(action, target) {
@@ -1086,8 +1105,10 @@
   }
 
   function graphStageApi() { return global.ProjectMapObjectCanvasGraphStage || null; }
+  function runtimeLensWorkspaceApi() { return global.ProjectMapRuntimeLensWorkspaceState || null; }
   function cardWorkspaceApi() { return global.ProjectMapCardWorkspaceState || null; }
   function cardDeps(entry) { return {buildExistingModel, buildExistingModelFor, buildTemplateModel, collectValues, defaultDraftForTemplate, entry, render, showWorkspace, t}; }
+  function runtimeLensDeps() { return {buildExistingModel, buildTemplateModel, collectValues, render}; }
 
   function storyboardWorkspaceApi() { return global.ProjectMapStoryboardWorkspaceState || null; }
   function storyboardDeps() { return {buildExistingModel, buildExistingModelFor, buildTemplateModel, collectValues, render, showWorkspace, t}; }

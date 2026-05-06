@@ -9,7 +9,7 @@
       renderToolbar(storyboard, options || {}),
       '<div class="content-storyboard-layout">',
       view === 'chain' ? renderChain(storyboard, options || {}) : renderTimeline(storyboard, options || {}),
-      renderEditor(model, storyboard),
+      renderEditor(model, storyboard, options || {}),
       '</div>',
       '</section>'
     ].join('');
@@ -306,7 +306,7 @@
     });
   }
 
-  function renderEditor(model, storyboard) {
+  function renderEditor(model, storyboard, options) {
     const editor = storyboard.editor || {};
     return [
       '<aside class="content-storyboard-editor" data-content-storyboard-editor="true">',
@@ -315,6 +315,7 @@
       '<h3>' + escapeHtml((storyboard.cards.find((card) => card.key === storyboard.selectedKey) || {}).title || model.title || '') + '</h3>',
       '<p>' + escapeHtml(t('storyboard.editorHint', 'Canvas shows story structure. Technical context, plan, and review stay here.')) + '</p>',
       '</section>',
+      renderRuntimeLens(model, storyboard, options || {}),
       renderIdentity(editor.identity || []),
       renderStoryContext(editor.storyContext || storyboard.storyContext || {}),
       renderPaletteContext(storyboard.palette && storyboard.palette.dropContext),
@@ -325,6 +326,23 @@
       renderActions(model),
       '</aside>'
     ].join('');
+  }
+
+  function renderRuntimeLens(model, storyboard, options) {
+    const api = runtimeLensApi();
+    if (!api || typeof api.renderPanel !== 'function') {
+      return '';
+    }
+    const focus = typeof api.focusFromCanvas === 'function'
+      ? api.focusFromCanvas(options.projectIndex, model, storyboard.selectedKey)
+      : {kind: 'event', id: model.objectId || '', title: model.title || ''};
+    return api.renderPanel({
+      focus,
+      session: options.runtimeLensSession,
+      status: options.runtimeLensStatus,
+      sessionFocusKey: options.runtimeLensFocusKey,
+      expanded: options.runtimeLensExpanded
+    });
   }
 
   function renderIdentity(rows) {
@@ -484,6 +502,20 @@
     if (typeof require === 'function') {
       try {
         return require('./storyboard_palette_sidebar.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function runtimeLensApi() {
+    if (global && global.ProjectMapRuntimeLensUi) {
+      return global.ProjectMapRuntimeLensUi;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./runtime_lens_ui.js');
       } catch (_err) {
         return null;
       }

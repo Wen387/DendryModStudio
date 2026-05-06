@@ -108,8 +108,13 @@ const eventLens = runtimeLens.createRuntimeLens({
 assert(eventLens.ok, 'event Runtime Lens should create a focused session: ' + JSON.stringify(eventLens));
 assert(eventLens.kind === 'runtime_lens_session', 'Runtime Lens should return a lens session kind');
 assert(eventLens.status === 'ready', 'Runtime Lens should report ready status');
-assert(eventLens.lensUrl.includes('/modified/out/html/'), 'Runtime Lens primary URL should point at modified runtime');
-assert(eventLens.externalUrl === eventLens.lensUrl, 'Runtime Lens external URL should default to modified runtime URL');
+assert(eventLens.lensUrl.includes('/lens/'), 'Runtime Lens primary URL should point at the focused wrapper page');
+assert(eventLens.modifiedUrl.includes('/modified/out/html/'), 'Runtime Lens should retain the modified runtime URL');
+assert(eventLens.externalUrl === eventLens.lensUrl, 'Runtime Lens external URL should default to the focused wrapper page');
+assert(fs.existsSync(eventLens.lensPagePath), 'Runtime Lens should write a focused wrapper page');
+const lensPageHtml = fs.readFileSync(eventLens.lensPagePath, 'utf8');
+assert(lensPageHtml.includes('Focused Runtime Lens'), 'Runtime Lens wrapper should identify the focused lens');
+assert(lensPageHtml.includes('jumpToScene'), 'Runtime Lens wrapper should carry post-load focus commands');
 assert(eventLens.focus.targetSceneId === 'focus_event', 'Runtime Lens should preserve focused scene target');
 assert(eventLens.postLoadCommands.some((command) => command.type === 'jumpToScene' && command.sceneId === 'focus_event'), 'Runtime Lens should queue a scene jump command');
 assert(eventLens.lensModel.commands.some((command) => command.type === 'focusScene'), 'Runtime Lens model should expose focusScene command');
@@ -143,7 +148,7 @@ process.stdout.write(JSON.stringify({
   eventLens: {
     status: eventLens.status,
     focus: eventLens.focus.targetSceneId,
-    urlKind: eventLens.lensUrl.includes('/modified/out/html/') ? 'modified' : 'unknown'
+    urlKind: eventLens.lensUrl.includes('/lens/') ? 'focused-wrapper' : 'unknown'
   },
   cardLens: {
     status: cardLens.status,

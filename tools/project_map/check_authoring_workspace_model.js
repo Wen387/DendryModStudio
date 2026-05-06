@@ -23,6 +23,9 @@ const STORYBOARD_CARD_RENDERER = path.join(VIEWER, 'storyboard_card_renderer.js'
 const STORYBOARD_PALETTE_SIDEBAR = path.join(VIEWER, 'storyboard_palette_sidebar.js');
 const STORYBOARD_WORKSPACE_STATE = path.join(VIEWER, 'storyboard_workspace_state.js');
 const CONTENT_STORYBOARD_INTERACTIONS = path.join(VIEWER, 'content_storyboard_interactions.js');
+const RUNTIME_LENS_MODEL = path.join(ROOT, 'authoring', 'runtime_lens_model.js');
+const RUNTIME_LENS_UI = path.join(VIEWER, 'runtime_lens_ui.js');
+const RUNTIME_LENS_WORKSPACE_STATE = path.join(VIEWER, 'runtime_lens_workspace_state.js');
 const CARD_FACE_EDITOR = path.join(VIEWER, 'card_face_editor.js');
 const CARD_BOARD_SURFACE = path.join(VIEWER, 'card_board_surface.js');
 const CARD_BOARD_INTERACTIONS = path.join(VIEWER, 'card_board_interactions.js');
@@ -75,6 +78,9 @@ const storyboardCardRenderer = read(STORYBOARD_CARD_RENDERER);
 const storyboardPaletteSidebar = read(STORYBOARD_PALETTE_SIDEBAR);
 const storyboardWorkspaceState = read(STORYBOARD_WORKSPACE_STATE);
 const contentStoryboardInteractions = read(CONTENT_STORYBOARD_INTERACTIONS);
+const runtimeLensModel = read(RUNTIME_LENS_MODEL);
+const runtimeLensUi = read(RUNTIME_LENS_UI);
+const runtimeLensWorkspaceState = read(RUNTIME_LENS_WORKSPACE_STATE);
 const cardFaceEditor = read(CARD_FACE_EDITOR);
 const cardBoardSurface = read(CARD_BOARD_SURFACE);
 const cardBoardInteractions = read(CARD_BOARD_INTERACTIONS);
@@ -105,6 +111,7 @@ const internalSystemUiTemplates = ['entry', 'play_surface', 'workspace_layout', 
 
 assert(html.includes('data-authoring-workspace-nav'), 'Create should keep a small Authoring Workspace host in index.html');
 assert(html.includes('../authoring/content_storyboard_model.js'), 'viewer should load the Content Storyboard model');
+assert(html.includes('../authoring/runtime_lens_model.js'), 'viewer should load the Runtime Lens model');
 assert(html.includes('../authoring/card_board_model.js'), 'viewer should load the Card Board model');
 assert(html.includes('../authoring/story_scope_model.js'), 'viewer should load the Story Scope model');
 assert(html.includes('../authoring/story_chain_graph_model.js'), 'viewer should load the Story Chain Graph model');
@@ -120,6 +127,8 @@ assert(html.includes('storyboard_palette_sidebar.js'), 'viewer should load Story
 assert(html.includes('storyboard_workspace_state.js'), 'viewer should load Storyboard workspace state');
 assert(html.includes('content_storyboard_surface.js'), 'viewer should load Content Storyboard surface');
 assert(html.includes('content_storyboard_interactions.js'), 'viewer should load Content Storyboard interactions');
+assert(html.includes('runtime_lens_ui.js'), 'viewer should load Runtime Lens UI');
+assert(html.includes('runtime_lens_workspace_state.js'), 'viewer should load Runtime Lens workspace state');
 assert(html.includes('card_face_editor.js'), 'viewer should load Card Face editor');
 assert(html.includes('card_board_surface.js'), 'viewer should load Card Board surface');
 assert(html.includes('card_board_interactions.js'), 'viewer should load Card Board interactions');
@@ -188,6 +197,7 @@ assert(contentStoryboardSurface.includes('data-content-storyboard-surface'), 'Co
 assert(contentStoryboardSurface.includes('data-content-storyboard-card'), 'Content Storyboard surface should render story cards');
 assert(contentStoryboardSurface.includes('data-content-storyboard-insert'), 'Content Storyboard surface should render insertion affordances');
 assert(contentStoryboardSurface.includes('data-content-storyboard-plan'), 'Content Storyboard should keep plan details in the editor panel');
+assert(contentStoryboardSurface.includes('renderRuntimeLens'), 'Content Storyboard should render the Runtime Lens panel in the editor');
 assert(storyboardScopeControls.includes('data-content-storyboard-scope'), 'Storyboard scope controls should expose scope controls');
 assert(storyboardScopeControls.includes('data-content-storyboard-depth-controls'), 'Storyboard scope controls should expose chain depth controls');
 assert(storyboardCardRenderer.includes('data-storyboard-card-face'), 'Storyboard card renderer should render player-facing cards');
@@ -202,6 +212,11 @@ assert(contentStoryboardInteractions.includes('onViewport'), 'Content Storyboard
 assert(contentStoryboardInteractions.includes('onCardMove'), 'Content Storyboard interactions should support card drag');
 assert(contentStoryboardInteractions.includes('onPaletteDrop'), 'Content Storyboard interactions should support Palette drops');
 assert(contentStoryboardInteractions.includes("options.onZoom(event.deltaY < 0 ? 'in' : 'out', event)"), 'Content Storyboard interactions should support mouse-wheel zoom');
+assert(runtimeLensModel.includes('ProjectMapRuntimeLensModel'), 'Runtime Lens model should expose a browser API');
+assert(runtimeLensUi.includes('ProjectMapRuntimeLensUi'), 'Runtime Lens UI should expose a browser API');
+assert(runtimeLensUi.includes('data-runtime-lens-frame'), 'Runtime Lens UI should render an embedded frame marker');
+assert(runtimeLensWorkspaceState.includes('ProjectMapRuntimeLensWorkspaceState'), 'Runtime Lens workspace state should expose a browser API');
+assert(runtimeLensWorkspaceState.includes('createRuntimeLens'), 'Runtime Lens workspace state should call the desktop bridge');
 assert(cardFaceEditor.includes('ProjectMapCardFaceEditor'), 'Card Face editor should expose a browser API');
 assert(cardFaceEditor.includes('data-card-face-editor'), 'Card Face editor should expose a stable QA marker');
 assert(cardBoardSurface.includes('ProjectMapCardBoardSurface'), 'Card Board surface should expose a browser API');
@@ -222,6 +237,7 @@ assert(referenceIndex.includes('branchDraft'), 'Reference index should create re
 assert(contentInteractions.includes('pointerdown'), 'Content Graph interactions should bind pointer drag behavior');
 assert(contentInteractions.includes('onViewport'), 'Content Graph interactions should support background pan');
 assert(canvasUi.includes('storyboardWorkspaceApi'), 'Object Canvas should delegate content templates to the Storyboard workspace state');
+assert(canvasUi.includes('runtimeLensWorkspaceApi'), 'Object Canvas should delegate Runtime Lens behavior to its workspace state helper');
 assert(canvasUi.includes('cardWorkspaceApi'), 'Object Canvas should delegate Card templates to the Card Board workspace state');
 assert(storyboardWorkspaceState.includes('ProjectMapContentStoryboardSurface'), 'Storyboard workspace state should route content templates to the Storyboard surface');
 assert(contentStoryboardSurface.includes('data-content-storyboard-view'), 'Content Storyboard surface should bind Storyboard view switching');
@@ -251,6 +267,8 @@ assert(surfaceGraphs.includes('function projectStateGraphNodes'), 'Surface graph
 assert(contentStoryboardSurface.includes('data-content-storyboard-editor'), 'Content Storyboard should render an editor/detail panel');
 assert(canvasUi.includes('data-object-canvas-zoom'), 'Object Canvas should expose zoom controls');
 assert(harness.includes('data-content-storyboard-surface'), 'Screenshot harness should assert the Storyboard surface');
+assert(harness.includes('content-runtime-lens-ready'), 'Screenshot harness should cover Storyboard Runtime Lens ready state');
+assert(harness.includes('content-runtime-lens-expanded'), 'Screenshot harness should cover expanded Storyboard Runtime Lens');
 assert(harness.includes('data-card-board-surface'), 'Screenshot harness should assert the Card Board surface');
 assert(harness.includes('workspaceForTemplate'), 'Screenshot harness should verify workspace routing');
 

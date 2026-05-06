@@ -113,6 +113,9 @@
         'content-story-palette-reload-context': () => contentStoryPaletteReloadContextScenario(),
         'content-story-palette-review-context': () => contentStoryPaletteReviewContextScenario(),
         'content-story-palette-narrow': () => contentStoryPaletteNarrowScenario(),
+        'content-runtime-lens-ready': () => contentRuntimeLensReadyScenario(),
+        'content-runtime-lens-expanded': () => contentRuntimeLensExpandedScenario(),
+        'content-runtime-lens-browser': () => contentRuntimeLensBrowserScenario(),
         'card-board-open': () => cardBoardOpenScenario(),
         'card-board-lanes': () => cardBoardLanesScenario(),
         'card-board-pool': () => cardBoardPoolScenario(),
@@ -356,6 +359,69 @@
         await openTemplate('event', {'event.title': '1929 Event X', 'event.year': '1929'}, 'Create follow-up branch');
         click(win, '[data-object-canvas-action="create_followup"]');
         await waitFor(() => win.document.querySelector('[data-content-storyboard-card^="draft:"]'), 3000);
+      }
+
+      async function contentRuntimeLensReadyScenario() {
+        const win = frame.contentWindow;
+        installFakeRuntimeLensDesktop(win);
+        await openExisting('events', 'generic_intro', {generic_intro_body: 'Runtime Lens observes this selected scene.'}, 'Focused Runtime Lens');
+        click(win, '[data-runtime-lens-action="create"]');
+        await waitFor(() => {
+          const panel = win.document.querySelector('[data-runtime-lens-panel]');
+          const frame = win.document.querySelector('[data-runtime-lens-frame]');
+          return panel && panel.dataset.runtimeLensStatus === 'ready' && frame && isVisible(win, frame);
+        }, 4000);
+      }
+
+      async function contentRuntimeLensExpandedScenario() {
+        const win = frame.contentWindow;
+        installFakeRuntimeLensDesktop(win);
+        await openExisting('events', 'generic_intro', {generic_intro_body: 'Expanded Runtime Lens observation.'}, 'Expanded Runtime Lens');
+        click(win, '[data-runtime-lens-action="create"]');
+        await waitFor(() => win.document.querySelector('[data-runtime-lens-panel][data-runtime-lens-status="ready"]'), 4000);
+        click(win, '[data-runtime-lens-action="toggle_expand"]');
+        await waitFor(() => {
+          const panel = win.document.querySelector('[data-runtime-lens-panel].is-expanded');
+          const frame = win.document.querySelector('[data-runtime-lens-frame]');
+          return panel && frame && isVisible(win, panel) && isVisible(win, frame);
+        }, 4000);
+      }
+
+      async function contentRuntimeLensBrowserScenario() {
+        const win = frame.contentWindow;
+        delete win.dendryDesktop;
+        await openExisting('events', 'generic_intro', {generic_intro_body: 'Browser-only Runtime Lens unavailable state.'}, 'Runtime Lens browser unavailable');
+        await waitFor(() => {
+          const panel = win.document.querySelector('[data-runtime-lens-panel]');
+          const button = panel && panel.querySelector('[data-runtime-lens-action="create"]');
+          return panel && button && button.disabled;
+        }, 4000);
+      }
+
+      function installFakeRuntimeLensDesktop(win) {
+        const lensHtml = [
+          '<!doctype html><html><head><style>',
+          'body{margin:0;background:#f8f5ed;color:#2d271e;font:18px Georgia,serif}',
+          'main{padding:28px}.title{font-size:26px;letter-spacing:2px;text-align:center}',
+          '.card{margin-top:22px;border:2px solid #8f7b61;padding:18px;background:white;box-shadow:0 8px 20px rgba(0,0,0,.12)}',
+          'button{display:block;width:100%;margin-top:18px;padding:12px;border:1px solid #8f7b61;background:#fffaf1;font:inherit}',
+          '</style></head><body><main><div class="title">SOCIAL DEMOCRACY: AN ALTERNATE HISTORY</div><section class="card"><strong>Runtime Lens focus</strong><p>Runtime-rendered scene wrapper for the selected event.</p><button>Continue</button></section></main></body></html>'
+        ].join('');
+        const url = 'data:text/html;charset=utf-8,' + encodeURIComponent(lensHtml);
+        win.dendryDesktop = {
+          createRuntimeLens: async (options) => ({
+            ok: true,
+            kind: 'runtime_lens_session',
+            status: 'ready',
+            focus: options && options.focus || {},
+            lensUrl: url,
+            lensPageUrl: url,
+            externalUrl: url,
+            diagnostics: [],
+            postLoadCommands: [{type: 'jumpToScene', sceneId: options && options.focus && options.focus.id || ''}]
+          }),
+          openExternalUrl: () => Promise.resolve({ok: true})
+        };
       }
 
       async function contentEditorOverlayScenario() {
