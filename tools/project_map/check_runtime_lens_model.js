@@ -115,6 +115,7 @@ assert(fs.existsSync(eventLens.lensPagePath), 'Runtime Lens should write a focus
 const lensPageHtml = fs.readFileSync(eventLens.lensPagePath, 'utf8');
 assert(lensPageHtml.includes('Focused Runtime Lens'), 'Runtime Lens wrapper should identify the focused lens');
 assert(lensPageHtml.includes('jumpToScene'), 'Runtime Lens wrapper should carry post-load focus commands');
+assert(lensPageHtml.includes('dms-runtime-lens-action'), 'Runtime Lens wrapper should accept parent focus/reset actions');
 assert(eventLens.focus.targetSceneId === 'focus_event', 'Runtime Lens should preserve focused scene target');
 assert(eventLens.postLoadCommands.some((command) => command.type === 'jumpToScene' && command.sceneId === 'focus_event'), 'Runtime Lens should queue a scene jump command');
 assert(eventLens.lensModel.commands.some((command) => command.type === 'focusScene'), 'Runtime Lens model should expose focusScene command');

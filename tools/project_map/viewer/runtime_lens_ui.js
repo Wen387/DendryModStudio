@@ -65,7 +65,9 @@
     const session = opts.session || null;
     const sessionFocusKey = String(opts.sessionFocusKey || session && session.focus && focusKey(session.focus.kind, session.focus.id) || '');
     const currentFocusKey = String(focus.key || focusKey(focus.kind, focus.id));
-    const stale = Boolean(session && session.ok && sessionFocusKey && sessionFocusKey !== currentFocusKey);
+    const focusStale = Boolean(session && session.ok && sessionFocusKey && sessionFocusKey !== currentFocusKey);
+    const draftStale = Boolean(session && session.ok && opts.sessionDraftKey && opts.currentDraftKey && opts.sessionDraftKey !== opts.currentDraftKey);
+    const stale = focusStale || draftStale || opts.status === 'stale';
     const status = stale ? 'stale' : opts.status || session && session.status || 'idle';
     const isDesktop = Boolean(global && global.dendryDesktop && typeof global.dendryDesktop.createRuntimeLens === 'function');
     const url = String(session && (session.lensUrl || session.lensPageUrl || session.externalUrl) || '');
@@ -73,6 +75,7 @@
     const classes = [
       'runtime-lens-panel',
       opts.expanded ? 'is-expanded' : '',
+      opts.collapsed ? 'is-collapsed' : '',
       stale ? 'is-stale' : '',
       status ? 'is-' + safeClass(status) : ''
     ].filter(Boolean).join(' ');
@@ -85,13 +88,16 @@
       '</div>',
       '<div class="runtime-lens-actions">',
       '<button type="button" data-runtime-lens-action="create" ' + (!canFocus || status === 'building' ? 'disabled' : '') + '>' + escapeHtml(session && session.ok ? t('runtimeLens.refresh', 'Refresh') : t('runtimeLens.create', 'Create Lens')) + '</button>',
+      session && session.ok ? '<button type="button" data-runtime-lens-action="rebuild" ' + (status === 'building' ? 'disabled' : '') + '>' + escapeHtml(t('runtimeLens.rebuild', 'Rebuild')) + '</button>' : '',
+      session && session.ok ? '<button type="button" data-runtime-lens-action="reset">' + escapeHtml(t('runtimeLens.reset', 'Reset')) + '</button>' : '',
+      '<button type="button" data-runtime-lens-action="toggle_collapse">' + escapeHtml(opts.collapsed ? t('runtimeLens.restore', 'Restore') : t('runtimeLens.collapse', 'Collapse')) + '</button>',
       '<button type="button" data-runtime-lens-action="toggle_expand">' + escapeHtml(opts.expanded ? t('runtimeLens.dock', 'Dock') : t('runtimeLens.expand', 'Expand')) + '</button>',
       url ? '<button type="button" data-runtime-lens-action="open_external">' + escapeHtml(t('runtimeLens.openExternal', 'Open')) + '</button>' : '',
       session ? '<button type="button" data-runtime-lens-action="clear">' + escapeHtml(t('runtimeLens.clear', 'Clear')) + '</button>' : '',
       '</div>',
       '</header>',
-      renderSummary(focus, status, {isDesktop, stale, canFocus}),
-      renderBody({url, status, isDesktop, canFocus, session}),
+      renderSummary(focus, status, {isDesktop, stale, draftStale, canFocus}),
+      opts.collapsed ? '' : renderBody({url, status, isDesktop, canFocus, session}),
       '</section>'
     ].join('');
   }
@@ -103,13 +109,15 @@
       : !opts.canFocus
         ? t('runtimeLens.unsupportedFocus', 'Select a source-backed object or UI region to focus it in runtime.')
         : opts.stale
-          ? t('runtimeLens.stale', 'Lens is showing a previous selection. Refresh to rebuild around this object.')
+          ? opts.draftStale
+            ? t('runtimeLens.draftStale', 'Lens is behind the current edit. Refresh or rebuild it to observe the latest draft.')
+            : t('runtimeLens.stale', 'Lens is showing a previous selection. Refresh to rebuild around this object.')
           : statusText(status);
     return [
       '<div class="runtime-lens-summary">',
       '<div><span>' + escapeHtml(t('runtimeLens.focus', 'Focus')) + '</span><strong>' + escapeHtml(focus.title || focus.id || '') + '</strong></div>',
       '<div><span>' + escapeHtml(t('runtimeLens.target', 'Target')) + '</span><strong>' + escapeHtml([focus.kind, focus.id].filter(Boolean).join(' / ')) + '</strong></div>',
-      '<p>' + escapeHtml(message) + '</p>',
+      '<p data-runtime-lens-message="true">' + escapeHtml(message) + '</p>',
       '</div>'
     ].join('');
   }
@@ -154,6 +162,13 @@
       }
       button.dataset.runtimeLensBound = 'true';
       button.addEventListener('click', () => {
+        if (button.dataset.runtimeLensAction === 'reset') {
+          const panel = button.closest && button.closest('[data-runtime-lens-panel]');
+          const frame = panel && panel.querySelector && panel.querySelector('[data-runtime-lens-frame]');
+          if (frame && frame.contentWindow) {
+            frame.contentWindow.postMessage({kind: 'dms-runtime-lens-action', action: 'reset'}, '*');
+          }
+        }
         if (opts.onAction) {
           opts.onAction(button.dataset.runtimeLensAction || '', button);
         }

@@ -48,7 +48,10 @@
       session: options.runtimeLensSession,
       status: options.runtimeLensStatus,
       sessionFocusKey: options.runtimeLensFocusKey,
-      expanded: options.runtimeLensExpanded
+      sessionDraftKey: options.runtimeLensDraftKey,
+      currentDraftKey: options.runtimeLensCurrentDraftKey,
+      expanded: options.runtimeLensExpanded,
+      collapsed: options.runtimeLensCollapsed
     });
   }
 

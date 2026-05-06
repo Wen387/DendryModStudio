@@ -25,7 +25,10 @@
       runtimeLensSession: state.runtimeLensSession,
       runtimeLensStatus: state.runtimeLensStatus,
       runtimeLensFocusKey: state.runtimeLensFocusKey,
-      runtimeLensExpanded: state.runtimeLensExpanded
+      runtimeLensDraftKey: state.runtimeLensDraftKey,
+      runtimeLensCurrentDraftKey: state.runtimeLensCurrentDraftKey,
+      runtimeLensExpanded: state.runtimeLensExpanded,
+      runtimeLensCollapsed: state.runtimeLensCollapsed
     };
   }
 
@@ -170,6 +173,9 @@
         storyPaletteType: state.storyPaletteType,
         storyPaletteDropContext: state.storyPaletteDropContext,
         runtimeLensFocusKey: state.runtimeLensFocusKey,
+        runtimeLensDraftKey: state.runtimeLensDraftKey,
+        runtimeLensCurrentDraftKey: state.runtimeLensCurrentDraftKey,
+        runtimeLensCollapsed: state.runtimeLensCollapsed,
         selectedCanvasNode: state.selectedCanvasNode,
         nodePositions: Object.assign({}, state.nodePositions || {}),
         draftBranchCount: (state.draftBranches || []).length,

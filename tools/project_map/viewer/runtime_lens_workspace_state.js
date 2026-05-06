@@ -5,7 +5,12 @@
     state.runtimeLensSession = null;
     state.runtimeLensStatus = 'idle';
     state.runtimeLensFocusKey = '';
+    state.runtimeLensDraftKey = '';
+    state.runtimeLensCurrentDraftKey = '';
     state.runtimeLensExpanded = false;
+    state.runtimeLensCollapsed = false;
+    state.runtimeLensBuildSeq = 0;
+    state.runtimeLensBuildQueued = false;
   }
 
   function bind(root, state, deps) {
@@ -19,6 +24,17 @@
     const helpers = deps || {};
     if (action === 'toggle_expand') {
       state.runtimeLensExpanded = !state.runtimeLensExpanded;
+      if (state.runtimeLensExpanded) {
+        state.runtimeLensCollapsed = false;
+      }
+      helpers.render && helpers.render();
+      return;
+    }
+    if (action === 'toggle_collapse') {
+      state.runtimeLensCollapsed = !state.runtimeLensCollapsed;
+      if (state.runtimeLensCollapsed) {
+        state.runtimeLensExpanded = false;
+      }
       helpers.render && helpers.render();
       return;
     }
@@ -31,12 +47,23 @@
       openExternal(state);
       return;
     }
-    if (action === 'create') {
+    if (action === 'reset') {
+      state.status = translate('runtimeLens.status.reset', 'Runtime Lens preview state reset was requested.');
+      helpers.render && helpers.render();
+      return;
+    }
+    if (action === 'create' || action === 'rebuild') {
       await createLens(state, helpers);
     }
   }
 
   async function createLens(state, deps) {
+    if (state.runtimeLensStatus === 'building') {
+      state.runtimeLensBuildQueued = true;
+      state.status = translate('runtimeLens.status.queued', 'Runtime Lens will rebuild after the current build finishes.');
+      deps.render && deps.render();
+      return;
+    }
     const desktop = global.dendryDesktop;
     if (!desktop || typeof desktop.createRuntimeLens !== 'function') {
       state.runtimeLensStatus = 'unavailable';
@@ -54,6 +81,9 @@
     }
     state.runtimeLensStatus = 'building';
     state.runtimeLensFocusKey = focus.key || (focus.kind + ':' + focus.id);
+    state.runtimeLensCurrentDraftKey = draftKey(state, focus);
+    const buildToken = Number(state.runtimeLensBuildSeq || 0) + 1;
+    state.runtimeLensBuildSeq = buildToken;
     deps.render && deps.render();
     try {
       const result = await desktop.createRuntimeLens({
@@ -61,18 +91,48 @@
         focus,
         projectIndex: state.projectIndex
       });
+      if (buildToken !== state.runtimeLensBuildSeq) {
+        return;
+      }
       state.runtimeLensSession = result || null;
       state.runtimeLensStatus = result && result.ok ? 'ready' : 'failed';
       state.runtimeLensFocusKey = focus.key || (focus.kind + ':' + focus.id);
+      state.runtimeLensDraftKey = result && result.ok ? state.runtimeLensCurrentDraftKey : '';
       state.status = result && result.ok
         ? translate('runtimeLens.status.ready', 'Focused Runtime Lens is ready.')
         : translate('runtimeLens.status.failed', 'Focused Runtime Lens could not be created.');
     } catch (err) {
+      if (buildToken !== state.runtimeLensBuildSeq) {
+        return;
+      }
       state.runtimeLensSession = failedSession(err);
       state.runtimeLensStatus = 'failed';
+      state.runtimeLensDraftKey = '';
       state.status = translate('runtimeLens.status.failed', 'Focused Runtime Lens could not be created.');
     }
+    if (state.runtimeLensBuildQueued) {
+      state.runtimeLensBuildQueued = false;
+      deps.render && deps.render();
+      await createLens(state, deps);
+      return;
+    }
     deps.render && deps.render();
+  }
+
+  function markStale(state) {
+    if (!state || !state.runtimeLensSession || !state.runtimeLensSession.ok) {
+      return false;
+    }
+    const focus = currentFocus(state);
+    state.runtimeLensCurrentDraftKey = draftKey(state, focus);
+    const focusKey = focus && (focus.key || (focus.kind + ':' + focus.id)) || '';
+    const behind = Boolean(state.runtimeLensDraftKey && state.runtimeLensDraftKey !== state.runtimeLensCurrentDraftKey);
+    const focusMoved = Boolean(state.runtimeLensFocusKey && focusKey && state.runtimeLensFocusKey !== focusKey);
+    if ((behind || focusMoved) && state.runtimeLensStatus !== 'building') {
+      state.runtimeLensStatus = 'stale';
+      return true;
+    }
+    return false;
   }
 
   function currentFocus(state) {
@@ -95,6 +155,20 @@
     const change = state.model && state.model.changeState || {};
     const output = change.output || {};
     return change.installPlan || output.installPlan || parseJson(output.installPlanJson) || null;
+  }
+
+  function draftKey(state, focus) {
+    const change = state.model && state.model.changeState || {};
+    const output = change.output || {};
+    return stableJson({
+      focus: focus && (focus.key || focus.kind + ':' + focus.id) || '',
+      values: state.values || {},
+      plan: currentPlan(state),
+      preview: output.sceneDry || output.playerPreview || output.proposalText || output.previewText || '',
+      fixture: state.systemUiFixture || '',
+      card: state.cardBoardSelection || state.cardBoardSelectedKey || '',
+      changed: change.changedCount || 0
+    });
   }
 
   function rebuildModel(state, deps) {
@@ -167,12 +241,22 @@
     }
   }
 
+  function stableJson(value) {
+    if (Array.isArray(value)) {
+      return '[' + value.map(stableJson).join(',') + ']';
+    }
+    if (value && typeof value === 'object') {
+      return '{' + Object.keys(value).sort().map((key) => JSON.stringify(key) + ':' + stableJson(value[key])).join(',') + '}';
+    }
+    return JSON.stringify(value === undefined ? null : value);
+  }
+
   function translate(key, fallback) {
     const i18n = global.ProjectMapI18n;
     return i18n && typeof i18n.t === 'function' ? i18n.t(key, fallback) : fallback;
   }
 
-  const api = {reset, bind, handleAction, currentFocus, currentPlan};
+  const api = {reset, bind, handleAction, currentFocus, currentPlan, draftKey, markStale};
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;
   }

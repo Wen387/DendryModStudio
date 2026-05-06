@@ -37,16 +37,15 @@
     runtimeLensSession: null,
     runtimeLensStatus: 'idle',
     runtimeLensFocusKey: '',
-    runtimeLensExpanded: false,
+    runtimeLensDraftKey: '', runtimeLensCurrentDraftKey: '',
+    runtimeLensExpanded: false, runtimeLensCollapsed: false,
     baseDraft: null,
     values: {},
     model: null,
     status: ''
   };
 
-  let elements = null;
-  let templateClickToken = 0;
-  let reconcileToken = 0;
+  let elements = null; let templateClickToken = 0; let reconcileToken = 0; let refreshTimer = null;
 
   const api = {
     openFromSelection,
@@ -342,8 +341,10 @@
     if (!state.active) {
       return;
     }
+    if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = null; }
     state.values = collectValues();
     state.model = state.mode === 'existing' ? buildExistingModel({values: state.values}) : buildTemplateModel({values: state.values});
+    markRuntimeLensStale();
     const surface = currentSurface(state.model);
     if (surface.key === 'system_ui_preview' || surface.key === 'card_board') {
       render();
@@ -541,7 +542,7 @@
 
   function renderSystemUiPreviewStage(model) {
     const surface = global.ProjectMapSystemUiPreviewSurface;
-    return surface && typeof surface.render === 'function' ? surface.render(model, {projectIndex: state.projectIndex, selected: state.selectedCanvasNode, fixture: state.systemUiFixture, editorOverlay: state.editorOverlay, runtimeLensSession: state.runtimeLensSession, runtimeLensStatus: state.runtimeLensStatus, runtimeLensFocusKey: state.runtimeLensFocusKey, runtimeLensExpanded: state.runtimeLensExpanded}) : '';
+    return surface && typeof surface.render === 'function' ? surface.render(model, {projectIndex: state.projectIndex, selected: state.selectedCanvasNode, fixture: state.systemUiFixture, editorOverlay: state.editorOverlay, runtimeLensSession: state.runtimeLensSession, runtimeLensStatus: state.runtimeLensStatus, runtimeLensFocusKey: state.runtimeLensFocusKey, runtimeLensDraftKey: state.runtimeLensDraftKey, runtimeLensCurrentDraftKey: state.runtimeLensCurrentDraftKey, runtimeLensExpanded: state.runtimeLensExpanded, runtimeLensCollapsed: state.runtimeLensCollapsed}) : '';
   }
 
   function renderContentStoryboardStage(model) {
@@ -654,7 +655,7 @@
       return;
     }
     elements.host.querySelectorAll('[data-object-canvas-field]').forEach((input) => {
-      input.addEventListener('input', refresh);
+      input.addEventListener('input', scheduleRefresh);
     });
     elements.host.querySelectorAll('[data-object-canvas-action]').forEach((button) => {
       button.addEventListener('click', () => handleAction(button.dataset.objectCanvasAction || '', button));
@@ -707,6 +708,8 @@
     const runtimeLens = runtimeLensWorkspaceApi(); if (runtimeLens && typeof runtimeLens.bind === 'function') { runtimeLens.bind(elements.host, state, runtimeLensDeps()); }
   }
 
+  function scheduleRefresh() { if (refreshTimer) { clearTimeout(refreshTimer); } refreshTimer = setTimeout(refresh, 180); }
+
   function selectCanvasNode(nodeKey) {
     const next = String(nodeKey || 'object').trim() || 'object';
     state.values = collectValues();
@@ -723,6 +726,7 @@
     }
     state.model = state.mode === 'existing' ? buildExistingModel({values: state.values}) : buildTemplateModel({values: state.values});
     state.selectedCanvasNode = next;
+    markRuntimeLensStale();
     render();
   }
 
@@ -838,8 +842,11 @@
     state.runtimeLensSession = null;
     state.runtimeLensStatus = 'idle';
     state.runtimeLensFocusKey = '';
-    state.runtimeLensExpanded = false;
+    state.runtimeLensDraftKey = ''; state.runtimeLensCurrentDraftKey = '';
+    state.runtimeLensExpanded = false; state.runtimeLensCollapsed = false;
   }
+
+  function markRuntimeLensStale() { const api = runtimeLensWorkspaceApi(); if (api && typeof api.markStale === 'function') { api.markStale(state); } }
 
   function handleCardBoardAction(action, target) {
     const api = cardWorkspaceApi();
@@ -934,6 +941,15 @@
     const status = elements.host.querySelector('[data-object-canvas-status]');
     if (status) {
       status.textContent = state.status || '';
+    }
+    const panel = elements.host.querySelector('[data-runtime-lens-panel]');
+    if (panel && state.runtimeLensStatus === 'stale') {
+      panel.dataset.runtimeLensStatus = 'stale';
+      panel.classList.add('is-stale');
+      const message = panel.querySelector('[data-runtime-lens-message]');
+      if (message) {
+        message.textContent = t('runtimeLens.draftStale', 'Lens is behind the current edit. Refresh or rebuild it to observe the latest draft.');
+      }
     }
   }
 

@@ -15,6 +15,14 @@
   box-shadow: 0 18px 40px rgba(31, 29, 24, 0.18);
 }
 
+.runtime-lens-panel.is-collapsed {
+  gap: 8px;
+}
+
+.runtime-lens-panel.is-collapsed .runtime-lens-summary {
+  display: none;
+}
+
 .runtime-lens-header,
 .runtime-lens-actions,
 .runtime-lens-summary {

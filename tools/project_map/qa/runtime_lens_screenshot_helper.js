@@ -14,18 +14,61 @@
     const url = 'data:text/html;charset=utf-8,' + encodeURIComponent(lensHtml);
     win.dendryDesktop = {
       createRuntimeLens: async (request) => ({
-        ok: true,
+        ok: opts.fail !== true,
         kind: 'runtime_lens_session',
-        status: 'ready',
+        status: opts.fail === true ? 'failed' : 'ready',
         focus: request && request.focus || {},
-        lensUrl: url,
-        lensPageUrl: url,
-        externalUrl: url,
-        diagnostics: [],
+        lensUrl: opts.fail === true ? '' : url,
+        lensPageUrl: opts.fail === true ? '' : url,
+        externalUrl: opts.fail === true ? '' : url,
+        diagnostics: opts.fail === true ? [{severity: 'error', code: 'runtime_lens.fixture_failure', message: 'Fixture Runtime Lens failed for this target.'}] : [],
         postLoadCommands: [{type: 'jumpToScene', sceneId: request && request.focus && (request.focus.targetSceneId || request.focus.id) || ''}]
       }),
       openExternalUrl: () => Promise.resolve({ok: true})
     };
+  }
+
+  async function runContentScenario(ctx, variant) {
+    const value = ctx || {};
+    const win = value.frame.contentWindow;
+    const mode = String(variant || 'ready');
+    if (mode === 'browser') {
+      delete win.dendryDesktop;
+      await value.openExisting('events', 'generic_intro', {generic_intro_body: 'Browser-only Runtime Lens unavailable state.'}, 'Runtime Lens browser unavailable');
+      await value.waitFor(() => {
+        const panel = win.document.querySelector('[data-runtime-lens-panel]');
+        const button = panel && panel.querySelector('[data-runtime-lens-action="create"]');
+        return panel && button && button.disabled;
+      }, 4000);
+      return;
+    }
+    installFakeDesktop(win, {
+      fail: mode === 'failure',
+      title: mode === 'expanded' ? 'Expanded Runtime Lens' : mode === 'stale' ? 'Draft Runtime Lens' : 'Runtime Lens focus',
+      body: mode === 'stale' ? 'This lens will be marked stale after an authoring edit.' : 'Runtime-rendered scene wrapper for the selected object.'
+    });
+    await value.openExisting('events', 'generic_intro', {generic_intro_body: 'Runtime Lens observes this selected scene.'}, mode === 'failure' ? 'Runtime Lens failure state' : 'Focused Runtime Lens');
+    value.click(win, '[data-runtime-lens-action="create"]');
+    await value.waitFor(() => win.document.querySelector('[data-runtime-lens-panel][data-runtime-lens-status="' + (mode === 'failure' ? 'failed' : 'ready') + '"]'), 4000);
+    if (mode === 'expanded') {
+      value.click(win, '[data-runtime-lens-action="toggle_expand"]');
+      await value.waitFor(() => {
+        const panel = win.document.querySelector('[data-runtime-lens-panel].is-expanded');
+        const frame = win.document.querySelector('[data-runtime-lens-frame]');
+        return panel && frame && value.isVisible(win, panel) && value.isVisible(win, frame);
+      }, 4000);
+    } else if (mode === 'stale') {
+      const field = win.document.querySelector('[data-object-canvas-field]');
+      field.value = 'Runtime Lens observes this selected scene after an authoring edit.';
+      field.dispatchEvent(new win.Event('input', {bubbles: true}));
+      await value.waitFor(() => win.document.querySelector('[data-runtime-lens-panel][data-runtime-lens-status="stale"]'), 4000);
+    } else if (mode !== 'failure') {
+      await value.waitFor(() => {
+        const panel = win.document.querySelector('[data-runtime-lens-panel]');
+        const frame = win.document.querySelector('[data-runtime-lens-frame]');
+        return panel && panel.dataset.runtimeLensStatus === 'ready' && frame && value.isVisible(win, frame);
+      }, 4000);
+    }
   }
 
   async function runCardBoardScenario(ctx, variant) {
@@ -68,5 +111,5 @@
     }[char]));
   }
 
-  global.DMSRuntimeLensScreenshotHelper = {installFakeDesktop, runCardBoardScenario};
+  global.DMSRuntimeLensScreenshotHelper = {installFakeDesktop, runCardBoardScenario, runContentScenario};
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -170,7 +170,7 @@ function lensPageScript(commandsJson, sessionId) {
     'function focus(){if(!AUTO_COMMANDS.length){setStatus("No automatic focus command is available for this object.");return;}AUTO_COMMANDS.forEach(send);setStatus("Focus command sent.");}',
     'frame&&frame.addEventListener("load",function(){setTimeout(focus,120);});',
     'document.addEventListener("click",function(event){var action=event.target.closest&&event.target.closest("[data-lens-action]");if(!action)return;if(action.getAttribute("data-lens-action")==="focus")focus();if(action.getAttribute("data-lens-action")==="reset"){send({type:"resetToInitialState"});setStatus("Reset command sent.");}});',
-    'window.addEventListener("message",function(event){var data=event.data||{};if(data.kind!=="dms-runtime-preview-result")return;var result=data.result||{};setStatus((result.ok?"Ready":"Needs attention")+": "+(result.message||result.sceneId||"command complete"));});',
+    'window.addEventListener("message",function(event){var data=event.data||{};if(data.kind==="dms-runtime-lens-action"){if(data.action==="focus")focus();if(data.action==="reset"){send({type:"resetToInitialState"});setStatus("Reset command sent.");}return;}if(data.kind!=="dms-runtime-preview-result")return;var result=data.result||{};setStatus((result.ok?"Ready":"Needs attention")+": "+(result.message||result.sceneId||"command complete"));});',
     '})();'
   ].join('\n');
 }

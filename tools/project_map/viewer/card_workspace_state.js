@@ -35,7 +35,10 @@
         runtimeLensSession: state.runtimeLensSession,
         runtimeLensStatus: state.runtimeLensStatus,
         runtimeLensFocusKey: state.runtimeLensFocusKey,
-        runtimeLensExpanded: state.runtimeLensExpanded
+        runtimeLensDraftKey: state.runtimeLensDraftKey,
+        runtimeLensCurrentDraftKey: state.runtimeLensCurrentDraftKey,
+        runtimeLensExpanded: state.runtimeLensExpanded,
+        runtimeLensCollapsed: state.runtimeLensCollapsed
       }, surfaceOptions(state)))
       : '';
   }

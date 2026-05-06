@@ -114,9 +114,11 @@
         'content-story-palette-reload-context': () => contentStoryPaletteReloadContextScenario(),
         'content-story-palette-review-context': () => contentStoryPaletteReviewContextScenario(),
         'content-story-palette-narrow': () => contentStoryPaletteNarrowScenario(),
-        'content-runtime-lens-ready': () => contentRuntimeLensReadyScenario(),
-        'content-runtime-lens-expanded': () => contentRuntimeLensExpandedScenario(),
-        'content-runtime-lens-browser': () => contentRuntimeLensBrowserScenario(),
+        'content-runtime-lens-ready': () => window.DMSRuntimeLensScreenshotHelper.runContentScenario({frame, openExisting, click, waitFor, isVisible}, 'ready'),
+        'content-runtime-lens-expanded': () => window.DMSRuntimeLensScreenshotHelper.runContentScenario({frame, openExisting, click, waitFor, isVisible}, 'expanded'),
+        'content-runtime-lens-browser': () => window.DMSRuntimeLensScreenshotHelper.runContentScenario({frame, openExisting, waitFor}, 'browser'),
+        'content-runtime-lens-stale': () => window.DMSRuntimeLensScreenshotHelper.runContentScenario({frame, openExisting, click, waitFor, isVisible}, 'stale'),
+        'content-runtime-lens-failure': () => window.DMSRuntimeLensScreenshotHelper.runContentScenario({frame, openExisting, click, waitFor, isVisible}, 'failure'),
         'card-board-open': () => cardBoardOpenScenario(),
         'card-board-lanes': () => cardBoardLanesScenario(),
         'card-board-pool': () => cardBoardPoolScenario(),
@@ -365,43 +367,6 @@
         await openTemplate('event', {'event.title': '1929 Event X', 'event.year': '1929'}, 'Create follow-up branch');
         click(win, '[data-object-canvas-action="create_followup"]');
         await waitFor(() => win.document.querySelector('[data-content-storyboard-card^="draft:"]'), 3000);
-      }
-
-      async function contentRuntimeLensReadyScenario() {
-        const win = frame.contentWindow;
-        window.DMSRuntimeLensScreenshotHelper.installFakeDesktop(win);
-        await openExisting('events', 'generic_intro', {generic_intro_body: 'Runtime Lens observes this selected scene.'}, 'Focused Runtime Lens');
-        click(win, '[data-runtime-lens-action="create"]');
-        await waitFor(() => {
-          const panel = win.document.querySelector('[data-runtime-lens-panel]');
-          const frame = win.document.querySelector('[data-runtime-lens-frame]');
-          return panel && panel.dataset.runtimeLensStatus === 'ready' && frame && isVisible(win, frame);
-        }, 4000);
-      }
-
-      async function contentRuntimeLensExpandedScenario() {
-        const win = frame.contentWindow;
-        window.DMSRuntimeLensScreenshotHelper.installFakeDesktop(win);
-        await openExisting('events', 'generic_intro', {generic_intro_body: 'Expanded Runtime Lens observation.'}, 'Expanded Runtime Lens');
-        click(win, '[data-runtime-lens-action="create"]');
-        await waitFor(() => win.document.querySelector('[data-runtime-lens-panel][data-runtime-lens-status="ready"]'), 4000);
-        click(win, '[data-runtime-lens-action="toggle_expand"]');
-        await waitFor(() => {
-          const panel = win.document.querySelector('[data-runtime-lens-panel].is-expanded');
-          const frame = win.document.querySelector('[data-runtime-lens-frame]');
-          return panel && frame && isVisible(win, panel) && isVisible(win, frame);
-        }, 4000);
-      }
-
-      async function contentRuntimeLensBrowserScenario() {
-        const win = frame.contentWindow;
-        delete win.dendryDesktop;
-        await openExisting('events', 'generic_intro', {generic_intro_body: 'Browser-only Runtime Lens unavailable state.'}, 'Runtime Lens browser unavailable');
-        await waitFor(() => {
-          const panel = win.document.querySelector('[data-runtime-lens-panel]');
-          const button = panel && panel.querySelector('[data-runtime-lens-action="create"]');
-          return panel && button && button.disabled;
-        }, 4000);
       }
 
       async function contentEditorOverlayScenario() {
