@@ -251,6 +251,31 @@ ipcMain.handle('dendry:runtime-preview-history', async (_event, options) => {
   return core.recordRuntimePreviewHistory(options || {});
 });
 
+ipcMain.handle('dendry:runtime-lens-create', async (_event, options) => {
+  const projectRoot = chooseProjectRootForOperation(options || {});
+  if (!projectRoot) {
+    return {
+      ok: false,
+      status: 'failed',
+      diagnostics: [{
+        severity: 'error',
+        code: 'runtime_lens.no_project',
+        message: 'Open a project folder before creating a focused runtime lens.',
+        confidence: 'exact'
+      }],
+      message: 'Open a project folder before creating a focused runtime lens.'
+    };
+  }
+  return core.createRuntimeLens({
+    plan: options && options.plan,
+    focus: options && options.focus,
+    projectRoot,
+    allowAdvanced: options && options.allowAdvanced === true,
+    projectIndex: options && options.projectIndex,
+    sessionsRoot: path.join(app.getPath('userData'), 'runtime-lenses')
+  });
+});
+
 ipcMain.handle('dendry:update-notice-check', async (_event, options) => {
   return updateNotice.checkForUpdate({
     desktopDir: __dirname,

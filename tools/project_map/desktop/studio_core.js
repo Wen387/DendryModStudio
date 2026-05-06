@@ -20,6 +20,7 @@ function requireInstallPlan() {
 
 const installPlan = requireInstallPlan();
 const runtimePreview = require('./runtime_preview');
+const runtimeLens = require('./runtime_lens');
 const STARTER_DEMO_ID = 'starter-demo';
 const PYTHON_CHECK_TIMEOUT_MS = 10 * 1000;
 const PROJECT_INDEX_TIMEOUT_MS = 10 * 60 * 1000;
@@ -824,6 +825,22 @@ function createRuntimePreview(options) {
   });
 }
 
+function createRuntimeLens(options) {
+  const opts = options || {};
+  return runtimeLens.createRuntimeLens({
+    projectRoot: opts.projectRoot,
+    sessionsRoot: opts.sessionsRoot,
+    plan: opts.plan,
+    focus: opts.focus,
+    allowAdvanced: opts.allowAdvanced === true,
+    allowProjectBuildWrapper: opts.allowProjectBuildWrapper === true,
+    projectIndex: opts.projectIndex || null,
+    buildRunner: opts.buildRunner,
+    serverFactory: opts.serverFactory,
+    now: opts.now
+  });
+}
+
 function recordRuntimePreviewHistory(options) {
   return runtimePreview.recordDebugCommandHistory(
     options && options.sessionRoot,
@@ -846,6 +863,7 @@ module.exports = {
   loadStarterDemoIndex,
   applyInstallPlan,
   createRuntimePreview,
+  createRuntimeLens,
   recordRuntimePreviewHistory,
   prepareStarterDemo,
   readProjectInfoSource,

@@ -140,6 +140,7 @@ async function main() {
   const corePath = requireFile('studio_core.js');
   const dendryCliRunnerPath = requireFile('dendry_cli_runner.js');
   const runtimePreviewPath = requireFile('runtime_preview.js');
+  const runtimeLensPath = requireFile('runtime_lens.js');
   const runtimePreviewBridgePath = requireFile('runtime_preview_debug_bridge.js');
   requireFile('main.js');
   requireFile('preload.js');
@@ -155,6 +156,7 @@ async function main() {
   fs.copyFileSync(corePath, path.join(packagedAppDir, 'studio_core.js'));
   fs.copyFileSync(dendryCliRunnerPath, path.join(packagedAppDir, 'dendry_cli_runner.js'));
   fs.copyFileSync(runtimePreviewPath, path.join(packagedAppDir, 'runtime_preview.js'));
+  fs.copyFileSync(runtimeLensPath, path.join(packagedAppDir, 'runtime_lens.js'));
   fs.copyFileSync(runtimePreviewBridgePath, path.join(packagedAppDir, 'runtime_preview_debug_bridge.js'));
   fs.writeFileSync(path.join(packagedAppDir, 'project_map', 'viewer', 'index.html'), '<!doctype html>\n', 'utf8');
   fs.writeFileSync(path.join(packagedAppDir, 'project_map', 'templates', 'starter-demo', 'source', 'info.dry'), 'title: Packaged Starter\n', 'utf8');
@@ -168,9 +170,15 @@ async function main() {
     'module.exports = {buildDebugControls: function () { return {variables: [], scenes: [], links: []}; }, commandHistoryEntry: function () { return {type: "test", timestamp: "2026-04-29T00:00:00.000Z"}; }};\n',
     'utf8'
   );
+  fs.writeFileSync(
+    path.join(packagedAppDir, 'project_map', 'authoring', 'runtime_lens_model.js'),
+    'module.exports = {normalizeFocus: function (focus) { return focus || {}; }, buildModel: function () { return {kind: "runtime_lens_model"}; }};\n',
+    'utf8'
+  );
   const packagedCore = require(path.join(packagedAppDir, 'studio_core.js'));
   assert(typeof packagedCore.resolveResourcePaths === 'function', 'packaged studio_core should load with project_map/authoring layout');
   assert(typeof packagedCore.createRuntimePreview === 'function', 'packaged studio_core should expose runtime preview');
+  assert(typeof packagedCore.createRuntimeLens === 'function', 'packaged studio_core should expose runtime lens');
   assert(typeof packagedCore.recordRuntimePreviewHistory === 'function', 'packaged studio_core should expose runtime preview history');
   assert(typeof packagedCore.prepareStarterDemo === 'function', 'packaged studio_core should expose starter demo preparation');
   assert(typeof packagedCore.loadStarterDemoIndex === 'function', 'packaged studio_core should expose starter demo cached index loading');
@@ -211,6 +219,7 @@ async function main() {
     'summarizeIndex',
     'applyInstallPlan',
     'createRuntimePreview',
+    'createRuntimeLens',
     'recordRuntimePreviewHistory',
     'prepareStarterDemo',
     'readProjectInfoSource',
@@ -443,9 +452,11 @@ async function main() {
   assert(preloadJs.includes('dendry:scan-progress'), 'preload should bridge scan progress events');
   assert(preloadJs.includes('checkUpdateNotice'), 'preload should expose update notice checks');
   assert(preloadJs.includes('openExternalUrl'), 'preload should expose safe external URL opens');
+  assert(preloadJs.includes('createRuntimeLens'), 'preload should expose focused runtime lens creation');
   await checkPreloadSandboxFileUrl(path.join(DESKTOP_DIR, 'preload.js'));
   assert(mainJs.includes('dendry:scan-progress'), 'main process should send scan progress events');
   assert(mainJs.includes('dendry:update-notice-check'), 'main process should handle update notice checks');
+  assert(mainJs.includes('dendry:runtime-lens-create'), 'main process should handle focused runtime lens creation');
   assert(mainJs.includes('dendry:open-external-url'), 'main process should handle safe external URL opens');
   assert(viewerApp.includes('ProjectMap:desktop-index-loaded'), 'viewer should listen for desktop index IPC event');
   assert(viewerApp.includes('ProjectMap:desktop-scan-progress'), 'viewer should listen for desktop progress IPC event');

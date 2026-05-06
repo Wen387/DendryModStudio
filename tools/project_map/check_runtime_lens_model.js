@@ -1,0 +1,153 @@
+#!/usr/bin/env node
+'use strict';
+
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+
+const lensModel = require('./authoring/runtime_lens_model.js');
+const runtimeLens = require('./desktop/runtime_lens.js');
+const runtimePreview = require('./desktop/runtime_preview.js');
+
+function fail(message) {
+  process.stderr.write('FAIL: ' + message + '\n');
+  process.exit(1);
+}
+
+function assert(condition, message) {
+  if (!condition) {
+    fail(message);
+  }
+}
+
+function htmlBuildRunner(label) {
+  return (root, meta) => {
+    const htmlRoot = path.join(root, 'out', 'html');
+    fs.mkdirSync(htmlRoot, {recursive: true});
+    fs.writeFileSync(path.join(htmlRoot, 'index.html'), [
+      '<!doctype html>',
+      '<title>' + String(label || meta && meta.lane || 'runtime lens') + '</title>',
+      '<body>' + String(meta && meta.lane || 'runtime lens') + '</body>'
+    ].join('\n') + '\n', 'utf8');
+    return {
+      ok: true,
+      root,
+      lane: meta && meta.lane || '',
+      command: label || 'runtime lens fixture build',
+      htmlRoot,
+      diagnostics: []
+    };
+  };
+}
+
+const projectIndex = {
+  project: {name: 'Runtime Lens Fixture'},
+  scenes: [
+    {id: 'root', title: 'Root', type: 'root', path: 'source/scenes/root.scene.dry'},
+    {id: 'focus_event', title: 'Focused Event', type: 'event', path: 'source/scenes/events/focus_event.scene.dry'},
+    {id: 'focus_card', title: 'Focused Card', type: 'card', path: 'source/scenes/cards/focus_card.scene.dry'}
+  ],
+  semantic: {
+    events: [{id: 'focus_event', title: 'Focused Event'}],
+    cards: [{id: 'focus_card', title: 'Focused Card'}]
+  },
+  variables: [{name: 'year', tags: ['time']}],
+  edges: [{from: 'root', to: 'focus_event', kind: 'choice'}]
+};
+
+const browserModel = lensModel.buildModel({
+  isDesktop: false,
+  focus: {kind: 'event', id: 'focus_event'},
+  projectIndex
+});
+assert(browserModel.status === 'unavailable', 'browser mode should report Runtime Lens unavailable');
+assert(browserModel.diagnostics.some((diag) => diag.code === 'runtime_lens.desktop_required'), 'browser model should explain desktop requirement');
+
+const idleFocus = lensModel.normalizeFocus({kind: 'event', id: 'focus_event'}, projectIndex);
+assert(idleFocus.targetSceneId === 'focus_event', 'event focus should resolve target scene id');
+assert(idleFocus.title === 'Focused Event', 'event focus should resolve scene title');
+
+const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dms_runtime_lens_source_'));
+const sessionsRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dms_runtime_lens_sessions_'));
+fs.mkdirSync(path.join(sourceRoot, 'source', 'scenes', 'events'), {recursive: true});
+fs.mkdirSync(path.join(sourceRoot, 'source', 'scenes', 'cards'), {recursive: true});
+fs.mkdirSync(path.join(sourceRoot, '.git'), {recursive: true});
+fs.writeFileSync(path.join(sourceRoot, 'source', 'info.dry'), 'title: Runtime Lens Fixture\n', 'utf8');
+fs.writeFileSync(path.join(sourceRoot, 'source', 'scenes', 'root.scene.dry'), [
+  'title: Root',
+  '',
+  '- @focus_event: Focus event',
+  ''
+].join('\n'), 'utf8');
+fs.writeFileSync(path.join(sourceRoot, 'source', 'scenes', 'events', 'focus_event.scene.dry'), [
+  'title: Focused Event',
+  'tags: event',
+  '',
+  'Original event text.',
+  ''
+].join('\n'), 'utf8');
+fs.writeFileSync(path.join(sourceRoot, 'source', 'scenes', 'cards', 'focus_card.scene.dry'), [
+  'title: Focused Card',
+  'is-card: true',
+  '',
+  'Original card text.',
+  ''
+].join('\n'), 'utf8');
+fs.writeFileSync(path.join(sourceRoot, '.git', 'config'), 'must not copy\n', 'utf8');
+
+const eventLens = runtimeLens.createRuntimeLens({
+  projectRoot: sourceRoot,
+  sessionsRoot,
+  projectIndex,
+  focus: {kind: 'event', id: 'focus_event'},
+  buildRunner: htmlBuildRunner('runtime lens build'),
+  serverFactory: runtimePreview.fakeServerFactory(48111),
+  now: () => new Date('2026-05-06T12:30:00.000Z')
+});
+
+assert(eventLens.ok, 'event Runtime Lens should create a focused session: ' + JSON.stringify(eventLens));
+assert(eventLens.kind === 'runtime_lens_session', 'Runtime Lens should return a lens session kind');
+assert(eventLens.status === 'ready', 'Runtime Lens should report ready status');
+assert(eventLens.lensUrl.includes('/modified/out/html/'), 'Runtime Lens primary URL should point at modified runtime');
+assert(eventLens.externalUrl === eventLens.lensUrl, 'Runtime Lens external URL should default to modified runtime URL');
+assert(eventLens.focus.targetSceneId === 'focus_event', 'Runtime Lens should preserve focused scene target');
+assert(eventLens.postLoadCommands.some((command) => command.type === 'jumpToScene' && command.sceneId === 'focus_event'), 'Runtime Lens should queue a scene jump command');
+assert(eventLens.lensModel.commands.some((command) => command.type === 'focusScene'), 'Runtime Lens model should expose focusScene command');
+assert(fs.existsSync(path.join(eventLens.paths.modifiedRoot, 'source', 'info.dry')), 'modified sandbox should include source/info.dry');
+assert(!fs.existsSync(path.join(eventLens.paths.modifiedRoot, '.git', 'config')), 'Runtime Lens sandbox must not copy .git');
+assert(fs.readFileSync(path.join(sourceRoot, 'source', 'scenes', 'events', 'focus_event.scene.dry'), 'utf8').includes('Original event text'), 'Runtime Lens must not mutate the real source project');
+
+const cardLens = runtimeLens.createRuntimeLens({
+  projectRoot: sourceRoot,
+  sessionsRoot,
+  projectIndex,
+  focus: {kind: 'card', id: 'focus_card'},
+  buildRunner: htmlBuildRunner('runtime lens card build'),
+  serverFactory: runtimePreview.fakeServerFactory(48112),
+  now: () => new Date('2026-05-06T12:31:00.000Z')
+});
+assert(cardLens.ok, 'card Runtime Lens should create a focused session: ' + JSON.stringify(cardLens));
+assert(cardLens.focus.targetCardId === 'focus_card', 'card focus should preserve target card id');
+assert(cardLens.postLoadCommands.some((command) => command.type === 'focusCard' && command.cardId === 'focus_card'), 'card Runtime Lens should queue a card focus command');
+
+const missingRoot = runtimeLens.createRuntimeLens({
+  projectRoot: path.join(sourceRoot, 'missing'),
+  projectIndex,
+  focus: {kind: 'event', id: 'focus_event'}
+});
+assert(!missingRoot.ok && missingRoot.status === 'failed', 'missing project root should fail safely');
+assert(missingRoot.diagnostics.some((diag) => diag.code === 'runtime_lens.project_root'), 'missing project root should report a Runtime Lens diagnostic');
+
+process.stdout.write(JSON.stringify({
+  ok: true,
+  eventLens: {
+    status: eventLens.status,
+    focus: eventLens.focus.targetSceneId,
+    urlKind: eventLens.lensUrl.includes('/modified/out/html/') ? 'modified' : 'unknown'
+  },
+  cardLens: {
+    status: cardLens.status,
+    focus: cardLens.focus.targetCardId,
+    commands: cardLens.postLoadCommands.map((command) => command.type)
+  }
+}, null, 2) + '\n');
