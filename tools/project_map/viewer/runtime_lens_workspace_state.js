@@ -44,14 +44,14 @@
       deps.render && deps.render();
       return;
     }
+    rebuildModel(state, deps);
     const focus = currentFocus(state);
     if (!focus || !focus.id) {
       state.runtimeLensStatus = 'failed';
-      state.status = translate('runtimeLens.noFocus', 'Select a source-backed event or scene before creating a Lens.');
+      state.status = translate('runtimeLens.noFocus', 'Select a source-backed object or UI region before creating a Lens.');
       deps.render && deps.render();
       return;
     }
-    rebuildModel(state, deps);
     state.runtimeLensStatus = 'building';
     state.runtimeLensFocusKey = focus.key || (focus.kind + ':' + focus.id);
     deps.render && deps.render();
@@ -77,6 +77,9 @@
 
   function currentFocus(state) {
     const ui = runtimeLensUi();
+    if (ui && typeof ui.focusFromSystemRegion === 'function' && (state.workspace || '') === 'system_ui') {
+      return ui.focusFromSystemRegion(state.projectIndex, state.model || {}, state.selectedCanvasNode, {fixture: state.systemUiFixture});
+    }
     if (ui && typeof ui.focusFromCanvas === 'function') {
       return ui.focusFromCanvas(state.projectIndex, state.model || {}, state.selectedCanvasNode);
     }

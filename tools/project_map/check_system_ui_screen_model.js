@@ -82,6 +82,7 @@ Object.keys(expected).forEach((template) => {
   assert(html.includes('data-system-screen-region="main_content"'), template + ' surface should render the main content region');
   assert(html.includes('data-system-screen-region="sidebar_status"'), template + ' surface should render the sidebar/status region');
   assert(html.includes('data-system-screen-family="interactive"'), template + ' surface should render interactive-object regions');
+  assert(html.includes('data-runtime-lens-panel="true"'), template + ' surface should render the Runtime Lens observer');
   assert(html.includes('data-system-screen-diagnostics="true"'), template + ' surface should explain recipe and selection intent');
   assert(html.includes('data-system-ui-region-context="true"'), template + ' surface should render selected-region context');
   assert(html.includes('data-system-ui-owner-template='), template + ' surface should render region owner evidence');

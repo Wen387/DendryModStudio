@@ -62,6 +62,7 @@
     <strong id="harness-title">Authoring Canvas screenshot</strong>
     <span id="harness-status">Loading Studio...</span>
   </div>
+  <script src="runtime_lens_screenshot_helper.js"></script>
   <script>
     (function initHarness() {
       'use strict';
@@ -146,6 +147,8 @@
         'system-ui-editor-overlay': () => systemUiEditorOverlayScenario(),
         'system-ui-reload-context': () => systemUiReloadContextScenario(),
         'system-ui-narrow': () => systemUiNarrowScenario(),
+        'system-ui-runtime-lens-ready': () => systemUiRuntimeLensScenario(false),
+        'system-ui-runtime-lens-expanded': () => systemUiRuntimeLensScenario(true),
         'design-existing-event-canvas': () => openExisting('events', 'generic_intro', {generic_intro_body: 'The campaign office opens to a sharper morning.'}, 'Design existing Event Canvas'),
         'explore-existing-card-canvas': () => openExisting('cards', 'policy_card', {policy_card_body: 'The policy card body is edited from Explore context.'}, 'Explore existing Card Canvas'),
         'template-news': () => openTemplate('news', {'news.headline': 'Canvas headline'}, 'News Canvas'),
@@ -363,7 +366,7 @@
 
       async function contentRuntimeLensReadyScenario() {
         const win = frame.contentWindow;
-        installFakeRuntimeLensDesktop(win);
+        window.DMSRuntimeLensScreenshotHelper.installFakeDesktop(win);
         await openExisting('events', 'generic_intro', {generic_intro_body: 'Runtime Lens observes this selected scene.'}, 'Focused Runtime Lens');
         click(win, '[data-runtime-lens-action="create"]');
         await waitFor(() => {
@@ -375,7 +378,7 @@
 
       async function contentRuntimeLensExpandedScenario() {
         const win = frame.contentWindow;
-        installFakeRuntimeLensDesktop(win);
+        window.DMSRuntimeLensScreenshotHelper.installFakeDesktop(win);
         await openExisting('events', 'generic_intro', {generic_intro_body: 'Expanded Runtime Lens observation.'}, 'Expanded Runtime Lens');
         click(win, '[data-runtime-lens-action="create"]');
         await waitFor(() => win.document.querySelector('[data-runtime-lens-panel][data-runtime-lens-status="ready"]'), 4000);
@@ -396,32 +399,6 @@
           const button = panel && panel.querySelector('[data-runtime-lens-action="create"]');
           return panel && button && button.disabled;
         }, 4000);
-      }
-
-      function installFakeRuntimeLensDesktop(win) {
-        const lensHtml = [
-          '<!doctype html><html><head><style>',
-          'body{margin:0;background:#f8f5ed;color:#2d271e;font:18px Georgia,serif}',
-          'main{padding:28px}.title{font-size:26px;letter-spacing:2px;text-align:center}',
-          '.card{margin-top:22px;border:2px solid #8f7b61;padding:18px;background:white;box-shadow:0 8px 20px rgba(0,0,0,.12)}',
-          'button{display:block;width:100%;margin-top:18px;padding:12px;border:1px solid #8f7b61;background:#fffaf1;font:inherit}',
-          '</style></head><body><main><div class="title">SOCIAL DEMOCRACY: AN ALTERNATE HISTORY</div><section class="card"><strong>Runtime Lens focus</strong><p>Runtime-rendered scene wrapper for the selected event.</p><button>Continue</button></section></main></body></html>'
-        ].join('');
-        const url = 'data:text/html;charset=utf-8,' + encodeURIComponent(lensHtml);
-        win.dendryDesktop = {
-          createRuntimeLens: async (options) => ({
-            ok: true,
-            kind: 'runtime_lens_session',
-            status: 'ready',
-            focus: options && options.focus || {},
-            lensUrl: url,
-            lensPageUrl: url,
-            externalUrl: url,
-            diagnostics: [],
-            postLoadCommands: [{type: 'jumpToScene', sceneId: options && options.focus && options.focus.id || ''}]
-          }),
-          openExternalUrl: () => Promise.resolve({ok: true})
-        };
       }
 
       async function contentEditorOverlayScenario() {
@@ -1157,6 +1134,26 @@
         click(win, '[data-system-ui-region="screen_header"]');
         click(win, '[data-object-canvas-action="toggle_overlay"]');
         await waitFor(() => win.document.querySelector('[data-object-authoring-canvas].is-editor-overlay [data-system-ui-inspector]'), 3000);
+      }
+
+      async function systemUiRuntimeLensScenario(expanded) {
+        const win = frame.contentWindow;
+        window.DMSRuntimeLensScreenshotHelper.installFakeDesktop(win, {title: expanded ? 'Expanded System UI Lens' : 'System UI Runtime Lens', body: 'Runtime-rendered player screen wrapper for the selected UI region.'});
+        await openTemplate(expanded ? 'sidebar_status' : 'project', expanded ? {} : {'project.gameTitle': 'Runtime Lens Header'}, expanded ? 'System UI Runtime Lens expanded' : 'System UI Runtime Lens');
+        click(win, expanded ? '[data-system-ui-region="sidebar_status"]' : '[data-system-ui-region="screen_header"]');
+        click(win, '[data-runtime-lens-action="create"]');
+        await waitFor(() => win.document.querySelector('[data-runtime-lens-panel][data-runtime-lens-status="ready"] [data-runtime-lens-frame]'), 4000);
+        if (!expanded) {
+          win.document.querySelector('[data-runtime-lens-panel]').scrollIntoView({block: 'center', inline: 'nearest'});
+          await delay(180);
+          return;
+        }
+        click(win, '[data-runtime-lens-action="toggle_expand"]');
+        await waitFor(() => {
+          const panel = win.document.querySelector('[data-runtime-lens-panel].is-expanded');
+          const frame = win.document.querySelector('[data-runtime-lens-frame]');
+          return panel && frame && isVisible(win, panel) && isVisible(win, frame);
+        }, 4000);
       }
 
       async function systemUiReloadContextScenario() {

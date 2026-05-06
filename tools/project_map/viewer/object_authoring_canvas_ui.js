@@ -541,7 +541,7 @@
 
   function renderSystemUiPreviewStage(model) {
     const surface = global.ProjectMapSystemUiPreviewSurface;
-    return surface && typeof surface.render === 'function' ? surface.render(model, {projectIndex: state.projectIndex, selected: state.selectedCanvasNode, fixture: state.systemUiFixture, editorOverlay: state.editorOverlay}) : '';
+    return surface && typeof surface.render === 'function' ? surface.render(model, {projectIndex: state.projectIndex, selected: state.selectedCanvasNode, fixture: state.systemUiFixture, editorOverlay: state.editorOverlay, runtimeLensSession: state.runtimeLensSession, runtimeLensStatus: state.runtimeLensStatus, runtimeLensFocusKey: state.runtimeLensFocusKey, runtimeLensExpanded: state.runtimeLensExpanded}) : '';
   }
 
   function renderContentStoryboardStage(model) {

@@ -7,6 +7,7 @@
     return [
       '<aside class="system-ui-inspector" data-system-ui-inspector="true">',
       selected ? renderSelectedRegion(screen, selected) : '',
+      renderRuntimeLens(model, screen, opts),
       renderRegionFields(selected),
       renderRegionContext(screen),
       renderDiagnostics(screen),
@@ -65,6 +66,23 @@
       action_card: {key: 'deck', labelKey: 'cardBoard.lane.deck', fallback: 'Deck'},
       advisor_lane: {key: 'advisor', labelKey: 'cardBoard.lane.advisor', fallback: 'Advisor / pinned'}
     }[String(key || '')] || null;
+  }
+
+  function renderRuntimeLens(model, screen, options) {
+    const api = runtimeLensApi();
+    if (!api || typeof api.renderPanel !== 'function') {
+      return '';
+    }
+    const focus = typeof api.focusFromSystemRegion === 'function'
+      ? api.focusFromSystemRegion(options && options.projectIndex, model, screen && screen.selectedKey, {fixture: screen && screen.fixture})
+      : {};
+    return api.renderPanel({
+      focus,
+      session: options.runtimeLensSession,
+      status: options.runtimeLensStatus,
+      sessionFocusKey: options.runtimeLensFocusKey,
+      expanded: options.runtimeLensExpanded
+    });
   }
 
   function renderRegionFields(selected) {
@@ -169,6 +187,20 @@
   function t(key, fallback) {
     const i18n = global.ProjectMapI18n;
     return i18n && typeof i18n.t === 'function' ? i18n.t(key, fallback) : fallback;
+  }
+
+  function runtimeLensApi() {
+    if (global && global.ProjectMapRuntimeLensUi) {
+      return global.ProjectMapRuntimeLensUi;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./runtime_lens_ui.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
   }
 
   function escapeAttr(value) {

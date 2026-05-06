@@ -19,6 +19,27 @@
     };
   }
 
+  function focusFromSystemRegion(projectIndex, model, selectedKey, options) {
+    const opts = options || {};
+    const screen = systemUiScreen(model, {
+      selected: selectedKey,
+      fixture: opts.fixture
+    });
+    const region = screen && screen.selected || null;
+    const regionId = normalizeRegionKey(region && region.key || screen && screen.selectedKey || selectedKey);
+    const source = systemRegionSource(region, screen, model);
+    const targetSceneId = systemRegionTargetScene(projectIndex, region, screen, source);
+    return {
+      kind: 'system_region',
+      id: regionId,
+      regionId,
+      targetSceneId,
+      title: firstNonEmpty(region && region.title, region && region.fallback, screen && screen.recipe && screen.recipe.fallback, regionId),
+      source,
+      key: focusKey('system_region', [regionId, screen && screen.fixture].filter(Boolean).join(':'))
+    };
+  }
+
   function renderPanel(options) {
     const opts = options || {};
     const focus = opts.focus || {};
@@ -61,7 +82,7 @@
     const message = !opts.isDesktop
       ? t('runtimeLens.browserOnly', 'Focused Runtime Lens is available in the desktop app because it builds a temporary runtime sandbox.')
       : !opts.canFocus
-        ? t('runtimeLens.unsupportedFocus', 'Select a source-backed event or scene to focus it in runtime.')
+        ? t('runtimeLens.unsupportedFocus', 'Select a source-backed object or UI region to focus it in runtime.')
         : opts.stale
           ? t('runtimeLens.stale', 'Lens is showing a previous selection. Refresh to rebuild around this object.')
           : statusText(status);
@@ -137,6 +158,10 @@
     return match ? {kind: match[1], id: match[2]} : null;
   }
 
+  function normalizeRegionKey(key) {
+    return String(key || '').replace(/^ui:/, '').trim();
+  }
+
   function focusKind(parsed, model, scene) {
     const kind = parsed && parsed.kind || '';
     if (kind === 'card' || kind === 'advisor') {
@@ -155,6 +180,80 @@
   function sceneById(projectIndex, id) {
     const sceneId = String(id || '');
     return ensureArray(projectIndex && projectIndex.scenes).find((scene) => String(scene && scene.id || '') === sceneId) || null;
+  }
+
+  function sceneByPath(projectIndex, sourcePath) {
+    const path = String(sourcePath || '');
+    if (!path) {
+      return null;
+    }
+    return ensureArray(projectIndex && projectIndex.scenes).find((scene) => {
+      const source = scene && (scene.sourceSpan || scene.source || {});
+      return String(scene && scene.path || source.path || '') === path;
+    }) || null;
+  }
+
+  function firstScene(projectIndex, predicate) {
+    return ensureArray(projectIndex && projectIndex.scenes).find((scene) => scene && predicate(scene)) || null;
+  }
+
+  function systemRegionTargetScene(projectIndex, region, screen, source) {
+    const bySource = sceneByPath(projectIndex, source && source.path);
+    if (bySource && bySource.id) {
+      return bySource.id;
+    }
+    const key = normalizeRegionKey(region && region.key);
+    const semantic = projectIndex && projectIndex.semantic || {};
+    const firstHand = ensureArray(semantic.hands)[0];
+    const firstCard = ensureArray(semantic.cards)[0];
+    const byRegion = {
+      workspace_hand: firstHand && firstHand.id,
+      advisor_lane: firstHand && firstHand.id,
+      deck_lane: firstCard && firstCard.id || firstHand && firstHand.id,
+      action_card: firstCard && firstCard.id,
+      sidebar_status: sceneIdByType(projectIndex, ['status', 'sidebar'])
+    }[key];
+    if (byRegion) {
+      return byRegion;
+    }
+    const root = sceneById(projectIndex, projectIndex && projectIndex.project && projectIndex.project.rootScene || 'root') ||
+      firstScene(projectIndex, (scene) => /root|start|main/i.test(String(scene.id || scene.type || '')));
+    return root && root.id || screen && screen.template || '';
+  }
+
+  function sceneIdByType(projectIndex, types) {
+    const wanted = ensureArray(types).map((type) => String(type).toLowerCase());
+    const scene = firstScene(projectIndex, (item) => wanted.includes(String(item.type || '').toLowerCase()) || wanted.some((type) => String(item.id || '').toLowerCase().includes(type)));
+    return scene && scene.id || '';
+  }
+
+  function systemRegionSource(region, screen, model) {
+    const evidence = ensureArray(region && region.sourceEvidence)[0] ||
+      ensureArray(screen && screen.regionContext && screen.regionContext.sourceEvidence)[0] ||
+      ensureArray(model && model.contextBoard && model.contextBoard.sourceEvidence)[0] ||
+      model && model.source || {};
+    return sourceRef(evidence);
+  }
+
+  function systemUiScreen(model, options) {
+    const api = systemUiScreenModelApi();
+    return api && typeof api.buildScreen === 'function'
+      ? api.buildScreen(model || {}, options || {})
+      : {template: 'entry', fixture: '', selectedKey: normalizeRegionKey(options && options.selected), selected: null};
+  }
+
+  function systemUiScreenModelApi() {
+    if (global && global.ProjectMapSystemUiScreenModel) {
+      return global.ProjectMapSystemUiScreenModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./system_ui_screen_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
   }
 
   function sourceRef(value) {
@@ -213,6 +312,7 @@
 
   const api = {
     focusFromCanvas,
+    focusFromSystemRegion,
     renderPanel,
     bind
   };
