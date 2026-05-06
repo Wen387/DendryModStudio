@@ -61,6 +61,24 @@ const SECTION_FIELDS = [
   'gameOver'
 ];
 
+const TIMELINE_FIELDS = [
+  'year',
+  'month',
+  'monthStart',
+  'monthEnd',
+  'startYear',
+  'endYear',
+  'yearStart',
+  'yearEnd',
+  'startMonth',
+  'endMonth',
+  'day',
+  'week',
+  'turn',
+  'chapter',
+  'phase'
+];
+
 const POST_EVENT_REL = 'source/scenes/post_event.scene.dry';
 
 function usage() {
@@ -318,7 +336,7 @@ function normalizeSection(section, nextStartLine, fileLineCount) {
     metadata: metadataOf(section),
     routes: routeFields(section),
     options: (section.options || []).map(normalizeOption)
-  }, ownDefined(section, SECTION_FIELDS));
+  }, ownDefined(section, SECTION_FIELDS.concat(TIMELINE_FIELDS)));
   return out;
 }
 
@@ -342,7 +360,7 @@ function normalizeScene(rawDry, relativePath, fileLineCount) {
     sections: (rawDry.sections || []).map((section, index) => {
       return normalizeSection(section, sectionStarts[index + 1], fileLineCount);
     })
-  }, ownDefined(rawDry, SECTION_FIELDS));
+  }, ownDefined(rawDry, SECTION_FIELDS.concat(TIMELINE_FIELDS)));
 }
 
 async function parseProject(rootArg) {

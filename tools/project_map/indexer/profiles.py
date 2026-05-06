@@ -186,6 +186,7 @@ def normalize_parser_scene(scene: dict[str, Any], root: Path,
         "newPage",
         "setRoot",
         "gameOver",
+        *TIMELINE_FIELD_NAMES,
     ]:
         if field in scene:
             out[field] = scene[field]

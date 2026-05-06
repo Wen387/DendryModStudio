@@ -76,6 +76,24 @@ DENDRY_BUILTIN_SCENES = {
     "returnScene",
 }
 
+TIMELINE_FIELD_NAMES = (
+    "year",
+    "month",
+    "monthStart",
+    "monthEnd",
+    "startYear",
+    "endYear",
+    "yearStart",
+    "yearEnd",
+    "startMonth",
+    "endMonth",
+    "day",
+    "week",
+    "turn",
+    "chapter",
+    "phase",
+)
+
 RESERVED_CONDITION_WORDS = {
     "if",
     "and",

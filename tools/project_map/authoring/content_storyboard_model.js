@@ -350,6 +350,10 @@
 
   function scheduleForScene(scene) {
     const value = isObject(scene) ? scene : {};
+    const explicit = scheduleFromObject(value);
+    if (explicit.year) {
+      return explicit;
+    }
     return scheduleFromCondition(value.viewIf || value.chooseIf || value.requires || value.condition || '');
   }
 
@@ -383,6 +387,24 @@
       }
     }
     return out;
+  }
+
+  function scheduleFromObject(value) {
+    const raw = isObject(value) ? value : {};
+    const when = isObject(raw.when) ? raw.when : {};
+    const year = numberOr(raw.year || when.year || raw.startYear || raw.yearStart, 0);
+    if (!year) {
+      return {};
+    }
+    const monthStart = numberOr(
+      raw.monthStart || raw.startMonth || raw.month || when.monthStart || when.startMonth || when.month,
+      1
+    );
+    const monthEnd = numberOr(
+      raw.monthEnd || raw.endMonth || raw.month || when.monthEnd || when.endMonth || when.month,
+      monthStart
+    );
+    return {year, monthStart, monthEnd};
   }
 
   function formatSchedule(schedule) {
