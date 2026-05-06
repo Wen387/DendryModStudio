@@ -126,6 +126,7 @@ assert(html.includes('data-card-board-canvas="true"'), 'Card Board surface shoul
 assert(html.includes('data-card-board-lane="deck"'), 'Card Board surface should render the deck lane');
 assert(html.includes('data-card-board-lane="advisor"'), 'Card Board surface should render the advisor lane');
 assert(html.includes('data-card-face-editor="true"'), 'Card Board surface should render the card face editor');
+assert(html.includes('data-runtime-lens-panel="true"'), 'Card Board surface should render the Runtime Lens observer');
 assert(html.includes('data-card-board-create-lane="deck"'), 'Card Board should offer lane-aware card creation');
 assert(html.includes('data-card-board-option-card="draft:card:new_action_card"'), 'Card Board cards should expose clickable card options');
 assert(html.includes('data-card-board-lane-select="deck"'), 'Card Board lanes should expose selectable lane headers');

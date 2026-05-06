@@ -40,6 +40,25 @@
     };
   }
 
+  function focusFromCardBoard(projectIndex, model, boardOrOptions) {
+    const board = cardBoard(projectIndex, model, boardOrOptions);
+    const selectedObject = board && board.selectedObject || {};
+    const card = selectedObject.card || board && board.selected || null;
+    if (selectedObject.kind === 'option') {
+      return focusFromCardOption(selectedObject, card);
+    }
+    if (selectedObject.kind === 'route') {
+      return focusFromHandRoute(projectIndex, selectedObject, board);
+    }
+    if (selectedObject.kind === 'lane') {
+      return focusFromBoardLane(projectIndex, selectedObject, board);
+    }
+    if (selectedObject.kind === 'intent') {
+      return focusFromBoardIntent(projectIndex, selectedObject, board);
+    }
+    return focusFromCard(card, board);
+  }
+
   function renderPanel(options) {
     const opts = options || {};
     const focus = opts.focus || {};
@@ -256,6 +275,171 @@
     return null;
   }
 
+  function focusFromCardOption(selectedObject, card) {
+    const option = selectedObject && selectedObject.option || {};
+    const parent = card || selectedObject && selectedObject.card || null;
+    const cardId = parent && parent.id || cardIdFromKey(selectedObject && selectedObject.cardKey);
+    const optionIndex = Number(selectedObject && selectedObject.optionIndex || option.index || 0);
+    return {
+      kind: 'card_option',
+      id: [cardId, optionIndex].filter((part) => part !== '').join(':'),
+      cardId,
+      targetSceneId: cardId,
+      optionIndex,
+      title: firstNonEmpty(parent && parent.title, parent && parent.heading, cardId) + ' / ' + firstNonEmpty(option.label, option.id, 'Option ' + (optionIndex + 1)),
+      source: sourceRef(option.source || parent && parent.source || {}),
+      key: focusKey('card_option', [(parent && parent.key) || cardId, optionIndex].join(':'))
+    };
+  }
+
+  function focusFromHandRoute(projectIndex, selectedObject) {
+    const route = selectedObject && selectedObject.route || {};
+    const linkedCardKey = ensureArray(route.linkedCardKeys)[0] || '';
+    const linkedCardId = cardIdFromKey(linkedCardKey);
+    const directScene = route.targetKind === 'scene' ? route.targetId : '';
+    const fallbackHand = firstSemanticId(projectIndex, 'hands') || sceneIdByType(projectIndex, ['hand', 'main']);
+    const targetSceneId = directScene || linkedCardId || fallbackHand;
+    return {
+      kind: 'hand',
+      id: route.key || selectedObject && selectedObject.key || targetSceneId,
+      targetSceneId,
+      title: firstNonEmpty(route.title, selectedObject && selectedObject.title, 'Hand route'),
+      source: sourceRef(route.source || {}),
+      key: focusKey('hand', route.key || targetSceneId)
+    };
+  }
+
+  function focusFromBoardLane(projectIndex, selectedObject, board) {
+    const lane = selectedObject && selectedObject.lane || {};
+    const laneKey = String(selectedObject && selectedObject.laneKey || lane.key || '');
+    if (laneKey === 'hand') {
+      const handId = firstSemanticId(projectIndex, 'hands') || sceneIdByType(projectIndex, ['hand', 'main']);
+      return handId ? {
+        kind: 'hand',
+        id: handId,
+        targetSceneId: handId,
+        title: laneTitle(lane, 'Hand'),
+        source: sceneSource(projectIndex, handId),
+        key: focusKey('hand', 'lane:' + laneKey + ':' + handId)
+      } : unknownFocus(laneTitle(lane, 'Hand'), 'lane:' + laneKey);
+    }
+    const firstCard = ensureArray(lane.cards).find((item) => item && (item.kind === 'card' || item.kind === 'advisor')) || null;
+    if (firstCard) {
+      const focus = focusFromCard(firstCard, board);
+      focus.key = focusKey('card', 'lane:' + laneKey + ':' + firstCard.key);
+      focus.title = laneTitle(lane, focus.title);
+      return focus;
+    }
+    const deckId = laneKey === 'deck' ? firstSemanticId(projectIndex, 'decks') || sceneIdByType(projectIndex, ['deck']) : '';
+    if (deckId) {
+      return {
+        kind: 'hand',
+        id: deckId,
+        targetSceneId: deckId,
+        title: laneTitle(lane, 'Deck'),
+        source: sceneSource(projectIndex, deckId),
+        key: focusKey('hand', 'lane:' + laneKey + ':' + deckId)
+      };
+    }
+    return unknownFocus(laneTitle(lane, laneKey), 'lane:' + laneKey);
+  }
+
+  function focusFromBoardIntent(projectIndex, selectedObject, board) {
+    const intent = selectedObject && selectedObject.intent || {};
+    const card = selectedObject && selectedObject.card || cardByKeyInBoard(board, intent.itemKey);
+    if (card) {
+      const focus = focusFromCard(card, board);
+      focus.key = focusKey('card', 'intent:' + card.key + ':' + String(intent.laneKey || ''));
+      focus.title = firstNonEmpty(intent.itemTitle, focus.title);
+      return focus;
+    }
+    return focusFromBoardLane(projectIndex, {kind: 'lane', laneKey: intent.laneKey, lane: laneByKey(board, intent.laneKey)}, board);
+  }
+
+  function focusFromCard(card) {
+    const value = card || {};
+    const cardId = String(value.id || cardIdFromKey(value.key) || '');
+    if (!cardId) {
+      return unknownFocus(value.title || value.heading || '', value.key || '');
+    }
+    return {
+      kind: 'card',
+      id: cardId,
+      cardId,
+      targetSceneId: cardId,
+      title: firstNonEmpty(value.title, value.heading, cardId),
+      source: sourceRef(value.source || {}),
+      key: focusKey('card', cardId)
+    };
+  }
+
+  function cardBoard(projectIndex, model, boardOrOptions) {
+    if (boardOrOptions && boardOrOptions.kind === 'card_board_model') {
+      return boardOrOptions;
+    }
+    const api = cardBoardModelApi();
+    return api && typeof api.buildBoard === 'function'
+      ? api.buildBoard(projectIndex, model || {}, boardOrOptions || {})
+      : {kind: 'card_board_model', selectedObject: {}, selected: null, lanes: []};
+  }
+
+  function cardBoardModelApi() {
+    if (global && global.ProjectMapCardBoardModel) {
+      return global.ProjectMapCardBoardModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('../authoring/card_board_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function cardByKeyInBoard(board, key) {
+    const target = String(key || '');
+    for (const lane of ensureArray(board && board.lanes)) {
+      const found = ensureArray(lane.cards).find((item) => item && item.key === target);
+      if (found) {
+        return found;
+      }
+    }
+    return null;
+  }
+
+  function laneByKey(board, key) {
+    return ensureArray(board && board.lanes).find((lane) => lane && lane.key === String(key || '')) || null;
+  }
+
+  function firstSemanticId(projectIndex, key) {
+    const item = ensureArray(projectIndex && projectIndex.semantic && projectIndex.semantic[key])[0];
+    return item && item.id || '';
+  }
+
+  function sceneSource(projectIndex, id) {
+    const scene = sceneById(projectIndex, id);
+    return sourceRef(scene && (scene.sourceSpan || scene.source || {path: scene.path}) || {});
+  }
+
+  function laneTitle(lane, fallback) {
+    return firstNonEmpty(lane && lane.fallback, lane && lane.key, fallback);
+  }
+
+  function cardIdFromKey(key) {
+    return String(key || '').replace(/^(card|advisor):/, '').replace(/^draft:card:/, '');
+  }
+
+  function unknownFocus(title, id) {
+    return {
+      kind: 'unknown',
+      id: String(id || ''),
+      title: String(title || ''),
+      source: {},
+      key: focusKey('unknown', id || title || '')
+    };
+  }
+
   function sourceRef(value) {
     const source = value || {};
     const path = String(source.path || source.sourcePath || '');
@@ -312,6 +496,7 @@
 
   const api = {
     focusFromCanvas,
+    focusFromCardBoard,
     focusFromSystemRegion,
     renderPanel,
     bind

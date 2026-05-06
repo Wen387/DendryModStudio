@@ -1,7 +1,8 @@
 (function initProjectMapCardFaceEditor(global) {
   'use strict';
 
-  function render(model, board) {
+  function render(model, board, options) {
+    const opts = options && typeof options === 'object' ? options : {};
     const selectedObject = board && board.selectedObject || {};
     const selected = selectedObject.card || board && board.selected || null;
     const body = model && model.eventBody || {};
@@ -9,6 +10,7 @@
     return [
       '<aside class="card-face-editor" data-card-face-editor="true">',
       renderHeader(selectedObject, selected, board),
+      renderRuntimeLens(model, board, opts),
       renderPreview(selected, selectedObject),
       renderInspector(model, body, board, selectedObject, selected, canEdit),
       renderDropContext(board && board.dropContext),
@@ -31,6 +33,23 @@
       ].filter(Boolean).join(' / ')) + '</p>',
       '</header>'
     ].join('');
+  }
+
+  function renderRuntimeLens(model, board, options) {
+    const api = runtimeLensApi();
+    if (!api || typeof api.renderPanel !== 'function') {
+      return '';
+    }
+    const focus = typeof api.focusFromCardBoard === 'function'
+      ? api.focusFromCardBoard(options && options.projectIndex, model, board)
+      : {};
+    return api.renderPanel({
+      focus,
+      session: options.runtimeLensSession,
+      status: options.runtimeLensStatus,
+      sessionFocusKey: options.runtimeLensFocusKey,
+      expanded: options.runtimeLensExpanded
+    });
   }
 
   function renderPreview(card, selectedObject) {
@@ -368,6 +387,20 @@
   function t(key, fallback) {
     const i18n = global.ProjectMapI18n;
     return i18n && typeof i18n.t === 'function' ? i18n.t(key, fallback) : fallback;
+  }
+
+  function runtimeLensApi() {
+    if (global && global.ProjectMapRuntimeLensUi) {
+      return global.ProjectMapRuntimeLensUi;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./runtime_lens_ui.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
   }
 
   function escapeAttr(value) {

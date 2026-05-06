@@ -9,7 +9,7 @@
       renderToolbar(board, opts),
       '<div class="card-board-workspace">',
       renderBoard(board),
-      renderEditor(model, board),
+      renderEditor(model, board, opts),
       '</div>',
       '</section>'
     ].join('');
@@ -152,9 +152,9 @@
     return '<button type="button" class="card-board-create-in-lane" data-card-board-create-lane="' + escapeAttr(lane.key || '') + '" data-card-board-lane-label="' + escapeAttr(label || lane.key || '') + '" data-card-board-lane-tag="' + escapeAttr(lane.tag || '') + '">' + escapeHtml(t('cardBoard.createHere', 'New card here')) + '</button>';
   }
 
-  function renderEditor(model, board) {
+  function renderEditor(model, board, options) {
     const editor = editorApi();
-    return editor && typeof editor.render === 'function' ? editor.render(model, board) : '';
+    return editor && typeof editor.render === 'function' ? editor.render(model, board, options || {}) : '';
   }
 
   function buildBoard(model, options) {

@@ -28,6 +28,36 @@
     };
   }
 
+  async function runCardBoardScenario(ctx, variant) {
+    const value = ctx || {};
+    const win = value.frame.contentWindow;
+    const mode = String(variant || 'card');
+    installFakeDesktop(win, {
+      title: mode === 'advisor' ? 'Advisor Runtime Lens' : mode === 'option' ? 'Card Option Runtime Lens' : 'Card Runtime Lens',
+      body: 'Runtime-rendered card scene wrapper for the selected Card Board object.'
+    });
+    value.seedCustomIndex(win, value.cardBoardFixtureIndex());
+    await value.openTemplate('card', {}, mode === 'advisor' ? 'Card Board advisor Runtime Lens' : mode === 'option' ? 'Card Board option Runtime Lens' : 'Card Board card Runtime Lens');
+    if (mode === 'advisor') {
+      value.click(win, '[data-card-board-card="advisor:advisor_card"]');
+    } else {
+      value.click(win, '[data-card-board-card="card:policy_card"]');
+      if (mode === 'option') {
+        await value.waitFor(() => win.document.querySelector('[data-card-board-card="card:policy_card"] [data-card-board-option]'), 3000);
+        value.click(win, '[data-card-board-card="card:policy_card"] [data-card-board-option]');
+      }
+    }
+    await value.waitFor(() => win.document.querySelector('[data-runtime-lens-action="create"]:not([disabled])'), 4000);
+    value.click(win, '[data-runtime-lens-action="create"]');
+    await value.waitFor(() => {
+      const panel = win.document.querySelector('[data-runtime-lens-panel]');
+      const frame = win.document.querySelector('[data-runtime-lens-frame]');
+      return panel && panel.dataset.runtimeLensStatus === 'ready' && frame && value.isVisible(win, frame);
+    }, 4000);
+    win.document.querySelector('[data-runtime-lens-panel]').scrollIntoView({block: 'center', inline: 'nearest'});
+    await value.delay(180);
+  }
+
   function escapeHtml(value) {
     return String(value || '').replace(/[&<>"']/g, (char) => ({
       '&': '&amp;',
@@ -38,5 +68,5 @@
     }[char]));
   }
 
-  global.DMSRuntimeLensScreenshotHelper = {installFakeDesktop};
+  global.DMSRuntimeLensScreenshotHelper = {installFakeDesktop, runCardBoardScenario};
 })(typeof window !== 'undefined' ? window : globalThis);

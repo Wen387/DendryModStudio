@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 'use strict';
 
+const path = require('path');
+
 global.ProjectMapI18n = {t: (_key, fallback) => fallback};
+global.ProjectMapCardBoardModel = require('./authoring/card_board_model.js');
 
 const runtimeLensUi = require('./viewer/runtime_lens_ui.js');
 
@@ -104,9 +107,43 @@ assert(systemFocus.targetSceneId === 'root', 'System UI Runtime Lens focus shoul
 assert(systemFocus.source.path === 'source/scenes/root.scene.dry', 'System UI Runtime Lens focus should preserve source evidence');
 assert(systemFocus.key === 'system_region:screen_header:status_heavy', 'System UI Runtime Lens focus key should include fixture context');
 
+const starterIndex = require(path.join(__dirname, 'templates', 'starter-demo', 'project-index.json'));
+const cardModel = {
+  mode: 'existing',
+  template: 'existing',
+  objectId: 'demo_action_card',
+  eventBody: {},
+  changeState: {changedCount: 0, operationSummary: {}, output: {}}
+};
+const cardFocus = runtimeLensUi.focusFromCardBoard(starterIndex, cardModel, {cardBoardSelectedKey: 'card:demo_action_card'});
+assert(cardFocus.kind === 'card', 'Card Board Runtime Lens focus should resolve selected source card kind');
+assert(cardFocus.cardId === 'demo_action_card', 'Card Board Runtime Lens focus should preserve selected card id');
+assert(cardFocus.targetSceneId === 'demo_action_card', 'Card Board Runtime Lens focus should jump directly to the card scene');
+assert(cardFocus.source.path === 'source/scenes/cards/demo_action_card.scene.dry', 'Card Board Runtime Lens focus should keep card source');
+
+const optionFocus = runtimeLensUi.focusFromCardBoard(starterIndex, cardModel, {
+  cardBoardSelectedKey: 'card:demo_action_card',
+  cardBoardSelection: {kind: 'option', cardKey: 'card:demo_action_card', optionIndex: 0}
+});
+assert(optionFocus.kind === 'card_option', 'Card Board Runtime Lens focus should distinguish selected card options');
+assert(optionFocus.cardId === 'demo_action_card', 'Card option focus should retain parent card id');
+assert(optionFocus.targetSceneId === 'demo_action_card', 'Card option focus should still jump to the parent card scene');
+
+const routeBoard = global.ProjectMapCardBoardModel.buildBoard(starterIndex, cardModel, {});
+const routeKey = routeBoard.lanes.find((lane) => lane.key === 'hand').cards[0].key;
+const routeFocus = runtimeLensUi.focusFromCardBoard(starterIndex, cardModel, {cardBoardSelection: {kind: 'route', key: routeKey}});
+assert(routeFocus.kind === 'hand', 'Card Board Runtime Lens focus should resolve hand route selections');
+assert(routeFocus.targetSceneId, 'Hand route focus should have a runtime scene target');
+
+const advisorLaneFocus = runtimeLensUi.focusFromCardBoard(starterIndex, cardModel, {cardBoardSelection: {kind: 'lane', laneKey: 'advisor'}});
+assert(advisorLaneFocus.kind === 'card', 'Advisor lane focus should use the first advisor-like card as runtime target');
+assert(advisorLaneFocus.targetSceneId === 'demo_advisor', 'Advisor lane focus should target the pinned advisor card');
+
 process.stdout.write(JSON.stringify({
   ok: true,
   focus: focus.key,
   systemFocus: systemFocus.key,
-  markers: ['data-runtime-lens-panel', 'data-runtime-lens-frame', 'stale', 'system_region']
+  cardFocus: cardFocus.key,
+  optionFocus: optionFocus.key,
+  markers: ['data-runtime-lens-panel', 'data-runtime-lens-frame', 'stale', 'system_region', 'card_option']
 }, null, 2) + '\n');

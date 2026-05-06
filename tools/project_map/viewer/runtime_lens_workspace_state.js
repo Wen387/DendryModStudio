@@ -80,6 +80,9 @@
     if (ui && typeof ui.focusFromSystemRegion === 'function' && (state.workspace || '') === 'system_ui') {
       return ui.focusFromSystemRegion(state.projectIndex, state.model || {}, state.selectedCanvasNode, {fixture: state.systemUiFixture});
     }
+    if (ui && typeof ui.focusFromCardBoard === 'function' && isCardBoardState(state)) {
+      return ui.focusFromCardBoard(state.projectIndex, state.model || {}, cardBoardOptions(state));
+    }
     if (ui && typeof ui.focusFromCanvas === 'function') {
       return ui.focusFromCanvas(state.projectIndex, state.model || {}, state.selectedCanvasNode);
     }
@@ -134,6 +137,23 @@
 
   function runtimeLensUi() {
     return global.ProjectMapRuntimeLensUi || null;
+  }
+
+  function isCardBoardState(state) {
+    const api = global.ProjectMapCardWorkspaceState;
+    return api && typeof api.isCardBoardState === 'function' ? api.isCardBoardState(state) : state && state.template === 'card';
+  }
+
+  function cardBoardOptions(state) {
+    return {
+      selected: state.cardBoardSelectedKey || state.selectedCanvasNode,
+      cardBoardSelectedKey: state.cardBoardSelectedKey || state.selectedCanvasNode,
+      cardBoardLane: state.cardBoardLane || 'pool',
+      cardBoardQuery: state.cardBoardQuery || '',
+      cardBoardType: state.cardBoardType || 'all',
+      cardBoardDropContext: state.cardBoardDropContext || null,
+      cardBoardSelection: state.cardBoardSelection || null
+    };
   }
 
   function parseJson(value) {

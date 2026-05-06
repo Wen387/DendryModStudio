@@ -107,7 +107,10 @@ const DEFAULT_SCENARIOS = [
   ['95-content-runtime-lens-expanded', 'content-runtime-lens-expanded'],
   ['96-content-runtime-lens-browser', 'content-runtime-lens-browser'],
   ['97-system-ui-runtime-lens-ready', 'system-ui-runtime-lens-ready'],
-  ['98-system-ui-runtime-lens-expanded', 'system-ui-runtime-lens-expanded']
+  ['98-system-ui-runtime-lens-expanded', 'system-ui-runtime-lens-expanded'],
+  ['99-card-board-runtime-lens-card', 'card-board-runtime-lens-card'],
+  ['100-card-board-runtime-lens-option', 'card-board-runtime-lens-option'],
+  ['101-card-board-runtime-lens-advisor', 'card-board-runtime-lens-advisor']
 ];
 
 function parseArgs(argv) {
