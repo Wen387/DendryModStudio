@@ -256,9 +256,13 @@
 
   function buildExistingModelFor(view, item, options) {
     const apiModel = modelApi();
-    return apiModel && typeof apiModel.buildExistingCanvas === 'function'
-      ? apiModel.buildExistingCanvas(state.projectIndex, view, item, options || {})
-      : null;
+    try {
+      return apiModel && typeof apiModel.buildExistingCanvas === 'function'
+        ? apiModel.buildExistingCanvas(state.projectIndex, view, item, options || {})
+        : diagnosticModel('existing', view || 'existing', item || '', new Error('Object Canvas model is unavailable.'), options);
+    } catch (err) {
+      return diagnosticModel('existing', view || 'existing', item || '', err, options);
+    }
   }
 
   function buildNewEventModel(options) {
@@ -270,10 +274,47 @@
 
   function buildTemplateModel(options) {
     const apiModel = modelApi();
-    if (apiModel && typeof apiModel.buildTemplateCanvas === 'function') {
-      return apiModel.buildTemplateCanvas(state.projectIndex, state.template || 'event', state.baseDraft || {}, options || {});
+    const template = state.template || 'event';
+    try {
+      if (apiModel && typeof apiModel.buildTemplateCanvas === 'function') {
+        return apiModel.buildTemplateCanvas(state.projectIndex, template, state.baseDraft || {}, options || {});
+      }
+      return buildNewEventModel(options);
+    } catch (err) {
+      return diagnosticModel('template', template, state.baseDraft && state.baseDraft.id || '', err, options);
     }
-    return buildNewEventModel(options);
+  }
+
+  function diagnosticModel(mode, template, objectId, err, options) {
+    const draft = state.baseDraft || {};
+    const message = err && err.message ? err.message : String(err || 'Model build failed.');
+    return {
+      schemaVersion: '0.1',
+      kind: 'object_authoring_canvas_model',
+      ok: false,
+      mode: mode === 'existing' ? 'existing' : String(template || 'event'),
+      template: mode === 'existing' ? 'existing' : String(template || 'event'),
+      templateLabel: String(template || ''),
+      objectKind: String(template || 'object'),
+      objectId: String(objectId || draft.id || ''),
+      title: String(draft.title || draft.heading || objectId || template || t('objectCanvas.titleFallback', 'Author object')),
+      source: {path: ''},
+      entry: {source: options && options.source || options && options.entry && options.entry.source || 'Create'},
+      contextBoard: {},
+      eventBody: {},
+      changeState: {
+        draft,
+        proposal: draft,
+        output: {},
+        installPlan: null,
+        operationSummary: {safeApply: 0, guardedApply: 0, manualReview: 0, refused: 0},
+        changedCount: 0,
+        diagnostics: [{severity: 'error', code: 'object_canvas.model_build_failed', message}],
+        warnings: []
+      },
+      legacy: {template: String(template || '')},
+      rawContext: null
+    };
   }
 
   function showWorkspace(template) {

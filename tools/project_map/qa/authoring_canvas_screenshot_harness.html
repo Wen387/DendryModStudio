@@ -756,8 +756,11 @@
       async function cardBoardOpenScenario() {
         const win = frame.contentWindow;
         seedCustomIndex(win, cardBoardFixtureIndex({defaultDraftCollision: true}));
-        await openTemplate('card', {'card.title': 'Canvas Action Card', 'card.intro': 'This card is edited on the board.'}, 'Card Board opens');
+        await openTemplate('news', {'news.headline': 'Previous news selection'}, 'Card Board opens from previous content');
+        click(win, '[data-create-template="card"]');
         await waitFor(() => win.document.querySelector('[data-card-board-surface] [data-card-face-editor]'), 3000);
+        await applyValues(win, {'card.title': 'Canvas Action Card', 'card.intro': 'This card is edited on the board.'});
+        await waitFor(() => collapse(win.document.querySelector('[data-card-face-preview]') && win.document.querySelector('[data-card-face-preview]').textContent).includes('Canvas Action Card'), 3000);
       }
 
       async function cardBoardLanesScenario() {
