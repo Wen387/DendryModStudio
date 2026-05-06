@@ -58,6 +58,7 @@
       '<section class="content-storyboard-canvas" data-content-storyboard-canvas="true" data-storyboard-kind="timeline" style="--content-storyboard-width: ' + width + 'px; --content-storyboard-height: ' + height + 'px;">',
       renderCanvasControls(),
       renderGlobalContext(storyboard),
+      renderTimelineScope(storyboard),
       renderTimelineOverview(storyboard),
       '<div class="content-storyboard-board" data-content-storyboard-board="true" data-object-canvas-graph-board="true">',
       lanes.map((lane, laneIndex) => renderTimelineLane(lane, laneIndex, laneWidth, laneGap, positions, storyboard)).join(''),
@@ -75,7 +76,7 @@
     const laneLabel = lane.unitLabel || t('storyboard.lane', 'Lane');
     const title = lane.label || lane.year || laneKey;
     return [
-      '<section class="content-storyboard-lane" data-content-storyboard-lane="' + escapeAttr(laneKey) + '" style="left: ' + left + 'px; top: 118px; width: ' + laneWidth + 'px;">',
+      '<section class="content-storyboard-lane" data-content-storyboard-lane="' + escapeAttr(laneKey) + '" style="left: ' + left + 'px; top: 178px; width: ' + laneWidth + 'px;">',
       '<header><span>' + escapeHtml(laneLabel) + '</span><strong>' + escapeHtml(String(title)) + '</strong><em>' + cards.length + ' ' + escapeHtml(t('storyboard.beats', 'beats')) + '</em></header>',
       renderLaneCreateMenu(insertKey),
       cards.map((card, cardIndex) => renderCard(card, defaultPosition(18, 132 + cardIndex * 326, positions[card.key]), storyboard)).join(''),
@@ -90,7 +91,7 @@
     }
     const left = 36 + laneIndex * (laneWidth + laneGap);
     return [
-      '<section class="content-storyboard-lane content-storyboard-lane-undated" data-content-storyboard-lane="undated" style="left: ' + left + 'px; top: 118px; width: ' + laneWidth + 'px;">',
+      '<section class="content-storyboard-lane content-storyboard-lane-undated" data-content-storyboard-lane="undated" style="left: ' + left + 'px; top: 178px; width: ' + laneWidth + 'px;">',
       '<header><span>' + escapeHtml(t('storyboard.undated', 'Undated')) + '</span><strong>' + escapeHtml(t('storyboard.needsSchedule', 'Needs schedule')) + '</strong><em>' + orderedCards.length + ' ' + escapeHtml(t('storyboard.beats', 'beats')) + '</em></header>',
       renderLaneCreateMenu('undated'),
       orderedCards.slice(0, 8).map((card, cardIndex) => renderCard(card, defaultPosition(18, 132 + cardIndex * 326, positions[card.key]), storyboard)).join(''),
@@ -120,6 +121,10 @@
       '<section class="content-storyboard-canvas" data-content-storyboard-canvas="true" data-storyboard-kind="chain" style="--content-storyboard-width: ' + width + 'px; --content-storyboard-height: ' + height + 'px;">',
       renderCanvasControls(),
       renderGlobalContext(storyboard),
+      renderChainDepthControls(storyboard),
+      '<svg class="content-storyboard-chain-edges" data-content-storyboard-chain-connectors="true" data-object-canvas-graph-edges="true" viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">',
+      renderChainConnectors(storyboard, levels, columnWidth, positions),
+      '</svg>',
       '<div class="content-storyboard-board content-storyboard-chain-board" data-content-storyboard-board="true" data-object-canvas-graph-board="true">',
       renderChainEvidence(storyboard),
       levels.map((level, levelIndex) => renderChainLevel(level, levelIndex, columnWidth, positions, storyboard)).join(''),
@@ -163,19 +168,18 @@
   }
 
   function renderTimelineOverview(storyboard) {
-    const lanes = storyboard.storyContext && storyboard.storyContext.timeline && storyboard.storyContext.timeline.lanes || [];
-    if (!lanes.length) {
-      return '';
-    }
-    const max = lanes.reduce((value, lane) => Math.max(value, lane.count || 0), 1);
-    return [
-      '<section class="content-storyboard-overview" data-content-storyboard-overview="true" aria-label="' + escapeAttr(t('storyboard.overview', 'Timeline overview')) + '">',
-      lanes.map((lane) => {
-        const width = Math.max(10, Math.round((Number(lane.count || 0) / max) * 100));
-        return '<button type="button" class="' + (lane.selected ? 'is-selected' : '') + '" data-content-storyboard-insert="' + escapeAttr(lane.insertionKey || lane.key || '') + '" data-object-canvas-action="create_followup"><span>' + escapeHtml(lane.label || lane.key || '') + '</span><b style="width: ' + width + '%"></b><em>' + escapeHtml(String(lane.count || 0)) + '</em></button>';
-      }).join(''),
-      '</section>'
-    ].join('');
+    const api = scopeControlsApi();
+    return api && typeof api.renderTimelineOverview === 'function' ? api.renderTimelineOverview(storyboard) : '';
+  }
+
+  function renderTimelineScope(storyboard) {
+    const api = scopeControlsApi();
+    return api && typeof api.renderTimelineScope === 'function' ? api.renderTimelineScope(storyboard) : '';
+  }
+
+  function renderChainDepthControls(storyboard) {
+    const api = scopeControlsApi();
+    return api && typeof api.renderChainDepthControls === 'function' ? api.renderChainDepthControls(storyboard) : '';
   }
 
   function renderChainLevel(level, levelIndex, columnWidth, positions, storyboard) {
@@ -210,7 +214,55 @@
     ].join('');
   }
 
+  function renderChainConnectors(storyboard, levels, columnWidth, positions) {
+    const connectors = storyboard.chain && storyboard.chain.connectors || [];
+    if (!connectors.length) {
+      return '';
+    }
+    const nodePositions = chainNodePositions(levels, columnWidth, positions);
+    return connectors.map((connector) => {
+      const from = nodePositions[connector.fromKey];
+      const to = nodePositions[connector.toKey];
+      if (!from || !to) {
+        return '';
+      }
+      const forward = to.left >= from.left;
+      const fromX = forward ? from.left + from.width : from.left;
+      const toX = forward ? to.left : to.left + to.width;
+      const fromY = from.top + Math.round(from.height * 0.5);
+      const toY = to.top + Math.round(to.height * 0.5);
+      const bend = Math.max(70, Math.abs(to.x - from.x) * 0.34);
+      const d = 'M ' + fromX + ' ' + fromY + ' C ' + (fromX + (forward ? bend : -bend)) + ' ' + fromY + ', ' + (toX - (forward ? bend : -bend)) + ' ' + toY + ', ' + toX + ' ' + toY;
+      return '<path data-content-storyboard-chain-connector="' + escapeAttr(connector.key || connector.fromKey + '-' + connector.toKey) + '" class="content-storyboard-chain-edge-' + safeClass(connector.kind || 'edge') + '" d="' + d + '"><title>' + escapeHtml(connector.label || connector.kind || '') + '</title></path>';
+    }).join('');
+  }
+
+  function chainNodePositions(levels, columnWidth, positions) {
+    const out = {};
+    ensureArray(levels).forEach((level, levelIndex) => {
+      const levelLeft = 36 + levelIndex * columnWidth;
+      ensureArray(level.cards).forEach((card, cardIndex) => {
+        const pos = defaultPosition(0, 96 + cardIndex * 306, positions[card.key]);
+        const left = levelLeft + Number(pos.x || 0);
+        const top = 150 + Number(pos.y || 0);
+        out[card.key] = {
+          left,
+          top,
+          width: 324,
+          height: 180,
+          x: left + 162,
+          y: top + 90
+        };
+      });
+    });
+    return out;
+  }
+
   function renderCard(card, pos, storyboard) {
+    const api = cardRendererApi();
+    if (api && typeof api.renderCard === 'function') {
+      return api.renderCard(card, pos, storyboard);
+    }
     const selected = storyboard.selectedKey === card.key;
     const classes = [
       'content-storyboard-card',
@@ -221,12 +273,9 @@
       card.route ? 'is-route' : ''
     ].filter(Boolean).join(' ');
     return [
-      '<article class="' + classes + '" tabindex="0" data-content-storyboard-card="' + escapeAttr(card.key) + '" data-object-canvas-graph-node="' + escapeAttr(card.key) + '" data-canvas-x="' + pos.x + '" data-canvas-y="' + pos.y + '" style="left: ' + pos.x + 'px; top: ' + pos.y + 'px;">',
-      '<div class="content-storyboard-card-kicker"><span>' + escapeHtml(kindLabel(card.kind)) + '</span><em>' + escapeHtml(card.timelineLabel || formatSchedule(card.schedule)) + '</em></div>',
-      renderCardTitle(card),
-      renderCardBody(card),
-      renderCardTiming(card),
-      renderCardOptions(card),
+      '<article class="' + classes + '" tabindex="0" data-content-storyboard-card="' + escapeAttr(card.key) + '" data-storyboard-card-face="' + escapeAttr(card.kind || '') + '" data-object-canvas-graph-node="' + escapeAttr(card.key) + '" data-canvas-x="' + pos.x + '" data-canvas-y="' + pos.y + '" style="left: ' + pos.x + 'px; top: ' + pos.y + 'px;">',
+      '<strong class="content-storyboard-title">' + escapeHtml(card.title || card.id || '') + '</strong>',
+      card.body ? '<p>' + escapeHtml(String(card.body).slice(0, 220)) + '</p>' : '',
       '</article>'
     ].join('');
   }
@@ -248,49 +297,6 @@
       }
       return 0;
     });
-  }
-
-  function renderCardTitle(card) {
-    const field = card.fields && card.fields.title;
-    if (card.editable && field && field.id) {
-      return renderInlineField(field, {className: 'content-storyboard-title-input', element: 'input'});
-    }
-    return '<strong class="content-storyboard-title">' + escapeHtml(card.title || '') + '</strong>';
-  }
-
-  function renderCardBody(card) {
-    const sections = card.fields && card.fields.sections || [];
-    if (card.editable && sections.length) {
-      return '<div class="content-storyboard-body-fields">' + sections.slice(0, 2).map((field) => renderInlineField(field, {element: 'textarea'})).join('') + '</div>';
-    }
-    const body = String(card.body || '').trim();
-    return body ? '<p>' + escapeHtml(body.slice(0, 260)) + '</p>' : '';
-  }
-
-  function renderCardOptions(card) {
-    const options = card.fields && card.fields.options || [];
-    const routes = card.routeTargets || [];
-    if (card.editable && options.length) {
-      return '<div class="content-storyboard-options">' + options.slice(0, 3).map((option, index) => {
-        const field = (option.fields || []).find((item) => item && item.id && item.id.indexOf('.label') >= 0) || (option.fields || [])[0];
-        return '<div class="content-storyboard-option">' + renderInlineField(field, {element: 'input', fallbackLabel: t('storyboard.option', 'Option') + ' ' + (index + 1)}) + '<small>' + escapeHtml(option.targetId || '') + '</small></div>';
-      }).join('') + '</div>';
-    }
-    if (routes.length) {
-      return '<div class="content-storyboard-options">' + routes.slice(0, 3).map((route) => '<span>' + escapeHtml(route.label || route.id || '') + '</span>').join('') + '</div>';
-    }
-    return '';
-  }
-
-  function renderCardTiming(card) {
-    const fields = card.fields && card.fields.metaFields || [];
-    const timing = fields.filter((field) => {
-      return field && ['event.year', 'event.monthStart', 'event.monthEnd'].includes(field.id);
-    });
-    if (!card.editable || !timing.length) {
-      return '';
-    }
-    return '<div class="content-storyboard-timing">' + timing.map((field) => renderInlineField(field, {element: 'input'})).join('') + '</div>';
   }
 
   function renderEditor(model, storyboard) {
@@ -413,32 +419,40 @@
     ].join('');
   }
 
-  function renderInlineField(field, options) {
-    if (!field) {
-      return '';
-    }
-    const opts = options || {};
-    const id = field.id || '';
-    const value = String(field.value !== undefined ? field.value : field.original || '');
-    const label = field.label || opts.fallbackLabel || id;
-    const element = opts.element === 'input' ? 'input' : 'textarea';
-    const common = ' class="object-inline-input ' + escapeAttr(opts.className || '') + '" data-object-canvas-field="' + escapeAttr(id) + '" data-editing-field="' + escapeAttr(id) + '"' + (field.readOnly ? ' readonly' : '');
-    return [
-      '<label class="object-inline-field content-storyboard-field">',
-      '<span>' + escapeHtml(label) + '</span>',
-      element === 'input'
-        ? '<input type="text"' + common + ' value="' + escapeAttr(value) + '">'
-        : '<textarea rows="' + rowsFor(value) + '"' + common + '>' + escapeHtml(value) + '</textarea>',
-      '</label>'
-    ].join('');
-  }
-
   function buildStoryboard(model, options) {
     const api = global.ProjectMapContentStoryboardModel;
     if (api && typeof api.buildStoryboard === 'function') {
       return api.buildStoryboard(options.projectIndex, model, options);
     }
     return {view: 'timeline', selectedKey: '', cards: [], timeline: {lanes: []}, chain: {levels: []}, editor: {}};
+  }
+
+  function cardRendererApi() {
+    if (global && global.ProjectMapStoryboardCardRenderer) {
+      return global.ProjectMapStoryboardCardRenderer;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./storyboard_card_renderer.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function scopeControlsApi() {
+    if (global && global.ProjectMapStoryboardScopeControls) {
+      return global.ProjectMapStoryboardScopeControls;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./storyboard_scope_controls.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
   }
 
   function defaultPosition(x, y, override) {
@@ -449,29 +463,12 @@
     };
   }
 
-  function kindLabel(kind) {
-    const labels = {
-      event: t('create.worldEvent', 'World Event'),
-      card: t('create.card', 'Card'),
-      news: t('create.news', 'News'),
-      surface: t('create.editText', 'Edit Text'),
-      advisor: t('systemUi.region.advisor', 'Advisor'),
-      route: t('storyboard.route', 'Route')
-    };
-    return labels[kind] || kind || 'Object';
-  }
-
-  function formatSchedule(schedule) {
-    const api = global.ProjectMapContentStoryboardModel;
-    return api && typeof api.formatSchedule === 'function' ? api.formatSchedule(schedule) : '';
-  }
-
-  function rowsFor(value) {
-    return String(Math.max(3, Math.min(8, String(value || '').split('\n').length + 1)));
-  }
-
   function safeClass(value) {
     return String(value || 'item').replace(/[^a-z0-9_-]+/gi, '-').toLowerCase();
+  }
+
+  function ensureArray(value) {
+    return Array.isArray(value) ? value : [];
   }
 
   function parseJson(value) {

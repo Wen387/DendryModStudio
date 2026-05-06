@@ -10,11 +10,12 @@
     const deduped = dedupeCards(cards);
     const selectedKey = cardByKey(deduped, opts.selected) ? String(opts.selected) : current.key;
     const selectedBase = cardByKey(deduped, selectedKey) || current;
-    const timeline = buildTimeline(projectIndex, deduped, selectedBase, opts);
-    const storyboardCards = ensureArray(timeline.cards).length ? timeline.cards : deduped;
+    const rawTimeline = buildTimeline(projectIndex, deduped, selectedBase, opts);
+    const storyboardCards = ensureArray(rawTimeline.cards).length ? rawTimeline.cards : deduped;
     const selected = cardByKey(storyboardCards, selectedKey) || selectedBase;
+    const timeline = buildScopedTimeline(projectIndex, rawTimeline, selected, opts);
     const view = normalizeView(opts.view);
-    const chain = buildChain(projectIndex, storyboardCards, selected, model);
+    const chain = buildChain(projectIndex, storyboardCards, selected, model, opts);
     const storyContext = buildStoryContext(projectIndex, storyboardCards, selected, timeline, chain);
     return {
       schemaVersion: '0.1',
@@ -30,13 +31,16 @@
       metrics: {
         cardCount: storyboardCards.length,
         branchCount: draftBranches.length,
-        edgeCount: ensureArray(projectIndex && projectIndex.edges).length
+        edgeCount: ensureArray(projectIndex && projectIndex.edges).length,
+        visibleCardCount: timeline.storyScope && timeline.storyScope.visibleCardCount || storyboardCards.length,
+        chainConnectorCount: ensureArray(chain && chain.connectors).length
       }
     };
   }
 
   function collectProjectCards(projectIndex, current) {
     const index = isObject(projectIndex) ? projectIndex : {};
+    const textByScene = textCorpusByScene(index);
     const cards = [];
     ensureArray(index.scenes).forEach((scene) => {
       if (!scene || !scene.id) {
@@ -46,15 +50,24 @@
       if (kind !== 'event' && kind !== 'card' && kind !== 'advisor') {
         return;
       }
+      const sceneText = textByScene.get(String(scene.id)) || {};
+      const title = firstNonEmpty(sceneText.title, scene.title, scene.id);
+      const body = firstNonEmpty(sceneText.body, scene.summary, scene.description, scene.subtitle, scene.path);
       cards.push({
         key: kind + ':' + scene.id,
         id: String(scene.id),
         kind,
-        title: scene.title || scene.id,
-        body: firstNonEmpty(scene.summary, scene.description, scene.subtitle, scene.path),
+        title,
+        body,
         schedule: scheduleForScene(scene),
         source: sourceRef(scene.sourceSpan || scene.source || {path: scene.path}),
-        routeTargets: routeTargets(scene),
+        routeTargets: routeTargets(scene, sceneText),
+        storyText: {
+          title,
+          body,
+          options: ensureArray(sceneText.optionLabels)
+        },
+        stateTags: ['source'],
         editable: false,
         current: current && current.id === String(scene.id),
         raw: scene
@@ -74,6 +87,8 @@
         schedule: scheduleForNews(item),
         source: sourceRef(item.source),
         routeTargets: [],
+        storyText: {title: item.headline || 'News', body: item.description || '', options: []},
+        stateTags: ['source'],
         editable: false,
         current: false,
         raw: item
@@ -102,6 +117,12 @@
         id: option.targetId || option.id || '',
         label: option.label || option.title || option.id || ''
       })).filter((target) => target.id || target.label),
+      storyText: {
+        title: fieldValue(titleField, model.title || id || 'Current object'),
+        body: sections.map((field) => fieldValue(field, '')).filter(Boolean).join('\n\n'),
+        options: options.map((option) => option.label || option.title || option.id || '').filter(Boolean)
+      },
+      stateTags: [model.mode === 'existing' ? 'source' : 'draft'].concat(model.changeState && model.changeState.changedCount ? ['changed'] : []),
       fields: {
         title: titleField,
         heading: body.heading || null,
@@ -129,6 +150,9 @@
       schedule: scheduleForDraft(draft, scheduleForModel(model)),
       source: {path: 'draft workspace'},
       routeTargets: [],
+      storyText: {title: value.title || draft.title || draft.heading || draft.headline || 'New branch', body: value.detail || draft.description || '', options: []},
+      stateTags: ['draft'],
+      insertionContext: value.insertionContext || draft.studioAuthoringContext || null,
       editable: false,
       current: false,
       draftBranch: true,
@@ -175,43 +199,19 @@
     };
   }
 
-  function buildChain(projectIndex, cards, selected, model) {
-    const index = isObject(projectIndex) ? projectIndex : {};
-    const byId = new Map();
-    cards.forEach((card) => {
-      if (card.id) {
-        byId.set(String(card.id), card);
-      }
-    });
-    const selectedId = String(selected && selected.id || model.objectId || '');
-    const upstream = [];
-    const downstream = [];
-    ensureArray(index.edges).forEach((edge) => {
-      const from = String(edge && edge.from || '');
-      const to = String(edge && edge.to || '');
-      if (to === selectedId) {
-        upstream.push(edgeCard(byId, from, edge, 'upstream'));
-      } else if (from === selectedId) {
-        downstream.push(edgeCard(byId, to, edge, 'downstream'));
-      }
-    });
-    const optionTargets = ensureArray(selected && selected.routeTargets).map((target, index) => ({
-      key: 'option:' + selected.key + ':' + index,
-      id: target.id || 'option_' + (index + 1),
-      kind: 'route',
-      title: target.label || target.id || 'Option route',
-      body: target.id ? 'go to ' + target.id : '',
-      route: true,
-      editable: false
-    }));
-    const branches = cards.filter((card) => card.draftBranch);
+  function buildChain(projectIndex, cards, selected, model, options) {
+    const api = storyChainApi();
+    if (api && typeof api.buildChain === 'function') {
+      return api.buildChain(projectIndex, cards, selected, model, options || {});
+    }
     return {
       levels: [
-        {key: 'upstream', label: 'Before', cards: uniqueCards(upstream)},
-        {key: 'selected', label: 'Selected beat', cards: [selected]},
-        {key: 'routes', label: 'Choices and routes', cards: optionTargets.concat(uniqueCards(downstream))},
-        {key: 'branches', label: 'Branches and inserts', cards: branches}
+        {key: 'upstream', label: 'Before', cards: []},
+        {key: 'selected', label: 'Selected beat', cards: selected ? [selected] : []},
+        {key: 'routes', label: 'Choices and routes', cards: []},
+        {key: 'branches', label: 'Branches and inserts', cards: cards.filter((card) => card.draftBranch)}
       ],
+      connectors: [],
       insertionPoints: [
         {key: 'before', label: 'Insert before selected beat', action: 'counterfactual'},
         {key: 'after', label: 'Create follow-up after selected beat', action: 'followup'},
@@ -249,24 +249,6 @@
     };
   }
 
-  function edgeCard(byId, id, edge, direction) {
-    const found = byId.get(String(id || ''));
-    if (found) {
-      return found;
-    }
-    return {
-      key: direction + ':' + id,
-      id: String(id || direction),
-      kind: 'event',
-      title: String(id || 'Unknown beat'),
-      body: [edge && edge.kind, edge && edge.label].filter(Boolean).join(' / '),
-      schedule: {},
-      source: sourceRef(edge && edge.source),
-      routeTargets: [],
-      editable: false
-    };
-  }
-
   function dedupeCards(cards) {
     const seen = new Set();
     const out = [];
@@ -289,20 +271,30 @@
     return out;
   }
 
-  function uniqueCards(cards) {
-    return dedupeCards(ensureArray(cards));
-  }
-
   function cardByKey(cards, key) {
     const text = String(key || '');
     return ensureArray(cards).find((card) => card.key === text) || null;
   }
 
-  function routeTargets(scene) {
-    return ensureArray(scene && scene.options).map((option) => ({
-      id: option && option.target && option.target.id || option && option.targetId || '',
-      label: option && (option.title || option.label) || ''
-    })).filter((item) => item.id || item.label);
+  function routeTargets(scene, sceneText) {
+    const optionLabels = ensureArray(sceneText && sceneText.optionLabels);
+    const targets = ensureArray(scene && scene.options).map((option, index) => {
+      const id = option && option.target && option.target.id || option && option.targetId || '';
+      const fromText = optionLabels.find((item) => item.itemId && String(item.itemId) === String(id)) || optionLabels[index] || null;
+      return {
+        id,
+        label: option && (option.title || option.label) || fromText && fromText.text || ''
+      };
+    }).filter((item) => item.id || item.label);
+    optionLabels.forEach((item) => {
+      if (item.itemId && targets.some((target) => String(target.id) === String(item.itemId))) {
+        return;
+      }
+      if (item.text) {
+        targets.push({id: item.itemId || '', label: item.text});
+      }
+    });
+    return targets;
   }
 
   function scheduleForModel(model) {
@@ -413,6 +405,41 @@
     return null;
   }
 
+  function buildScopedTimeline(projectIndex, timeline, selected, options) {
+    const api = storyScopeApi();
+    return api && typeof api.buildScopedTimeline === 'function'
+      ? api.buildScopedTimeline(projectIndex, timeline, selected, options || {})
+      : timeline;
+  }
+
+  function storyScopeApi() {
+    if (global && global.ProjectMapStoryScopeModel) {
+      return global.ProjectMapStoryScopeModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./story_scope_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function storyChainApi() {
+    if (global && global.ProjectMapStoryChainGraphModel) {
+      return global.ProjectMapStoryChainGraphModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./story_chain_graph_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   function buildStoryContext(projectIndex, cards, selected, timeline, chain) {
     const api = storyContextApi();
     return api && typeof api.buildContext === 'function'
@@ -432,6 +459,42 @@
       }
     }
     return null;
+  }
+
+  function textCorpusByScene(projectIndex) {
+    const out = new Map();
+    ensureArray(projectIndex && projectIndex.semantic && projectIndex.semantic.textCorpus && projectIndex.semantic.textCorpus.items).forEach((item) => {
+      const owner = item && item.owner || {};
+      const sceneId = String(owner.sceneId || item && item.sceneId || '');
+      if (!sceneId) {
+        return;
+      }
+      if (!out.has(sceneId)) {
+        out.set(sceneId, {title: '', body: '', optionLabels: []});
+      }
+      const bucket = out.get(sceneId);
+      const role = String(item.role || item.kind || '').toLowerCase();
+      const text = String(item.text || item.value || '').trim();
+      if (!text) {
+        return;
+      }
+      if (!bucket.title && (role === 'title' || role === 'heading' || role.indexOf('title') >= 0)) {
+        bucket.title = text;
+        return;
+      }
+      if (role.indexOf('option') >= 0) {
+        bucket.optionLabels.push({
+          id: item.id || '',
+          text,
+          itemId: owner.itemId || item.optionId || ''
+        });
+        return;
+      }
+      if (!bucket.body && (role === 'body' || role === 'page' || role === 'section' || role === 'description' || role.indexOf('body') >= 0)) {
+        bucket.body = text;
+      }
+    });
+    return out;
   }
 
   function fieldById(fields, id) {

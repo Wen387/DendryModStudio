@@ -30,6 +30,16 @@
     const year = insertYear(target.insertKey) || eventYear(model);
     const laneSuffix = safeId(target.insertKey || target.view || '');
     const branchId = baseId + (laneSuffix ? '_' + laneSuffix : '') + '_' + action;
+    const authoringContext = {
+      workspace: 'content',
+      surface: 'content_storyboard',
+      insertKey: target.insertKey || '',
+      storyboardView: target.view || 'timeline',
+      storyScopeMode: target.storyScopeMode || 'focus',
+      storyScopeWindow: target.storyScopeWindow || '',
+      storyChainDepth: target.storyChainDepth || '1',
+      selectedCanvasNode: target.selectedKey || ''
+    };
     const titles = {
       followup: t('objectCanvas.branch.followup', 'Follow-up event'),
       counterfactual: t('objectCanvas.branch.counterfactual', 'Counterfactual branch'),
@@ -42,7 +52,8 @@
         id: branchId + '_card',
         title: titles.card,
         detail: t('objectCanvas.branch.card.detail', 'Card created from the selected beat.'),
-        draft: {kind: 'card', id: branchId + '_card', title: titles.card, heading: titles.card, when: year ? {year, monthStart: 1, monthEnd: 3} : {}}
+        insertionContext: authoringContext,
+        draft: {kind: 'card', id: branchId + '_card', title: titles.card, heading: titles.card, when: year ? {year, monthStart: 1, monthEnd: 3} : {}, studioAuthoringContext: authoringContext}
       };
     }
     if (action === 'news') {
@@ -51,7 +62,8 @@
         id: branchId + '_news',
         title: titles.news,
         detail: t('objectCanvas.branch.news.detail', 'News item attached to this story moment.'),
-        draft: {kind: 'news_item', id: branchId + '_news', headline: titles.news, when: year ? {year, month: 1} : {}}
+        insertionContext: authoringContext,
+        draft: {kind: 'news_item', id: branchId + '_news', headline: titles.news, when: year ? {year, month: 1} : {}, studioAuthoringContext: authoringContext}
       };
     }
     return {
@@ -61,12 +73,14 @@
       detail: action === 'counterfactual'
         ? t('objectCanvas.branch.counterfactual.detail', 'Alternative path after this event.')
         : t('objectCanvas.branch.followup.detail', 'Next event after the selected beat.'),
+      insertionContext: authoringContext,
       draft: {
         kind: 'world_event',
         id: branchId,
         title: titles[action] || titles.followup,
         heading: titles[action] || titles.followup,
-        when: {year: year || 1936, monthStart: 1, monthEnd: 3, requires: '', priority: 0}
+        when: {year: year || 1936, monthStart: 1, monthEnd: 3, requires: '', priority: 0},
+        studioAuthoringContext: authoringContext
       }
     };
   }

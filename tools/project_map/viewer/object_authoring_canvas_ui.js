@@ -19,6 +19,9 @@
     workspace: 'content',
     selectedCanvasNode: 'object',
     storyboardView: 'timeline',
+    storyScopeMode: 'focus',
+    storyScopeWindow: '',
+    storyChainDepth: '1',
     systemUiFixture: 'default',
     canvasZoom: 1,
     canvasPanX: 0,
@@ -126,6 +129,10 @@
     }
   }
 
+  function resetStoryboardState() {
+    const api = storyboardWorkspaceApi(); if (api && typeof api.reset === 'function') { api.reset(state); }
+  }
+
   function openFromSelection(projectIndex, view, item, options) {
     if (projectIndex) {
       state.projectIndex = projectIndex;
@@ -136,7 +143,7 @@
     state.item = item || null;
     state.workspace = 'content';
     state.selectedCanvasNode = 'object';
-    state.storyboardView = 'timeline';
+    resetStoryboardState();
     state.systemUiFixture = 'default';
     state.canvasPanX = 0;
     state.canvasPanY = 0;
@@ -167,7 +174,7 @@
     state.item = null;
     state.workspace = workspaceForTemplate(nextTemplate);
     state.selectedCanvasNode = 'object';
-    state.storyboardView = 'timeline';
+    resetStoryboardState();
     state.systemUiFixture = 'default';
     state.canvasPanX = 0;
     state.canvasPanY = 0;
@@ -223,9 +230,13 @@
   }
 
   function buildExistingModel(options) {
+    return buildExistingModelFor(state.view, state.item, options);
+  }
+
+  function buildExistingModelFor(view, item, options) {
     const apiModel = modelApi();
     return apiModel && typeof apiModel.buildExistingCanvas === 'function'
-      ? apiModel.buildExistingCanvas(state.projectIndex, state.view, state.item, options || {})
+      ? apiModel.buildExistingCanvas(state.projectIndex, view, item, options || {})
       : null;
   }
 
@@ -381,30 +392,16 @@
 
   function renderProjectStateStage(model) {
     const surface = global.ProjectMapProjectStateSurface;
-    return surface && typeof surface.render === 'function'
-      ? surface.render(model, {projectIndex: state.projectIndex, selected: state.selectedCanvasNode})
-      : '';
+    return surface && typeof surface.render === 'function' ? surface.render(model, {projectIndex: state.projectIndex, selected: state.selectedCanvasNode}) : '';
   }
 
   function renderSystemUiPreviewStage(model) {
     const surface = global.ProjectMapSystemUiPreviewSurface;
-    return surface && typeof surface.render === 'function'
-      ? surface.render(model, {projectIndex: state.projectIndex, selected: state.selectedCanvasNode, fixture: state.systemUiFixture, editorOverlay: state.editorOverlay})
-      : '';
+    return surface && typeof surface.render === 'function' ? surface.render(model, {projectIndex: state.projectIndex, selected: state.selectedCanvasNode, fixture: state.systemUiFixture, editorOverlay: state.editorOverlay}) : '';
   }
 
   function renderContentStoryboardStage(model) {
-    const surface = global.ProjectMapContentStoryboardSurface;
-    return surface && typeof surface.render === 'function'
-      ? surface.render(model, {
-        projectIndex: state.projectIndex,
-        selected: state.selectedCanvasNode,
-        view: state.storyboardView,
-        nodePositions: state.nodePositions || {},
-        draftBranches: state.draftBranches || [],
-        editorOverlay: state.editorOverlay
-      })
-      : '';
+    const api = storyboardWorkspaceApi(); return api && typeof api.renderStage === 'function' ? api.renderStage(state, model) : '';
   }
 
   function renderGraphNode(node, selected) {
@@ -782,6 +779,10 @@
     if (switchSystemUiTemplateForRegion(next)) {
       return;
     }
+    const storyboard = storyboardWorkspaceApi();
+    if (storyboard && typeof storyboard.selectObject === 'function' && storyboard.selectObject(state, next, storyboardDeps())) {
+      return;
+    }
     state.model = state.mode === 'existing' ? buildExistingModel({values: state.values}) : buildTemplateModel({values: state.values});
     state.selectedCanvasNode = next;
     render();
@@ -798,10 +799,7 @@
   }
 
   function setStoryboardView(view) {
-    state.storyboardView = String(view || '') === 'chain' ? 'chain' : 'timeline';
-    state.values = collectValues();
-    state.model = state.mode === 'existing' ? buildExistingModel({values: state.values}) : buildTemplateModel({values: state.values});
-    render();
+    const api = storyboardWorkspaceApi(); if (api && typeof api.setView === 'function') { api.setView(state, view, storyboardDeps()); }
   }
 
   function setSystemUiFixture(fixture) {
@@ -887,25 +885,19 @@
       openLegacyForm();
     } else if (action === 'toggle_overlay') {
       toggleEditorOverlay();
+    } else if (handleStoryboardAction(action, target)) {
+      return;
     } else if (action.indexOf('create_') === 0) {
       createRelatedDraft(action.replace('create_', ''), target);
     }
   }
 
+  function handleStoryboardAction(action, target) {
+    const api = storyboardWorkspaceApi(); return Boolean(api && typeof api.handleAction === 'function' && api.handleAction(state, action, target, storyboardDeps()));
+  }
+
   function createRelatedDraft(action, target) {
-    const api = global.ProjectMapAuthoringReferenceIndex;
-    if (!api || typeof api.branchDraft !== 'function') {
-      return;
-    }
-    const draft = api.branchDraft(action, state.model || {}, {
-      insertKey: target && target.dataset && target.dataset.contentStoryboardInsert || '',
-      view: state.storyboardView,
-      selectedKey: state.selectedCanvasNode
-    });
-    state.draftBranches.push(draft);
-    state.selectedCanvasNode = 'draft:' + draft.id;
-    state.status = t('objectCanvas.status.branchCreated', 'A related draft card was added to the Storyboard.');
-    render();
+    const api = storyboardWorkspaceApi(); if (api && typeof api.createRelatedDraft === 'function') { api.createRelatedDraft(state, action, target, {render, t}); }
   }
 
   function toggleEditorOverlay(next) {
@@ -1012,10 +1004,18 @@
   function draftWithAuthoringContext() {
     const api = systemUiWorkspaceApi();
     const draft = state.model && state.model.changeState && state.model.changeState.draft;
+    if ((state.workspace || 'content') === 'content') {
+      const storyboard = storyboardWorkspaceApi();
+      return storyboard && typeof storyboard.draftWithContext === 'function' ? storyboard.draftWithContext(state, draft) : draft;
+    }
     return api && typeof api.draftWithContext === 'function' ? api.draftWithContext(state, draft, workspaceForTemplate) : draft;
   }
 
   function restoreAuthoringContext(context, meta) {
+    const storyboard = storyboardWorkspaceApi();
+    if (storyboard && typeof storyboard.restoreContext === 'function' && storyboard.restoreContext(state, context, storyboardDeps())) {
+      return;
+    }
     const api = systemUiWorkspaceApi();
     if (api && typeof api.restoreContext === 'function') { api.restoreContext(state, context, systemUiDeps(meta || {source: 'My Changes'})); }
   }
@@ -1101,6 +1101,9 @@
   function systemUiWorkspaceApi() {
     return global.ProjectMapSystemUiWorkspaceState || null;
   }
+
+  function storyboardWorkspaceApi() { return global.ProjectMapStoryboardWorkspaceState || null; }
+  function storyboardDeps() { return {buildExistingModel, buildExistingModelFor, buildTemplateModel, collectValues, render, showWorkspace, t}; }
 
   function systemUiDeps(entry) {
     return {buildExistingModel, buildTemplateModel, collectValues, defaultDraftForTemplate, entry, normalizeTemplate, render, showWorkspace, t, templateForRegion: systemUiTemplateForRegion, workspaceForTemplate};

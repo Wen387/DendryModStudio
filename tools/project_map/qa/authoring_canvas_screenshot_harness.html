@@ -94,6 +94,12 @@
         'content-chain-evidence': () => contentChainEvidenceScenario(),
         'content-editor-dock-restore': () => contentEditorDockRestoreScenario(),
         'content-narrow': () => contentNarrowScenario(),
+        'content-story-scope-window': () => contentStoryScopeWindowScenario(),
+        'content-story-scope-expanded': () => contentStoryScopeExpandedScenario(),
+        'content-chain-depth-connectors': () => contentChainDepthConnectorsScenario(),
+        'content-story-card-select-existing': () => contentStoryCardSelectExistingScenario(),
+        'content-story-context-reload': () => contentStoryContextReloadScenario(),
+        'content-story-player-card-face': () => contentStoryPlayerCardFaceScenario(),
         'system-ui-live-edit': () => systemUiLiveEditScenario(),
         'system-ui-game-info-header': () => systemUiGameInfoHeaderScenario(),
         'system-ui-shared-screen': () => systemUiSharedScreenScenario(),
@@ -484,6 +490,78 @@
         const editor = win.document.querySelector('[data-content-storyboard-editor]');
         if (!isVisible(win, canvas) || !isVisible(win, controls) || !isVisible(win, editor)) {
           throw new Error('Narrow Storyboard viewport lost canvas controls or editor.');
+        }
+      }
+
+      async function contentStoryScopeWindowScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, broadStoryboardFixtureIndex());
+        await openExisting('events', 'election_start', {}, 'Storyboard scope window');
+        await waitFor(() => win.document.querySelector('[data-content-storyboard-scope]'), 3000);
+        click(win, '[data-content-storyboard-scope-lane="1932"]');
+        await waitFor(() => win.document.querySelector('[data-content-storyboard-lane="1932"]'), 3000);
+        const scope = collapse(win.document.querySelector('[data-content-storyboard-scope]').textContent);
+        if (!scope.includes('1932')) {
+          throw new Error('Storyboard scope did not focus the requested 1932 lane.');
+        }
+      }
+
+      async function contentStoryScopeExpandedScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, broadStoryboardFixtureIndex());
+        await openExisting('events', 'election_start', {}, 'Storyboard expanded scope');
+        click(win, '[data-object-canvas-action="story_scope_expand"]');
+        await waitFor(() => win.document.querySelector('[data-content-storyboard-scope] .is-active'), 3000);
+        const lanes = win.document.querySelectorAll('[data-content-storyboard-lane]').length;
+        if (lanes < 5) {
+          throw new Error('Expanded Storyboard scope did not reveal a broader timeline window. lanes=' + lanes);
+        }
+      }
+
+      async function contentChainDepthConnectorsScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, denseStoryboardFixtureIndex());
+        await openExisting('events', 'election_start', {}, 'Storyboard chain depth connectors');
+        click(win, 'button[data-content-storyboard-view="chain"]');
+        await waitFor(() => win.document.querySelector('[data-content-storyboard-chain-connectors] path'), 3000);
+        click(win, '[data-content-storyboard-depth="2"]');
+        await waitFor(() => win.document.querySelector('[data-content-storyboard-card="event:election_backlash"]'), 3000);
+      }
+
+      async function contentStoryCardSelectExistingScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, denseStoryboardFixtureIndex());
+        await openExisting('events', 'election_start', {}, 'Storyboard card opens object');
+        click(win, '[data-content-storyboard-card="event:election_rally"]');
+        await waitFor(() => collapse(win.document.querySelector('.object-canvas-header h2') && win.document.querySelector('.object-canvas-header h2').textContent).includes('1929 Rally Response'), 3000);
+      }
+
+      async function contentStoryContextReloadScenario() {
+        const win = frame.contentWindow;
+        try {
+          win.localStorage.removeItem('dendry_mod_studio.draft_workspace.v0.1');
+        } catch (_err) {
+          // Ignore storage restrictions in screenshot mode.
+        }
+        seedCustomIndex(win, broadStoryboardFixtureIndex());
+        await openTemplate('event', {'event.title': 'Reloaded story scope draft', 'event.year': '1929'}, 'Storyboard context reload');
+        click(win, '[data-object-canvas-action="story_scope_expand"]');
+        click(win, '[data-content-storyboard-scope-lane="1932"]');
+        await waitFor(() => win.document.querySelector('[data-content-storyboard-lane="1932"]'), 3000);
+        click(win, '[data-object-canvas-action="save"]');
+        await delay(220);
+        click(win, '[data-draft-action="load"]');
+        await waitFor(() => win.document.querySelector('[data-content-storyboard-lane="1932"]'), 3000);
+      }
+
+      async function contentStoryPlayerCardFaceScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, denseStoryboardFixtureIndex());
+        await openExisting('events', 'election_start', {}, 'Storyboard player-facing cards');
+        await waitFor(() => win.document.querySelector('[data-storyboard-card-face="event"][data-storyboard-card-state]'), 3000);
+        const text = collapse(win.document.querySelector('[data-content-storyboard-card="event:election_start"]').textContent);
+        if (!text.includes('election chain opens')) {
+          throw new Error('Player-facing Storyboard card did not render text corpus body.');
         }
       }
 
@@ -987,6 +1065,28 @@
           textItem('election_start_body', 'The election chain opens in 1929.', 'body', 'election_start', eventPath, 8),
           textItem('election_start_option', 'Open rally route', 'option_label', 'election_start', eventPath, 16, 'election_rally')
         ];
+        return base;
+      }
+
+      function broadStoryboardFixtureIndex() {
+        const base = denseStoryboardFixtureIndex();
+        const extraScenes = [];
+        const extraText = [];
+        for (let year = 1925; year <= 1935; year += 1) {
+          if (year === 1928 || year === 1929 || year === 1930) {
+            continue;
+          }
+          const id = 'scope_' + year;
+          const path = 'source/scenes/events/' + id + '.scene.dry';
+          extraScenes.push(fixtureScene(id, year + ' Scope Beat', path, {
+            viewIf: 'year = ' + year + ' and month >= 1 and month <= 2'
+          }));
+          extraText.push(textItem(id + '_title', year + ' Scope Beat', 'title', id, path, 1));
+          extraText.push(textItem(id + '_body', 'A broad timeline beat for ' + year + '.', 'body', id, path, 8));
+        }
+        base.scenes = base.scenes.concat(extraScenes);
+        base.semantic.events = base.scenes.filter((scene) => scene.type !== 'card').map((scene) => ({id: scene.id, title: scene.title, path: scene.path}));
+        base.semantic.textCorpus.items = base.semantic.textCorpus.items.concat(extraText);
         return base;
       }
 

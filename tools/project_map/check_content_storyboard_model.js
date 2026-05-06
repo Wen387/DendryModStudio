@@ -112,7 +112,11 @@ assert(timeline.cards.some((card) => card.kind === 'card' && card.title === 'Cam
 assert(timeline.cards.some((card) => card.kind === 'news'), 'timeline should include news story objects');
 assert(timeline.timeline.lanes.some((lane) => lane.year === 1929 && lane.cards.length >= 2), 'timeline should include a 1929 lane with story cards');
 assert(timeline.timeline.insertionPoints.some((point) => point.year === 1929), 'timeline should expose year insertion points');
+assert(timeline.timeline.storyScope && timeline.timeline.storyScope.mode === 'focus', 'timeline should expose a focused story scope window');
+assert(timeline.timeline.storyScope.summaryLanes.some((lane) => lane.key === '1929' && lane.selected), 'scope overview should mark the selected year');
+assert(timeline.timeline.allLanes.some((lane) => lane.key === '1930'), 'timeline should retain all lanes outside the visible window');
 assert(timeline.cards.some((card) => card.key === 'draft:election_start_followup'), 'draft branch should appear as a storyboard card');
+assert(timeline.cards.some((card) => card.key === 'event:election_start' && card.body.includes('chain opens')), 'story cards should prefer player-facing text corpus excerpts');
 assert(timeline.storyContext && timeline.storyContext.selected && timeline.storyContext.selected.positionLabel.includes('1929'), 'story context should explain selected global timeline position');
 assert(timeline.storyContext.timeline.lanes.some((lane) => lane.selected && lane.count >= 2), 'story context should mark the selected dense lane');
 assert(timeline.storyContext.creationTargets.some((target) => target.key === 'time:1929'), 'story context should expose timeline creation targets');
@@ -130,6 +134,8 @@ assert(levels.selected.cards.some((card) => card.id === 'election_start'), 'chai
 assert(levels.routes.cards.some((card) => card.id === 'election_rally'), 'chain should show downstream event-route consumers');
 assert(levels.branches.cards.some((card) => card.id === 'counterfactual_rally'), 'chain should show branch draft cards');
 assert(chain.chain.insertionPoints.some((point) => point.action === 'followup'), 'chain should expose follow-up insertion');
+assert(chain.chain.connectors.some((connector) => connector.fromKey === 'event:election_start' && connector.toKey === 'event:election_rally'), 'chain should expose visible event connectors');
+assert(chain.chain.depth === '1', 'chain should default to one-hop focus depth');
 assert(chain.storyContext.chain.routeCount >= 1, 'story context should summarize route/downstream count');
 assert(chain.storyContext.chain.branchCount >= 1, 'story context should summarize branch count');
 assert(chain.editor.storyContext.selected.positionLabel.includes('1929'), 'editor should receive story context outside the canvas nodes');
@@ -146,6 +152,9 @@ assert(timelineHtml.includes('data-content-storyboard-card="event:election_start
 assert(timelineHtml.includes('data-content-storyboard-insert="time:1929"'), 'surface should render time-slot insertion');
 assert(timelineHtml.includes('data-content-storyboard-global-context="true"'), 'surface should render global story context in the canvas');
 assert(timelineHtml.includes('data-content-storyboard-overview="true"'), 'surface should render a timeline overview/minimap strip');
+assert(timelineHtml.includes('data-content-storyboard-scope="true"'), 'surface should render focused story scope controls');
+assert(timelineHtml.includes('data-storyboard-card-face="event"'), 'surface should render player-facing card face markers');
+assert(timelineHtml.includes('data-storyboard-card-state='), 'surface should render card state markers');
 assert(timelineHtml.includes('data-content-storyboard-create-menu="true"'), 'surface should render create-here event/card/news affordances');
 assert(timelineHtml.includes('data-content-storyboard-story-context="true"'), 'editor should render story context outside the canvas cards');
 assert(!timelineHtml.includes('data-object-canvas-graph-inspector'), 'content storyboard should not render the old graph inspector');
@@ -161,6 +170,8 @@ const chainHtml = storyboardSurface.render(existing, {
 assert(chainHtml.includes('data-storyboard-kind="chain"'), 'surface should render the chain canvas');
 assert(chainHtml.includes('Counterfactual rally'), 'chain surface should show branch draft cards');
 assert(chainHtml.includes('data-content-storyboard-chain-evidence="true"'), 'chain surface should render route/branch evidence labels');
+assert(chainHtml.includes('data-content-storyboard-chain-connectors="true"'), 'chain surface should render causal connector layer');
+assert(chainHtml.includes('data-content-storyboard-depth-controls="true"'), 'chain surface should render depth controls');
 assert(chainHtml.includes('data-content-storyboard-plan="true"'), 'technical plan should live in the editor panel');
 
 process.stdout.write(JSON.stringify({

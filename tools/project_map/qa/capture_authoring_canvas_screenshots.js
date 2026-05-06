@@ -63,7 +63,13 @@ const DEFAULT_SCENARIOS = [
   ['51-review-system-ui-project', 'review-system-ui-project'],
   ['52-review-system-ui-play-surface', 'review-system-ui-play-surface'],
   ['53-review-system-ui-sidebar-status', 'review-system-ui-sidebar-status'],
-  ['54-system-ui-narrow', 'system-ui-narrow']
+  ['54-system-ui-narrow', 'system-ui-narrow'],
+  ['55-story-scope-window', 'content-story-scope-window'],
+  ['56-story-scope-expanded', 'content-story-scope-expanded'],
+  ['57-story-chain-depth-connectors', 'content-chain-depth-connectors'],
+  ['58-story-card-select-existing', 'content-story-card-select-existing'],
+  ['59-story-context-reload', 'content-story-context-reload'],
+  ['60-story-player-card-face', 'content-story-player-card-face']
 ];
 
 function parseArgs(argv) {

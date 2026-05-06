@@ -4,13 +4,14 @@
   function buildContext(projectIndex, cards, selected, timeline, chain) {
     const selectedKey = selected && selected.key || '';
     const lanes = ensureArray(timeline && timeline.lanes);
-    const selectedLane = lanes.find((lane) => ensureArray(lane.cards).some((card) => card.key === selectedKey)) ||
+    const fullLanes = ensureArray(timeline && timeline.fullLanes).length ? ensureArray(timeline && timeline.fullLanes) : lanes;
+    const selectedLane = fullLanes.find((lane) => ensureArray(lane.cards).some((card) => card.key === selectedKey)) ||
       (ensureArray(timeline && timeline.undated).some((card) => card.key === selectedKey)
         ? {key: 'undated', label: label('Needs schedule'), cards: ensureArray(timeline && timeline.undated)}
         : null);
-    const laneIndex = selectedLane ? Math.max(0, lanes.findIndex((lane) => lane.key === selectedLane.key)) : -1;
-    const beforeCount = laneIndex >= 0 ? lanes.slice(0, laneIndex).reduce(sumCards, 0) : 0;
-    const afterCount = laneIndex >= 0 ? lanes.slice(laneIndex + 1).reduce(sumCards, 0) : 0;
+    const laneIndex = selectedLane ? Math.max(0, fullLanes.findIndex((lane) => lane.key === selectedLane.key)) : -1;
+    const beforeCount = laneIndex >= 0 ? fullLanes.slice(0, laneIndex).reduce(sumCards, 0) : 0;
+    const afterCount = laneIndex >= 0 ? fullLanes.slice(laneIndex + 1).reduce(sumCards, 0) : 0;
     return {
       selected: {
         key: selectedKey,
@@ -19,7 +20,7 @@
         kind: selected && selected.kind || '',
         laneKey: selectedLane && selectedLane.key || '',
         laneLabel: selectedLane && selectedLane.label || selectedLane && selectedLane.year || '',
-        positionLabel: positionLabel(selectedLane, laneIndex, lanes.length),
+        positionLabel: positionLabel(selectedLane, laneIndex, fullLanes.length),
         beforeCount,
         sameLaneCount: selectedLane ? ensureArray(selectedLane.cards).length : 0,
         afterCount
@@ -65,7 +66,7 @@
       upstreamCount: ensureArray(byKey.upstream && byKey.upstream.cards).length,
       routeCount: routes.length,
       branchCount: branches.length,
-      routeLabels: routes.map((card) => card.title || card.id || '').filter(Boolean).slice(0, 4),
+      routeLabels: ensureArray(chain && chain.routeLabels).concat(routes.map((card) => card.title || card.id || '')).filter(Boolean).slice(0, 4),
       branchLabels: branches.map((card) => card.title || card.id || '').filter(Boolean).slice(0, 4)
     };
   }
