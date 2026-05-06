@@ -196,7 +196,7 @@
     state.nodePositions = {};
     state.draftBranches = [];
     state.editorOverlay = false;
-    state.baseDraft = draft || defaultDraftForTemplate(nextTemplate);
+    state.baseDraft = draft || safeDefaultDraftForTemplate(nextTemplate);
     if (nextTemplate === 'card') {
       state.cardBoardSelectedKey = 'draft:card:' + (state.baseDraft && state.baseDraft.id || 'new_action_card');
       state.selectedCanvasNode = state.cardBoardSelectedKey;
@@ -212,10 +212,23 @@
 
   function openTemplateFromCreate(template) {
     const nextTemplate = normalizeTemplate(template) || 'event';
-    if (state.active && state.mode !== 'existing' && state.template === nextTemplate) {
+    if (isCurrentTemplateRendered(nextTemplate)) {
       return;
     }
-    openTemplate(nextTemplate, defaultDraftForTemplate(nextTemplate), {source: 'Create'});
+    openTemplate(nextTemplate, safeDefaultDraftForTemplate(nextTemplate), {source: 'Create'});
+  }
+
+  function isCurrentTemplateRendered(template) {
+    if (!state.active || state.mode === 'existing' || state.template !== template || !state.model) {
+      return false;
+    }
+    const modelTemplate = state.model.template || (state.model.mode === 'new_event' ? 'event' : state.model.mode);
+    if (modelTemplate !== template) {
+      return false;
+    }
+    const wanted = surfaceForTemplate(template);
+    const current = currentSurface(state.model);
+    return Boolean(wanted && current && wanted.key === current.key);
   }
 
   function loadDraft(draft, meta) {
@@ -838,6 +851,38 @@
       }
     }
     return {};
+  }
+
+  function safeDefaultDraftForTemplate(template) {
+    try {
+      return defaultDraftForTemplate(template);
+    } catch (err) {
+      return fallbackDraftForTemplate(template, err);
+    }
+  }
+
+  function fallbackDraftForTemplate(template, err) {
+    const key = normalizeTemplate(template) || 'event';
+    const draft = {
+      schemaVersion: '0.1',
+      kind: key === 'card' ? 'card' : key === 'news' ? 'news_item' : 'event',
+      id: key === 'card' ? 'new_action_card' : key === 'news' ? 'new_news_item' : 'new_event',
+      title: key === 'news' ? 'New headline' : key === 'card' ? 'New Action Card' : 'New Event',
+      heading: key === 'card' ? 'New Action Card' : 'New Event'
+    };
+    if (key === 'card') {
+      draft.cardKind = 'action_card';
+      draft.tags = ['cards'];
+      draft.introParagraphs = ['Describe the situation shown on this card.'];
+      draft.options = [
+        {id: 'option_1', label: 'Take action', narrativeParagraphs: ['The card action is resolved.'], gotoAfter: 'root'},
+        {id: 'option_2', label: 'Hold back', narrativeParagraphs: ['The card is left for later.'], gotoAfter: 'root'}
+      ];
+    }
+    draft.studioAuthoringFallback = {
+      reason: err && err.message ? err.message : String(err || 'default draft failed')
+    };
+    return draft;
   }
 
   function draftWithAuthoringContext() {
