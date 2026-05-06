@@ -17,6 +17,15 @@
     const view = normalizeView(opts.view);
     const chain = buildChain(projectIndex, storyboardCards, selected, model, opts);
     const storyContext = buildStoryContext(projectIndex, storyboardCards, selected, timeline, chain);
+    const palette = buildPalette({
+      view,
+      selectedKey,
+      currentKey: current.key,
+      cards: storyboardCards,
+      timeline,
+      chain,
+      storyContext
+    }, opts);
     return {
       schemaVersion: '0.1',
       kind: 'content_storyboard_model',
@@ -27,13 +36,15 @@
       timeline,
       chain,
       storyContext,
+      palette,
       editor: buildEditor(projectIndex, model, selected, timeline.profile, storyContext),
       metrics: {
         cardCount: storyboardCards.length,
         branchCount: draftBranches.length,
         edgeCount: ensureArray(projectIndex && projectIndex.edges).length,
         visibleCardCount: timeline.storyScope && timeline.storyScope.visibleCardCount || storyboardCards.length,
-        chainConnectorCount: ensureArray(chain && chain.connectors).length
+        chainConnectorCount: ensureArray(chain && chain.connectors).length,
+        paletteEntryCount: palette && palette.metrics && palette.metrics.visibleEntryCount || 0
       }
     };
   }
@@ -447,6 +458,13 @@
       : null;
   }
 
+  function buildPalette(storyboard, options) {
+    const api = storyPaletteApi();
+    return api && typeof api.buildPalette === 'function'
+      ? api.buildPalette(storyboard, options || {})
+      : {groups: [], open: false, query: '', type: 'all', metrics: {visibleEntryCount: 0}};
+  }
+
   function storyContextApi() {
     if (global && global.ProjectMapContentStoryboardContext) {
       return global.ProjectMapContentStoryboardContext;
@@ -454,6 +472,20 @@
     if (typeof require === 'function') {
       try {
         return require('./content_storyboard_context.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function storyPaletteApi() {
+    if (global && global.ProjectMapStoryPaletteModel) {
+      return global.ProjectMapStoryPaletteModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./story_palette_model.js');
       } catch (_err) {
         return null;
       }

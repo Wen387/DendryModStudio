@@ -69,7 +69,20 @@ const DEFAULT_SCENARIOS = [
   ['57-story-chain-depth-connectors', 'content-chain-depth-connectors'],
   ['58-story-card-select-existing', 'content-story-card-select-existing'],
   ['59-story-context-reload', 'content-story-context-reload'],
-  ['60-story-player-card-face', 'content-story-player-card-face']
+  ['60-story-player-card-face', 'content-story-player-card-face'],
+  ['61-story-palette-closed', 'content-story-palette-closed'],
+  ['62-story-palette-open-timeline', 'content-story-palette-open-timeline'],
+  ['63-story-palette-search-filter', 'content-story-palette-search-filter'],
+  ['64-story-palette-unplaced', 'content-story-palette-unplaced'],
+  ['65-story-palette-drop-canvas', 'content-story-palette-drop-canvas'],
+  ['66-story-palette-drop-lane', 'content-story-palette-drop-lane'],
+  ['67-story-palette-open-chain', 'content-story-palette-open-chain'],
+  ['68-story-palette-drop-chain-gap', 'content-story-palette-drop-chain-gap'],
+  ['69-story-palette-draft-restore', 'content-story-palette-draft-restore'],
+  ['70-story-palette-unsupported-drop', 'content-story-palette-unsupported-drop'],
+  ['71-story-palette-reload-context', 'content-story-palette-reload-context'],
+  ['72-story-palette-review-context', 'content-story-palette-review-context'],
+  ['73-story-palette-narrow', 'content-story-palette-narrow']
 ];
 
 function parseArgs(argv) {
@@ -125,7 +138,7 @@ function ensureDir(dir) {
 }
 
 function capture(chrome, url, filePath, scenario) {
-  const windowSize = scenario === 'content-narrow' || scenario === 'system-ui-narrow' ? '430,1000' : '1440,1000';
+  const windowSize = scenario === 'content-narrow' || scenario === 'content-story-palette-narrow' || scenario === 'system-ui-narrow' ? '430,1000' : '1440,1000';
   const args = [
     '--headless=new',
     '--disable-gpu',

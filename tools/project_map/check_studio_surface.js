@@ -18,11 +18,13 @@ const AUTHORING_REFERENCE_INDEX = path.join(ROOT, 'viewer', 'authoring_reference
 const CONTENT_STORYBOARD_MODEL = path.join(ROOT, 'authoring', 'content_storyboard_model.js');
 const STORY_SCOPE_MODEL = path.join(ROOT, 'authoring', 'story_scope_model.js');
 const STORY_CHAIN_GRAPH_MODEL = path.join(ROOT, 'authoring', 'story_chain_graph_model.js');
+const STORY_PALETTE_MODEL = path.join(ROOT, 'authoring', 'story_palette_model.js');
 const TIMELINE_PROFILE_MODEL = path.join(ROOT, 'authoring', 'timeline_profile_model.js');
 const TIMELINE_COORDINATE_ADAPTER = path.join(ROOT, 'authoring', 'timeline_coordinate_adapter.js');
 const CONTENT_STORYBOARD_SURFACE = path.join(ROOT, 'viewer', 'content_storyboard_surface.js');
 const STORYBOARD_SCOPE_CONTROLS = path.join(ROOT, 'viewer', 'storyboard_scope_controls.js');
 const STORYBOARD_CARD_RENDERER = path.join(ROOT, 'viewer', 'storyboard_card_renderer.js');
+const STORYBOARD_PALETTE_SIDEBAR = path.join(ROOT, 'viewer', 'storyboard_palette_sidebar.js');
 const STORYBOARD_WORKSPACE_STATE = path.join(ROOT, 'viewer', 'storyboard_workspace_state.js');
 const CONTENT_STORYBOARD_INTERACTIONS = path.join(ROOT, 'viewer', 'content_storyboard_interactions.js');
 const CONTENT_GRAPH_INTERACTIONS = path.join(ROOT, 'viewer', 'content_graph_interactions.js');
@@ -104,11 +106,13 @@ const authoringReferenceIndex = fs.readFileSync(AUTHORING_REFERENCE_INDEX, 'utf8
 const contentStoryboardModel = fs.readFileSync(CONTENT_STORYBOARD_MODEL, 'utf8');
 const storyScopeModel = fs.readFileSync(STORY_SCOPE_MODEL, 'utf8');
 const storyChainGraphModel = fs.readFileSync(STORY_CHAIN_GRAPH_MODEL, 'utf8');
+const storyPaletteModel = fs.readFileSync(STORY_PALETTE_MODEL, 'utf8');
 const timelineProfileModel = fs.readFileSync(TIMELINE_PROFILE_MODEL, 'utf8');
 const timelineCoordinateAdapter = fs.readFileSync(TIMELINE_COORDINATE_ADAPTER, 'utf8');
 const contentStoryboardSurface = fs.readFileSync(CONTENT_STORYBOARD_SURFACE, 'utf8');
 const storyboardScopeControls = fs.readFileSync(STORYBOARD_SCOPE_CONTROLS, 'utf8');
 const storyboardCardRenderer = fs.readFileSync(STORYBOARD_CARD_RENDERER, 'utf8');
+const storyboardPaletteSidebar = fs.readFileSync(STORYBOARD_PALETTE_SIDEBAR, 'utf8');
 const storyboardWorkspaceState = fs.readFileSync(STORYBOARD_WORKSPACE_STATE, 'utf8');
 const contentStoryboardInteractions = fs.readFileSync(CONTENT_STORYBOARD_INTERACTIONS, 'utf8');
 const contentGraphInteractions = fs.readFileSync(CONTENT_GRAPH_INTERACTIONS, 'utf8');
@@ -173,6 +177,7 @@ assert(html.includes('../authoring/timeline_profile_model.js'), 'viewer should l
 assert(html.includes('../authoring/timeline_coordinate_adapter.js'), 'viewer should load Timeline Coordinate adapter');
 assert(html.includes('../authoring/story_scope_model.js'), 'viewer should load Story Scope model');
 assert(html.includes('../authoring/story_chain_graph_model.js'), 'viewer should load Story Chain Graph model');
+assert(html.includes('../authoring/story_palette_model.js'), 'viewer should load Story Palette model');
 assert(html.includes('../authoring/content_storyboard_model.js'), 'viewer should load Content Storyboard model');
 assert(html.includes('../authoring/entry_sidebar_draft.js'), 'viewer should load Entry & Sidebar draft core');
 assert(html.includes('../authoring/play_surface_draft.js'), 'viewer should load Playable Surface draft core');
@@ -188,6 +193,7 @@ assert(html.includes('authoring_surface_graphs.js'), 'viewer should load Authori
 assert(html.includes('authoring_reference_index.js'), 'viewer should load Authoring Reference Index');
 assert(html.includes('storyboard_scope_controls.js'), 'viewer should load Storyboard scope controls');
 assert(html.includes('storyboard_card_renderer.js'), 'viewer should load Storyboard card renderer');
+assert(html.includes('storyboard_palette_sidebar.js'), 'viewer should load Storyboard palette sidebar');
 assert(html.includes('storyboard_workspace_state.js'), 'viewer should load Storyboard workspace state');
 assert(html.includes('content_storyboard_surface.js'), 'viewer should load Content Storyboard surface');
 assert(html.includes('content_storyboard_interactions.js'), 'viewer should load Content Storyboard interactions');
@@ -216,6 +222,8 @@ assert(storyScopeModel.includes('ProjectMapStoryScopeModel'), 'Story Scope model
 assert(storyScopeModel.includes('buildScopedTimeline'), 'Story Scope model should build focused timeline windows');
 assert(storyChainGraphModel.includes('ProjectMapStoryChainGraphModel'), 'Story Chain Graph model should expose a browser API');
 assert(storyChainGraphModel.includes('connectors'), 'Story Chain Graph model should produce event connectors');
+assert(storyPaletteModel.includes('ProjectMapStoryPaletteModel'), 'Story Palette model should expose a browser API');
+assert(storyPaletteModel.includes('buildPalette'), 'Story Palette model should build matching groups');
 assert(timelineProfileModel.includes('ProjectMapTimelineProfileModel'), 'Timeline Profile model should expose a browser API');
 assert(timelineCoordinateAdapter.includes('ProjectMapTimelineCoordinateAdapter'), 'Timeline Coordinate adapter should expose a browser API');
 assert(contentStoryboardSurface.includes('ProjectMapContentStoryboardSurface'), 'Content Storyboard surface should expose a browser API');
@@ -225,9 +233,13 @@ assert(storyboardScopeControls.includes('ProjectMapStoryboardScopeControls'), 'S
 assert(storyboardScopeControls.includes('data-content-storyboard-scope'), 'Storyboard scope controls should render focused scope controls');
 assert(storyboardCardRenderer.includes('ProjectMapStoryboardCardRenderer'), 'Storyboard card renderer should expose a browser API');
 assert(storyboardCardRenderer.includes('data-storyboard-card-face'), 'Storyboard card renderer should render player-facing card markers');
+assert(storyboardPaletteSidebar.includes('ProjectMapStoryboardPaletteSidebar'), 'Storyboard palette sidebar should expose a browser API');
+assert(storyboardPaletteSidebar.includes('data-storyboard-palette'), 'Storyboard palette sidebar should render a stable drawer marker');
 assert(storyboardWorkspaceState.includes('ProjectMapStoryboardWorkspaceState'), 'Storyboard workspace state should expose a browser API');
 assert(storyboardWorkspaceState.includes('draftWithContext'), 'Storyboard workspace state should preserve saved authoring context');
+assert(storyboardWorkspaceState.includes('storyPaletteDropContext'), 'Storyboard workspace state should preserve Palette drop context');
 assert(contentStoryboardInteractions.includes('ProjectMapContentStoryboardInteractions'), 'Content Storyboard interactions should expose a browser API');
+assert(contentStoryboardInteractions.includes('onPaletteDrop'), 'Content Storyboard interactions should support Palette drops');
 assert(contentGraphInteractions.includes('ProjectMapContentGraphInteractions'), 'Content Graph interactions should expose a browser API');
 assert(projectStateSurface.includes('ProjectMapProjectStateSurface'), 'Project State surface should expose a browser API');
 assert(systemUiFixtureState.includes('ProjectMapSystemUiFixtureState'), 'System UI fixture state helper should expose a browser API');

@@ -5,6 +5,7 @@ const canvasModel = require('./authoring/object_authoring_canvas_model.js');
 const storyboardModel = require('./authoring/content_storyboard_model.js');
 global.ProjectMapContentStoryboardModel = storyboardModel;
 const storyboardSurface = require('./viewer/content_storyboard_surface.js');
+const storyPaletteModel = require('./authoring/story_palette_model.js');
 
 function fail(message) {
   process.stderr.write('FAIL: ' + message + '\n');
@@ -117,6 +118,8 @@ assert(timeline.timeline.storyScope.summaryLanes.some((lane) => lane.key === '19
 assert(timeline.timeline.allLanes.some((lane) => lane.key === '1930'), 'timeline should retain all lanes outside the visible window');
 assert(timeline.cards.some((card) => card.key === 'draft:election_start_followup'), 'draft branch should appear as a storyboard card');
 assert(timeline.cards.some((card) => card.key === 'event:election_start' && card.body.includes('chain opens')), 'story cards should prefer player-facing text corpus excerpts');
+assert(timeline.palette && timeline.palette.groups.some((group) => group.key === 'current_scope' && group.entries.length), 'timeline palette should expose current-scope story objects');
+assert(timeline.palette.groups.some((group) => group.key === 'drafts' && group.entries.some((entry) => entry.key === 'draft:election_start_followup')), 'timeline palette should expose draft story objects');
 assert(timeline.storyContext && timeline.storyContext.selected && timeline.storyContext.selected.positionLabel.includes('1929'), 'story context should explain selected global timeline position');
 assert(timeline.storyContext.timeline.lanes.some((lane) => lane.selected && lane.count >= 2), 'story context should mark the selected dense lane');
 assert(timeline.storyContext.creationTargets.some((target) => target.key === 'time:1929'), 'story context should expose timeline creation targets');
@@ -136,19 +139,28 @@ assert(levels.branches.cards.some((card) => card.id === 'counterfactual_rally'),
 assert(chain.chain.insertionPoints.some((point) => point.action === 'followup'), 'chain should expose follow-up insertion');
 assert(chain.chain.connectors.some((connector) => connector.fromKey === 'event:election_start' && connector.toKey === 'event:election_rally'), 'chain should expose visible event connectors');
 assert(chain.chain.depth === '1', 'chain should default to one-hop focus depth');
+assert(chain.palette.groups.some((group) => group.key === 'routes' && group.entries.some((entry) => entry.key === 'event:election_rally')), 'chain palette should expose route/downstream candidates');
 assert(chain.storyContext.chain.routeCount >= 1, 'story context should summarize route/downstream count');
 assert(chain.storyContext.chain.branchCount >= 1, 'story context should summarize branch count');
 assert(chain.editor.storyContext.selected.positionLabel.includes('1929'), 'editor should receive story context outside the canvas nodes');
+
+const filteredPalette = storyPaletteModel.buildPalette(timeline, {storyPaletteQuery: 'rally', storyPaletteType: 'event'});
+assert(filteredPalette.groups.some((group) => group.entries.some((entry) => entry.key === 'event:election_rally')), 'palette search should retain matching event entries');
+assert(!filteredPalette.groups.some((group) => group.entries.some((entry) => entry.kind === 'news')), 'palette type filter should remove non-event entries');
 
 const timelineHtml = storyboardSurface.render(existing, {
   projectIndex: index,
   view: 'timeline',
   selected: 'event:election_start',
-  draftBranches: timeline.cards.filter((card) => card.draftBranch)
+  draftBranches: timeline.cards.filter((card) => card.draftBranch),
+  storyPaletteOpen: true
 });
 assert(timelineHtml.includes('data-content-storyboard-surface="true"'), 'surface should expose storyboard QA marker');
 assert(timelineHtml.includes('data-storyboard-kind="timeline"'), 'surface should render the timeline canvas');
 assert(timelineHtml.includes('data-content-storyboard-card="event:election_start"'), 'surface should render event cards');
+assert(timelineHtml.includes('data-storyboard-palette="true"'), 'surface should render the Storyboard Palette');
+assert(timelineHtml.includes('data-storyboard-palette-item="true"'), 'palette should render draggable story object items');
+assert(timelineHtml.includes('data-storyboard-drop-target="timeline_lane"'), 'timeline lanes should expose palette drop targets');
 assert(timelineHtml.includes('data-content-storyboard-insert="time:1929"'), 'surface should render time-slot insertion');
 assert(timelineHtml.includes('data-content-storyboard-global-context="true"'), 'surface should render global story context in the canvas');
 assert(timelineHtml.includes('data-content-storyboard-overview="true"'), 'surface should render a timeline overview/minimap strip');
@@ -165,13 +177,15 @@ const chainHtml = storyboardSurface.render(existing, {
   projectIndex: index,
   view: 'chain',
   selected: 'event:election_start',
-  draftBranches: [{template: 'event', id: 'counterfactual_rally', title: 'Counterfactual rally'}]
+  draftBranches: [{template: 'event', id: 'counterfactual_rally', title: 'Counterfactual rally'}],
+  storyPaletteOpen: true
 });
 assert(chainHtml.includes('data-storyboard-kind="chain"'), 'surface should render the chain canvas');
 assert(chainHtml.includes('Counterfactual rally'), 'chain surface should show branch draft cards');
 assert(chainHtml.includes('data-content-storyboard-chain-evidence="true"'), 'chain surface should render route/branch evidence labels');
 assert(chainHtml.includes('data-content-storyboard-chain-connectors="true"'), 'chain surface should render causal connector layer');
 assert(chainHtml.includes('data-content-storyboard-depth-controls="true"'), 'chain surface should render depth controls');
+assert(chainHtml.includes('data-storyboard-drop-target="chain_gap"'), 'chain surface should expose palette drop targets');
 assert(chainHtml.includes('data-content-storyboard-plan="true"'), 'technical plan should live in the editor panel');
 
 process.stdout.write(JSON.stringify({

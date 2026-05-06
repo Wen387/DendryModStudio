@@ -100,6 +100,19 @@
         'content-story-card-select-existing': () => contentStoryCardSelectExistingScenario(),
         'content-story-context-reload': () => contentStoryContextReloadScenario(),
         'content-story-player-card-face': () => contentStoryPlayerCardFaceScenario(),
+        'content-story-palette-closed': () => contentStoryPaletteClosedScenario(),
+        'content-story-palette-open-timeline': () => contentStoryPaletteOpenTimelineScenario(),
+        'content-story-palette-search-filter': () => contentStoryPaletteSearchFilterScenario(),
+        'content-story-palette-unplaced': () => contentStoryPaletteUnplacedScenario(),
+        'content-story-palette-drop-canvas': () => contentStoryPaletteDropCanvasScenario(),
+        'content-story-palette-drop-lane': () => contentStoryPaletteDropLaneScenario(),
+        'content-story-palette-open-chain': () => contentStoryPaletteOpenChainScenario(),
+        'content-story-palette-drop-chain-gap': () => contentStoryPaletteDropChainGapScenario(),
+        'content-story-palette-draft-restore': () => contentStoryPaletteDraftRestoreScenario(),
+        'content-story-palette-unsupported-drop': () => contentStoryPaletteUnsupportedDropScenario(),
+        'content-story-palette-reload-context': () => contentStoryPaletteReloadContextScenario(),
+        'content-story-palette-review-context': () => contentStoryPaletteReviewContextScenario(),
+        'content-story-palette-narrow': () => contentStoryPaletteNarrowScenario(),
         'system-ui-live-edit': () => systemUiLiveEditScenario(),
         'system-ui-game-info-header': () => systemUiGameInfoHeaderScenario(),
         'system-ui-shared-screen': () => systemUiSharedScreenScenario(),
@@ -565,6 +578,167 @@
         }
       }
 
+      async function contentStoryPaletteClosedScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, denseStoryboardFixtureIndex());
+        await openExisting('events', 'election_start', {}, 'Storyboard Palette closed');
+        await waitFor(() => win.document.querySelector('[data-storyboard-palette][data-storyboard-palette-open="false"] [data-storyboard-palette-toggle]'), 3000);
+      }
+
+      async function contentStoryPaletteOpenTimelineScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, denseStoryboardFixtureIndex());
+        await openExisting('events', 'election_start', {}, 'Storyboard Palette timeline');
+        await openStoryPalette(win);
+        if (!win.document.querySelector('[data-storyboard-palette-group]') || !win.document.querySelector('[data-storyboard-palette-item="true"]')) {
+          throw new Error('Timeline Palette did not render grouped story objects.');
+        }
+      }
+
+      async function contentStoryPaletteSearchFilterScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, denseStoryboardFixtureIndex());
+        await openExisting('events', 'election_start', {}, 'Storyboard Palette search');
+        await openStoryPalette(win);
+        const input = win.document.querySelector('[data-storyboard-palette-query]');
+        input.value = 'rally';
+        input.dispatchEvent(new win.Event('input', {bubbles: true}));
+        await waitFor(() => collapse(win.document.querySelector('[data-storyboard-palette]').textContent).includes('Rally'), 3000);
+        click(win, '[data-storyboard-palette-type="event"]');
+        await waitFor(() => win.document.querySelector('[data-storyboard-palette-item][data-storyboard-palette-key="event:election_rally"]'), 3000);
+        if (win.document.querySelector('[data-storyboard-palette-item][data-storyboard-palette-kind="news"]')) {
+          throw new Error('Palette type filter did not remove news items.');
+        }
+      }
+
+      async function contentStoryPaletteUnplacedScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, sparseTimelineFixtureIndex());
+        await openExisting('events', 'first', {}, 'Storyboard Palette unplaced');
+        await openStoryPalette(win);
+        const text = collapse(win.document.querySelector('[data-storyboard-palette-group="unplaced"]').textContent);
+        if (!text.includes('First Sparse Beat') || !text.includes('Second Sparse Beat')) {
+          throw new Error('Palette unplaced group did not expose weakly placed story objects.');
+        }
+      }
+
+      async function contentStoryPaletteDropCanvasScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, denseStoryboardFixtureIndex());
+        await openExisting('events', 'election_start', {}, 'Storyboard Palette drop canvas');
+        await openStoryPalette(win);
+        dragPaletteTo(win, '[data-storyboard-palette-item][data-storyboard-palette-key="event:election_rally"]', '[data-storyboard-drop-target="canvas"]');
+        await waitFor(() => collapse(win.document.querySelector('.object-canvas-header h2').textContent).includes('1929 Rally Response'), 3000);
+        if (win.document.querySelector('[data-content-storyboard-card^="draft:"]')) {
+          throw new Error('Dropping an existing Palette item created a duplicate draft.');
+        }
+      }
+
+      async function contentStoryPaletteDropLaneScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, broadStoryboardFixtureIndex());
+        await openExisting('events', 'election_start', {}, 'Storyboard Palette drop lane');
+        await openStoryPalette(win);
+        dragPaletteTo(win, '[data-storyboard-palette-item][data-storyboard-palette-key="event:election_rally"]', '[data-content-storyboard-lane="1930"]');
+        await waitFor(() => win.document.querySelector('[data-storyboard-palette-drop-context]'), 3000);
+        const text = collapse(win.document.querySelector('[data-storyboard-palette-drop-context]').textContent);
+        if (!text.includes('timeline_lane') || !text.includes('1930')) {
+          throw new Error('Timeline Palette drop did not preserve lane placement context.');
+        }
+      }
+
+      async function contentStoryPaletteOpenChainScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, denseStoryboardFixtureIndex());
+        await openExisting('events', 'election_start', {}, 'Storyboard Palette chain');
+        click(win, 'button[data-content-storyboard-view="chain"]');
+        await waitFor(() => win.document.querySelector('[data-storyboard-kind="chain"]'), 3000);
+        await openStoryPalette(win);
+        if (!win.document.querySelector('[data-storyboard-palette-group="routes"]') || !win.document.querySelector('[data-storyboard-palette-item][data-storyboard-palette-key="event:election_rally"]')) {
+          throw new Error('Chain Palette did not show route/downstream candidates.');
+        }
+      }
+
+      async function contentStoryPaletteDropChainGapScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, denseStoryboardFixtureIndex());
+        await openExisting('events', 'election_start', {}, 'Storyboard Palette chain drop');
+        click(win, 'button[data-content-storyboard-view="chain"]');
+        await waitFor(() => win.document.querySelector('[data-storyboard-kind="chain"]'), 3000);
+        await openStoryPalette(win);
+        dragPaletteTo(win, '[data-storyboard-palette-item][data-storyboard-palette-key="event:election_rally"]', '[data-storyboard-drop-target="chain_gap"]');
+        await waitFor(() => win.document.querySelector('[data-storyboard-palette-drop-context]'), 3000);
+        if (!collapse(win.document.querySelector('[data-storyboard-palette-drop-context]').textContent).includes('chain_gap')) {
+          throw new Error('Chain Palette drop did not preserve gap context.');
+        }
+      }
+
+      async function contentStoryPaletteDraftRestoreScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, denseStoryboardFixtureIndex());
+        await openTemplate('event', {'event.title': 'Palette draft base', 'event.year': '1929'}, 'Storyboard Palette draft restore');
+        click(win, '[data-object-canvas-action="create_followup"]');
+        await waitFor(() => win.document.querySelector('[data-content-storyboard-card^="draft:"]'), 3000);
+        await openStoryPalette(win);
+        dragPaletteTo(win, '[data-storyboard-palette-item][data-storyboard-palette-key^="draft:"]', '[data-storyboard-drop-target="canvas"]');
+        await waitFor(() => win.document.querySelector('[data-content-storyboard-card^="draft:"].is-selected'), 3000);
+      }
+
+      async function contentStoryPaletteUnsupportedDropScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, denseStoryboardFixtureIndex());
+        await openExisting('events', 'election_start', {}, 'Storyboard Palette unsupported drop');
+        const canvas = win.document.querySelector('[data-storyboard-drop-target="canvas"]');
+        dropRawPalettePayload(win, canvas, {});
+        await waitFor(() => collapse(win.document.querySelector('[data-object-canvas-status]').textContent).includes('not supported') || collapse(win.document.querySelector('[data-object-canvas-status]').textContent).includes('不能放'), 3000);
+      }
+
+      async function contentStoryPaletteReloadContextScenario() {
+        const win = frame.contentWindow;
+        try {
+          win.localStorage.removeItem('dendry_mod_studio.draft_workspace.v0.1');
+        } catch (_err) {
+          // Ignore storage restrictions in screenshot mode.
+        }
+        seedCustomIndex(win, broadStoryboardFixtureIndex());
+        await openTemplate('event', {'event.title': 'Palette context draft', 'event.year': '1929'}, 'Storyboard Palette reload context');
+        await openStoryPalette(win);
+        dragPaletteTo(win, '[data-storyboard-palette-item][data-storyboard-palette-key="event:election_rally"]', '[data-content-storyboard-lane="1930"]');
+        await waitFor(() => win.document.querySelector('[data-storyboard-palette-drop-context]'), 3000);
+        click(win, '[data-object-canvas-action="save"]');
+        await delay(220);
+        click(win, '[data-draft-action="load"]');
+        await waitFor(() => win.document.querySelector('[data-storyboard-palette-drop-context]'), 3000);
+      }
+
+      async function contentStoryPaletteReviewContextScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, broadStoryboardFixtureIndex());
+        await openTemplate('event', {'event.title': 'Palette review draft', 'event.year': '1929'}, 'Storyboard Palette review context');
+        await openStoryPalette(win);
+        dragPaletteTo(win, '[data-storyboard-palette-item][data-storyboard-palette-key="event:election_rally"]', '[data-content-storyboard-lane="1930"]');
+        await waitFor(() => win.document.querySelector('[data-storyboard-palette-drop-context]'), 3000);
+        await applyValues(win, {election_rally_body: 'Palette review keeps the rally context visible.'});
+        click(win, '[data-object-canvas-action="review"]');
+        await waitFor(() => isReviewVisible(win), 4000);
+      }
+
+      async function contentStoryPaletteNarrowScenario() {
+        frame.style.width = '430px';
+        frame.style.maxWidth = '430px';
+        await delay(120);
+        const win = frame.contentWindow;
+        seedCustomIndex(win, denseStoryboardFixtureIndex());
+        await openExisting('events', 'election_start', {}, 'Storyboard Palette narrow');
+        await openStoryPalette(win);
+        const palette = win.document.querySelector('[data-storyboard-palette-drawer]');
+        const canvas = win.document.querySelector('[data-content-storyboard-canvas]');
+        const editor = win.document.querySelector('[data-content-storyboard-editor]');
+        if (!isVisible(win, palette) || !isVisible(win, canvas) || !isVisible(win, editor)) {
+          throw new Error('Narrow Palette viewport lost drawer, canvas, or editor.');
+        }
+      }
+
       async function systemUiLiveEditScenario() {
         const win = frame.contentWindow;
         await openTemplate('entry', {}, 'System UI live edit');
@@ -714,6 +888,34 @@
         }
       }
 
+      async function openStoryPalette(win) {
+        const toggle = win.document.querySelector('[data-storyboard-palette-toggle]');
+        if (!toggle) {
+          throw new Error('Storyboard Palette toggle is missing.');
+        }
+        toggle.click();
+        await waitFor(() => win.document.querySelector('[data-storyboard-palette][data-storyboard-palette-open="true"]'), 3000);
+      }
+
+      function dragPaletteTo(win, itemSelector, targetSelector) {
+        const item = win.document.querySelector(itemSelector);
+        const target = win.document.querySelector(targetSelector);
+        if (!item || !target) {
+          throw new Error('Cannot drag Palette item. item=' + itemSelector + ' target=' + targetSelector);
+        }
+        const transfer = new win.DataTransfer();
+        item.dispatchEvent(new win.DragEvent('dragstart', {bubbles: true, cancelable: true, dataTransfer: transfer}));
+        target.dispatchEvent(new win.DragEvent('dragover', {bubbles: true, cancelable: true, dataTransfer: transfer}));
+        target.dispatchEvent(new win.DragEvent('drop', {bubbles: true, cancelable: true, dataTransfer: transfer}));
+      }
+
+      function dropRawPalettePayload(win, target, payload) {
+        const transfer = new win.DataTransfer();
+        transfer.setData('application/x-dms-story-palette', JSON.stringify(payload || {}));
+        target.dispatchEvent(new win.DragEvent('dragover', {bubbles: true, cancelable: true, dataTransfer: transfer}));
+        target.dispatchEvent(new win.DragEvent('drop', {bubbles: true, cancelable: true, dataTransfer: transfer}));
+      }
+
       function dragPointer(win, node, startX, startY, endX, endY) {
         if (!node) {
           throw new Error('Cannot drag a missing node.');
@@ -734,7 +936,7 @@
       }
 
       function assertScenarioReady(win) {
-        if (scenarioId.indexOf('review-') === 0) {
+        if (scenarioId.indexOf('review-') === 0 || scenarioId === 'content-story-palette-review-context') {
           if (!isReviewVisible(win)) {
             throw new Error('Review scenario did not open Review & Apply.');
           }

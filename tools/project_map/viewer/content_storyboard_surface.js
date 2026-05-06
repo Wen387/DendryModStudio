@@ -55,8 +55,9 @@
     const maxCards = lanes.reduce((count, lane) => Math.max(count, lane.cards.length), 1);
     const height = Math.max(720, maxCards * 340 + 260);
     return [
-      '<section class="content-storyboard-canvas" data-content-storyboard-canvas="true" data-storyboard-kind="timeline" style="--content-storyboard-width: ' + width + 'px; --content-storyboard-height: ' + height + 'px;">',
+      '<section class="content-storyboard-canvas" data-content-storyboard-canvas="true" data-storyboard-kind="timeline" data-storyboard-drop-target="canvas" style="--content-storyboard-width: ' + width + 'px; --content-storyboard-height: ' + height + 'px;">',
       renderCanvasControls(),
+      renderPalette(storyboard),
       renderGlobalContext(storyboard),
       renderTimelineScope(storyboard),
       renderTimelineOverview(storyboard),
@@ -76,7 +77,7 @@
     const laneLabel = lane.unitLabel || t('storyboard.lane', 'Lane');
     const title = lane.label || lane.year || laneKey;
     return [
-      '<section class="content-storyboard-lane" data-content-storyboard-lane="' + escapeAttr(laneKey) + '" style="left: ' + left + 'px; top: 178px; width: ' + laneWidth + 'px;">',
+      '<section class="content-storyboard-lane" data-content-storyboard-lane="' + escapeAttr(laneKey) + '" data-storyboard-drop-target="timeline_lane" data-content-storyboard-insert="' + escapeAttr(insertKey) + '" style="left: ' + left + 'px; top: 178px; width: ' + laneWidth + 'px;">',
       '<header><span>' + escapeHtml(laneLabel) + '</span><strong>' + escapeHtml(String(title)) + '</strong><em>' + cards.length + ' ' + escapeHtml(t('storyboard.beats', 'beats')) + '</em></header>',
       renderLaneCreateMenu(insertKey),
       cards.map((card, cardIndex) => renderCard(card, defaultPosition(18, 132 + cardIndex * 326, positions[card.key]), storyboard)).join(''),
@@ -91,7 +92,7 @@
     }
     const left = 36 + laneIndex * (laneWidth + laneGap);
     return [
-      '<section class="content-storyboard-lane content-storyboard-lane-undated" data-content-storyboard-lane="undated" style="left: ' + left + 'px; top: 178px; width: ' + laneWidth + 'px;">',
+      '<section class="content-storyboard-lane content-storyboard-lane-undated" data-content-storyboard-lane="undated" data-storyboard-drop-target="undated" data-content-storyboard-insert="undated" style="left: ' + left + 'px; top: 178px; width: ' + laneWidth + 'px;">',
       '<header><span>' + escapeHtml(t('storyboard.undated', 'Undated')) + '</span><strong>' + escapeHtml(t('storyboard.needsSchedule', 'Needs schedule')) + '</strong><em>' + orderedCards.length + ' ' + escapeHtml(t('storyboard.beats', 'beats')) + '</em></header>',
       renderLaneCreateMenu('undated'),
       orderedCards.slice(0, 8).map((card, cardIndex) => renderCard(card, defaultPosition(18, 132 + cardIndex * 326, positions[card.key]), storyboard)).join(''),
@@ -103,9 +104,9 @@
     const key = escapeAttr(insertKey || '');
     return [
       '<div class="content-storyboard-create-menu" data-content-storyboard-create-menu="true">',
-      '<button type="button" class="content-storyboard-insert" data-object-canvas-action="create_followup" data-content-storyboard-insert="' + key + '">' + escapeHtml(t('storyboard.addEventHere', 'Event here')) + '</button>',
-      '<button type="button" class="content-storyboard-insert" data-object-canvas-action="create_card" data-content-storyboard-insert="' + key + '">' + escapeHtml(t('storyboard.addCardHere', 'Card')) + '</button>',
-      '<button type="button" class="content-storyboard-insert" data-object-canvas-action="create_news" data-content-storyboard-insert="' + key + '">' + escapeHtml(t('storyboard.addNewsHere', 'News')) + '</button>',
+      '<button type="button" class="content-storyboard-insert" data-object-canvas-action="create_followup" data-content-storyboard-insert="' + key + '" data-storyboard-drop-target="timeline_insert">' + escapeHtml(t('storyboard.addEventHere', 'Event here')) + '</button>',
+      '<button type="button" class="content-storyboard-insert" data-object-canvas-action="create_card" data-content-storyboard-insert="' + key + '" data-storyboard-drop-target="timeline_insert">' + escapeHtml(t('storyboard.addCardHere', 'Card')) + '</button>',
+      '<button type="button" class="content-storyboard-insert" data-object-canvas-action="create_news" data-content-storyboard-insert="' + key + '" data-storyboard-drop-target="timeline_insert">' + escapeHtml(t('storyboard.addNewsHere', 'News')) + '</button>',
       '</div>'
     ].join('');
   }
@@ -118,8 +119,9 @@
     const maxCards = levels.reduce((count, level) => Math.max(count, level.cards.length), 1);
     const height = Math.max(720, maxCards * 320 + 270);
     return [
-      '<section class="content-storyboard-canvas" data-content-storyboard-canvas="true" data-storyboard-kind="chain" style="--content-storyboard-width: ' + width + 'px; --content-storyboard-height: ' + height + 'px;">',
+      '<section class="content-storyboard-canvas" data-content-storyboard-canvas="true" data-storyboard-kind="chain" data-storyboard-drop-target="canvas" style="--content-storyboard-width: ' + width + 'px; --content-storyboard-height: ' + height + 'px;">',
       renderCanvasControls(),
+      renderPalette(storyboard),
       renderGlobalContext(storyboard),
       renderChainDepthControls(storyboard),
       '<svg class="content-storyboard-chain-edges" data-content-storyboard-chain-connectors="true" data-object-canvas-graph-edges="true" viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">',
@@ -186,7 +188,7 @@
     const left = 36 + levelIndex * columnWidth;
     const cards = level.cards || [];
     return [
-      '<section class="content-storyboard-chain-level" data-content-storyboard-chain-level="' + escapeAttr(level.key) + '" style="left: ' + left + 'px; top: 150px; width: 286px;">',
+      '<section class="content-storyboard-chain-level" data-content-storyboard-chain-level="' + escapeAttr(level.key) + '" data-storyboard-drop-target="chain_level" data-content-storyboard-insert="' + escapeAttr(level.key) + '" style="left: ' + left + 'px; top: 150px; width: 286px;">',
       '<header><span>' + escapeHtml(level.label || '') + '</span><strong>' + escapeHtml(cards.length ? String(cards.length) : t('storyboard.openSlot', 'Open slot')) + '</strong></header>',
       cards.length ? cards.map((card, cardIndex) => renderCard(card, defaultPosition(0, 96 + cardIndex * 306, positions[card.key]), storyboard)).join('') : renderChainInsert(level.key),
       level.key === 'routes' || level.key === 'branches' ? renderChainInsert(level.key) : '',
@@ -197,7 +199,12 @@
   function renderChainInsert(levelKey) {
     const action = levelKey === 'branches' ? 'create_counterfactual' : 'create_followup';
     const label = levelKey === 'branches' ? t('storyboard.addBranch', 'Add branch') : t('storyboard.insertBeat', 'Insert beat');
-    return '<button type="button" class="content-storyboard-insert" data-object-canvas-action="' + action + '" data-content-storyboard-insert="' + escapeAttr(levelKey) + '">' + escapeHtml(label) + '</button>';
+    return '<button type="button" class="content-storyboard-insert" data-object-canvas-action="' + action + '" data-content-storyboard-insert="' + escapeAttr(levelKey) + '" data-storyboard-drop-target="chain_gap">' + escapeHtml(label) + '</button>';
+  }
+
+  function renderPalette(storyboard) {
+    const api = paletteApi();
+    return api && typeof api.renderPalette === 'function' ? api.renderPalette(storyboard) : '';
   }
 
   function renderChainEvidence(storyboard) {
@@ -310,6 +317,7 @@
       '</section>',
       renderIdentity(editor.identity || []),
       renderStoryContext(editor.storyContext || storyboard.storyContext || {}),
+      renderPaletteContext(storyboard.palette && storyboard.palette.dropContext),
       renderPlacement(editor.timelinePlacement || {}),
       renderContext(editor.context || {}),
       renderPreview(model),
@@ -345,6 +353,20 @@
         (chain.routeCount || 0) + ' ' + t('storyboard.routesShort', 'routes'),
         (chain.branchCount || 0) + ' ' + t('storyboard.branchesShort', 'branches')
       ].join(' / ')) + '</strong></div>',
+      '</section>'
+    ].join('');
+  }
+
+  function renderPaletteContext(context) {
+    if (!context || !context.itemKey) {
+      return '';
+    }
+    return [
+      '<section class="content-storyboard-detail" data-storyboard-palette-drop-context="true">',
+      '<div class="template-eyebrow">' + escapeHtml(t('storyboard.palette.dropContext', 'Palette drop context')) + '</div>',
+      '<div><span>' + escapeHtml(t('storyboard.palette.item', 'Item')) + '</span><strong>' + escapeHtml(context.itemTitle || context.itemKey || '') + '</strong></div>',
+      '<div><span>' + escapeHtml(t('storyboard.palette.target', 'Target')) + '</span><strong>' + escapeHtml([context.targetKind, context.insertKey].filter(Boolean).join(' / ')) + '</strong></div>',
+      '<div><span>' + escapeHtml(t('storyboard.palette.view', 'View')) + '</span><strong>' + escapeHtml(context.view || '') + '</strong></div>',
       '</section>'
     ].join('');
   }
@@ -448,6 +470,20 @@
     if (typeof require === 'function') {
       try {
         return require('./storyboard_scope_controls.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function paletteApi() {
+    if (global && global.ProjectMapStoryboardPaletteSidebar) {
+      return global.ProjectMapStoryboardPaletteSidebar;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./storyboard_palette_sidebar.js');
       } catch (_err) {
         return null;
       }

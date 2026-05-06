@@ -15,7 +15,7 @@
         return;
       }
       const card = event.target.closest && event.target.closest('[data-content-storyboard-card]');
-      if (event.target.closest && event.target.closest('input, textarea, button, select, a, [data-content-storyboard-floating-controls]')) {
+      if (event.target.closest && event.target.closest('input, textarea, button, select, a, [data-content-storyboard-floating-controls], [data-storyboard-palette]')) {
         return;
       }
       const viewport = options.getViewport ? options.getViewport() : {x: 0, y: 0, zoom: 1};
@@ -106,8 +106,56 @@
       drag = null;
     });
 
+    canvas.addEventListener('dragstart', (event) => {
+      const item = event.target.closest && event.target.closest('[data-storyboard-palette-item]');
+      if (!item || !event.dataTransfer) {
+        return;
+      }
+      const payload = {
+        source: 'story_palette',
+        key: item.dataset.storyboardPaletteKey || item.dataset.objectCanvasGraphNode || '',
+        kind: item.dataset.storyboardPaletteKind || '',
+        title: item.dataset.storyboardPaletteTitle || ''
+      };
+      event.dataTransfer.effectAllowed = 'copyMove';
+      event.dataTransfer.setData('application/x-dms-story-palette', JSON.stringify(payload));
+      event.dataTransfer.setData('text/plain', payload.key);
+    });
+
+    canvas.addEventListener('dragover', (event) => {
+      const target = event.target.closest && event.target.closest('[data-storyboard-drop-target]');
+      if (!target) {
+        return;
+      }
+      event.preventDefault();
+      target.classList.add('is-palette-drop-target');
+      if (event.dataTransfer) {
+        event.dataTransfer.dropEffect = 'move';
+      }
+    });
+
+    canvas.addEventListener('dragleave', (event) => {
+      const target = event.target.closest && event.target.closest('[data-storyboard-drop-target]');
+      if (target) {
+        target.classList.remove('is-palette-drop-target');
+      }
+    });
+
+    canvas.addEventListener('drop', (event) => {
+      const target = event.target.closest && event.target.closest('[data-storyboard-drop-target]');
+      if (!target) {
+        return;
+      }
+      event.preventDefault();
+      target.classList.remove('is-palette-drop-target');
+      const payload = palettePayload(event);
+      if (options.onPaletteDrop) {
+        options.onPaletteDrop(payload || {}, target, {clientX: event.clientX, clientY: event.clientY});
+      }
+    });
+
     canvas.addEventListener('wheel', (event) => {
-      if (event.target.closest && event.target.closest('input, textarea, button, select, a, [data-content-storyboard-floating-controls]')) {
+      if (event.target.closest && event.target.closest('input, textarea, button, select, a, [data-content-storyboard-floating-controls], [data-storyboard-palette]')) {
         return;
       }
       event.preventDefault();
@@ -115,6 +163,22 @@
         options.onZoom(event.deltaY < 0 ? 'in' : 'out', event);
       }
     }, {passive: false});
+  }
+
+  function palettePayload(event) {
+    if (!event.dataTransfer) {
+      return null;
+    }
+    const json = event.dataTransfer.getData('application/x-dms-story-palette');
+    if (json) {
+      try {
+        return JSON.parse(json);
+      } catch (_err) {
+        return null;
+      }
+    }
+    const key = event.dataTransfer.getData('text/plain');
+    return key ? {source: 'story_palette', key} : null;
   }
 
   const api = {bind};

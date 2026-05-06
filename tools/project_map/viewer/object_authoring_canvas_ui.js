@@ -206,7 +206,8 @@
       const values = contextApi && typeof contextApi.proposalValues === 'function'
         ? contextApi.proposalValues(value)
         : {};
-      return openFromSelection(state.projectIndex, value.sceneKind === 'card' ? 'cards' : 'events', value.sceneId, {values, entry: meta});
+      const opened = openFromSelection(state.projectIndex, value.sceneKind === 'card' ? 'cards' : 'events', value.sceneId, {values, entry: meta});
+      if (opened) { restoreAuthoringContext(value.studioAuthoringContext || value.authoringContext || {}, meta); } return opened;
     }
     const context = value.studioAuthoringContext || value.authoringContext || {};
     const ok = openTemplate(templateFromDraft(value) || meta && meta.template || 'event', value, meta || {source: 'Create'});
@@ -757,7 +758,8 @@
         onSelect: selectCanvasNode,
         onCardMove: setCanvasNodePosition,
         onViewport: setCanvasPan,
-        onZoom: handleCanvasZoom
+        onZoom: handleCanvasZoom,
+        onPaletteDrop: (payload, target) => { const api = storyboardWorkspaceApi(); return Boolean(api && typeof api.dropPaletteItem === 'function' && api.dropPaletteItem(state, payload, target, storyboardDeps())); }
       });
     }
     const interactions = global.ProjectMapContentGraphInteractions;
@@ -771,6 +773,7 @@
       });
     }
     applyCanvasViewport();
+    const storyboard = storyboardWorkspaceApi(); if (storyboard && typeof storyboard.bindPalette === 'function') { storyboard.bindPalette(elements.host, state, storyboardDeps()); }
   }
 
   function selectCanvasNode(nodeKey) {
@@ -802,10 +805,7 @@
     const api = storyboardWorkspaceApi(); if (api && typeof api.setView === 'function') { api.setView(state, view, storyboardDeps()); }
   }
 
-  function setSystemUiFixture(fixture) {
-    const api = systemUiWorkspaceApi();
-    if (api && typeof api.setFixture === 'function') { api.setFixture(state, fixture, systemUiDeps()); }
-  }
+  function setSystemUiFixture(fixture) { const api = systemUiWorkspaceApi(); if (api && typeof api.setFixture === 'function') { api.setFixture(state, fixture, systemUiDeps()); } }
 
   function handleCanvasZoom(action, event) {
     const viewport = global.ProjectMapObjectCanvasViewport;
