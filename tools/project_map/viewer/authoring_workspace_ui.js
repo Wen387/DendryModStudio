@@ -95,6 +95,7 @@
       return;
     }
     bindWorkspaceButtons();
+    bindTemplateButtons(document);
     bindTemplateEvents(document);
     setTemplate(activeTemplateFromDom() || 'event', {silent: true});
   }
@@ -105,6 +106,25 @@
         setWorkspace(button.dataset.authoringWorkspace || 'content');
       });
     });
+  }
+
+  function bindTemplateButtons(document) {
+    document.addEventListener('click', (event) => {
+      const button = event.target.closest && event.target.closest('[data-create-template]');
+      if (!button) {
+        return;
+      }
+      const template = normalizeTemplate(button.dataset.createTemplate) || button.dataset.createTemplate || '';
+      if (!template) {
+        return;
+      }
+      state.activeTemplate = template;
+      state.activeWorkspace = workspaceForTemplate(template);
+      render();
+      document.dispatchEvent(new CustomEvent('ProjectMap:create-template-changed', {
+        detail: {template, source: 'authoring-workspace'}
+      }));
+    }, true);
   }
 
   function bindTemplateEvents(document) {

@@ -41,6 +41,7 @@
   };
 
   let elements = null;
+  let templateClickToken = 0;
 
   const api = {
     openFromSelection,
@@ -113,6 +114,16 @@
       }
     });
     document.addEventListener('click', (event) => {
+      const templateButton = event.target.closest && event.target.closest('[data-create-template]');
+      if (templateButton) {
+        const clickedTemplate = templateButton.dataset.createTemplate || '';
+        const token = ++templateClickToken;
+        schedule(() => {
+          if (token === templateClickToken) {
+            syncTemplateButtonClick(clickedTemplate);
+          }
+        });
+      }
       const modeButton = event.target.closest && event.target.closest('[data-mode="create"]');
       if (modeButton) {
         schedule(() => {
@@ -213,9 +224,18 @@
   function openTemplateFromCreate(template) {
     const nextTemplate = normalizeTemplate(template) || 'event';
     if (isCurrentTemplateRendered(nextTemplate)) {
+      showWorkspace(nextTemplate);
       return;
     }
     openTemplate(nextTemplate, safeDefaultDraftForTemplate(nextTemplate), {source: 'Create'});
+  }
+
+  function syncTemplateButtonClick(template) {
+    const nextTemplate = normalizeTemplate(template);
+    if (!isCanvasTemplate(nextTemplate)) {
+      return;
+    }
+    openTemplateFromCreate(nextTemplate);
   }
 
   function isCurrentTemplateRendered(template) {

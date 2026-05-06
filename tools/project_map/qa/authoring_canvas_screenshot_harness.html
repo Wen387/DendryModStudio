@@ -176,6 +176,7 @@
 
       async function runScenario() {
         const win = frame.contentWindow;
+        attachFrameErrorCapture(win);
         dismissOnboarding(win);
         await waitFor(() => win.ProjectMapObjectAuthoringCanvas && win.ProjectMapObjectAuthoringCanvasModel, 6000);
         dismissOnboarding(win);
@@ -186,6 +187,27 @@
         await delay(350);
         document.body.dataset.ready = 'true';
         window.__DMS_SCREENSHOT_READY__ = true;
+      }
+
+      function attachFrameErrorCapture(win) {
+        if (!win || win.__DMS_HARNESS_ERROR_CAPTURE__) {
+          return;
+        }
+        win.__DMS_HARNESS_ERROR_CAPTURE__ = true;
+        win.__DMS_HARNESS_ERRORS__ = [];
+        win.addEventListener('error', (event) => {
+          win.__DMS_HARNESS_ERRORS__.push({
+            message: event && (event.message || event.error && event.error.message) || 'frame error',
+            source: event && event.filename || '',
+            line: event && event.lineno || 0,
+            column: event && event.colno || 0,
+            stack: event && event.error && event.error.stack || ''
+          });
+        });
+        win.addEventListener('unhandledrejection', (event) => {
+          const reason = event && event.reason;
+          win.__DMS_HARNESS_ERRORS__.push(reason && reason.message || String(reason || 'unhandled rejection'));
+        });
       }
 
       function seedIndex(win) {
@@ -1208,8 +1230,42 @@
       function showError(err) {
         document.body.dataset.error = 'true';
         title.textContent = 'Screenshot harness failed';
-        status.textContent = err && err.stack ? err.stack : String(err);
+        status.textContent = (err && err.stack ? err.stack : String(err)) + '\n' + debugStudioState();
         window.__DMS_SCREENSHOT_ERROR__ = status.textContent;
+      }
+
+      function debugStudioState() {
+        try {
+          const win = frame.contentWindow;
+          const doc = win && win.document;
+          const api = win && win.ProjectMapObjectAuthoringCanvas;
+          const host = doc && doc.getElementById('existing-scene-editor-host');
+          const activeButton = doc && doc.querySelector('[data-create-template].is-active');
+          const canvas = host && host.querySelector('[data-object-authoring-canvas]');
+          const draftPanel = doc && doc.querySelector('.draft-workspace-panel');
+          const activeGroup = doc && doc.querySelector('[data-authoring-template-group].is-active');
+          const visibleLegacyPanels = doc ? Array.from(doc.querySelectorAll('[data-create-template-panel]')).filter((panel) => isVisible(win, panel)).map((panel) => panel.dataset.createTemplatePanel || '') : [];
+          const buttons = doc ? Array.from(doc.querySelectorAll('[data-create-template]')).map((button) => {
+            return (button.dataset.createTemplate || '') + ':' + (button.classList.contains('is-active') ? 'active' : 'idle') + ':' + (button.disabled ? 'disabled' : 'enabled');
+          }) : [];
+          return 'Debug: ' + JSON.stringify({
+            activeButton: activeButton && activeButton.dataset.createTemplate || '',
+            activeTemplate: api && api.activeTemplate && api.activeTemplate() || '',
+            activeSurface: api && api.activeSurface && api.activeSurface() || '',
+            activeWorkspace: api && api.activeWorkspace && api.activeWorkspace() || '',
+            hostHidden: host ? Boolean(host.hidden || host.classList.contains('hidden')) : null,
+            canvasVisible: Boolean(canvas && isVisible(win, canvas)),
+            activeGroup: activeGroup && activeGroup.dataset.authoringTemplateGroup || '',
+            visibleLegacyPanels,
+            canvasBeforeChanges: Boolean(host && draftPanel && host.getBoundingClientRect().top <= draftPanel.getBoundingClientRect().top),
+            hasStoryboard: Boolean(host && host.querySelector('[data-content-storyboard-surface]')),
+            hasCardBoard: Boolean(host && host.querySelector('[data-card-board-surface]')),
+            errors: win && win.__DMS_HARNESS_ERRORS__ || [],
+            buttons
+          });
+        } catch (debugErr) {
+          return 'Debug unavailable: ' + (debugErr && debugErr.message ? debugErr.message : String(debugErr));
+        }
       }
 
       function waitFor(predicate, timeoutMs) {
