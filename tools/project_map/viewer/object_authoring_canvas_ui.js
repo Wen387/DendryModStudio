@@ -323,10 +323,11 @@
     }
     const model = state.model || {};
     const surface = currentSurface(model);
+    const canRenderStage = model.ok || canRenderSurfaceWithDiagnostics(surface);
     elements.host.innerHTML = [
       '<section class="object-canvas editing-workspace' + (state.editorOverlay ? ' is-editor-overlay' : '') + '" data-object-authoring-canvas="true" data-editing-workspace="true" data-authoring-workspace="' + escapeAttr(state.workspace || 'content') + '" data-authoring-surface="' + escapeAttr(surface.key || 'content_graph') + '">',
       renderHeader(model, surface),
-      model.ok ? renderCanvasStage(model) : '',
+      canRenderStage ? renderCanvasStage(model) : '',
       model.ok ? renderBody(model) : renderUnavailable(model),
       '</section>'
     ].join('');
@@ -383,6 +384,11 @@
     return graph && typeof graph.render === 'function'
       ? graph.render(model, {state, renderActions, renderChangePanel})
       : '';
+  }
+
+  function canRenderSurfaceWithDiagnostics(surface) {
+    const key = surface && surface.key || '';
+    return key === 'card_board';
   }
 
   function renderProjectStateStage(model) {

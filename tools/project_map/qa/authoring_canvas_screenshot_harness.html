@@ -755,7 +755,7 @@
 
       async function cardBoardOpenScenario() {
         const win = frame.contentWindow;
-        seedCustomIndex(win, cardBoardFixtureIndex());
+        seedCustomIndex(win, cardBoardFixtureIndex({defaultDraftCollision: true}));
         await openTemplate('card', {'card.title': 'Canvas Action Card', 'card.intro': 'This card is edited on the board.'}, 'Card Board opens');
         await waitFor(() => win.document.querySelector('[data-card-board-surface] [data-card-face-editor]'), 3000);
       }
@@ -1324,13 +1324,15 @@
         };
       }
 
-      function cardBoardFixtureIndex() {
+      function cardBoardFixtureIndex(options) {
+        const includeDefaultDraftCollision = Boolean(options && options.defaultDraftCollision);
         const base = fixtureIndex();
         const main = base.scenes.find((scene) => scene.id === 'main');
         const policy = base.scenes.find((scene) => scene.id === 'policy_card');
         const deckPath = 'source/scenes/decks/policy_deck.scene.dry';
         const advisorPath = 'source/scenes/advisors/advisor_card.scene.dry';
         const loosePath = 'source/scenes/cards/loose_card.scene.dry';
+        const defaultDraftCollisionPath = 'source/scenes/cards/new_action_card.scene.dry';
         if (main) {
           main.type = 'hand';
           main.flags = {isCard: false, isHand: true, isDeck: false};
@@ -1373,12 +1375,25 @@
             options: [{id: 'loose_return', target: {kind: 'scene', id: 'root'}, title: 'Leave it aside'}],
             sourceSpan: {path: loosePath, startLine: 1, endLine: 70}
           }
-        ]);
+        ].concat(includeDefaultDraftCollision ? [
+          {
+            id: 'new_action_card',
+            title: 'Existing Default-Named Card',
+            path: defaultDraftCollisionPath,
+            type: 'card',
+            flags: {isCard: true},
+            tags: ['policy'],
+            options: [{id: 'default_return', target: {kind: 'scene', id: 'root'}, title: 'Return from default card'}],
+            sourceSpan: {path: defaultDraftCollisionPath, startLine: 1, endLine: 70}
+          }
+        ] : []));
         base.semantic.cards = [
           {id: 'policy_card', title: 'Policy Card', path: 'source/scenes/cards/policy_card.scene.dry', tags: ['policy']},
           {id: 'advisor_card', title: 'Board Advisor', path: advisorPath, tags: ['advisor_tag']},
           {id: 'loose_card', title: 'Loose Card', path: loosePath, tags: ['loose']}
-        ];
+        ].concat(includeDefaultDraftCollision ? [
+          {id: 'new_action_card', title: 'Existing Default-Named Card', path: defaultDraftCollisionPath, tags: ['policy']}
+        ] : []);
         base.semantic.decks = [{id: 'policy_deck', title: 'Policy Deck', path: deckPath}];
         base.semantic.hands = [{id: 'main', title: 'Workspace Hand', path: 'source/scenes/main.scene.dry'}];
         base.semantic.textCorpus.items = base.semantic.textCorpus.items.concat([
@@ -1389,7 +1404,11 @@
           textItem('loose_card_title', 'Loose Card', 'title', 'loose_card', loosePath, 1),
           textItem('loose_card_body', 'This card is intentionally not wired into a deck.', 'body', 'loose_card', loosePath, 8),
           textItem('loose_card_option', 'Leave it aside', 'option_label', 'loose_card', loosePath, 18, 'root')
-        ]);
+        ].concat(includeDefaultDraftCollision ? [
+          textItem('new_action_card_title', 'Existing Default-Named Card', 'title', 'new_action_card', defaultDraftCollisionPath, 1),
+          textItem('new_action_card_body', 'This existing card intentionally collides with the default new-card id.', 'body', 'new_action_card', defaultDraftCollisionPath, 8),
+          textItem('new_action_card_option', 'Return from default card', 'option_label', 'new_action_card', defaultDraftCollisionPath, 18, 'root')
+        ] : []));
         return base;
       }
 
