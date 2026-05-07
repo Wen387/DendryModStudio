@@ -32,6 +32,7 @@
     setProjectIndex,
     setIndex: setProjectIndex,
     setProjectModel,
+    setMode,
     applyEventDraftToForm,
     loadDraft: applyEventDraftToForm,
     refresh: () => renderWizard(),

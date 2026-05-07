@@ -181,7 +181,7 @@ function capture(chrome, url, filePath, scenario) {
     '--screenshot=' + filePath,
     url
   ];
-  const result = spawnSync(chrome, args, {encoding: 'utf8', timeout: 30000});
+  const result = runChrome(chrome, args, 30000);
   if (result.error) {
     throw result.error;
   }
@@ -207,7 +207,7 @@ function verifyHarnessDom(chrome, url) {
     '--dump-dom',
     url
   ];
-  const result = spawnSync(chrome, args, {encoding: 'utf8', timeout: 30000});
+  const result = runChrome(chrome, args, 30000);
   if (result.error) {
     throw result.error;
   }
@@ -220,6 +220,15 @@ function verifyHarnessDom(chrome, url) {
   }
   if (!/<body\b[^>]*data-ready="true"/.test(dom)) {
     throw new Error('Screenshot harness did not report ready for ' + url + '\n' + dom.slice(0, 2000));
+  }
+}
+
+function runChrome(chrome, args, timeout) {
+  const profileDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dms-screenshot-chrome-'));
+  try {
+    return spawnSync(chrome, args.concat(['--user-data-dir=' + profileDir]), {encoding: 'utf8', timeout});
+  } finally {
+    fs.rmSync(profileDir, {recursive: true, force: true});
   }
 }
 

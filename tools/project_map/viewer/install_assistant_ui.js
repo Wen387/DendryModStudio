@@ -14,6 +14,8 @@
     plan: null,
     projectRoot: '',
     projectIndex: null,
+    lastCheckKey: '',
+    lastCheckAllowAdvanced: false,
     lastResult: null,
     runtimePreviewResult: null
   };
@@ -31,6 +33,8 @@
       plan: state.plan,
       projectRoot: state.projectRoot,
       projectIndex: state.projectIndex,
+      lastCheckKey: state.lastCheckKey,
+      lastCheckAllowAdvanced: state.lastCheckAllowAdvanced,
       lastResult: state.lastResult,
       runtimePreviewResult: state.runtimePreviewResult
     })
@@ -102,6 +106,9 @@
         });
       });
     }
+    if (elements.allowAdvanced) {
+      elements.allowAdvanced.addEventListener('change', () => render());
+    }
     render();
   }
 
@@ -156,6 +163,8 @@
     if (planRoot) {
       state.projectRoot = planRoot;
     }
+    state.lastCheckKey = '';
+    state.lastCheckAllowAdvanced = false;
     state.lastResult = null;
     state.runtimePreviewResult = null;
     setStatus(state.plan
@@ -204,6 +213,15 @@
       });
       return state.lastResult;
     }
+    if (!dryRun && !canApplyReviewed(allowAdvanced)) {
+      setResult({
+        ok: false,
+        dryRun: false,
+        allowAdvanced,
+        message: t('install.applyNeedsCheck', 'Run a successful check for this plan before applying changes.')
+      });
+      return state.lastResult;
+    }
     setResult({
       ok: true,
       dryRun,
@@ -218,6 +236,7 @@
         allowAdvanced
       });
       setResult(result);
+      rememberDryRunCheck(result, {dryRun, allowAdvanced});
       await refreshProjectIndexAfterApply(result, {dryRun});
       return result;
     } catch (err) {
@@ -371,7 +390,7 @@
     elements.checklist.innerHTML = renderHumanChecklist(state.plan, rendered.summary);
     elements.patchPreview.textContent = rendered.patchPreview || t('install.patchPreview.empty', '(no patch preview)');
     elements.dryRun.disabled = !state.plan || !global.dendryDesktop;
-    elements.apply.disabled = !state.plan || !global.dendryDesktop;
+    elements.apply.disabled = !canApplyReviewed(Boolean(elements.allowAdvanced && elements.allowAdvanced.checked));
     if (elements.runtimePreview) {
       elements.runtimePreview.disabled = !global.dendryDesktop;
     }
@@ -414,6 +433,9 @@
     const advanced = summary.advancedApply || 0;
     const manual = summary.manualReview || 0;
     const refused = summary.refused || 0;
+    const allowAdvanced = Boolean(elements && elements.allowAdvanced && elements.allowAdvanced.checked);
+    const autoApplyAvailable = Boolean(safe || guarded || (allowAdvanced && advanced));
+    const checked = canApplyReviewed(allowAdvanced);
     const status = refused
       ? t('install.readiness.blocked', 'Some changes are protected and will not be applied.')
       : advanced
@@ -421,11 +443,18 @@
         : manual
         ? t('install.readiness.manual', 'Playable after you complete the manual steps.')
         : guarded
-          ? t('install.readiness.guarded', 'Run a check, then Studio can apply the reviewed changes.')
+          ? checked
+            ? t('install.readiness.checked', 'Check passed. Studio can apply the reviewed changes.')
+            : t('install.readiness.guarded', 'Run a check, then Studio can apply the reviewed changes.')
           : safe
-            ? t('install.readiness.safe', 'Ready to apply safe changes.')
+            ? checked
+              ? t('install.readiness.checked', 'Check passed. Studio can apply the reviewed changes.')
+              : t('install.readiness.safe', 'Ready to apply safe changes.')
             : t('install.readiness.none', 'No installable changes in this plan.');
     const steps = [
+      autoApplyAvailable
+        ? checked ? t('install.readiness.checkPassed', 'Latest check matches this plan.') : t('install.readiness.checkNeeded', 'Run check before applying.')
+        : t('install.readiness.noCheckNeeded', 'No automatic apply step is available.'),
       safe ? t('install.readiness.safeCount', 'Safe changes') + ': ' + safe : t('install.readiness.noSafe', 'No safe one-click changes.'),
       guarded ? t('install.readiness.guardedCount', 'Reviewed changes') + ': ' + guarded : t('install.readiness.noGuarded', 'No guarded changes.'),
       advanced ? t('install.readiness.advancedCount', 'Advanced changes') + ': ' + advanced : t('install.readiness.noAdvanced', 'No advanced changes.'),
@@ -553,6 +582,76 @@
       return;
     }
     elements.result.textContent = renderResultReport(result);
+  }
+
+  function rememberDryRunCheck(result, options) {
+    const dryRun = Boolean(options && options.dryRun);
+    if (!dryRun) {
+      return;
+    }
+    const ok = result && result.ok && !resultHasFailures(result);
+    state.lastCheckKey = ok ? planFingerprint(state.plan) : '';
+    state.lastCheckAllowAdvanced = ok && Boolean(options && options.allowAdvanced);
+  }
+
+  function canApplyReviewed(allowAdvanced) {
+    if (!state.plan || !global.dendryDesktop) {
+      return false;
+    }
+    if (!hasAutoApplyOperations(state.plan, allowAdvanced)) {
+      return false;
+    }
+    const advancedMatches = !hasAdvancedApplyOperations(state.plan) || state.lastCheckAllowAdvanced === Boolean(allowAdvanced);
+    return Boolean(state.lastCheckKey && state.lastCheckKey === planFingerprint(state.plan) && advancedMatches);
+  }
+
+  function hasAutoApplyOperations(plan, allowAdvanced) {
+    const summary = operationSummaryForPlan(plan);
+    return Boolean(summary.safeApply || summary.guardedApply || (allowAdvanced && summary.advancedApply));
+  }
+
+  function hasAdvancedApplyOperations(plan) {
+    const summary = operationSummaryForPlan(plan);
+    return Boolean(summary.advancedApply);
+  }
+
+  function operationSummaryForPlan(plan) {
+    const installApi = installPlanApi();
+    if (installApi && typeof installApi.operationSummary === 'function') {
+      return installApi.operationSummary(plan) || {};
+    }
+    const summary = {safeApply: 0, guardedApply: 0, advancedApply: 0};
+    const operations = Array.isArray(plan && plan.operations) ? plan.operations : [];
+    operations.forEach((operation) => {
+      const safety = operation && operation.safety;
+      if (safety === 'safe_apply') {
+        summary.safeApply += 1;
+      } else if (safety === 'guarded_apply') {
+        summary.guardedApply += 1;
+      } else if (safety === 'advanced_apply') {
+        summary.advancedApply += 1;
+      }
+    });
+    return summary;
+  }
+
+  function resultHasFailures(result) {
+    const rows = Array.isArray(result && result.results) ? result.results : [];
+    return rows.some((item) => item && item.status === 'failed');
+  }
+
+  function planFingerprint(plan) {
+    return stableJson(plan || {});
+  }
+
+  function stableJson(value) {
+    if (Array.isArray(value)) {
+      return '[' + value.map(stableJson).join(',') + ']';
+    }
+    if (value && typeof value === 'object') {
+      return '{' + Object.keys(value).sort().map((key) => JSON.stringify(key) + ':' + stableJson(value[key])).join(',') + '}';
+    }
+    return JSON.stringify(value === undefined ? null : value);
   }
 
   function setRuntimePreviewResult(result) {

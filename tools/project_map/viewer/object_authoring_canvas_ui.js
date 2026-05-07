@@ -654,11 +654,18 @@
     if (!elements || !elements.host) {
       return;
     }
+    if (!elements.host.__dmsObjectCanvasActionDelegated) {
+      elements.host.__dmsObjectCanvasActionDelegated = true;
+      elements.host.addEventListener('click', (event) => {
+        const button = event.target && event.target.closest ? event.target.closest('[data-object-canvas-action]') : null;
+        if (!button || !elements.host.contains(button)) {
+          return;
+        }
+        handleAction(button.dataset.objectCanvasAction || '', button);
+      });
+    }
     elements.host.querySelectorAll('[data-object-canvas-field]').forEach((input) => {
       input.addEventListener('input', scheduleRefresh);
-    });
-    elements.host.querySelectorAll('[data-object-canvas-action]').forEach((button) => {
-      button.addEventListener('click', () => handleAction(button.dataset.objectCanvasAction || '', button));
     });
     elements.host.querySelectorAll('[data-object-canvas-graph-node]').forEach((button) => {
       button.addEventListener('click', (event) => {
@@ -878,10 +885,23 @@
     const assistant = global.ProjectMapInstallAssistant;
     if (assistant && typeof assistant.loadPlan === 'function') {
       assistant.loadPlan(plan, {fileName: (state.model.objectId || 'object_authoring') + '.install-plan.json'});
-      const installButton = global.document.querySelector('[data-mode="install"]');
-      if (installButton && typeof installButton.click === 'function') {
-        installButton.click();
+      switchToInstallMode();
+      if (typeof global.setTimeout === 'function') {
+        global.setTimeout(switchToInstallMode, 0);
+        global.setTimeout(switchToInstallMode, 80);
       }
+    }
+  }
+
+  function switchToInstallMode() {
+    const wizard = global.ProjectMapWizard;
+    if (wizard && typeof wizard.setMode === 'function') {
+      wizard.setMode('install');
+      return;
+    }
+    const installButton = global.document.querySelector('[data-mode="install"]');
+    if (installButton && typeof installButton.click === 'function') {
+      installButton.click();
     }
   }
 

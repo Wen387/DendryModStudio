@@ -67,9 +67,11 @@
     const model = buildSurfaceModel(projectIndex);
     const handDeckOption = model.handDeckOption || {};
     const handAdvisorOption = model.handAdvisorOption || {};
-    const cardOption0 = model.card && model.card.options[0] || {};
-    const cardOption1 = model.card && model.card.options[1] || {};
-    const advisorOption0 = model.advisor && model.advisor.options[0] || {};
+    const cardOptions = model.card && Array.isArray(model.card.options) ? model.card.options : [];
+    const advisorOptions = model.advisor && Array.isArray(model.advisor.options) ? model.advisor.options : [];
+    const cardOption0 = cardOptions[0] || {};
+    const cardOption1 = cardOptions[1] || {};
+    const advisorOption0 = advisorOptions[0] || {};
     return normalizeDraft({
       id: 'play_surface_update',
       title: 'Playable Surface Update',

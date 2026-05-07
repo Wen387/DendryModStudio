@@ -1186,7 +1186,8 @@
       }
 
       function click(win, selector) {
-        const node = win.document.querySelector(selector);
+        const nodes = Array.from(win.document.querySelectorAll(selector));
+        const node = nodes.find((item) => isVisible(win, item)) || nodes[0];
         if (node && typeof node.click === 'function') {
           node.click();
         }
@@ -1374,6 +1375,14 @@
           const canvas = host && host.querySelector('[data-object-authoring-canvas]');
           const draftPanel = doc && doc.querySelector('.draft-workspace-panel');
           const activeGroup = doc && doc.querySelector('[data-authoring-template-group].is-active');
+          const reviewButtons = doc ? Array.from(doc.querySelectorAll('[data-object-canvas-action="review"]')) : [];
+          const hostReviewButtons = host ? Array.from(host.querySelectorAll('[data-object-canvas-action="review"]')) : [];
+          const output = api && typeof api.getOutput === 'function' ? api.getOutput() : null;
+          const assistantState = win && win.ProjectMapInstallAssistant && typeof win.ProjectMapInstallAssistant.getState === 'function'
+            ? win.ProjectMapInstallAssistant.getState()
+            : {};
+          const installPane = doc && doc.getElementById('install-pane');
+          const installButton = doc && doc.querySelector('[data-mode="install"]');
           const visibleLegacyPanels = doc ? Array.from(doc.querySelectorAll('[data-create-template-panel]')).filter((panel) => isVisible(win, panel)).map((panel) => panel.dataset.createTemplatePanel || '') : [];
           const buttons = doc ? Array.from(doc.querySelectorAll('[data-create-template]')).map((button) => {
             return (button.dataset.createTemplate || '') + ':' + (button.classList.contains('is-active') ? 'active' : 'idle') + ':' + (button.disabled ? 'disabled' : 'enabled');
@@ -1390,6 +1399,18 @@
             canvasBeforeChanges: Boolean(host && draftPanel && host.getBoundingClientRect().top <= draftPanel.getBoundingClientRect().top),
             hasStoryboard: Boolean(host && host.querySelector('[data-content-storyboard-surface]')),
             hasCardBoard: Boolean(host && host.querySelector('[data-card-board-surface]')),
+            reviewButtonCount: reviewButtons.length,
+            hostReviewButtonCount: hostReviewButtons.length,
+            visibleReviewButton: reviewButtons.some((button) => isVisible(win, button)),
+            reviewButtonDisabled: reviewButtons.some((button) => button.disabled),
+            assistantLoaded: Boolean(win && win.ProjectMapInstallAssistant && typeof win.ProjectMapInstallAssistant.loadPlan === 'function'),
+            assistantHasPlan: Boolean(assistantState && assistantState.plan),
+            wizardHasSetMode: Boolean(win && win.ProjectMapWizard && typeof win.ProjectMapWizard.setMode === 'function'),
+            bodyMode: doc && doc.body && doc.body.dataset.mode || '',
+            installButtonActive: Boolean(installButton && installButton.classList.contains('is-active')),
+            outputHasPlan: Boolean(output && (output.installPlan || output.installPlanJson)),
+            outputOperationCount: output && output.installPlan && output.installPlan.operations ? output.installPlan.operations.length : null,
+            installPaneVisible: Boolean(installPane && isVisible(win, installPane)),
             errors: win && win.__DMS_HARNESS_ERRORS__ || [],
             buttons
           });
