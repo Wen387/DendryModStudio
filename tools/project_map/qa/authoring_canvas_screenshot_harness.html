@@ -937,11 +937,16 @@
       async function cardBoardTemplateSwitchScenario() {
         const win = frame.contentWindow;
         seedCustomIndex(win, cardBoardFixtureIndex({defaultDraftCollision: true}));
-        const previousTemplates = ['event', 'news', 'surface'];
-        for (const previousTemplate of previousTemplates) {
-          await openTemplate(previousTemplate, {}, 'Switch from ' + previousTemplate + ' to Card Board');
-          click(win, '[data-create-template="card"]');
-          await waitFor(() => isCanvasVisible(win, 'card') && cardBoardIsActive(win), 4000);
+        await openTemplate('event', {}, 'Switch chain starts at World Event');
+        click(win, '[data-create-template="news"]');
+        await waitFor(() => isCanvasVisible(win, 'news'), 4000);
+        click(win, '[data-create-template="surface"]');
+        await waitFor(() => isCanvasVisible(win, 'surface'), 4000);
+        click(win, '[data-create-template="card"]');
+        await waitFor(() => isCanvasVisible(win, 'card') && cardBoardIsActive(win), 4000);
+        await delay(220);
+        if (!cardBoardIsActive(win)) {
+          throw new Error('Card Board did not remain active after World Event -> News -> Text Replacement -> Card.');
         }
         await applyValues(win, {'card.title': 'Switched Card Board'});
         await waitFor(() => collapse(win.document.querySelector('[data-card-face-preview]') && win.document.querySelector('[data-card-face-preview]').textContent).includes('Switched Card Board'), 3000);

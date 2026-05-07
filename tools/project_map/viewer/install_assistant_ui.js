@@ -17,7 +17,8 @@
     lastCheckKey: '',
     lastCheckAllowAdvanced: false,
     lastResult: null,
-    runtimePreviewResult: null
+    runtimePreviewResult: null,
+    runtimePreviewSuspended: false
   };
 
   let elements = null;
@@ -36,7 +37,8 @@
       lastCheckKey: state.lastCheckKey,
       lastCheckAllowAdvanced: state.lastCheckAllowAdvanced,
       lastResult: state.lastResult,
-      runtimePreviewResult: state.runtimePreviewResult
+      runtimePreviewResult: state.runtimePreviewResult,
+      runtimePreviewSuspended: state.runtimePreviewSuspended
     })
   };
 
@@ -77,6 +79,7 @@
     }
     bindIndexEvents();
     bindLocaleEvents();
+    bindRuntimeLifecycle(document);
     elements.file.addEventListener('change', (event) => {
       const file = event.target.files && event.target.files[0];
       if (file) {
@@ -138,6 +141,43 @@
     });
   }
 
+  function bindRuntimeLifecycle(document) {
+    document.addEventListener('ProjectMap:mode-changing', (event) => {
+      const detail = event && event.detail || {};
+      if (detail.previousMode === 'install' && detail.nextMode !== 'install') {
+        suspendRuntimePreview('mode');
+      }
+    });
+    document.addEventListener('ProjectMap:foreground-changed', (event) => {
+      const detail = event && event.detail || {};
+      if (detail.visible === false && document.body && document.body.dataset.mode === 'install') {
+        suspendRuntimePreview('background');
+      }
+    });
+  }
+
+  function suspendRuntimePreview(_reason) {
+    if (state.runtimePreviewResult && state.runtimePreviewResult.ok) {
+      state.runtimePreviewSuspended = true;
+    }
+    removeRuntimePreviewFrames();
+    if (elements && elements.runtimePreviewResult && state.runtimePreviewResult) {
+      elements.runtimePreviewResult.innerHTML = renderRuntimePreviewResult(state.runtimePreviewResult);
+    }
+  }
+
+  function removeRuntimePreviewFrames() {
+    if (!elements || !elements.runtimePreviewResult || !elements.runtimePreviewResult.querySelectorAll) {
+      return;
+    }
+    elements.runtimePreviewResult.querySelectorAll('[data-runtime-preview-frame]').forEach((frame) => {
+      frame.setAttribute('src', 'about:blank');
+      if (frame.parentNode) {
+        frame.parentNode.removeChild(frame);
+      }
+    });
+  }
+
   function readPlanFile(file) {
     const reader = new FileReader();
     reader.onload = () => {
@@ -147,6 +187,7 @@
         state.plan = null;
         state.lastResult = null;
         state.runtimePreviewResult = null;
+        state.runtimePreviewSuspended = false;
         setStatus(t('install.readPlanFailed', 'Could not read install plan: {message}').replace('{message}', err.message), 'error');
         render();
       }
@@ -167,6 +208,7 @@
     state.lastCheckAllowAdvanced = false;
     state.lastResult = null;
     state.runtimePreviewResult = null;
+    state.runtimePreviewSuspended = false;
     setStatus(state.plan
       ? t('install.loadedPlan', 'Loaded change plan') + ': ' + ((meta && meta.fileName) || state.plan.id || 'install plan')
       : t('install.noPlan', 'No change plan loaded.'), state.plan ? 'ready' : '');
@@ -250,6 +292,7 @@
     const allowAdvanced = Boolean(options && options.allowAdvanced === true);
     const projectRoot = await resolveActiveProjectRoot();
     if (!projectRoot) {
+      state.runtimePreviewSuspended = false;
       setRuntimePreviewResult({
         ok: false,
         message: t('install.runtimePreviewNoProject', 'Open or load a Dendry project before creating a runtime preview.')
@@ -258,12 +301,14 @@
     }
     const desktop = global.dendryDesktop;
     if (!desktop || typeof desktop.createRuntimePreview !== 'function') {
+      state.runtimePreviewSuspended = false;
       setRuntimePreviewResult({
         ok: false,
         message: t('install.runtimePreviewBrowserOnly', 'Runtime Preview is available in the desktop app because it needs a temporary project copy and a local preview server.')
       });
       return state.runtimePreviewResult;
     }
+    state.runtimePreviewSuspended = false;
     setRuntimePreviewResult({
       ok: true,
       pending: true,
@@ -646,6 +691,9 @@
     const url = result && (result.compareUrl || result.modifiedUrl || result.baselineUrl);
     if (!result || !result.ok || !url) {
       return '';
+    }
+    if (state.runtimePreviewSuspended) {
+      return '<div class="runtime-preview-empty">' + escapeHtml(t('install.runtimePreviewSuspended', 'Inline runtime preview is suspended in the background. Create a new runtime preview to reload it.')) + '</div>';
     }
     return [
       '<div class="runtime-preview-frame-shell">',

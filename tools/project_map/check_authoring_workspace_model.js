@@ -262,6 +262,13 @@ assert(systemUiRegionEditor.includes('data-system-ui-card-board-handoff'), 'Syst
 assert(systemUiPreviewSurface.includes('data-system-screen-workspace'), 'System UI surface should expose the unified screen workspace marker');
 assert(canvasUi.includes('ProjectMapSystemUiPreviewSurface'), 'Object Canvas should route System UI templates to the dedicated surface');
 assert(canvasUi.includes('function renderContentStoryboardStage'), 'Object Canvas should render the Content Storyboard stage');
+assert(workspaceUi.includes('event.stopPropagation()'), 'Authoring Workspace should isolate template clicks from legacy wizard handlers without blocking same-target observers');
+assert(!workspaceUi.includes('stopImmediatePropagation'), 'Authoring Workspace should avoid broad click suppression for template routing');
+assert(!workspaceUi.includes('ensureTemplateApplied') && !workspaceUi.includes('scheduleTemplateApplyCheck'), 'Authoring Workspace should not use delayed template reopening as a routing fallback');
+assert(canvasUi.includes('function createModeIsActive'), 'Object Canvas should have an explicit Create-mode guard for reconciler work');
+assert(canvasUi.includes('function reconcileActiveTemplate(document)') && canvasUi.includes('if (!createModeIsActive(document))'), 'Object Canvas reconciler should not reopen Create after users switch pages');
+assert(canvasUi.includes('function syncTemplateButtonClick(template)') && canvasUi.includes('if (!createModeIsActive(global.document))'), 'Object Canvas scheduled template clicks should not reopen Create after users switch pages');
+assert(canvasUi.includes('data-object-canvas-render-error'), 'Object Canvas should surface render failures instead of leaving stale content visible');
 assert(surfaceGraphs.includes('function systemUiGraphNodes'), 'Surface graph builders should define a System UI graph');
 assert(surfaceGraphs.includes('function projectStateGraphNodes'), 'Surface graph builders should define a Project State graph');
 assert(contentStoryboardSurface.includes('data-content-storyboard-editor'), 'Content Storyboard should render an editor/detail panel');

@@ -9,6 +9,7 @@ const {pythonCommand} = require('./check_python_command.js');
 const profileModel = require('./authoring/timeline_profile_model.js');
 const adapter = require('./authoring/timeline_coordinate_adapter.js');
 const storyboardModel = require('./authoring/content_storyboard_model.js');
+const adapterSource = fs.readFileSync(path.join(__dirname, 'authoring', 'timeline_coordinate_adapter.js'), 'utf8');
 
 function fail(message) {
   process.stderr.write('FAIL: ' + message + '\n');
@@ -107,6 +108,7 @@ assert(parserTimeline.profile.mode === 'year_month', 'parser-backed year metadat
 assert(parserTimeline.card && parserTimeline.card.schedule.year === 1936, 'storyboard cards should schedule from parser-backed year metadata');
 assert(parserTimeline.card && parserTimeline.card.schedule.monthStart === 9, 'storyboard cards should schedule from parser-backed month metadata');
 assert(parserTimeline.lane && parserTimeline.lane.cards.some((card) => card.id === 'dated_event'), 'timeline should place parser-backed dated scenes in their year lane');
+assert(adapterSource.includes('PROJECT_INDEX_LOOKUPS') && adapterSource.includes('orderById'), 'timeline placement should cache ProjectIndex scene lookups instead of scanning scenes for every card');
 
 process.stdout.write(JSON.stringify({
   ok: true,

@@ -39,6 +39,7 @@
     runtimeLensFocusKey: '',
     runtimeLensDraftKey: '', runtimeLensCurrentDraftKey: '',
     runtimeLensExpanded: false, runtimeLensCollapsed: false,
+    runtimeLensEmbedsSuspended: false,
     baseDraft: null,
     values: {},
     model: null,
@@ -98,6 +99,7 @@
     bindIndexEvents();
     bindTemplateEvents(document);
     bindTemplateReconciler(document);
+    bindRuntimeLifecycle(document);
   }
 
   function bindIndexEvents() {
@@ -160,6 +162,47 @@
     scheduleTemplateReconcile(document);
   }
 
+  function bindRuntimeLifecycle(document) {
+    document.addEventListener('ProjectMap:mode-changing', (event) => {
+      const detail = event && event.detail || {};
+      if (detail.previousMode === 'create' && detail.nextMode !== 'create') {
+        suspendForegroundRuntime('mode');
+      }
+    });
+    document.addEventListener('ProjectMap:foreground-changed', (event) => {
+      const detail = event && event.detail || {};
+      if (detail.visible === false && createModeIsActive(document)) {
+        suspendForegroundRuntime('background');
+      }
+    });
+  }
+
+  function suspendForegroundRuntime(_reason) {
+    if (refreshTimer) {
+      clearTimeout(refreshTimer);
+      refreshTimer = null;
+    }
+    if (state.runtimeLensSession && state.runtimeLensSession.ok) {
+      state.runtimeLensEmbedsSuspended = true;
+      if (state.runtimeLensStatus !== 'failed') {
+        state.runtimeLensStatus = 'suspended';
+      }
+    }
+    removeRuntimeLensFrames();
+  }
+
+  function removeRuntimeLensFrames() {
+    if (!elements || !elements.host || !elements.host.querySelectorAll) {
+      return;
+    }
+    elements.host.querySelectorAll('[data-runtime-lens-frame]').forEach((frame) => {
+      frame.setAttribute('src', 'about:blank');
+      if (frame.parentNode) {
+        frame.parentNode.removeChild(frame);
+      }
+    });
+  }
+
   function scheduleTemplateReconcile(document) {
     const token = ++reconcileToken;
     schedule(() => {
@@ -170,6 +213,9 @@
   }
 
   function reconcileActiveTemplate(document) {
+    if (!createModeIsActive(document)) {
+      return;
+    }
     const template = activeTemplateFromDom(document);
     if (shouldReconcileTemplate(template)) {
       openTemplateFromCreate(template);
@@ -193,6 +239,10 @@
       return false;
     }
     return true;
+  }
+
+  function createModeIsActive(document) {
+    return Boolean(document && document.body && document.body.dataset.mode === 'create');
   }
 
   function setProjectIndex(index) {
@@ -292,6 +342,9 @@
   }
 
   function syncTemplateButtonClick(template) {
+    if (!createModeIsActive(global.document)) {
+      return;
+    }
     const nextTemplate = normalizeTemplate(template);
     if (!isCanvasTemplate(nextTemplate)) {
       return;
@@ -468,11 +521,22 @@
     const model = state.model || {};
     const surface = currentSurface(model);
     const canRenderStage = model.ok || canRenderSurfaceWithDiagnostics(surface);
+    let stageHtml = '';
+    let stageError = null;
+    if (canRenderStage) {
+      try {
+        stageHtml = renderCanvasStage(model);
+      } catch (err) {
+        stageError = err;
+        recordRenderError(err, surface);
+        stageHtml = renderStageError(surface, err);
+      }
+    }
     elements.host.innerHTML = [
       '<section class="object-canvas editing-workspace' + (state.editorOverlay ? ' is-editor-overlay' : '') + '" data-object-authoring-canvas="true" data-editing-workspace="true" data-authoring-workspace="' + escapeAttr(state.workspace || 'content') + '" data-authoring-surface="' + escapeAttr(surface.key || 'content_graph') + '">',
       renderHeader(model, surface),
-      canRenderStage ? renderCanvasStage(model) : '',
-      model.ok ? renderBody(model) : renderUnavailable(model),
+      stageHtml,
+      stageError ? renderDiagnostics([{message: t('objectCanvas.renderFailed', 'Canvas render failed: {error}').replace('{error}', stageError && stageError.message ? stageError.message : String(stageError || 'unknown error'))}]) : model.ok ? renderBody(model) : renderUnavailable(model),
       '</section>'
     ].join('');
     bindCanvasEvents();
@@ -511,23 +575,37 @@
   }
 
   function renderCanvasStage(model) {
-    const surface = currentSurface(model);
-    if (surface.key === 'project_state_board') {
-      return renderProjectStateStage(model);
+    return withRuntimeLensRenderStatus(() => {
+      const surface = currentSurface(model);
+      if (surface.key === 'project_state_board') {
+        return renderProjectStateStage(model);
+      }
+      if (surface.key === 'card_board') {
+        return renderCardBoardStage(model);
+      }
+      if (surface.key === 'system_ui_preview') {
+        return renderSystemUiPreviewStage(model);
+      }
+      if (surface.key === 'content_storyboard' || (state.workspace || 'content') === 'content') {
+        return renderContentStoryboardStage(model);
+      }
+      const graph = graphStageApi();
+      return graph && typeof graph.render === 'function'
+        ? graph.render(model, {state, renderActions, renderChangePanel})
+        : '';
+    });
+  }
+
+  function withRuntimeLensRenderStatus(callback) {
+    const originalStatus = state.runtimeLensStatus;
+    if (state.runtimeLensEmbedsSuspended && state.runtimeLensSession && state.runtimeLensSession.ok) {
+      state.runtimeLensStatus = 'suspended';
     }
-    if (surface.key === 'card_board') {
-      return renderCardBoardStage(model);
+    try {
+      return callback();
+    } finally {
+      state.runtimeLensStatus = originalStatus;
     }
-    if (surface.key === 'system_ui_preview') {
-      return renderSystemUiPreviewStage(model);
-    }
-    if (surface.key === 'content_storyboard' || (state.workspace || 'content') === 'content') {
-      return renderContentStoryboardStage(model);
-    }
-    const graph = graphStageApi();
-    return graph && typeof graph.render === 'function'
-      ? graph.render(model, {state, renderActions, renderChangePanel})
-      : '';
   }
 
   function canRenderSurfaceWithDiagnostics(surface) {
@@ -561,6 +639,29 @@
       diagnostics.map((diag) => '<p class="editing-readonly-line">' + escapeHtml((diag.code || 'diagnostic') + ': ' + (diag.message || '')) + '</p>').join(''),
       '</section>'
     ].join('');
+  }
+
+  function renderStageError(surface, err) {
+    return [
+      '<section class="object-canvas-stage object-canvas-render-error" data-object-canvas-stage="true" data-object-canvas-render-error="true" data-authoring-surface="' + escapeAttr(surface && surface.key || '') + '">',
+      '<div class="editing-empty">',
+      '<h3>' + escapeHtml(t('objectCanvas.renderErrorTitle', 'Canvas could not render this workspace.')) + '</h3>',
+      '<p>' + escapeHtml(err && err.message ? err.message : String(err || 'Unknown render error')) + '</p>',
+      '</div>',
+      '</section>'
+    ].join('');
+  }
+
+  function recordRenderError(err, surface) {
+    const row = {
+      template: state.template || '',
+      surface: surface && surface.key || '',
+      message: err && err.message ? err.message : String(err || 'Unknown render error')
+    };
+    global.__DMS_OBJECT_CANVAS_ERRORS__ = (global.__DMS_OBJECT_CANVAS_ERRORS__ || []).concat(row).slice(-10);
+    if (global.console && typeof global.console.error === 'function') {
+      global.console.error('Object Canvas render failed:', row.message, err);
+    }
   }
 
   function renderChangePanel(model) {
@@ -851,6 +952,7 @@
     state.runtimeLensFocusKey = '';
     state.runtimeLensDraftKey = ''; state.runtimeLensCurrentDraftKey = '';
     state.runtimeLensExpanded = false; state.runtimeLensCollapsed = false;
+    state.runtimeLensEmbedsSuspended = false;
   }
 
   function markRuntimeLensStale() { const api = runtimeLensWorkspaceApi(); if (api && typeof api.markStale === 'function') { api.markStale(state); } }

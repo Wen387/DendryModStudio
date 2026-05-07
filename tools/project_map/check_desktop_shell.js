@@ -142,6 +142,7 @@ async function main() {
   const runtimePreviewPath = requireFile('runtime_preview.js');
   const runtimeLensPath = requireFile('runtime_lens.js');
   const runtimePreviewBridgePath = requireFile('runtime_preview_debug_bridge.js');
+  requireFile('runtime_session_cleanup.js');
   requireFile('main.js');
   requireFile('preload.js');
   requireFile('update_notice.js');

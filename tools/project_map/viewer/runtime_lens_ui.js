@@ -65,10 +65,11 @@
     const session = opts.session || null;
     const sessionFocusKey = String(opts.sessionFocusKey || session && session.focus && focusKey(session.focus.kind, session.focus.id) || '');
     const currentFocusKey = String(focus.key || focusKey(focus.kind, focus.id));
+    const suspended = opts.status === 'suspended';
     const focusStale = Boolean(session && session.ok && sessionFocusKey && sessionFocusKey !== currentFocusKey);
     const draftStale = Boolean(session && session.ok && opts.sessionDraftKey && opts.currentDraftKey && opts.sessionDraftKey !== opts.currentDraftKey);
-    const stale = focusStale || draftStale || opts.status === 'stale';
-    const status = stale ? 'stale' : opts.status || session && session.status || 'idle';
+    const stale = !suspended && (focusStale || draftStale || opts.status === 'stale');
+    const status = suspended ? 'suspended' : stale ? 'stale' : opts.status || session && session.status || 'idle';
     const isDesktop = Boolean(global && global.dendryDesktop && typeof global.dendryDesktop.createRuntimeLens === 'function');
     const url = String(session && (session.lensUrl || session.lensPageUrl || session.externalUrl) || '');
     const canFocus = Boolean(isDesktop && focus && focus.id && focus.kind !== 'unknown' && focus.kind !== 'news');
@@ -124,6 +125,12 @@
 
   function renderBody(options) {
     const opts = options || {};
+    if (opts.status === 'building') {
+      return '<div class="runtime-lens-empty">' + escapeHtml(t('runtimeLens.building', 'Building a temporary runtime lens...')) + '</div>';
+    }
+    if (opts.status === 'suspended') {
+      return '<div class="runtime-lens-empty">' + escapeHtml(t('runtimeLens.suspended', 'Lens is suspended while this workspace is in the background. Refresh to reload it.')) + '</div>' + renderDiagnostics(opts.session && opts.session.diagnostics);
+    }
     if (opts.url && opts.status !== 'failed') {
       return [
         '<div class="runtime-lens-frame-wrap">',
@@ -131,9 +138,6 @@
         '</div>',
         renderDiagnostics(opts.session && opts.session.diagnostics)
       ].join('');
-    }
-    if (opts.status === 'building') {
-      return '<div class="runtime-lens-empty">' + escapeHtml(t('runtimeLens.building', 'Building a temporary runtime lens...')) + '</div>';
     }
     return '<div class="runtime-lens-empty">' + escapeHtml(opts.isDesktop ? t('runtimeLens.empty', 'Create a Lens to observe this object in the real runtime.') : t('runtimeLens.browserOnlyShort', 'Desktop app required.')) + '</div>' + renderDiagnostics(opts.session && opts.session.diagnostics);
   }
@@ -182,6 +186,7 @@
       building: t('runtimeLens.building', 'Building a temporary runtime lens...'),
       ready: t('runtimeLens.ready', 'Lens is ready.'),
       stale: t('runtimeLens.stale', 'Lens is behind the current edit.'),
+      suspended: t('runtimeLens.suspended', 'Lens is suspended while this workspace is in the background. Refresh to reload it.'),
       failed: t('runtimeLens.failed', 'Lens could not be created.'),
       unavailable: t('runtimeLens.browserOnlyShort', 'Desktop app required.')
     }[status] || String(status || '');

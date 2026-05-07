@@ -3,6 +3,7 @@
 const path = require('path');
 const {app, BrowserWindow, dialog, ipcMain, shell} = require('electron');
 const core = require('./studio_core');
+const runtimeSessionCleanup = require('./runtime_session_cleanup');
 const updateNotice = require('./update_notice');
 
 const APP_ID = 'studio.dendry.mod';
@@ -10,6 +11,21 @@ const WINDOWS_ICON = path.join(__dirname, 'assets', 'dendry-mod-studio.ico');
 
 let mainWindow = null;
 let lastProject = null;
+
+function runtimeSessionRoots() {
+  return [
+    path.join(app.getPath('userData'), 'runtime-previews'),
+    path.join(app.getPath('userData'), 'runtime-lenses')
+  ];
+}
+
+function pruneRuntimeSessions() {
+  try {
+    runtimeSessionCleanup.pruneRuntimeSessionRoots(runtimeSessionRoots());
+  } catch (_err) {
+    // Cleanup is best-effort and must not block Studio startup or authoring.
+  }
+}
 
 function planProjectRoot(plan) {
   return plan && plan.project && typeof plan.project.root === 'string'
@@ -238,13 +254,15 @@ ipcMain.handle('dendry:runtime-preview-create', async (_event, options) => {
       message: 'Open a project folder before creating a runtime preview.'
     };
   }
-  return core.createRuntimePreview({
+  const result = await core.createRuntimePreview({
     plan: options && options.plan,
     projectRoot,
     allowAdvanced: options && options.allowAdvanced === true,
     projectIndex: options && options.projectIndex,
     sessionsRoot: path.join(app.getPath('userData'), 'runtime-previews')
   });
+  pruneRuntimeSessions();
+  return result;
 });
 
 ipcMain.handle('dendry:runtime-preview-history', async (_event, options) => {
@@ -266,7 +284,7 @@ ipcMain.handle('dendry:runtime-lens-create', async (_event, options) => {
       message: 'Open a project folder before creating a focused runtime lens.'
     };
   }
-  return core.createRuntimeLens({
+  const result = await core.createRuntimeLens({
     plan: options && options.plan,
     focus: options && options.focus,
     projectRoot,
@@ -274,6 +292,8 @@ ipcMain.handle('dendry:runtime-lens-create', async (_event, options) => {
     projectIndex: options && options.projectIndex,
     sessionsRoot: path.join(app.getPath('userData'), 'runtime-lenses')
   });
+  pruneRuntimeSessions();
+  return result;
 });
 
 ipcMain.handle('dendry:update-notice-check', async (_event, options) => {
@@ -304,12 +324,18 @@ if (process.platform === 'win32') {
 }
 
 app.whenReady().then(() => {
+  pruneRuntimeSessions();
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
     }
   });
+});
+
+app.on('before-quit', () => {
+  pruneRuntimeSessions();
+  core.closeRuntimePreviewServer();
 });
 
 app.on('window-all-closed', () => {

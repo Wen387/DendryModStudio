@@ -2,6 +2,7 @@
   'use strict';
 
   const MAX_LANES = 8;
+  const PROJECT_INDEX_LOOKUPS = typeof WeakMap === 'function' ? new WeakMap() : null;
 
   function buildTimeline(projectIndex, cards, selected, options) {
     const opts = isObject(options) ? options : {};
@@ -324,10 +325,14 @@
   function sourceOrder(projectIndex, card) {
     const id = String(card && card.id || '');
     const path = String(card && card.source && card.source.path || card && card.raw && card.raw.path || '');
-    const scenes = ensureArray(projectIndex && projectIndex.scenes);
-    const found = scenes.findIndex((scene) => String(scene && scene.id || '') === id || String(scene && scene.path || '') === path);
-    if (found >= 0) {
-      return found + 1;
+    const lookup = projectIndexLookup(projectIndex);
+    if (lookup) {
+      if (id && lookup.orderById.has(id)) {
+        return lookup.orderById.get(id);
+      }
+      if (path && lookup.orderByPath.has(path)) {
+        return lookup.orderByPath.get(path);
+      }
     }
     return NaN;
   }
@@ -340,9 +345,49 @@
   function projectScene(projectIndex, card) {
     const id = String(card && card.id || '');
     const path = String(card && card.source && card.source.path || card && card.raw && card.raw.path || '');
-    return ensureArray(projectIndex && projectIndex.scenes).find((scene) => {
-      return String(scene && scene.id || '') === id || String(scene && scene.path || '') === path;
-    }) || null;
+    const lookup = projectIndexLookup(projectIndex);
+    if (!lookup) {
+      return null;
+    }
+    return id && lookup.byId.get(id) || path && lookup.byPath.get(path) || null;
+  }
+
+  function projectIndexLookup(projectIndex) {
+    if (!isObject(projectIndex)) {
+      return null;
+    }
+    const scenes = ensureArray(projectIndex.scenes);
+    if (PROJECT_INDEX_LOOKUPS) {
+      const cached = PROJECT_INDEX_LOOKUPS.get(projectIndex);
+      if (cached && cached.scenes === scenes && cached.length === scenes.length) {
+        return cached;
+      }
+    }
+    const lookup = {
+      scenes,
+      length: scenes.length,
+      byId: new Map(),
+      byPath: new Map(),
+      orderById: new Map(),
+      orderByPath: new Map()
+    };
+    scenes.forEach((scene, index) => {
+      const id = String(scene && scene.id || '');
+      const path = String(scene && scene.path || '');
+      const order = index + 1;
+      if (id && !lookup.byId.has(id)) {
+        lookup.byId.set(id, scene);
+        lookup.orderById.set(id, order);
+      }
+      if (path && !lookup.byPath.has(path)) {
+        lookup.byPath.set(path, scene);
+        lookup.orderByPath.set(path, order);
+      }
+    });
+    if (PROJECT_INDEX_LOOKUPS) {
+      PROJECT_INDEX_LOOKUPS.set(projectIndex, lookup);
+    }
+    return lookup;
   }
 
   function firstPath(object, paths) {

@@ -63,9 +63,10 @@
   function cardFromScene(scene, text) {
     const pinned = isPinned(scene);
     const kind = pinned ? 'advisor' : 'card';
+    const optionLabels = ensureArray(text && text.optionLabels);
     const options = ensureArray(scene.options).map((option, index) => ({
       id: String(option && option.target && option.target.id || option && option.id || 'option_' + (index + 1)),
-      label: String(option && (option.title || option.label) || text.optionLabels[index] || 'Choice ' + (index + 1)),
+      label: String(option && (option.title || option.label) || optionLabels[index] || 'Choice ' + (index + 1)),
       targetId: String(option && option.target && option.target.id || ''),
       index,
       source: sourceRef(option && option.sourceSpan || {})

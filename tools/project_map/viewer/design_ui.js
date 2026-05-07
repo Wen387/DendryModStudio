@@ -36,6 +36,7 @@
     dragging: null,
     suppressNextClick: false,
     pendingDragRender: false,
+    designModelStale: false,
     designRevision: 0,
     inspectorCache: {key: '', html: ''}
   };
@@ -219,8 +220,31 @@
     document.addEventListener('project-map:index-loaded', (event) => {
       state.projectModel = event.detail && event.detail.model ? event.detail.model : null;
       state.selectedKey = '';
-      rebuildDesignModel();
-      render();
+      state.designModel = null;
+      state.designModelStale = true;
+      invalidateInspectorCache();
+      if (designModeIsActive()) {
+        render();
+      }
+    });
+
+    document.addEventListener('ProjectMap:mode-changing', (event) => {
+      const detail = event && event.detail || {};
+      if (detail.previousMode === 'design' && detail.nextMode !== 'design') {
+        cancelDesignInteractions();
+      }
+    });
+
+    document.addEventListener('click', (event) => {
+      const modeButton = event.target.closest && event.target.closest('[data-mode="design"]');
+      if (!modeButton) {
+        return;
+      }
+      schedule(() => {
+        if (designModeIsActive()) {
+          render();
+        }
+      });
     });
 
     if (elements.search) {
@@ -480,11 +504,13 @@
     const design = global.ProjectMapDesignModel;
     if (!design || typeof design.buildDesignModel !== 'function' || !state.projectModel) {
       state.designModel = null;
+      state.designModelStale = false;
       state.designRevision += 1;
       invalidateInspectorCache();
       return;
     }
     state.designModel = design.buildDesignModel(state.projectModel, state.baselineModel);
+    state.designModelStale = false;
     state.designRevision += 1;
     invalidateInspectorCache();
     populateLaneFilter();
@@ -575,7 +601,7 @@
       elements.inspector.innerHTML = '<div class="empty-state">' + escapeHtml(t('design.selectNode', 'Select a graph node to inspect authoring status, compare state, and source.')) + '</div>';
       return;
     }
-    if (!state.designModel) {
+    if (!state.designModel || state.designModelStale) {
       rebuildDesignModel();
     }
     const model = state.designModel;
@@ -1601,5 +1627,17 @@
       return global.CSS.escape(String(value));
     }
     return String(value).replace(/["\\]/g, '\\$&');
+  }
+
+  function designModeIsActive() {
+    return Boolean(global.document && global.document.body && global.document.body.dataset.mode === 'design');
+  }
+
+  function schedule(callback) {
+    if (typeof global.requestAnimationFrame === 'function') {
+      global.requestAnimationFrame(callback);
+      return;
+    }
+    global.setTimeout(callback, 0);
   }
 })(typeof window !== 'undefined' ? window : globalThis);

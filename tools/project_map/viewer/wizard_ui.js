@@ -143,18 +143,30 @@
     bindDownloads();
     bindIndexEvents();
     bindLocaleRefresh();
+    bindPageLifecycle();
     setMode('explore');
     renderWizard();
   }
 
   function bindModeSwitch() {
     elements.modeButtons.forEach((button) => {
-      button.addEventListener('click', () => setMode(button.dataset.mode));
+      button.addEventListener('click', () => setMode(button.dataset.mode, {reason: 'user'}));
     });
   }
 
-  function setMode(mode) {
+  function setMode(mode, options) {
     const nextMode = mode === 'create' || mode === 'install' || mode === 'design' ? mode : 'explore';
+    const previousMode = elements.body.dataset.mode || '';
+    const changed = previousMode !== nextMode;
+    const detail = {
+      previousMode,
+      nextMode,
+      reason: options && options.reason || 'programmatic',
+      visible: !global.document.hidden
+    };
+    if (changed) {
+      dispatchLifecycleEvent('ProjectMap:mode-changing', detail);
+    }
     elements.body.dataset.mode = nextMode;
     elements.explorePane.classList.toggle('hidden', nextMode !== 'explore');
     if (elements.designPane) {
@@ -172,6 +184,36 @@
     if (nextMode === 'create') {
       renderWizard();
     }
+    if (changed) {
+      dispatchLifecycleEvent('ProjectMap:mode-changed', detail);
+    }
+  }
+
+  function bindPageLifecycle() {
+    if (!global.document || typeof global.document.addEventListener !== 'function') {
+      return;
+    }
+    global.document.addEventListener('visibilitychange', () => {
+      dispatchLifecycleEvent('ProjectMap:foreground-changed', {
+        mode: elements && elements.body && elements.body.dataset.mode || '',
+        visible: !global.document.hidden,
+        visibilityState: global.document.visibilityState || ''
+      });
+    });
+  }
+
+  function dispatchLifecycleEvent(name, detail) {
+    if (!global.document || typeof global.document.dispatchEvent !== 'function') {
+      return;
+    }
+    let event;
+    if (typeof global.CustomEvent === 'function') {
+      event = new global.CustomEvent(name, {detail});
+    } else {
+      event = global.document.createEvent('CustomEvent');
+      event.initCustomEvent(name, false, false, detail);
+    }
+    global.document.dispatchEvent(event);
   }
 
   function bindLocaleRefresh() {

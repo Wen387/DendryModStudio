@@ -95,6 +95,23 @@ assert(cardKeys(lane(searched, 'pool')).includes('card:demo_action_card'), 'Sear
 const existingBoard = cardBoardModel.buildBoard(index, existingCardModel, {cardBoardSelectedKey: 'card:demo_action_card'});
 assert(existingBoard.selected && existingBoard.selected.id === 'demo_action_card', 'Existing source-backed card should be selectable');
 
+const sparseCardIndex = Object.assign({}, index, {
+  scenes: (index.scenes || []).concat([{
+    id: 'sparse_option_card',
+    title: 'Sparse Option Card',
+    path: 'source/scenes/cards/sparse_option_card.scene.dry',
+    type: 'card',
+    flags: {isCard: true},
+    options: Array.from({length: 7}, (_item, optionIndex) => ({
+      id: 'choice_' + (optionIndex + 1),
+      target: {kind: 'scene', id: 'root'}
+    }))
+  }])
+});
+const sparseBoard = cardBoardModel.buildBoard(sparseCardIndex, draftModel, {cardBoardSelectedKey: 'card:sparse_option_card'});
+const sparseCard = sparseBoard.selected;
+assert(sparseCard && sparseCard.options[6] && sparseCard.options[6].label === 'Choice 7', 'Card Board should fallback-label options when textCorpus option labels are absent');
+
 const optionBoard = cardBoardModel.buildBoard(index, existingCardModel, {
   cardBoardSelectedKey: 'card:demo_action_card',
   cardBoardSelection: {kind: 'option', cardKey: 'card:demo_action_card', optionIndex: 0}

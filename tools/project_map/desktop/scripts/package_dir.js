@@ -67,6 +67,7 @@ function packageDir(options) {
     'dendry_cli_runner.js',
     'runtime_preview.js',
     'runtime_lens.js',
+    'runtime_session_cleanup.js',
     'runtime_preview_debug_bridge.js',
     'update_notice.js',
     'update_manifest.json',

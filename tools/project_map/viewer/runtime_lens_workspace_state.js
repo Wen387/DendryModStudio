@@ -9,6 +9,7 @@
     state.runtimeLensCurrentDraftKey = '';
     state.runtimeLensExpanded = false;
     state.runtimeLensCollapsed = false;
+    state.runtimeLensEmbedsSuspended = false;
     state.runtimeLensBuildSeq = 0;
     state.runtimeLensBuildQueued = false;
   }
@@ -53,6 +54,7 @@
       return;
     }
     if (action === 'create' || action === 'rebuild') {
+      state.runtimeLensEmbedsSuspended = false;
       await createLens(state, helpers);
     }
   }

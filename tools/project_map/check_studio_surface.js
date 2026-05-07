@@ -558,6 +558,7 @@ assert(appUi.includes('Copy as new proposal'), 'Explore inspector should keep co
 assert(appUi.includes('ProjectMapExistingSceneEditor'), 'Explore should call Existing Scene Editor when editing existing Events/Cards');
 assert(designUi.includes('data-design-edit-existing'), 'Design inspector should expose Edit existing');
 assert(designUi.includes('Copy as new proposal'), 'Design inspector should keep copy-as-new proposal wording');
+assert(designUi.includes('designModelStale') && designUi.includes('designModeIsActive'), 'Design should defer heavy graph rebuilds until the Design page is visible');
 assert(appUi.includes("t('textRevision.actionButton'"), 'Text Corpus revision panel should own a localized Edit Text action');
 assert(appUi.includes("t('textProposal.notesTitle'"), 'Text proposal diagnostics should use localized section labels');
 assert(appUi.includes('renderAssetGallery'), 'Assets view should render a gallery surface');

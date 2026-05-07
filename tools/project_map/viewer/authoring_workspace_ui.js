@@ -118,6 +118,8 @@
       if (!template) {
         return;
       }
+      event.preventDefault();
+      event.stopPropagation();
       state.activeTemplate = template;
       state.activeWorkspace = workspaceForTemplate(template);
       render();

@@ -849,6 +849,10 @@ function recordRuntimePreviewHistory(options) {
   );
 }
 
+function closeRuntimePreviewServer(callback) {
+  return runtimePreview.closePreviewServer(callback);
+}
+
 module.exports = {
   resolveResourcePaths,
   validateProjectRoot,
@@ -865,6 +869,7 @@ module.exports = {
   createRuntimePreview,
   createRuntimeLens,
   recordRuntimePreviewHistory,
+  closeRuntimePreviewServer,
   prepareStarterDemo,
   readProjectInfoSource,
   refreshCachedIndexInfo,

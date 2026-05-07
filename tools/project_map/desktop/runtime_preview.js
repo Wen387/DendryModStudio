@@ -550,6 +550,23 @@ function ensurePreviewServer(sessionsRoot) {
   });
 }
 
+function closePreviewServer(callback) {
+  const server = previewServer;
+  previewServer = null;
+  previewServerRoot = '';
+  if (!server || !server.listening) {
+    if (typeof callback === 'function') {
+      callback();
+    }
+    return;
+  }
+  server.close(() => {
+    if (typeof callback === 'function') {
+      callback();
+    }
+  });
+}
+
 function servePreviewRequest(root, req, res) {
   const url = new URL(req.url || '/', 'http://127.0.0.1');
   const safePath = decodeURIComponent(url.pathname).replace(/^\/+/, '');
@@ -686,6 +703,7 @@ module.exports = {
   copyProject,
   validateProjectRoot,
   recordDebugCommandHistory,
+  closePreviewServer,
   resolveBuildCommand,
   resolveBuildWrapperCommand,
   isCommandAvailable,
