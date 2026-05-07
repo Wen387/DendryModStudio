@@ -42,9 +42,30 @@
       textCorpusRoleLabel,
       textCorpusRoleGuidance,
       textCorpusEditabilityLabel,
+      editCapabilityForModel,
+      editCapabilityRouteLabel,
+      editCapabilityActionLabel,
+      editCapabilitySummary,
+      capabilityBadgeClass,
       setStatus,
       showError
     } = ctx;
+
+  function capabilityLabel(routeClass) {
+    return editCapabilityRouteLabel ? editCapabilityRouteLabel(routeClass) : String(routeClass || '').replace(/_/g, ' ');
+  }
+
+  function capabilityAction(routeClass) {
+    return editCapabilityActionLabel ? editCapabilityActionLabel(routeClass) : t('textRevision.actionButton', 'Edit Text Proposal');
+  }
+
+  function capabilityClass(capability) {
+    return capabilityBadgeClass ? capabilityBadgeClass(capability) : '';
+  }
+
+  function capabilityReason(capability) {
+    return editCapabilitySummary ? editCapabilitySummary(capability) : capability && capability.reason || '';
+  }
 
   function renderInspector(state, elements) {
     if (!state.model) {
@@ -207,7 +228,7 @@
       '<div class="inspector-actions" data-edit-text-panel="true">',
       '<button class="draft-action-button" type="button" data-edit-text-proposal="true"' +
         (disabled ? ' disabled' : '') + '>' + escapeHtml(t('textProposal.actionButton', 'Edit Text Proposal')) + '</button>',
-      '<div class="draft-action-status">' + escapeHtml(status) + '</div>',
+      '<div class="draft-action-status" data-text-action-status="true">' + escapeHtml(status) + '</div>',
       renderExtractionScope(result),
       diagnostics.length ? renderMiniSection(t('textProposal.notesTitle', 'Text proposal notes'), diagnostics) : '',
       '</div>'
@@ -376,6 +397,69 @@
       : t('textProposal.status.openFailed', 'Could not open Edit Text proposal template.');
     state.draftActionMessage = '';
     ctx.render(state, elements);
+  }
+
+  function handleEditRouteAction(state, elements) {
+    if (!state.selected || !state.model || state.selected.view !== 'textCorpus') {
+      return;
+    }
+    const item = state.selected.item || {};
+    const replacementText = currentTextReplacementValue(elements);
+    const changed = replacementText !== String(item.text || '');
+    const capability = editCapabilityForModel
+      ? editCapabilityForModel(state.model, 'textCorpus', item, {replacementText})
+      : null;
+    const routeClass = String(capability && capability.routeClass || '');
+    if (routeClass === 'direct_field_replace' || routeClass === 'direct_section_replace' || routeClass === 'object_workspace') {
+      const opened = openRoutedObjectWorkspace(state, capability, changed ? replacementText : '');
+      state.textActionMessage = opened
+        ? t('editCapability.status.objectLoaded', 'Owning object workspace opened. Save the change to My Changes when ready.')
+        : t('existingScene.openFailed', 'This scene needs more source evidence before Studio can edit it here.');
+      state.draftActionMessage = '';
+      ctx.render(state, elements);
+      return;
+    }
+    if (routeClass === 'system_ui_workspace') {
+      const opened = openRoutedSystemUiWorkspace(capability);
+      state.textActionMessage = opened
+        ? t('editCapability.status.systemUiLoaded', 'System UI workspace opened for this text route.')
+        : t('editCapability.status.systemUiOpenFailed', 'Could not open the System UI workspace.');
+      state.draftActionMessage = '';
+      ctx.render(state, elements);
+      return;
+    }
+    handleEditTextProposal(state, elements);
+  }
+
+  function openRoutedObjectWorkspace(state, capability, replacementText) {
+    const target = capability && capability.target || {};
+    const sceneId = target.sceneId || target.itemId || '';
+    const view = target.view === 'cards' ? 'cards' : 'events';
+    const values = {};
+    if (replacementText && target.valueKey) {
+      values[target.valueKey] = replacementText;
+    }
+    const editor = global.ProjectMapObjectAuthoringCanvas || global.ProjectMapEditingWorkspace || global.ProjectMapExistingSceneEditor;
+    if (!editor || typeof editor.openFromSelection !== 'function' || !sceneId) {
+      return false;
+    }
+    return editor.openFromSelection(state.model.index, view, sceneId, {
+      values,
+      route: capability,
+      source: 'Text Corpus edit route'
+    });
+  }
+
+  function openRoutedSystemUiWorkspace(capability) {
+    const target = capability && capability.target || {};
+    const template = target.template || 'entry';
+    activateMode('create');
+    activateCreateTemplate(template);
+    const canvas = global.ProjectMapObjectAuthoringCanvas;
+    if (canvas && typeof canvas.openTemplate === 'function') {
+      return canvas.openTemplate(template, null, {source: 'Text Corpus System UI route', route: capability});
+    }
+    return Boolean(global.document && global.document.querySelector('[data-create-template="' + template + '"].is-active'));
   }
 
   function handleEditVariable(state, elements) {
@@ -773,6 +857,7 @@
   function renderTextCorpusInspector(item, model, state) {
     const owner = item.owner || {};
     const replacement = textRevisionReplacementFor(state, item);
+    const capability = editCapabilityForModel ? editCapabilityForModel(model, 'textCorpus', item, {replacementText: replacement}) : null;
     const ownerButton = owner.sceneId
       ? '<button type="button" data-scene-id="' + escapeAttr(owner.sceneId) + '">' + escapeHtml(t('textCorpus.openOwner', 'Open owner scene')) + '</button>'
       : '';
@@ -790,6 +875,7 @@
       '<div class="inspector-subtitle">' + escapeHtml(t('textCorpus.subtitle', 'Player-visible text')) + '</div>',
       '<div class="badge-line">',
       badge(item.role || 'text', ''),
+      capability ? badge(capabilityLabel(capability.routeClass), capabilityClass(capability)) : '',
       badge(item.editability || 'text_proposal', item.editability || ''),
       badge(item.confidence || 'static_inferred', item.confidence || 'static_inferred'),
       '</div>',
@@ -799,28 +885,35 @@
       '<dl class="kv">',
       '<dt>' + escapeHtml(t('textCorpus.role', 'Role')) + '</dt><dd>' + escapeHtml(textCorpusRoleLabel(item.role)) + '</dd>',
       '<dt>' + escapeHtml(t('textCorpus.editability', 'Editability')) + '</dt><dd>' + escapeHtml(textCorpusEditabilityLabel(item.editability)) + '</dd>',
+      capability ? '<dt>' + escapeHtml(t('editCapability.route', 'Edit route')) + '</dt><dd>' + escapeHtml(capabilityLabel(capability.routeClass)) + '</dd>' : '',
       '<dt>' + escapeHtml(t('textCorpus.owner', 'Owner')) + '</dt><dd>' + escapeHtml([owner.kind, owner.sceneId || owner.itemId, owner.sectionId, owner.area].filter(Boolean).join(' / ')) + '</dd>',
       '<dt>' + escapeHtml(t('textCorpus.source', 'Source')) + '</dt><dd>' + renderSourceButton(item.source) + '</dd>',
       ownerButton ? '<dt>' + escapeHtml(t('textCorpus.ownerAction', 'Owner')) + '</dt><dd>' + ownerButton + '</dd>' : '',
+      capability ? '<dt>' + escapeHtml(t('editCapability.routeReason', 'Route reason')) + '</dt><dd>' + escapeHtml(capabilityReason(capability)) + '</dd>' : '',
       roleGuidance ? '<dt>' + escapeHtml(t('textCorpus.guidance', 'Guidance')) + '</dt><dd>' + escapeHtml(roleGuidance) + '</dd>' : '',
       '</dl>',
-      renderTextRevisionPanel(item, replacement, state),
+      renderTextRevisionPanel(item, replacement, state, capability),
       contextRows.length ? '<div class="detail-section"><h3>' + escapeHtml(t('textCorpus.context', 'Nearby text')) + '</h3><div class="text-context-list">' + contextRows.join('') + '</div></div>' : '',
       '<p class="inspector-note">' + escapeHtml(t('textCorpus.note', 'Text Corpus is an inspection index: use it to find player-facing prose, then create a proposal or jump to the owning source.')) + '</p>'
     ].join('');
   }
 
-  function renderTextRevisionPanel(item, replacement, state) {
+  function renderTextRevisionPanel(item, replacement, state, capabilityInput) {
     const key = textRevisionKey(item);
     const model = buildTextRevisionModel(item, replacement);
+    const capability = capabilityInput || (state && state.model && editCapabilityForModel
+      ? editCapabilityForModel(state.model, 'textCorpus', item, {replacementText: model.after})
+      : null);
     const result = state && state.model
       ? previewTextReplacement(state.model.index, 'textCorpus', item, {replacementText: model.after})
       : null;
-    const disabled = !model.changed || (result ? (!result.ok && result.status === 'unsupported') : true);
+    const routeClass = capability && capability.routeClass || '';
+    const routeCanOpenWithoutChange = routeClass === 'object_workspace' || routeClass === 'system_ui_workspace';
+    const disabled = !routeCanOpenWithoutChange && (!model.changed || (result ? (!result.ok && result.status === 'unsupported') : true));
     const status = state && state.textActionMessage
       ? state.textActionMessage
-      : model.changed
-        ? textProposalSummary(result)
+      : model.changed || routeCanOpenWithoutChange
+        ? editCapabilityRevisionSummary(capability, result)
         : t('textProposal.status.needsChange', 'Change the replacement text to create a proposal.');
     const diagnostics = ensureArray(result && result.diagnostics).slice(0, 3).map((diag) => {
       return badge(diag.severity || 'warning', diag.severity || 'warning') + ' ' +
@@ -836,8 +929,8 @@
       '<div class="text-revision-status" data-text-revision-status="true">' + escapeHtml(textRevisionStatusLabel(model)) + '</div>',
       '<div class="text-revision-diff" data-text-revision-diff="true">' + renderTextRevisionDiff(model) + '</div>',
       '<div class="text-revision-actions" data-edit-text-panel="true">',
-      '<button class="draft-action-button" type="button" data-edit-text-proposal="true"' +
-        (disabled ? ' disabled' : '') + '>' + escapeHtml(t('textRevision.actionButton', 'Edit Text Proposal')) + '</button>',
+      '<button class="draft-action-button" type="button" data-edit-route-action="true"' +
+        (disabled ? ' disabled' : '') + '>' + escapeHtml(capability ? capabilityAction(capability.routeClass) : t('textRevision.actionButton', 'Edit Text Proposal')) + '</button>',
       '<div class="draft-action-status">' + escapeHtml(status) + '</div>',
       renderExtractionScope(result),
       diagnostics.length ? renderMiniSection(t('textProposal.notesTitle', 'Text proposal notes'), diagnostics) : '',
@@ -846,11 +939,31 @@
     ].join('');
   }
 
+  function editCapabilityRevisionSummary(capability, result) {
+    if (!capability) {
+      return textProposalSummary(result);
+    }
+    const routeClass = String(capability.routeClass || '');
+    if (routeClass === 'direct_field_replace') {
+      return t('editCapability.revision.directField', 'Opens the owning object editor and pre-fills the matching field for Review & Apply.');
+    }
+    if (routeClass === 'direct_section_replace') {
+      return t('editCapability.revision.directSection', 'Opens the owning object editor and pre-fills the matching page section for Review & Apply.');
+    }
+    if (routeClass === 'object_workspace') {
+      return t('editCapability.revision.objectWorkspace', 'Opens the owning Event/Card workspace with story context.');
+    }
+    if (routeClass === 'system_ui_workspace') {
+      return t('editCapability.revision.systemUiWorkspace', 'Opens the System UI workspace; generic text patch remains review-only.');
+    }
+    return textProposalSummary(result);
+  }
+
   function updateTextRevisionDom(root, item, replacement, state) {
     const model = buildTextRevisionModel(item, replacement);
     const status = root.querySelector('[data-text-revision-status]');
     const diff = root.querySelector('[data-text-revision-diff]');
-    const action = root.querySelector('[data-edit-text-proposal]');
+    const action = root.querySelector('[data-edit-route-action]');
     const actionStatus = root.querySelector('[data-text-action-status]');
     if (status) {
       status.textContent = textRevisionStatusLabel(model);
@@ -862,13 +975,21 @@
       const result = state && state.model
         ? previewTextReplacement(state.model.index, 'textCorpus', item, {replacementText: model.after})
         : null;
-      const disabled = !model.changed || (result ? (!result.ok && result.status === 'unsupported') : true);
+      const capability = state && state.model && editCapabilityForModel
+        ? editCapabilityForModel(state.model, 'textCorpus', item, {replacementText: model.after})
+        : null;
+      const routeClass = capability && capability.routeClass || '';
+      const routeCanOpenWithoutChange = routeClass === 'object_workspace' || routeClass === 'system_ui_workspace';
+      const disabled = !routeCanOpenWithoutChange && (!model.changed || (result ? (!result.ok && result.status === 'unsupported') : true));
       if (action) {
         action.disabled = disabled;
+        if (capability) {
+          action.textContent = capabilityAction(capability.routeClass);
+        }
       }
       if (actionStatus) {
-        actionStatus.textContent = model.changed
-          ? textProposalSummary(result)
+        actionStatus.textContent = model.changed || routeCanOpenWithoutChange
+          ? editCapabilityRevisionSummary(capability, result)
           : t('textProposal.status.needsChange', 'Change the replacement text to create a proposal.');
       }
     }
@@ -1393,6 +1514,7 @@
       handleEditAsDraft,
       handleEditExisting,
       handleEditTextProposal,
+      handleEditRouteAction,
       handleEditVariable,
       handleEventWorkbenchAction,
       eventWorkbenchSeedForSelection,

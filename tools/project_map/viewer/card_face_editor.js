@@ -10,8 +10,8 @@
     return [
       '<aside class="card-face-editor" data-card-face-editor="true">',
       renderHeader(selectedObject, selected, board),
+      renderPreview(model, selected, selectedObject),
       renderRuntimeLens(model, board, opts),
-      renderPreview(selected, selectedObject),
       renderInspector(model, body, board, selectedObject, selected, canEdit),
       renderDropContext(board && board.dropContext),
       renderChangeSummary(model),
@@ -55,7 +55,18 @@
     });
   }
 
-  function renderPreview(card, selectedObject) {
+  function renderPreview(model, card, selectedObject) {
+    const api = lightweightPreviewApi();
+    const modelCard = previewCardFromModel(model);
+    if (modelCard && api && typeof api.renderCard === 'function') {
+      return api.renderCard(modelCard, {selectedObject});
+    }
+    if (api && typeof api.render === 'function') {
+      return api.render(model, {template: 'card', selectedObject});
+    }
+    if (api && typeof api.renderCard === 'function') {
+      return api.renderCard(card, {selectedObject});
+    }
     if (!card) {
       return '<section class="card-face-preview is-empty"><p>' + escapeHtml(t('cardBoard.editor.empty', 'Select a card to inspect or edit its face.')) + '</p></section>';
     }
@@ -71,6 +82,43 @@
       '</div>',
       '</section>'
     ].join('');
+  }
+
+  function previewCardFromModel(model) {
+    const body = model && model.eventBody || {};
+    if (!body.title && !body.heading && !ensureArray(body.sections).length) {
+      return null;
+    }
+    const sections = ensureArray(body.sections);
+    return {
+      kind: t('objectPreview.card', 'Card'),
+      title: fieldValue(body.title) || model && model.title || '',
+      heading: fieldValue(body.heading) || fieldValue(body.title) || model && model.title || '',
+      subtitle: fieldValue(sectionById(sections, 'subtitle')),
+      body: fieldValue(sectionById(sections, 'body')) || fieldValue(sectionById(sections, 'intro')) || fieldValue(sectionById(sections, 'description')) || fieldValue(sections[0]),
+      options: ensureArray(body.options).map((option, index) => ({label: optionPreviewLabel(option, index)}))
+    };
+  }
+
+  function sectionById(sections, idPart) {
+    const needle = String(idPart || '').toLowerCase();
+    return ensureArray(sections).find((field) => String(field && (field.id || field.key || field.label) || '').toLowerCase().indexOf(needle) >= 0) || null;
+  }
+
+  function fieldValue(field) {
+    if (!field) {
+      return '';
+    }
+    if (typeof field === 'string') {
+      return field;
+    }
+    return String(field.value || field.replacement || field.text || field.original || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function optionPreviewLabel(option, index) {
+    const fields = ensureArray(option && option.fields);
+    const label = fields.find((field) => /label|title|heading/i.test(String(field && (field.id || field.key || field.label) || '')));
+    return fieldValue(label) || option && (option.label || option.title || option.id) || String(index + 1);
   }
 
   function renderInspector(model, body, board, selectedObject, selected, canEdit) {
@@ -399,6 +447,20 @@
     if (typeof require === 'function') {
       try {
         return require('./runtime_lens_ui.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function lightweightPreviewApi() {
+    if (global && global.ProjectMapLightweightObjectPreview) {
+      return global.ProjectMapLightweightObjectPreview;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./lightweight_object_preview.js');
       } catch (_err) {
         return null;
       }

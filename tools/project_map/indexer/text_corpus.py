@@ -24,6 +24,25 @@ def compact_visible_text(value: str) -> str:
     return re.sub(r"\s+", " ", value.strip())
 
 
+def original_source_text(lines: list[str], start_line: int, end_line: int) -> str:
+    if start_line < 1 or end_line < start_line:
+        return ""
+    start = start_line - 1
+    end = min(len(lines), end_line)
+    return "\n".join(line.strip() for line in lines[start:end]).strip()
+
+
+def split_option_title_parts(value: str) -> tuple[str, str]:
+    text = compact_visible_text(value)
+    if not text:
+        return "", ""
+    for divider in ("——", " — ", " -- "):
+        if divider in text:
+            before, after = text.split(divider, 1)
+            return compact_visible_text(before), compact_visible_text(after)
+    return text, ""
+
+
 def is_hidden_script_or_comment_line(stripped: str) -> bool:
     if not stripped:
         return False
@@ -137,10 +156,12 @@ def extract_text_corpus_from_scene(root: Path, scene: dict[str, Any]) -> list[di
             source["anchorText"] = lines[line_num - 1].strip()
         if 1 <= source_end_line <= len(lines):
             source["endAnchorText"] = lines[source_end_line - 1].strip()
+        original = original_source_text(lines, line_num, source_end_line)
         payload: dict[str, Any] = {
-            "id": stable_text_id(rel, line_num, role, value),
+            "id": str(extra.get("id")) if extra and extra.get("id") else stable_text_id(rel, line_num, role, value),
             "role": role,
             "text": value,
+            "originalText": original or value,
             "owner": {
                 "kind": "scene",
                 "sceneId": scene.get("id", ""),
@@ -194,23 +215,36 @@ def extract_text_corpus_from_scene(root: Path, scene: dict[str, Any]) -> list[di
                 in_magic = True
             continue
 
-        heading = re.match(r"^\s*=\s*(.+?)\s*$", raw)
+        heading = re.match(r"^\s*=+\s*(.+?)\s*$", raw)
         if heading:
             flush_paragraph(line_num)
             append_item("heading", heading.group(1), line_num, active_section)
             continue
 
-        option = re.match(r"^\s*-\s+@([A-Za-z0-9_.-]+)(?::\s*(.+?))?\s*$", raw)
+        option = re.match(r"^\s*-\s+([@#])([A-Za-z0-9_.-]+)(?::\s*(.+?))?\s*$", raw)
         if option:
             flush_paragraph(line_num)
-            label = option.group(2) or ""
+            option_id = option.group(2)
+            option_text = compact_visible_text(option.group(3) or "")
+            label, subtitle = split_option_title_parts(option_text)
             if label:
                 append_item(
                     "option_label",
                     label,
                     line_num,
                     active_section,
-                    extra={"optionId": option.group(1)}
+                    extra={
+                        "id": stable_text_id(rel, line_num, "option_label", option_text),
+                        "optionId": option_id
+                    }
+                )
+            if subtitle:
+                append_item(
+                    "option_subtitle",
+                    subtitle,
+                    line_num,
+                    active_section,
+                    extra={"optionId": option_id}
                 )
             continue
 

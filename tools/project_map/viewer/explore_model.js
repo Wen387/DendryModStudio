@@ -135,6 +135,20 @@
     return null;
   }
 
+  function editCapabilityApi() {
+    if (global && global.ProjectMapEditCapability) {
+      return global.ProjectMapEditCapability;
+    }
+    if (typeof module !== 'undefined' && module.exports && typeof require === 'function') {
+      try {
+        return require('../authoring/edit_capability_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   function viewLabel(view) {
     const def = VIEW_DEFS[view];
     return def ? t(def.i18nKey || '', def.label) : view;
@@ -718,7 +732,7 @@
     return line ? path + ':' + line : path;
   }
 
-  function normalizeForView(view, item, index) {
+  function normalizeForView(view, item, index, model) {
     if (view === 'overview') {
       return {
         key: 'overview:' + item.code,
@@ -830,20 +844,24 @@
 
     if (view === 'surfaceText') {
       const source = firstSource(item);
+      const capability = editCapabilityForModel(model, view, item);
       return {
         key: 'surfaceText:' + (item.id || index),
         primary: item.label || '(missing label)',
         secondary: item.area || item.variableName || '',
         meta: sourceLabel(source),
         badges: [
+          capability ? {text: editCapabilityRouteLabel(capability.routeClass), className: capabilityBadgeClass(capability)} : null,
           {text: item.editability || 'ide_escape_hatch', className: item.editability || ''},
           {text: item.confidence || 'static_inferred', className: item.confidence || 'static_inferred'}
-        ],
+        ].filter(Boolean),
         searchText: [
           item.label,
           item.area,
           item.variableName,
           item.editability,
+          capability && capability.routeClass,
+          capability && capability.reason,
           sourceLabel(source)
         ].join(' '),
         sortValues: Object.assign({line: sourceLine(source), path: source && source.path}, item),
@@ -854,6 +872,7 @@
     if (view === 'textCorpus') {
       const source = firstSource(item);
       const owner = item.owner || {};
+      const capability = editCapabilityForModel(model, view, item);
       return {
         key: 'textCorpus:' + (item.id || index),
         primary: item.text || '(empty text)',
@@ -861,13 +880,16 @@
         meta: sourceLabel(source),
         badges: [
           {text: item.role || 'text', className: ''},
+          capability ? {text: editCapabilityRouteLabel(capability.routeClass), className: capabilityBadgeClass(capability)} : null,
           {text: item.editability || 'text_proposal', className: item.editability || ''},
           {text: item.confidence || 'static_inferred', className: item.confidence || 'static_inferred'}
-        ],
+        ].filter(Boolean),
         searchText: [
           item.text,
           item.role,
           item.editability,
+          capability && capability.routeClass,
+          capability && capability.reason,
           item.confidence,
           owner.kind,
           owner.sceneId,
@@ -958,7 +980,7 @@
     const cacheKey = currentLocale() + '::' + String(view || '');
     if (!model.normalizedRowsByView.has(cacheKey)) {
       const rows = listForView(model, view).map((item, index) => {
-        const normalized = normalizeForView(view, item, index);
+        const normalized = normalizeForView(view, item, index, model);
         normalized.searchTextLower = String(normalized.searchText || '').toLowerCase();
         return normalized;
       });
@@ -1264,6 +1286,78 @@
       : humanizeKey(editability);
   }
 
+  function editCapabilityForModel(model, view, item, options) {
+    const api = editCapabilityApi();
+    if (!api || typeof api.buildEditCapability !== 'function' || !model || !model.index) {
+      return null;
+    }
+    const opts = isObject(options) ? options : {};
+    const cacheable = !Object.keys(opts).length;
+    const key = [
+      String(view || ''),
+      item && (item.id || item.itemId || item.sceneId) || '',
+      sourceLabel(firstSource(item)),
+      item && item.text || item && item.label || ''
+    ].join('::');
+    if (cacheable) {
+      if (!(model.editCapabilityByKey instanceof Map)) {
+        model.editCapabilityByKey = new Map();
+      }
+      if (model.editCapabilityByKey.has(key)) {
+        return model.editCapabilityByKey.get(key);
+      }
+    }
+    let result = null;
+    try {
+      result = api.buildEditCapability(model.index, view, item, opts);
+    } catch (err) {
+      result = {
+        routeClass: 'manual_review',
+        reason: err && err.message ? err.message : String(err),
+        diagnostics: [{severity: 'warning', code: 'edit_capability.failed', message: err && err.message ? err.message : String(err)}]
+      };
+    }
+    if (cacheable) {
+      model.editCapabilityByKey.set(key, result);
+    }
+    return result;
+  }
+
+  function editCapabilityRouteLabel(routeClass) {
+    const api = editCapabilityApi();
+    return api && typeof api.routeClassLabel === 'function'
+      ? api.routeClassLabel(routeClass, t)
+      : humanizeKey(routeClass);
+  }
+
+  function editCapabilityActionLabel(routeClass) {
+    const api = editCapabilityApi();
+    return api && typeof api.routeActionLabel === 'function'
+      ? api.routeActionLabel(routeClass, t)
+      : humanizeKey(routeClass);
+  }
+
+  function editCapabilitySummary(capability) {
+    const api = editCapabilityApi();
+    return api && typeof api.routeSummary === 'function'
+      ? api.routeSummary(capability, t)
+      : capability && capability.reason || '';
+  }
+
+  function capabilityBadgeClass(capability) {
+    const routeClass = String(capability && capability.routeClass || '');
+    if (routeClass === 'direct_field_replace' || routeClass === 'direct_section_replace') {
+      return 'exact';
+    }
+    if (routeClass === 'object_workspace' || routeClass === 'system_ui_workspace') {
+      return 'info';
+    }
+    if (routeClass === 'news_router_workflow' || routeClass === 'manual_review') {
+      return 'warning';
+    }
+    return 'opaque';
+  }
+
   const api = {
     VIEW_DEFS,
     SEVERITY_RANK,
@@ -1283,6 +1377,7 @@
     applyI18n,
     studioContracts,
     assetModelApi,
+    editCapabilityApi,
     viewLabel,
     isObject,
     ensureArray,
@@ -1331,7 +1426,12 @@
     humanizeKey,
     textCorpusRoleLabel,
     textCorpusRoleGuidance,
-    textCorpusEditabilityLabel
+    textCorpusEditabilityLabel,
+    editCapabilityForModel,
+    editCapabilityRouteLabel,
+    editCapabilityActionLabel,
+    editCapabilitySummary,
+    capabilityBadgeClass
   };
 
   if (typeof module !== 'undefined' && module.exports) {

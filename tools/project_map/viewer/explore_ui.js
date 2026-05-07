@@ -77,6 +77,7 @@
       renderTextRevisionPanel: shared.renderTextRevisionPanel,
       updateTextRevisionDom: shared.updateTextRevisionDom,
       renderTextRevisionDiff: shared.renderTextRevisionDiff,
+      handleEditRouteAction: shared.handleEditRouteAction,
       renderAssetInspector: shared.renderAssetInspector,
       renderAssetUseActions: shared.renderAssetUseActions,
       renderAssetRepairActions: shared.renderAssetRepairActions,

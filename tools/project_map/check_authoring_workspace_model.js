@@ -18,6 +18,7 @@ const AUTHORING_SURFACE_REGISTRY = path.join(VIEWER, 'authoring_surface_registry
 const AUTHORING_SURFACE_GRAPHS = path.join(VIEWER, 'authoring_surface_graphs.js');
 const AUTHORING_REFERENCE_INDEX = path.join(VIEWER, 'authoring_reference_index.js');
 const CONTENT_STORYBOARD_SURFACE = path.join(VIEWER, 'content_storyboard_surface.js');
+const LIGHTWEIGHT_OBJECT_PREVIEW = path.join(VIEWER, 'lightweight_object_preview.js');
 const STORYBOARD_SCOPE_CONTROLS = path.join(VIEWER, 'storyboard_scope_controls.js');
 const STORYBOARD_CARD_RENDERER = path.join(VIEWER, 'storyboard_card_renderer.js');
 const STORYBOARD_PALETTE_SIDEBAR = path.join(VIEWER, 'storyboard_palette_sidebar.js');
@@ -44,6 +45,10 @@ const OBJECT_CANVAS_VIEWPORT = path.join(VIEWER, 'object_canvas_viewport.js');
 const OBJECT_CANVAS_GRAPH_STAGE = path.join(VIEWER, 'object_canvas_graph_stage.js');
 const AUTHORING_WORKSPACE_UI = path.join(VIEWER, 'authoring_workspace_ui.js');
 const OBJECT_CANVAS_UI = path.join(VIEWER, 'object_authoring_canvas_ui.js');
+const CHANGE_TRAY_UI = path.join(VIEWER, 'change_tray_ui.js');
+const CREATE_STYLE = path.join(VIEWER, 'styles', 'create.css');
+const INSTALL_PREVIEW_STYLE = path.join(VIEWER, 'styles', 'install-preview.css');
+const EDITING_STYLE = path.join(VIEWER, 'styles', 'editing.css');
 const HARNESS = path.join(ROOT, 'qa', 'authoring_canvas_screenshot_harness.html');
 
 function fail(message) {
@@ -73,6 +78,7 @@ const surfaceRegistry = read(AUTHORING_SURFACE_REGISTRY);
 const surfaceGraphs = read(AUTHORING_SURFACE_GRAPHS);
 const referenceIndex = read(AUTHORING_REFERENCE_INDEX);
 const contentStoryboardSurface = read(CONTENT_STORYBOARD_SURFACE);
+const lightweightObjectPreview = read(LIGHTWEIGHT_OBJECT_PREVIEW);
 const storyboardScopeControls = read(STORYBOARD_SCOPE_CONTROLS);
 const storyboardCardRenderer = read(STORYBOARD_CARD_RENDERER);
 const storyboardPaletteSidebar = read(STORYBOARD_PALETTE_SIDEBAR);
@@ -99,11 +105,15 @@ const objectCanvasViewport = read(OBJECT_CANVAS_VIEWPORT);
 const objectCanvasGraphStage = read(OBJECT_CANVAS_GRAPH_STAGE);
 const workspaceUi = read(AUTHORING_WORKSPACE_UI);
 const canvasUi = read(OBJECT_CANVAS_UI);
+const changeTrayUi = read(CHANGE_TRAY_UI);
+const createStyle = read(CREATE_STYLE);
+const installPreviewStyle = read(INSTALL_PREVIEW_STYLE);
+const editingStyle = read(EDITING_STYLE);
 const harness = read(HARNESS);
 
 const workspaces = ['content', 'system_ui', 'project_state'];
 const groupedTemplates = {
-  content: ['event', 'news', 'card', 'surface'],
+  content: ['event', 'news', 'card'],
   system_ui: ['entry', 'project'],
   project_state: ['variables']
 };
@@ -113,6 +123,7 @@ assert(html.includes('data-authoring-workspace-nav'), 'Create should keep a smal
 assert(html.includes('../authoring/content_storyboard_model.js'), 'viewer should load the Content Storyboard model');
 assert(html.includes('../authoring/runtime_lens_model.js'), 'viewer should load the Runtime Lens model');
 assert(html.includes('../authoring/card_board_model.js'), 'viewer should load the Card Board model');
+assert(html.includes('../authoring/edit_capability_model.js'), 'viewer should load the Parser-aware Edit Capability model');
 assert(html.includes('../authoring/story_scope_model.js'), 'viewer should load the Story Scope model');
 assert(html.includes('../authoring/story_chain_graph_model.js'), 'viewer should load the Story Chain Graph model');
 assert(html.includes('../authoring/story_palette_model.js'), 'viewer should load the Story Palette model');
@@ -124,6 +135,7 @@ assert(html.includes('authoring_reference_index.js'), 'viewer should load author
 assert(html.includes('storyboard_scope_controls.js'), 'viewer should load Storyboard scope controls');
 assert(html.includes('storyboard_card_renderer.js'), 'viewer should load Storyboard card renderer');
 assert(html.includes('storyboard_palette_sidebar.js'), 'viewer should load Storyboard palette sidebar');
+assert(html.includes('lightweight_object_preview.js'), 'viewer should load the lightweight Studio object preview');
 assert(html.includes('storyboard_workspace_state.js'), 'viewer should load Storyboard workspace state');
 assert(html.includes('content_storyboard_surface.js'), 'viewer should load Content Storyboard surface');
 assert(html.includes('content_storyboard_interactions.js'), 'viewer should load Content Storyboard interactions');
@@ -145,6 +157,7 @@ assert(html.includes('system_ui_region_editor.js'), 'viewer should load System U
 assert(html.includes('system_ui_preview_surface.js'), 'viewer should load System UI Live Preview surface');
 assert(html.includes('object_canvas_viewport.js'), 'viewer should load Object Canvas viewport controls');
 assert(html.includes('object_canvas_graph_stage.js'), 'viewer should load the fallback Object Canvas graph stage');
+assert(html.includes('change_tray_ui.js'), 'viewer should load the floating Change Tray UI');
 assert(surfaceRegistry.includes('content_storyboard'), 'Surface registry should define the Content Storyboard surface');
 assert(surfaceRegistry.includes('card_board'), 'Surface registry should define the Card Board surface');
 assert(surfaceRegistry.includes('system_ui_preview'), 'Surface registry should define the System UI Preview surface');
@@ -166,6 +179,10 @@ Object.keys(groupedTemplates).forEach((workspace) => {
 internalSystemUiTemplates.forEach((template) => {
   assert(surfaceRegistry.includes("key: '" + template + "'"), template + ' should remain registered as an internal System UI draft template');
 });
+assert(surfaceRegistry.includes("key: 'surface'"), 'Text Patch should remain registered for drafts and fallback loading');
+assert(surfaceRegistry.includes('hidden: true'), 'Text Patch should be hidden from primary Content tabs');
+assert(surfaceRegistry.includes('!item.hidden'), 'Workspace template lists should filter hidden fallback templates');
+assert(!workspaceUi.includes("{key: 'surface', labelKey: 'create.editText'"), 'Text Patch should not be a primary Content tab');
 assert(workspaceUi.includes('SYSTEM_UI_SCREEN_ITEM'), 'System UI workspace should expose one visible screen entry');
 assert(workspaceUi.includes('return [SYSTEM_UI_SCREEN_ITEM]'), 'System UI workspace should collapse the four internal draft templates into one visible choice');
 assert(canvasUi.includes('systemUiTemplateForRegion'), 'Object Canvas should switch internal System UI draft type from preview-region clicks');
@@ -193,6 +210,11 @@ assert(contentStoryboardModel.includes('ProjectMapTimelineCoordinateAdapter'), '
 assert(contentStoryboardModel.includes('buildTimeline'), 'Content Storyboard model should build timeline lanes');
 assert(contentStoryboardModel.includes('buildChain'), 'Content Storyboard model should build story chains');
 assert(contentStoryboardSurface.includes('ProjectMapContentStoryboardSurface'), 'Content Storyboard surface should expose a browser API');
+assert(contentStoryboardSurface.includes('ProjectMapLightweightObjectPreview'), 'Content Storyboard should render the lightweight Studio preview before review details');
+assert(lightweightObjectPreview.includes('ProjectMapLightweightObjectPreview'), 'Lightweight object preview should expose a browser API');
+assert(lightweightObjectPreview.includes('data-lightweight-object-preview'), 'Lightweight object preview should expose a stable QA marker');
+assert(!lightweightObjectPreview.includes('data-runtime-lens-frame'), 'Lightweight object preview should not embed runtime frames');
+assert(!lightweightObjectPreview.includes('dendryDesktop'), 'Lightweight object preview should not call the desktop bridge');
 assert(contentStoryboardSurface.includes('data-content-storyboard-surface'), 'Content Storyboard surface should expose a stable QA marker');
 assert(contentStoryboardSurface.includes('data-content-storyboard-card'), 'Content Storyboard surface should render story cards');
 assert(contentStoryboardSurface.includes('data-content-storyboard-insert'), 'Content Storyboard surface should render insertion affordances');
@@ -218,6 +240,7 @@ assert(runtimeLensUi.includes('data-runtime-lens-frame'), 'Runtime Lens UI shoul
 assert(runtimeLensWorkspaceState.includes('ProjectMapRuntimeLensWorkspaceState'), 'Runtime Lens workspace state should expose a browser API');
 assert(runtimeLensWorkspaceState.includes('createRuntimeLens'), 'Runtime Lens workspace state should call the desktop bridge');
 assert(cardFaceEditor.includes('ProjectMapCardFaceEditor'), 'Card Face editor should expose a browser API');
+assert(cardFaceEditor.includes('ProjectMapLightweightObjectPreview'), 'Card Face editor should use the lightweight Studio preview');
 assert(cardFaceEditor.includes('data-card-face-editor'), 'Card Face editor should expose a stable QA marker');
 assert(cardBoardSurface.includes('ProjectMapCardBoardSurface'), 'Card Board surface should expose a browser API');
 assert(cardBoardSurface.includes('data-card-board-surface'), 'Card Board surface should expose a stable QA marker');
@@ -242,6 +265,17 @@ assert(canvasUi.includes('cardWorkspaceApi'), 'Object Canvas should delegate Car
 assert(storyboardWorkspaceState.includes('ProjectMapContentStoryboardSurface'), 'Storyboard workspace state should route content templates to the Storyboard surface');
 assert(contentStoryboardSurface.includes('data-content-storyboard-view'), 'Content Storyboard surface should bind Storyboard view switching');
 assert(canvasUi.includes('is-editor-overlay'), 'Object Canvas should support editor overlay mode');
+assert(canvasUi.includes('is-object-authoring'), 'Object Canvas should mark Create as an anchored authoring workspace');
+assert(changeTrayUi.includes('ProjectMapChangeTray'), 'Change Tray should expose a browser API');
+assert(changeTrayUi.includes('ProjectMapDraftWorkspaceUi'), 'Change Tray should summarize saved drafts from the draft workspace');
+assert(changeTrayUi.includes("openTemplate('surface'"), 'Change Tray should keep Text Patch available as a tool entry');
+assert(createStyle.includes('.change-tray-toggle'), 'Create styles should include the floating Change Tray toggle');
+assert(createStyle.includes('.draft-workspace-panel.change-tray-panel'), 'Draft workspace should be styled as a floating tray');
+assert(installPreviewStyle.includes('.create-workspace.is-object-authoring'), 'Create workspace should avoid page-flow scrolling when Object Canvas is active');
+assert(editingStyle.includes('.lightweight-object-preview'), 'Editing styles should include the lightweight object preview surface');
+assert(harness.includes('change-tray-open'), 'Screenshot harness should cover the floating Change Tray');
+assert(harness.includes('lightweight-preview-event'), 'Screenshot harness should cover lightweight Event preview');
+assert(harness.includes('lightweight-preview-card'), 'Screenshot harness should cover lightweight Card preview');
 assert(projectStateSurface.includes('ProjectMapProjectStateSurface'), 'Project State surface should expose a browser API');
 assert(projectStateSurface.includes('data-project-state-surface'), 'Project State surface should expose a stable QA marker');
 assert(projectStateSurface.includes('data-project-state-consumers'), 'Project State surface should render variable consumers');

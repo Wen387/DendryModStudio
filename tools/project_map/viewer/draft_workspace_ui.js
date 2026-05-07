@@ -20,6 +20,14 @@
   };
 
   let elements = null;
+  const api = {
+    getState: () => ({items: state.items.slice()}),
+    saveCurrentDraft,
+    loadDraft,
+    reviewInstall,
+    refresh: render
+  };
+  global.ProjectMapDraftWorkspaceUi = api;
 
   if (!global || !global.document) {
     return;
@@ -124,6 +132,12 @@
     if (templateButton) {
       templateButton.click();
     }
+    if (!templateButton && item.template) {
+      const objectCanvas = global.ProjectMapObjectAuthoringCanvas;
+      if (objectCanvas && typeof objectCanvas.openTemplate === 'function') {
+        objectCanvas.openTemplate(item.template, item.draft, {source: 'My Changes'});
+      }
+    }
     const wizard = wizardForTemplate(item.template);
     if (wizard && typeof wizard.loadDraft === 'function') {
       wizard.loadDraft(item.draft, {fileName: item.title || item.draftId || 'Studio draft'});
@@ -178,6 +192,7 @@
       if (elements.exportAll) {
         elements.exportAll.disabled = true;
       }
+      dispatchUpdate();
       return;
     }
     if (elements.exportAll) {
@@ -187,6 +202,7 @@
     state.items.forEach((item) => {
       elements.list.appendChild(renderItem(item));
     });
+    dispatchUpdate();
   }
 
   function renderItem(item) {
@@ -334,6 +350,19 @@
     elements.status.textContent = message || '';
     elements.status.classList.toggle('is-ready', kind === 'ready');
     elements.status.classList.toggle('is-warning', kind === 'warning');
+    dispatchUpdate();
+  }
+
+  function dispatchUpdate() {
+    if (!global.document || typeof CustomEvent !== 'function') {
+      return;
+    }
+    global.document.dispatchEvent(new CustomEvent('ProjectMap:draft-workspace-updated', {
+      detail: {
+        count: state.items.length,
+        status: elements && elements.status ? elements.status.textContent || '' : ''
+      }
+    }));
   }
 
   function shortDate(value) {

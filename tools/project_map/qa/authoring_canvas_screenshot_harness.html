@@ -142,6 +142,9 @@
         'card-board-runtime-lens-card': () => window.DMSRuntimeLensScreenshotHelper.runCardBoardScenario({frame, seedCustomIndex, cardBoardFixtureIndex, openTemplate, click, waitFor, isVisible, delay}, 'card'),
         'card-board-runtime-lens-option': () => window.DMSRuntimeLensScreenshotHelper.runCardBoardScenario({frame, seedCustomIndex, cardBoardFixtureIndex, openTemplate, click, waitFor, isVisible, delay}, 'option'),
         'card-board-runtime-lens-advisor': () => window.DMSRuntimeLensScreenshotHelper.runCardBoardScenario({frame, seedCustomIndex, cardBoardFixtureIndex, openTemplate, click, waitFor, isVisible, delay}, 'advisor'),
+        'change-tray-open': () => changeTrayOpenScenario(),
+        'lightweight-preview-event': () => lightweightPreviewEventScenario(),
+        'lightweight-preview-card': () => lightweightPreviewCardScenario(),
         'system-ui-live-edit': () => systemUiLiveEditScenario(),
         'system-ui-game-info-header': () => systemUiGameInfoHeaderScenario(),
         'system-ui-shared-screen': () => systemUiSharedScreenScenario(),
@@ -327,6 +330,49 @@
         }
         button.scrollIntoView({block: 'center', inline: 'nearest'});
         await delay(260);
+      }
+
+      async function changeTrayOpenScenario() {
+        const win = frame.contentWindow;
+        try {
+          win.localStorage.removeItem('dendry_mod_studio.draft_workspace.v0.1');
+        } catch (_err) {
+          // Ignore storage restrictions in screenshot mode.
+        }
+        await openTemplate('event', {
+          'event.title': 'Floating Change Tray Event',
+          'event.intro': 'The draft tray floats above the authoring canvas instead of extending the page.'
+        }, 'Floating Change Tray');
+        await waitFor(() => win.document.querySelector('[data-change-tray-toggle]'), 3000);
+        if (win.ProjectMapChangeTray && typeof win.ProjectMapChangeTray.setOpen === 'function') {
+          win.ProjectMapChangeTray.setOpen(true);
+        } else {
+          click(win, '[data-change-tray-toggle]');
+        }
+        await waitFor(() => win.document.querySelector('[data-change-tray-panel].is-open'), 3000);
+        await delay(220);
+      }
+
+      async function lightweightPreviewEventScenario() {
+        const win = frame.contentWindow;
+        await openTemplate('event', {
+          'event.title': 'Lightweight Preview Event',
+          'event.intro': 'This preview is rendered inside Studio as an event card, without starting a game session.',
+          'option.0.label': 'Keep editing in place'
+        }, 'Lightweight Event Preview');
+        await waitFor(() => win.document.querySelector('[data-lightweight-object-preview="event"]'), 3000);
+        await delay(180);
+      }
+
+      async function lightweightPreviewCardScenario() {
+        const win = frame.contentWindow;
+        await openTemplate('card', {
+          'card.title': 'Lightweight Preview Card',
+          'card.intro': 'The card face is visible directly beside the Card Board editor.',
+          'card.option.0.label': 'Use the Studio preview'
+        }, 'Lightweight Card Preview');
+        await waitFor(() => win.document.querySelector('[data-lightweight-object-preview="card"]'), 3000);
+        await delay(180);
       }
 
       async function contentPanScenario() {
@@ -1313,7 +1359,8 @@
         const hasCoreSurface = hasProjectSurface || hasSystemSurface || hasStoryboardSurface || hasCardBoardSurface || fieldCount >= 3 && preview && collapse(preview.textContent).length > 0 && title && collapse(title.textContent).length > 0;
         const hasVisibleCanvasStage = hasProjectSurface || hasSystemSurface || hasStoryboardSurface || hasCardBoardSurface || stage && graphCanvas && graphInspector && isVisible(win, stage) && isVisible(win, graphCanvas) && isVisible(win, graphInspector) && graphNodes >= 6;
         const noLegacyPanelVisible = Array.from(doc.querySelectorAll('[data-create-template-panel]')).every((panel) => !isVisible(win, panel));
-        const canvasBeforeChanges = !draftPanel || host.getBoundingClientRect().top <= draftPanel.getBoundingClientRect().top;
+        const draftPanelFloating = draftPanel && win.getComputedStyle(draftPanel).position === 'fixed';
+        const canvasBeforeChanges = !draftPanel || draftPanelFloating || host.getBoundingClientRect().top <= draftPanel.getBoundingClientRect().top;
         const activeTemplate = win.ProjectMapObjectAuthoringCanvas && typeof win.ProjectMapObjectAuthoringCanvas.activeTemplate === 'function'
           ? win.ProjectMapObjectAuthoringCanvas.activeTemplate()
           : '';
@@ -1401,7 +1448,7 @@
             canvasVisible: Boolean(canvas && isVisible(win, canvas)),
             activeGroup: activeGroup && activeGroup.dataset.authoringTemplateGroup || '',
             visibleLegacyPanels,
-            canvasBeforeChanges: Boolean(host && draftPanel && host.getBoundingClientRect().top <= draftPanel.getBoundingClientRect().top),
+            canvasBeforeChanges: Boolean(host && draftPanel && (win.getComputedStyle(draftPanel).position === 'fixed' || host.getBoundingClientRect().top <= draftPanel.getBoundingClientRect().top)),
             hasStoryboard: Boolean(host && host.querySelector('[data-content-storyboard-surface]')),
             hasCardBoard: Boolean(host && host.querySelector('[data-card-board-surface]')),
             reviewButtonCount: reviewButtons.length,

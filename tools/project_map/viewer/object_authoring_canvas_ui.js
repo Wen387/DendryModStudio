@@ -90,6 +90,7 @@
   function start(document) {
     elements = {
       host: document.getElementById('existing-scene-editor-host'),
+      createPane: document.getElementById('create-pane'),
       templateButtons: Array.from(document.querySelectorAll('[data-create-template]')),
       templatePanels: Array.from(document.querySelectorAll('[data-create-template-panel]'))
     };
@@ -483,6 +484,9 @@
     if (!elements || !elements.host) {
       return;
     }
+    if (elements.createPane) {
+      elements.createPane.classList.add('is-object-authoring');
+    }
     elements.templateButtons.forEach((button) => {
       const active = button.dataset.createTemplate === template || workspaceForTemplate(template) === 'system_ui' && workspaceForTemplate(button.dataset.createTemplate) === 'system_ui';
       button.classList.toggle('is-active', active);
@@ -501,6 +505,9 @@
       elements.host.hidden = true;
       elements.host.classList.add('hidden');
     }
+    if (elements && elements.createPane) {
+      elements.createPane.classList.remove('is-object-authoring');
+    }
   }
 
   function activateCreateMode() {
@@ -516,6 +523,9 @@
     }
     if (!state.active) {
       elements.host.hidden = true;
+      if (elements.createPane) {
+        elements.createPane.classList.remove('is-object-authoring');
+      }
       return;
     }
     const model = state.model || {};

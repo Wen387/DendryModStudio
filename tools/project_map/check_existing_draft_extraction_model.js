@@ -124,6 +124,26 @@ function syntheticIndex() {
             originalText: "label.textContent = '資源';"
           }
         ]
+      },
+      textCorpus: {
+        items: [
+          {
+            id: 'anti_curriculum_body',
+            text: 'Students gather outside the ministry while families argue over the curriculum.',
+            role: 'body',
+            editability: 'text_proposal',
+            owner: {kind: 'scene', sceneId: 'anti_curriculum', sectionId: ''},
+            source: {path: eventScene.path, line: 8}
+          },
+          {
+            id: 'fundraising_body',
+            text: 'The treasurer lays out a small stack of receipts and asks how much energy the party can spend.',
+            role: 'body',
+            editability: 'text_proposal',
+            owner: {kind: 'scene', sceneId: 'fundraising', sectionId: ''},
+            source: {path: cardScene.path, line: 9}
+          }
+        ]
       }
     }
   };
@@ -194,6 +214,8 @@ assert(event.draft.id === 'anti_curriculum_edit', 'event edit draft should avoid
 assert(event.draft.when.year === 2015 && event.draft.when.monthStart === 7 && event.draft.when.monthEnd === 8, 'event window should be inferred from view-if');
 assert(event.draft.seenFlag === 'anti_curriculum_seen', 'event seen flag should be inferred from view-if');
 assert(event.draft.options.length === 3, 'event options should be seeded from parser options');
+assert(event.draft.introParagraphs[0].includes('Students gather'), 'event draft extraction should preserve parser-backed source body prose');
+assert(event.captured.includes('source-backed body paragraphs'), 'event draft extraction should report captured source body prose');
 assert(eventDraft.validateDraft(event.draft, index).ok, 'event extracted draft should validate as a new proposal seed');
 
 const card = draftExtract.extractDraftFromItem(index, 'cards', 'fundraising', {});
@@ -202,6 +224,7 @@ assert(card.template === 'card', 'card extraction should target Card template');
 assert(card.status === 'partial', 'card extraction should be explicitly partial');
 assert(card.draft.id === 'fundraising_edit', 'card edit draft should avoid duplicate scene id');
 assert(card.draft.frequency === 250, 'card frequency should be copied');
+assert(card.draft.introParagraphs[0].includes('treasurer lays out'), 'card draft extraction should preserve parser-backed source body prose');
 assert(card.draft.options.length === 4, 'card extraction should cap options at current wizard limit');
 assert(card.diagnostics.some((diag) => diag.code === 'draft_extract.option_limit'), 'card option truncation should be diagnosed');
 assert(cardDraft.validateDraft(card.draft, index).ok, 'card extracted draft should validate as a new proposal seed');

@@ -74,7 +74,7 @@
       .filter((row) => !isEffectScriptRow(row))
       .map((row, index) => fieldFromTextRow(row, index, source.path));
     const textBlocks = textBlocksForScene(scene, visibleTextRows, source.path);
-    const fields = textFields.concat(metadataEditableFields(scene, source.path));
+    const fields = textFields.concat(metadataEditableFields(scene, source.path, textFields));
     if (!fields.length) {
       diagnostics.push(diagnostic('warning', 'existing_scene_edit.no_text_rows', 'No source-backed Text Corpus rows were found for this scene.'));
     }
@@ -414,19 +414,106 @@
     return {id, label, role, original: String(value === undefined || value === null ? '' : value), value: String(value === undefined || value === null ? '' : value)};
   }
 
-  function metadataEditableFields(scene, sceneSourcePath) {
+  function metadataEditableFields(scene, sceneSourcePath, existingFields) {
     const fields = [];
-    if (scene && scene.viewIf) {
-      fields.push(metadataEditableField({
-        id: 'metadata_viewIf',
+    const definitions = [
+      {
+        key: 'title',
+        role: 'title',
+        label: 'Title',
+        reason: 'Exact source line for the scene title can be checked before replacement.'
+      },
+      {
+        key: 'subtitle',
+        role: 'subtitle',
+        label: 'Subtitle',
+        reason: 'Exact source line for the scene subtitle can be checked before replacement.'
+      },
+      {
+        key: 'viewIf',
         role: 'condition',
         label: 'Appearance condition',
-        original: scene.viewIf,
-        sceneId: scene.id,
-        source: metadataSource(scene, 'viewIf', sceneSourcePath),
         reason: 'Exact source line for the scene view-if can be checked before replacement.'
+      },
+      {
+        key: 'chooseIf',
+        role: 'condition',
+        label: 'Choice condition',
+        reason: 'Exact source line for the scene choose-if can be checked before replacement.'
+      },
+      {
+        key: 'tags',
+        role: 'metadata',
+        label: 'Tags',
+        reason: 'Exact source line for the scene tags can be checked before replacement.'
+      },
+      {
+        key: 'priority',
+        role: 'metadata',
+        label: 'Priority',
+        reason: 'Exact source line for the scene priority can be checked before replacement.'
+      },
+      {
+        key: 'frequency',
+        role: 'metadata',
+        label: 'Frequency',
+        reason: 'Exact source line for the scene frequency can be checked before replacement.'
+      },
+      {
+        key: 'frequencyVar',
+        role: 'metadata',
+        label: 'Frequency variable',
+        reason: 'Exact source line for the scene frequency variable can be checked before replacement.'
+      },
+      {
+        key: 'maxVisits',
+        role: 'metadata',
+        label: 'Max visits',
+        reason: 'Exact source line for the scene max visits can be checked before replacement.'
+      },
+      {
+        key: 'maxVisitsVar',
+        role: 'metadata',
+        label: 'Max visits variable',
+        reason: 'Exact source line for the scene max visits variable can be checked before replacement.'
+      },
+      {
+        key: 'newPage',
+        role: 'metadata',
+        label: 'New page',
+        reason: 'Exact source line for the scene new-page flag can be checked before replacement.'
+      },
+      {
+        key: 'setRoot',
+        role: 'metadata',
+        label: 'Set root',
+        reason: 'Exact source line for the scene set-root value can be checked before replacement.'
+      },
+      {
+        key: 'gameOver',
+        role: 'metadata',
+        label: 'Game over',
+        reason: 'Exact source line for the scene game-over flag can be checked before replacement.'
+      }
+    ];
+    definitions.forEach((definition) => {
+      if (!scene || scene[definition.key] === undefined || scene[definition.key] === null || scene[definition.key] === '') {
+        return;
+      }
+      const original = metadataValue(scene[definition.key]);
+      if (metadataAlreadyCaptured(existingFields, definition.role, original, metadataSource(scene, definition.key, sceneSourcePath))) {
+        return;
+      }
+      fields.push(metadataEditableField({
+        id: 'metadata_' + definition.key,
+        role: definition.role,
+        label: definition.label,
+        original,
+        sceneId: scene.id,
+        source: metadataSource(scene, definition.key, sceneSourcePath),
+        reason: definition.reason
       }));
-    }
+    });
     return fields.filter(Boolean);
   }
 
@@ -460,6 +547,24 @@
       path: item.path || fallbackPath || (scene && scene.path) || '',
       line: item.line || item.startLine,
       endLine: item.endLine || item.line || item.startLine
+    });
+  }
+
+  function metadataValue(value) {
+    if (Array.isArray(value)) {
+      return value.map((item) => String(item || '').trim()).filter(Boolean).join(' ');
+    }
+    return String(value === undefined || value === null ? '' : value);
+  }
+
+  function metadataAlreadyCaptured(fields, role, original, source) {
+    const ref = sourceRef(source || {});
+    return ensureArray(fields).some((field) => {
+      const fieldSource = sourceRef(field.source || {});
+      return String(field.role || '') === String(role || '') &&
+        String(field.original || '') === String(original || '') &&
+        fieldSource.path === ref.path &&
+        (!ref.line || !fieldSource.line || fieldSource.line === ref.line);
     });
   }
 

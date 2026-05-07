@@ -42,7 +42,7 @@
     {key: 'event', workspace: 'content', surface: 'content_storyboard', labelKey: 'create.worldEvent', fallback: 'World Event'},
     {key: 'news', workspace: 'content', surface: 'content_storyboard', labelKey: 'create.news', fallback: 'News'},
     {key: 'card', workspace: 'content', surface: 'card_board', labelKey: 'create.card', fallback: 'Card'},
-    {key: 'surface', workspace: 'content', surface: 'content_storyboard', labelKey: 'create.editText', fallback: 'Edit Text'},
+    {key: 'surface', workspace: 'content', surface: 'content_storyboard', labelKey: 'create.editText', fallback: 'Edit Text', hidden: true},
     {key: 'existing', workspace: 'content', surface: 'content_storyboard', labelKey: 'objectCanvas.mode.existing', fallback: 'Existing Object'},
     {key: 'entry', workspace: 'system_ui', surface: 'system_ui_preview', labelKey: 'create.entrySidebar', fallback: 'Entry & Sidebar'},
     {key: 'play_surface', workspace: 'system_ui', surface: 'system_ui_preview', labelKey: 'create.playSurface', fallback: 'Playable Surface'},
@@ -77,7 +77,7 @@
 
   function templatesForWorkspace(workspace) {
     const key = normalizeWorkspace(workspace);
-    return TEMPLATES.filter((item) => item.workspace === key && item.key !== 'existing').map(clone);
+    return TEMPLATES.filter((item) => item.workspace === key && item.key !== 'existing' && !item.hidden).map(clone);
   }
 
   function workspaces() {

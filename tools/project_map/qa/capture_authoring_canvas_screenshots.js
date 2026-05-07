@@ -112,7 +112,10 @@ const DEFAULT_SCENARIOS = [
   ['100-card-board-runtime-lens-option', 'card-board-runtime-lens-option'],
   ['101-card-board-runtime-lens-advisor', 'card-board-runtime-lens-advisor'],
   ['102-content-runtime-lens-stale', 'content-runtime-lens-stale'],
-  ['103-content-runtime-lens-failure', 'content-runtime-lens-failure']
+  ['103-content-runtime-lens-failure', 'content-runtime-lens-failure'],
+  ['104-change-tray-open', 'change-tray-open'],
+  ['105-lightweight-preview-event', 'lightweight-preview-event'],
+  ['106-lightweight-preview-card', 'lightweight-preview-card']
 ];
 
 function parseArgs(argv) {

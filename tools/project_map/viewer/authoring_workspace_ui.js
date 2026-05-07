@@ -31,8 +31,7 @@
     content: [
       {key: 'event', labelKey: 'create.worldEvent', fallback: 'World Event'},
       {key: 'news', labelKey: 'create.news', fallback: 'News'},
-      {key: 'card', labelKey: 'create.card', fallback: 'Card'},
-      {key: 'surface', labelKey: 'create.editText', fallback: 'Edit Text'}
+      {key: 'card', labelKey: 'create.card', fallback: 'Card'}
     ],
     system_ui: [
       {key: 'entry', labelKey: 'authoring.template.systemUiScreen', fallback: 'System UI Screen'},

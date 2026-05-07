@@ -11,6 +11,20 @@
     return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
   }
 
+  function editCapabilityApi() {
+    if (global && global.ProjectMapEditCapability) {
+      return global.ProjectMapEditCapability;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./edit_capability_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   function extractDraftFromItem(projectIndex, view, itemOrId, options) {
     const index = isObject(projectIndex) ? projectIndex : {};
     const opts = isObject(options) ? options : {};
@@ -49,8 +63,9 @@
       return unsupported(view, 'draft_extract.text_not_found', 'No matching ProjectIndex item was found for text replacement.');
     }
     const replacement = String(opts.replacementLabel || opts.replacementText || '').trim();
+    const capability = editCapabilityForItem(index, view, item, {replacementText: replacement});
     if (view === 'surfaceText') {
-      return surfaceTextDraftFromItem(item, {replacementLabel: replacement || item.label || ''});
+      return surfaceTextDraftFromItem(item, {replacementLabel: replacement || item.label || '', capability});
     }
     if (view === 'textCorpus') {
       const source = item.source || {};
@@ -62,9 +77,9 @@
         area: item.role || 'text',
         originalLabel: label,
         replacementLabel: replacement || label,
-        editability: item.editability || 'ide_escape_hatch',
+        editability: textCorpusProposalEditability(item, capability),
         source,
-        reason: 'Text Corpus points to player-visible prose. Studio exports a proposal with source guidance; arbitrary body rewrites still need review in the owning .dry file.'
+        reason: capability && capability.reason || 'Text Corpus points to player-visible prose. Studio exports a proposal with source guidance; arbitrary body rewrites still need review in the owning .dry file.'
       });
     }
     if (view === 'news') {
@@ -119,7 +134,12 @@
         scenesById.set(String(scene.id), scene);
       }
     });
-    return {index, scenes, scenesById};
+    return {
+      index,
+      scenes,
+      scenesById,
+      textCorpus: ensureArray(index.semantic && index.semantic.textCorpus && index.semantic.textCorpus.items)
+    };
   }
 
   function resolveItem(index, model, view, itemOrId) {
@@ -157,13 +177,15 @@
   }
 
   function surfaceTextDraftFromItem(item, options) {
+    const opts = isObject(options) ? options : {};
     const diagnostics = [];
-    const editability = String(item.editability || 'ide_escape_hatch');
+    const capability = opts.capability || null;
+    const editability = surfaceProposalEditability(item, capability);
     if (editability === 'ide_escape_hatch') {
-      diagnostics.push(diagnostic('warning', 'draft_extract.ide_escape_hatch', 'This surface text item needs manual IDE review.'));
+      diagnostics.push(diagnostic('warning', 'draft_extract.ide_escape_hatch', capability && capability.reason || 'This surface text item needs manual IDE review.'));
     }
     const label = String(item.label || '').trim();
-    const replacement = String(options.replacementLabel || '').trim() || label;
+    const replacement = String(opts.replacementLabel || '').trim() || label;
     const draft = {
       schemaVersion: '0.1',
       kind: 'surface_text',
@@ -174,7 +196,7 @@
       replacementLabel: replacement,
       editability,
       source: sourceRef(item.source),
-      reason: String(item.reason || '')
+      reason: String(capability && capability.reason || item.reason || '')
     };
     return {
       ok: Boolean(label && draft.source.path),
@@ -183,11 +205,42 @@
       draft,
       source: item.source || null,
       diagnostics,
-      captured: ['visible label', 'source path/line', 'editability class'],
+      captured: ['visible label', 'source path/line', 'editability class'].concat(capability ? ['edit route: ' + capability.routeClass] : []),
       notCaptured: editability === 'draft_exportable'
         ? ['live rendered preview']
         : ['automatic safe replacement', 'runtime/generated UI ownership']
     };
+  }
+
+  function editCapabilityForItem(index, view, item, options) {
+    const api = editCapabilityApi();
+    if (!api || typeof api.buildEditCapability !== 'function') {
+      return null;
+    }
+    try {
+      return api.buildEditCapability(index, view, item, options || {});
+    } catch (_err) {
+      return null;
+    }
+  }
+
+  function surfaceProposalEditability(item, capability) {
+    const routeClass = String(capability && capability.routeClass || '');
+    if (routeClass === 'system_ui_workspace' || routeClass === 'news_router_workflow' || routeClass === 'manual_review' || routeClass === 'unsupported') {
+      return 'ide_escape_hatch';
+    }
+    return String(item && item.editability || 'ide_escape_hatch');
+  }
+
+  function textCorpusProposalEditability(item, capability) {
+    const routeClass = String(capability && capability.routeClass || '');
+    if (routeClass === 'direct_field_replace') {
+      return 'text_proposal';
+    }
+    if (routeClass === 'direct_section_replace' || routeClass === 'object_workspace') {
+      return 'text_proposal';
+    }
+    return 'ide_escape_hatch';
   }
 
   function textReplacementDraft(input) {
@@ -280,6 +333,7 @@
     ];
     const windowInfo = parseEventWindow(scene.viewIf);
     const options = optionDrafts(scene.options, 'continue');
+    const introParagraphs = introParagraphsFromScene(scene, model);
     const draft = {
       schemaVersion: '0.1',
       kind: 'world_event',
@@ -295,7 +349,9 @@
         priority: numberOrNull(scene.priority) ?? 0
       },
       effectsOnTrigger: [],
-      introParagraphs: ['Draft seeded from existing scene ' + sourceLabel(scene.sourceSpan) + '. Review original body text and effects before export.'],
+      introParagraphs: introParagraphs.length
+        ? introParagraphs
+        : ['Draft seeded from existing scene ' + sourceLabel(scene.sourceSpan) + '. Review original body text and effects before export.'],
       options,
       assetRefs: ensureArray(scene.assetRefs),
       sourceSceneId: scene.id,
@@ -314,8 +370,8 @@
       draft,
       source: scene.sourceSpan || null,
       diagnostics,
-      captured: ['scene id/title', 'view-if timing when inferable', 'parser option labels/targets'],
-      notCaptured: ['original body paragraphs', 'existing on-arrival effects', 'root init / post_event migration install', 'live rendered preview']
+      captured: ['scene id/title', 'view-if timing when inferable', 'parser option labels/targets'].concat(introParagraphs.length ? ['source-backed body paragraphs'] : []),
+      notCaptured: ['existing on-arrival effects', 'root init / post_event migration install', 'live rendered preview']
     };
   }
 
@@ -331,6 +387,7 @@
     if (allOptions.length > 4) {
       diagnostics.push(diagnostic('warning', 'draft_extract.option_limit', 'Only the first 4 options can be seeded into CardDraft v0.1.'));
     }
+    const introParagraphs = introParagraphsFromScene(scene, model);
     const draft = {
       schemaVersion: '0.1',
       kind: 'card',
@@ -344,7 +401,9 @@
       maxVisits: numberOrNull(scene.maxVisits),
       heading: String(scene.title || scene.id),
       subtitle: String(scene.subtitle || ''),
-      introParagraphs: ['Draft seeded from existing scene ' + sourceLabel(scene.sourceSpan) + '. Review original body text and effects before export.'],
+      introParagraphs: introParagraphs.length
+        ? introParagraphs
+        : ['Draft seeded from existing scene ' + sourceLabel(scene.sourceSpan) + '. Review original body text and effects before export.'],
       options,
       assetRefs: ensureArray(scene.assetRefs),
       sourceSceneId: scene.id,
@@ -360,8 +419,8 @@
       draft,
       source: scene.sourceSpan || null,
       diagnostics,
-      captured: ['scene id/title', 'card metadata', 'parser option labels/targets'],
-      notCaptured: ['original body paragraphs', 'existing effects', 'hand/deck/sidebar wiring install', 'live rendered preview']
+      captured: ['scene id/title', 'card metadata', 'parser option labels/targets'].concat(introParagraphs.length ? ['source-backed body paragraphs'] : []),
+      notCaptured: ['existing effects', 'hand/deck/sidebar wiring install', 'live rendered preview']
     };
   }
 
@@ -382,6 +441,32 @@
         gotoAfter: continuationPrefix === 'continue' ? uniqueAnchor('continue_' + id) : 'root'
       };
     });
+  }
+
+  function introParagraphsFromScene(scene, model) {
+    const sceneId = String(scene && scene.id || '');
+    if (!sceneId || !model || !Array.isArray(model.textCorpus)) {
+      return [];
+    }
+    const rows = model.textCorpus
+      .filter((item) => {
+        const owner = item && item.owner || {};
+        return String(owner.sceneId || '') === sceneId &&
+          ['body', 'conditional_body'].includes(String(item.role || '')) &&
+          String(item.text || '').trim();
+      })
+      .sort((a, b) => sourceLine(a.source) - sourceLine(b.source));
+    const seen = new Set();
+    const out = [];
+    rows.forEach((row) => {
+      const text = String(row.text || '').trim();
+      if (!text || seen.has(text)) {
+        return;
+      }
+      seen.add(text);
+      out.push(text);
+    });
+    return out.slice(0, 8);
   }
 
   function splitOptionTitle(title) {
@@ -460,6 +545,11 @@
       line,
       endLine
     };
+  }
+
+  function sourceLine(source) {
+    const ref = sourceRef(source);
+    return ref.line || 0;
   }
 
   function sourceLabel(source) {

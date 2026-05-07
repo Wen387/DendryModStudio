@@ -320,8 +320,8 @@
       renderStoryContext(editor.storyContext || storyboard.storyContext || {}),
       renderPaletteContext(storyboard.palette && storyboard.palette.dropContext),
       renderPlacement(editor.timelinePlacement || {}),
+      renderPreview(model, storyboard),
       renderContext(editor.context || {}),
-      renderPreview(model),
       renderPlan(model),
       renderActions(model),
       '</aside>'
@@ -424,7 +424,11 @@
     return '<div class="content-storyboard-context-row"><span>' + escapeHtml(label) + '</span><strong>' + items.length + '</strong></div>';
   }
 
-  function renderPreview(model) {
+  function renderPreview(model, storyboard) {
+    const api = lightweightPreviewApi();
+    if (api && typeof api.render === 'function') {
+      return api.render(model, {selectedKey: storyboard && storyboard.selectedKey});
+    }
     const output = model.changeState && model.changeState.output || {};
     return [
       '<section class="editing-preview">',
@@ -519,6 +523,20 @@
     if (typeof require === 'function') {
       try {
         return require('./runtime_lens_ui.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function lightweightPreviewApi() {
+    if (global && global.ProjectMapLightweightObjectPreview) {
+      return global.ProjectMapLightweightObjectPreview;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./lightweight_object_preview.js');
       } catch (_err) {
         return null;
       }

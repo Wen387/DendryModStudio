@@ -7,6 +7,42 @@
   overflow: auto;
 }
 
+.create-workspace.is-object-authoring {
+  grid-template-columns: 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+}
+
+.create-workspace.is-object-authoring .create-template-header {
+  grid-row: 1;
+}
+
+.create-workspace.is-object-authoring .existing-scene-editor-host {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.create-workspace.is-object-authoring .object-canvas {
+  min-height: 0;
+  height: 100%;
+}
+
+.create-workspace.is-object-authoring .object-canvas-stage {
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.create-workspace.is-object-authoring .content-storyboard-layout,
+.create-workspace.is-object-authoring .card-board-workspace,
+.create-workspace.is-object-authoring .system-ui-preview-surface,
+.create-workspace.is-object-authoring .project-state-surface {
+  min-height: 0;
+  height: 100%;
+}
+
 .install-workspace {
   min-height: 0;
   padding: 14px;

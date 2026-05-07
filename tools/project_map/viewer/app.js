@@ -41,6 +41,7 @@
     applyI18n,
     studioContracts,
     assetModelApi,
+    editCapabilityApi,
     viewLabel,
     isObject,
     ensureArray,
@@ -89,7 +90,12 @@
     humanizeKey,
     textCorpusRoleLabel,
     textCorpusRoleGuidance,
-    textCorpusEditabilityLabel
+    textCorpusEditabilityLabel,
+    editCapabilityForModel,
+    editCapabilityRouteLabel,
+    editCapabilityActionLabel,
+    editCapabilitySummary,
+    capabilityBadgeClass
   } = EXPLORE_MODEL;
   let desktopProgressTimer = null;
 
@@ -107,6 +113,7 @@
     applyI18n,
     studioContracts,
     assetModelApi,
+    editCapabilityApi,
     viewLabel,
     ensureArray,
     coverageRows,
@@ -127,6 +134,11 @@
     textCorpusRoleLabel,
     textCorpusRoleGuidance,
     textCorpusEditabilityLabel,
+    editCapabilityForModel,
+    editCapabilityRouteLabel,
+    editCapabilityActionLabel,
+    editCapabilitySummary,
+    capabilityBadgeClass,
     setStatus,
     showError,
     coverageCountBadge,
@@ -185,6 +197,7 @@
     renderTextRevisionPanel,
     updateTextRevisionDom,
     renderTextRevisionDiff,
+    handleEditRouteAction,
     renderAssetInspector,
     renderAssetUseActions,
     renderAssetRepairActions,
@@ -234,6 +247,7 @@
     renderDraftAssetPanel,
     textCorpusRoleLabel,
     textCorpusEditabilityLabel,
+    editCapabilityForModel,
     hasSourceExcerpts,
     loadProjectIndexUrl
   };
@@ -563,6 +577,11 @@
       const textAction = event.target.closest('[data-edit-text-proposal]');
       if (textAction) {
         handleEditTextProposal(state, elements);
+        return;
+      }
+      const routeAction = event.target.closest('[data-edit-route-action]');
+      if (routeAction) {
+        handleEditRouteAction(state, elements);
         return;
       }
       const variableAction = event.target.closest('[data-edit-variable]');
