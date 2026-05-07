@@ -237,6 +237,7 @@
       });
       setResult(result);
       rememberDryRunCheck(result, {dryRun, allowAdvanced});
+      render();
       await refreshProjectIndexAfterApply(result, {dryRun});
       return result;
     } catch (err) {
@@ -473,6 +474,17 @@
   }
 
   function renderHumanChecklist(plan, summary) {
+    const reviewApi = global.ProjectMapInstallReviewUi;
+    if (reviewApi && typeof reviewApi.renderPlanReview === 'function') {
+      return reviewApi.renderPlanReview({
+        plan,
+        summary,
+        result: state.lastResult,
+        installApi: installPlanApi(),
+        locale: currentLocale(),
+        t
+      });
+    }
     if (!plan) {
       return [
         '<div class="install-empty-help">',
@@ -481,81 +493,12 @@
         '</div>'
       ].join('');
     }
-    const installApi = installPlanApi();
-    const operations = Array.isArray(plan.operations) ? plan.operations : [];
-    const classifications = operations.map((operation) => installApi && typeof installApi.classifyOperation === 'function'
-      ? installApi.classifyOperation(operation)
-      : {status: operation.safety || 'manual_review', reason: operation.description || '', operation});
-    const groups = [
-      ['safe_apply', t('install.human.safeApply', 'Safe to apply'), t('install.human.safeHelp', 'Studio can create or replace this directly after a check.')],
-      ['guarded_apply', t('install.human.guardedApply', 'Check then apply'), t('install.human.guardedHelp', 'Studio can apply this if the original text still matches.')],
-      ['advanced_apply', t('install.human.advancedApply', 'Advanced opt-in'), t('install.human.advancedHelp', 'This touches a sensitive area and needs explicit advanced consent.')],
-      ['manual_review', t('install.human.manualReview', 'Manual steps'), t('install.human.manualHelp', 'Studio will guide you, but it will not edit this automatically.')],
-      ['refused', t('install.human.refused', 'Protected'), t('install.human.refusedHelp', 'Studio will not apply this operation. Rewrite it or handle it outside the app.')]
-    ];
     return [
       '<div class="install-human-intro">',
       '<strong>' + escapeHtml(t('install.human.title', 'What this will change')) + '</strong>',
-      '<span>' + escapeHtml((summary && summary.total || operations.length || 0) + ' ' + t('install.human.changeCount', 'change(s) in this plan')) + '</span>',
-      '</div>',
-      groups.map(([status, title, help]) => renderHumanGroup(status, title, help, classifications.filter((item) => item.status === status))).join('')
+      '<span>' + escapeHtml((summary && summary.total || 0) + ' ' + t('install.human.changeCount', 'change(s) in this plan')) + '</span>',
+      '</div>'
     ].join('');
-  }
-
-  function renderHumanGroup(status, title, help, rows) {
-    return [
-      '<section class="install-human-group install-human-' + escapeHtml(status.replace(/_/g, '-')) + '">',
-      '<header><strong>' + escapeHtml(title) + '</strong><span>' + rows.length + '</span></header>',
-      '<p>' + escapeHtml(help) + '</p>',
-      rows.length ? '<div class="install-human-ops">' + rows.map(renderHumanOperation).join('') + '</div>' : '<div class="install-human-none">' + escapeHtml(t('install.human.none', 'None')) + '</div>',
-      '</section>'
-    ].join('');
-  }
-
-  function renderHumanOperation(item) {
-    const op = item.operation || {};
-    const reason = operationReason(item, op);
-    return [
-      '<article class="install-human-op">',
-      '<strong>' + escapeHtml(operationActionLabel(op)) + '</strong>',
-      reason ? '<p>' + escapeHtml(reason) + '</p>' : '',
-      '<details>',
-      '<summary>' + escapeHtml(t('install.human.advancedDetails', 'Advanced details')) + '</summary>',
-      '<code>' + escapeHtml([op.type || t('install.action.operation', 'operation'), op.path || t('install.unknownPath', '(unknown path)')].join(' · ')) + '</code>',
-      '</details>',
-      '</article>'
-    ].join('');
-  }
-
-  function operationReason(item, operation) {
-    const installApi = installPlanApi();
-    if (installApi && typeof installApi.operationReason === 'function') {
-      return installApi.operationReason(operation || {}, item || {}, {locale: currentLocale()});
-    }
-    return item && item.reason || operation && operation.description || '';
-  }
-
-  function operationActionLabel(operation) {
-    const type = operation && operation.type;
-    if (type === 'create_file') {
-      return t('install.action.createFile', 'Create a new source file');
-    }
-    if (type === 'replace_text') {
-      return t('install.action.replaceText', 'Replace player-facing text');
-    }
-    if (type === 'replace_section') {
-      return t('install.action.replaceSection', 'Replace a source section');
-    }
-    if (type === 'insert_text') {
-      return t('install.action.insertText', 'Insert source text');
-    }
-    if (type === 'manual_snippet') {
-      return t('install.action.manualSnippet', 'Copy a manual snippet');
-    }
-    if (type === 'copy_asset_file') {
-      return t('install.action.copyAssetFile', 'Copy an asset file');
-    }
-    return t('install.action.reviewOperation', 'Review this change');
   }
 
   function renderProjectStatus() {
@@ -690,11 +633,25 @@
       links.length ? '<div class="runtime-preview-links">' + links.map((item) => {
         return '<a href="' + escapeHtml(item[2]) + '" target="_blank" rel="noopener">' + escapeHtml(item[1]) + '</a>';
       }).join('') + '</div>' : '',
+      renderRuntimePreviewFrame(result),
       renderRuntimePreviewBuilds(result),
       diagnostics.length ? '<details class="runtime-preview-diagnostics"><summary>' + escapeHtml(t('install.runtimePreviewDiagnostics', 'Diagnostics')) + '</summary><ul>' +
         diagnostics.slice(0, 12).map((diag) => '<li>' + escapeHtml([(diag.severity || 'info'), (diag.code || 'diagnostic'), (diag.message || '')].join(' · ')) + '</li>').join('') +
         '</ul></details>' : '',
       '</article>'
+    ].join('');
+  }
+
+  function renderRuntimePreviewFrame(result) {
+    const url = result && (result.compareUrl || result.modifiedUrl || result.baselineUrl);
+    if (!result || !result.ok || !url) {
+      return '';
+    }
+    return [
+      '<div class="runtime-preview-frame-shell">',
+      '<div class="runtime-preview-frame-caption">' + escapeHtml(t('install.runtimePreviewInline', 'Inline runtime preview')) + '</div>',
+      '<iframe data-runtime-preview-frame="true" src="' + escapeHtml(url) + '" title="' + escapeHtml(t('install.runtimePreviewInlineTitle', 'Runtime preview frame')) + '" loading="lazy"></iframe>',
+      '</div>'
     ].join('');
   }
 

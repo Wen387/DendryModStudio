@@ -1,0 +1,118 @@
+#!/usr/bin/env node
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
+
+const installPlan = require('./authoring/install_plan.js');
+const reviewUi = require('./viewer/install_review_ui.js');
+
+const ROOT = __dirname;
+const INSTALL_UI = path.join(ROOT, 'viewer', 'install_assistant_ui.js');
+
+function fail(message) {
+  process.stderr.write('FAIL: ' + message + '\n');
+  process.exit(1);
+}
+
+function assert(condition, message) {
+  if (!condition) {
+    fail(message);
+  }
+}
+
+function t(_key, fallback) {
+  return fallback;
+}
+
+function loadAssistant() {
+  const context = {
+    console,
+    setTimeout,
+    clearTimeout,
+    dendryDesktop: {applyInstallPlan() {}}
+  };
+  context.globalThis = context;
+  vm.createContext(context);
+  vm.runInContext(fs.readFileSync(INSTALL_UI, 'utf8'), context, {filename: INSTALL_UI});
+  assert(context.ProjectMapInstallAssistant, 'Install Assistant API should load without DOM');
+  return context.ProjectMapInstallAssistant;
+}
+
+const plan = installPlan.buildInstallPlan({
+  id: 'review_ui_plan',
+  draftKind: 'world_event',
+  title: 'Review UI Plan',
+  operations: [
+    {
+      id: 'replace_intro',
+      type: 'replace_text',
+      path: 'source/scenes/events/opening.scene.dry',
+      line: 12,
+      search: 'Old player-facing sentence.',
+      replace: 'New player-facing sentence.',
+      safety: 'guarded_apply',
+      description: 'Replace one visible sentence after matching the original line.'
+    },
+    {
+      id: 'create_scene',
+      type: 'create_file',
+      path: 'source/scenes/events/new_event.scene.dry',
+      content: '* new_event\n\n# title\nNew Event\n',
+      safety: 'safe_apply',
+      description: 'Create the exported event scene.'
+    },
+    {
+      id: 'manual_route',
+      type: 'manual_snippet',
+      path: 'source/scenes/main.scene.dry',
+      content: '- @new_event: Open new event\n',
+      safety: 'manual_review',
+      description: 'Review the hand route manually.'
+    }
+  ]
+});
+
+const reviewHtml = reviewUi.renderPlanReview({
+  plan,
+  summary: installPlan.operationSummary(plan),
+  installApi: installPlan,
+  result: {
+    ok: true,
+    dryRun: true,
+    results: [
+      {id: 'replace_intro', status: 'would_apply', path: 'source/scenes/events/opening.scene.dry'},
+      {id: 'create_scene', status: 'would_apply', path: 'source/scenes/events/new_event.scene.dry'},
+      {id: 'manual_route', status: 'manual_review', path: 'source/scenes/main.scene.dry'}
+    ],
+    diagnostics: []
+  },
+  locale: 'en',
+  t
+});
+
+assert(reviewHtml.includes('data-install-operation-id="replace_intro"'), 'review cards should expose stable operation ids');
+assert(reviewHtml.includes('Old player-facing sentence.'), 'review cards should show replace_text before text');
+assert(reviewHtml.includes('New player-facing sentence.'), 'review cards should show replace_text after text');
+assert(reviewHtml.includes('line 12'), 'review cards should show source line context');
+assert(reviewHtml.includes('Check passed, not applied yet'), 'review cards should show dry-run status badges');
+assert(reviewHtml.includes('Manual snippet'), 'review cards should show manual snippets');
+
+const assistant = loadAssistant();
+const runtimeHtml = assistant.renderRuntimePreviewResult({
+  ok: true,
+  sessionId: 'review_ui_runtime',
+  compareUrl: 'http://127.0.0.1:47999/session/compare/',
+  modifiedUrl: 'http://127.0.0.1:47999/session/modified/',
+  baselineBuild: {ok: true, command: 'npm run build'},
+  modifiedBuild: {ok: true, command: 'npm run build'}
+});
+assert(runtimeHtml.includes('data-runtime-preview-frame="true"'), 'runtime preview result should embed an inline frame');
+assert(runtimeHtml.includes('http://127.0.0.1:47999/session/compare/'), 'runtime preview frame should prefer the comparison URL');
+
+process.stdout.write(JSON.stringify({
+  ok: true,
+  operations: plan.operations.length,
+  markers: ['data-install-operation-id', 'install-op-preview', 'data-runtime-preview-frame']
+}, null, 2) + '\n');

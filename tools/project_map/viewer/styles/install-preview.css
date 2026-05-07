@@ -432,11 +432,83 @@
 
 .install-human-op {
   display: grid;
-  gap: 4px;
+  gap: 7px;
   padding: 8px;
   border: 1px solid rgba(0, 0, 0, .08);
   border-radius: 5px;
   background: rgba(255, 255, 255, .55);
+}
+
+.install-human-op-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.install-op-result {
+  flex: none;
+  max-width: 48%;
+  padding: 2px 7px;
+  border: 1px solid rgba(0, 0, 0, .1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .7);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-align: right;
+}
+
+.install-op-result-applied,
+.install-op-result-already-applied,
+.install-op-result-would-apply {
+  border-color: #a8c8b0;
+  background: #edf8ef;
+  color: #2c6a45;
+}
+
+.install-op-result-failed {
+  border-color: #e7b7a4;
+  background: #fff4ef;
+  color: var(--danger);
+}
+
+.install-human-where {
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.install-op-preview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 6px;
+}
+
+.install-op-snippet {
+  min-width: 0;
+}
+
+.install-op-snippet span {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.install-op-snippet pre {
+  max-height: 150px;
+  margin: 0;
+  padding: 7px;
+  overflow: auto;
+  border: 1px solid rgba(0, 0, 0, .08);
+  border-radius: 5px;
+  background: rgba(255, 254, 250, .88);
+  color: var(--text);
+  font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre-wrap;
 }
 
 .install-human-op details {
@@ -527,6 +599,25 @@
   color: var(--accent);
   font-weight: 700;
   text-decoration: none;
+}
+
+.runtime-preview-frame-shell {
+  display: grid;
+  gap: 6px;
+}
+
+.runtime-preview-frame-caption {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.runtime-preview-frame-shell iframe {
+  width: 100%;
+  min-height: min(62vh, 720px);
+  border: 1px solid rgba(0, 0, 0, .16);
+  border-radius: 6px;
+  background: #ffffff;
 }
 
 .runtime-preview-builds div {
