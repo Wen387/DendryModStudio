@@ -183,6 +183,12 @@
     if (!text) {
       return false;
     }
+    if (/^(?:on-arrival|on-display)\s*:/i.test(text)) {
+      return true;
+    }
+    if (/^(?:Q\.)?[A-Za-z_][A-Za-z0-9_]*\s*(?:[+\-*/]?=)/.test(text) && /(?:^|;)\s*(?:Q\.)?[A-Za-z_][A-Za-z0-9_]*\s*(?:[+\-*/]?=)/.test(text)) {
+      return true;
+    }
     if (/^Q\.[A-Za-z_][A-Za-z0-9_]*\s*(?:[+\-*/]?=)/.test(text)) {
       return true;
     }
@@ -232,6 +238,12 @@
     const span = scene.sourceSpan || scene.topLevelSpan || {};
     const rows = [];
     const seen = new Set();
+    const structuredWrites = new Set();
+    ensureArray(scene && scene.effects).forEach((effect) => {
+      const item = normalizeSceneEffect(effect);
+      pushUniqueEffect(rows, seen, item);
+      structuredWrites.add(effectWriteKey(item));
+    });
     ensureArray(scriptRows).forEach((row) => {
       parseEffectText(row.text).forEach((effect) => {
         const item = Object.assign({}, effect, {
@@ -240,6 +252,7 @@
           evidence: 'script_text'
         });
         pushUniqueEffect(rows, seen, item);
+        structuredWrites.add(effectWriteKey(item));
       });
     });
     lookup.variables.forEach((variable) => {
@@ -247,38 +260,186 @@
         if (!sourceInScene(source, path, span)) {
           return;
         }
+        const sectionId = sectionForLine(scene, sourceLine(source));
+        if (structuredWrites.has([String(variable.name || ''), sourceLine(source), sectionId].join('|'))) {
+          return;
+        }
         pushUniqueEffect(rows, seen, {
           variable: String(variable.name || ''),
           op: 'writes',
           value: '',
           source,
-          sectionId: sectionForLine(scene, sourceLine(source)),
+          sectionId,
           evidence: 'variable_write'
         });
       });
     });
-    return rows.sort((a, b) => sourceLine(a.source) - sourceLine(b.source) || a.variable.localeCompare(b.variable));
+    return rows.sort((a, b) => sourceLine(a.source) - sourceLine(b.source) || sourceOrder(a) - sourceOrder(b) || a.variable.localeCompare(b.variable));
+  }
+
+  function effectWriteKey(effect) {
+    return [String(effect && effect.variable || ''), sourceLine(effect && effect.source), String(effect && effect.sectionId || '')].join('|');
+  }
+
+  function normalizeSceneEffect(effect) {
+    const variable = String(effect && effect.variable || '').trim();
+    const op = String(effect && (effect.op || effect.operator) || '').trim();
+    const value = String(effect && effect.value === undefined || effect && effect.value === null ? '' : effect && effect.value).trim();
+    const condition = String(effect && effect.condition || '').trim();
+    const expression = String(effect && (effect.displayExpression || effect.expression) || '').trim() ||
+      effectExpression(variable, op, value, condition, true);
+    const sourceExpression = String(effect && effect.sourceExpression || '').trim() ||
+      effectExpression(variable, op, value, condition, effect && effect.syntax !== 'dendry_shorthand');
+    return {
+      variable,
+      op,
+      value,
+      condition,
+      hook: String(effect && effect.hook || ''),
+      syntax: String(effect && effect.syntax || ''),
+      expression,
+      displayExpression: expression,
+      sourceExpression,
+      sourceOrder: Number(effect && effect.sourceOrder || 0) || 0,
+      source: effect && effect.source || null,
+      sectionId: String(effect && effect.sectionId || ''),
+      evidence: effect && effect.evidence || 'scene_effect'
+    };
   }
 
   function parseEffectText(text) {
     const rows = [];
-    const re = /Q\.([A-Za-z_][A-Za-z0-9_]*)\s*(\+=|-=|\*=|\/=|=)\s*([^;]+)/g;
-    let match;
-    while ((match = re.exec(String(text || ''))) !== null) {
-      rows.push({
-        variable: match[1],
-        op: match[2],
-        value: String(match[3] || '').trim()
-      });
-    }
+    const raw = String(text || '').trim();
+    const hookMatch = raw.match(/^(on-arrival|on-display)\s*:\s*(.+)$/i);
+    const hook = hookMatch ? hookMatch[1].toLowerCase() : '';
+    const body = hookMatch ? hookMatch[2] : raw;
+    splitEffectClauses(body).forEach((clause, index) => {
+      const parsed = parseEffectClause(clause, hook);
+      if (parsed) {
+        parsed.sourceOrder = index + 1;
+        rows.push(parsed);
+      }
+    });
     return rows;
+  }
+
+  function splitEffectClauses(text) {
+    const clauses = [];
+    let current = '';
+    let quote = '';
+    let escaped = false;
+    String(text || '').split('').forEach((char) => {
+      if (escaped) {
+        current += char;
+        escaped = false;
+        return;
+      }
+      if (char === '\\' && quote) {
+        current += char;
+        escaped = true;
+        return;
+      }
+      if (quote) {
+        current += char;
+        if (char === quote) {
+          quote = '';
+        }
+        return;
+      }
+      if (char === '"' || char === "'") {
+        quote = char;
+        current += char;
+        return;
+      }
+      if (char === ';') {
+        if (current.trim()) {
+          clauses.push(current.trim());
+        }
+        current = '';
+        return;
+      }
+      current += char;
+    });
+    if (current.trim()) {
+      clauses.push(current.trim());
+    }
+    return clauses;
+  }
+
+  function parseEffectClause(clause, hook) {
+    const parts = splitTrailingIf(clause);
+    const match = parts.expression.match(/^(?:Q\.)?([A-Za-z_][A-Za-z0-9_]*)\s*(\+=|-=|\*=|\/=|=)\s*(.+)$/);
+    if (!match) {
+      return null;
+    }
+    const syntax = hook && !/^Q\./.test(parts.expression) ? 'dendry_shorthand' : '';
+    const variable = match[1];
+    const op = match[2];
+    const value = String(match[3] || '').trim();
+    return {
+      variable,
+      op,
+      value,
+      condition: parts.condition,
+      hook,
+      syntax,
+      expression: effectExpression(variable, op, value, parts.condition, true),
+      displayExpression: effectExpression(variable, op, value, parts.condition, true),
+      sourceExpression: effectExpression(variable, op, value, parts.condition, syntax !== 'dendry_shorthand')
+    };
+  }
+
+  function splitTrailingIf(value) {
+    const text = String(value || '').trim();
+    let quote = '';
+    let escaped = false;
+    let splitAt = -1;
+    for (let index = 0; index < text.length; index += 1) {
+      const char = text.charAt(index);
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (char === '\\' && quote) {
+        escaped = true;
+        continue;
+      }
+      if (quote) {
+        if (char === quote) {
+          quote = '';
+        }
+        continue;
+      }
+      if (char === '"' || char === "'") {
+        quote = char;
+        continue;
+      }
+      if (text.slice(index, index + 4).toLowerCase() === ' if ') {
+        splitAt = index;
+      }
+    }
+    if (splitAt < 0) {
+      return {expression: text, condition: ''};
+    }
+    return {expression: text.slice(0, splitAt).trim(), condition: text.slice(splitAt + 4).trim()};
+  }
+
+  function effectExpression(variable, op, value, condition, qPrefix) {
+    if (!variable || !op || !value) {
+      return '';
+    }
+    return (qPrefix ? 'Q.' : '') + variable + ' ' + op + ' ' + value + (condition ? ' if ' + condition : '');
+  }
+
+  function sourceOrder(effect) {
+    return Number(effect && effect.sourceOrder || 0) || 0;
   }
 
   function pushUniqueEffect(rows, seen, item) {
     if (!item.variable) {
       return;
     }
-    const key = [item.variable, item.op, item.value, sourceLine(item.source), item.sectionId].join('|');
+    const key = [item.variable, item.op, item.value, item.condition || '', item.sourceExpression || item.expression || '', sourceLine(item.source), item.sectionId].join('|');
     if (seen.has(key)) {
       return;
     }

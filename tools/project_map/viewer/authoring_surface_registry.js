@@ -30,6 +30,13 @@
       templates: ['entry', 'play_surface', 'workspace_layout', 'sidebar_status', 'project']
     },
     {
+      key: 'election_results_board',
+      workspace: 'system_ui',
+      labelKey: 'authoring.surface.electionResultsBoard',
+      fallback: 'Election Results Workspace',
+      templates: ['election_results']
+    },
+    {
       key: 'project_state_board',
       workspace: 'project_state',
       labelKey: 'authoring.surface.projectStateBoard',
@@ -48,6 +55,7 @@
     {key: 'play_surface', workspace: 'system_ui', surface: 'system_ui_preview', labelKey: 'create.playSurface', fallback: 'Playable Surface'},
     {key: 'workspace_layout', workspace: 'system_ui', surface: 'system_ui_preview', labelKey: 'create.workspaceLayout', fallback: 'Workspace Layout'},
     {key: 'sidebar_status', workspace: 'system_ui', surface: 'system_ui_preview', labelKey: 'create.sidebarStatus', fallback: 'Sidebar / Status'},
+    {key: 'election_results', workspace: 'system_ui', surface: 'election_results_board', labelKey: 'create.electionResults', fallback: 'Election Results'},
     {key: 'project', workspace: 'system_ui', surface: 'system_ui_preview', labelKey: 'create.gameInfo', fallback: 'Game Info'},
     {key: 'variables', workspace: 'project_state', surface: 'project_state_board', labelKey: 'create.variables', fallback: 'Variables'},
   ];
@@ -111,6 +119,9 @@
     }
     if (text === 'variable_editor' || text === 'variable') {
       return 'variables';
+    }
+    if (text === 'election_result' || text === 'election_results_ui') {
+      return 'election_results';
     }
     return templatesByKey[text] ? text : '';
   }

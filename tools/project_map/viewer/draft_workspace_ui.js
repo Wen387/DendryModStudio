@@ -8,6 +8,7 @@
     play_surface: 'Playable Surface',
     workspace_layout: 'Workspace Layout',
     sidebar_status: 'Sidebar / Status',
+    election_results: 'Election Results',
     surface: 'Text',
     entry: 'Entry & Sidebar',
     project: 'Game Info',

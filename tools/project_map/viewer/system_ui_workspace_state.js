@@ -6,7 +6,8 @@
     project: 'ui:screen_header',
     play_surface: 'ui:workspace_hand',
     workspace_layout: 'ui:layout_frame',
-    sidebar_status: 'ui:sidebar_status'
+    sidebar_status: 'ui:sidebar_status',
+    election_results: 'ui:election_results_chart'
   };
 
   function bind(host, actions) {

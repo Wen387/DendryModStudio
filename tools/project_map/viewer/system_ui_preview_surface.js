@@ -16,8 +16,9 @@
   }
 
   function renderToolbar(model, screen) {
+    const collapsed = Boolean(screen && screen.boardChromeCollapsed);
     return [
-      '<header class="object-canvas-stage-toolbar">',
+      '<header class="object-canvas-stage-toolbar system-ui-preview-toolbar' + (collapsed ? ' is-collapsed' : '') + '" data-board-stage-toolbar="true" data-board-toolbar-collapsed="' + (collapsed ? 'true' : 'false') + '">',
       '<div>',
       '<div class="template-eyebrow">' + escapeHtml(t('authoring.surface.systemUiPreview', 'System Screen Workspace')) + '</div>',
       '<h3>' + escapeHtml(t('authoring.template.systemUiScreen', 'System UI Screen')) + '</h3>',
@@ -66,9 +67,12 @@
 
   function buildScreen(model, options) {
     const api = screenModelApi();
-    return api && typeof api.buildScreen === 'function'
+    const screen = api && typeof api.buildScreen === 'function'
       ? api.buildScreen(model, options || {})
       : {template: 'entry', fixture: 'default', recipe: {}, families: [], regions: [], diagnostics: []};
+    return Object.assign({}, screen, {
+      boardChromeCollapsed: Boolean(options && options.boardChromeCollapsed)
+    });
   }
 
   function screenModelApi() {

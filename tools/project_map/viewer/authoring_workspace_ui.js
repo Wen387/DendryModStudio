@@ -11,6 +11,7 @@
     play_surface: 'system_ui',
     workspace_layout: 'system_ui',
     sidebar_status: 'system_ui',
+    election_results: 'system_ui',
     project: 'system_ui',
     variables: 'project_state'
   };
@@ -35,6 +36,7 @@
     ],
     system_ui: [
       {key: 'entry', labelKey: 'authoring.template.systemUiScreen', fallback: 'System UI Screen'},
+      {key: 'election_results', labelKey: 'create.electionResults', fallback: 'Election Results'},
       {key: 'project', labelKey: 'create.gameInfo', fallback: 'Game Info'}
     ],
     project_state: [
@@ -47,6 +49,12 @@
     labelKey: 'authoring.template.systemUiScreen',
     fallback: 'System UI Screen'
   };
+  const ELECTION_RESULTS_ITEM = {
+    key: 'election_results',
+    labelKey: 'create.electionResults',
+    fallback: 'Election Results'
+  };
+  const SYSTEM_UI_SCREEN_TEMPLATES = new Set(['entry', 'play_surface', 'workspace_layout', 'sidebar_status', 'project']);
 
   const state = {
     activeWorkspace: 'content',
@@ -183,7 +191,7 @@
     if (buttonTemplate === activeTemplate) {
       return true;
     }
-    return workspaceForTemplate(activeTemplate) === 'system_ui' && workspaceForTemplate(buttonTemplate) === 'system_ui';
+    return buttonTemplate === SYSTEM_UI_SCREEN_ITEM.key && SYSTEM_UI_SCREEN_TEMPLATES.has(activeTemplate);
   }
 
   function clickTemplate(template) {
@@ -276,7 +284,7 @@
 
   function templateItemsForWorkspace(workspace) {
     if (workspace === 'system_ui') {
-      return [SYSTEM_UI_SCREEN_ITEM];
+      return [SYSTEM_UI_SCREEN_ITEM, ELECTION_RESULTS_ITEM];
     }
     const registry = registryApi();
     return registry && typeof registry.templatesForWorkspace === 'function'

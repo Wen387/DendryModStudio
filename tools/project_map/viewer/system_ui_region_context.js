@@ -10,7 +10,12 @@
     deck_lane: owner('workspace_layout', 'workspace_layout', 'systemUi.owner.layout', 'Workspace Layout', 'deck'),
     action_card: owner('workspace_layout', 'workspace_layout', 'systemUi.owner.layout', 'Workspace Layout', 'card'),
     advisor_lane: owner('play_surface', 'play_surface', 'systemUi.owner.playSurface', 'Playable Surface', 'advisor'),
-    sidebar_status: owner('sidebar_status', 'sidebar_status', 'systemUi.owner.sidebar', 'Sidebar / Status', 'sidebar')
+    sidebar_status: owner('sidebar_status', 'sidebar_status', 'systemUi.owner.sidebar', 'Sidebar / Status', 'sidebar'),
+    election_results_frame: owner('election_results', 'election_results', 'systemUi.owner.electionResults', 'Election Results', 'frame'),
+    election_results_chart: owner('election_results', 'election_results', 'systemUi.owner.electionResults', 'Election Results', 'seat chart'),
+    election_results_table: owner('election_results', 'election_results', 'systemUi.owner.electionResults', 'Election Results', 'party table'),
+    election_results_coalitions: owner('election_results', 'election_results', 'systemUi.owner.electionResults', 'Election Results', 'coalitions'),
+    election_results_choices: owner('election_results', 'election_results', 'systemUi.owner.electionResults', 'Election Results', 'choices')
   };
 
   const NEARBY = {
@@ -22,7 +27,12 @@
     deck_lane: ['workspace_hand', 'action_card', 'layout_frame'],
     action_card: ['deck_lane', 'workspace_hand', 'main_options'],
     advisor_lane: ['workspace_hand', 'sidebar_status'],
-    sidebar_status: ['screen_header', 'main_content', 'advisor_lane']
+    sidebar_status: ['screen_header', 'main_content', 'advisor_lane'],
+    election_results_frame: ['election_results_chart', 'election_results_table', 'election_results_choices'],
+    election_results_chart: ['election_results_frame', 'election_results_table', 'election_results_coalitions'],
+    election_results_table: ['election_results_chart', 'election_results_coalitions'],
+    election_results_coalitions: ['election_results_table', 'election_results_choices'],
+    election_results_choices: ['election_results_coalitions', 'election_results_chart']
   };
 
   function enrichRegions(regions, options) {

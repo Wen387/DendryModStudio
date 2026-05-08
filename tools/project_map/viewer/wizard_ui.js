@@ -503,10 +503,10 @@
           return;
         }
         detail.__projectMapWizardHandled = true;
-        if (detail.index || detail.projectIndex) {
-          setProjectIndex(detail.index || detail.projectIndex, detail);
-        } else if (detail.model || detail.viewModel) {
+        if (detail.model || detail.viewModel) {
           setProjectModel(detail.model || detail.viewModel, detail);
+        } else if (detail.index || detail.projectIndex) {
+          setProjectIndex(detail.index || detail.projectIndex, detail);
         }
       };
       global.addEventListener(name, handler);

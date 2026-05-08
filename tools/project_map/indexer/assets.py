@@ -38,6 +38,14 @@ def asset_paths_from_directive(value: str) -> list[str]:
     return out
 
 
+def line_contains_inline_asset_reference(value: str) -> bool:
+    text = str(value or "")
+    return bool(
+        re.search(r"<\s*img\b|src\s*=|href\s*=|url\s*\(|!\[[^\]]*\]\(", text, re.IGNORECASE)
+        or re.match(r"^\s*(?:image|img|asset|background|portrait|illustration)\s*:", text, re.IGNORECASE)
+    )
+
+
 def resolve_asset_reference(root: Path, rel: str) -> tuple[bool, str]:
     normalized = normalize_asset_path(rel)
     candidates = [
@@ -76,14 +84,16 @@ def extract_scene_asset_references(root: Path, scene: dict[str, Any]) -> list[di
         return []
     for line_num, line in enumerate(lines, 1):
         match = re.match(r"^\s*(card-image|face-image|set-bg|audio)\s*:\s*(.+)$", line, re.IGNORECASE)
-        if not match:
+        directive = match.group(1).lower() if match else ""
+        reference_text = match.group(2) if match else line
+        if not directive and not line_contains_inline_asset_reference(line):
             continue
-        directive = match.group(1).lower()
-        for asset_path in asset_paths_from_directive(match.group(2)):
+        for asset_path in asset_paths_from_directive(reference_text):
             asset_type = asset_type_for_extension(Path(asset_path).suffix)
             if not asset_type:
                 continue
-            key = (asset_path, directive)
+            role = directive or ("inline-image" if asset_type == "image" else "inline-asset")
+            key = (asset_path, role)
             if key in seen:
                 continue
             seen.add(key)
@@ -98,7 +108,7 @@ def extract_scene_asset_references(root: Path, scene: dict[str, Any]) -> list[di
                 "editability": "reference_only",
                 "confidence": CONF_STATIC,
                 "source": source_ref(rel, line_num),
-                "directive": directive,
+                "directive": role,
                 "fileExists": file_exists,
             }
             if preview_url and preview_url != asset_path:

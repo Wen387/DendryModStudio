@@ -134,20 +134,31 @@
     return [
       '<div class="system-ui-evidence-row" data-system-ui-source-evidence="true">',
       '<span>' + escapeHtml(row.label || row.status || '') + '</span>',
-      '<strong>' + escapeHtml(location || row.status || '') + '</strong>',
+      '<code>' + renderEvidenceLocation(location || row.status || '') + '</code>',
       '</div>'
     ].join('');
+  }
+
+  function renderEvidenceLocation(value) {
+    return escapeHtml(value).replace(/([/.:_-])/g, '$1<wbr>');
   }
 
   function renderField(field) {
     const value = String(field && field.value !== undefined ? field.value : field && field.original || '');
     const id = field && field.id || '';
+    const inputType = String(field && field.inputType || '').trim();
     const multiline = value.indexOf('\n') >= 0 || value.length > 72 || /Body|text|lines|intro/i.test(field && field.label || id);
-    const common = ' class="object-inline-input" data-object-canvas-field="' + escapeAttr(id) + '" data-editing-field="' + escapeAttr(id) + '"' + (field && field.readOnly ? ' readonly' : '');
+    const common = ' class="object-inline-input" data-object-canvas-field="' + escapeAttr(id) + '" data-editing-field="' + escapeAttr(id) + '" data-object-canvas-original="' + escapeAttr(field && field.original !== undefined ? field.original : value) + '"' + (field && field.readOnly ? ' readonly' : '');
     return [
-      '<label class="object-inline-field">',
+      '<label class="object-inline-field' + (inputType === 'checkbox' ? ' object-inline-field-checkbox' : '') + '">',
       '<span>' + escapeHtml(field && field.label || id || '') + '</span>',
-      multiline
+      inputType === 'checkbox'
+        ? '<input type="checkbox"' + common + (booleanValue(value) ? ' checked' : '') + '>'
+        : inputType === 'color'
+          ? '<input type="color"' + common + ' value="' + escapeAttr(safeColor(value)) + '">'
+          : inputType === 'number'
+            ? '<input type="number" step="0.1"' + common + ' value="' + escapeAttr(value) + '">'
+            : multiline
         ? '<textarea rows="' + rowsFor(value) + '"' + common + '>' + escapeHtml(value) + '</textarea>'
         : '<input type="text"' + common + ' value="' + escapeAttr(value) + '">',
       '</label>'
@@ -177,6 +188,16 @@
 
   function rowsFor(value) {
     return String(Math.max(3, Math.min(8, String(value || '').split('\n').length + 1)));
+  }
+
+  function booleanValue(value) {
+    const text = String(value || '').trim().toLowerCase();
+    return text === 'true' || text === '1' || text === 'yes' || text === 'on';
+  }
+
+  function safeColor(value) {
+    const text = String(value || '').trim();
+    return /^#[0-9A-Fa-f]{6}$/.test(text) ? text : '#999999';
   }
 
   function ensureArray(value) {

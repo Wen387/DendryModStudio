@@ -22,6 +22,7 @@ from indexer.diagnostics import (
     scan_post_event_targeted,
     synthetic_post_event_scene,
 )
+from indexer.effects import attach_scene_effects
 from indexer.graph import GraphBuilder, add_textual_goto_overlay
 from indexer.parser import load_parser_index, run_node_parser
 from indexer.profiles import normalize_parser_scene, score_profiles
@@ -46,6 +47,7 @@ def build_index(
         normalize_parser_scene(scene, root, selected_profiles)
         for scene in parser_index.get("scenes", [])
     ]
+    attach_scene_effects(root, scenes)
     post_event_scene = synthetic_post_event_scene(post_event_summary)
     if post_event_scene:
         scenes.append(post_event_scene)
@@ -121,6 +123,7 @@ def build_index(
             "eventPopupCount": len(semantic.get("news", {}).get("eventPopups", [])),
             "surfaceTextCount": len(semantic.get("surfaceText", {}).get("items", [])),
             "textCorpusCount": len(semantic.get("textCorpus", {}).get("items", [])),
+            "effectCount": sum(len(scene.get("effects", [])) for scene in scenes),
             "assetCount": len(semantic.get("assets", {}).get("items", [])),
             "imageAssetCount": len([
                 item for item in semantic.get("assets", {}).get("items", [])
