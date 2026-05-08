@@ -9,6 +9,7 @@
   const NODE_HALF = NODE_WIDTH / 2;
   const NODE_EDGE_Y = 68;
   const HELP_SEEN_KEY = 'dendry-mod-studio-design-help-seen';
+  const INSPECTOR_COLLAPSED_KEY = 'dendry-mod-studio-design-inspector-collapsed';
   const MIN_ZOOM = 0.08;
   const MAX_ZOOM = 1.6;
   const INSPECTOR_WIDTH_KEY = 'dendry-mod-studio-design-inspector-width';
@@ -38,6 +39,7 @@
     pendingDragRender: false,
     designModelStale: false,
     designRevision: 0,
+    inspectorCollapsed: false,
     inspectorCache: {key: '', html: ''}
   };
 
@@ -183,6 +185,7 @@
       graphLayout: document.querySelector('.design-graph-layout'),
       inspectorResizer: document.getElementById('design-inspector-resizer'),
       inspector: document.getElementById('design-inspector'),
+      inspectorToggle: document.getElementById('design-inspector-toggle'),
       search: document.getElementById('design-search'),
       scopeFilter: document.getElementById('design-scope-filter'),
       scopeOptions: Array.from(document.querySelectorAll('[data-design-scope]')),
@@ -211,8 +214,10 @@
     designGraphRenderer.setElements(elements);
     designInteractions.setElements(elements);
     restoreInspectorWidth();
+    state.inspectorCollapsed = readInspectorCollapsed();
     state.showHelp = !readHelpSeen();
     bindControls(document);
+    syncInspectorCollapse();
     render();
   }
 
@@ -443,6 +448,13 @@
     if (elements.inspectorResizer) {
       elements.inspectorResizer.addEventListener('pointerdown', beginInspectorResize);
     }
+    if (elements.inspectorToggle) {
+      elements.inspectorToggle.addEventListener('click', () => {
+        state.inspectorCollapsed = !state.inspectorCollapsed;
+        storeInspectorCollapsed(state.inspectorCollapsed);
+        syncInspectorCollapse();
+      });
+    }
     document.addEventListener('pointermove', moveNodeDrag);
     document.addEventListener('pointerup', endNodeDrag);
     document.addEventListener('pointercancel', cancelNodeDrag);
@@ -580,6 +592,7 @@
 
   function render() {
     syncScopeControl();
+    syncInspectorCollapse();
     if (!elements) {
       return;
     }
@@ -1559,7 +1572,42 @@
     if (!rows || !rows.length) {
       return '';
     }
-    return '<section class="mini-section"><h3>' + escapeHtml(title) + '</h3>' + rows.join('') + '</section>';
+    return '<details class="mini-section" open><summary><span>' + escapeHtml(title) + '</span><b>' + escapeHtml(String(rows.length)) + '</b></summary>' + rows.join('') + '</details>';
+  }
+
+  function readInspectorCollapsed() {
+    try {
+      return Boolean(global.localStorage && global.localStorage.getItem(INSPECTOR_COLLAPSED_KEY) === '1');
+    } catch (err) {
+      return false;
+    }
+  }
+
+  function storeInspectorCollapsed(collapsed) {
+    try {
+      if (global.localStorage) {
+        global.localStorage.setItem(INSPECTOR_COLLAPSED_KEY, collapsed ? '1' : '0');
+      }
+    } catch (err) {
+      // Inspector collapse state is a preference; storage failure should not block Design.
+    }
+  }
+
+  function syncInspectorCollapse() {
+    if (!elements || !elements.pane) {
+      return;
+    }
+    const collapsed = Boolean(state.inspectorCollapsed);
+    elements.pane.classList.toggle('is-design-inspector-collapsed', collapsed);
+    if (elements.inspectorToggle) {
+      const label = collapsed
+        ? t('design.expandInspector', 'Expand Design inspector')
+        : t('design.collapseInspector', 'Collapse Design inspector');
+      elements.inspectorToggle.textContent = collapsed ? '›' : '‹';
+      elements.inspectorToggle.setAttribute('aria-label', label);
+      elements.inspectorToggle.setAttribute('title', label);
+      elements.inspectorToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    }
   }
 
   function badge(text, className) {

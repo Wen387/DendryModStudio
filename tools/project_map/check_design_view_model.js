@@ -256,6 +256,7 @@ assert(html.includes('id="design-pane"'), 'viewer should expose the Design pane'
 assert(html.includes('id="design-baseline-file"'), 'Design pane should include baseline ProjectIndex picker');
 assert(html.includes('id="design-graph-canvas"'), 'Design pane should include a graph canvas');
 assert(html.includes('id="design-status-bar"'), 'Design pane should include an Atelier status bar');
+assert(html.includes('id="design-inspector-toggle"'), 'Design pane should expose a collapsible inspector toggle');
 assert(html.includes('id="design-kind-filter"'), 'Design pane should include type filter');
 assert(html.includes('id="design-authoring-filter"'), 'Design pane should include authoring-state filter');
 assert(html.includes('id="design-severity-filter"'), 'Design pane should include severity filter');
@@ -278,6 +279,8 @@ assert(designUi.includes('canOpenExplore ?'), 'Design inspector should disable O
 assert(designUi.includes('renderGraphCanvas'), 'Design UI should render a graph canvas');
 assert(designUi.includes('selectEdgeNeighbor'), 'Design UI should support graph edge navigation');
 assert(designUi.includes('data-design-target-key'), 'Design inspector edge rows should navigate to linked nodes');
+assert(designUi.includes('INSPECTOR_COLLAPSED_KEY'), 'Design inspector collapse state should be local and persistent');
+assert(designUi.includes('<details class="mini-section" open>'), 'Design inspector sections should be individually collapsible');
 assert(!designUi.includes('renderDesignRow'), 'Design UI should not render the old lane-row board as the primary view');
 
 let realIndexStats = null;
