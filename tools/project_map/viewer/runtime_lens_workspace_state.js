@@ -55,11 +55,14 @@
     }
     if (action === 'create' || action === 'rebuild') {
       state.runtimeLensEmbedsSuspended = false;
-      await createLens(state, helpers);
+      await createLens(state, helpers, {
+        previewMode: action === 'create' ? 'quick' : 'full'
+      });
     }
   }
 
-  async function createLens(state, deps) {
+  async function createLens(state, deps, options) {
+    const opts = options || {};
     if (state.runtimeLensStatus === 'building') {
       state.runtimeLensBuildQueued = true;
       state.status = translate('runtimeLens.status.queued', 'Runtime Lens will rebuild after the current build finishes.');
@@ -91,7 +94,8 @@
       const result = await desktop.createRuntimeLens({
         plan: currentPlan(state),
         focus,
-        projectIndex: state.projectIndex
+        projectIndex: state.projectIndex,
+        previewMode: opts.previewMode || 'quick'
       });
       if (buildToken !== state.runtimeLensBuildSeq) {
         return;
@@ -115,7 +119,7 @@
     if (state.runtimeLensBuildQueued) {
       state.runtimeLensBuildQueued = false;
       deps.render && deps.render();
-      await createLens(state, deps);
+      await createLens(state, deps, opts);
       return;
     }
     deps.render && deps.render();

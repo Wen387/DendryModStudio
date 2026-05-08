@@ -835,6 +835,7 @@ function createRuntimeLens(options) {
     allowAdvanced: opts.allowAdvanced === true,
     allowProjectBuildWrapper: opts.allowProjectBuildWrapper === true,
     projectIndex: opts.projectIndex || null,
+    previewMode: opts.previewMode,
     buildRunner: opts.buildRunner,
     serverFactory: opts.serverFactory,
     now: opts.now

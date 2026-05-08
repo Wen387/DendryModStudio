@@ -3,7 +3,19 @@
 
   const MODEL_VERSION = '0.1';
   const STATES = ['idle', 'building', 'ready', 'stale', 'failed', 'unavailable'];
-  const FOCUS_KINDS = ['scene', 'event', 'card', 'hand', 'card_option', 'system_region', 'unknown'];
+  const FOCUS_KINDS = [
+    'scene',
+    'event',
+    'news',
+    'card',
+    'hand',
+    'deck',
+    'route',
+    'card_option',
+    'system_region',
+    'text_replacement',
+    'unknown'
+  ];
 
   function buildModel(input) {
     const value = isObject(input) ? input : {};
@@ -51,13 +63,13 @@
       value.regionId,
       value.key
     );
-    const scene = sceneFor(index, value.sceneId || (kind === 'event' || kind === 'scene' || kind === 'hand' ? id : ''));
+    const scene = sceneFor(index, value.sceneId || (isSceneLikeKind(kind) ? id : ''));
     const card = sceneFor(index, value.cardId || (kind === 'card' ? id : ''));
     const targetSceneId = firstNonEmpty(
       value.targetSceneId,
       value.sceneId,
       scene && scene.id,
-      kind === 'event' || kind === 'scene' || kind === 'hand' ? id : '',
+      isSceneLikeKind(kind) ? id : '',
       card && card.id
     );
     const source = sourceRef(value.source || value.sourceSpan || scene && scene.sourceSpan || scene || card && (card.sourceSpan || card));
@@ -65,7 +77,7 @@
     if (!id && kind !== 'unknown') {
       diagnostics.push(diagnostic('warning', 'runtime_lens.focus_id_missing', 'Runtime Lens focus is missing an object id.'));
     }
-    if ((kind === 'event' || kind === 'scene' || kind === 'hand') && !targetSceneId) {
+    if (isSceneLikeKind(kind) && !targetSceneId) {
       diagnostics.push(diagnostic('warning', 'runtime_lens.scene_target_missing', 'Runtime Lens could not identify a scene target for this focus.'));
     }
     return {
@@ -160,8 +172,12 @@
   function normalizeKind(value) {
     const text = String(value || '').trim().toLowerCase().replace(/[-\s]+/g, '_');
     if (text === 'world_event') return 'event';
-    if (text === 'scene' || text === 'event' || text === 'card' || text === 'hand' ||
-        text === 'card_option' || text === 'system_region') {
+    if (text === 'news_item') return 'news';
+    if (text === 'advisor') return 'card';
+    if (text === 'surface_text' || text === 'text_patch' || text === 'text_replacement') return 'text_replacement';
+    if (text === 'scene' || text === 'event' || text === 'news' || text === 'card' || text === 'hand' ||
+        text === 'deck' || text === 'route' || text === 'card_option' || text === 'system_region' ||
+        text === 'text_replacement') {
       return text;
     }
     if (text === 'option') return 'card_option';
@@ -169,6 +185,16 @@
       return 'system_region';
     }
     return 'unknown';
+  }
+
+  function isSceneLikeKind(kind) {
+    return kind === 'scene' ||
+      kind === 'event' ||
+      kind === 'news' ||
+      kind === 'hand' ||
+      kind === 'deck' ||
+      kind === 'route' ||
+      kind === 'text_replacement';
   }
 
   function normalizeStatus(value) {

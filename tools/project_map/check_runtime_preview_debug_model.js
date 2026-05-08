@@ -27,12 +27,22 @@ const index = {
     {id: 'root', title: 'Root', type: 'hand', path: 'source/scenes/root.scene.dry'},
     {id: 'labor_law_crisis', title: 'Labor Law Crisis', type: 'event', tags: ['event'], path: 'source/scenes/events/labor_law.scene.dry'},
     {id: 'cabinet_compromise', title: 'Cabinet Compromise', type: 'event', tags: ['event'], sourceSpan: {path: 'source/scenes/events/cabinet.scene.dry', startLine: 1}}
-  ],
+  ].concat(Array.from({length: 120}, (_unused, offset) => ({
+    id: 'extra_scene_' + offset,
+    title: 'Extra Scene ' + offset,
+    type: 'scene',
+    path: 'source/scenes/extra_' + offset + '.scene.dry'
+  }))),
   edges: [
     {from: 'union_pressure_rises', to: 'labor_law_crisis', label: 'unlocks'},
     {from: 'labor_law_crisis', to: 'cabinet_compromise', label: 'follow-up'}
   ],
-  semantic: {events: [{id: 'labor_law_crisis', title: 'Labor Law Crisis'}]}
+  semantic: {
+    events: [{id: 'labor_law_crisis', title: 'Labor Law Crisis'}],
+    news: [{id: 'cabinet_news', title: 'Cabinet News', path: 'source/scenes/news/cabinet_news.scene.dry'}],
+    cards: [{id: 'labor_card', title: 'Labor Card', path: 'source/scenes/cards/labor_card.scene.dry'}],
+    decks: [{id: 'starter_deck', title: 'Starter Deck', path: 'source/scenes/decks/starter_deck.scene.dry'}]
+  }
 };
 
 const controls = debugModel.buildDebugControls(index, {selectedSceneId: 'labor_law_crisis'});
@@ -42,6 +52,10 @@ assert(controls.variables.some((item) => item.name === 'labor_law_seen' && item.
 assert(controls.variables.some((item) => item.name === 'worker_support'), 'non-flag known variable should be available');
 assert(!controls.variables.some((item) => item.name === 'missing_flag'), 'unknown variables must not appear');
 assert(controls.scenes.some((item) => item.id === 'labor_law_crisis' && item.sourcePath.includes('labor_law')), 'known event scene should appear');
+assert(controls.scenes.some((item) => item.id === 'cabinet_news' && item.type === 'news'), 'semantic news scene should appear');
+assert(controls.scenes.some((item) => item.id === 'labor_card' && item.type === 'card'), 'semantic card scene should appear');
+assert(controls.scenes.some((item) => item.id === 'starter_deck' && item.type === 'deck'), 'semantic deck scene should appear');
+assert(controls.scenes.some((item) => item.id === 'extra_scene_119'), 'debug scene controls should not truncate large projects at 80 scenes');
 assert(controls.links.some((item) => item.from === 'union_pressure_rises' && item.to === 'labor_law_crisis'), 'incoming selected-scene link should appear');
 assert(controls.links.some((item) => item.from === 'labor_law_crisis' && item.to === 'cabinet_compromise'), 'outgoing selected-scene link should appear');
 

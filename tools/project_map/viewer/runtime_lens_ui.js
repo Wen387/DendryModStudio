@@ -5,13 +5,16 @@
     const parsed = parseSelectedKey(selectedKey);
     const sceneId = parsed && parsed.kind !== 'draft' ? parsed.id : model && model.objectId || '';
     const scene = sceneById(projectIndex, sceneId);
-    const kind = focusKind(parsed, model, scene);
-    const id = sceneId || model && model.objectId || '';
     const source = sourceRef(scene && (scene.sourceSpan || scene.source || scene) || model && model.source);
+    const sourceScene = scene || sceneByPath(projectIndex, source && source.path);
+    const kind = focusKind(parsed, model, sourceScene);
+    const id = sceneId || model && model.objectId || '';
+    const targetSceneId = firstNonEmpty(sourceScene && sourceScene.id, kind !== 'card' ? id : '', model && model.objectId);
     return {
       kind,
       id,
-      sceneId: kind === 'card' ? '' : id,
+      sceneId: targetSceneId,
+      targetSceneId,
       cardId: kind === 'card' ? id : '',
       title: firstNonEmpty(scene && scene.title, model && model.title, id),
       source,
@@ -72,7 +75,7 @@
     const status = suspended ? 'suspended' : stale ? 'stale' : opts.status || session && session.status || 'idle';
     const isDesktop = Boolean(global && global.dendryDesktop && typeof global.dendryDesktop.createRuntimeLens === 'function');
     const url = String(session && (session.lensUrl || session.lensPageUrl || session.externalUrl) || '');
-    const canFocus = Boolean(isDesktop && focus && focus.id && focus.kind !== 'unknown' && focus.kind !== 'news');
+    const canFocus = Boolean(isDesktop && focus && focus.id && focus.kind !== 'unknown');
     const classes = [
       'runtime-lens-panel',
       opts.expanded ? 'is-expanded' : '',
@@ -88,8 +91,8 @@
       '<h3>' + escapeHtml(t('runtimeLens.title', 'Focused runtime')) + '</h3>',
       '</div>',
       '<div class="runtime-lens-actions">',
-      '<button type="button" data-runtime-lens-action="create" ' + (!canFocus || status === 'building' ? 'disabled' : '') + '>' + escapeHtml(session && session.ok ? t('runtimeLens.refresh', 'Refresh') : t('runtimeLens.create', 'Create Lens')) + '</button>',
-      session && session.ok ? '<button type="button" data-runtime-lens-action="rebuild" ' + (status === 'building' ? 'disabled' : '') + '>' + escapeHtml(t('runtimeLens.rebuild', 'Rebuild')) + '</button>' : '',
+      '<button type="button" data-runtime-lens-action="create" ' + (!canFocus || status === 'building' ? 'disabled' : '') + '>' + escapeHtml(session && session.ok ? t('runtimeLens.refreshQuick', 'Refresh quick') : t('runtimeLens.createQuick', 'Quick Lens')) + '</button>',
+      '<button type="button" data-runtime-lens-action="rebuild" ' + (!canFocus || status === 'building' ? 'disabled' : '') + '>' + escapeHtml(t('runtimeLens.rebuildFull', 'Full Build')) + '</button>',
       session && session.ok ? '<button type="button" data-runtime-lens-action="reset">' + escapeHtml(t('runtimeLens.reset', 'Reset')) + '</button>' : '',
       '<button type="button" data-runtime-lens-action="toggle_collapse">' + escapeHtml(opts.collapsed ? t('runtimeLens.restore', 'Restore') : t('runtimeLens.collapse', 'Collapse')) + '</button>',
       '<button type="button" data-runtime-lens-action="toggle_expand">' + escapeHtml(opts.expanded ? t('runtimeLens.dock', 'Dock') : t('runtimeLens.expand', 'Expand')) + '</button>',
@@ -136,10 +139,24 @@
         '<div class="runtime-lens-frame-wrap">',
         '<iframe class="runtime-lens-frame" data-runtime-lens-frame="true" title="' + escapeAttr(t('runtimeLens.frameTitle', 'Focused runtime preview')) + '" src="' + escapeAttr(opts.url) + '"></iframe>',
         '</div>',
+        renderTimings(opts.session && opts.session.timings),
         renderDiagnostics(opts.session && opts.session.diagnostics)
       ].join('');
     }
-    return '<div class="runtime-lens-empty">' + escapeHtml(opts.isDesktop ? t('runtimeLens.empty', 'Create a Lens to observe this object in the real runtime.') : t('runtimeLens.browserOnlyShort', 'Desktop app required.')) + '</div>' + renderDiagnostics(opts.session && opts.session.diagnostics);
+    return '<div class="runtime-lens-empty">' + escapeHtml(opts.isDesktop ? t('runtimeLens.empty', 'Open a Quick Lens to observe this object in the latest generated runtime.') : t('runtimeLens.browserOnlyShort', 'Desktop app required.')) + '</div>' + renderTimings(opts.session && opts.session.timings) + renderDiagnostics(opts.session && opts.session.diagnostics);
+  }
+
+  function renderTimings(timings) {
+    const stages = ensureArray(timings && timings.stages).filter((item) => item && item.stage);
+    if (!stages.length) {
+      return '';
+    }
+    return [
+      '<details class="runtime-lens-diagnostics">',
+      '<summary>' + escapeHtml(t('runtimeLens.timings', 'Timings')) + ' · ' + escapeHtml(formatMs(timings.totalMs)) + '</summary>',
+      stages.slice(0, 8).map((item) => '<p>' + escapeHtml(item.stage) + ' · ' + escapeHtml(formatMs(item.ms)) + '</p>').join(''),
+      '</details>'
+    ].join('');
   }
 
   function renderDiagnostics(rows) {
@@ -153,6 +170,17 @@
       items.slice(0, 6).map((diag) => '<p>' + escapeHtml(diag.message || diag.code || '') + '</p>').join(''),
       '</details>'
     ].join('');
+  }
+
+  function formatMs(value) {
+    const number = Number(value || 0);
+    if (!Number.isFinite(number)) {
+      return '0ms';
+    }
+    if (number >= 1000) {
+      return (number / 1000).toFixed(number >= 10000 ? 0 : 1) + 's';
+    }
+    return Math.round(number) + 'ms';
   }
 
   function bind(root, callbacks) {
@@ -193,7 +221,7 @@
   }
 
   function parseSelectedKey(key) {
-    const match = String(key || '').match(/^(event|card|advisor|news|route|draft):(.+)$/);
+    const match = String(key || '').match(/^(scene|event|card|advisor|news|route|deck|surface|text|draft):(.+)$/);
     return match ? {kind: match[1], id: match[2]} : null;
   }
 
@@ -209,11 +237,52 @@
     if (kind === 'news') {
       return 'news';
     }
+    if (kind === 'deck') {
+      return 'deck';
+    }
+    if (kind === 'route') {
+      return 'route';
+    }
+    if (kind === 'scene') {
+      return sceneKind(scene);
+    }
+    if (kind === 'surface' || kind === 'text') {
+      return 'text_replacement';
+    }
     const modelKind = String(model && (model.objectKind || model.template) || '').toLowerCase();
     if (modelKind === 'card' || scene && (scene.type === 'card' || scene.flags && scene.flags.isCard)) {
       return 'card';
     }
+    if (modelKind === 'news') {
+      return 'news';
+    }
+    if (modelKind === 'surface_text' || modelKind === 'surface' || modelKind === 'text') {
+      return 'text_replacement';
+    }
+    if (scene) {
+      return sceneKind(scene);
+    }
     return 'event';
+  }
+
+  function sceneKind(scene) {
+    const type = String(scene && scene.type || '').toLowerCase();
+    if (type === 'card' || scene && scene.flags && scene.flags.isCard) {
+      return 'card';
+    }
+    if (type === 'news' || type === 'news_item') {
+      return 'news';
+    }
+    if (type === 'hand') {
+      return 'hand';
+    }
+    if (type === 'deck') {
+      return 'deck';
+    }
+    if (type === 'route') {
+      return 'route';
+    }
+    return type === 'event' || type === 'world_event' ? 'event' : 'scene';
   }
 
   function sceneById(projectIndex, id) {

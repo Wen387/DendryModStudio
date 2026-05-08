@@ -438,6 +438,9 @@ async function main() {
   const mainJs = fs.readFileSync(path.join(DESKTOP_DIR, 'main.js'), 'utf8');
   assert(mainJs.includes('chooseProjectRootForOperation'), 'desktop main should choose a project root for install/preview operations');
   assert(mainJs.includes('options && options.projectRoot'), 'desktop install/preview IPC should accept the renderer active project root');
+  assert(mainJs.includes('Menu.setApplicationMenu'), 'desktop main should install a branded application menu');
+  assert(mainJs.includes('Open GitHub') && mainJs.includes('Report Issue') && mainJs.includes('Releases / Updates'), 'desktop Help menu should point users to project GitHub pages');
+  assert(mainJs.includes('https://github.com/Wen387/DendryModStudio/issues'), 'desktop Help menu should link issue reporting to GitHub issues');
   assert(viewerHtml.includes('id="desktop-controls"'), 'viewer should contain desktop controls');
   assert(viewerHtml.includes('id="desktop-run-doctor"'), 'viewer should contain desktop doctor button');
   assert(viewerHtml.includes('id="desktop-progress"'), 'viewer should contain desktop scan progress bar');

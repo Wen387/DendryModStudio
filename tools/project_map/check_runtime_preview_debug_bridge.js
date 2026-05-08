@@ -46,13 +46,21 @@ const panel = bridge.debugPanelHtml({
     ],
     scenes: [
       {id: 'labor_law_crisis', title: 'Labor Law Crisis', sourcePath: 'source/scenes/events/labor_law.scene.dry'}
-    ],
+    ].concat(Array.from({length: 40}, (_unused, offset) => ({
+      id: 'news_scene_' + offset,
+      title: 'News Scene ' + offset,
+      type: 'news',
+      sourcePath: 'source/scenes/news/news_' + offset + '.scene.dry'
+    }))),
     links: [{from: 'union_pressure_rises', to: 'labor_law_crisis'}]
   }
 });
 assert(panel.includes('runtime-debug-console'), 'debug panel should have a stable container class');
 assert(panel.includes('data-debug-variable="year"'), 'debug panel should render variable controls');
 assert(panel.includes('data-debug-scene="labor_law_crisis"'), 'debug panel should render scene controls');
+assert(panel.includes('data-runtime-debug-scene-filter'), 'debug panel should offer scene filtering for larger projects');
+assert(panel.includes('data-debug-scene="news_scene_39"'), 'debug panel should render well beyond the previous 32-scene cap');
+assert(panel.includes('data-debug-scene-search='), 'debug panel should expose safe client-side search text');
 assert(panel.includes('This only changes the temporary modified preview'), 'debug panel should explain preview-only scope');
 
 const parentScript = bridge.parentDebugScript({sessionId: 'debug-session'});
@@ -60,6 +68,7 @@ assert(parentScript.includes('postMessage'), 'parent script should send iframe c
 assert(parentScript.includes('dms-runtime-preview-result'), 'parent script should receive structured result messages');
 assert(parentScript.includes('/api/debug-command-history'), 'parent script should write command history to the preview server');
 assert(parentScript.includes('data-debug-dirty'), 'parent script should apply only variable inputs the player changed');
+assert(parentScript.includes('data-runtime-debug-scene-filter'), 'parent script should filter scene jump controls');
 assert(parentScript.includes('No changed variable values'), 'parent script should explain when Apply has no changed values');
 assert(!/\beval\s*\(/.test(parentScript), 'parent script must not use eval');
 assert(!/\bnew Function\b/.test(parentScript), 'parent script must not use new Function');

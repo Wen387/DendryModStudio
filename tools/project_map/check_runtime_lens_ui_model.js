@@ -28,6 +28,27 @@ const projectIndex = {
       type: 'event',
       path: 'source/scenes/events/election_start.scene.dry',
       sourceSpan: {path: 'source/scenes/events/election_start.scene.dry', startLine: 1}
+    },
+    {
+      id: 'post_vote_news',
+      title: 'Post Vote News',
+      type: 'news',
+      path: 'source/scenes/post_event_news.scene.dry',
+      sourceSpan: {path: 'source/scenes/post_event_news.scene.dry', startLine: 1}
+    },
+    {
+      id: 'root',
+      title: 'Root Surface',
+      type: 'root',
+      path: 'source/scenes/root.scene.dry',
+      sourceSpan: {path: 'source/scenes/root.scene.dry', startLine: 1}
+    },
+    {
+      id: 'starter_deck',
+      title: 'Starter Deck',
+      type: 'deck',
+      path: 'source/scenes/decks/starter_deck.scene.dry',
+      sourceSpan: {path: 'source/scenes/decks/starter_deck.scene.dry', startLine: 1}
     }
   ]
 };
@@ -43,6 +64,33 @@ assert(focus.kind === 'event', 'Storyboard Runtime Lens focus should resolve eve
 assert(focus.id === 'election_start', 'Storyboard Runtime Lens focus should resolve selected id');
 assert(focus.title === 'Election Begins', 'Storyboard Runtime Lens focus should resolve selected title');
 assert(focus.source.path === 'source/scenes/events/election_start.scene.dry', 'Storyboard Runtime Lens focus should keep source reference');
+
+const newsFocus = runtimeLensUi.focusFromCanvas(projectIndex, {
+  objectId: 'post_vote_news',
+  objectKind: 'news',
+  title: 'Post Vote News',
+  source: {path: 'source/scenes/post_event_news.scene.dry', line: 1}
+}, 'news:post_vote_news');
+assert(newsFocus.kind === 'news', 'Storyboard Runtime Lens focus should resolve news scene kind');
+assert(newsFocus.targetSceneId === 'post_vote_news', 'Storyboard Runtime Lens focus should jump to news scenes');
+
+const deckFocus = runtimeLensUi.focusFromCanvas(projectIndex, {
+  objectId: 'starter_deck',
+  objectKind: 'deck',
+  title: 'Starter Deck',
+  source: {path: 'source/scenes/decks/starter_deck.scene.dry', line: 1}
+}, 'deck:starter_deck');
+assert(deckFocus.kind === 'deck', 'Storyboard Runtime Lens focus should resolve deck scene kind');
+assert(deckFocus.targetSceneId === 'starter_deck', 'Storyboard Runtime Lens focus should jump to deck scenes');
+
+const textFocus = runtimeLensUi.focusFromCanvas(projectIndex, {
+  objectId: 'surface_text_update',
+  objectKind: 'surface_text',
+  title: 'Replacement text',
+  source: {path: 'source/scenes/root.scene.dry', line: 1}
+}, 'text:surface_text_update');
+assert(textFocus.kind === 'text_replacement', 'Storyboard Runtime Lens focus should resolve text replacement kind');
+assert(textFocus.targetSceneId === 'root', 'Storyboard Runtime Lens focus should map text replacements to the owning scene');
 
 const draftState = {
   projectIndex,
@@ -88,8 +136,8 @@ const readyHtml = runtimeLensUi.renderPanel({
 });
 assert(readyHtml.includes('data-runtime-lens-frame="true"'), 'Ready Runtime Lens panel should render an iframe');
 assert(readyHtml.includes('http://127.0.0.1:4000/session/lens/'), 'Runtime Lens iframe should point at the focused wrapper URL');
-assert(readyHtml.includes('Refresh'), 'Ready Runtime Lens panel should offer refresh');
-assert(readyHtml.includes('Rebuild'), 'Ready Runtime Lens panel should offer rebuild');
+assert(readyHtml.includes('Refresh quick'), 'Ready Runtime Lens panel should offer quick refresh');
+assert(readyHtml.includes('Full Build'), 'Ready Runtime Lens panel should offer explicit full build');
 assert(readyHtml.includes('Reset'), 'Ready Runtime Lens panel should offer reset');
 assert(readyHtml.includes('Collapse'), 'Ready Runtime Lens panel should offer collapse');
 assert(readyHtml.includes('Open'), 'Ready Runtime Lens panel should offer external open');

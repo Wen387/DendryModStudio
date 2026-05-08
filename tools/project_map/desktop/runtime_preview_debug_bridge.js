@@ -1,5 +1,7 @@
 'use strict';
 
+const MAX_RENDERED_SCENES = 1000;
+
 function bridgeScript(options) {
   const opts = options || {};
   const allowedOrigin = JSON.stringify(String(opts.allowedOrigin || ''));
@@ -38,18 +40,30 @@ function bridgeScript(options) {
 
 function debugPanelHtml(options) {
   const controls = options && options.controls || {};
+  const sceneRows = controls.scenes || [];
+  const renderedScenes = sceneRows.slice(0, MAX_RENDERED_SCENES);
+  const hiddenSceneCount = Math.max(0, sceneRows.length - renderedScenes.length);
   const variables = (controls.variables || []).slice(0, 24).map((item) => {
     return '<label class="runtime-debug-row" data-debug-variable="' + escapeAttr(item.name) + '">' +
       '<span><strong>' + escapeHtml(item.name) + '</strong><small>' + escapeHtml(item.reason || item.valueType || '') + '</small></span>' +
       '<input type="text" data-debug-variable-input="' + escapeAttr(item.name) + '" value="' + defaultValue(item) + '">' +
       '</label>';
   }).join('');
-  const scenes = (controls.scenes || []).slice(0, 32).map((item) => {
-    return '<button type="button" class="runtime-debug-scene" data-debug-scene="' + escapeAttr(item.id) + '">' +
+  const scenes = renderedScenes.map((item) => {
+    const searchText = [
+      item && item.id,
+      item && item.title,
+      item && item.type,
+      item && item.sourcePath
+    ].filter(Boolean).join(' ').toLowerCase();
+    return '<button type="button" class="runtime-debug-scene" data-debug-scene="' + escapeAttr(item.id) + '" data-debug-scene-search="' + escapeAttr(searchText) + '">' +
       '<strong>' + escapeHtml(item.title || item.id) + '</strong>' +
-      '<small>' + escapeHtml(item.sourcePath || item.id) + '</small>' +
+      '<small>' + escapeHtml([item.type, item.sourcePath || item.id].filter(Boolean).join(' · ')) + '</small>' +
       '</button>';
   }).join('');
+  const sceneSummary = '<p class="runtime-debug-count">' +
+    escapeHtml('Showing ' + renderedScenes.length + ' of ' + sceneRows.length + (hiddenSceneCount ? '. Use the focused Runtime Lens for deeper jumps.' : '')) +
+    '</p>';
   const links = (controls.links || []).slice(0, 20).map((item) => {
     return '<li>' + escapeHtml((item.from || '') + ' -> ' + (item.to || '')) + '</li>';
   }).join('');
@@ -60,7 +74,7 @@ function debugPanelHtml(options) {
     '<section><h3>Test Conditions</h3><div class="runtime-debug-variables">' + variables + '</div>',
     '<button type="button" data-runtime-debug-action="apply-variables">Apply to modified preview</button>',
     '<button type="button" data-runtime-debug-action="reset">Reset modified preview</button></section>',
-    '<section><h3>Jump</h3><div class="runtime-debug-scenes">' + scenes + '</div></section>',
+    '<section><h3>Jump</h3><input type="search" class="runtime-debug-filter" data-runtime-debug-scene-filter placeholder="Filter scenes, cards, news...">' + sceneSummary + '<div class="runtime-debug-scenes">' + scenes + '</div></section>',
     '<section><h3>Event Chain</h3><ul>' + links + '</ul></section>',
     '<section><h3>Command History</h3><ol class="runtime-debug-history"></ol></section>',
     '</aside>'
@@ -79,7 +93,7 @@ function parentDebugScript(options) {
     'function appendHistory(text){var list=historyList();if(!list)return;var li=document.createElement("li");li.textContent=text;list.prepend(li);}',
     'function commandVariables(){return Array.prototype.slice.call(document.querySelectorAll("[data-debug-variable-input][data-debug-dirty=\\"1\\"]")).map(function(input){return {name:input.getAttribute("data-debug-variable-input"),value:input.value};});}',
     'function send(command){var frame=modifiedFrame();if(!frame||!frame.contentWindow){appendHistory("Modified preview is not loaded.");return;}var requestId="debug-"+(++seq);frame.contentWindow.postMessage({kind:"dms-runtime-preview-command",requestId:requestId,command:command}, window.location.origin);fetch("./api/debug-command-history",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({sessionId:SESSION_ID,command:command})}).catch(function(){});}',
-    'document.addEventListener("input",function(event){var input=event.target.closest&&event.target.closest("[data-debug-variable-input]");if(input)input.setAttribute("data-debug-dirty","1");});',
+    'document.addEventListener("input",function(event){var filter=event.target.closest&&event.target.closest("[data-runtime-debug-scene-filter]");if(filter){var query=String(filter.value||"").toLowerCase();Array.prototype.slice.call(document.querySelectorAll("[data-debug-scene]")).forEach(function(button){var haystack=button.getAttribute("data-debug-scene-search")||"";button.hidden=Boolean(query)&&haystack.indexOf(query)<0;});return;}var input=event.target.closest&&event.target.closest("[data-debug-variable-input]");if(input)input.setAttribute("data-debug-dirty","1");});',
     'document.addEventListener("click",function(event){var action=event.target.closest("[data-runtime-debug-action]");if(action&&action.getAttribute("data-runtime-debug-action")==="apply-variables"){var variables=commandVariables();if(!variables.length){appendHistory("No changed variable values to apply.");return;}send({type:"applyVariables",variables:variables});return;}if(action&&action.getAttribute("data-runtime-debug-action")==="reset"){send({type:"resetToInitialState"});return;}var scene=event.target.closest("[data-debug-scene]");if(scene){send({type:"jumpToScene",sceneId:scene.getAttribute("data-debug-scene")});}});',
     'window.addEventListener("message",function(event){var data=event.data||{};if(data.kind!=="dms-runtime-preview-result")return;var result=data.result||{};appendHistory((result.ok?"OK":"Needs attention")+": "+(result.message||result.sceneId||((result.applied||[]).join(", "))||"command complete"));});',
     '})();'

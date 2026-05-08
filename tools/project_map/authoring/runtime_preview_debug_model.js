@@ -3,7 +3,9 @@
 
   const MODEL_VERSION = '0.1';
   const MAX_STRING_LENGTH = 80;
-  const DEFAULT_LIMIT = 80;
+  const DEFAULT_VARIABLE_LIMIT = 80;
+  const DEFAULT_SCENE_LIMIT = 1000;
+  const DEFAULT_LINK_LIMIT = 1000;
 
   function buildDebugControls(projectIndex, options) {
     const index = isObject(projectIndex) ? projectIndex : {};
@@ -14,8 +16,8 @@
       projectName: String(index.project && index.project.name || ''),
       selectedSceneId: String(opts.selectedSceneId || ''),
       variables: buildVariableControls(index, opts),
-      scenes: buildSceneControls(index),
-      links: buildLinkControls(index, opts.selectedSceneId),
+      scenes: buildSceneControls(index, opts),
+      links: buildLinkControls(index, opts.selectedSceneId, opts),
       diagnostics: []
     };
   }
@@ -25,7 +27,7 @@
     const candidates = suggestions && typeof suggestions.buildVariableCandidates === 'function'
       ? suggestions.buildVariableCandidates(index, options || {})
       : ensureArray(index.variables).map(fallbackVariableCandidate);
-    const limit = positiveInteger(options && options.limit, DEFAULT_LIMIT);
+    const limit = positiveInteger(options && options.variableLimit, DEFAULT_VARIABLE_LIMIT);
     return candidates
       .map((candidate) => normalizeVariableControl(candidate))
       .filter(Boolean)
@@ -68,13 +70,22 @@
     };
   }
 
-  function buildSceneControls(index) {
+  function buildSceneControls(index, options) {
+    const opts = isObject(options) ? options : {};
     const rows = new Map();
     ensureArray(index.scenes).forEach((scene) => addSceneControl(rows, scene, scene && scene.type));
     ensureArray(index.semantic && index.semantic.events).forEach((scene) => addSceneControl(rows, scene, 'event'));
+    ensureArray(index.semantic && index.semantic.news).forEach((scene) => addSceneControl(rows, scene, 'news'));
+    ensureArray(index.semantic && index.semantic.newsItems).forEach((scene) => addSceneControl(rows, scene, 'news'));
+    ensureArray(index.semantic && index.semantic.cards).forEach((scene) => addSceneControl(rows, scene, 'card'));
+    ensureArray(index.semantic && index.semantic.hands).forEach((scene) => addSceneControl(rows, scene, 'hand'));
+    ensureArray(index.semantic && index.semantic.decks).forEach((scene) => addSceneControl(rows, scene, 'deck'));
+    ensureArray(index.semantic && index.semantic.pinnedCards).forEach((scene) => addSceneControl(rows, scene, 'card'));
+    ensureArray(index.semantic && index.semantic.eventPopups).forEach((scene) => addSceneControl(rows, scene, 'event'));
+    const limit = positiveInteger(opts.sceneLimit, DEFAULT_SCENE_LIMIT);
     return Array.from(rows.values())
       .sort((a, b) => sceneRank(a) - sceneRank(b) || a.id.localeCompare(b.id))
-      .slice(0, DEFAULT_LIMIT);
+      .slice(0, limit);
   }
 
   function addSceneControl(rows, scene, fallbackType) {
@@ -93,7 +104,8 @@
     });
   }
 
-  function buildLinkControls(index, selectedSceneId) {
+  function buildLinkControls(index, selectedSceneId, options) {
+    const opts = isObject(options) ? options : {};
     const selected = String(selectedSceneId || '').trim();
     return ensureArray(index.edges)
       .filter((edge) => {
@@ -108,7 +120,7 @@
         label: String(edge.label || edge.kind || '')
       }))
       .filter((edge) => isSafeSceneId(edge.from) && isSafeSceneId(edge.to))
-      .slice(0, DEFAULT_LIMIT);
+      .slice(0, positiveInteger(opts.linkLimit, DEFAULT_LINK_LIMIT));
   }
 
   function validateVariableCommand(controls, requestedVariables) {
@@ -241,7 +253,13 @@
   }
 
   function sceneRank(scene) {
-    return scene.type === 'event' ? 0 : scene.type === 'card' ? 1 : scene.type === 'hand' ? 2 : 3;
+    const type = String(scene && scene.type || '').toLowerCase();
+    if (type === 'event' || type === 'world_event') return 0;
+    if (type === 'news' || type === 'news_item') return 1;
+    if (type === 'card' || type === 'advisor') return 2;
+    if (type === 'hand') return 3;
+    if (type === 'deck') return 4;
+    return 5;
   }
 
   function variableSuggestionsApi() {

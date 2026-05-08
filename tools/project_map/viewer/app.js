@@ -824,6 +824,11 @@
       if (!detail.index) {
         throw new Error('Desktop shell did not provide a ProjectIndex JSON payload.');
       }
+      setDesktopProgress(elements, {
+        stage: 'render',
+        percent: 96,
+        label: t('desktop.renderingProject', 'Rendering project workspace...')
+      });
       const fileInfo = detail.fileInfo || {
         name: detail.indexPath || 'desktop ProjectIndex',
         size: JSON.stringify(detail.index).length
@@ -840,7 +845,7 @@
       const name = detail.projectName || (state.model.project && state.model.project.name) || t('desktop.projectFallback', 'Project');
       setDesktopStatus(elements, t('desktop.projectLoaded', '{project} loaded.').replace('{project}', name));
       setDesktopProgress(elements, {
-        stage: 'complete',
+        stage: 'loaded',
         percent: 100,
         label: t('desktop.projectLoadedShort', 'Project loaded.')
       });
@@ -1038,8 +1043,8 @@
       global.clearTimeout(desktopProgressTimer);
       desktopProgressTimer = null;
     }
-    const percent = clampPercent(update && update.percent);
     const stage = String(update && update.stage || 'working');
+    const percent = displayDesktopProgressPercent(clampPercent(update && update.percent), stage);
     const label = String(update && update.label || 'Working...');
     elements.desktopProgress.classList.remove('hidden');
     elements.desktopProgress.classList.toggle('is-error', Boolean(update && update.error));
@@ -1052,6 +1057,13 @@
     if (elements.desktopProgressLabel) {
       elements.desktopProgressLabel.textContent = percent + '% · ' + label;
     }
+  }
+
+  function displayDesktopProgressPercent(percent, stage) {
+    if (percent >= 100 && stage === 'complete') {
+      return 99;
+    }
+    return percent;
   }
 
   function clearDesktopProgressSoon(elements, delayMs) {

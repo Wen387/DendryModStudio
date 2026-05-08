@@ -13,8 +13,7 @@ const debugBridge = require('./runtime_preview_debug_bridge.js');
 const BUILD_TIMEOUT_MS = 5 * 60 * 1000;
 const COMMAND_CHECK_TIMEOUT_MS = 10 * 1000;
 
-let previewServer = null;
-let previewServerRoot = '';
+const previewServers = new Map();
 
 function isObject(value) {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
@@ -55,6 +54,7 @@ function defaultSessionsRoot(options) {
 
 function createSession(options) {
   const opts = isObject(options) ? options : {};
+  const timing = opts.timing || null;
   const project = validateProjectRoot(opts.projectRoot);
   if (!project.ok) {
     return {ok: false, diagnostics: [diagnostic('error', 'runtime_preview.project_root', project.message)]};
@@ -67,11 +67,16 @@ function createSession(options) {
   const baselineRoot = path.join(root, 'baseline');
   const modifiedRoot = path.join(root, 'modified');
   fs.mkdirSync(root, {recursive: true});
+  const baselineStarted = Date.now();
   copyProject(project.root, baselineRoot);
+  markTiming(timing, 'copy_baseline_project', baselineStarted);
+  const modifiedStarted = Date.now();
   copyProject(project.root, modifiedRoot);
+  markTiming(timing, 'copy_modified_project', modifiedStarted);
   const metadata = {
     schemaVersion: '0.1',
     kind: 'dendry_mod_studio_runtime_preview',
+    mode: 'full',
     sessionId,
     createdAt: now.toISOString(),
     projectRoot: project.root,
@@ -80,9 +85,11 @@ function createSession(options) {
   };
   const metadataPath = path.join(root, 'metadata.json');
   fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2) + '\n', 'utf8');
+  markTiming(timing, 'write_metadata');
   return {
     ok: true,
     sessionId,
+    mode: 'full',
     metadata,
     paths: {root, baselineRoot, modifiedRoot, metadataPath},
     diagnostics: []
@@ -91,9 +98,10 @@ function createSession(options) {
 
 function createRuntimePreview(options) {
   const opts = isObject(options) ? options : {};
-  const session = createSession(opts);
+  const timing = createTiming();
+  const session = createSession(Object.assign({}, opts, {timing}));
   if (!session.ok) {
-    return session;
+    return Object.assign({}, session, {timings: finishTiming(timing)});
   }
   const plan = isObject(opts.plan) ? opts.plan : {};
   const provenance = installPlan.validateProjectProvenance
@@ -102,40 +110,127 @@ function createRuntimePreview(options) {
   if (!provenance.ok) {
     return Object.assign({}, session, {
       ok: false,
-      diagnostics: session.diagnostics.concat(diagnostic('error', 'runtime_preview.project_mismatch', provenance.message))
+      diagnostics: session.diagnostics.concat(diagnostic('error', 'runtime_preview.project_mismatch', provenance.message)),
+      timings: finishTiming(timing)
     });
   }
   const sandboxPlan = rewritePlanProjectRoot(plan, session.paths.modifiedRoot);
+  const applyStarted = Date.now();
   const installResult = installPlan.applyInstallPlan(sandboxPlan, {
     projectRoot: session.paths.modifiedRoot,
     dryRun: opts.dryRun === true,
     allowAdvanced: opts.allowAdvanced === true
   });
+  markTiming(timing, 'apply_install_plan', applyStarted);
   const buildRunner = typeof opts.buildRunner === 'function' ? opts.buildRunner : runBuild;
   const buildMeta = {allowProjectBuildWrapper: opts.allowProjectBuildWrapper === true};
+  const baselineBuildStarted = Date.now();
   const baselineBuild = buildRunner(session.paths.baselineRoot, Object.assign({lane: 'baseline'}, buildMeta));
+  markTiming(timing, 'build_baseline', baselineBuildStarted);
+  const modifiedBuildStarted = Date.now();
   const modifiedBuild = buildRunner(session.paths.modifiedRoot, Object.assign({lane: 'modified'}, buildMeta));
+  markTiming(timing, 'build_modified', modifiedBuildStarted);
   const serverFactory = typeof opts.serverFactory === 'function' ? opts.serverFactory : ensurePreviewServer;
   const serverRoot = path.dirname(session.paths.root);
+  const serverStarted = Date.now();
   const serverResult = serverFactory(serverRoot);
   if (serverResult && typeof serverResult.then === 'function') {
-    return serverResult.then((server) => finalizeRuntimePreview({
-      session,
-      installResult,
-      baselineBuild,
-      modifiedBuild,
-      server,
-      opts
-    }));
+    return serverResult.then((server) => {
+      markTiming(timing, 'start_preview_server', serverStarted);
+      return finalizeRuntimePreview({
+        session,
+        installResult,
+        baselineBuild,
+        modifiedBuild,
+        server,
+        opts,
+        timing
+      });
+    });
   }
+  markTiming(timing, 'start_preview_server', serverStarted);
   return finalizeRuntimePreview({
     session,
     installResult,
     baselineBuild,
     modifiedBuild,
     server: serverResult,
-    opts
+    opts,
+    timing
   });
+}
+
+function createQuickSession(options) {
+  const opts = isObject(options) ? options : {};
+  const timing = opts.timing || null;
+  const project = validateProjectRoot(opts.projectRoot);
+  if (!project.ok) {
+    return {ok: false, diagnostics: [diagnostic('error', 'runtime_preview.project_root', project.message)]};
+  }
+  const htmlRoot = path.join(project.root, 'out', 'html');
+  if (!fs.existsSync(path.join(htmlRoot, 'index.html'))) {
+    return {
+      ok: false,
+      diagnostics: [diagnostic('error', 'runtime_preview.quick_html_missing', 'Quick Runtime Lens needs an existing out/html/index.html. Use Full Build once to create it.')]
+    };
+  }
+  const plan = isObject(opts.plan) ? opts.plan : {};
+  const now = typeof opts.now === 'function' ? opts.now() : new Date();
+  const stamp = now.toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
+  const sessionId = stamp + '-' + safeId(plan.id || plan.title || 'quick-runtime-lens', 'quick-runtime-lens');
+  const root = path.join(defaultSessionsRoot(opts), sessionId);
+  const modifiedRoot = path.join(root, 'modified');
+  const modifiedHtmlRoot = path.join(modifiedRoot, 'out', 'html');
+  fs.mkdirSync(root, {recursive: true});
+  const copyStarted = Date.now();
+  copyGeneratedHtml(htmlRoot, modifiedHtmlRoot);
+  markTiming(timing, 'copy_existing_html', copyStarted);
+  const metadata = {
+    schemaVersion: '0.1',
+    kind: 'dendry_mod_studio_runtime_preview',
+    mode: 'quick',
+    sessionId,
+    createdAt: now.toISOString(),
+    projectRoot: project.root,
+    planId: String(plan.id || ''),
+    title: String(plan.title || plan.id || 'Quick Runtime Lens')
+  };
+  const metadataPath = path.join(root, 'metadata.json');
+  fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2) + '\n', 'utf8');
+  markTiming(timing, 'write_metadata');
+  return {
+    ok: true,
+    mode: 'quick',
+    sessionId,
+    metadata,
+    paths: {root, modifiedRoot, metadataPath},
+    diagnostics: []
+  };
+}
+
+function createQuickRuntimePreview(options) {
+  const opts = isObject(options) ? options : {};
+  const timing = createTiming();
+  const session = createQuickSession(Object.assign({}, opts, {timing}));
+  if (!session.ok) {
+    return Object.assign({}, session, {
+      mode: 'quick',
+      status: 'failed',
+      timings: finishTiming(timing)
+    });
+  }
+  const serverFactory = typeof opts.serverFactory === 'function' ? opts.serverFactory : ensurePreviewServer;
+  const serverRoot = path.dirname(session.paths.root);
+  const serverStarted = Date.now();
+  const serverResult = serverFactory(serverRoot);
+  if (serverResult && typeof serverResult.then === 'function') {
+    return serverResult.then((server) => {
+      markTiming(timing, 'start_preview_server', serverStarted);
+      return finalizeQuickRuntimePreview({session, server, opts, timing});
+    });
+  }
+  markTiming(timing, 'start_preview_server', serverStarted);
+  return finalizeQuickRuntimePreview({session, server: serverResult, opts, timing});
 }
 
 function finalizeRuntimePreview(context) {
@@ -173,6 +268,8 @@ function finalizeRuntimePreview(context) {
   const previewOk = Boolean(baselineBuild.ok && modifiedBuild.ok && server.ok && hasPort);
   return Object.assign({}, session, {
     ok: previewOk,
+    mode: 'full',
+    previewMode: 'full',
     installResult,
     baselineBuild,
     modifiedBuild,
@@ -182,7 +279,66 @@ function finalizeRuntimePreview(context) {
     compareUrl: baseUrl ? baseUrl + '/compare/' : '',
     baselineUrl: baseUrl ? baseUrl + '/baseline/out/html/' : '',
     modifiedUrl: baseUrl ? baseUrl + '/modified/out/html/' : '',
-    diagnostics
+    diagnostics,
+    timings: finishTiming(context.timing)
+  });
+}
+
+function finalizeQuickRuntimePreview(context) {
+  const session = context.session;
+  const opts = context.opts || {};
+  const server = isObject(context.server)
+    ? context.server
+    : {ok: false, diagnostics: [diagnostic('error', 'runtime_preview.server', 'Runtime preview server did not return a usable listener.')]};
+  const port = Number(server.port || 0);
+  const hasPort = Number.isFinite(port) && port > 0;
+  const baseUrl = hasPort
+    ? 'http://127.0.0.1:' + port + '/' + encodeURIComponent(session.sessionId)
+    : '';
+  const serverOrigin = hasPort ? 'http://127.0.0.1:' + port : '';
+  const modifiedBuild = {
+    ok: true,
+    root: session.paths.modifiedRoot,
+    lane: 'quick',
+    command: 'reuse existing out/html',
+    htmlRoot: path.join(session.paths.modifiedRoot, 'out', 'html'),
+    skippedBuild: true,
+    diagnostics: []
+  };
+  const debug = createDebugSession(session, {
+    projectIndex: opts.projectIndex,
+    modifiedBuild,
+    serverOrigin: opts.serverOrigin || serverOrigin
+  });
+  const installResult = {
+    ok: true,
+    dryRun: true,
+    operationSummary: {safeApply: 0, guardedApply: 0, advancedApply: 0, manualReview: 0, refused: 0, total: 0},
+    results: [],
+    diagnostics: [diagnostic('info', 'runtime_preview.quick_mode', 'Quick Lens reused the latest generated out/html without rebuilding the project.')]
+  };
+  const diagnostics = session.diagnostics
+    .concat(installResult.diagnostics || [])
+    .concat(modifiedBuild.diagnostics || [])
+    .concat(debug.diagnostics || [])
+    .concat(server.diagnostics || []);
+  const previewOk = Boolean(modifiedBuild.ok && server.ok && hasPort);
+  return Object.assign({}, session, {
+    ok: previewOk,
+    mode: 'quick',
+    previewMode: 'quick',
+    status: previewOk ? 'ready' : 'failed',
+    installResult,
+    baselineBuild: null,
+    modifiedBuild,
+    debug,
+    comparePage: null,
+    server,
+    compareUrl: '',
+    baselineUrl: '',
+    modifiedUrl: baseUrl ? baseUrl + '/modified/out/html/' : '',
+    diagnostics,
+    timings: finishTiming(context.timing)
   });
 }
 
@@ -202,6 +358,16 @@ function copyProject(sourceRoot, targetRoot) {
   });
 }
 
+function copyGeneratedHtml(sourceHtmlRoot, targetHtmlRoot) {
+  fs.mkdirSync(path.dirname(targetHtmlRoot), {recursive: true});
+  fs.rmSync(targetHtmlRoot, {recursive: true, force: true});
+  fs.cpSync(sourceHtmlRoot, targetHtmlRoot, {
+    recursive: true,
+    errorOnExist: false,
+    force: true
+  });
+}
+
 function shouldCopyPath(sourceRoot, source) {
   const relative = path.relative(sourceRoot, source).split(path.sep).join('/');
   if (!relative) {
@@ -213,6 +379,32 @@ function shouldCopyPath(sourceRoot, source) {
     parts[0] !== '.cache' &&
     parts[0] !== 'dist' &&
     parts[0] !== '.superpowers';
+}
+
+function createTiming() {
+  const now = Date.now();
+  return {startedAt: now, lastAt: now, stages: []};
+}
+
+function markTiming(timing, stage, startedAt) {
+  if (!timing || !stage) {
+    return;
+  }
+  const now = Date.now();
+  const from = typeof startedAt === 'number' ? startedAt : timing.lastAt || timing.startedAt || now;
+  timing.stages.push({stage, ms: Math.max(0, now - from)});
+  timing.lastAt = now;
+}
+
+function finishTiming(timing) {
+  if (!timing) {
+    return {totalMs: 0, stages: []};
+  }
+  const now = Date.now();
+  return {
+    totalMs: Math.max(0, now - (timing.startedAt || now)),
+    stages: Array.isArray(timing.stages) ? timing.stages.slice() : []
+  };
 }
 
 function runBuild(root, meta) {
@@ -416,7 +608,9 @@ function comparePageHtml(session, report) {
     '.runtime-debug-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(64px,96px);gap:6px;margin:6px 0}',
     '.runtime-debug-row small,.runtime-debug-scene small{display:block;color:#6b6255;font-size:11px}',
     '.runtime-debug-row span,.runtime-debug-row strong,.runtime-debug-row small,.runtime-debug-scene strong,.runtime-debug-scene small{min-width:0;overflow-wrap:anywhere}',
-    '.runtime-debug-row input{min-width:0;padding:5px;border:1px solid #cdbfa8;border-radius:4px}',
+    '.runtime-debug-row input,.runtime-debug-filter{min-width:0;padding:5px;border:1px solid #cdbfa8;border-radius:4px}',
+    '.runtime-debug-filter{box-sizing:border-box;width:100%;margin:2px 0 4px}',
+    '.runtime-debug-count{font-size:12px;margin:4px 0 8px}',
     '.runtime-debug-scene{display:block;width:100%;margin:5px 0;text-align:left}',
     '.runtime-debug-history{padding-left:20px;color:#4d4438}',
     '@media (max-width: 900px){.runtime-debug-console{position:static;width:auto;max-width:none;margin:0 8px 8px;border:1px solid #cdbfa8}.runtime-debug-resizer{display:none}main{margin-right:0!important;height:55vh}}',
@@ -509,14 +703,15 @@ function injectModifiedBridge(indexPath, scriptName) {
 
 function ensurePreviewServer(sessionsRoot) {
   const root = path.resolve(sessionsRoot);
-  if (previewServer && previewServer.listening && previewServerRoot === root) {
-    const address = previewServer.address();
+  const existing = previewServers.get(root);
+  if (existing && existing.listening) {
+    const address = existing.address();
     if (address && typeof address === 'object' && address.port) {
       return {ok: true, host: '127.0.0.1', port: address.port, diagnostics: []};
     }
   }
-  previewServerRoot = root;
-  previewServer = http.createServer((req, res) => servePreviewRequest(root, req, res));
+  const previewServer = http.createServer((req, res) => servePreviewRequest(root, req, res));
+  previewServers.set(root, previewServer);
   return new Promise((resolve) => {
     let settled = false;
     function finish(result) {
@@ -527,6 +722,7 @@ function ensurePreviewServer(sessionsRoot) {
       resolve(result);
     }
     previewServer.once('error', (err) => {
+      previewServers.delete(root);
       finish({
         ok: false,
         host: '127.0.0.1',
@@ -551,19 +747,27 @@ function ensurePreviewServer(sessionsRoot) {
 }
 
 function closePreviewServer(callback) {
-  const server = previewServer;
-  previewServer = null;
-  previewServerRoot = '';
-  if (!server || !server.listening) {
+  const servers = Array.from(previewServers.values());
+  previewServers.clear();
+  if (!servers.length) {
     if (typeof callback === 'function') {
       callback();
     }
     return;
   }
-  server.close(() => {
-    if (typeof callback === 'function') {
+  let remaining = servers.length;
+  function done() {
+    remaining -= 1;
+    if (remaining === 0 && typeof callback === 'function') {
       callback();
     }
+  }
+  servers.forEach((server) => {
+    if (!server || !server.listening) {
+      done();
+      return;
+    }
+    server.close(done);
   });
 }
 
@@ -700,7 +904,10 @@ function recordDebugCommandHistory(sessionRoot, command, result, now) {
 module.exports = {
   createSession,
   createRuntimePreview,
+  createQuickSession,
+  createQuickRuntimePreview,
   copyProject,
+  copyGeneratedHtml,
   validateProjectRoot,
   recordDebugCommandHistory,
   closePreviewServer,

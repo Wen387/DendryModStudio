@@ -58,7 +58,15 @@
         return panel && frame && value.isVisible(win, panel) && value.isVisible(win, frame);
       }, 4000);
     } else if (mode === 'stale') {
-      const field = win.document.querySelector('[data-object-canvas-field]');
+      let field = win.document.querySelector('[data-object-canvas-field]');
+      if (!field && value.click) {
+        value.click(win, '[data-object-canvas-action="toggle_overlay"]');
+        await value.waitFor(() => win.document.querySelector('[data-object-canvas-field]'), 3000);
+        field = win.document.querySelector('[data-object-canvas-field]');
+      }
+      if (!field) {
+        throw new Error('Runtime Lens stale scenario could not find an editable object field.');
+      }
       field.value = 'Runtime Lens observes this selected scene after an authoring edit.';
       field.dispatchEvent(new win.Event('input', {bubbles: true}));
       await value.waitFor(() => win.document.querySelector('[data-runtime-lens-panel][data-runtime-lens-status="stale"]'), 4000);

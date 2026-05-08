@@ -178,6 +178,22 @@ const debugProjectIndex = {
   semantic: {events: [{id: 'runtime_replace', title: 'Runtime Replace'}]}
 };
 
+const quickSession = runtimePreview.createQuickRuntimePreview({
+  projectRoot: sourceRoot,
+  sessionsRoot: sessionRoot,
+  plan: {id: 'quick_lens', title: 'Quick Lens', operations: []},
+  projectIndex: debugProjectIndex,
+  serverFactory: runtimePreview.fakeServerFactory(47998),
+  now: () => new Date('2026-04-29T12:03:00.000Z')
+});
+assert(quickSession.ok, 'quick runtime preview should reuse existing generated HTML: ' + JSON.stringify(quickSession));
+assert(quickSession.previewMode === 'quick', 'quick runtime preview should report quick mode');
+assert(quickSession.modifiedBuild && quickSession.modifiedBuild.skippedBuild === true, 'quick runtime preview should skip project builds');
+assert(!quickSession.baselineBuild, 'quick runtime preview should not create a baseline build');
+assert(fs.existsSync(path.join(quickSession.paths.modifiedRoot, 'out', 'html', 'index.html')), 'quick runtime preview should copy generated out/html');
+assert(fs.existsSync(path.join(quickSession.paths.modifiedRoot, 'out', 'html', 'dms-preview-bridge.js')), 'quick runtime preview should inject the debug bridge into the copied HTML');
+assert(!fs.existsSync(path.join(quickSession.paths.modifiedRoot, 'source', 'info.dry')), 'quick runtime preview should not copy the full project source tree');
+
 const applySession = runtimePreview.createRuntimePreview({
   projectRoot: sourceRoot,
   sessionsRoot: sessionRoot,

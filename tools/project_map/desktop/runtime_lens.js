@@ -53,7 +53,11 @@ function createRuntimeLens(options) {
     focus,
     projectIndex
   });
-  const preview = runtimePreview.createRuntimePreview({
+  const previewMode = normalizePreviewMode(opts.previewMode || opts.mode);
+  const previewFactory = previewMode === 'quick'
+    ? runtimePreview.createQuickRuntimePreview
+    : runtimePreview.createRuntimePreview;
+  const preview = previewFactory({
     projectRoot: project.root,
     sessionsRoot: opts.sessionsRoot,
     plan,
@@ -70,6 +74,10 @@ function createRuntimeLens(options) {
     return preview.then((result) => finalizeLens(result, {focus, projectIndex}));
   }
   return finalizeLens(preview, {focus, projectIndex});
+}
+
+function normalizePreviewMode(value) {
+  return String(value || '').toLowerCase() === 'quick' ? 'quick' : 'full';
 }
 
 function finalizeLens(preview, context) {
@@ -216,12 +224,23 @@ function projectIndexWithFocus(projectIndex, focus) {
     index.scenes.push({
       id: sceneId,
       title: focus.title || sceneId,
-      type: focus.kind === 'card' ? 'card' : 'event',
+      type: focusSceneType(focus),
       path: focus.source && focus.source.path || '',
       sourceSpan: focus.source || {}
     });
   }
   return index;
+}
+
+function focusSceneType(focus) {
+  const kind = String(focus && focus.kind || '').toLowerCase();
+  if (kind === 'card' || kind === 'card_option') return 'card';
+  if (kind === 'news') return 'news';
+  if (kind === 'hand') return 'hand';
+  if (kind === 'deck') return 'deck';
+  if (kind === 'route') return 'route';
+  if (kind === 'scene' || kind === 'text_replacement') return 'scene';
+  return 'event';
 }
 
 

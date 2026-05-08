@@ -680,6 +680,7 @@
       }).join('') + '</div>' : '',
       renderRuntimePreviewFrame(result),
       renderRuntimePreviewBuilds(result),
+      renderRuntimePreviewTimings(result),
       diagnostics.length ? '<details class="runtime-preview-diagnostics"><summary>' + escapeHtml(t('install.runtimePreviewDiagnostics', 'Diagnostics')) + '</summary><ul>' +
         diagnostics.slice(0, 12).map((diag) => '<li>' + escapeHtml([(diag.severity || 'info'), (diag.code || 'diagnostic'), (diag.message || '')].join(' · ')) + '</li>').join('') +
         '</ul></details>' : '',
@@ -716,6 +717,31 @@
       const label = build.ok ? t('install.runtimePreviewBuildOk', 'build ok') : t('install.runtimePreviewBuildFailed', 'build failed');
       return '<div><strong>' + escapeHtml(item[0]) + '</strong><span>' + escapeHtml(label) + '</span><code>' + escapeHtml(build.command || '') + '</code></div>';
     }).join('') + '</div>';
+  }
+
+  function renderRuntimePreviewTimings(result) {
+    const timings = result && result.timings || {};
+    const stages = Array.isArray(timings.stages) ? timings.stages.filter((item) => item && item.stage) : [];
+    if (!stages.length) {
+      return '';
+    }
+    return [
+      '<details class="runtime-preview-diagnostics">',
+      '<summary>' + escapeHtml(t('install.runtimePreviewTimings', 'Timings')) + ' · ' + escapeHtml(formatMs(timings.totalMs)) + '</summary>',
+      '<ul>' + stages.slice(0, 10).map((item) => '<li>' + escapeHtml(item.stage) + ' · ' + escapeHtml(formatMs(item.ms)) + '</li>').join('') + '</ul>',
+      '</details>'
+    ].join('');
+  }
+
+  function formatMs(value) {
+    const number = Number(value || 0);
+    if (!Number.isFinite(number)) {
+      return '0ms';
+    }
+    if (number >= 1000) {
+      return (number / 1000).toFixed(number >= 10000 ? 0 : 1) + 's';
+    }
+    return Math.round(number) + 'ms';
   }
 
   function renderResultReport(result) {

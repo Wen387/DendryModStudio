@@ -1,12 +1,16 @@
 'use strict';
 
 const path = require('path');
-const {app, BrowserWindow, dialog, ipcMain, shell} = require('electron');
+const {app, BrowserWindow, Menu, dialog, ipcMain, shell} = require('electron');
 const core = require('./studio_core');
 const runtimeSessionCleanup = require('./runtime_session_cleanup');
 const updateNotice = require('./update_notice');
 
 const APP_ID = 'studio.dendry.mod';
+const APP_NAME = 'Dendry Mod Studio';
+const PROJECT_HOMEPAGE_URL = 'https://github.com/Wen387/DendryModStudio';
+const PROJECT_ISSUES_URL = 'https://github.com/Wen387/DendryModStudio/issues';
+const PROJECT_RELEASES_URL = 'https://github.com/Wen387/DendryModStudio/releases';
 const WINDOWS_ICON = path.join(__dirname, 'assets', 'dendry-mod-studio.ico');
 
 let mainWindow = null;
@@ -51,6 +55,122 @@ function chooseProjectRootForOperation(options) {
   return candidates.find(Boolean) || '';
 }
 
+function openTrustedExternalUrl(url) {
+  let parsed;
+  try {
+    parsed = new URL(String(url || '').trim());
+  } catch (_err) {
+    parsed = null;
+  }
+  if (!parsed || (parsed.protocol !== 'https:' && parsed.protocol !== 'http:')) {
+    return;
+  }
+  shell.openExternal(parsed.href).catch(() => {});
+}
+
+function showAboutDialog() {
+  dialog.showMessageBox(mainWindow || null, {
+    type: 'info',
+    title: 'About ' + APP_NAME,
+    message: APP_NAME,
+    detail: [
+      'Version ' + app.getVersion(),
+      'Desktop Project Map for Dendry mods.',
+      '',
+      PROJECT_HOMEPAGE_URL
+    ].join('\n'),
+    buttons: ['OK']
+  });
+}
+
+function buildApplicationMenuTemplate() {
+  const template = [
+    {
+      label: 'File',
+      submenu: [
+        process.platform === 'darwin' ? {role: 'close'} : {role: 'quit'}
+      ]
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        {role: 'undo'},
+        {role: 'redo'},
+        {type: 'separator'},
+        {role: 'cut'},
+        {role: 'copy'},
+        {role: 'paste'},
+        {role: 'selectAll'}
+      ]
+    },
+    {
+      label: 'View',
+      submenu: [
+        {role: 'reload'},
+        {role: 'forceReload'},
+        {role: 'toggleDevTools'},
+        {type: 'separator'},
+        {role: 'resetZoom'},
+        {role: 'zoomIn'},
+        {role: 'zoomOut'},
+        {type: 'separator'},
+        {role: 'togglefullscreen'}
+      ]
+    },
+    {
+      label: 'Window',
+      submenu: [
+        {role: 'minimize'},
+        {role: 'zoom'},
+        ...(process.platform === 'darwin' ? [{type: 'separator'}, {role: 'front'}] : [{role: 'close'}])
+      ]
+    },
+    {
+      label: 'Help',
+      submenu: [
+        {
+          label: 'Open GitHub',
+          click: () => openTrustedExternalUrl(PROJECT_HOMEPAGE_URL)
+        },
+        {
+          label: 'Report Issue',
+          click: () => openTrustedExternalUrl(PROJECT_ISSUES_URL)
+        },
+        {
+          label: 'Releases / Updates',
+          click: () => openTrustedExternalUrl(PROJECT_RELEASES_URL)
+        },
+        {type: 'separator'},
+        {
+          label: 'About ' + APP_NAME,
+          click: showAboutDialog
+        }
+      ]
+    }
+  ];
+  if (process.platform === 'darwin') {
+    template.unshift({
+      label: APP_NAME,
+      submenu: [
+        {label: 'About ' + APP_NAME, click: showAboutDialog},
+        {type: 'separator'},
+        {role: 'services'},
+        {type: 'separator'},
+        {role: 'hide'},
+        {role: 'hideOthers'},
+        {role: 'unhide'},
+        {type: 'separator'},
+        {role: 'quit'}
+      ]
+    });
+  }
+  return template;
+}
+
+function installApplicationMenu() {
+  Menu.setApplicationMenu(Menu.buildFromTemplate(buildApplicationMenuTemplate()));
+}
+
 function createWindow() {
   const paths = core.resolveResourcePaths({desktopDir: __dirname});
   const windowOptions = {
@@ -58,7 +178,7 @@ function createWindow() {
     height: 860,
     minWidth: 980,
     minHeight: 680,
-    title: 'Dendry Mod Studio',
+    title: APP_NAME,
     backgroundColor: '#f4f2ec',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -290,6 +410,7 @@ ipcMain.handle('dendry:runtime-lens-create', async (_event, options) => {
     projectRoot,
     allowAdvanced: options && options.allowAdvanced === true,
     projectIndex: options && options.projectIndex,
+    previewMode: options && options.previewMode,
     sessionsRoot: path.join(app.getPath('userData'), 'runtime-lenses')
   });
   pruneRuntimeSessions();
@@ -325,6 +446,7 @@ if (process.platform === 'win32') {
 
 app.whenReady().then(() => {
   pruneRuntimeSessions();
+  installApplicationMenu();
   createWindow();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
