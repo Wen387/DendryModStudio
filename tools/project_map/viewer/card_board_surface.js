@@ -9,6 +9,7 @@
       renderToolbar(board, opts),
       '<div class="card-board-workspace">',
       renderBoard(board),
+      renderSidebarResizer(),
       renderEditor(model, board, opts),
       '</div>',
       '</section>'
@@ -16,8 +17,9 @@
   }
 
   function renderToolbar(board, options) {
+    const collapsed = Boolean(options && options.boardChromeCollapsed);
     return [
-      '<header class="object-canvas-stage-toolbar card-board-toolbar">',
+      '<header class="object-canvas-stage-toolbar card-board-toolbar' + (collapsed ? ' is-collapsed' : '') + '" data-board-stage-toolbar="true" data-board-toolbar-collapsed="' + (collapsed ? 'true' : 'false') + '">',
       '<div>',
       '<div class="template-eyebrow">' + escapeHtml(t('authoring.surface.cardBoard', 'Card Board')) + '</div>',
       '<h3>' + escapeHtml(t('cardBoard.title', 'Card Board Workspace')) + '</h3>',
@@ -25,7 +27,7 @@
       renderMetrics(board),
       '</div>',
       '<div class="card-board-toolbar-actions">',
-      '<button type="button" data-object-canvas-action="toggle_overlay">' + escapeHtml(options && options.editorOverlay ? t('objectCanvas.editorDock', 'Dock') : t('objectCanvas.editorOverlay', 'Expand editor')) + '</button>',
+      '<button type="button" data-object-canvas-action="toggle_overlay">' + escapeHtml(options && options.editorOverlay ? t('objectCanvas.editorDock', 'Close editor') : t('objectCanvas.editorOverlay', 'Open object editor')) + '</button>',
       '</div>',
       '</header>'
     ].join('');
@@ -40,6 +42,10 @@
       '<span>' + escapeHtml(String(metrics.unwiredCount || 0)) + ' ' + escapeHtml(t('cardBoard.metric.unwired', 'unwired')) + '</span>',
       '</div>'
     ].join('');
+  }
+
+  function renderSidebarResizer() {
+    return '<div class="object-canvas-sidebar-resizer card-board-sidebar-resizer" data-object-canvas-resizer="sidebar" role="separator" aria-orientation="vertical" aria-label="' + escapeAttr(t('objectCanvas.resizeSidebar', 'Resize side panel')) + '" title="' + escapeAttr(t('objectCanvas.resizeSidebar', 'Resize side panel')) + '"></div>';
   }
 
   function renderBoard(board) {
@@ -105,8 +111,8 @@
       entries.map((entry) => [
         '<article class="card-board-hand-route' + (entry.selected ? ' is-selected' : '') + '" tabindex="0" role="button" data-card-board-hand-route="' + escapeAttr(entry.key || '') + '" data-card-board-hand-target-kind="' + escapeAttr(entry.targetKind || '') + '" data-card-board-hand-target-id="' + escapeAttr(entry.targetId || '') + '">',
         '<span>' + escapeHtml(typeLabel(entry.kind)) + '</span>',
-        '<strong>' + escapeHtml(entry.title || '') + '</strong>',
-        '<small>' + escapeHtml(entry.detail || '') + '</small>',
+        '<strong>' + renderTextInline(entry.title || '') + '</strong>',
+        '<small>' + renderTextInline(entry.detail || '') + '</small>',
         '</article>'
       ].join('')).join(''),
       '</div>'
@@ -131,13 +137,13 @@
     return [
       '<article class="card-board-card card-board-card-' + safeClass(card.kind) + (card.selected ? ' is-selected' : '') + '" tabindex="0" draggable="true" role="button" data-card-board-card="' + escapeAttr(card.key || '') + '" data-card-board-card-kind="' + escapeAttr(card.kind || '') + '" data-card-board-card-title="' + escapeAttr(card.title || '') + '">',
       '<div class="card-board-card-kicker"><span>' + escapeHtml(typeLabel(card.kind)) + '</span><em>' + escapeHtml(ensureArray(card.tags).slice(0, 2).map((tag) => '#' + tag).join(' ')) + '</em></div>',
-      '<strong>' + escapeHtml(card.heading || card.title || '') + '</strong>',
-      card.subtitle ? '<small>' + escapeHtml(card.subtitle) + '</small>' : '',
-      card.body ? '<p>' + escapeHtml(card.body) + '</p>' : '',
+      '<strong>' + renderTextInline(card.heading || card.title || '') + '</strong>',
+      card.subtitle ? '<small>' + renderTextInline(card.subtitle) + '</small>' : '',
+      card.body ? '<p>' + renderTextInline(card.body) + '</p>' : '',
       '<div class="card-board-card-options">',
       ensureArray(card.options).slice(0, 3).map((option, index) => [
         '<button type="button" class="' + (Number(card.selectedOptionIndex) === index ? 'is-selected' : '') + '" data-card-board-option="' + escapeAttr(card.key + ':' + index) + '" data-card-board-option-card="' + escapeAttr(card.key || '') + '" data-card-board-option-index="' + escapeAttr(String(option.index !== undefined ? option.index : index)) + '" data-card-board-option-id="' + escapeAttr(option.id || '') + '">',
-        escapeHtml(option.label || option.id || ''),
+        renderTextInline(option.label || option.id || ''),
         '</button>'
       ].join('')).join(''),
       '</div>',
@@ -209,6 +215,28 @@
 
   function editorApi() {
     return global.ProjectMapCardFaceEditor || null;
+  }
+
+  function renderTextInline(value) {
+    const renderer = richTextApi();
+    if (renderer && typeof renderer.renderInline === 'function') {
+      return renderer.renderInline(value);
+    }
+    return escapeHtml(value);
+  }
+
+  function richTextApi() {
+    if (global && global.ProjectMapVisibleTextRenderer) {
+      return global.ProjectMapVisibleTextRenderer;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./visible_text_renderer.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
   }
 
   function ensureArray(value) {

@@ -9,6 +9,7 @@ The runner is intentionally focused:
 ```bash
 node tools/project_map/qa/run_desktop_scenario.js --scenario first_time_user
 node tools/project_map/qa/run_desktop_scenario.js --scenario explore_design_existing_edit
+node tools/project_map/qa/run_desktop_scenario.js --scenario content_storyboard_canvas_selection
 node tools/project_map/qa/run_desktop_scenario.js --scenario draft_persistence_restart
 node tools/project_map/qa/run_desktop_scenario.js --scenario load_bundled_demo_template
 node tools/project_map/qa/run_desktop_scenario.js --scenario justice_party_template_mod
@@ -46,6 +47,14 @@ Each run contains:
 5. A source-backed page section is changed and saved to My Changes.
 6. Review & Apply loads an `existing_scene_edit` install plan.
 7. Desktop dry-run proves the guarded `replace_section` operation would apply.
+
+`content_storyboard_canvas_selection` covers Canvas as an editing entry point:
+
+1. Quick Start opens the project through the player-facing action.
+2. Create opens the World Event / Content Storyboard Canvas.
+3. The Storyboard renders a source-backed `event:*` card.
+4. A mouse-like pointer click selects the card.
+5. The visible object editor modal opens for the selected existing object.
 
 `draft_persistence_restart` covers returning to saved work:
 
@@ -115,6 +124,10 @@ builder, viewer UI, install assistant, and guarded apply path as the app.
 relaunching a packaged app process. That keeps the run deterministic while still
 testing the persisted localStorage-backed My Changes data with isolated Electron
 user data.
+
+`content_storyboard_canvas_selection` dispatches mouse-like pointer events
+inside Electron. It is still testing the real Canvas pointer handler; the
+shortcut only replaces manual hand movement.
 
 `load_bundled_demo_template` uses the packaged starter template and app-data
 copy path directly. It proves the first-run Demo button can produce a writable

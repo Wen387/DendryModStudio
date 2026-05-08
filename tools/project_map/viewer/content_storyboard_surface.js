@@ -2,13 +2,60 @@
   'use strict';
 
   function render(model, options) {
+    const opts = options && typeof options === 'object' ? options : {};
+    if (isTextReplacement(model)) {
+      return renderTextReplacementSurface(model, opts);
+    }
     const storyboard = buildStoryboard(model, options || {});
+    storyboard.ui = {
+      searchQuery: String(opts.storySearchQuery || storyboard.search && storyboard.search.query || ''),
+      scopeCollapsed: Boolean(opts.storyScopeCollapsed),
+      overviewCollapsed: Boolean(opts.storyOverviewCollapsed),
+      cardColors: opts.storyCardColors && typeof opts.storyCardColors === 'object' ? opts.storyCardColors : {}
+    };
     const view = storyboard.view || 'timeline';
     return [
       '<section class="object-canvas-stage content-storyboard-surface" data-object-canvas-stage="true" data-content-storyboard-surface="true" data-object-canvas-workspace="content" data-content-storyboard-view="' + escapeAttr(view) + '" aria-label="' + escapeAttr(t('storyboard.aria', 'Content Storyboard Canvas')) + '">',
       renderToolbar(storyboard, options || {}),
       '<div class="content-storyboard-layout">',
       view === 'chain' ? renderChain(storyboard, options || {}) : renderTimeline(storyboard, options || {}),
+      renderSidebarResizer(),
+      renderEditor(model, storyboard, options || {}),
+      '</div>',
+      '</section>'
+    ].join('');
+  }
+
+  function renderTextReplacementSurface(model, options) {
+    const storyboard = {
+      view: 'text',
+      selectedKey: 'object',
+      cards: [],
+      editor: {
+        identity: [
+          {label: t('existingScene.kind', 'Kind'), value: t('objectPreview.textPatch', 'Text Patch')},
+          {label: t('existingScene.source', 'Source'), value: sourceLabel(model)}
+        ],
+        context: {},
+        storyContext: {}
+      },
+      palette: {}
+    };
+    return [
+      '<section class="object-canvas-stage content-storyboard-surface content-storyboard-text-surface" data-object-canvas-stage="true" data-content-storyboard-surface="true" data-preview-text-replacement-surface="true" data-object-canvas-workspace="content" aria-label="' + escapeAttr(t('previewObjectEditor.textWorkspace', 'Text Replacement Workspace')) + '">',
+      '<header class="object-canvas-stage-toolbar content-storyboard-toolbar">',
+      '<div>',
+      '<div class="template-eyebrow">' + escapeHtml(t('objectPreview.textPatch', 'Text Patch')) + '</div>',
+      '<h3>' + escapeHtml(t('previewObjectEditor.textWorkspace', 'Text Replacement Workspace')) + '</h3>',
+      '<p>' + escapeHtml(t('previewObjectEditor.intent.text', 'Edit replacement text with before, after, and source context.')) + '</p>',
+      '</div>',
+      '<div class="content-storyboard-controls">',
+      '<button type="button" data-object-canvas-action="toggle_overlay">' + escapeHtml(options && options.editorOverlay ? t('objectCanvas.editorDock', 'Close editor') : t('objectCanvas.editorOverlay', 'Open object editor')) + '</button>',
+      '</div>',
+      '</header>',
+      '<div class="content-storyboard-layout content-storyboard-text-layout">',
+      renderTextReplacementContext(model),
+      renderSidebarResizer(),
       renderEditor(model, storyboard, options || {}),
       '</div>',
       '</section>'
@@ -16,17 +63,22 @@
   }
 
   function renderToolbar(storyboard, options) {
+    const collapsed = Boolean(options && options.boardChromeCollapsed);
     return [
-      '<header class="object-canvas-stage-toolbar content-storyboard-toolbar">',
+      '<header class="object-canvas-stage-toolbar content-storyboard-toolbar' + (collapsed ? ' is-collapsed' : '') + '" data-board-stage-toolbar="true" data-board-toolbar-collapsed="' + (collapsed ? 'true' : 'false') + '">',
       '<div>',
       '<div class="template-eyebrow">' + escapeHtml(t('authoring.surface.contentStoryboard', 'Content Storyboard')) + '</div>',
       '<h3>' + escapeHtml(storyboard.view === 'chain' ? t('storyboard.chain.title', 'Story chain') : t('storyboard.timeline.title', 'Timeline storyboard')) + '</h3>',
       '</div>',
       '<div class="content-storyboard-controls">',
       renderProfileBadge(storyboard.timeline && storyboard.timeline.profile),
+      renderSearch(storyboard),
+      renderCategoryFilters(storyboard),
+      renderPanelButton('toggle_story_scope_panel', !(storyboard.ui && storyboard.ui.scopeCollapsed), t('storyboard.scopeShort', 'Scope')),
+      renderPanelButton('toggle_story_overview_panel', !(storyboard.ui && storyboard.ui.overviewCollapsed), t('storyboard.years', 'Years')),
       renderViewButton('timeline', storyboard.view === 'timeline', t('storyboard.timeline', 'Timeline')),
       renderViewButton('chain', storyboard.view === 'chain', t('storyboard.chain', 'Chain')),
-      '<button type="button" data-object-canvas-action="toggle_overlay">' + escapeHtml(options && options.editorOverlay ? t('objectCanvas.editorDock', 'Dock') : t('objectCanvas.editorOverlay', 'Expand editor')) + '</button>',
+      '<button type="button" data-object-canvas-action="toggle_overlay">' + escapeHtml(options && options.editorOverlay ? t('objectCanvas.editorDock', 'Close editor') : t('objectCanvas.editorOverlay', 'Open object editor')) + '</button>',
       '</div>',
       '</header>'
     ].join('');
@@ -42,18 +94,64 @@
     return '<span class="content-storyboard-profile" data-content-storyboard-profile="' + escapeAttr(profile.mode || '') + '">' + escapeHtml(label + ': ' + (profile.unitLabel || profile.mode || 'Timeline')) + '</span>';
   }
 
+  function renderCategoryFilters(storyboard) {
+    const category = storyboard && storyboard.canvasCategory || {};
+    const active = normalizeCanvasCategory(category.key);
+    const cardCount = Number(category.cardObjectCount || 0);
+    return [
+      '<div class="content-storyboard-category-filter" data-content-storyboard-category-filter="true" aria-label="' + escapeAttr(t('storyboard.category.aria', 'Storyboard category')) + '">',
+      renderCategoryButton('story', active, t('storyboard.category.story', 'Story'), 0),
+      renderCategoryButton('cards', active, t('storyboard.category.cards', 'Cards'), cardCount),
+      renderCategoryButton('all', active, t('storyboard.category.all', 'All'), 0),
+      '</div>'
+    ].join('');
+  }
+
+  function renderSearch(storyboard) {
+    const search = storyboard && storyboard.search || {};
+    const query = storyboard && storyboard.ui ? storyboard.ui.searchQuery : search.query || '';
+    const count = search.active ? search.matchCount : '';
+    return [
+      '<label class="content-storyboard-search" data-content-storyboard-search-box="true">',
+      '<span>' + escapeHtml(t('storyboard.search', 'Search')) + '</span>',
+      '<input type="search" value="' + escapeAttr(query) + '" placeholder="' + escapeAttr(t('storyboard.searchPlaceholder', 'Find title, id, source...')) + '" data-content-storyboard-search="true">',
+      search.active ? '<small>' + escapeHtml(String(count) + ' ' + t('storyboard.matches', 'matches')) + '</small>' : '',
+      '</label>'
+    ].join('');
+  }
+
+  function renderCategoryButton(category, active, label, count) {
+    const selected = active === category;
+    return [
+      '<button type="button" class="' + (selected ? 'is-active' : '') + '" data-object-canvas-action="set_story_canvas_category" data-storyboard-canvas-category="' + escapeAttr(category) + '" aria-pressed="' + (selected ? 'true' : 'false') + '">',
+      '<span>' + escapeHtml(label) + '</span>',
+      count ? '<small>' + escapeHtml(String(count)) + '</small>' : '',
+      '</button>'
+    ].join('');
+  }
+
   function renderViewButton(view, active, label) {
     return '<button type="button" class="' + (active ? 'is-active' : '') + '" data-content-storyboard-view="' + escapeAttr(view) + '" aria-pressed="' + (active ? 'true' : 'false') + '">' + escapeHtml(label) + '</button>';
   }
 
+  function renderPanelButton(action, expanded, label) {
+    return '<button type="button" class="' + (expanded ? 'is-active' : '') + '" data-object-canvas-action="' + escapeAttr(action) + '" aria-pressed="' + (expanded ? 'true' : 'false') + '">' + escapeHtml(label) + '</button>';
+  }
+
+  function renderSidebarResizer() {
+    return '<div class="object-canvas-sidebar-resizer" data-object-canvas-resizer="sidebar" role="separator" aria-orientation="vertical" aria-label="' + escapeAttr(t('objectCanvas.resizeSidebar', 'Resize side panel')) + '" title="' + escapeAttr(t('objectCanvas.resizeSidebar', 'Resize side panel')) + '"></div>';
+  }
+
   function renderTimeline(storyboard, options) {
     const positions = options.nodePositions || {};
-    const laneWidth = 360;
-    const laneGap = 28;
+    const laneWidth = 1060;
+    const laneGap = 38;
+    const laneColumns = 3;
     const lanes = storyboard.timeline && storyboard.timeline.lanes || [];
     const width = Math.max(1180, lanes.length * (laneWidth + laneGap) + 96);
     const maxCards = lanes.reduce((count, lane) => Math.max(count, lane.cards.length), 1);
-    const height = Math.max(720, maxCards * 340 + 260);
+    const maxRows = Math.max(1, Math.ceil(maxCards / laneColumns));
+    const height = Math.max(720, maxRows * 326 + 330);
     return [
       '<section class="content-storyboard-canvas" data-content-storyboard-canvas="true" data-storyboard-kind="timeline" data-storyboard-drop-target="canvas" style="--content-storyboard-width: ' + width + 'px; --content-storyboard-height: ' + height + 'px;">',
       renderCanvasControls(),
@@ -80,7 +178,7 @@
       '<section class="content-storyboard-lane" data-content-storyboard-lane="' + escapeAttr(laneKey) + '" data-storyboard-drop-target="timeline_lane" data-content-storyboard-insert="' + escapeAttr(insertKey) + '" style="left: ' + left + 'px; top: 178px; width: ' + laneWidth + 'px;">',
       '<header><span>' + escapeHtml(laneLabel) + '</span><strong>' + escapeHtml(String(title)) + '</strong><em>' + cards.length + ' ' + escapeHtml(t('storyboard.beats', 'beats')) + '</em></header>',
       renderLaneCreateMenu(insertKey),
-      cards.map((card, cardIndex) => renderCard(card, defaultPosition(18, 132 + cardIndex * 326, positions[card.key]), storyboard)).join(''),
+      cards.map((card, cardIndex) => renderCard(card, timelineCardPosition(cardIndex, positions[card.key]), storyboard)).join(''),
       '</section>'
     ].join('');
   }
@@ -95,7 +193,7 @@
       '<section class="content-storyboard-lane content-storyboard-lane-undated" data-content-storyboard-lane="undated" data-storyboard-drop-target="undated" data-content-storyboard-insert="undated" style="left: ' + left + 'px; top: 178px; width: ' + laneWidth + 'px;">',
       '<header><span>' + escapeHtml(t('storyboard.undated', 'Undated')) + '</span><strong>' + escapeHtml(t('storyboard.needsSchedule', 'Needs schedule')) + '</strong><em>' + orderedCards.length + ' ' + escapeHtml(t('storyboard.beats', 'beats')) + '</em></header>',
       renderLaneCreateMenu('undated'),
-      orderedCards.slice(0, 8).map((card, cardIndex) => renderCard(card, defaultPosition(18, 132 + cardIndex * 326, positions[card.key]), storyboard)).join(''),
+      orderedCards.slice(0, 8).map((card, cardIndex) => renderCard(card, timelineCardPosition(cardIndex, positions[card.key]), storyboard)).join(''),
       '</section>'
     ].join('');
   }
@@ -104,7 +202,7 @@
     const key = escapeAttr(insertKey || '');
     return [
       '<div class="content-storyboard-create-menu" data-content-storyboard-create-menu="true">',
-      '<button type="button" class="content-storyboard-insert" data-object-canvas-action="create_followup" data-content-storyboard-insert="' + key + '" data-storyboard-drop-target="timeline_insert">' + escapeHtml(t('storyboard.addEventHere', 'Event here')) + '</button>',
+      '<button type="button" class="content-storyboard-insert" data-object-canvas-action="create_event" data-content-storyboard-insert="' + key + '" data-storyboard-drop-target="timeline_insert">' + escapeHtml(t('storyboard.addEventHere', 'Event here')) + '</button>',
       '<button type="button" class="content-storyboard-insert" data-object-canvas-action="create_card" data-content-storyboard-insert="' + key + '" data-storyboard-drop-target="timeline_insert">' + escapeHtml(t('storyboard.addCardHere', 'Card')) + '</button>',
       '<button type="button" class="content-storyboard-insert" data-object-canvas-action="create_news" data-content-storyboard-insert="' + key + '" data-storyboard-drop-target="timeline_insert">' + escapeHtml(t('storyboard.addNewsHere', 'News')) + '</button>',
       '</div>'
@@ -114,10 +212,11 @@
   function renderChain(storyboard, options) {
     const positions = options.nodePositions || {};
     const levels = storyboard.chain && storyboard.chain.levels || [];
-    const columnWidth = 316;
+    const columnWidth = 360;
+    const cardStep = 250;
     const width = Math.max(1220, levels.length * columnWidth + 72);
     const maxCards = levels.reduce((count, level) => Math.max(count, level.cards.length), 1);
-    const height = Math.max(720, maxCards * 320 + 270);
+    const height = Math.max(720, maxCards * cardStep + 300);
     return [
       '<section class="content-storyboard-canvas" data-content-storyboard-canvas="true" data-storyboard-kind="chain" data-storyboard-drop-target="canvas" style="--content-storyboard-width: ' + width + 'px; --content-storyboard-height: ' + height + 'px;">',
       renderCanvasControls(),
@@ -125,11 +224,11 @@
       renderGlobalContext(storyboard),
       renderChainDepthControls(storyboard),
       '<svg class="content-storyboard-chain-edges" data-content-storyboard-chain-connectors="true" data-object-canvas-graph-edges="true" viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">',
-      renderChainConnectors(storyboard, levels, columnWidth, positions),
+      renderChainConnectors(storyboard, levels, columnWidth, cardStep, positions),
       '</svg>',
       '<div class="content-storyboard-board content-storyboard-chain-board" data-content-storyboard-board="true" data-object-canvas-graph-board="true">',
       renderChainEvidence(storyboard),
-      levels.map((level, levelIndex) => renderChainLevel(level, levelIndex, columnWidth, positions, storyboard)).join(''),
+      levels.map((level, levelIndex) => renderChainLevel(level, levelIndex, columnWidth, cardStep, positions, storyboard)).join(''),
       '</div>',
       '</section>'
     ].join('');
@@ -184,16 +283,27 @@
     return api && typeof api.renderChainDepthControls === 'function' ? api.renderChainDepthControls(storyboard) : '';
   }
 
-  function renderChainLevel(level, levelIndex, columnWidth, positions, storyboard) {
+  function renderChainLevel(level, levelIndex, columnWidth, cardStep, positions, storyboard) {
     const left = 36 + levelIndex * columnWidth;
     const cards = level.cards || [];
     return [
-      '<section class="content-storyboard-chain-level" data-content-storyboard-chain-level="' + escapeAttr(level.key) + '" data-storyboard-drop-target="chain_level" data-content-storyboard-insert="' + escapeAttr(level.key) + '" style="left: ' + left + 'px; top: 150px; width: 286px;">',
-      '<header><span>' + escapeHtml(level.label || '') + '</span><strong>' + escapeHtml(cards.length ? String(cards.length) : t('storyboard.openSlot', 'Open slot')) + '</strong></header>',
-      cards.length ? cards.map((card, cardIndex) => renderCard(card, defaultPosition(0, 96 + cardIndex * 306, positions[card.key]), storyboard)).join('') : renderChainInsert(level.key),
+      '<section class="content-storyboard-chain-level" data-content-storyboard-chain-level="' + escapeAttr(level.key) + '" data-storyboard-drop-target="chain_level" data-content-storyboard-insert="' + escapeAttr(level.key) + '" style="left: ' + left + 'px; top: 150px; width: 324px;">',
+      '<header><span>' + escapeHtml(chainLevelLabel(level)) + '</span><strong>' + escapeHtml(cards.length ? String(cards.length) : t('storyboard.openSlot', 'Open slot')) + '</strong></header>',
+      cards.length ? cards.map((card, cardIndex) => renderCard(card, defaultPosition(0, 96 + cardIndex * cardStep, positions[card.key]), storyboard)).join('') : renderChainInsert(level.key),
       level.key === 'routes' || level.key === 'branches' ? renderChainInsert(level.key) : '',
       '</section>'
     ].join('');
+  }
+
+  function chainLevelLabel(level) {
+    const key = String(level && level.key || '');
+    return {
+      upstream: t('storyboard.level.upstream', 'Upstream'),
+      selected: t('storyboard.level.selected', 'Selected event'),
+      routes: t('storyboard.level.relationships', 'Relationships'),
+      downstream: t('storyboard.level.targets', 'Target events'),
+      branches: t('storyboard.level.branches', 'Branches')
+    }[key] || level && level.label || key;
   }
 
   function renderChainInsert(levelKey) {
@@ -209,24 +319,30 @@
 
   function renderChainEvidence(storyboard) {
     const chain = storyboard.storyContext && storyboard.storyContext.chain || {};
-    const labels = (chain.routeLabels || []).concat(chain.branchLabels || []).filter(Boolean);
-    if (!labels.length) {
+    const topology = chain.topology || {};
+    const labels = (chain.routeLabels || []).filter(Boolean);
+    if (!labels.length && !topology.kind) {
       return '';
     }
     return [
-      '<aside class="content-storyboard-chain-evidence" data-content-storyboard-chain-evidence="true">',
-      '<span>' + escapeHtml(t('storyboard.routeEvidence', 'Route evidence')) + '</span>',
-      labels.slice(0, 5).map((label) => '<strong>' + escapeHtml(label) + '</strong>').join(''),
+      '<aside class="content-storyboard-chain-evidence" data-content-storyboard-chain-evidence="true" data-content-storyboard-chain-map="true">',
+      '<span>' + escapeHtml(t('storyboard.relationMap', 'Relationship map')) + '</span>',
+      topology.kind ? '<strong>' + escapeHtml(topologyLabel(topology.kind)) + '</strong>' : '',
+      '<strong>' + escapeHtml([
+        (chain.routeCount || 0) + ' ' + t('storyboard.relationsShort', 'relations'),
+        (chain.downstreamCount || 0) + ' ' + t('storyboard.targetsShort', 'targets')
+      ].join(' / ')) + '</strong>',
+      labels.slice(0, 2).map((label) => '<em>' + escapeHtml(label) + '</em>').join(''),
       '</aside>'
     ].join('');
   }
 
-  function renderChainConnectors(storyboard, levels, columnWidth, positions) {
+  function renderChainConnectors(storyboard, levels, columnWidth, cardStep, positions) {
     const connectors = storyboard.chain && storyboard.chain.connectors || [];
     if (!connectors.length) {
       return '';
     }
-    const nodePositions = chainNodePositions(levels, columnWidth, positions);
+    const nodePositions = chainNodePositions(levels, columnWidth, cardStep, positions);
     return connectors.map((connector) => {
       const from = nodePositions[connector.fromKey];
       const to = nodePositions[connector.toKey];
@@ -244,12 +360,12 @@
     }).join('');
   }
 
-  function chainNodePositions(levels, columnWidth, positions) {
+  function chainNodePositions(levels, columnWidth, cardStep, positions) {
     const out = {};
     ensureArray(levels).forEach((level, levelIndex) => {
       const levelLeft = 36 + levelIndex * columnWidth;
       ensureArray(level.cards).forEach((card, cardIndex) => {
-        const pos = defaultPosition(0, 96 + cardIndex * 306, positions[card.key]);
+        const pos = defaultPosition(0, 96 + cardIndex * cardStep, positions[card.key]);
         const left = levelLeft + Number(pos.x || 0);
         const top = 150 + Number(pos.y || 0);
         out[card.key] = {
@@ -281,8 +397,8 @@
     ].filter(Boolean).join(' ');
     return [
       '<article class="' + classes + '" tabindex="0" data-content-storyboard-card="' + escapeAttr(card.key) + '" data-storyboard-card-face="' + escapeAttr(card.kind || '') + '" data-object-canvas-graph-node="' + escapeAttr(card.key) + '" data-canvas-x="' + pos.x + '" data-canvas-y="' + pos.y + '" style="left: ' + pos.x + 'px; top: ' + pos.y + 'px;">',
-      '<strong class="content-storyboard-title">' + escapeHtml(card.title || card.id || '') + '</strong>',
-      card.body ? '<p>' + escapeHtml(String(card.body).slice(0, 220)) + '</p>' : '',
+      '<strong class="content-storyboard-title">' + renderTextInline(card.title || card.id || '') + '</strong>',
+      card.body ? '<p>' + renderTextInline(String(card.body)) + '</p>' : '',
       '</article>'
     ].join('');
   }
@@ -308,24 +424,49 @@
 
   function renderEditor(model, storyboard, options) {
     const editor = storyboard.editor || {};
+    if (isTextReplacement(model)) {
+      return [
+        '<aside class="content-storyboard-editor content-storyboard-text-editor" data-content-storyboard-editor="true">',
+        renderOpenEditorCard(model, storyboard, options || {}),
+        renderPlan(model),
+        renderActions(model),
+        '</aside>'
+      ].join('');
+    }
     return [
       '<aside class="content-storyboard-editor" data-content-storyboard-editor="true">',
       '<section class="object-canvas-inspector-card">',
       '<div class="template-eyebrow">' + escapeHtml(t('storyboard.selected', 'Selected story object')) + '</div>',
-      '<h3>' + escapeHtml((storyboard.cards.find((card) => card.key === storyboard.selectedKey) || {}).title || model.title || '') + '</h3>',
-      '<p>' + escapeHtml(t('storyboard.editorHint', 'Canvas shows story structure. Technical context, plan, and review stay here.')) + '</p>',
+      '<h3 data-content-storyboard-selected-title="true">' + escapeHtml((findStoryboardCard(storyboard, storyboard.selectedKey) || {}).title || model.title || '') + '</h3>',
+      '<p>' + escapeHtml(t('storyboard.editorHint', 'Canvas shows story structure. Open the object editor for detailed text changes.')) + '</p>',
       '</section>',
+      renderOpenEditorCard(model, storyboard, options || {}),
       renderRuntimeLens(model, storyboard, options || {}),
       renderIdentity(editor.identity || []),
       renderStoryContext(editor.storyContext || storyboard.storyContext || {}),
       renderPaletteContext(storyboard.palette && storyboard.palette.dropContext),
       renderPlacement(editor.timelinePlacement || {}),
-      renderPreview(model, storyboard),
       renderContext(editor.context || {}),
       renderPlan(model),
       renderActions(model),
       '</aside>'
     ].join('');
+  }
+
+  function findStoryboardCard(storyboard, key) {
+    const target = String(key || '');
+    const direct = ensureArray(storyboard && storyboard.cards).find((card) => card && card.key === target);
+    if (direct) {
+      return direct;
+    }
+    const levels = ensureArray(storyboard && storyboard.chain && storyboard.chain.levels);
+    for (let index = 0; index < levels.length; index += 1) {
+      const found = ensureArray(levels[index] && levels[index].cards).find((card) => card && card.key === target);
+      if (found) {
+        return found;
+      }
+    }
+    return null;
   }
 
   function renderRuntimeLens(model, storyboard, options) {
@@ -360,6 +501,7 @@
   function renderStoryContext(context) {
     const selected = context && context.selected || {};
     const chain = context && context.chain || {};
+    const topology = chain.topology || {};
     return [
       '<section class="content-storyboard-detail" data-content-storyboard-story-context="true">',
       '<div class="template-eyebrow">' + escapeHtml(t('storyboard.storyContext', 'Story context')) + '</div>',
@@ -374,8 +516,23 @@
         (chain.routeCount || 0) + ' ' + t('storyboard.routesShort', 'routes'),
         (chain.branchCount || 0) + ' ' + t('storyboard.branchesShort', 'branches')
       ].join(' / ')) + '</strong></div>',
+      topology.kind ? '<div><span>' + escapeHtml(t('storyboard.eventShape', 'Event shape')) + '</span><strong>' + escapeHtml(topologyLabel(topology.kind)) + '</strong></div>' : '',
+      topology.kind ? '<div><span>' + escapeHtml(t('storyboard.internalFlow', 'Internal flow')) + '</span><strong>' + escapeHtml([
+        (topology.internalStepCount || 0) + ' ' + t('storyboard.stepsShort', 'steps'),
+        (topology.internalRouteCount || 0) + ' ' + t('storyboard.routesShort', 'routes'),
+        (topology.conditionCount || 0) + ' ' + t('storyboard.conditionsShort', 'conditions')
+      ].join(' / ')) + '</strong></div>' : '',
       '</section>'
     ].join('');
+  }
+
+  function topologyLabel(kind) {
+    return {
+      single_event: t('storyboard.shape.singleEvent', 'Single event'),
+      single_composite_event: t('storyboard.shape.singleCompositeEvent', 'Single composite event'),
+      composite_event_chain_node: t('storyboard.shape.compositeEventChainNode', 'Composite event-chain node'),
+      single_composite_event_in_chain: t('storyboard.shape.singleCompositeEventInChain', 'Single composite event in a chain')
+    }[kind] || kind || '';
   }
 
   function renderPaletteContext(context) {
@@ -424,7 +581,14 @@
     return '<div class="content-storyboard-context-row"><span>' + escapeHtml(label) + '</span><strong>' + items.length + '</strong></div>';
   }
 
-  function renderPreview(model, storyboard) {
+  function renderObjectPreviewEditor(model, storyboard, options) {
+    const editor = previewEditorApi();
+    if (editor && typeof editor.render === 'function') {
+      return editor.render(model, {
+        selectedKey: storyboard && storyboard.selectedKey,
+        editorOverlay: options && options.editorOverlay
+      });
+    }
     const api = lightweightPreviewApi();
     if (api && typeof api.render === 'function') {
       return api.render(model, {selectedKey: storyboard && storyboard.selectedKey});
@@ -436,6 +600,56 @@
       '<pre class="code-preview" data-object-canvas-preview="true" data-editing-preview="true">' + escapeHtml(output.playerPreview || output.proposalText || output.previewText || output.sceneDry || '') + '</pre>',
       '</section>'
     ].join('');
+  }
+
+  function renderOpenEditorCard(model, storyboard, options) {
+    const selected = storyboard && storyboard.cards && storyboard.cards.find((card) => card.key === storyboard.selectedKey) || {};
+    const title = selected.title || model && model.title || t('objectCanvas.titleFallback', 'Author object');
+    const kind = selected.kind ? kindLabel(selected.kind) : model && (model.templateLabel || model.objectKind) || '';
+    const active = Boolean(options && options.editorOverlay);
+    return [
+      '<section class="content-storyboard-detail object-editor-launch-card" data-object-editor-launch-card="true">',
+      '<div class="template-eyebrow">' + escapeHtml(t('previewObjectEditor.modalEyebrow', 'Object editor')) + '</div>',
+      '<h3>' + escapeHtml(title) + '</h3>',
+      '<p>' + escapeHtml(t('previewObjectEditor.modalHint', 'Open a focused editor with a live preview and fields beside it.')) + '</p>',
+      kind ? '<small>' + escapeHtml(kind) + '</small>' : '',
+      '<button type="button" class="primary-action" data-object-canvas-action="toggle_overlay">' + escapeHtml(active ? t('objectCanvas.editorDock', 'Close editor') : t('objectCanvas.editorOverlay', 'Open object editor')) + '</button>',
+      '</section>'
+    ].join('');
+  }
+
+  function renderTextReplacementContext(model) {
+    const source = sourceLabel(model);
+    return [
+      '<section class="text-replacement-context-canvas" data-text-replacement-context-canvas="true">',
+      '<div class="text-replacement-context-card">',
+      '<span>' + escapeHtml(t('previewObjectEditor.contextRole', 'Canvas role')) + '</span>',
+      '<h4>' + escapeHtml(t('previewObjectEditor.textContextTitle', 'Source-backed text patch')) + '</h4>',
+      '<p>' + escapeHtml(t('previewObjectEditor.textContextBody', 'This is not a story beat. It is a bounded text replacement with before/after evidence.')) + '</p>',
+      source ? '<small>' + escapeHtml(source) + '</small>' : '',
+      '</div>',
+      '</section>'
+    ].join('');
+  }
+
+  function isTextReplacement(model) {
+    const value = model || {};
+    return value.template === 'surface' || value.objectKind === 'surface_text' || value.mode === 'surface_text';
+  }
+
+  function kindLabel(kind) {
+    return {
+      event: t('create.worldEvent', 'World Event'),
+      news: t('create.news', 'News'),
+      card: t('create.card', 'Card'),
+      advisor: t('systemUi.region.advisor', 'Advisor'),
+      surface: t('create.editText', 'Edit Text')
+    }[kind] || kind || '';
+  }
+
+  function sourceLabel(model) {
+    const source = model && model.source || {};
+    return source && source.path ? source.path + (source.line ? ':' + source.line : '') : '';
   }
 
   function renderPlan(model) {
@@ -458,6 +672,7 @@
       '<button type="button" data-object-canvas-action="create_counterfactual">' + escapeHtml(t('objectCanvas.action.counterfactual', 'Create counterfactual')) + '</button>',
       '<button type="button" data-object-canvas-action="create_card">' + escapeHtml(t('objectCanvas.action.card', 'Create related card')) + '</button>',
       '<button type="button" data-object-canvas-action="create_news">' + escapeHtml(t('objectCanvas.action.news', 'Create related news')) + '</button>',
+      '<button class="danger-action" type="button" data-object-canvas-action="delete_current_object">' + escapeHtml(t(model.mode === 'existing' ? 'objectCanvas.action.deleteExisting' : 'objectCanvas.action.discardDraft', model.mode === 'existing' ? 'Delete event' : 'Discard draft')) + '</button>',
       '<button type="button" data-object-canvas-action="refresh">' + escapeHtml(t('existingScene.refresh', 'Refresh proposal')) + '</button>',
       '<button type="button" data-object-canvas-action="save">' + escapeHtml(t('editing.saveToChanges', 'Save to My Changes')) + '</button>',
       '<button class="primary-action" type="button" data-object-canvas-action="review">' + escapeHtml(t('existingScene.review', 'Review & Apply')) + '</button>',
@@ -530,6 +745,28 @@
     return null;
   }
 
+  function renderTextInline(value) {
+    const renderer = richTextApi();
+    if (renderer && typeof renderer.renderInline === 'function') {
+      return renderer.renderInline(value);
+    }
+    return escapeHtml(value);
+  }
+
+  function richTextApi() {
+    if (global && global.ProjectMapVisibleTextRenderer) {
+      return global.ProjectMapVisibleTextRenderer;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./visible_text_renderer.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   function lightweightPreviewApi() {
     if (global && global.ProjectMapLightweightObjectPreview) {
       return global.ProjectMapLightweightObjectPreview;
@@ -537,6 +774,20 @@
     if (typeof require === 'function') {
       try {
         return require('./lightweight_object_preview.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function previewEditorApi() {
+    if (global && global.ProjectMapPreviewObjectEditor) {
+      return global.ProjectMapPreviewObjectEditor;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./preview_object_editor.js');
       } catch (_err) {
         return null;
       }
@@ -552,8 +803,22 @@
     };
   }
 
+  function timelineCardPosition(index, override) {
+    const columns = 3;
+    const cardWidth = 324;
+    const gap = 18;
+    const column = index % columns;
+    const row = Math.floor(index / columns);
+    return defaultPosition(18 + column * (cardWidth + gap), 132 + row * 326, override);
+  }
+
   function safeClass(value) {
     return String(value || 'item').replace(/[^a-z0-9_-]+/gi, '-').toLowerCase();
+  }
+
+  function normalizeCanvasCategory(value) {
+    const text = String(value || 'story');
+    return text === 'cards' || text === 'all' ? text : 'story';
   }
 
   function ensureArray(value) {

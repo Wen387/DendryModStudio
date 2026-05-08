@@ -38,7 +38,8 @@
         runtimeLensDraftKey: state.runtimeLensDraftKey,
         runtimeLensCurrentDraftKey: state.runtimeLensCurrentDraftKey,
         runtimeLensExpanded: state.runtimeLensExpanded,
-        runtimeLensCollapsed: state.runtimeLensCollapsed
+        runtimeLensCollapsed: state.runtimeLensCollapsed,
+        boardChromeCollapsed: Boolean(state.boardChromeCollapsed)
       }, surfaceOptions(state)))
       : '';
   }
@@ -93,6 +94,7 @@
       action: 'system_region'
     };
     state.cardBoardSelection = intentSelection(state.cardBoardSelectedKey, laneKey);
+    state.editorOverlay = true;
     state.model = deps.buildTemplateModel({values: {}, entry: {source: 'System UI Card Board'}});
     state.status = deps.t('cardBoard.status.systemRegion', 'Card Board opened from the selected UI region.');
     deps.showWorkspace('card');
@@ -111,7 +113,8 @@
         selectedCanvasNode: key || 'object',
         cardBoardSelectedKey: key || '',
         cardBoardLane: laneKey,
-        cardBoardSelection: cardSelection(key || '', laneKey)
+        cardBoardSelection: cardSelection(key || '', laneKey),
+        editorOverlay: Boolean(key)
       });
     }
     const nextModel = deps.buildExistingModelFor('cards', parsed.id, {values: {}});
@@ -129,6 +132,7 @@
     state.cardBoardSelectedKey = key;
     state.cardBoardLane = parsed.kind === 'advisor' ? 'advisor' : state.cardBoardLane || 'pool';
     state.cardBoardSelection = cardSelection(key, state.cardBoardLane);
+    state.editorOverlay = true;
     state.status = deps.t('cardBoard.status.cardSelected', 'Card opened in the Card Board editor.');
     deps.showWorkspace('card');
     deps.render();
@@ -183,6 +187,7 @@
     state.selectedCanvasNode = cardKey;
     state.cardBoardSelectedKey = cardKey;
     state.cardBoardSelection = Object.assign({kind: 'option'}, selection, {cardKey});
+    state.editorOverlay = true;
     state.status = deps.t('cardBoard.status.optionSelected', 'Card choice selected in the Card Board editor.');
     deps.showWorkspace('card');
     deps.render();
@@ -255,6 +260,7 @@
       action: 'create'
     };
     state.cardBoardSelection = intentSelection(state.cardBoardSelectedKey, laneKey);
+    state.editorOverlay = true;
     state.model = deps.buildTemplateModel({values: {}, entry: {source: 'Card Board'}});
     state.status = deps.t('cardBoard.status.createInLane', 'New card draft is using this board lane as context.');
     deps.showWorkspace('card');
@@ -297,6 +303,7 @@
       }
     }
     state.status = deps.t('cardBoard.status.dropRecorded', 'Card Board recorded this lane intent for review.');
+    state.editorOverlay = true;
     state.model = state.mode === 'existing' ? deps.buildExistingModel({values: state.values}) : deps.buildTemplateModel({values: state.values, entry: {source: 'Card Board'}});
     deps.render();
     return true;

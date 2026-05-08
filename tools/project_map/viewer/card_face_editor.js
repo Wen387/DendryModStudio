@@ -11,6 +11,7 @@
       '<aside class="card-face-editor" data-card-face-editor="true">',
       renderHeader(selectedObject, selected, board),
       renderPreview(model, selected, selectedObject),
+      renderOpenEditorCard(model, selectedObject, selected, opts),
       renderRuntimeLens(model, board, opts),
       renderInspector(model, body, board, selectedObject, selected, canEdit),
       renderDropContext(board && board.dropContext),
@@ -26,7 +27,7 @@
     return [
       '<header class="card-face-editor-header">',
       '<span>' + escapeHtml(objectLabel.eyebrow) + '</span>',
-      '<h3>' + escapeHtml(selectedObject && selectedObject.title || selected && selected.title || t('cardBoard.editor.emptyTitle', 'No card selected')) + '</h3>',
+      '<h3 data-card-face-selected-title="true">' + escapeHtml(selectedObject && selectedObject.title || selected && selected.title || t('cardBoard.editor.emptyTitle', 'No card selected')) + '</h3>',
       '<p>' + escapeHtml([
         objectLabel.kind,
         selected && selected.source && selected.source.path || ''
@@ -84,6 +85,19 @@
     ].join('');
   }
 
+  function renderOpenEditorCard(model, selectedObject, selected, options) {
+    const title = selectedObject && selectedObject.title || selected && selected.title || model && model.title || t('cardBoard.editor.emptyTitle', 'No card selected');
+    const active = Boolean(options && options.editorOverlay);
+    return [
+      '<section class="card-face-object-editor-launch object-editor-launch-card" data-object-editor-launch-card="true">',
+      '<div class="template-eyebrow">' + escapeHtml(t('previewObjectEditor.modalEyebrow', 'Object editor')) + '</div>',
+      '<h4>' + escapeHtml(title) + '</h4>',
+      '<p>' + escapeHtml(t('previewObjectEditor.modalHint', 'Open a focused editor with a live preview and fields beside it.')) + '</p>',
+      '<button type="button" class="primary-action" data-object-canvas-action="toggle_overlay">' + escapeHtml(active ? t('objectCanvas.editorDock', 'Close editor') : t('objectCanvas.editorOverlay', 'Open object editor')) + '</button>',
+      '</section>'
+    ].join('');
+  }
+
   function previewCardFromModel(model) {
     const body = model && model.eventBody || {};
     if (!body.title && !body.heading && !ensureArray(body.sections).length) {
@@ -135,7 +149,24 @@
     if (kind === 'intent') {
       return renderIntentInspector(selectedObject);
     }
-    return canEdit ? renderFields(body) : renderReadOnly(selectedObject, selected, model);
+    return canEdit ? renderAdvancedInspector(body, selectedObject, selected, model) : renderReadOnly(selectedObject, selected, model);
+  }
+
+  function renderAdvancedInspector(body, selectedObject, selected, model) {
+    const fields = ensureArray(body && body.metaFields);
+    const source = selected && selected.source || model && model.source || {};
+    const selectedTitle = selectedObject && selectedObject.title || selected && selected.title || model && model.title || '';
+    return [
+      '<section class="card-face-fields card-face-advanced-inspector" data-card-face-advanced-inspector="true">',
+      '<div class="template-eyebrow">' + escapeHtml(t('previewObjectEditor.inspector', 'Inspector')) + '</div>',
+      '<div class="card-board-inspector-facts">',
+      fact(t('cardBoard.inspector.target', 'Target'), selectedTitle),
+      fact(t('existingScene.source', 'Source'), sourceLabel(source)),
+      fact(t('objectCanvas.changedFields', 'Changed'), String(model && model.changeState && model.changeState.changedCount || 0)),
+      '</div>',
+      fields.length ? renderMetaFields(fields) : '<p class="card-face-readonly-note">' + escapeHtml(t('previewObjectEditor.inspectorAdvancedOnly', 'Main card text is edited in the visible card preview above.')) + '</p>',
+      '</section>'
+    ].join('');
   }
 
   function renderOptionInspector(body, selectedObject, canEdit) {
@@ -150,9 +181,7 @@
       fact(t('cardBoard.inspector.target', 'Target'), option.targetId || bodyOption && bodyOption.targetId || ''),
       fact(t('cardBoard.inspector.source', 'Source'), sourceLabel(option.source)),
       '</div>',
-      canEdit && fields.length
-        ? fields.map((field) => renderInlineField(field, {element: field.id && field.id.indexOf('.body') >= 0 ? 'textarea' : 'input'})).join('')
-        : '<p class="card-face-readonly-note">' + escapeHtml(t('cardBoard.editor.openToEdit', 'Open this source-backed card to edit its exact source-backed face fields.')) + '</p>',
+      '<p class="card-face-readonly-note">' + escapeHtml(t('cardBoard.editor.openToEdit', 'Open this card in the object editor to edit its exact source-backed face fields.')) + '</p>',
       '</section>'
     ].join('');
   }

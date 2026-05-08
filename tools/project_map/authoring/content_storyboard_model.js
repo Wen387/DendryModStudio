@@ -6,20 +6,46 @@
     const model = isObject(objectModel) ? objectModel : {};
     const draftBranches = ensureArray(opts.draftBranches).map((branch, index) => draftBranchCard(branch, model, index));
     const current = currentCard(model);
-    const cards = collectProjectCards(projectIndex, current).concat([current]).concat(draftBranches);
-    const deduped = dedupeCards(cards);
-    const selectedKey = cardByKey(deduped, opts.selected) ? String(opts.selected) : current.key;
-    const selectedBase = cardByKey(deduped, selectedKey) || current;
-    const rawTimeline = buildTimeline(projectIndex, deduped, selectedBase, opts);
-    const storyboardCards = ensureArray(rawTimeline.cards).length ? rawTimeline.cards : deduped;
+    const canvasCategory = normalizeCanvasCategory(opts.storyCanvasCategory || opts.storyboardCategory || opts.canvasCategory);
+    const allCards = dedupeCards(collectProjectCards(projectIndex, current).concat([current]).concat(draftBranches));
+    const categoryCards = filterCardsForCanvas(allCards, canvasCategory, current.key);
+    const searchQuery = normalizeSearchQuery(opts.storySearchQuery || opts.searchQuery);
+    const searchMatches = searchQuery ? categoryCards.filter((card) => cardMatchesSearch(card, searchQuery)) : categoryCards;
+    const visibleBaseCards = searchQuery ? dedupeCards([cardByKey(categoryCards, current.key)].concat(searchMatches)) : categoryCards;
+    const categorySummary = {
+      key: canvasCategory,
+      totalCardCount: allCards.length,
+      storyObjectCount: allCards.filter((card) => isStoryCanvasKind(card.kind)).length,
+      cardObjectCount: allCards.filter((card) => isCardCanvasKind(card.kind)).length,
+      visibleCardCount: categoryCards.length,
+      hiddenCardCount: Math.max(0, allCards.length - categoryCards.length)
+    };
+    const selectedKey = cardByKey(visibleBaseCards, opts.selected) ? String(opts.selected) : current.key;
+    const selectedBase = cardByKey(visibleBaseCards, selectedKey) || current;
+    const rawTimeline = buildTimeline(projectIndex, visibleBaseCards, selectedBase, opts);
+    const storyboardCards = ensureArray(rawTimeline.cards).length ? rawTimeline.cards : visibleBaseCards;
     const selected = cardByKey(storyboardCards, selectedKey) || selectedBase;
     const timeline = buildScopedTimeline(projectIndex, rawTimeline, selected, opts);
     const view = normalizeView(opts.view);
     const chain = buildChain(projectIndex, storyboardCards, selected, model, opts);
     const storyContext = buildStoryContext(projectIndex, storyboardCards, selected, timeline, chain);
+    const displaySelectedKey = view === 'chain' && chainCardByKey(chain, opts.selected) ? String(opts.selected) : selectedKey;
     const palette = buildPalette({
       view,
-      selectedKey,
+      canvasCategory: {
+        key: canvasCategory,
+        totalCardCount: allCards.length,
+        storyObjectCount: categorySummary.storyObjectCount,
+        cardObjectCount: categorySummary.cardObjectCount,
+        visibleCardCount: storyboardCards.length,
+        hiddenCardCount: categorySummary.hiddenCardCount
+      },
+      search: {
+        query: searchQuery,
+        matchCount: searchQuery ? searchMatches.length : 0,
+        active: Boolean(searchQuery)
+      },
+      selectedKey: displaySelectedKey,
       currentKey: current.key,
       cards: storyboardCards,
       timeline,
@@ -30,8 +56,16 @@
       schemaVersion: '0.1',
       kind: 'content_storyboard_model',
       view,
-      selectedKey,
+      selectedKey: displaySelectedKey,
       currentKey: current.key,
+      canvasCategory: Object.assign({}, categorySummary, {
+        visibleCardCount: storyboardCards.length
+      }),
+      search: {
+        query: searchQuery,
+        matchCount: searchQuery ? searchMatches.length : 0,
+        active: Boolean(searchQuery)
+      },
       cards: storyboardCards,
       timeline,
       chain,
@@ -40,6 +74,9 @@
       editor: buildEditor(projectIndex, model, selected, timeline.profile, storyContext),
       metrics: {
         cardCount: storyboardCards.length,
+        allCardCount: allCards.length,
+        hiddenByCategoryCount: categorySummary.hiddenCardCount,
+        searchMatchCount: searchQuery ? searchMatches.length : 0,
         branchCount: draftBranches.length,
         edgeCount: ensureArray(projectIndex && projectIndex.edges).length,
         visibleCardCount: timeline.storyScope && timeline.storyScope.visibleCardCount || storyboardCards.length,
@@ -285,6 +322,69 @@
   function cardByKey(cards, key) {
     const text = String(key || '');
     return ensureArray(cards).find((card) => card.key === text) || null;
+  }
+
+  function chainCardByKey(chain, key) {
+    const text = String(key || '');
+    if (!text) {
+      return null;
+    }
+    const levels = ensureArray(chain && chain.levels);
+    for (let index = 0; index < levels.length; index += 1) {
+      const found = cardByKey(levels[index] && levels[index].cards, text);
+      if (found) {
+        return found;
+      }
+    }
+    return null;
+  }
+
+  function filterCardsForCanvas(cards, category, currentKey) {
+    const normalized = normalizeCanvasCategory(category);
+    const selectedKey = String(currentKey || '');
+    return ensureArray(cards).filter((card) => {
+      if (!card || !card.key) {
+        return false;
+      }
+      if (card.key === selectedKey) {
+        return true;
+      }
+      if (normalized === 'all') {
+        return true;
+      }
+      if (normalized === 'cards') {
+        return isCardCanvasKind(card.kind);
+      }
+      return isStoryCanvasKind(card.kind);
+    });
+  }
+
+  function isStoryCanvasKind(kind) {
+    const text = String(kind || '');
+    return text === 'event' || text === 'news' || text === 'surface';
+  }
+
+  function isCardCanvasKind(kind) {
+    const text = String(kind || '');
+    return text === 'card' || text === 'advisor';
+  }
+
+  function cardMatchesSearch(card, query) {
+    if (!query) {
+      return true;
+    }
+    const source = card && card.source || {};
+    const haystack = [
+      card && card.key,
+      card && card.id,
+      card && card.kind,
+      card && card.title,
+      card && card.body,
+      source.path,
+      source.line,
+      ensureArray(card && card.routeTargets).map((target) => [target.id, target.label].filter(Boolean).join(' ')).join(' ')
+    ].filter(Boolean).join(' ').toLowerCase();
+    return haystack.indexOf(query) >= 0;
   }
 
   function routeTargets(scene, sceneText) {
@@ -585,6 +685,15 @@
       return 'surface';
     }
     return text || 'event';
+  }
+
+  function normalizeCanvasCategory(value) {
+    const text = String(value || 'story').trim();
+    return text === 'cards' || text === 'all' ? text : 'story';
+  }
+
+  function normalizeSearchQuery(value) {
+    return String(value || '').trim().toLowerCase().slice(0, 80);
   }
 
   function normalizeView(view) {

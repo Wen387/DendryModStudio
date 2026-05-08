@@ -41,6 +41,7 @@
       selectedCanvasNode: target.selectedKey || ''
     };
     const titles = {
+      event: t('objectCanvas.branch.newEvent', 'New event'),
       followup: t('objectCanvas.branch.followup', 'Follow-up event'),
       counterfactual: t('objectCanvas.branch.counterfactual', 'Counterfactual branch'),
       card: t('objectCanvas.branch.card', 'Related card'),
@@ -72,6 +73,8 @@
       title: titles[action] || titles.followup,
       detail: action === 'counterfactual'
         ? t('objectCanvas.branch.counterfactual.detail', 'Alternative path after this event.')
+        : action === 'event'
+          ? t('objectCanvas.branch.newEvent.detail', 'Blank event placed at this timeline position.')
         : t('objectCanvas.branch.followup.detail', 'Next event after the selected beat.'),
       insertionContext: authoringContext,
       draft: {

@@ -9,6 +9,68 @@
     canvas.dataset.contentStoryboardInteractions = 'bound';
     const options = callbacks && typeof callbacks === 'object' ? callbacks : {};
     let drag = null;
+    let pointerSelectedKey = '';
+    let suppressClickSelect = false;
+    let windowPointerListeners = false;
+
+    function addWindowPointerListeners() {
+      if (windowPointerListeners || !global || typeof global.addEventListener !== 'function') {
+        return;
+      }
+      windowPointerListeners = true;
+      global.addEventListener('pointerup', finishPointerDrag, true);
+      global.addEventListener('pointercancel', cancelPointerDrag, true);
+    }
+
+    function removeWindowPointerListeners() {
+      if (!windowPointerListeners || !global || typeof global.removeEventListener !== 'function') {
+        return;
+      }
+      windowPointerListeners = false;
+      global.removeEventListener('pointerup', finishPointerDrag, true);
+      global.removeEventListener('pointercancel', cancelPointerDrag, true);
+    }
+
+    function cancelPointerDrag() {
+      drag = null;
+      removeWindowPointerListeners();
+    }
+
+    function finishPointerDrag(event) {
+      if (!drag) {
+        return;
+      }
+      const current = drag;
+      drag = null;
+      removeWindowPointerListeners();
+      try {
+        if (typeof canvas.releasePointerCapture === 'function') {
+          canvas.releasePointerCapture(event.pointerId);
+        }
+      } catch (_err) {
+        // Ignore pointer capture release failures in older embedded Chromium.
+      }
+      const dx = event.clientX - current.startX;
+      const dy = event.clientY - current.startY;
+      if (current.type === 'card') {
+        if (!current.moved) {
+          if (options.onSelect) {
+            pointerSelectedKey = current.key;
+            suppressClickSelect = true;
+            options.onSelect(current.key);
+          }
+          return;
+        }
+        const zoom = current.zoom || 1;
+        const x = Math.round(current.nodeX + dx / zoom);
+        const y = Math.round(current.nodeY + dy / zoom);
+        if (options.onCardMove) {
+          options.onCardMove(current.key, x, y, {preview: false});
+        }
+      } else if (current.moved && options.onViewport) {
+        options.onViewport(Math.round(current.panX + dx), Math.round(current.panY + dy), {preview: false});
+      }
+    }
 
     canvas.addEventListener('pointerdown', (event) => {
       if (event.button !== undefined && event.button !== 0) {
@@ -48,6 +110,7 @@
       } catch (_err) {
         // Synthetic QA drags and older embedded Chromium can reject capture.
       }
+      addWindowPointerListeners();
       event.preventDefault();
     });
 
@@ -72,38 +135,27 @@
       }
     });
 
-    canvas.addEventListener('pointerup', (event) => {
-      if (!drag) {
+    canvas.addEventListener('pointerup', finishPointerDrag);
+
+    canvas.addEventListener('pointercancel', cancelPointerDrag);
+
+    canvas.addEventListener('click', (event) => {
+      const card = event.target.closest && event.target.closest('[data-content-storyboard-card]');
+      if (!card || event.target.closest && event.target.closest('input, textarea, button, select, a, [data-content-storyboard-floating-controls], [data-storyboard-palette]')) {
         return;
       }
-      const current = drag;
-      drag = null;
-      try {
-        if (typeof canvas.releasePointerCapture === 'function') {
-          canvas.releasePointerCapture(event.pointerId);
-        }
-      } catch (_err) {
-        // Ignore pointer capture release failures in older embedded Chromium.
+      const key = card.dataset.contentStoryboardCard || card.dataset.objectCanvasGraphNode || '';
+      if (!key || !options.onSelect) {
+        return;
       }
-      const dx = event.clientX - current.startX;
-      const dy = event.clientY - current.startY;
-      if (current.type === 'card') {
-        const zoom = current.zoom || 1;
-        const x = Math.round(current.nodeX + dx / zoom);
-        const y = Math.round(current.nodeY + dy / zoom);
-        if (options.onCardMove) {
-          options.onCardMove(current.key, x, y, {preview: false});
-        }
-        if (!current.moved && options.onSelect) {
-          options.onSelect(current.key);
-        }
-      } else if (options.onViewport) {
-        options.onViewport(Math.round(current.panX + dx), Math.round(current.panY + dy), {preview: false});
+      if (suppressClickSelect && key === pointerSelectedKey) {
+        suppressClickSelect = false;
+        pointerSelectedKey = '';
+        return;
       }
-    });
-
-    canvas.addEventListener('pointercancel', () => {
-      drag = null;
+      suppressClickSelect = false;
+      pointerSelectedKey = '';
+      options.onSelect(key);
     });
 
     canvas.addEventListener('dragstart', (event) => {

@@ -31,6 +31,7 @@ function read(filePath) {
   README,
   path.join(SCENARIO_DIR, 'first_time_user.md'),
   path.join(SCENARIO_DIR, 'explore_design_existing_edit.md'),
+  path.join(SCENARIO_DIR, 'content_storyboard_canvas_selection.md'),
   path.join(SCENARIO_DIR, 'draft_persistence_restart.md'),
   path.join(SCENARIO_DIR, 'load_bundled_demo_template.md'),
   path.join(SCENARIO_DIR, 'justice_party_template_mod.md'),
@@ -46,6 +47,7 @@ function read(filePath) {
 const runner = read(RUNNER);
 const readme = read(README);
 const existingScenarioCard = read(path.join(SCENARIO_DIR, 'explore_design_existing_edit.md'));
+const storyboardSelectionScenarioCard = read(path.join(SCENARIO_DIR, 'content_storyboard_canvas_selection.md'));
 const persistenceScenarioCard = read(path.join(SCENARIO_DIR, 'draft_persistence_restart.md'));
 const demoScenarioCard = read(path.join(SCENARIO_DIR, 'load_bundled_demo_template.md'));
 const justicePartyScenarioCard = read(path.join(SCENARIO_DIR, 'justice_party_template_mod.md'));
@@ -60,6 +62,7 @@ const postEvent = read(path.join(QA_FIXTURE, 'source', 'scenes', 'post_event.sce
   'transcript.json',
   'first_time_user',
   'explore_design_existing_edit',
+  'content_storyboard_canvas_selection',
   'draft_persistence_restart',
   'load_bundled_demo_template',
   'justice_party_template_mod',
@@ -97,6 +100,8 @@ const postEvent = read(path.join(QA_FIXTURE, 'source', 'scenes', 'post_event.sce
   'data-editing-workspace',
   'data-object-authoring-canvas',
   'data-object-canvas-event-body',
+  'dispatchStoryboardPointerClick',
+  'data-object-editing-modal',
   'reloadStudioWindow',
   'dendry:open-starter-demo',
   'dendry:update-notice-check',
@@ -115,6 +120,7 @@ const postEvent = read(path.join(QA_FIXTURE, 'source', 'scenes', 'post_event.sce
   'Guided UI QA',
   'first_time_user',
   'explore_design_existing_edit',
+  'content_storyboard_canvas_selection',
   'draft_persistence_restart',
   'load_bundled_demo_template',
   'justice_party_template_mod',
@@ -162,6 +168,15 @@ assert(
   'existing edit scenario card should be written as a unified object authoring journey'
 );
 assert(
+  storyboardSelectionScenarioCard.includes('Persona:') &&
+    storyboardSelectionScenarioCard.includes('Required checkpoints:') &&
+    storyboardSelectionScenarioCard.includes('Allowed shortcut:') &&
+    storyboardSelectionScenarioCard.includes('Content Storyboard Canvas') &&
+    storyboardSelectionScenarioCard.includes('source-backed `event:*` Storyboard card') &&
+    storyboardSelectionScenarioCard.includes('visible object editor modal'),
+  'Content Storyboard Canvas selection scenario card should cover click-to-editor behavior'
+);
+assert(
   persistenceScenarioCard.includes('Persona:') && persistenceScenarioCard.includes('Required checkpoints:') && persistenceScenarioCard.includes('Allowed shortcut:'),
   'draft persistence scenario card should be written as a player journey'
 );
@@ -196,6 +211,6 @@ assert(
 
 process.stdout.write(JSON.stringify({
   ok: true,
-  scenarioCount: 6,
+  scenarioCount: 7,
   runner: path.relative(REPO, RUNNER)
 }, null, 2) + '\n');

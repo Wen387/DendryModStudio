@@ -55,6 +55,7 @@
       byKey[level.key] = level;
     });
     const routes = ensureArray(byKey.routes && byKey.routes.cards);
+    const downstream = ensureArray(byKey.downstream && byKey.downstream.cards);
     const branches = ensureArray(byKey.branches && byKey.branches.cards);
     return {
       levels: levels.map((level) => ({
@@ -65,7 +66,9 @@
       })),
       upstreamCount: ensureArray(byKey.upstream && byKey.upstream.cards).length,
       routeCount: routes.length,
+      downstreamCount: downstream.length,
       branchCount: branches.length,
+      topology: chain && chain.topology || null,
       routeLabels: ensureArray(chain && chain.routeLabels).concat(routes.map((card) => card.title || card.id || '')).filter(Boolean).slice(0, 4),
       branchLabels: branches.map((card) => card.title || card.id || '').filter(Boolean).slice(0, 4)
     };

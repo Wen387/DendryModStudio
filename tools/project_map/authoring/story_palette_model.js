@@ -64,7 +64,8 @@
     return [
       group('selected_chain', 'storyboard.palette.group.selectedChain', 'Selected beat', ensureArray(levels.selected && levels.selected.cards)),
       group('upstream', 'storyboard.palette.group.upstream', 'Upstream candidates', ensureArray(levels.upstream && levels.upstream.cards)),
-      group('routes', 'storyboard.palette.group.routes', 'Routes and downstream', ensureArray(levels.routes && levels.routes.cards)),
+      group('routes', 'storyboard.palette.group.routes', 'Relationships', ensureArray(levels.routes && levels.routes.cards)),
+      group('downstream', 'storyboard.palette.group.downstream', 'Target events', ensureArray(levels.downstream && levels.downstream.cards)),
       group('branches', 'storyboard.palette.group.branches', 'Branches and inserts', ensureArray(levels.branches && levels.branches.cards)),
       group('same_source', 'storyboard.palette.group.sameSource', 'Same source area', sameSourceCards(cards, selected)),
       group('drafts', 'storyboard.palette.group.drafts', 'Drafts and changes', cards.filter((card) => isDraftLike(card)))

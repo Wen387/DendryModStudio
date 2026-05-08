@@ -2,6 +2,10 @@
   'use strict';
 
   function renderTimelineScope(storyboard) {
+    const ui = storyboard && storyboard.ui || {};
+    if (ui.scopeCollapsed) {
+      return '';
+    }
     const scope = storyboard && storyboard.timeline && storyboard.timeline.storyScope || {};
     if (!scope || !scope.totalLaneCount) {
       return '';
@@ -14,6 +18,7 @@
       '<em>' + escapeHtml(scope.visibleCardCount + ' / ' + scope.totalCardCount + ' ' + t('storyboard.beats', 'beats')) + '</em>',
       '</div>',
       '<div class="content-storyboard-scope-actions">',
+      '<button type="button" data-object-canvas-action="toggle_story_scope_panel">' + escapeHtml(t('storyboard.collapse', 'Collapse')) + '</button>',
       scopeButton('story_scope_focus', scope.mode === 'focus', t('storyboard.scope.focus', 'Focus')),
       scopeButton('story_scope_expand', scope.mode === 'expanded', t('storyboard.scope.expanded', 'Expanded')),
       '<button type="button" data-object-canvas-action="story_scope_reset">' + escapeHtml(t('storyboard.scope.reset', 'Reset')) + '</button>',
@@ -28,6 +33,10 @@
   }
 
   function renderTimelineOverview(storyboard) {
+    const ui = storyboard && storyboard.ui || {};
+    if (ui.overviewCollapsed) {
+      return '';
+    }
     const scope = storyboard && storyboard.timeline && storyboard.timeline.storyScope || {};
     const lanes = scope.summaryLanes || storyboard && storyboard.storyContext && storyboard.storyContext.timeline && storyboard.storyContext.timeline.lanes || [];
     if (!lanes.length) {
@@ -36,6 +45,7 @@
     const max = lanes.reduce((value, lane) => Math.max(value, lane.count || 0), 1);
     return [
       '<section class="content-storyboard-overview" data-content-storyboard-overview="true" aria-label="' + escapeAttr(t('storyboard.overview', 'Timeline overview')) + '">',
+      '<button type="button" class="content-storyboard-overview-collapse" data-object-canvas-action="toggle_story_overview_panel" aria-label="' + escapeAttr(t('storyboard.collapseYears', 'Collapse years')) + '">' + escapeHtml(t('storyboard.collapse', 'Collapse')) + '</button>',
       lanes.map((lane) => {
         const width = Math.max(10, Math.round((Number(lane.count || 0) / max) * 100));
         const className = [

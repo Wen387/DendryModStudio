@@ -1,5 +1,7 @@
 .card-board-surface {
   min-height: 680px;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
 .card-board-toolbar {
@@ -42,14 +44,20 @@
 
 .card-board-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(340px, 420px);
+  grid-template-columns: minmax(0, 1fr) 8px minmax(300px, var(--object-canvas-sidebar-width, 390px));
   min-height: 560px;
   border-top: 1px solid var(--border-soft);
+}
+
+.create-workspace.is-object-authoring .card-board-surface,
+.create-workspace.is-object-authoring .card-board-workspace {
+  min-height: 0;
 }
 
 .card-board-canvas {
   min-width: 0;
   padding: 16px;
+  overflow: auto;
   background:
     linear-gradient(90deg, color-mix(in srgb, var(--border-soft) 46%, transparent) 1px, transparent 1px),
     linear-gradient(0deg, color-mix(in srgb, var(--border-soft) 46%, transparent) 1px, transparent 1px),
@@ -304,6 +312,7 @@
   padding: 16px;
   border-left: 1px solid var(--border);
   background: color-mix(in srgb, var(--studio-panel) 82%, var(--surface));
+  overflow: auto;
 }
 
 .card-face-editor-header,
@@ -423,6 +432,10 @@
   .card-board-pool-grid,
   .card-board-filters {
     grid-template-columns: 1fr;
+  }
+
+  .card-board-sidebar-resizer {
+    display: none;
   }
 
   .card-face-editor {

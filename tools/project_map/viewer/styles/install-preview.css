@@ -15,24 +15,37 @@
 
 .create-workspace.is-object-authoring .create-template-header {
   grid-row: 1;
+  padding: 6px 8px;
+  gap: 8px;
+  align-items: center;
 }
 
 .create-workspace.is-object-authoring .existing-scene-editor-host {
   grid-column: 1 / -1;
   grid-row: 2;
   min-height: 0;
-  overflow: hidden;
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .create-workspace.is-object-authoring .object-canvas {
   min-height: 0;
   height: 100%;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 8px;
 }
 
 .create-workspace.is-object-authoring .object-canvas-stage {
   min-height: 0;
   height: 100%;
-  overflow: hidden;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.create-workspace.is-object-authoring .object-canvas-stage-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 22;
 }
 
 .create-workspace.is-object-authoring .content-storyboard-layout,

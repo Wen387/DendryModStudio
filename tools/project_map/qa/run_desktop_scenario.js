@@ -50,6 +50,21 @@ const SCENARIOS = {
       'uses a deterministic test dialog adapter for native folder selection'
     ]
   },
+  content_storyboard_canvas_selection: {
+    title: 'Player opens Create, clicks a Storyboard event card on Canvas, and gets the visible object editor.',
+    run: scenarioContentStoryboardCanvasSelection,
+    dialogRoots: ['projectRoot'],
+    playerLike: [
+      'opens a project through Quick Start',
+      'opens Create / World Event Canvas',
+      'clicks a source-backed Storyboard event card',
+      'verifies the card becomes selected and opens the object editor modal'
+    ],
+    shortcuts: [
+      'uses a deterministic test dialog adapter for native folder selection',
+      'dispatches mouse-like pointer events in Electron instead of manual clicking'
+    ]
+  },
   draft_persistence_restart: {
     title: 'Player saves a draft, reloads Studio, reopens the draft, and dry-runs it.',
     run: scenarioDraftPersistenceRestart,
@@ -681,6 +696,42 @@ async function scenarioExploreDesignExistingEdit(win, args, artifactDir, log) {
   }
   await screenshot(win, artifactDir, '08-existing-dry-run');
   log('Existing edit dry-run succeeds', 'PASS', '08-existing-dry-run.png');
+}
+
+async function scenarioContentStoryboardCanvasSelection(win, args, artifactDir, log) {
+  await expectVisible(win, '#studio-onboarding', 'Quick Start overlay should be visible on first launch');
+  await click(win, '#onboarding-primary');
+  await waitForHidden(win, '#studio-onboarding', 'Quick Start should close after opening a project');
+  const loaded = await waitForProjectLoaded(win, args.projectRoot, args.timeoutMs);
+  log('Project loads from Quick Start primary action', 'PASS', JSON.stringify(loaded.summary || {}));
+
+  await click(win, '#mode-create');
+  await click(win, '[data-create-template="event"]');
+  await expectVisible(win, '#existing-scene-editor-host [data-content-storyboard-surface="true"]', 'Content Storyboard Canvas should render in Create');
+  await screenshot(win, artifactDir, '01-storyboard-canvas');
+  log('Content Storyboard Canvas renders', 'PASS', '01-storyboard-canvas.png');
+
+  const cardKey = await evalInPage(win, () => {
+    const cards = Array.from(document.querySelectorAll('#existing-scene-editor-host [data-content-storyboard-card]'));
+    const card = cards.find((node) => /^event:/.test(node.dataset.contentStoryboardCard || ''));
+    return card && card.dataset.contentStoryboardCard || '';
+  });
+  if (!cardKey) {
+    throw new Error('Content Storyboard did not render a source-backed event card to click.');
+  }
+  await dispatchStoryboardPointerClick(win, cardKey);
+  await waitFor(win, () => evalInPage(win, (key) => {
+    const selected = document.querySelector('[data-content-storyboard-card="' + cssEscape(key) + '"].is-selected');
+    const modal = document.querySelector('[data-object-editing-modal="true"]');
+    const canvas = window.ProjectMapObjectAuthoringCanvas;
+    return Boolean(selected && modal && canvas && canvas.activeTemplate && canvas.activeTemplate() === 'existing');
+
+    function cssEscape(value) {
+      return window.CSS && window.CSS.escape ? window.CSS.escape(String(value || '')) : String(value || '').replace(/["\\\]]/g, '\\$&');
+    }
+  }, cardKey), 'Pointer-clicking a Storyboard card should select it and open the object editor');
+  await screenshot(win, artifactDir, '02-storyboard-card-selected-editor-open');
+  log('Storyboard card pointer click opens the object editor', 'PASS', cardKey);
 }
 
 async function scenarioDraftPersistenceRestart(win, args, artifactDir, log) {
@@ -1425,6 +1476,46 @@ async function click(win, selector) {
   }, selector);
   if (!ok) {
     throw new Error('Could not click selector: ' + selector);
+  }
+}
+
+async function dispatchStoryboardPointerClick(win, cardKey) {
+  const result = await evalInPage(win, (key) => {
+    const selector = '[data-content-storyboard-card="' + cssEscape(key) + '"]';
+    const card = document.querySelector(selector);
+    if (!card) {
+      return {ok: false, reason: 'missing-card'};
+    }
+    card.scrollIntoView({block: 'center', inline: 'center'});
+    const rect = card.getBoundingClientRect();
+    const clientX = Math.round(rect.left + Math.min(96, Math.max(24, rect.width / 2)));
+    const clientY = Math.round(rect.top + Math.min(92, Math.max(24, rect.height / 2)));
+    const EventCtor = window.PointerEvent || window.MouseEvent;
+    const base = {
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      clientX,
+      clientY,
+      button: 0,
+      pointerId: 79,
+      pointerType: 'mouse',
+      isPrimary: true
+    };
+    card.dispatchEvent(new EventCtor('pointerdown', Object.assign({}, base, {buttons: 1})));
+    card.dispatchEvent(new EventCtor('pointerup', Object.assign({}, base, {buttons: 0})));
+    return {
+      ok: true,
+      selected: Boolean(document.querySelector(selector + '.is-selected')),
+      modal: Boolean(document.querySelector('[data-object-editing-modal="true"]'))
+    };
+
+    function cssEscape(value) {
+      return window.CSS && window.CSS.escape ? window.CSS.escape(String(value || '')) : String(value || '').replace(/["\\\]]/g, '\\$&');
+    }
+  }, cardKey);
+  if (!result || !result.ok) {
+    throw new Error('Could not dispatch Storyboard pointer click for ' + cardKey + ': ' + JSON.stringify(result));
   }
 }
 
