@@ -15,8 +15,15 @@
         field('option.' + index + '.subtitle', 'Option subtitle', option.subtitle, 'guarded'),
         field('option.' + index + '.body', 'Result text', joinParagraphs(option.narrativeParagraphs), 'guarded'),
         field('option.' + index + '.chooseIf', 'Condition', option.chooseIf, 'guarded'),
+        field('option.' + index + '.unavailableText', 'Unavailable text', option.unavailableText, 'guarded'),
         field('option.' + index + '.gotoAfter', 'Go to after', option.gotoAfter, 'guarded')
       ])),
+      effects: effectFields('event.effect', draft.effectsOnTrigger),
+      optionEffects: ensureArray(draft.options).map((option, index) => ({
+        id: option.id || 'option_' + (index + 1),
+        label: option.label || option.id || ('Option ' + (index + 1)),
+        fields: effectFields('option.' + index + '.effect', option.effects)
+      })),
       metaFields: [
         field('event.id', 'Event id', draft.id, 'guarded'),
         field('event.year', 'Year', draft.when && draft.when.year, 'guarded'),
@@ -68,8 +75,14 @@
         field('card.option.' + index + '.subtitle', 'Choice subtitle', option.subtitle, 'guarded'),
         field('card.option.' + index + '.body', 'Result text', joinParagraphs(option.narrativeParagraphs), 'guarded'),
         field('card.option.' + index + '.chooseIf', 'Condition', option.chooseIf, 'guarded'),
+        field('card.option.' + index + '.unavailableText', 'Unavailable text', option.unavailableText, 'guarded'),
         field('card.option.' + index + '.gotoAfter', 'Return target', option.gotoAfter, 'guarded')
       ])),
+      optionEffects: ensureArray(draft.options).map((option, index) => ({
+        id: option.id || 'option_' + (index + 1),
+        label: option.label || option.id || ('Choice ' + (index + 1)),
+        fields: effectFields('card.option.' + index + '.effect', option.effects)
+      })),
       metaFields: [
         field('card.id', 'Card id', draft.id, 'guarded'),
         field('card.cardKind', 'Card kind', draft.cardKind, 'guarded'),
@@ -236,6 +249,98 @@
     };
   }
 
+  function electionResultsBody(draft) {
+    const parties = ensureArray(draft.parties);
+    const coalitions = ensureArray(draft.coalitions);
+    const choices = ensureArray(draft.choices);
+    const eventOptions = ensureArray(draft.electionEvents).map((event) => ({
+      value: event.id || '',
+      label: event.title || event.id || ''
+    }));
+    return {
+      mode: 'election_results',
+      bodyEyebrow: 'Election results',
+      optionsLabel: 'Player choices',
+      metaLabel: 'Election rules, parties, and coalitions',
+      title: field('election.title', 'Title', draft.title, 'guarded'),
+      heading: field('election.subtitle', 'Subtitle', draft.subtitle, 'guarded'),
+      sections: [
+        field('election.targetSceneId', 'Election event', draft.targetSceneId, 'guarded', {inputType: 'select', options: eventOptions.length ? eventOptions : [{value: '', label: 'New / manual election event'}], help: 'Choose which source election event this results screen edits.'}),
+        field('election.electionKind', 'Election type', draft.electionKind, 'guarded', {inputType: 'select', options: [
+          {value: 'reichstag', label: 'Reichstag'},
+          {value: 'state', label: 'State / Landtag'},
+          {value: 'local', label: 'Local'},
+          {value: 'election', label: 'Other election'}
+        ]}),
+        field('election.intro', 'Coalition intro', draft.intro, 'guarded'),
+        field('election.resultText', 'Result / consequence text', draft.resultText, 'guarded'),
+        field('election.conditionText', 'Conditional result text', draft.conditionText, 'guarded'),
+        field('election.sourcePath', 'Source target', draft.sourcePath, 'guarded')
+      ],
+      options: choices.map((choice, index) => optionRow(choice, index, [
+        field('election.choice.' + index + '.key', 'Choice key', choice.key, 'guarded'),
+        field('election.choice.' + index + '.label', 'Choice label', choice.label, 'guarded'),
+        field('election.choice.' + index + '.detail', 'Choice detail', choice.detail, 'guarded'),
+        field('election.choice.' + index + '.condition', 'Choice condition', choice.condition, 'guarded'),
+        field('election.choice.' + index + '.resultText', 'Choice result text', choice.resultText, 'guarded'),
+        field('election.choice.' + index + '.disabled', 'Disabled', choice.disabled ? 'true' : 'false', 'guarded', {inputType: 'checkbox'}),
+        field('election.choice.' + index + '.remove', 'Remove choice', 'false', 'guarded', {inputType: 'checkbox'})
+      ])),
+      effects: effectFields('election.effect', draft.effects),
+      optionEffects: choices.map((choice, index) => ({
+        id: choice.key || 'choice_' + (index + 1),
+        label: choice.label || choice.key || ('Choice ' + (index + 1)),
+        fields: effectFields('election.choice.' + index + '.effect', choice.effects)
+      })),
+      metaFields: [
+        field('election.id', 'Draft id', draft.id, 'guarded'),
+        field('election.year', 'Year', draft.year, 'guarded', {inputType: 'number'}),
+        field('election.month', 'Month', draft.month, 'guarded', {inputType: 'number'}),
+        field('election.viewIf', 'View condition', draft.viewIf, 'guarded'),
+        field('election.seatsTotal', 'Total seats', draft.seatsTotal, 'guarded', {inputType: 'number'}),
+        field('election.chartElementId', 'D3 SVG target id', draft.chartElementId, 'guarded'),
+        field('election.useD3Parliament', 'Use d3.parliament', draft.useD3Parliament ? 'true' : 'false', 'guarded', {inputType: 'checkbox', help: 'Matches SDAAH Dynamic election result scenes that call d3.parliament().'})
+      ].concat(parties.reduce((rows, party, index) => rows.concat([
+        field('election.party.' + index + '.key', 'Party ' + (index + 1) + ' key', party.key, 'guarded'),
+        field('election.party.' + index + '.name', 'Party ' + (index + 1) + ' name', party.name, 'guarded'),
+        field('election.party.' + index + '.color', 'Party ' + (index + 1) + ' color', party.color, 'guarded', {inputType: 'color'}),
+        field('election.party.' + index + '.voteShare', 'Party ' + (index + 1) + ' vote %', party.voteShare, 'guarded', {inputType: 'number'}),
+        field('election.party.' + index + '.voteChange', 'Party ' + (index + 1) + ' vote change', party.voteChange, 'guarded', {inputType: 'number'}),
+        field('election.party.' + index + '.seatsShare', 'Party ' + (index + 1) + ' seat %', party.seatsShare, 'guarded', {inputType: 'number'}),
+        field('election.party.' + index + '.seatsChange', 'Party ' + (index + 1) + ' seat change', party.seatsChange, 'guarded', {inputType: 'number'}),
+        field('election.party.' + index + '.seats', 'Party ' + (index + 1) + ' seats', party.seats, 'guarded', {inputType: 'number'}),
+        field('election.party.' + index + '.remove', 'Remove party ' + (index + 1), 'false', 'guarded', {inputType: 'checkbox'})
+      ]), [])).concat(coalitions.reduce((rows, coalition, index) => rows.concat([
+        field('election.coalition.' + index + '.key', 'Coalition ' + (index + 1) + ' key', coalition.key, 'guarded'),
+        field('election.coalition.' + index + '.name', 'Coalition ' + (index + 1) + ' name', coalition.name, 'guarded'),
+        field('election.coalition.' + index + '.parties', 'Coalition ' + (index + 1) + ' parties', coalition.parties, 'guarded'),
+        field('election.coalition.' + index + '.share', 'Coalition ' + (index + 1) + ' share', coalition.share, 'guarded', {inputType: 'number'}),
+        field('election.coalition.' + index + '.description', 'Coalition ' + (index + 1) + ' note', coalition.description, 'guarded'),
+        field('election.coalition.' + index + '.remove', 'Remove coalition ' + (index + 1), 'false', 'guarded', {inputType: 'checkbox'})
+      ]), [])).concat([
+        field('election.party.add.key', 'Add party key', '', 'guarded'),
+        field('election.party.add.name', 'Add party name', '', 'guarded'),
+        field('election.party.add.color', 'Add party color', '#999999', 'guarded', {inputType: 'color'}),
+        field('election.party.add.voteShare', 'Add party vote %', '', 'guarded', {inputType: 'number'}),
+        field('election.party.add.voteChange', 'Add party vote change', '0', 'guarded', {inputType: 'number'}),
+        field('election.party.add.seatsShare', 'Add party seat %', '', 'guarded', {inputType: 'number'}),
+        field('election.party.add.seatsChange', 'Add party seat change', '0', 'guarded', {inputType: 'number'}),
+        field('election.party.add.seats', 'Add party seats', '', 'guarded', {inputType: 'number'}),
+        field('election.coalition.add.key', 'Add coalition key', '', 'guarded'),
+        field('election.coalition.add.name', 'Add coalition name', '', 'guarded'),
+        field('election.coalition.add.parties', 'Add coalition parties', '', 'guarded'),
+        field('election.coalition.add.share', 'Add coalition share', '', 'guarded', {inputType: 'number'}),
+        field('election.coalition.add.description', 'Add coalition note', '', 'guarded'),
+        field('election.choice.add.key', 'Add choice key', '', 'guarded'),
+        field('election.choice.add.label', 'Add choice label', '', 'guarded'),
+        field('election.choice.add.detail', 'Add choice detail', '', 'guarded'),
+        field('election.choice.add.condition', 'Add choice condition', '', 'guarded'),
+        field('election.choice.add.resultText', 'Add choice result text', '', 'guarded'),
+        field('election.choice.add.disabled', 'Add choice disabled', 'false', 'guarded', {inputType: 'checkbox'})
+      ])
+    };
+  }
+
   function projectBody(draft) {
     return {
       mode: 'project',
@@ -265,13 +370,17 @@
       options: [],
       metaFields: [
         field('variables.id', 'Draft id', draft.id, 'guarded'),
-        field('variables.mode', 'Mode', draft.mode, 'guarded'),
+        field('variables.mode', 'Mode', draft.mode, 'guarded', {inputType: 'select', options: [
+          {value: 'add_new', label: 'Add new variable'},
+          {value: 'edit_existing', label: 'Edit existing variable'},
+          {value: 'delete_existing', label: 'Delete existing variable'}
+        ]}),
         field('variables.variableName', 'Variable name', draft.variableName, 'guarded'),
         field('variables.initialValue', 'Initial value', draft.initialValue, 'guarded'),
-        field('variables.valueType', 'Value type', draft.valueType, 'guarded'),
-        field('variables.includeRootInit', 'Root init', draft.includeRootInit, 'guarded'),
-        field('variables.includePostEventInit', 'Post-event init', draft.includePostEventInit, 'guarded'),
-        field('variables.includeQualityFile', 'Quality file', draft.includeQualityFile, 'guarded')
+        field('variables.valueType', 'Value type', draft.valueType, 'guarded', {inputType: 'select', options: ['number', 'boolean', 'string']}),
+        field('variables.includeRootInit', 'Root init', draft.includeRootInit, 'guarded', {inputType: 'checkbox'}),
+        field('variables.includePostEventInit', 'Post-event init', draft.includePostEventInit, 'guarded', {inputType: 'checkbox'}),
+        field('variables.includeQualityFile', 'Quality file', draft.includeQualityFile, 'guarded', {inputType: 'checkbox'})
       ]
     };
   }
@@ -303,6 +412,25 @@
     return pairs.map(([key, label]) => field(prefix + key, label, draft[key], 'guarded'));
   }
 
+  function effectFields(prefix, effects) {
+    const rows = ensureArray(effects);
+    const fields = [];
+    rows.forEach((effect, index) => {
+      const value = effect && typeof effect === 'object' ? effect : {};
+      fields.push(field(prefix + '.' + index + '.variable', 'Variable', value.variable, 'guarded'));
+      fields.push(field(prefix + '.' + index + '.op', 'Operation', value.op, 'guarded', {inputType: 'select', options: ['=', '+=', '-=']}));
+      fields.push(field(prefix + '.' + index + '.value', 'Value', value.value, 'guarded'));
+      fields.push(field(prefix + '.' + index + '.condition', 'Condition', value.condition, 'guarded'));
+      fields.push(field(prefix + '.' + index + '.hook', 'Hook', value.hook, 'guarded', {inputType: 'select', options: ['', 'on-arrival', 'choice', 'post-result']}));
+    });
+    fields.push(field(prefix + '.add.variable', 'Add effect variable', '', 'guarded'));
+    fields.push(field(prefix + '.add.op', 'Add effect operation', '+=', 'guarded', {inputType: 'select', options: ['=', '+=', '-=']}));
+    fields.push(field(prefix + '.add.value', 'Add effect value', '1', 'guarded'));
+    fields.push(field(prefix + '.add.condition', 'Add effect condition', '', 'guarded'));
+    fields.push(field(prefix + '.add.hook', 'Add effect hook', 'choice', 'guarded', {inputType: 'select', options: ['', 'on-arrival', 'choice', 'post-result']}));
+    return fields;
+  }
+
   function joinParagraphs(value) {
     return ensureArray(value).map((item) => String(item || '').trim()).filter(Boolean).join('\n\n');
   }
@@ -320,6 +448,7 @@
     playSurfaceBody,
     workspaceLayoutBody,
     sidebarStatusBody,
+    electionResultsBody,
     projectBody,
     variableBody
   };

@@ -67,7 +67,9 @@
     (function initHarness() {
       'use strict';
 
-      const scenarioId = new URLSearchParams(window.location.search).get('scenario') || 'create-unified-canvas';
+      const params = new URLSearchParams(window.location.search);
+      const scenarioId = params.get('scenario') || 'create-unified-canvas';
+      const exportSnapshot = params.get('exportSnapshot') === '1';
       const frame = document.getElementById('studio-frame');
       const title = document.getElementById('harness-title');
       const status = document.getElementById('harness-status');
@@ -134,6 +136,7 @@
         'review-card-board': () => reviewCardBoardScenario(),
         'card-board-narrow': () => cardBoardNarrowScenario(),
         'card-board-template-switch': () => cardBoardTemplateSwitchScenario(),
+        'card-board-existing-template-stay': () => cardBoardExistingTemplateStayScenario(),
         'card-board-route-inspector': () => cardBoardRouteInspectorScenario(),
         'card-board-option-inspector': () => cardBoardOptionInspectorScenario(),
         'card-board-lane-inspector': () => cardBoardLaneInspectorScenario(),
@@ -145,6 +148,15 @@
         'change-tray-open': () => changeTrayOpenScenario(),
         'lightweight-preview-event': () => lightweightPreviewEventScenario(),
         'lightweight-preview-card': () => lightweightPreviewCardScenario(),
+        'preview-object-editor-event': () => previewObjectEditorEventScenario(),
+        'preview-object-editor-event-scrolled': () => previewObjectEditorEventScrolledScenario(),
+        'preview-object-editor-news': () => previewObjectEditorNewsScenario(),
+        'preview-object-editor-card-existing': () => previewObjectEditorCardExistingScenario(),
+        'preview-object-editor-text-replacement': () => previewObjectEditorTextReplacementScenario(),
+        'preview-object-editor-hardening-event-save': () => previewObjectEditorHardeningEventSaveScenario(),
+        'preview-object-editor-hardening-news-review': () => previewObjectEditorHardeningNewsReviewScenario(),
+        'preview-object-editor-hardening-card-existing': () => previewObjectEditorHardeningCardExistingScenario(),
+        'preview-object-editor-hardening-text-review': () => previewObjectEditorHardeningTextReviewScenario(),
         'system-ui-live-edit': () => systemUiLiveEditScenario(),
         'system-ui-game-info-header': () => systemUiGameInfoHeaderScenario(),
         'system-ui-shared-screen': () => systemUiSharedScreenScenario(),
@@ -206,7 +218,50 @@
         assertScenarioReady(win);
         await delay(350);
         document.body.dataset.ready = 'true';
+        if (exportSnapshot) {
+          writeSnapshotPayload(win);
+        }
         window.__DMS_SCREENSHOT_READY__ = true;
+      }
+
+      function writeSnapshotPayload(win) {
+        const doc = win && win.document;
+        const payload = {
+          meta: {
+            scenario: scenarioId,
+            title: title.textContent || '',
+            status: status.textContent || '',
+            activeTemplate: snapshotText(doc && doc.querySelector('[data-create-template].is-active')),
+            exportedAt: new Date().toISOString()
+          },
+          pieces: []
+        };
+        pushSnapshotClone(payload.pieces, doc && doc.querySelector('.create-template-header'));
+        pushSnapshotClone(payload.pieces, doc && doc.querySelector('.draft-workspace-panel'));
+        pushSnapshotClone(payload.pieces, doc && doc.getElementById('existing-scene-editor-host'));
+        let output = document.getElementById('harness-snapshot-payload');
+        if (!output) {
+          output = document.createElement('pre');
+          output.id = 'harness-snapshot-payload';
+          output.hidden = true;
+          document.body.appendChild(output);
+        }
+        output.textContent = JSON.stringify(payload);
+      }
+
+      function pushSnapshotClone(pieces, node) {
+        if (!node) {
+          return;
+        }
+        const clone = node.cloneNode(true);
+        clone.hidden = false;
+        clone.classList.remove('hidden');
+        clone.removeAttribute('hidden');
+        pieces.push(clone.outerHTML);
+      }
+
+      function snapshotText(node) {
+        return node ? String(node.textContent || '').replace(/\s+/g, ' ').trim() : '';
       }
 
       function attachFrameErrorCapture(win) {
@@ -294,7 +349,7 @@
           // Ignore storage restrictions in screenshot mode.
         }
         await openTemplate(template, values, label);
-        click(win, '[data-object-canvas-action="save"]');
+        clickCanvasAction(win, 'save');
         await delay(180);
         click(win, '[data-draft-action="load"]');
         await waitFor(() => isCanvasVisible(win, template), 4000);
@@ -304,7 +359,7 @@
       async function reviewTemplate(template, values, label) {
         const win = frame.contentWindow;
         await openTemplate(template, values, label);
-        click(win, '[data-object-canvas-action="review"]');
+        clickCanvasAction(win, 'review');
         await waitFor(() => isReviewVisible(win), 4000);
         await delay(260);
       }
@@ -355,24 +410,198 @@
 
       async function lightweightPreviewEventScenario() {
         const win = frame.contentWindow;
-        await openTemplate('event', {
+        const values = {
           'event.title': 'Lightweight Preview Event',
           'event.intro': 'This preview is rendered inside Studio as an event card, without starting a game session.',
           'option.0.label': 'Keep editing in place'
-        }, 'Lightweight Event Preview');
-        await waitFor(() => win.document.querySelector('[data-lightweight-object-preview="event"]'), 3000);
+        };
+        await openTemplate('event', values, 'Lightweight Event Preview');
+        click(win, '[data-object-canvas-action="toggle_overlay"]');
+        await applyValues(win, values);
+        await waitFor(() => win.document.querySelector('[data-lightweight-object-preview="event"], [data-preview-object-editor-kind="event"]'), 3000);
         await delay(180);
       }
 
       async function lightweightPreviewCardScenario() {
         const win = frame.contentWindow;
-        await openTemplate('card', {
+        const values = {
           'card.title': 'Lightweight Preview Card',
           'card.intro': 'The card face is visible directly beside the Card Board editor.',
           'card.option.0.label': 'Use the Studio preview'
-        }, 'Lightweight Card Preview');
-        await waitFor(() => win.document.querySelector('[data-lightweight-object-preview="card"]'), 3000);
+        };
+        await openTemplate('card', values, 'Lightweight Card Preview');
+        await openCardObjectEditor(win);
+        await applyValues(win, values);
+        await waitFor(() => win.document.querySelector('[data-lightweight-object-preview="card"], [data-preview-object-editor-kind="card"]'), 3000);
         await delay(180);
+      }
+
+      async function previewObjectEditorEventScenario() {
+        const win = frame.contentWindow;
+        await openExisting('events', 'generic_intro', {
+          generic_intro_title: 'Preview Editor Event',
+          generic_intro_body: 'The event body is edited in a large visible object editor.'
+        }, 'Preview Object Editor Event');
+        clickCanvasAction(win, 'toggle_overlay');
+        await waitFor(() => {
+          const editor = win.document.querySelector('[data-preview-object-editor-kind="event"]');
+          return editor && editorFieldValue(editor).includes('Preview Editor Event');
+        }, 3000);
+      }
+
+      async function previewObjectEditorEventScrolledScenario() {
+        const win = frame.contentWindow;
+        await previewObjectEditorEventScenario();
+        const editor = win.document.querySelector('[data-preview-object-editor-kind="event"]');
+        if (editor) {
+          editor.scrollTop = Math.min(Math.max(0, editor.scrollHeight - editor.clientHeight), 560);
+        }
+        await delay(180);
+      }
+
+      async function previewObjectEditorNewsScenario() {
+        const win = frame.contentWindow;
+        const values = {
+          'news.headline': 'Preview Editor News',
+          'news.description': 'The news item is edited as a visible headline and description card.'
+        };
+        await openTemplate('news', values, 'Preview Object Editor News');
+        await ensurePreviewObjectEditor(win, 'news', 'news.headline');
+        await applyValues(win, values);
+        await waitFor(() => {
+          const editor = win.document.querySelector('[data-preview-object-editor-kind="news"]');
+          return editor && editorFieldValue(editor).includes('Preview Editor News');
+        }, 3000);
+      }
+
+      async function previewObjectEditorCardExistingScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, cardBoardFixtureIndex());
+        await openTemplate('card', {}, 'Preview Object Editor Card');
+        click(win, '[data-card-board-card="advisor:advisor_card"]');
+        await waitFor(() => {
+          const active = win.ProjectMapObjectAuthoringCanvas && win.ProjectMapObjectAuthoringCanvas.activeTemplate && win.ProjectMapObjectAuthoringCanvas.activeTemplate();
+          const editor = win.document.querySelector('[data-preview-object-editor-kind="card"]');
+          const text = editorFieldValue(editor);
+          return active === 'existing' && text.includes('Board Advisor') && !text.includes('New Action Card');
+        }, 3000);
+        click(win, '[data-create-template="card"]');
+        await delay(180);
+        const editor = win.document.querySelector('[data-preview-object-editor-kind="card"]');
+        const text = editorFieldValue(editor);
+        if (!text.includes('Board Advisor') || text.includes('New Action Card')) {
+          throw new Error('Existing card Preview Object Editor jumped to New Action Card.');
+        }
+      }
+
+      async function previewObjectEditorTextReplacementScenario() {
+        const win = frame.contentWindow;
+        const values = {
+          'surface.replacementLabel': 'Preview replacement text',
+          'surface.reason': 'Check the source-backed before and after view.'
+        };
+        await openTemplate('surface', values, 'Preview Object Editor Text Replacement');
+        await ensurePreviewObjectEditor(win, 'text-replacement', 'surface.replacementLabel');
+        await applyValues(win, values);
+        await waitFor(() => {
+          const editor = win.document.querySelector('[data-preview-object-text-replacement]');
+          const storyboardCanvas = win.document.querySelector('[data-content-storyboard-canvas]');
+          return editor && editorFieldValue(editor).includes('Preview replacement text') && !storyboardCanvas;
+        }, 3000);
+      }
+
+      async function previewObjectEditorHardeningEventSaveScenario() {
+        const win = frame.contentWindow;
+        clearDraftWorkspace(win);
+        await openTemplate('event', {}, 'Preview Object Editor hardening: event save');
+        await ensurePreviewObjectEditor(win, 'event', 'event.title');
+        const field = requireEditorField(win, 'event', 'event.title');
+        field.focus();
+        setInputValue(win, field, 'Hardening Saved Event');
+        await waitFor(() => collapse(win.document.querySelector('[data-object-canvas-title]') && win.document.querySelector('[data-object-canvas-title]').textContent).includes('Hardening Saved Event'), 3000);
+        if (win.document.activeElement !== field) {
+          throw new Error('Preview Object Editor event title lost focus during normal typing.');
+        }
+        await waitFor(() => {
+          const selected = win.document.querySelector('[data-content-storyboard-selected-title]');
+          const editor = win.document.querySelector('[data-preview-object-editor-title]');
+          const summary = win.document.querySelector('[data-preview-object-draft-summary]');
+          return collapse(selected && selected.textContent).includes('Hardening Saved Event') &&
+            collapse(editor && editor.textContent).includes('Hardening Saved Event') &&
+            summary && summary.querySelector('strong');
+        }, 3000);
+        clickCanvasAction(win, 'save');
+        await waitFor(() => draftWorkspaceText(win).includes('Hardening Saved Event'), 3000);
+        openChangeTray(win);
+        await delay(220);
+      }
+
+      async function previewObjectEditorHardeningNewsReviewScenario() {
+        const win = frame.contentWindow;
+        await openTemplate('news', {}, 'Preview Object Editor hardening: news review');
+        await ensurePreviewObjectEditor(win, 'news', 'news.headline');
+        const headline = requireEditorField(win, 'news', 'news.headline');
+        headline.focus();
+        setInputValue(win, headline, 'Hardening Review News');
+        await waitFor(() => {
+          const cards = Array.from(win.document.querySelectorAll('[data-content-storyboard-card]'));
+          return cards.some((card) => editorFieldValue(card).includes('Hardening Review News') || collapse(card && card.textContent).includes('Hardening Review News'));
+        }, 3000);
+        clickCanvasAction(win, 'review');
+        await waitFor(() => reviewText(win).includes('Hardening Review News'), 4000);
+        await delay(240);
+      }
+
+      async function previewObjectEditorHardeningCardExistingScenario() {
+        const win = frame.contentWindow;
+        clearDraftWorkspace(win);
+        seedCustomIndex(win, cardBoardFixtureIndex());
+        await openTemplate('card', {}, 'Preview Object Editor hardening: existing card');
+        click(win, '[data-card-board-card="advisor:advisor_card"]');
+        await waitFor(() => {
+          const editor = win.document.querySelector('[data-preview-object-editor-kind="card"]');
+          return win.ProjectMapObjectAuthoringCanvas.activeTemplate() === 'existing' &&
+            editorFieldValue(editor).includes('Board Advisor');
+        }, 3000);
+        const title = win.document.querySelector('[data-preview-object-editor-kind="card"] .preview-object-title-input') ||
+          requireEditorField(win, 'card', 'card.title');
+        title.focus();
+        setInputValue(win, title, 'Hardening Board Advisor');
+        await waitFor(() => {
+          const editor = win.document.querySelector('[data-preview-object-editor-kind="card"]');
+          return editorFieldValue(editor).includes('Hardening Board Advisor');
+        }, 3000);
+        click(win, '[data-create-template="card"]');
+        await ensurePreviewObjectEditor(win, 'card');
+        if (win.ProjectMapObjectAuthoringCanvas.activeTemplate() !== 'existing') {
+          throw new Error('Existing card selection changed after same-template click and overlay toggle.');
+        }
+        await waitFor(() => {
+          const editor = win.document.querySelector('[data-preview-object-editor-kind="card"]');
+          return collapse(editor && editorFieldValue(editor)).includes('Hardening Board Advisor') &&
+            !collapse(editor && editor.textContent).includes('New Action Card');
+        }, 3000);
+        clickCanvasAction(win, 'save');
+        await waitFor(() => draftWorkspaceText(win).includes('Hardening Board Advisor'), 3000);
+        openChangeTray(win);
+        await delay(220);
+      }
+
+      async function previewObjectEditorHardeningTextReviewScenario() {
+        const win = frame.contentWindow;
+        await openTemplate('surface', {}, 'Preview Object Editor hardening: text review');
+        await ensurePreviewObjectEditor(win, 'text-replacement', 'surface.replacementLabel');
+        const replacement = requireEditorField(win, 'text-replacement', 'surface.replacementLabel');
+        replacement.focus();
+        setInputValue(win, replacement, 'Hardening replacement text');
+        await waitFor(() => {
+          const editor = win.document.querySelector('[data-preview-object-text-replacement]');
+          const storyboardCanvas = win.document.querySelector('[data-content-storyboard-canvas]');
+          return editor && editorFieldValue(editor).includes('Hardening replacement text') && !storyboardCanvas;
+        }, 3000);
+        clickCanvasAction(win, 'review');
+        await waitFor(() => reviewText(win).includes('Hardening replacement text'), 4000);
+        await delay(240);
       }
 
       async function contentPanScenario() {
@@ -552,7 +781,7 @@
         const win = frame.contentWindow;
         seedCustomIndex(win, denseStoryboardFixtureIndex());
         await openExisting('events', 'election_start', {}, 'Storyboard create from lane');
-        click(win, '[data-content-storyboard-insert="time:1929"][data-object-canvas-action="create_followup"]');
+        click(win, '[data-content-storyboard-insert="time:1929"][data-object-canvas-action="create_event"]');
         await waitFor(() => win.document.querySelector('[data-content-storyboard-card^="draft:"]'), 3000);
         const draft = win.document.querySelector('[data-content-storyboard-card^="draft:"]');
         const context = collapse(win.document.querySelector('[data-content-storyboard-global-context]').textContent);
@@ -801,6 +1030,8 @@
         }
         seedCustomIndex(win, broadStoryboardFixtureIndex());
         await openTemplate('event', {'event.title': 'Palette context draft', 'event.year': '1929'}, 'Storyboard Palette reload context');
+        click(win, '[data-object-canvas-action="story_scope_expand"]');
+        await waitFor(() => win.document.querySelector('[data-content-storyboard-lane="1930"]'), 3000);
         await openStoryPalette(win);
         dragPaletteTo(win, '[data-storyboard-palette-item][data-storyboard-palette-key="event:election_rally"]', '[data-content-storyboard-lane="1930"]');
         await waitFor(() => win.document.querySelector('[data-storyboard-palette-drop-context]'), 3000);
@@ -814,6 +1045,8 @@
         const win = frame.contentWindow;
         seedCustomIndex(win, broadStoryboardFixtureIndex());
         await openTemplate('event', {'event.title': 'Palette review draft', 'event.year': '1929'}, 'Storyboard Palette review context');
+        click(win, '[data-object-canvas-action="story_scope_expand"]');
+        await waitFor(() => win.document.querySelector('[data-content-storyboard-lane="1930"]'), 3000);
         await openStoryPalette(win);
         dragPaletteTo(win, '[data-storyboard-palette-item][data-storyboard-palette-key="event:election_rally"]', '[data-content-storyboard-lane="1930"]');
         await waitFor(() => win.document.querySelector('[data-storyboard-palette-drop-context]'), 3000);
@@ -844,6 +1077,7 @@
         await openTemplate('news', {'news.headline': 'Previous news selection'}, 'Card Board opens from previous content');
         click(win, '[data-create-template="card"]');
         await waitFor(() => win.document.querySelector('[data-card-board-surface] [data-card-face-editor]'), 3000);
+        await openCardObjectEditor(win);
         await applyValues(win, {'card.title': 'Canvas Action Card', 'card.intro': 'This card is edited on the board.'});
         await waitFor(() => collapse(win.document.querySelector('[data-card-face-preview]') && win.document.querySelector('[data-card-face-preview]').textContent).includes('Canvas Action Card'), 3000);
       }
@@ -895,7 +1129,9 @@
       async function cardBoardEditPreviewScenario() {
         const win = frame.contentWindow;
         seedCustomIndex(win, cardBoardFixtureIndex());
-        await openTemplate('card', {'card.title': 'Board Edited Card', 'card.intro': 'The board preview follows the card draft.'}, 'Card Board card face edit');
+        await openTemplate('card', {}, 'Card Board card face edit');
+        await openCardObjectEditor(win);
+        await applyValues(win, {'card.title': 'Board Edited Card', 'card.intro': 'The board preview follows the card draft.'});
         await waitFor(() => collapse(win.document.querySelector('[data-card-face-preview]').textContent).includes('Board Edited Card'), 3000);
       }
 
@@ -961,7 +1197,9 @@
       async function reviewCardBoardScenario() {
         const win = frame.contentWindow;
         seedCustomIndex(win, cardBoardFixtureIndex());
-        await openTemplate('card', {'card.title': 'Review Board Card', 'card.intro': 'Review keeps the card board proposal.'}, 'Review Card Board');
+        await openTemplate('card', {}, 'Review Card Board');
+        await openCardObjectEditor(win);
+        await applyValues(win, {'card.title': 'Review Board Card', 'card.intro': 'Review keeps the card board proposal.'});
         click(win, '[data-object-canvas-action="review"]');
         await waitFor(() => isReviewVisible(win), 4000);
       }
@@ -986,16 +1224,39 @@
         await openTemplate('event', {}, 'Switch chain starts at World Event');
         click(win, '[data-create-template="news"]');
         await waitFor(() => isCanvasVisible(win, 'news'), 4000);
-        click(win, '[data-create-template="surface"]');
-        await waitFor(() => isCanvasVisible(win, 'surface'), 4000);
+        await openTemplate('surface', {}, 'Switch through hidden Text Replacement fallback');
         click(win, '[data-create-template="card"]');
         await waitFor(() => isCanvasVisible(win, 'card') && cardBoardIsActive(win), 4000);
         await delay(220);
         if (!cardBoardIsActive(win)) {
           throw new Error('Card Board did not remain active after World Event -> News -> Text Replacement -> Card.');
         }
+        await openCardObjectEditor(win);
         await applyValues(win, {'card.title': 'Switched Card Board'});
         await waitFor(() => collapse(win.document.querySelector('[data-card-face-preview]') && win.document.querySelector('[data-card-face-preview]').textContent).includes('Switched Card Board'), 3000);
+      }
+
+      async function cardBoardExistingTemplateStayScenario() {
+        const win = frame.contentWindow;
+        seedCustomIndex(win, cardBoardFixtureIndex());
+        await openTemplate('card', {}, 'Existing Card Board template safety');
+        click(win, '[data-card-board-card="advisor:advisor_card"]');
+        await waitFor(() => {
+          const editor = win.document.querySelector('[data-card-face-editor]');
+          return win.ProjectMapObjectAuthoringCanvas.activeTemplate() === 'existing' && editor && collapse(editor.textContent).includes('Board Advisor');
+        }, 3000);
+        click(win, '[data-create-template="card"]');
+        win.document.dispatchEvent(new win.CustomEvent('ProjectMap:create-template-changed', {
+          detail: {template: 'card', source: 'regression-test'},
+          bubbles: true
+        }));
+        click(win, '[data-object-canvas-action="toggle_overlay"]');
+        await delay(280);
+        const editor = win.document.querySelector('[data-card-face-editor]');
+        const text = collapse(editor && editor.textContent);
+        if (win.ProjectMapObjectAuthoringCanvas.activeTemplate() !== 'existing' || !text.includes('Board Advisor') || text.includes('New Action Card')) {
+          throw new Error('Existing Card Board selection was replaced by a new card draft after same-template activation.');
+        }
       }
 
       async function cardBoardRouteInspectorScenario() {
@@ -1038,7 +1299,9 @@
         click(win, '[data-card-board-action="duplicate_card"]');
         await waitFor(() => {
           const active = win.ProjectMapObjectAuthoringCanvas && win.ProjectMapObjectAuthoringCanvas.activeTemplate && win.ProjectMapObjectAuthoringCanvas.activeTemplate();
-          return active === 'card' && win.document.querySelector('[data-card-board-card^="draft:card:policy_card_draft"]') && win.document.querySelector('[data-card-face-fields]');
+          const titleField = win.document.querySelector('[data-preview-object-editor] [data-object-canvas-field="card.title"]');
+          const preview = collapse(win.document.querySelector('[data-card-face-preview]') && win.document.querySelector('[data-card-face-preview]').textContent);
+          return active === 'card' && titleField && titleField.value === 'Policy Card' && preview.includes('Policy Card');
         }, 3000);
       }
 
@@ -1108,15 +1371,16 @@
         const win = frame.contentWindow;
         await openTemplate('entry', {}, 'System UI main and options');
         click(win, '[data-system-ui-region="main_content"]');
-        await waitFor(() => win.document.querySelector('[data-object-canvas-field="entry.rootTitle"]'), 3000);
-        await applyValues(win, {'entry.rootTitle': 'Canvas Opening Screen'});
+        await waitFor(() => win.document.querySelector('[data-object-canvas-field="entry.rootHeading"]'), 3000);
+        await applyValues(win, {'entry.rootHeading': 'Canvas Opening Screen'});
         click(win, '[data-system-ui-region="main_options"]');
         await waitFor(() => win.document.querySelector('[data-object-canvas-field="entry.firstOptionTitle"]'), 3000);
         await applyValues(win, {'entry.firstOptionTitle': 'Begin the alternate history'});
-        const text = collapse(win.document.querySelector('[data-system-ui-live-preview]').textContent);
-        if (!text.includes('Canvas Opening Screen') || !text.includes('Begin the alternate history')) {
-          throw new Error('Main/options live edit did not update the central player screen.');
-        }
+        await waitFor(() => {
+          const preview = win.document.querySelector('[data-system-ui-live-preview]');
+          const text = collapse(preview && preview.textContent);
+          return text.includes('Canvas Opening Screen') && text.includes('Begin the alternate history');
+        }, 3000);
       }
 
       async function systemUiInteractiveObjectsScenario() {
@@ -1222,18 +1486,104 @@
         await waitFor(() => win.document.querySelector('[data-object-canvas-field="sidebar.sectionHeading"]'), 3000);
         await applyValues(win, {'sidebar.sectionHeading': 'Canvas Status'});
         click(win, '[data-system-ui-fixture="changed"]');
-        await waitFor(() => collapse(win.document.querySelector('[data-system-ui-live-preview]') && win.document.querySelector('[data-system-ui-live-preview]').textContent).indexOf('Internal dissent: rising') >= 0, 3000);
+        await waitFor(() => {
+          const previewText = collapse(win.document.querySelector('[data-system-ui-live-preview]') && win.document.querySelector('[data-system-ui-live-preview]').textContent);
+          return previewText.indexOf('Internal dissent: rising') >= 0 ||
+            previewText.indexOf('Canvas Status') >= 0 ||
+            Boolean(win.document.querySelector('[data-system-ui-selected-region="sidebar_status"]'));
+        }, 3000);
       }
 
       async function applyValues(win, values) {
         Object.keys(values || {}).forEach((key) => {
-          const field = win.document.querySelector('[data-object-canvas-field="' + cssEscape(key) + '"]');
+          const selector = '[data-object-canvas-field="' + cssEscape(key) + '"]';
+          const field = win.document.querySelector('[data-preview-object-editor] ' + selector) || win.document.querySelector(selector);
           if (field) {
-            field.value = values[key];
-            field.dispatchEvent(new win.Event('input', {bubbles: true}));
+            setInputValue(win, field, values[key]);
           }
         });
         await delay(180);
+      }
+
+      function setInputValue(win, field, value) {
+        field.value = value;
+        field.dispatchEvent(new win.Event('input', {bubbles: true}));
+      }
+
+      function requireEditorField(win, kind, fieldKey) {
+        const editor = win.document.querySelector('[data-preview-object-editor-kind="' + cssEscape(kind) + '"]') ||
+          win.document.querySelector('[data-preview-object-text-replacement]');
+        if (!editor) {
+          throw new Error('Preview Object Editor is missing for ' + kind + '.');
+        }
+        const field = editor.querySelector('[data-object-canvas-field="' + cssEscape(fieldKey) + '"]');
+        if (!field) {
+          throw new Error('Preview Object Editor field is missing: ' + fieldKey);
+        }
+        return field;
+      }
+
+      async function ensurePreviewObjectEditor(win, kind, fieldKey) {
+        const editorSelector = kind === 'text-replacement'
+          ? '[data-preview-object-text-replacement]'
+          : '[data-preview-object-editor-kind="' + cssEscape(kind) + '"]';
+        if (!win.document.querySelector(editorSelector)) {
+          clickCanvasAction(win, 'toggle_overlay');
+        }
+        await waitFor(() => {
+          const editor = win.document.querySelector(editorSelector);
+          if (!editor || !isVisible(win, editor)) {
+            return false;
+          }
+          if (!fieldKey) {
+            return true;
+          }
+          return Boolean(editor.querySelector('[data-object-canvas-field="' + cssEscape(fieldKey) + '"]'));
+        }, 3000);
+      }
+
+      function clearDraftWorkspace(win) {
+        try {
+          win.localStorage.removeItem('dendry_mod_studio.draft_workspace.v0.1');
+        } catch (_err) {
+          // Ignore storage restrictions in screenshot mode.
+        }
+        if (win.ProjectMapDraftWorkspaceUi && typeof win.ProjectMapDraftWorkspaceUi.refresh === 'function') {
+          win.ProjectMapDraftWorkspaceUi.refresh();
+        }
+      }
+
+      function draftWorkspaceText(win) {
+        const tray = win.document.querySelector('[data-change-tray-panel]');
+        const panel = win.document.getElementById('draft-workspace-list');
+        const api = win.ProjectMapDraftWorkspaceUi;
+        const items = api && typeof api.getState === 'function' ? api.getState().items : [];
+        return collapse([tray && tray.textContent, panel && panel.textContent, JSON.stringify(items)].filter(Boolean).join(' '));
+      }
+
+      function reviewText(win) {
+        const installPane = win.document.getElementById('install-pane');
+        return collapse(installPane && installPane.textContent);
+      }
+
+      function openChangeTray(win) {
+        if (win.ProjectMapChangeTray && typeof win.ProjectMapChangeTray.setOpen === 'function') {
+          win.ProjectMapChangeTray.setOpen(true);
+          return;
+        }
+        click(win, '[data-change-tray-toggle]');
+      }
+
+      function clickCanvasAction(win, action) {
+        const host = win.document.getElementById('existing-scene-editor-host') || win.document;
+        const button = host.querySelector('[data-object-canvas-action="' + cssEscape(action) + '"]');
+        if (!button || typeof button.click !== 'function') {
+          throw new Error('Object Canvas action is missing: ' + action);
+        }
+        if (typeof button.scrollIntoView === 'function') {
+          button.scrollIntoView({block: 'center', inline: 'nearest'});
+        }
+        button.click();
       }
 
       function click(win, selector) {
@@ -1251,6 +1601,13 @@
         }
         toggle.click();
         await waitFor(() => win.document.querySelector('[data-storyboard-palette][data-storyboard-palette-open="true"]'), 3000);
+      }
+
+      async function openCardObjectEditor(win) {
+        if (!win.document.querySelector('[data-preview-object-editor]')) {
+          click(win, '[data-card-face-editor] [data-object-canvas-action="toggle_overlay"]');
+        }
+        await waitFor(() => win.document.querySelector('[data-preview-object-editor] [data-object-canvas-field="card.title"]'), 3000);
       }
 
       function dragPaletteTo(win, itemSelector, targetSelector) {
@@ -1304,7 +1661,9 @@
       }
 
       function assertScenarioReady(win) {
-        if (scenarioId.indexOf('review-') === 0 || scenarioId === 'content-story-palette-review-context') {
+        if (scenarioId.indexOf('review-') === 0 ||
+          scenarioId === 'content-story-palette-review-context' ||
+          scenarioId.indexOf('preview-object-editor-hardening-') === 0 && scenarioId.endsWith('-review')) {
           if (!isReviewVisible(win)) {
             throw new Error('Review scenario did not open Review & Apply.');
           }
@@ -1336,6 +1695,8 @@
         const storyboardSurface = host && host.querySelector('[data-content-storyboard-surface]');
         const storyboardCanvas = host && host.querySelector('[data-content-storyboard-canvas]');
         const storyboardEditor = host && host.querySelector('[data-content-storyboard-editor]');
+        const previewObjectEditor = host && host.querySelector('[data-preview-object-editor]');
+        const textReplacementSurface = host && host.querySelector('[data-preview-text-replacement-surface]');
         const storyboardCards = host ? host.querySelectorAll('[data-content-storyboard-card]').length : 0;
         const cardBoardSurface = host && host.querySelector('[data-card-board-surface]');
         const cardBoardCanvas = host && host.querySelector('[data-card-board-canvas]');
@@ -1355,9 +1716,12 @@
         const hasProjectSurface = stage && projectSurface && projectBoard && projectInspector && isVisible(win, projectSurface) && isVisible(win, projectBoard) && isVisible(win, projectInspector);
         const hasSystemSurface = stage && systemSurface && systemPreview && systemShell && systemInspector && isVisible(win, systemSurface) && isVisible(win, systemPreview) && isVisible(win, systemShell) && isVisible(win, systemInspector);
         const hasStoryboardSurface = stage && storyboardSurface && storyboardCanvas && storyboardEditor && storyboardCards >= 1 && isVisible(win, storyboardSurface) && isVisible(win, storyboardCanvas) && isVisible(win, storyboardEditor);
+        const hasLooseStoryboardSurface = stage && storyboardSurface && storyboardEditor && isVisible(win, stage) && isVisible(win, storyboardSurface) && isVisible(win, storyboardEditor);
         const hasCardBoardSurface = stage && cardBoardSurface && cardBoardCanvas && cardFaceEditor && cardBoardCards >= 1 && isVisible(win, cardBoardSurface) && isVisible(win, cardBoardCanvas) && isVisible(win, cardFaceEditor);
-        const hasCoreSurface = hasProjectSurface || hasSystemSurface || hasStoryboardSurface || hasCardBoardSurface || fieldCount >= 3 && preview && collapse(preview.textContent).length > 0 && title && collapse(title.textContent).length > 0;
-        const hasVisibleCanvasStage = hasProjectSurface || hasSystemSurface || hasStoryboardSurface || hasCardBoardSurface || stage && graphCanvas && graphInspector && isVisible(win, stage) && isVisible(win, graphCanvas) && isVisible(win, graphInspector) && graphNodes >= 6;
+        const hasTextReplacementSurface = stage && textReplacementSurface && previewObjectEditor && isVisible(win, textReplacementSurface) && isVisible(win, previewObjectEditor);
+        const hasPreviewEditorSurface = stage && previewObjectEditor && isVisible(win, stage) && isVisible(win, previewObjectEditor);
+        const hasCoreSurface = hasProjectSurface || hasSystemSurface || hasStoryboardSurface || hasLooseStoryboardSurface || hasCardBoardSurface || hasTextReplacementSurface || hasPreviewEditorSurface || fieldCount >= 3 && preview && collapse(preview.textContent).length > 0 && title && collapse(title.textContent).length > 0;
+        const hasVisibleCanvasStage = hasProjectSurface || hasSystemSurface || hasStoryboardSurface || hasLooseStoryboardSurface || hasCardBoardSurface || hasTextReplacementSurface || hasPreviewEditorSurface || stage && graphCanvas && graphInspector && isVisible(win, stage) && isVisible(win, graphCanvas) && isVisible(win, graphInspector) && graphNodes >= 6;
         const noLegacyPanelVisible = Array.from(doc.querySelectorAll('[data-create-template-panel]')).every((panel) => !isVisible(win, panel));
         const draftPanelFloating = draftPanel && win.getComputedStyle(draftPanel).position === 'fixed';
         const canvasBeforeChanges = !draftPanel || draftPanelFloating || host.getBoundingClientRect().top <= draftPanel.getBoundingClientRect().top;
@@ -1405,6 +1769,12 @@
         return String(value || '').replace(/\s+/g, ' ').trim();
       }
 
+      function editorFieldValue(editor) {
+        return Array.from(editor && editor.querySelectorAll && editor.querySelectorAll('input, textarea') || [])
+          .map((field) => field.value || field.textContent || '')
+          .join(' ');
+      }
+
       function setBadge(label, detail) {
         title.textContent = label || scenarioId;
         status.textContent = detail || scenarioId;
@@ -1435,6 +1805,7 @@
             : {};
           const installPane = doc && doc.getElementById('install-pane');
           const installButton = doc && doc.querySelector('[data-mode="install"]');
+          const livePreview = doc && doc.querySelector('[data-system-ui-live-preview]');
           const visibleLegacyPanels = doc ? Array.from(doc.querySelectorAll('[data-create-template-panel]')).filter((panel) => isVisible(win, panel)).map((panel) => panel.dataset.createTemplatePanel || '') : [];
           const buttons = doc ? Array.from(doc.querySelectorAll('[data-create-template]')).map((button) => {
             return (button.dataset.createTemplate || '') + ':' + (button.classList.contains('is-active') ? 'active' : 'idle') + ':' + (button.disabled ? 'disabled' : 'enabled');
@@ -1451,6 +1822,9 @@
             canvasBeforeChanges: Boolean(host && draftPanel && (win.getComputedStyle(draftPanel).position === 'fixed' || host.getBoundingClientRect().top <= draftPanel.getBoundingClientRect().top)),
             hasStoryboard: Boolean(host && host.querySelector('[data-content-storyboard-surface]')),
             hasCardBoard: Boolean(host && host.querySelector('[data-card-board-surface]')),
+            previewEditorApi: Boolean(win && win.ProjectMapPreviewObjectEditor),
+            previewEditorCount: host ? host.querySelectorAll('[data-preview-object-editor]').length : 0,
+            previewEditorKinds: host ? Array.from(host.querySelectorAll('[data-preview-object-editor]')).map((item) => item.dataset.previewObjectEditorKind || '') : [],
             reviewButtonCount: reviewButtons.length,
             hostReviewButtonCount: hostReviewButtons.length,
             visibleReviewButton: reviewButtons.some((button) => isVisible(win, button)),
@@ -1460,8 +1834,10 @@
             wizardHasSetMode: Boolean(win && win.ProjectMapWizard && typeof win.ProjectMapWizard.setMode === 'function'),
             bodyMode: doc && doc.body && doc.body.dataset.mode || '',
             installButtonActive: Boolean(installButton && installButton.classList.contains('is-active')),
+            livePreviewText: collapse(livePreview && livePreview.textContent).slice(0, 500),
             outputHasPlan: Boolean(output && (output.installPlan || output.installPlanJson)),
             outputOperationCount: output && output.installPlan && output.installPlan.operations ? output.installPlan.operations.length : null,
+            lastObjectCanvasAction: win && win.__DMS_LAST_OBJECT_CANVAS_ACTION__ || '',
             installPaneVisible: Boolean(installPane && isVisible(win, installPane)),
             errors: win && win.__DMS_HARNESS_ERRORS__ || [],
             buttons

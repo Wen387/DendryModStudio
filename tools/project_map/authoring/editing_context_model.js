@@ -112,7 +112,7 @@
       operationSummary: operationSummary(null),
       editabilitySummary: {guarded: 0, manual: 0, readOnly: 0, total: 0},
       editors: emptyEditorGroups(),
-      relationships: {incoming: [], outgoing: [], options: []},
+      relationships: {incoming: [], outgoing: [], internal: [], options: []},
       context: {variables: [], effects: [], assets: [], sourceEvidence: [], manualBoundaries: []},
       graph: {nodes: [], edges: []},
       warnings: [],
@@ -123,8 +123,15 @@
   function emptyEditorGroups() {
     return {
       pageSections: [],
+      openingSections: [],
+      optionResultSections: [],
+      conditionalSections: [],
+      otherSections: [],
       optionText: [],
       conditions: [],
+      routes: [],
+      effects: [],
+      structureActions: [],
       playerText: [],
       all: []
     };
@@ -135,38 +142,72 @@
     const coveredFieldIds = new Set();
     ensureArray(editModel.textBlocks).forEach((block) => {
       ensureArray(block.fieldIds).forEach((fieldId) => coveredFieldIds.add(fieldId));
-      groups.pageSections.push(editorFromBlock(block, values));
+      const editor = editorFromBlock(block, values);
+      groups.pageSections.push(editor);
+      sectionBucket(groups, editor).push(editor);
     });
     ensureArray(editModel.fields).forEach((field) => {
       const editor = editorFromField(field, values);
-      if (String(field.role || '') === 'condition') {
+      if (String(field.transform || '') === 'structure_action') {
+        groups.structureActions.push(editor);
+      } else if (String(field.role || '') === 'condition') {
         groups.conditions.push(editor);
+      } else if (String(field.role || '') === 'route') {
+        groups.routes.push(editor);
+      } else if (String(field.role || '') === 'effect') {
+        groups.effects.push(editor);
       } else if (String(field.role || '').startsWith('option_') || field.optionId) {
         groups.optionText.push(editor);
       } else if (!coveredFieldIds.has(field.id)) {
         groups.playerText.push(editor);
       }
     });
-    groups.all = groups.pageSections.concat(groups.optionText, groups.conditions, groups.playerText);
+    groups.all = groups.pageSections.concat(groups.optionText, groups.conditions, groups.routes, groups.effects, groups.structureActions, groups.playerText);
     return groups;
   }
 
   function editorFromBlock(block, values) {
     const id = 'block:' + String(block.id || '');
+    const relatedOptionIds = ensureArray(block.relatedOptionIds).map(String).filter(Boolean);
     return {
       id,
       fieldId: String(block.id || ''),
       group: 'page_sections',
       role: String(block.role || 'section_text'),
+      semanticRole: String(block.semanticRole || 'section_text'),
+      branchKind: String(block.branchKind || ''),
       label: String(block.label || block.id || 'Page section'),
       original: String(block.original || ''),
       value: Object.prototype.hasOwnProperty.call(values, id) ? String(values[id] || '') : String(block.value || block.original || ''),
       editability: String(block.editability || 'guarded_replace_section'),
       source: sourceRef(block.source || {}),
       sectionId: String(block.sectionId || ''),
+      sectionLabel: String(block.sectionLabel || ''),
+      optionId: relatedOptionIds[0] || '',
+      relatedOptionIds,
+      relatedOptionLabels: ensureArray(block.relatedOptionLabels).map(String).filter(Boolean),
+      conditions: ensureArray(block.conditions).map(String).filter(Boolean),
+      visualKinds: ensureArray(block.visualKinds).map(String).filter(Boolean),
+      conditionVariables: ensureArray(block.conditionVariables).map(String).filter(Boolean),
+      textVariables: ensureArray(block.textVariables).map(String).filter(Boolean),
+      logicContext: isObject(block.logicContext) ? block.logicContext : null,
       operationType: 'replace_section',
       status: editorStatus(block.editability || 'guarded_replace_section')
     };
+  }
+
+  function sectionBucket(groups, editor) {
+    const role = String(editor && editor.semanticRole || '');
+    if (role === 'opening_text') {
+      return groups.openingSections;
+    }
+    if (role === 'option_result_text' || role === 'conditional_option_result_text') {
+      return groups.optionResultSections;
+    }
+    if (role === 'conditional_text') {
+      return groups.conditionalSections;
+    }
+    return groups.otherSections;
   }
 
   function editorFromField(field, values) {
@@ -183,15 +224,36 @@
       source: sourceRef(field.source || {}),
       sectionId: String(field.sectionId || ''),
       optionId: String(field.optionId || ''),
+      inputType: String(field.inputType || ''),
+      placeholder: String(field.placeholder || ''),
+      transform: String(field.transform || ''),
+      structureAction: String(field.structureAction || ''),
+      structureBefore: String(field.structureBefore || ''),
+      structureTargetLabel: String(field.structureTargetLabel || ''),
+      effectSyntax: String(field.effectSyntax || ''),
+      effectHook: String(field.effectHook || ''),
+      sourceExpression: String(field.sourceExpression || ''),
+      displayExpression: String(field.displayExpression || ''),
+      condition: String(field.condition || ''),
+      reason: String(field.reason || ''),
       operationType: 'replace_text',
       status: editorStatus(field.editability || 'manual_review')
     };
   }
 
   function editorGroupForField(field) {
+    if (String(field && field.transform || '') === 'structure_action') {
+      return 'structure_actions';
+    }
     const role = String(field && field.role || '');
     if (role === 'condition') {
       return 'conditions';
+    }
+    if (role === 'route') {
+      return 'routes';
+    }
+    if (role === 'effect') {
+      return 'effects';
     }
     if (role.startsWith('option_') || field && field.optionId) {
       return 'option_text';
@@ -213,28 +275,40 @@
   function buildRelationships(index, editModel, scene) {
     const sceneId = String(editModel.sceneId || '');
     const scenesById = sceneLookup(index);
+    const sectionsById = sectionLookup(scene);
     const incoming = [];
     const outgoing = [];
+    const internal = [];
     ensureArray(index.edges).forEach((edge) => {
       const from = endpointId(edge.from || edge.source || edge.sourceId);
       const to = endpointId(edge.to || edge.target || edge.targetId);
       if (!from || !to) {
         return;
       }
+      const fromInScene = endpointBelongsToScene(from, sceneId);
+      const toInScene = endpointBelongsToScene(to, sceneId);
       const row = {
         from,
         to,
         kind: String(edge.kind || edge.type || 'link'),
         label: String(edge.label || edge.title || ''),
+        condition: String(edge.condition || edge.predicate || ''),
+        rawTarget: String(edge.rawTarget || ''),
         source: sourceRef(edge.source || {}),
-        scene: null
+        scene: null,
+        fromEndpoint: endpointSummary(scenesById, sectionsById, from),
+        toEndpoint: endpointSummary(scenesById, sectionsById, to)
       };
-      if (to === sceneId) {
-        row.scene = sceneSummary(scenesById.get(from), from);
+      if (fromInScene && toInScene) {
+        internal.push(row);
+        return;
+      }
+      if (toInScene) {
+        row.scene = endpointSummary(scenesById, sectionsById, from);
         incoming.push(row);
       }
-      if (from === sceneId) {
-        row.scene = sceneSummary(scenesById.get(to), to);
+      if (fromInScene) {
+        row.scene = endpointSummary(scenesById, sectionsById, to);
         outgoing.push(row);
       }
     });
@@ -243,11 +317,16 @@
       label: String(option.label || option.id || 'Option ' + (index + 1)),
       subtitle: String(option.subtitle || ''),
       targetId: String(option.targetId || ''),
+      rawTargetId: String(option.rawTargetId || ''),
+      sectionId: String(option.sectionId || ''),
+      sectionLabel: String(option.sectionLabel || ''),
       chooseIf: String(option.chooseIf || ''),
+      sectionViewIf: String(option.sectionViewIf || ''),
+      sectionChooseIf: String(option.sectionChooseIf || ''),
       source: sourceRef(option.source || {}),
-      target: sceneSummary(scenesById.get(String(option.targetId || '')), String(option.targetId || ''))
+      target: endpointSummary(scenesById, sectionsById, String(option.targetId || ''))
     }));
-    if (!outgoing.length) {
+    if (!outgoing.length && !internal.length) {
       options.filter((option) => option.targetId).forEach((option) => {
         outgoing.push({
           from: sceneId,
@@ -255,24 +334,37 @@
           kind: 'option',
           label: option.label,
           source: option.source,
-          scene: option.target
+          scene: option.target,
+          fromEndpoint: endpointSummary(scenesById, sectionsById, sceneId),
+          toEndpoint: option.target
         });
       });
     }
-    return {incoming, outgoing, options, current: sceneSummary(scene, sceneId)};
+    return {incoming, outgoing, internal, options, current: sceneSummary(scene, sceneId)};
   }
 
   function buildContextRows(index, editModel, scene, relationships) {
     const sourcePath = String(editModel.source && editModel.source.path || scene && scene.path || '');
     const variables = variablesForPath(index, sourcePath);
-    const effects = ensureArray(editModel.effects).map((effect) => ({
-      variable: String(effect.variable || ''),
-      op: String(effect.op || effect.operator || ''),
-      value: String(effect.value === undefined || effect.value === null ? '' : effect.value),
-      sectionId: String(effect.sectionId || ''),
-      source: sourceRef(effect.source || {}),
-      status: 'read_only'
-    })).filter((effect) => effect.variable);
+    const effectFieldBySource = new Map(ensureArray(editModel.fields)
+      .filter((field) => String(field.role || '') === 'effect')
+      .map((field) => [effectEditorKey(field.source, field.original), field]));
+    const effects = ensureArray(editModel.effects).map((effect) => {
+      const field = effectFieldBySource.get(effectEditorKey(effect.source, effectExpression(effect)));
+      return {
+        variable: String(effect.variable || ''),
+        op: String(effect.op || effect.operator || ''),
+        value: String(effect.value === undefined || effect.value === null ? '' : effect.value),
+        condition: String(effect.condition || ''),
+        hook: String(effect.hook || ''),
+        syntax: String(effect.syntax || ''),
+        expression: effectExpression(effect),
+        sourceExpression: String(effect.sourceExpression || ''),
+        sectionId: String(effect.sectionId || ''),
+        source: sourceRef(effect.source || {}),
+        status: field ? editorStatus(field.editability) : 'read_only'
+      };
+    }).filter((effect) => effect.variable);
     const assets = ensureArray(editModel.assets).map((asset) => ({
       label: String(asset.label || asset.path || asset.role || ''),
       path: String(asset.path || ''),
@@ -325,7 +417,13 @@
         });
       }
     });
+    const editableEffectSources = new Set(ensureArray(editModel.fields)
+      .filter((field) => String(field.role || '') === 'effect')
+      .map((field) => effectEditorKey(field.source, field.original)));
     ensureArray(editModel.effects).forEach((effect) => {
+      if (editableEffectSources.has(effectEditorKey(effect.source, effectExpression(effect)))) {
+        return;
+      }
       rows.push({
         label: 'Effect: Q.' + String(effect.variable || ''),
         reason: 'Effects are context-only in this Goal.',
@@ -339,6 +437,14 @@
         reason: 'Option choose-if is shown as context; direct editing is outside this Goal.',
         source: option.source,
         status: 'manual_review'
+      });
+    });
+    ensureArray(relationships.options).filter((option) => option.sectionViewIf || option.sectionChooseIf).forEach((option) => {
+      rows.push({
+        label: 'Section gate: ' + (option.sectionLabel || option.sectionId || option.label),
+        reason: [option.sectionViewIf, option.sectionChooseIf].filter(Boolean).join(' / '),
+        source: option.source,
+        status: 'context'
       });
     });
     return rows;
@@ -378,7 +484,14 @@
       addNode({id: nodeId, type: 'outgoing', label: rel.scene.title || rel.to, subtitle: rel.label || rel.kind, status: 'context'});
       addEdge({id: 'outgoing-edge-' + index, from: sceneNodeId, to: nodeId, label: rel.label || rel.kind, type: 'outgoing'});
     });
-    editors.pageSections.concat(editors.optionText, editors.conditions).slice(0, 18).forEach((editor, index) => {
+    relationships.internal.slice(0, 18).forEach((rel, index) => {
+      const nodeId = 'internal:' + rel.to;
+      const label = rel.toEndpoint && rel.toEndpoint.title || rel.to;
+      const subtitle = [rel.kind, rel.condition].filter(Boolean).join(' / ');
+      addNode({id: nodeId, type: 'internal_flow', label, subtitle, status: 'context'});
+      addEdge({id: 'internal-edge-' + index, from: sceneNodeId, to: nodeId, label: rel.label || rel.kind, type: 'internal'});
+    });
+    editors.pageSections.concat(editors.optionText, editors.conditions, editors.routes, editors.effects).slice(0, 18).forEach((editor, index) => {
       const nodeId = 'editor:' + editor.id;
       addNode({id: nodeId, type: editor.group, label: editor.label, subtitle: sourceLabel(editor.source), status: editor.status});
       addEdge({id: 'editor-edge-' + index, from: sceneNodeId, to: nodeId, label: editor.status, type: 'editor'});
@@ -489,6 +602,44 @@
     return map;
   }
 
+  function sectionLookup(scene) {
+    const map = new Map();
+    ensureArray(scene && scene.sections).forEach((section) => {
+      if (section && section.id) {
+        map.set(String(section.id), section);
+      }
+    });
+    return map;
+  }
+
+  function endpointBelongsToScene(endpoint, sceneId) {
+    const id = String(endpoint || '');
+    const base = String(sceneId || '');
+    return Boolean(base) && (id === base || id.startsWith(base + '.'));
+  }
+
+  function endpointSummary(scenesById, sectionsById, endpoint) {
+    const id = String(endpoint || '');
+    if (sectionsById && sectionsById.has(id)) {
+      const section = sectionsById.get(id);
+      const title = String(section.title || section.subtitle || localSectionId(id) || id);
+      return {
+        id,
+        title,
+        path: String(section.sourceSpan && section.sourceSpan.path || ''),
+        kind: 'section',
+        source: sourceRef(section.sourceSpan || {}),
+        condition: String(section.viewIf || section.chooseIf || '')
+      };
+    }
+    return sceneSummary(scenesById && scenesById.get(id), id);
+  }
+
+  function localSectionId(id) {
+    const text = String(id || '');
+    return text.indexOf('.') >= 0 ? text.split('.').slice(1).join('.') : text;
+  }
+
   function sceneSummary(scene, fallbackId) {
     const value = isObject(scene) ? scene : {};
     const id = String(value.id || fallbackId || '');
@@ -540,6 +691,28 @@
 
   function samePath(ref, path) {
     return String(ref && ref.path || ref && ref.sourcePath || '') === path;
+  }
+
+  function sourceKey(source) {
+    const ref = sourceRef(source || {});
+    return [ref.path || '', ref.line || '', ref.endLine || ''].join(':');
+  }
+
+  function effectEditorKey(source, expression) {
+    return sourceKey(source) + ':' + String(expression || '').trim();
+  }
+
+  function effectExpression(effect) {
+    const explicit = String(effect && (effect.displayExpression || effect.expression) || '').trim();
+    if (explicit) {
+      return explicit;
+    }
+    const rawValue = effect && effect.value;
+    const expression = ('Q.' + String(effect && effect.variable || '') + ' ' +
+      String(effect && (effect.op || effect.operator) || '') + ' ' +
+      String(rawValue === undefined || rawValue === null ? '' : rawValue)).trim();
+    const condition = String(effect && effect.condition || '').trim();
+    return expression + (condition ? ' if ' + condition : '');
   }
 
   function numberOrNull(value) {

@@ -18,28 +18,39 @@ function assert(condition, message) {
   }
 }
 
+function optionFixture(scenePath, line, targetId, title) {
+  const anchorText = '- @' + targetId + ': ' + title;
+  return {
+    target: {id: targetId},
+    title,
+    sourceSpan: {path: scenePath, line, startLine: line, endLine: line, anchorText, endAnchorText: anchorText}
+  };
+}
+
 function syntheticIndex() {
+  const eventPath = 'source/scenes/events/all_quiet.scene.dry';
   const eventScene = {
     id: 'all_quiet',
     title: 'All Quiet on the Western Front',
-    path: 'source/scenes/events/all_quiet.scene.dry',
+    path: eventPath,
     type: 'card',
     tags: ['event'],
     flags: {isCard: true, isPinnedCard: false},
     viewIf: 'year = 1930 and month >= 1 and month <= 4 and all_quiet_seen = 0',
     priority: '1',
     options: [
-      {target: {id: 'ban'}, title: 'Ban the film——Censor the screening.'},
-      {target: {id: 'permit'}, title: 'Permit it——Let the controversy breathe.'},
-      {target: {id: 'ignore'}, title: 'Ignore it.'},
-      {target: {id: 'debate'}, title: 'Hold a debate.'}
+      optionFixture(eventPath, 14, 'ban', 'Ban the film——Censor the screening.'),
+      optionFixture(eventPath, 16, 'permit', 'Permit it——Let the controversy breathe.'),
+      optionFixture(eventPath, 18, 'ignore', 'Ignore it.'),
+      optionFixture(eventPath, 20, 'debate', 'Hold a debate.')
     ],
     assetRefs: [{path: 'img/events/all_quiet.png', type: 'image', label: 'All Quiet poster', role: 'event_illustration'}],
-    sourceSpan: {path: 'source/scenes/events/all_quiet.scene.dry', startLine: 1, endLine: 80},
+    sourceSpan: {path: eventPath, startLine: 1, endLine: 80},
     metadata: {
-      viewIf: {path: 'source/scenes/events/all_quiet.scene.dry', line: 3}
+      viewIf: {path: eventPath, line: 3}
     }
   };
+  eventScene.options[0].chooseIf = 'public_order >= 0';
   const cardScene = {
     id: 'agricultural_policy',
     title: 'Agricultural Policy',
@@ -97,7 +108,7 @@ function syntheticIndex() {
             role: 'option_label',
             editability: 'text_proposal',
             owner: {kind: 'scene', sceneId: 'all_quiet', sectionId: 'start', itemId: 'ban'},
-            source: {path: eventScene.path, line: 14}
+            source: {path: eventScene.path, line: 14, anchorText: '- @ban: Ban the film——Censor the screening.', endAnchorText: '- @ban: Ban the film——Censor the screening.'}
           },
           {
             id: 'all_quiet_option_ban_subtitle',
@@ -105,7 +116,7 @@ function syntheticIndex() {
             role: 'option_subtitle',
             editability: 'text_proposal',
             owner: {kind: 'scene', sceneId: 'all_quiet', sectionId: 'ban', itemId: 'ban'},
-            source: {path: eventScene.path, line: 14}
+            source: {path: eventScene.path, line: 14, anchorText: '- @ban: Ban the film——Censor the screening.', endAnchorText: '- @ban: Ban the film——Censor the screening.'}
           },
           {
             id: 'all_quiet_ban_body',
@@ -121,7 +132,7 @@ function syntheticIndex() {
             role: 'script',
             editability: 'ide_escape_hatch',
             owner: {kind: 'scene', sceneId: 'all_quiet', sectionId: 'ban'},
-            source: {path: eventScene.path, line: 31}
+            source: {path: eventScene.path, line: 31, anchorText: 'Q.public_order += 1;', endAnchorText: 'Q.public_order += 1;'}
           },
           {
             id: 'agri_body',
@@ -147,6 +158,313 @@ function syntheticIndex() {
 }
 
 const index = syntheticIndex();
+const complexPath = 'source/scenes/events/civil_war.scene.dry';
+index.scenes.push({
+  id: 'civil_war',
+  title: 'Civil War',
+  path: complexPath,
+  type: 'event',
+  tags: ['event'],
+  flags: {isCard: false, isPinnedCard: false},
+  routes: {goTo: [{id: 'war_menu', raw: 'war_menu'}]},
+  options: [],
+  sections: [
+    {
+      id: 'civil_war.war_menu',
+      sourceSpan: {path: complexPath, startLine: 10, endLine: 14},
+      metadata: {$file: complexPath, $line: 10},
+      routes: {},
+      options: [{
+        id: '@rw_help',
+        target: {kind: 'scene', id: 'rw_help'},
+        title: 'Appeal to the Reichswehr.',
+        sourceSpan: {path: complexPath, line: 12, startLine: 12, endLine: 12, anchorText: '- @rw_help: Appeal to the Reichswehr.', endAnchorText: '- @rw_help: Appeal to the Reichswehr.'}
+      }]
+    },
+    {
+      id: 'civil_war.rw_help',
+      maxVisits: '1',
+      sourceSpan: {path: complexPath, startLine: 15, endLine: 19},
+      metadata: {$file: complexPath, $line: 15, maxVisits: {path: complexPath, line: 16}, goTo: {path: complexPath, line: 17}},
+      routes: {goTo: [{id: 'war_menu', raw: 'war_menu'}]},
+      options: []
+    },
+    {
+      id: 'civil_war.war_outcome',
+      viewIf: 'war_choices >= 2',
+      sourceSpan: {path: complexPath, startLine: 20, endLine: 24},
+      metadata: {$file: complexPath, $line: 20, viewIf: {path: complexPath, line: 21}, goTo: {path: complexPath, line: 22}},
+      routes: {goTo: [{id: 'defeat', raw: 'defeat if total_defeat = 1', predicate: 'total_defeat = 1'}]},
+      options: []
+    }
+  ],
+  sourceSpan: {path: complexPath, startLine: 1, endLine: 40},
+  topLevelSpan: {path: complexPath, startLine: 1, endLine: 9},
+  metadata: {goTo: {path: complexPath, line: 5}, title: {path: complexPath, line: 1}},
+  assetRefs: []
+});
+index.semantic.events.push({id: 'civil_war', title: 'Civil War', path: complexPath, confidence: 'exact'});
+index.semantic.textCorpus.items.push(
+  {
+    id: 'civil_war_title',
+    text: 'Civil War',
+    role: 'title',
+    editability: 'text_proposal',
+    owner: {kind: 'scene', sceneId: 'civil_war'},
+    source: {path: complexPath, line: 1}
+  },
+  {
+    id: 'civil_war_intro',
+    text: 'The array of forces is uncertain.',
+    role: 'body',
+    editability: 'text_proposal',
+    owner: {kind: 'scene', sceneId: 'civil_war', sectionId: 'civil_war.war_menu'},
+    source: {path: complexPath, line: 11}
+  },
+  {
+    id: 'civil_war_rw_option',
+    text: 'Appeal to the Reichswehr.',
+    role: 'option_label',
+    editability: 'text_proposal',
+    owner: {kind: 'scene', sceneId: 'civil_war', sectionId: 'civil_war.war_menu', itemId: 'rw_help'},
+    source: {path: complexPath, line: 12, anchorText: '- @rw_help: Appeal to the Reichswehr.', endAnchorText: '- @rw_help: Appeal to the Reichswehr.'}
+  }
+);
+
+const dnvpPath = 'source/scenes/events/dnvp_congress.scene.dry';
+index.scenes.push({
+  id: 'dnvp_congress',
+  title: 'DNVP Congress',
+  path: dnvpPath,
+  type: 'event',
+  tags: ['event'],
+  flags: {isCard: false, isPinnedCard: false},
+  options: [
+    optionFixture(dnvpPath, 18, 'endorse_hugenberg', 'Endorse Hugenberg.'),
+    optionFixture(dnvpPath, 19, 'delay_vote', 'Delay the vote.')
+  ],
+  sections: [
+    {
+      id: 'dnvp_congress.endorse_hugenberg',
+      sourceSpan: {path: dnvpPath, startLine: 24, endLine: 28},
+      metadata: {$file: dnvpPath, $line: 24},
+      routes: {},
+      options: []
+    }
+  ],
+  sourceSpan: {path: dnvpPath, startLine: 1, endLine: 42},
+  topLevelSpan: {path: dnvpPath, startLine: 1, endLine: 22},
+  metadata: {title: {path: dnvpPath, line: 1}},
+  assetRefs: [{path: 'img/events/dnvp_congress.png', type: 'image', label: 'DNVP Congress hall', role: 'event_illustration'}]
+});
+index.semantic.events.push({id: 'dnvp_congress', title: 'DNVP Congress', path: dnvpPath, confidence: 'exact'});
+index.semantic.textCorpus.items.push(
+  {
+    id: 'dnvp_congress_title',
+    text: 'DNVP Congress',
+    role: 'title',
+    editability: 'text_proposal',
+    owner: {kind: 'scene', sceneId: 'dnvp_congress'},
+    source: {path: dnvpPath, line: 1}
+  },
+  {
+    id: 'dnvp_congress_chart',
+    text: '<table><tr><th>Faction</th><th>Votes</th></tr><tr><td>Hugenberg bloc</td><td>54</td></tr></table>',
+    role: 'body',
+    editability: 'text_proposal',
+    owner: {kind: 'scene', sceneId: 'dnvp_congress'},
+    source: {path: dnvpPath, line: 8, anchorText: '<table><tr><th>Faction</th><th>Votes</th></tr><tr><td>Hugenberg bloc</td><td>54</td></tr></table>', endAnchorText: '<table><tr><th>Faction</th><th>Votes</th></tr><tr><td>Hugenberg bloc</td><td>54</td></tr></table>'}
+  },
+  {
+    id: 'dnvp_congress_option',
+    text: 'Endorse Hugenberg.',
+    role: 'option_label',
+    editability: 'text_proposal',
+    owner: {kind: 'scene', sceneId: 'dnvp_congress', itemId: 'endorse_hugenberg'},
+    source: {path: dnvpPath, line: 18, anchorText: '- @endorse_hugenberg: Endorse Hugenberg.', endAnchorText: '- @endorse_hugenberg: Endorse Hugenberg.'}
+  },
+  {
+    id: 'dnvp_congress_result',
+    text: 'The delegates rally behind the chair.',
+    role: 'body',
+    editability: 'text_proposal',
+    owner: {kind: 'scene', sceneId: 'dnvp_congress', sectionId: 'dnvp_congress.endorse_hugenberg'},
+    source: {path: dnvpPath, line: 25}
+  }
+);
+
+const laborPath = 'source/scenes/events/labor_unrest.scene.dry';
+index.scenes.push({
+  id: 'labor_unrest',
+  title: 'Labor Unrest',
+  path: laborPath,
+  type: 'event',
+  tags: ['event'],
+  flags: {isCard: false, isPinnedCard: false},
+  options: [
+    optionFixture(laborPath, 14, 'support_labor', 'Support the workers.'),
+    optionFixture(laborPath, 15, 'split_the_pain', 'Both sides share the pain.')
+  ],
+  sections: [
+    {
+      id: 'labor_unrest.support_labor',
+      sourceSpan: {path: laborPath, startLine: 20, endLine: 24},
+      metadata: {$file: laborPath, $line: 20},
+      routes: {},
+      options: []
+    },
+    {
+      id: 'labor_unrest.split_the_pain',
+      sourceSpan: {path: laborPath, startLine: 25, endLine: 29},
+      metadata: {$file: laborPath, $line: 25},
+      routes: {},
+      options: []
+    },
+    {
+      id: 'labor_unrest.no_ministry',
+      viewIf: 'labor_minister != "SPD"',
+      sourceSpan: {path: laborPath, startLine: 30, endLine: 34},
+      metadata: {$file: laborPath, $line: 30, viewIf: {path: laborPath, line: 31}},
+      routes: {},
+      options: []
+    }
+  ],
+  sourceSpan: {path: laborPath, startLine: 1, endLine: 40},
+  topLevelSpan: {path: laborPath, startLine: 1, endLine: 19},
+  metadata: {title: {path: laborPath, line: 1}},
+  assetRefs: []
+});
+index.semantic.events.push({id: 'labor_unrest', title: 'Labor Unrest', path: laborPath, confidence: 'exact'});
+index.semantic.textCorpus.items.push(
+  {
+    id: 'labor_unrest_title',
+    text: 'Labor Unrest',
+    role: 'title',
+    editability: 'text_proposal',
+    owner: {kind: 'scene', sceneId: 'labor_unrest'},
+    source: {path: laborPath, line: 1}
+  },
+  {
+    id: 'labor_unrest_intro',
+    text: 'The Ruhr is beset by strikes.',
+    role: 'body',
+    editability: 'text_proposal',
+    owner: {kind: 'scene', sceneId: 'labor_unrest'},
+    source: {path: laborPath, line: 8}
+  },
+  {
+    id: 'labor_unrest_support_option',
+    text: 'Support the workers.',
+    role: 'option_label',
+    editability: 'text_proposal',
+    owner: {kind: 'scene', sceneId: 'labor_unrest', itemId: 'support_labor'},
+    source: {path: laborPath, line: 14, anchorText: '- @support_labor: Support the workers.', endAnchorText: '- @support_labor: Support the workers.'}
+  },
+  {
+    id: 'labor_unrest_support_result',
+    text: 'We manage to convince the Labor Minister to strike a compromise.',
+    role: 'body',
+    editability: 'text_proposal',
+    owner: {kind: 'scene', sceneId: 'labor_unrest', sectionId: 'labor_unrest.support_labor'},
+    source: {path: laborPath, line: 21}
+  },
+  {
+    id: 'labor_unrest_support_conditional',
+    text: 'The Social Democrats stand to gain if they own the ministry.',
+    role: 'conditional_body',
+    editability: 'text_proposal',
+    owner: {kind: 'scene', sceneId: 'labor_unrest', sectionId: 'labor_unrest.support_labor'},
+    conditions: ['labor_minister = "SPD"'],
+    source: {path: laborPath, line: 22, anchorText: '[? if labor_minister = "SPD" : The Social Democrats stand to gain if they own the ministry. ?]', endAnchorText: '[? if labor_minister = "SPD" : The Social Democrats stand to gain if they own the ministry. ?]'}
+  },
+  {
+    id: 'labor_unrest_no_ministry_text',
+    text: 'We do not own the Labor Ministry.',
+    role: 'body',
+    editability: 'text_proposal',
+    owner: {kind: 'scene', sceneId: 'labor_unrest', sectionId: 'labor_unrest.no_ministry'},
+    source: {path: laborPath, line: 32}
+  }
+);
+
+const stresemannPath = 'source/scenes/events/death_of_stresemann.scene.dry';
+const stresemannConditionalLine = '[? if dvp_leader == "Scholz": Ernst Scholz has succeeded him as leader of the <span style="color: #C0A054;">**DVP**</span>.?][? if dvp_leader == "Curtius": Julius Curtius has succeeded him as leader of the <span style="color: #C0A054;">**DVP**</span>.?]';
+index.scenes.push({
+  id: 'death_of_stresemann',
+  title: 'The Death of Gustav Stresemann',
+  path: stresemannPath,
+  type: 'event',
+  tags: ['event'],
+  flags: {isCard: false, isPinnedCard: false},
+  viewIf: 'year = 1929 and month >= 10 and not lvp_formed',
+  frequency: '1000',
+  maxVisits: '1',
+  priority: '-1',
+  options: [],
+  sections: [],
+  sourceSpan: {path: stresemannPath, startLine: 1, endLine: 22},
+  topLevelSpan: {path: stresemannPath, startLine: 1, endLine: 22},
+  metadata: {
+    viewIf: {path: stresemannPath, line: 2},
+    frequency: {path: stresemannPath, line: 3},
+    maxVisits: {path: stresemannPath, line: 4},
+    priority: {path: stresemannPath, line: 7}
+  },
+  assetRefs: [{path: 'img/portraits/Stresemann.jpg', type: 'image', label: 'Stresemann.jpg', role: 'face-image'}]
+});
+index.semantic.events.push({id: 'death_of_stresemann', title: 'The Death of Gustav Stresemann', path: stresemannPath, confidence: 'exact'});
+index.semantic.textCorpus.items.push(
+  {
+    id: 'stresemann_title',
+    text: 'The Death of Gustav Stresemann',
+    role: 'title',
+    editability: 'text_proposal',
+    owner: {kind: 'scene', sceneId: 'death_of_stresemann'},
+    source: {path: stresemannPath, line: 1}
+  },
+  {
+    id: 'stresemann_heading',
+    text: 'The Death of Gustav Stresemann',
+    role: 'heading',
+    editability: 'text_proposal',
+    owner: {kind: 'scene', sceneId: 'death_of_stresemann'},
+    source: {path: stresemannPath, line: 11, anchorText: '= The Death of Gustav Stresemann', endAnchorText: '= The Death of Gustav Stresemann'}
+  },
+  {
+    id: 'stresemann_body_1',
+    text: 'Gustav Stresemann, leader of the <span style="color: #C0A054;">**DVP**</span>, has died.',
+    role: 'body',
+    editability: 'text_proposal',
+    owner: {kind: 'scene', sceneId: 'death_of_stresemann'},
+    source: {path: stresemannPath, line: 13, anchorText: 'Gustav Stresemann, leader of the <span style="color: #C0A054;">**DVP**</span>, has died.', endAnchorText: 'Gustav Stresemann, leader of the <span style="color: #C0A054;">**DVP**</span>, has died.'}
+  },
+  {
+    id: 'stresemann_body_2',
+    text: 'A hole has been left within the liberal movement.',
+    role: 'body',
+    editability: 'text_proposal',
+    owner: {kind: 'scene', sceneId: 'death_of_stresemann'},
+    source: {path: stresemannPath, line: 15, anchorText: 'A hole has been left within the liberal movement.', endAnchorText: 'A hole has been left within the liberal movement.'}
+  },
+  {
+    id: 'stresemann_conditional_scholz',
+    text: 'Ernst Scholz has succeeded him as leader of the <span style="color: #C0A054;">**DVP**</span>.',
+    role: 'conditional_body',
+    editability: 'text_proposal',
+    owner: {kind: 'scene', sceneId: 'death_of_stresemann'},
+    conditions: ['dvp_leader == "Scholz"'],
+    source: {path: stresemannPath, line: 17, anchorText: stresemannConditionalLine, endAnchorText: stresemannConditionalLine}
+  },
+  {
+    id: 'stresemann_conditional_curtius',
+    text: 'Julius Curtius has succeeded him as leader of the <span style="color: #C0A054;">**DVP**</span>.',
+    role: 'conditional_body',
+    editability: 'text_proposal',
+    owner: {kind: 'scene', sceneId: 'death_of_stresemann'},
+    conditions: ['dvp_leader == "Curtius"'],
+    source: {path: stresemannPath, line: 17, anchorText: stresemannConditionalLine, endAnchorText: stresemannConditionalLine}
+  }
+);
 
 const eventModel = existingEdit.buildEditModel(index, 'events', 'all_quiet');
 assert(eventModel.ok, 'event edit model should build: ' + JSON.stringify(eventModel.diagnostics));
@@ -161,6 +479,13 @@ const eventChainField = eventModel.fields.find((field) => field.role === 'condit
 assert(eventChainField, 'event model should expose source-backed view-if as an editable event-chain field');
 assert(eventChainField.source.line === 3, 'event-chain field should keep exact view-if source line');
 assert(eventChainField.editability === 'guarded_replace_text', 'event-chain field with exact non-router line should be guarded');
+const routeField = eventModel.fields.find((field) => field.role === 'route' && field.optionId === 'ban');
+assert(routeField, 'event model should expose option route target as an editable field');
+assert(routeField.original === 'ban', 'route field should expose the bare target id');
+assert(routeField.editability === 'guarded_replace_text', 'source-backed route target should be guarded');
+const effectField = eventModel.fields.find((field) => field.role === 'effect' && field.original === 'Q.public_order += 1');
+assert(effectField, 'event model should expose simple Q effects as editable fields');
+assert(effectField.editability === 'guarded_replace_text', 'simple source-backed Q effect should be guarded');
 assert(eventModel.options.length === 4, 'event model should preserve all event options');
 assert(eventModel.effects.length >= 1, 'event model should expose read-only effect summaries');
 assert(eventModel.assets.length === 1, 'event model should preserve asset refs');
@@ -168,13 +493,15 @@ assert(eventModel.assets.length === 1, 'event model should preserve asset refs')
 const eventProposal = existingEdit.buildProposal(eventModel, {
   all_quiet_body_1: 'The film arrives with a public silence heavier than the posters.',
   all_quiet_option_ban: 'Ban public screenings',
-  metadata_viewIf: 'year = 1930 and month >= 1 and month <= 4 and all_quiet_seen = 0 and film_debate_unlocked = 1'
+  metadata_viewIf: 'year = 1930 and month >= 1 and month <= 4 and all_quiet_seen = 0 and film_debate_unlocked = 1',
+  [routeField.id]: 'permit',
+  [effectField.id]: 'Q.public_order += 2'
 });
 assert(eventProposal.kind === 'existing_scene_edit', 'proposal should use existing_scene_edit kind');
-assert(eventProposal.changes.length === 3, 'proposal should contain only changed fields');
+assert(eventProposal.changes.length === 5, 'proposal should contain only changed fields');
 assert(eventProposal.changes.every((change) => change.source && change.source.path === eventModel.source.path), 'changes should keep source evidence');
 assert(eventProposal.changeSummary.textFields === 2, 'change summary should count text changes');
-assert(eventProposal.changeSummary.metadataFields === 1, 'change summary should count event-chain condition changes');
+assert(eventProposal.changeSummary.metadataFields === 3, 'change summary should count event-chain, route, and effect changes');
 
 const bundle = existingEdit.buildExportBundle(eventProposal, index);
 assert(bundle.installPlan, 'existing scene edit bundle should include install plan');
@@ -182,9 +509,89 @@ assert(bundle.installPlan.draftKind === 'existing_scene_edit', 'install plan dra
 assert(bundle.installPlan.operations.every((op) => op.type === 'replace_text'), 'source-backed changed fields should use replace_text operations');
 assert(bundle.installPlan.operations.every((op) => op.safety === 'guarded_apply'), 'source-backed changed fields should be guarded apply');
 assert(bundle.installPlan.operations.some((op) => op.line === 3 && op.search === eventChainField.original && op.replace.includes('film_debate_unlocked')), 'event-chain condition edit should become a guarded exact-line replace_text operation');
+assert(bundle.installPlan.operations.some((op) => op.line === 14 && op.search === '@ban' && op.replace === '@permit'), 'route target edit should become a guarded option-line replace_text operation');
+assert(bundle.installPlan.operations.some((op) => op.line === 31 && op.search === 'Q.public_order += 1' && op.replace === 'Q.public_order += 2'), 'simple Q effect edit should become a guarded source-line replace_text operation');
 assert(bundle.previewText.includes('Modify existing Event'), 'bundle preview text should explain that this modifies an existing event');
 assert(bundle.proposalText.includes('Before:'), 'bundle proposal text should include before text');
 assert(bundle.proposalText.includes('After:'), 'bundle proposal text should include after text');
+
+const addOptionField = eventModel.fields.find((field) => field.id === 'structure_add_option');
+const addTriggerEffectField = eventModel.fields.find((field) => field.id === 'structure_add_trigger_effect');
+const addOptionEffectField = eventModel.fields.find((field) => field.id === 'structure_add_option_effect_ban');
+const removeOptionField = eventModel.fields.find((field) => field.id === 'structure_remove_option_ban');
+const removePrereqField = eventModel.fields.find((field) => field.id === 'structure_remove_option_condition_ban');
+const removeEffectField = eventModel.fields.find((field) => field.id.startsWith('structure_remove_effect_') && field.label.includes('Q.public_order += 1'));
+assert(addOptionField && addOptionField.inputType === 'textarea', 'existing editor should expose an add-option structural action');
+assert(addTriggerEffectField && addTriggerEffectField.role === 'effect', 'existing editor should expose an add trigger effect action');
+assert(addOptionEffectField && addOptionEffectField.optionId === 'ban', 'existing editor should expose add option effect actions');
+assert(removeOptionField && removeOptionField.inputType === 'checkbox', 'existing editor should expose explicit option removal');
+assert(removePrereqField && removePrereqField.inputType === 'checkbox', 'existing editor should expose explicit prerequisite removal');
+assert(removeEffectField && removeEffectField.inputType === 'checkbox', 'existing editor should expose explicit effect removal');
+const structureProposal = existingEdit.buildProposal(eventModel, {
+  [addOptionField.id]: '- @public_meeting: Hold a public meeting.\\n# public_meeting\\nThe public meeting reframes the controversy.',
+  [addTriggerEffectField.id]: 'Q.public_order += 2',
+  [addOptionEffectField.id]: 'Q.public_order -= 1 if public_order > 0',
+  [removeOptionField.id]: 'true',
+  [removePrereqField.id]: 'true',
+  [removeEffectField.id]: 'true'
+});
+assert(structureProposal.changes.length === 6, 'structural edits should become proposal changes');
+assert(structureProposal.changes.every((change) => change.editability === 'manual_review'), 'structural edits should stay manual-review');
+assert(structureProposal.changes.some((change) => change.after.includes('Add option and result layer proposal')), 'add-option proposal should explain the structural insertion');
+assert(structureProposal.changes.some((change) => change.after.includes('Remove option: Ban the film')), 'remove-option proposal should explain structural deletion');
+assert(structureProposal.changes.some((change) => change.before.includes('public_order >= 0') && change.after.includes('Remove prerequisite')), 'remove-prerequisite proposal should carry the deleted condition');
+assert(structureProposal.changes.some((change) => change.before.includes('Q.public_order += 1') && change.after.includes('Remove effect')), 'remove-effect proposal should carry the deleted effect');
+const structureBundle = existingEdit.buildExportBundle(structureProposal, index);
+assert(structureBundle.installPlan.operations.every((op) => op.type === 'manual_snippet'), 'structural changes should produce manual review snippets');
+assert(structureBundle.proposalText.includes('Add trigger effect'), 'structural proposal preview should include effect creation');
+
+const complexModel = existingEdit.buildEditModel(index, 'events', 'civil_war');
+assert(complexModel.ok, 'single composite event model should build: ' + JSON.stringify(complexModel.diagnostics));
+assert(complexModel.options.length === 1, 'single composite event should expose section-owned options');
+assert(complexModel.options[0].targetId === 'civil_war.rw_help', 'section option target should resolve to the local section endpoint');
+assert(complexModel.options[0].rawTargetId === 'rw_help', 'section option should retain the editable raw target id');
+assert(complexModel.fields.some((field) => field.role === 'condition' && field.sectionId === 'civil_war.war_outcome' && field.original === 'war_choices >= 2'), 'section view-if should be exposed as editable logic context');
+assert(complexModel.fields.some((field) => field.id === 'structure_add_branch'), 'single composite event should expose add-layer structure action');
+const sectionGotoField = complexModel.fields.find((field) => field.role === 'route' && field.sectionId === 'civil_war.war_outcome' && field.original === 'defeat');
+assert(sectionGotoField, 'conditional section go-to should be exposed as an editable route field');
+const complexProposal = existingEdit.buildProposal(complexModel, {
+  [sectionGotoField.id]: 'stalemate'
+});
+const complexBundle = existingEdit.buildExportBundle(complexProposal, index);
+assert(complexBundle.installPlan.operations.some((op) => op.line === 22 && op.search === 'defeat if total_defeat = 1' && op.replace === 'stalemate if total_defeat = 1'), 'conditional section go-to edit should preserve the predicate in a guarded replace_text operation');
+
+const laborModel = existingEdit.buildEditModel(index, 'events', 'labor_unrest');
+assert(laborModel.ok, 'labor unrest model should build: ' + JSON.stringify(laborModel.diagnostics));
+const laborOpening = laborModel.textBlocks.find((block) => block.semanticRole === 'opening_text');
+const laborResult = laborModel.textBlocks.find((block) => block.semanticRole === 'conditional_option_result_text');
+const laborConditional = laborModel.textBlocks.find((block) => block.semanticRole === 'conditional_text');
+assert(laborOpening && laborOpening.label === 'Opening page text', 'existing editor should classify top-level prose as opening text');
+assert(laborResult && laborResult.relatedOptionIds.includes('support_labor'), 'existing editor should attach option-result text to the source option');
+assert(laborResult.conditions.includes('labor_minister = "SPD"'), 'option-result text should preserve inline condition context');
+assert(laborResult.label.includes('Conditional option result'), 'option-result labels should distinguish conditional result prose');
+assert(laborConditional && laborConditional.conditions.includes('labor_minister != "SPD"'), 'standalone conditional section text should be classified separately from option results');
+
+const stresemannModel = existingEdit.buildEditModel(index, 'events', 'death_of_stresemann');
+assert(stresemannModel.ok, 'Death of Stresemann model should build: ' + JSON.stringify(stresemannModel.diagnostics));
+const stresemannOpening = stresemannModel.textBlocks.find((block) => block.semanticRole === 'opening_text');
+const stresemannBranch = stresemannModel.textBlocks.find((block) => block.semanticRole === 'conditional_text');
+assert(stresemannOpening && stresemannOpening.original.includes('liberal movement') && !stresemannOpening.original.includes('dvp_leader'), 'mixed opening prose should stay separate from inline conditional branches');
+assert(stresemannBranch && stresemannBranch.conditions.length === 2, 'inline conditional alternatives should be grouped as conditional branch text');
+assert(stresemannBranch.conditionVariables.includes('dvp_leader'), 'conditional branch text should expose the variable it consumes');
+assert(stresemannBranch.logicContext && stresemannBranch.logicContext.reads.includes('dvp_leader'), 'conditional branch text should carry logic context for the editor');
+
+const dnvpModel = existingEdit.buildEditModel(index, 'events', 'dnvp_congress');
+assert(dnvpModel.ok, 'DNVP Congress model should build: ' + JSON.stringify(dnvpModel.diagnostics));
+const dnvpVisual = dnvpModel.textBlocks.find((block) => block.visualKinds && block.visualKinds.includes('chart'));
+assert(dnvpVisual && dnvpVisual.visualKinds.includes('html'), 'DNVP Congress visual table should be marked as chart/html content instead of plain prose');
+assert(dnvpModel.assets.some((asset) => asset.path === 'img/events/dnvp_congress.png'), 'DNVP Congress should preserve referenced visual assets for the editor');
+
+const unsafeLogicProposal = existingEdit.buildProposal(eventModel, {
+  [routeField.id]: 'target with space',
+  [effectField.id]: 'Q.public_order += 1; alert("unsafe")'
+});
+const unsafeLogicBundle = existingEdit.buildExportBundle(unsafeLogicProposal, index);
+assert(unsafeLogicBundle.installPlan.operations.every((op) => op.type === 'manual_snippet'), 'invalid route/effect edits should fall back to manual review');
 
 const openingBlock = eventModel.textBlocks.find((block) => block.original.includes('film arrives'));
 assert(openingBlock, 'event model should expose an opening text block');
@@ -225,6 +632,17 @@ assert(fs.readFileSync(path.join(eventPath, 'all_quiet.scene.dry'), 'utf8').incl
 const unchangedProposal = existingEdit.buildProposal(eventModel, {});
 assert(unchangedProposal.changes.length === 0, 'proposal with no edited values should have no changes');
 assert(unchangedProposal.diagnostics.some((diag) => diag.code === 'existing_scene_edit.no_changes'), 'no-change proposal should diagnose empty edit');
+
+const legacyNewsModel = existingEdit.buildEditModel(index, 'news', {
+  delivery: 'legacy_event_popup',
+  linkedSceneId: 'all_quiet',
+  headline: 'All Quiet on the Western Front',
+  source: {path: 'source/scenes/events/all_quiet.scene.dry', line: 2},
+  excerptSource: {path: 'source/scenes/events/all_quiet.scene.dry', line: 8}
+});
+assert(legacyNewsModel.ok, 'legacy monthly popup news should open the linked event object');
+assert(legacyNewsModel.sceneId === 'all_quiet', 'legacy monthly popup should resolve to linked scene id');
+assert(legacyNewsModel.fields.some((field) => field.id === 'all_quiet_body_1'), 'legacy monthly popup editor should expose linked event text fields');
 
 const cardModel = existingEdit.buildEditModel(index, 'cards', 'agricultural_policy');
 assert(cardModel.ok, 'card edit model should build: ' + JSON.stringify(cardModel.diagnostics));

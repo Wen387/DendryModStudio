@@ -115,7 +115,17 @@ const DEFAULT_SCENARIOS = [
   ['103-content-runtime-lens-failure', 'content-runtime-lens-failure'],
   ['104-change-tray-open', 'change-tray-open'],
   ['105-lightweight-preview-event', 'lightweight-preview-event'],
-  ['106-lightweight-preview-card', 'lightweight-preview-card']
+  ['106-lightweight-preview-card', 'lightweight-preview-card'],
+  ['107-card-board-existing-template-stay', 'card-board-existing-template-stay'],
+  ['108-preview-object-editor-event', 'preview-object-editor-event'],
+  ['109-preview-object-editor-news', 'preview-object-editor-news'],
+  ['110-preview-object-editor-card-existing', 'preview-object-editor-card-existing'],
+  ['111-preview-object-editor-text-replacement', 'preview-object-editor-text-replacement'],
+  ['112-preview-object-editor-hardening-event-save', 'preview-object-editor-hardening-event-save'],
+  ['113-preview-object-editor-hardening-news-review', 'preview-object-editor-hardening-news-review'],
+  ['114-preview-object-editor-hardening-card-existing', 'preview-object-editor-hardening-card-existing'],
+  ['115-preview-object-editor-hardening-text-review', 'preview-object-editor-hardening-text-review'],
+  ['116-preview-object-editor-event-scrolled', 'preview-object-editor-event-scrolled']
 ];
 
 function parseArgs(argv) {
@@ -126,7 +136,7 @@ function parseArgs(argv) {
   };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
-    if (arg === '--artifact-dir' || arg === '--chrome' || arg === '--only') {
+    if (arg === '--artifact-dir' || arg === '--chrome' || arg === '--only' || arg === '--scenario') {
       const value = argv[index + 1];
       if (!value || value.startsWith('--')) {
         throw new Error(arg + ' requires a value.');
@@ -157,7 +167,8 @@ function usage() {
     'Options:',
     '  --artifact-dir <path>   Directory for PNG screenshots and manifest.',
     '  --chrome <path>         Chrome/Chromium binary. Defaults to google-chrome.',
-    '  --only <scenario>       Capture one scenario id.'
+    '  --only <scenario>       Capture one scenario id.',
+    '  --scenario <scenario>   Alias for --only.'
   ].join('\n');
 }
 
@@ -219,10 +230,10 @@ function verifyHarnessDom(chrome, url) {
   }
   const dom = String(result.stdout || '');
   if (/<body\b[^>]*data-error="true"/.test(dom)) {
-    throw new Error('Screenshot harness reported an error for ' + url + '\n' + dom.slice(0, 2000));
+    throw new Error('Screenshot harness reported an error for ' + url + '\n' + dom.slice(0, 5000));
   }
   if (!/<body\b[^>]*data-ready="true"/.test(dom)) {
-    throw new Error('Screenshot harness did not report ready for ' + url + '\n' + dom.slice(0, 2000));
+    throw new Error('Screenshot harness did not report ready for ' + url + '\n' + dom.slice(0, 5000));
   }
 }
 

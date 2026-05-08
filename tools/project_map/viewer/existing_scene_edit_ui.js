@@ -228,18 +228,25 @@
 
   function renderEditableModel(model) {
     const conditionFields = model.fields.filter((field) => String(field.role || '') === 'condition');
+    const routeFields = model.fields.filter((field) => String(field.role || '') === 'route');
+    const effectFields = model.fields.filter((field) => String(field.role || '') === 'effect');
     const playerFields = model.fields.filter((field) => {
       const role = String(field.role || '');
-      return !role.startsWith('option_') && role !== 'condition';
+      return !role.startsWith('option_') && !['condition', 'route', 'effect'].includes(role);
     });
-    const optionFields = model.fields.filter((field) => String(field.role || '').startsWith('option_') || field.optionId);
+    const optionFields = model.fields.filter((field) => {
+      const role = String(field.role || '');
+      return !['route', 'effect'].includes(role) && (role.startsWith('option_') || field.optionId);
+    });
     return [
       renderTextBlocksGroup(model.textBlocks || []),
       renderFieldGroup(t('existingScene.playerText', 'Player text'), playerFields, true),
       renderOptionsGroup(model.options, optionFields),
       renderConditionEditor(conditionFields),
+      renderFieldGroup(t('existingScene.routes', 'Routes'), routeFields, false),
+      renderFieldGroup(t('existingScene.effectEdits', 'Editable effects'), effectFields, false),
       renderReadOnlyGroup(t('existingScene.conditions', 'Conditions'), conditionRows(model, conditionFields), false),
-      renderReadOnlyGroup(t('existingScene.effects', 'Effects'), effectRows(model), false),
+      renderReadOnlyGroup(t('existingScene.effects', 'Effects'), effectRows(model, effectFields), false),
       renderReadOnlyGroup(t('existingScene.assets', 'Assets'), assetRows(model), false),
       renderReadOnlyGroup(t('existingScene.sourceEvidence', 'Advanced source evidence'), sourceRows(model), false),
       '<div class="existing-scene-actions">',
@@ -404,8 +411,12 @@
     ].filter(Boolean);
   }
 
-  function effectRows(model) {
-    return ensureArray(model.effects).map((effect) => {
+  function effectRows(model, editableFields) {
+    const editable = new Set(ensureArray(editableFields).map((field) => [sourceLabel(field.source), String(field.original || '')].join('|')));
+    return ensureArray(model.effects).filter((effect) => {
+      const expression = ['Q.' + String(effect.variable || ''), effect.op, effect.value].filter(Boolean).join(' ');
+      return !editable.has([sourceLabel(effect.source), expression].join('|'));
+    }).map((effect) => {
       return [effect.variable, effect.op, effect.value, sourceLabel(effect.source)].filter(Boolean).join(' ');
     });
   }

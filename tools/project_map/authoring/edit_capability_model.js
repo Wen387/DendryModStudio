@@ -35,9 +35,9 @@
 
   function buildEditCapability(projectIndex, view, itemOrId, options) {
     const index = isObject(projectIndex) ? projectIndex : {};
-    const lookup = buildLookup(index);
-    const item = resolveItem(lookup, view, itemOrId);
     const opts = isObject(options) ? options : {};
+    const lookup = isObject(opts.lookup) ? opts.lookup : buildLookup(index);
+    const item = resolveItem(lookup, view, itemOrId);
     if (!item) {
       return capability({
         routeClass: ROUTE_CLASSES.UNSUPPORTED,
@@ -81,6 +81,7 @@
     });
     const events = ensureArray(semantic.events);
     const cards = ensureArray(semantic.cards);
+    const textCorpus = ensureArray(semantic.textCorpus && semantic.textCorpus.items);
     return {
       index,
       semantic,
@@ -91,9 +92,26 @@
       events,
       cards,
       news: ensureArray(semantic.news && semantic.news.items).concat(ensureArray(semantic.news && semantic.news.eventPopups)),
-      textCorpus: ensureArray(semantic.textCorpus && semantic.textCorpus.items),
+      textCorpus,
+      textCorpusByScene: groupTextCorpusByScene(textCorpus),
       surfaceText: ensureArray(semantic.surfaceText && semantic.surfaceText.items)
     };
+  }
+
+  function groupTextCorpusByScene(items) {
+    const byScene = new Map();
+    ensureArray(items).forEach((item) => {
+      const owner = isObject(item && item.owner) ? item.owner : {};
+      const sceneId = String(owner.sceneId || '');
+      if (!sceneId) {
+        return;
+      }
+      if (!byScene.has(sceneId)) {
+        byScene.set(sceneId, []);
+      }
+      byScene.get(sceneId).push(item);
+    });
+    return byScene;
   }
 
   function resolveItem(lookup, view, itemOrId) {
@@ -388,14 +406,25 @@
     if (!api || typeof api.buildEditModel !== 'function') {
       return null;
     }
+    const opts = isObject(options) ? options : {};
+    const cache = opts.existingModelCache;
+    const cacheKey = [view, isObject(item) ? (item.id || item.sceneId || JSON.stringify(item)) : item].map((value) => String(value || '')).join('\u0000');
+    if (cache && typeof cache.get === 'function' && typeof cache.set === 'function' && cache.has(cacheKey)) {
+      return cache.get(cacheKey);
+    }
+    let result;
     try {
-      return api.buildEditModel(index, view, item, options || {});
+      result = api.buildEditModel(index, view, item, opts);
     } catch (err) {
-      return {
+      result = {
         ok: false,
         diagnostics: [diagnostic('warning', 'edit_capability.existing_model_failed', err && err.message ? err.message : String(err))]
       };
     }
+    if (cache && typeof cache.set === 'function') {
+      cache.set(cacheKey, result);
+    }
+    return result;
   }
 
   function findMatchingTextBlock(model, item) {

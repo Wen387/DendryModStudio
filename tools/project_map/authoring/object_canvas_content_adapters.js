@@ -8,6 +8,7 @@
     'play_surface',
     'workspace_layout',
     'sidebar_status',
+    'election_results',
     'surface',
     'entry',
     'project',
@@ -21,6 +22,7 @@
     play_surface: 'play_surface',
     workspace_layout: 'workspace_layout',
     sidebar_status: 'sidebar_status',
+    election_results: 'election_results',
     surface_text: 'surface',
     entry_sidebar: 'entry',
     project_metadata: 'project',
@@ -28,6 +30,7 @@
   };
 
   const BODIES = contentBodiesApi();
+  const variableMapCache = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
 
   const DEFINITIONS = {
     event: {
@@ -118,6 +121,15 @@
       applyValues: applySidebarStatusValues,
       body: BODIES.sidebarStatusBody
     },
+    election_results: {
+      label: 'Election Results',
+      objectKind: 'election_results',
+      mode: 'election_results',
+      globalName: 'ProjectMapElectionResultsDraft',
+      moduleName: 'election_results_draft.js',
+      applyValues: applyElectionResultsValues,
+      body: BODIES.electionResultsBody
+    },
     project: {
       label: 'Game Info',
       objectKind: 'project_metadata',
@@ -157,15 +169,73 @@
     const api = draftApi(def);
     try {
       if (typeof def.defaultDraft === 'function') {
-        return def.defaultDraft(projectIndex, api);
+        return avoidDefaultIdCollision(projectIndex, key, def.defaultDraft(projectIndex, api));
       }
       if (api && typeof api.defaultDraft === 'function') {
-        return api.defaultDraft(projectIndex);
+        return avoidDefaultIdCollision(projectIndex, key, api.defaultDraft(projectIndex));
       }
     } catch (_err) {
-      return fallbackDraftForTemplate(key);
+      return avoidDefaultIdCollision(projectIndex, key, fallbackDraftForTemplate(key));
     }
-    return fallbackDraftForTemplate(key);
+    return avoidDefaultIdCollision(projectIndex, key, fallbackDraftForTemplate(key));
+  }
+
+  function avoidDefaultIdCollision(projectIndex, template, draftInput) {
+    const draft = clone(draftInput || {});
+    if (template === 'variables') {
+      return avoidDefaultVariableCollision(projectIndex, draft);
+    }
+    if (!['event', 'news', 'card'].includes(template)) {
+      return draft;
+    }
+    const id = String(draft.id || '').trim();
+    if (!id) {
+      return draft;
+    }
+    const existing = new Set(ensureArray(projectIndex && projectIndex.scenes).map((scene) => String(scene && scene.id || '').trim()).filter(Boolean));
+    if (!existing.has(id)) {
+      return draft;
+    }
+    let index = 2;
+    let next = id + '_' + index;
+    while (existing.has(next)) {
+      index += 1;
+      next = id + '_' + index;
+    }
+    draft.id = next;
+    return draft;
+  }
+
+  function avoidDefaultVariableCollision(projectIndex, draftInput) {
+    const draft = clone(draftInput || {});
+    if (draft.mode && draft.mode !== 'add_new') {
+      return draft;
+    }
+    const existing = new Set(ensureArray(projectIndex && projectIndex.variables).map((variable) => String(variable && variable.name || '').trim()).filter(Boolean));
+    const base = safeId(draft.variableName || 'new_variable');
+    if (!existing.has(base)) {
+      if (!draft.variableName) {
+        draft.variableName = base;
+      }
+      if (!draft.id) {
+        draft.id = base;
+      }
+      return draft;
+    }
+    let index = 2;
+    let next = base + '_' + index;
+    while (existing.has(next)) {
+      index += 1;
+      next = base + '_' + index;
+    }
+    draft.variableName = next;
+    if (!draft.id || draft.id === base) {
+      draft.id = next;
+    }
+    if (!draft.label || draft.label === labelFromName(base)) {
+      draft.label = labelFromName(next);
+    }
+    return draft;
   }
 
   function buildTemplateCanvas(projectIndex, template, draftInput, options) {
@@ -235,6 +305,9 @@
     }
     if (text === 'variable_editor' || text === 'variable' || text === 'variables') {
       return 'variables';
+    }
+    if (text === 'election_result' || text === 'election_results_ui') {
+      return 'election_results';
     }
     return isSupportedTemplate(text) ? text : '';
   }
@@ -553,6 +626,52 @@
         evidence: {}
       };
     }
+    if (template === 'election_results') {
+      return {
+        schemaVersion: '0.1',
+        kind: 'election_results',
+        id: 'election_results_update',
+        title: 'Election Results',
+        subtitle: 'Reichstag election results',
+        intro: 'There are some potential coalition arrangements.',
+        seatsTotal: '515',
+        targetSceneId: '',
+        electionKind: 'reichstag',
+        year: '',
+        month: '',
+        viewIf: '',
+        resultText: 'Use this area for the consequence text shown after a coalition choice.',
+        conditionText: '',
+        sourcePath: 'source/scenes/events/election_results.scene.dry',
+        chartElementId: 'reichstag_results',
+        useD3Parliament: true,
+        parties: [
+          {key: 'spd', name: 'SPD', color: '#D9341F', voteShare: '28.7', voteChange: '2.7', seatsShare: '29.8', seatsChange: '3.3', seats: '153'},
+          {key: 'kpd', name: 'KPD', color: '#7A1708', voteShare: '10.5', voteChange: '1.5', seatsShare: '10.9', seatsChange: '1.8', seats: '56'},
+          {key: 'ddp', name: 'DDP', color: '#D6CD54', voteShare: '4.5', voteChange: '-1.8', seatsShare: '4.7', seatsChange: '-1.8', seats: '24'},
+          {key: 'z', name: 'Z', color: '#000000', voteShare: '11.9', voteChange: '-1.7', seatsShare: '12.4', seatsChange: '-2.3', seats: '64'},
+          {key: 'bvp', name: 'BVP', color: '#B8E2EB', voteShare: '3.0', voteChange: '-0.7', seatsShare: '3.1', seatsChange: '-0.8', seats: '16'},
+          {key: 'dvp', name: 'DVP', color: '#D6B339', voteShare: '8.5', voteChange: '-1.6', seatsShare: '8.9', seatsChange: '-1.4', seats: '46'},
+          {key: 'others', name: 'Others', color: '#9B9B9B', voteShare: '14.0', voteChange: '6.2', seatsShare: '10.5', seatsChange: '4.6', seats: '54'},
+          {key: 'dnvp', name: 'DNVP', color: '#5A8FBD', voteShare: '14.9', voteChange: '-5.6', seatsShare: '15.5', seatsChange: '-5.4', seats: '80'},
+          {key: 'nsdap', name: 'NSDAP', color: '#85500E', voteShare: '4.1', voteChange: '1.1', seatsShare: '4.3', seatsChange: '1.3', seats: '22'}
+        ],
+        coalitions: [
+          {key: 'weimar', name: 'Weimar Coalition', parties: 'SPD + Z + DDP', share: '46.9', description: ''},
+          {key: 'grand', name: 'Grand Coalition', parties: 'SPD + Z + BVP + DDP + DVP', share: '58.9', description: ''},
+          {key: 'bourgeois', name: 'Bourgeois Coalition', parties: 'Z + BVP + DDP + DVP + Others', share: '39.6', description: ''},
+          {key: 'right_wing', name: 'Right-wing Coalition', parties: 'Z + BVP + DVP + Others + DNVP', share: '50.4', description: ''}
+        ],
+        choices: [
+          {key: 'grand', label: 'We can form a Grand Coalition.', detail: 'SPD + Z + BVP + DDP + DVP (58.9%)', disabled: false, condition: '', resultText: 'A grand coalition government is formed.', effects: []},
+          {key: 'popular_front', label: 'A new "Popular Front" coalition?', detail: 'SPD + KPD + Z + DDP (57.8%) - relations are not good enough.', disabled: true, condition: 'kpd_relations >= 50', resultText: '', effects: []},
+          {key: 'refuse', label: 'Refuse to form a government, so that a right-wing coalition may be formed.', detail: 'Z + BVP + DVP + Others + DNVP (50.4%)', disabled: false, condition: '', resultText: 'A right-wing coalition may attempt to form a government.', effects: []}
+        ],
+        effects: [],
+        electionEvents: [],
+        evidence: {}
+      };
+    }
     if (template === 'project') {
       return {
         schemaVersion: '0.1',
@@ -603,15 +722,18 @@
     setNumber(data, draft.when, 'event.monthEnd', 'monthEnd');
     setString(data, draft.when, 'event.requires', 'requires');
     setNumber(data, draft.when, 'event.priority', 'priority');
+    draft.effectsOnTrigger = applyEffectValues(data, 'event.effect', draft.effectsOnTrigger);
     draft.options = ensureArray(draft.options).map((option, index) => {
       const next = clone(option);
       setString(data, next, 'option.' + index + '.label', 'label');
       setString(data, next, 'option.' + index + '.subtitle', 'subtitle');
       setString(data, next, 'option.' + index + '.chooseIf', 'chooseIf');
+      setString(data, next, 'option.' + index + '.unavailableText', 'unavailableText');
       setString(data, next, 'option.' + index + '.gotoAfter', 'gotoAfter', safeId);
       if (has(data, 'option.' + index + '.body')) {
         next.narrativeParagraphs = paragraphs(data['option.' + index + '.body']);
       }
+      next.effects = applyEffectValues(data, 'option.' + index + '.effect', next.effects);
       return next;
     });
     if (!draft.heading) {
@@ -667,10 +789,12 @@
       setString(data, next, 'card.option.' + index + '.title', 'title');
       setString(data, next, 'card.option.' + index + '.subtitle', 'subtitle');
       setString(data, next, 'card.option.' + index + '.chooseIf', 'chooseIf');
+      setString(data, next, 'card.option.' + index + '.unavailableText', 'unavailableText');
       setString(data, next, 'card.option.' + index + '.gotoAfter', 'gotoAfter', safeId);
       if (has(data, 'card.option.' + index + '.body')) {
         next.narrativeParagraphs = paragraphs(data['card.option.' + index + '.body']);
       }
+      next.effects = applyEffectValues(data, 'card.option.' + index + '.effect', next.effects);
       return next;
     });
     if (titleChanged && !headingChanged) {
@@ -784,6 +908,137 @@
     ], ['id', 'sectionId']);
   }
 
+  function applyElectionResultsValues(baseDraft, values) {
+    const draft = applyScalarValues(baseDraft, values, 'election.', [
+      'id',
+      'title',
+      'subtitle',
+      'targetSceneId',
+      'electionKind',
+      'year',
+      'month',
+      'viewIf',
+      'intro',
+      'resultText',
+      'conditionText',
+      'seatsTotal',
+      'sourcePath',
+      'chartElementId'
+    ], ['id']);
+    const data = isObject(values) ? values : {};
+    if (has(data, 'election.useD3Parliament')) {
+      draft.useD3Parliament = booleanValue(data['election.useD3Parliament']);
+    }
+    draft.effects = applyEffectValues(data, 'election.effect', draft.effects);
+    draft.parties = ensureArray(draft.parties).map((party, index) => {
+      if (has(data, 'election.party.' + index + '.remove') && booleanValue(data['election.party.' + index + '.remove'])) {
+        return null;
+      }
+      const next = clone(party);
+      setString(data, next, 'election.party.' + index + '.key', 'key', safeId);
+      setString(data, next, 'election.party.' + index + '.name', 'name');
+      setString(data, next, 'election.party.' + index + '.color', 'color', safeColor);
+      setString(data, next, 'election.party.' + index + '.voteShare', 'voteShare');
+      setString(data, next, 'election.party.' + index + '.voteChange', 'voteChange');
+      setString(data, next, 'election.party.' + index + '.seatsShare', 'seatsShare');
+      setString(data, next, 'election.party.' + index + '.seatsChange', 'seatsChange');
+      setString(data, next, 'election.party.' + index + '.seats', 'seats');
+      return next;
+    }).filter(Boolean);
+    const addedParty = electionPartyFromAddFields(data);
+    if (addedParty) {
+      draft.parties.push(addedParty);
+    }
+    draft.coalitions = ensureArray(draft.coalitions).map((coalition, index) => {
+      if (has(data, 'election.coalition.' + index + '.remove') && booleanValue(data['election.coalition.' + index + '.remove'])) {
+        return null;
+      }
+      const next = clone(coalition);
+      setString(data, next, 'election.coalition.' + index + '.key', 'key', safeId);
+      setString(data, next, 'election.coalition.' + index + '.name', 'name');
+      setString(data, next, 'election.coalition.' + index + '.parties', 'parties');
+      setString(data, next, 'election.coalition.' + index + '.share', 'share');
+      setString(data, next, 'election.coalition.' + index + '.description', 'description');
+      return next;
+    }).filter(Boolean);
+    const addedCoalition = electionCoalitionFromAddFields(data);
+    if (addedCoalition) {
+      draft.coalitions.push(addedCoalition);
+    }
+    draft.choices = ensureArray(draft.choices).map((choice, index) => {
+      if (has(data, 'election.choice.' + index + '.remove') && booleanValue(data['election.choice.' + index + '.remove'])) {
+        return null;
+      }
+      const next = clone(choice);
+      setString(data, next, 'election.choice.' + index + '.key', 'key', safeId);
+      setString(data, next, 'election.choice.' + index + '.label', 'label');
+      setString(data, next, 'election.choice.' + index + '.detail', 'detail');
+      setString(data, next, 'election.choice.' + index + '.condition', 'condition');
+      setString(data, next, 'election.choice.' + index + '.resultText', 'resultText');
+      if (has(data, 'election.choice.' + index + '.disabled')) {
+        next.disabled = booleanValue(data['election.choice.' + index + '.disabled']);
+      }
+      next.effects = applyEffectValues(data, 'election.choice.' + index + '.effect', next.effects);
+      return next;
+    }).filter(Boolean);
+    const addedChoice = electionChoiceFromAddFields(data);
+    if (addedChoice) {
+      draft.choices.push(addedChoice);
+    }
+    return draft;
+  }
+
+  function electionPartyFromAddFields(data) {
+    const name = String(data && data['election.party.add.name'] || '').trim();
+    const key = safeId(data && data['election.party.add.key'] || name || '');
+    if (!name && !data['election.party.add.key']) {
+      return null;
+    }
+    return {
+      key,
+      name: name || key,
+      color: safeColor(data['election.party.add.color'] || '#999999'),
+      voteShare: String(data['election.party.add.voteShare'] || '').trim(),
+      voteChange: String(data['election.party.add.voteChange'] || '0').trim(),
+      seatsShare: String(data['election.party.add.seatsShare'] || '').trim(),
+      seatsChange: String(data['election.party.add.seatsChange'] || '0').trim(),
+      seats: String(data['election.party.add.seats'] || '').trim()
+    };
+  }
+
+  function electionCoalitionFromAddFields(data) {
+    const name = String(data && data['election.coalition.add.name'] || '').trim();
+    const parties = String(data && data['election.coalition.add.parties'] || '').trim();
+    const key = safeId(data && data['election.coalition.add.key'] || name || parties || '');
+    if (!name && !parties && !data['election.coalition.add.key']) {
+      return null;
+    }
+    return {
+      key,
+      name: name || key,
+      parties,
+      share: String(data['election.coalition.add.share'] || '').trim(),
+      description: String(data['election.coalition.add.description'] || '').trim()
+    };
+  }
+
+  function electionChoiceFromAddFields(data) {
+    const label = String(data && data['election.choice.add.label'] || '').trim();
+    const key = safeId(data && data['election.choice.add.key'] || label || '');
+    if (!label && !data['election.choice.add.key']) {
+      return null;
+    }
+    return {
+      key,
+      label: label || key,
+      detail: String(data['election.choice.add.detail'] || '').trim(),
+      condition: String(data['election.choice.add.condition'] || '').trim(),
+      resultText: String(data['election.choice.add.resultText'] || '').trim(),
+      disabled: has(data, 'election.choice.add.disabled') && booleanValue(data['election.choice.add.disabled']),
+      effects: []
+    };
+  }
+
   function applyProjectValues(baseDraft, values) {
     return applyScalarValues(baseDraft, values, 'project.', ['id', 'title', 'gameTitle', 'author', 'ifid'], ['id']);
   }
@@ -859,12 +1114,7 @@
         names.add(String(name));
       }
     });
-    const existing = new Map();
-    ensureArray(projectIndex && projectIndex.variables).forEach((variable) => {
-      if (variable && variable.name) {
-        existing.set(String(variable.name), variable);
-      }
-    });
+    const existing = variableMapForProject(projectIndex);
     return Array.from(names).map((name) => {
       const variable = existing.get(name) || {};
       return {
@@ -879,11 +1129,32 @@
     });
   }
 
+  function variableMapForProject(projectIndex) {
+    const index = projectIndex && typeof projectIndex === 'object' ? projectIndex : null;
+    if (index && variableMapCache && variableMapCache.has(index)) {
+      return variableMapCache.get(index);
+    }
+    const existing = new Map();
+    ensureArray(projectIndex && projectIndex.variables).forEach((variable) => {
+      if (variable && variable.name) {
+        existing.set(String(variable.name), variable);
+      }
+    });
+    if (index && variableMapCache) {
+      variableMapCache.set(index, existing);
+    }
+    return existing;
+  }
+
   function effectRows(draft) {
     const rows = [];
+    ensureArray(draft.effects).forEach((effect) => rows.push(effectRow(effect)));
     ensureArray(draft.effectsOnTrigger).forEach((effect) => rows.push(effectRow(effect)));
     ensureArray(draft.options).forEach((option) => {
       ensureArray(option.effects).forEach((effect) => rows.push(effectRow(effect)));
+    });
+    ensureArray(draft.choices).forEach((choice) => {
+      ensureArray(choice.effects).forEach((effect) => rows.push(effectRow(effect)));
     });
     [
       ['starterCardOption0Variable', 'starterCardOption0Delta'],
@@ -902,6 +1173,8 @@
       variable: String(value.variable || ''),
       op: String(value.op || ''),
       value: value.value === undefined || value.value === null ? '' : String(value.value),
+      condition: String(value.condition || ''),
+      hook: String(value.hook || ''),
       source: {},
       status: 'draft'
     };
@@ -967,6 +1240,9 @@
     }
     if (def.objectKind === 'variable_editor') {
       return id + '.variable-draft.json';
+    }
+    if (def.objectKind === 'election_results') {
+      return id + '.election-results-draft.json';
     }
     return id + '.scene.dry';
   }
@@ -1077,6 +1353,52 @@
     }
   }
 
+  function applyEffectValues(data, prefix, effects) {
+    const rows = ensureArray(effects).map((effect) => {
+      const value = isObject(effect) ? clone(effect) : {};
+      return {
+        variable: String(value.variable || '').trim(),
+        op: String(value.op || '').trim(),
+        value: value.value,
+        condition: String(value.condition || '').trim(),
+        hook: String(value.hook || '').trim()
+      };
+    });
+    rows.forEach((effect, index) => {
+      setString(data, effect, prefix + '.' + index + '.variable', 'variable', safeId);
+      setString(data, effect, prefix + '.' + index + '.op', 'op');
+      if (has(data, prefix + '.' + index + '.value')) {
+        effect.value = effectValue(data[prefix + '.' + index + '.value'], effect.op, effect.value);
+      }
+      setString(data, effect, prefix + '.' + index + '.condition', 'condition');
+      setString(data, effect, prefix + '.' + index + '.hook', 'hook');
+    });
+    const addVariable = String(data && data[prefix + '.add.variable'] || '').trim();
+    if (addVariable) {
+      const op = String(data[prefix + '.add.op'] || '+=').trim() || '+=';
+      rows.push({
+        variable: safeId(addVariable),
+        op,
+        value: effectValue(data[prefix + '.add.value'], op, 1),
+        condition: String(data[prefix + '.add.condition'] || '').trim(),
+        hook: String(data[prefix + '.add.hook'] || '').trim()
+      });
+    }
+    return rows.filter((effect) => effect.variable);
+  }
+
+  function effectValue(value, op, fallback) {
+    const text = String(value === undefined || value === null ? '' : value).trim();
+    if (op && op !== '=') {
+      const number = Number(text);
+      return Number.isFinite(number) ? number : numberOr(fallback, 0);
+    }
+    if (/^-?\d+(?:\.\d+)?$/.test(text)) {
+      return Number(text);
+    }
+    return text || fallback || '';
+  }
+
   function splitList(value) {
     return String(value || '').split(/[\s,]+/).map((item) => item.trim()).filter(Boolean);
   }
@@ -1107,6 +1429,18 @@
       .replace(/[^A-Za-z0-9_]+/g, '_')
       .replace(/^_+|_+$/g, '');
     return /^[A-Za-z_]/.test(text) ? text : 'draft_' + (text || 'item');
+  }
+
+  function labelFromName(name) {
+    return String(name || 'New Variable')
+      .replace(/^q_/, '')
+      .replace(/_/g, ' ')
+      .replace(/\b[a-z]/g, (char) => char.toUpperCase());
+  }
+
+  function safeColor(value) {
+    const text = String(value || '').trim();
+    return /^#[0-9A-Fa-f]{6}$/.test(text) ? text.toUpperCase() : text;
   }
 
   function booleanValue(value) {

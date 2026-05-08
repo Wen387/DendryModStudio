@@ -68,6 +68,20 @@
     return null;
   }
 
+  function assetModelApi() {
+    if (global && global.ProjectMapAssetModel) {
+      return global.ProjectMapAssetModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./asset_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   function buildCanvasModel(projectIndex, input, options) {
     const value = isObject(input) ? input : {};
     const mode = String(value.mode || value.type || '').trim();
@@ -93,7 +107,7 @@
     if (!context || !context.ok) {
       return emptyCanvas('existing', diagnostic('warning', 'object_canvas.existing_unavailable', 'This object cannot be opened in the authoring Canvas yet.'), context);
     }
-    const body = eventBodyForExisting(context);
+    const body = eventBodyForExisting(context, projectIndex);
     const output = context.output || {};
     return {
       schemaVersion: OBJECT_AUTHORING_CANVAS_VERSION,
@@ -195,12 +209,25 @@
     return 'event';
   }
 
-  function eventBodyForExisting(context) {
+  function eventBodyForExisting(context, projectIndex) {
     const editors = context.editors || {};
     const allEditors = ensureArray(editors.all);
     const titleEditor = allEditors.find((editor) => editor.role === 'title' || editor.role === 'heading') || null;
-    const sectionEditors = ensureArray(editors.pageSections).concat(ensureArray(editors.playerText))
+    const pageSectionEditors = ensureArray(editors.pageSections);
+    const optionRows = optionBodyRows(context, pageSectionEditors);
+    const consumedSectionIds = new Set();
+    optionRows.forEach((option) => {
+      ensureArray(option.resultFields).forEach((field) => consumedSectionIds.add(String(field.id || '')));
+    });
+    const primarySectionEditors = pageSectionEditors.filter((editor) => {
+      return !consumedSectionIds.has(String(editor.id || '')) && isPrimaryExistingSection(editor);
+    });
+    const branchSectionEditors = pageSectionEditors.filter((editor) => {
+      return !consumedSectionIds.has(String(editor.id || '')) && !isPrimaryExistingSection(editor);
+    });
+    const sectionEditors = primarySectionEditors.concat(ensureArray(editors.playerText))
       .filter((editor) => !titleEditor || editor.id !== titleEditor.id);
+    const effectEditors = ensureArray(editors.effects);
     return {
       mode: 'existing',
       title: titleEditor || {
@@ -212,14 +239,96 @@
         readOnly: true
       },
       sections: sectionEditors.map((editor, index) => Object.assign({slot: 'section_' + (index + 1)}, editor)),
-      options: optionBodyRows(context),
-      metaFields: ensureArray(editors.conditions)
+      branchSections: branchSectionEditors.map((editor, index) => Object.assign({slot: 'branch_' + (index + 1)}, editor)),
+      options: optionRows,
+      assets: assetRowsForExisting(context, projectIndex),
+      assetBaseUrl: String(projectIndex && projectIndex.project && projectIndex.project.assetBaseUrl || ''),
+      variables: variableRowsForExisting(context),
+      backgroundEffects: backgroundEffectRowsForExisting(context),
+      metaFields: ensureArray(editors.conditions).concat(ensureArray(editors.routes)),
+      structureActions: ensureArray(editors.structureActions),
+      effects: effectEditors.filter((editor) => !editor.optionId && !editor.sectionId),
+      optionEffects: optionRows.map((option) => ({
+        id: option.id,
+        label: option.label,
+        fields: effectEditors.filter((editor) => effectMatchesOption(editor, option))
+      })).filter((group) => group.fields.length)
     };
   }
 
-  function optionBodyRows(context) {
+  function variableRowsForExisting(context) {
+    return ensureArray(context && context.context && context.context.variables).map((variable) => ({
+      name: String(variable && variable.name || ''),
+      reads: ensureArray(variable && variable.reads).map(sourceRef),
+      writes: ensureArray(variable && variable.writes).map(sourceRef),
+      definedIn: ensureArray(variable && variable.definedIn).map(sourceRef),
+      readCount: Number(variable && variable.readCount || 0),
+      writeCount: Number(variable && variable.writeCount || 0),
+      tags: ensureArray(variable && variable.tags).map(String),
+      status: String(variable && variable.status || 'read_only')
+    })).filter((variable) => variable.name);
+  }
+
+  function backgroundEffectRowsForExisting(context) {
+    return ensureArray(context && context.context && context.context.effects).map((effect) => ({
+      variable: String(effect && effect.variable || ''),
+      op: String(effect && effect.op || effect.operator || ''),
+      value: String(effect && effect.value === undefined || effect && effect.value === null ? '' : effect && effect.value),
+      condition: String(effect && effect.condition || ''),
+      hook: String(effect && effect.hook || ''),
+      syntax: String(effect && effect.syntax || ''),
+      expression: String(effect && effect.expression || ''),
+      sourceExpression: String(effect && effect.sourceExpression || ''),
+      sectionId: String(effect && effect.sectionId || ''),
+      source: sourceRef(effect && effect.source || {}),
+      status: String(effect && effect.status || 'read_only')
+    })).filter((effect) => effect.variable && effect.status !== 'guarded');
+  }
+
+  function assetRowsForExisting(context, projectIndex) {
+    const assetApi = assetModelApi();
+    const rawAssets = ensureArray(context && context.editModel && context.editModel.assets);
+    if (assetApi && typeof assetApi.normalizeAssetItem === 'function') {
+      return rawAssets.map((asset) => assetApi.normalizeAssetItem(asset, {projectIndex})).filter((asset) => asset && asset.path);
+    }
+    return rawAssets.map((asset) => ({
+      id: String(asset && asset.id || asset && asset.path || ''),
+      label: String(asset && (asset.label || asset.name || asset.path) || ''),
+      path: String(asset && asset.path || ''),
+      type: String(asset && asset.type || 'asset'),
+      role: String(asset && asset.role || ''),
+      status: {key: 'reference_only', label: 'Reference only'},
+      previewCapability: {canPreview: false, mediaKind: String(asset && asset.type || 'asset'), url: '', message: 'Reference only'}
+    })).filter((asset) => asset.path);
+  }
+
+  function isPrimaryExistingSection(editor) {
+    const role = String(editor && editor.semanticRole || '');
+    if (!role || role === 'opening_text') {
+      return true;
+    }
+    return role === 'section_text' && !ensureArray(editor && editor.conditions).length && !ensureArray(editor && editor.relatedOptionIds).length;
+  }
+
+  function effectMatchesOption(editor, option) {
+    return Boolean(
+      editor &&
+      option &&
+      (
+        (editor.optionId && String(editor.optionId) === String(option.id || '')) ||
+        (editor.sectionId && String(editor.sectionId) === String(option.targetId || '')) ||
+        (editor.sectionId && String(editor.sectionId) === String(option.id || ''))
+      )
+    );
+  }
+
+  function optionBodyRows(context, sectionEditors) {
     const editors = context.editors || {};
     const optionEditors = ensureArray(editors.optionText);
+    const resultEditors = ensureArray(sectionEditors).filter((editor) => {
+      const role = String(editor && editor.semanticRole || '');
+      return role === 'option_result_text' || role === 'conditional_option_result_text';
+    });
     const options = ensureArray(context.relationships && context.relationships.options);
     if (options.length) {
       return options.map((option, index) => {
@@ -231,12 +340,21 @@
             return !editor.optionId && String(editor.original || '') === String(option.label || '');
           }));
         }
+        const resultFields = resultEditors.filter((editor) => sectionEditorMatchesOption(editor, option));
         return {
           id: option.id || 'option_' + (index + 1),
           targetId: option.targetId || '',
+          rawTargetId: option.rawTargetId || '',
+          sectionId: option.sectionId || '',
+          sectionLabel: option.sectionLabel || '',
+          target: option.target || null,
+          chooseIf: option.chooseIf || '',
+          sectionViewIf: option.sectionViewIf || '',
+          sectionChooseIf: option.sectionChooseIf || '',
           label: option.label || ('Option ' + (index + 1)),
           subtitle: option.subtitle || '',
-          fields
+          fields: fields.concat(resultFields),
+          resultFields
         };
       });
     }
@@ -245,8 +363,32 @@
       targetId: '',
       label: editor.original || editor.label || ('Option ' + (index + 1)),
       subtitle: '',
-      fields: [editor]
+      fields: [editor],
+      resultFields: []
     }));
+  }
+
+  function sectionEditorMatchesOption(editor, option) {
+    const editorIds = ensureArray(editor && editor.relatedOptionIds).map(normalizeEndpointToken).filter(Boolean);
+    const optionIds = [
+      option && option.id,
+      option && option.rawTargetId,
+      option && option.targetId,
+      option && option.sectionId
+    ].map(normalizeEndpointToken).filter(Boolean);
+    if (editorIds.some((id) => optionIds.includes(id))) {
+      return true;
+    }
+    const sectionToken = normalizeEndpointToken(editor && editor.sectionId);
+    return Boolean(sectionToken && optionIds.includes(sectionToken));
+  }
+
+  function normalizeEndpointToken(value) {
+    const text = String(value || '').trim().replace(/^[@#]/, '');
+    if (!text) {
+      return '';
+    }
+    return text.includes('.') ? text.split('.').pop() : text;
   }
 
   function eventBodyForNewEvent(draft) {
@@ -355,13 +497,19 @@
       direction: 'current',
       source: relationships.current.source || context.source || {}
     }] : [];
+    const internal = ensureArray(relationships.internal).map((row) => ({
+      label: row.toEndpoint && row.toEndpoint.title || row.to,
+      detail: [row.kind, row.label, row.condition].filter(Boolean).join(' / '),
+      direction: 'internal',
+      source: row.source || {}
+    }));
     const outgoing = ensureArray(relationships.outgoing).map((row) => ({
       label: row.scene && row.scene.title || row.to,
       detail: [row.kind, row.label].filter(Boolean).join(' / '),
       direction: 'outgoing',
       source: row.source || {}
     }));
-    return incoming.concat(current, outgoing);
+    return incoming.concat(current, internal, outgoing);
   }
 
   function normalizeEventInput(input) {

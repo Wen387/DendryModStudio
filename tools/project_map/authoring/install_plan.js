@@ -424,7 +424,7 @@
     const after = String(value.after === undefined || value.after === null ? '' : value.after);
     const id = 'replace_existing_' + (index + 1);
     const label = String(value.label || value.role || 'field').trim();
-    if (existingSceneSectionCanGuard(value, path, line, endLine, after)) {
+    if (value.operationType !== 'manual_snippet' && existingSceneSectionCanGuard(value, path, line, endLine, after)) {
       return {
         id,
         type: 'replace_section',
@@ -440,7 +440,7 @@
         description: 'Replace existing ' + label + ' section text after confirming exact source anchors still match.'
       };
     }
-    if (existingSceneChangeCanGuard(path, line, source.endLine || source.line || source.startLine, before, after)) {
+    if (value.operationType !== 'manual_snippet' && existingSceneChangeCanGuard(path, line, source.endLine || source.line || source.startLine, before, after)) {
       return {
         id,
         type: 'replace_text',

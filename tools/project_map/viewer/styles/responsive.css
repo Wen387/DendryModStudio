@@ -47,6 +47,10 @@
     grid-template-columns: 1fr;
   }
 
+  .create-workspace.is-object-authoring .authoring-workspace-nav {
+    grid-template-columns: 1fr;
+  }
+
   .draft-workspace-panel {
     grid-template-columns: 1fr;
   }

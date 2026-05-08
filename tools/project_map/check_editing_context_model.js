@@ -119,6 +119,7 @@ assert(model.relationships.incoming.length === 1, 'context should include incomi
 assert(model.relationships.outgoing.length === 1, 'context should include outgoing flow');
 assert(model.relationships.options.length === 1, 'context should include option targets');
 assert(model.editors.pageSections.length >= 1, 'context should expose page section editors');
+assert(model.editors.openingSections.some((editor) => editor.semanticRole === 'opening_text'), 'context should classify opening page sections separately');
 assert(model.editors.optionText.some((editor) => editor.id === 'all_quiet_option'), 'context should expose option label editor');
 assert(model.editors.conditions.some((editor) => editor.id === 'metadata_viewIf'), 'context should expose appearance condition editor');
 assert(model.context.variables.some((variable) => variable.name === 'public_order'), 'context should include variables used in this source');

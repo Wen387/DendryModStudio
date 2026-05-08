@@ -53,6 +53,7 @@ function writeFixture(root) {
     'tags: event parser',
     'view-if: year = 1936 and month >= 1',
     'priority: 2',
+    'on-arrival: parser_seen = 1; debate_leader = "Scholz"; debate_leader = "Curtius" if reform_done; public_order -= 2 if reform_done = 0',
     'new-page: true',
     '',
     '= Parser Story',
@@ -112,7 +113,7 @@ const corpus = textItems(index);
 
 const body = corpus.find((item) => item.role === 'body' && String(item.text || '').includes('First line of the public scene'));
 assert(body, 'Text Corpus should keep multiline body prose');
-assert(body.source && body.source.startLine === 8 && body.source.endLine === 9, 'multiline body should keep source range', body);
+assert(body.source && body.source.startLine === 9 && body.source.endLine === 10, 'multiline body should keep source range', body);
 assert(String(body.originalText || '').includes('\nSecond line continues'), 'multiline body should keep original source text', body);
 assert(body.source.anchorText === 'First line of the public scene.', 'body source should keep first anchor', body);
 assert(body.source.endAnchorText === 'Second line continues the public scene.', 'body source should keep end anchor', body);
@@ -124,16 +125,28 @@ assert(optionLabel, 'option parser should split visible option labels');
 assert(optionSubtitle, 'option parser should split visible option subtitles');
 assert(tagOption && tagOption.optionId === 'parser_card', 'option parser should index #tag option labels');
 assert(
-  optionLabel.id === stableTextId('source/scenes/events/parser_story.scene.dry', 11, 'option_label', 'Open debate——Make it visible.'),
+  optionLabel.id === stableTextId('source/scenes/events/parser_story.scene.dry', 12, 'option_label', 'Open debate——Make it visible.'),
   'split option labels should keep the pre-split stable text id for saved-draft compatibility',
   optionLabel
 );
+
+const reformVariable = index.variables.find((variable) => variable.name === 'reform_done');
+const leaderVariable = index.variables.find((variable) => variable.name === 'debate_leader');
+assert(reformVariable && reformVariable.reads.some((ref) => ref.path === 'source/scenes/events/parser_story.scene.dry' && ref.line === 5), 'shorthand on-arrival if suffix should index condition variables as reads', reformVariable);
+assert(leaderVariable && leaderVariable.writes.some((ref) => ref.path === 'source/scenes/events/parser_story.scene.dry' && ref.line === 5), 'shorthand on-arrival assignments should still index variable writes', leaderVariable);
+
+const indexedScene = index.scenes.find((item) => item.id === 'parser_story');
+assert(indexedScene && indexedScene.effects && indexedScene.effects.some((effect) => effect.variable === 'public_order' && effect.sourceExpression === 'public_order -= 2 if reform_done = 0'), 'ProjectIndex should keep source-backed shorthand on-arrival effects', indexedScene && indexedScene.effects);
 
 const model = existingEdit.buildEditModel(index, 'events', 'parser_story');
 assert(model.ok, 'Existing Scene Edit model should build from parser-backed index', model.diagnostics);
 assert(model.fields.some((field) => field.id === optionLabel.id && field.original === 'Open debate'), 'existing edit model should expose parsed option label');
 assert(model.fields.some((field) => field.id === optionSubtitle.id && field.original === 'Make it visible.'), 'existing edit model should expose parsed option subtitle');
 assert(model.fields.some((field) => field.id === 'metadata_priority' && field.editability === 'guarded_replace_text'), 'existing edit model should expose guarded metadata priority');
+const publicOrderEffect = model.fields.find((field) => field.role === 'effect' && field.original === 'Q.public_order -= 2 if reform_done = 0');
+assert(publicOrderEffect, 'existing edit model should expose shorthand on-arrival effects as editable effect fields');
+assert(publicOrderEffect.editability === 'guarded_replace_text', 'source-backed shorthand effect should be guarded', publicOrderEffect);
+assert(publicOrderEffect.searchText === 'public_order -= 2 if reform_done = 0', 'shorthand effect should preserve bare source syntax for replacement', publicOrderEffect);
 
 const block = model.textBlocks.find((item) => String(item.original || '').includes('First line of the public scene'));
 assert(block, 'existing edit model should build a source-backed page block from parsed body text');
@@ -146,6 +159,19 @@ const optionBundle = existingEdit.buildExportBundle(optionProposal, index);
 assert(optionBundle.installPlan.operations.length === 2, 'option/metadata proposal should create two operations');
 assert(optionBundle.installPlan.operations.every((operation) => operation.type === 'replace_text'), 'option/metadata edits should be replace_text');
 assert(optionBundle.installPlan.operations.every((operation) => operation.safety === 'guarded_apply'), 'option/metadata edits should be guarded');
+
+const effectProposal = existingEdit.buildProposal(model, {
+  [publicOrderEffect.id]: 'Q.public_order -= 3 if reform_done = 0'
+});
+const effectBundle = existingEdit.buildExportBundle(effectProposal, index);
+assert(effectBundle.installPlan.operations.length === 1, 'effect proposal should create one operation');
+assert(effectBundle.installPlan.operations[0].search === 'public_order -= 2 if reform_done = 0', 'effect edit should search for the bare source expression', effectBundle.installPlan.operations[0]);
+assert(effectBundle.installPlan.operations[0].replace === 'public_order -= 3 if reform_done = 0', 'effect edit should write back Dendry shorthand without Q prefix', effectBundle.installPlan.operations[0]);
+const effectDryRun = installPlan.applyInstallPlan(effectBundle.installPlan, {projectRoot: root, dryRun: true});
+assert(effectDryRun.ok && effectDryRun.results[0].status === 'would_apply', 'source-backed shorthand effect replacement should dry-run cleanly', effectDryRun);
+const effectApplied = installPlan.applyInstallPlan(effectBundle.installPlan, {projectRoot: root, dryRun: false});
+assert(effectApplied.ok && effectApplied.results[0].status === 'applied', 'source-backed shorthand effect replacement should apply cleanly', effectApplied);
+assert(fs.readFileSync(path.join(root, 'source', 'scenes', 'events', 'parser_story.scene.dry'), 'utf8').includes('public_order -= 3 if reform_done = 0'), 'source should contain applied shorthand effect replacement');
 
 const blockProposal = existingEdit.buildProposal(model, {
   ['block:' + block.id]: [

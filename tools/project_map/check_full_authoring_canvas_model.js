@@ -55,6 +55,7 @@ const templates = [
   'play_surface',
   'workspace_layout',
   'sidebar_status',
+  'election_results',
   'project',
   'variables'
 ];
@@ -68,6 +69,7 @@ const editedValues = {
   play_surface: {'play.title': 'Edited Play Surface', 'play.handBody': 'Edited hand body.'},
   workspace_layout: {'layout.deckTitle': 'Edited Policy Deck', 'layout.handOptionLabel': 'Open edited policy deck'},
   sidebar_status: {'sidebar.sectionHeading': 'Edited Status', 'sidebar.sectionBody': 'Edited status body.'},
+  election_results: {'election.title': 'Edited Election Results', 'election.party.0.name': 'Edited SPD'},
   project: {'project.gameTitle': 'Edited Project Title', 'project.author': 'Studio Tester'},
   variables: {'variables.variableName': 'edited_variable', 'variables.label': 'Edited Variable'}
 };
@@ -94,6 +96,11 @@ templates.forEach((template) => {
   assert(canvasModel.templateFromDraft(model.changeState.draft) === template, template + ' draft should round-trip to its Canvas template');
   if (template === 'card') {
     assert(model.changeState.draft.heading === 'Edited Card', 'Card Canvas should keep visible heading in sync when only the title changes');
+  }
+  if (template === 'variables') {
+    const baseVariableDraft = canvasModel.defaultDraftForTemplate(index, 'variables');
+    assert(baseVariableDraft.mode === 'add_new', 'Variables Create template should start as a new variable draft');
+    assert(baseVariableDraft.variableName === 'new_variable', 'Variables Create template should not silently target the first existing ProjectIndex variable');
   }
   summary[template] = {
     title: model.eventBody.title.value,

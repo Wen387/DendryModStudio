@@ -39,10 +39,10 @@
       renderPreviewHeader(kind),
       '<article class="lightweight-object-frame">',
       '<div class="lightweight-object-kicker">' + escapeHtml(kind === 'news' ? t('objectPreview.news', 'News') : t('objectPreview.event', 'World Event')) + '</div>',
-      '<h4>' + escapeHtml(title) + '</h4>',
+      '<h4>' + renderTextInline(title) + '</h4>',
       subtitle ? '<em>' + escapeHtml(subtitle) + '</em>' : '',
       sections.length || fallbackSections.length
-        ? ensureArray(sections.length ? sections : fallbackSections).map((text) => '<p>' + escapeHtml(text) + '</p>').join('')
+        ? ensureArray(sections.length ? sections : fallbackSections).map((text) => renderTextBlocks(text, {empty: false})).join('')
         : '<p class="lightweight-object-muted">' + escapeHtml(t('objectPreview.empty', 'No player-facing text is available yet.')) + '</p>',
       renderOptionPreview(optionsList),
       '</article>',
@@ -54,7 +54,7 @@
     const selectedObject = options && options.selectedObject || {};
     if (!card) {
       return [
-        '<section class="lightweight-object-preview is-card is-empty" data-lightweight-object-preview="card" data-object-canvas-preview="true" data-editing-preview="true">',
+        '<section class="lightweight-object-preview is-card is-empty" data-lightweight-object-preview="card" data-object-canvas-preview="true" data-card-face-preview="true" data-editing-preview="true">',
         '<p>' + escapeHtml(t('cardBoard.editor.empty', 'Select a card to inspect or edit its face.')) + '</p>',
         '</section>'
       ].join('');
@@ -63,16 +63,16 @@
     const optionsList = ensureArray(card.options);
     const bodyText = cardBodyText(card.body);
     return [
-      '<section class="lightweight-object-preview is-card" data-lightweight-object-preview="card" data-object-canvas-preview="true" data-editing-preview="true">',
+      '<section class="lightweight-object-preview is-card" data-lightweight-object-preview="card" data-object-canvas-preview="true" data-card-face-preview="true" data-editing-preview="true">',
       renderPreviewHeader('card'),
       '<article class="lightweight-card-face">',
       '<div class="lightweight-object-kicker">' + escapeHtml(card.type || card.kind || t('objectPreview.card', 'Card')) + '</div>',
-      '<h4>' + escapeHtml(card.heading || card.title || t('objectPreview.card', 'Card')) + '</h4>',
-      card.subtitle ? '<em>' + escapeHtml(card.subtitle) + '</em>' : '',
-      bodyText ? '<p>' + escapeHtml(bodyText) + '</p>' : '',
+      '<h4>' + renderTextInline(card.heading || card.title || t('objectPreview.card', 'Card')) + '</h4>',
+      card.subtitle ? '<em>' + renderTextInline(card.subtitle) + '</em>' : '',
+      bodyText ? renderTextBlocks(bodyText, {empty: false}) : '',
       optionsList.length ? [
         '<div class="lightweight-card-options">',
-        optionsList.slice(0, 5).map((option, index) => '<span class="' + (index === optionIndex ? 'is-selected' : '') + '">' + escapeHtml(option.label || option.title || option.id || String(index + 1)) + '</span>').join(''),
+        optionsList.slice(0, 5).map((option, index) => '<span class="' + (index === optionIndex ? 'is-selected' : '') + '">' + renderTextInline(option.label || option.title || option.id || String(index + 1)) + '</span>').join(''),
         '</div>'
       ].join('') : '',
       '</article>',
@@ -92,7 +92,7 @@
       renderPreviewHeader('textPatch'),
       '<article class="lightweight-object-frame">',
       '<div class="lightweight-object-kicker">' + escapeHtml(t('objectPreview.textPatch', 'Text Patch')) + '</div>',
-      '<h4>' + escapeHtml(title) + '</h4>',
+      '<h4>' + renderTextInline(title) + '</h4>',
       '<div class="lightweight-text-patch-grid">',
       renderPatchSide(t('objectPreview.before', 'Before'), before),
       renderPatchSide(t('objectPreview.after', 'After'), after),
@@ -119,7 +119,7 @@
     return [
       '<div class="lightweight-object-options">',
       '<span>' + escapeHtml(t('objectPreview.choices', 'Choices')) + '</span>',
-      rows.slice(0, 5).map((option, index) => '<button type="button" disabled>' + escapeHtml(optionLabel(option, index)) + '</button>').join(''),
+      rows.slice(0, 5).map((option, index) => '<button type="button" disabled>' + renderTextInline(optionLabel(option, index)) + '</button>').join(''),
       '</div>'
     ].join('');
   }
@@ -128,7 +128,7 @@
     return [
       '<div>',
       '<span>' + escapeHtml(label) + '</span>',
-      '<p>' + escapeHtml(collapseWhitespace(value) || t('objectPreview.noPreview', 'No preview text')) + '</p>',
+      renderTextBlocks(collapseWhitespace(value) || t('objectPreview.noPreview', 'No preview text'), {empty: false}),
       '</div>'
     ].join('');
   }
@@ -224,6 +224,37 @@
 
   function collapseWhitespace(value) {
     return String(value || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function renderTextBlocks(value, options) {
+    const renderer = richTextApi();
+    if (renderer && typeof renderer.renderBlocks === 'function') {
+      return renderer.renderBlocks(value, options || {});
+    }
+    const text = String(value || '').trim();
+    return text ? '<p>' + escapeHtml(text) + '</p>' : '';
+  }
+
+  function renderTextInline(value) {
+    const renderer = richTextApi();
+    if (renderer && typeof renderer.renderInline === 'function') {
+      return renderer.renderInline(value);
+    }
+    return escapeHtml(value);
+  }
+
+  function richTextApi() {
+    if (global && global.ProjectMapVisibleTextRenderer) {
+      return global.ProjectMapVisibleTextRenderer;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./visible_text_renderer.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
   }
 
   function escapeHtml(value) {

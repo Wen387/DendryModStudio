@@ -5,6 +5,10 @@
   const MODEL_KIND = 'existing_scene_edit_model';
   const PROPOSAL_KIND = 'existing_scene_edit';
   const ID_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+  const RESERVED_CONDITION_WORDS = new Set([
+    'and', 'or', 'not', 'if', 'else', 'true', 'false', 'null', 'undefined',
+    'in', 'is', 'then', 'return', 'Q'
+  ]);
 
   function ensureArray(value) {
     return Array.isArray(value) ? value : [];
@@ -42,9 +46,24 @@
     return null;
   }
 
+  function logicFieldsApi() {
+    if (global && global.ProjectMapExistingSceneLogicFields) {
+      return global.ProjectMapExistingSceneLogicFields;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./existing_scene_logic_fields.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   function buildEditModel(projectIndex, view, itemOrId, options) {
     const index = isObject(projectIndex) ? projectIndex : {};
-    const lookup = buildLookup(index);
+    const opts = isObject(options) ? options : {};
+    const lookup = isObject(opts.lookup) ? opts.lookup : buildLookup(index);
     const scene = resolveScene(lookup, view, itemOrId);
     const diagnostics = [];
     if (!scene || !scene.id) {
@@ -73,13 +92,19 @@
     const textFields = visibleTextRows
       .filter((row) => !isEffectScriptRow(row))
       .map((row, index) => fieldFromTextRow(row, index, source.path));
-    const textBlocks = textBlocksForScene(scene, visibleTextRows, source.path);
-    const fields = textFields.concat(metadataEditableFields(scene, source.path, textFields));
+    let fields = textFields.concat(metadataEditableFields(scene, source.path, textFields));
     if (!fields.length) {
       diagnostics.push(diagnostic('warning', 'existing_scene_edit.no_text_rows', 'No source-backed Text Corpus rows were found for this scene.'));
     }
-    const fieldById = new Map(fields.map((field) => [field.id, field]));
     const eventOptions = optionRows(scene, fields);
+    const textBlocks = textBlocksForScene(scene, visibleTextRows, source.path, eventOptions);
+    const effects = effectRows(index, scene, scriptRows);
+    fields = fields.concat(
+      routeEditableFields(scene, eventOptions),
+      effectEditableFields(scene, effects, eventOptions),
+      structuralActionFields(scene, eventOptions, effects, textBlocks, source)
+    );
+    const fieldById = new Map(fields.map((field) => [field.id, field]));
     return {
       schemaVersion: EXISTING_SCENE_EDIT_VERSION,
       kind: MODEL_KIND,
@@ -93,7 +118,7 @@
       textBlocks,
       options: eventOptions,
       sections: sectionRows(fields, eventOptions),
-      effects: effectRows(index, scene, scriptRows),
+      effects,
       assets: ensureArray(scene.assetRefs).map(normalizeAssetRef).filter(Boolean),
       warnings: diagnostics.map((item) => item.message),
       diagnostics,
@@ -103,7 +128,7 @@
         rawViewIf: String(scene.viewIf || ''),
         path: source.path
       },
-      editorOptions: isObject(options) ? options : {}
+      editorOptions: opts
     };
   }
 
@@ -115,14 +140,32 @@
         scenesById.set(String(scene.id), scene);
       }
     });
+    const textCorpus = ensureArray(index.semantic && index.semantic.textCorpus && index.semantic.textCorpus.items);
     return {
       index,
       scenes,
       scenesById,
       events: ensureArray(index.semantic && index.semantic.events),
       cards: ensureArray(index.semantic && index.semantic.cards),
-      textCorpus: ensureArray(index.semantic && index.semantic.textCorpus && index.semantic.textCorpus.items)
+      textCorpus,
+      textCorpusByScene: groupTextCorpusByScene(textCorpus)
     };
+  }
+
+  function groupTextCorpusByScene(items) {
+    const byScene = new Map();
+    ensureArray(items).forEach((item) => {
+      const owner = isObject(item && item.owner) ? item.owner : {};
+      const sceneId = String(owner.sceneId || '');
+      if (!sceneId) {
+        return;
+      }
+      if (!byScene.has(sceneId)) {
+        byScene.set(sceneId, []);
+      }
+      byScene.get(sceneId).push(item);
+    });
+    return byScene;
   }
 
   function resolveScene(lookup, view, itemOrId) {
@@ -168,7 +211,10 @@
   function textRowsForScene(lookup, scene, sourcePath) {
     const sceneId = String(scene.id || '');
     const span = scene.sourceSpan || scene.topLevelSpan || {};
-    return lookup.textCorpus
+    const rows = lookup.textCorpusByScene && typeof lookup.textCorpusByScene.get === 'function'
+      ? ensureArray(lookup.textCorpusByScene.get(sceneId))
+      : ensureArray(lookup.textCorpus);
+    return rows
       .filter((item) => item && item.owner && String(item.owner.sceneId || '') === sceneId)
       .filter((item) => {
         const path = String(item.source && item.source.path || '');
@@ -230,30 +276,132 @@
   }
 
   function optionRows(scene, fields) {
-    return ensureArray(scene.options).map((option, index) => {
+    return collectSceneOptions(scene).map((entry, index) => {
+      const option = entry.option || {};
       const target = isObject(option.target) ? option.target : {};
-      const id = safeId(target.id || option.id || 'option_' + (index + 1));
+      const rawTarget = rawOptionTarget(option, target);
+      const resolvedTarget = resolveOptionTarget(scene, rawTarget, target);
+      const id = safeId(entry.sectionId
+        ? [entry.sectionKey || 'section', rawTarget || option.id || 'option_' + (index + 1)].filter(Boolean).join('__')
+        : (rawTarget || option.id || 'option_' + (index + 1)));
       const parts = splitOptionTitle(option.title || '');
-      const labelField = findOptionField(fields, id, 'option_label', parts.label);
-      const subtitleField = findOptionField(fields, id, 'option_subtitle', parts.subtitle);
-      const unavailableField = findOptionField(fields, id, 'unavailable_text', option.unavailableText || '');
+      const labelField = findOptionField(fields, rawTarget || id, 'option_label', parts.label, entry.sectionId);
+      const subtitleField = findOptionField(fields, rawTarget || id, 'option_subtitle', parts.subtitle, entry.sectionId);
+      const unavailableField = findOptionField(fields, rawTarget || id, 'unavailable_text', option.unavailableText || '', entry.sectionId);
+      const source = optionSourceRef(option.sourceSpan || option.source || {}, labelField, subtitleField, unavailableField);
       return {
         id,
-        targetId: String(target.id || ''),
+        targetId: resolvedTarget,
+        rawTargetId: rawTarget,
+        sectionId: entry.sectionId,
+        sectionLabel: entry.sectionLabel,
         label: labelField ? labelField.original : (parts.label || String(option.title || 'Option ' + (index + 1))),
         subtitle: subtitleField ? subtitleField.original : parts.subtitle,
         labelFieldId: labelField && labelField.id || '',
         subtitleFieldId: subtitleField && subtitleField.id || '',
         unavailableFieldId: unavailableField && unavailableField.id || '',
         chooseIf: String(option.chooseIf || ''),
+        sectionViewIf: String(entry.section && entry.section.viewIf || ''),
+        sectionChooseIf: String(entry.section && entry.section.chooseIf || ''),
         unavailableText: unavailableField ? unavailableField.original : String(option.unavailableText || ''),
-        source: sourceRef(option.sourceSpan || option.source || {})
+        source
       };
     });
   }
 
-  function findOptionField(fields, optionId, role, fallbackText) {
-    const exact = fields.find((field) => field.role === role && field.optionId && safeId(field.optionId) === safeId(optionId));
+  function collectSceneOptions(scene) {
+    const rows = [];
+    ensureArray(scene && scene.options).forEach((option) => {
+      rows.push({
+        option,
+        section: null,
+        sectionId: '',
+        sectionKey: 'scene',
+        sectionLabel: 'Scene'
+      });
+    });
+    const sceneId = String(scene && scene.id || '');
+    ensureArray(scene && scene.sections).forEach((section) => {
+      const sectionId = String(section && section.id || '');
+      const sectionKey = sectionId.startsWith(sceneId + '.') ? sectionId.slice(sceneId.length + 1) : sectionId;
+      ensureArray(section && section.options).forEach((option) => {
+        rows.push({
+          option,
+          section,
+          sectionId,
+          sectionKey,
+          sectionLabel: String(section && (section.title || section.subtitle) || sectionKey || sectionId || 'Section')
+        });
+      });
+    });
+    return rows;
+  }
+
+  function rawOptionTarget(option, target) {
+    const value = String(target && target.id || option && option.targetId || option && option.id || '').trim();
+    return value.replace(/^[@#]/, '');
+  }
+
+  function resolveOptionTarget(scene, rawTarget, target) {
+    const raw = String(rawTarget || '').trim();
+    if (!raw) {
+      return '';
+    }
+    if (target && target.kind === 'tag') {
+      return 'tag:' + raw;
+    }
+    const sceneId = String(scene && scene.id || '');
+    if (raw.indexOf('.') >= 0 || raw.startsWith('runtime:') || raw.startsWith('tag:')) {
+      return raw;
+    }
+    if (localAnchors(scene).has(raw)) {
+      return sceneId + '.' + raw;
+    }
+    return raw;
+  }
+
+  function localAnchors(scene) {
+    const sceneId = String(scene && scene.id || '');
+    const anchors = new Set();
+    ensureArray(scene && scene.sections).forEach((section) => {
+      const id = String(section && section.id || '');
+      if (sceneId && id.startsWith(sceneId + '.')) {
+        anchors.add(id.slice(sceneId.length + 1));
+      }
+    });
+    return anchors;
+  }
+
+  function optionSourceRef(optionSource, labelField, subtitleField, unavailableField) {
+    const source = sourceRef(optionSource || {});
+    const evidence = [labelField, subtitleField, unavailableField]
+      .map((field) => sourceRef(field && field.source || {}))
+      .find((ref) => ref.path && ref.anchorText && (!source.line || !ref.line || ref.line === source.line));
+    if (!evidence) {
+      return source;
+    }
+    return Object.assign({}, source, {
+      path: source.path || evidence.path,
+      line: source.line || evidence.line,
+      startLine: source.startLine || evidence.startLine || evidence.line,
+      endLine: source.endLine || evidence.endLine || evidence.line,
+      anchorText: source.anchorText || evidence.anchorText,
+      endAnchorText: source.endAnchorText || evidence.endAnchorText || evidence.anchorText
+    });
+  }
+
+  function routeEditableFields(scene, options) {
+    const api = logicFieldsApi();
+    return api && typeof api.buildRouteFields === 'function' ? api.buildRouteFields(scene, options) : [];
+  }
+
+  function findOptionField(fields, optionId, role, fallbackText, sectionId) {
+    const exact = fields.find((field) => {
+      if (field.role !== role || !field.optionId || safeId(field.optionId) !== safeId(optionId)) {
+        return false;
+      }
+      return !sectionId || !field.sectionId || String(field.sectionId) === String(sectionId);
+    });
     if (exact) {
       return exact;
     }
@@ -261,7 +409,7 @@
     if (!text) {
       return null;
     }
-    return fields.find((field) => field.role === role && String(field.original || '').trim() === text) || null;
+    return fields.find((field) => field.role === role && String(field.original || '').trim() === text && (!sectionId || !field.sectionId || String(field.sectionId) === String(sectionId))) || null;
   }
 
   function sectionRows(fields, options) {
@@ -286,7 +434,7 @@
     return Array.from(sections.values());
   }
 
-  function textBlocksForScene(scene, rows, sceneSourcePath) {
+  function textBlocksForScene(scene, rows, sceneSourcePath, options) {
     const bySection = new Map();
     ensureArray(rows).forEach((row) => {
       if (!isBlockTextRole(row.role)) {
@@ -306,15 +454,50 @@
     const blocks = [];
     bySection.forEach((sectionRowsForBlock, sectionId) => {
       const ordered = sectionRowsForBlock.slice().sort((a, b) => sourceLine(a.source) - sourceLine(b.source));
-      const block = textBlockFromRows(scene, sectionId, ordered);
-      if (block) {
-        blocks.push(block);
-      }
+      const runs = logicalTextRuns(ordered);
+      const lineUsage = new Map();
+      runs.forEach((run, index) => {
+        run.index = index;
+        uniqueStrings(run.rows.map((row) => String(sourceLine(row.source) || ''))).forEach((line) => {
+          if (!line) {
+            return;
+          }
+          lineUsage.set(line, (lineUsage.get(line) || 0) + 1);
+        });
+      });
+      runs.forEach((run) => {
+        const sharedLine = uniqueStrings(run.rows.map((row) => String(sourceLine(row.source) || '')))
+          .some((line) => line && lineUsage.get(line) > 1);
+        const block = textBlockFromRows(scene, sectionId, run.rows, options, {
+          runKind: run.kind,
+          runIndex: run.index,
+          singleRun: runs.length === 1,
+          forceManual: sharedLine
+        });
+        if (block) {
+          blocks.push(block);
+        }
+      });
     });
     return blocks.sort((a, b) => (a.source.line || 0) - (b.source.line || 0));
   }
 
-  function textBlockFromRows(scene, sectionId, rows) {
+  function logicalTextRuns(rows) {
+    const runs = [];
+    let current = null;
+    ensureArray(rows).forEach((row) => {
+      const kind = String(row && row.role || '') === 'conditional_body' ? 'conditional' : 'prose';
+      if (!current || current.kind !== kind) {
+        current = {kind, rows: []};
+        runs.push(current);
+      }
+      current.rows.push(row);
+    });
+    return runs;
+  }
+
+  function textBlockFromRows(scene, sectionId, rows, options, runOptions) {
+    const run = isObject(runOptions) ? runOptions : {};
     const usable = ensureArray(rows).filter((row) => isBlockTextRole(row.role) && sourceLine(row.source));
     if (!usable.length) {
       return null;
@@ -338,12 +521,37 @@
     if (!original.trim()) {
       return null;
     }
-    const id = safeId('section_text_' + (sectionId || scene && scene.id || 'opening'));
+    const semantics = textBlockSemantics(scene, sectionId, usable, options);
+    const idRoot = 'section_text_' + (sectionId || scene && scene.id || 'opening');
+    const id = safeId(run.singleRun ? idRoot : [idRoot, run.runKind || 'text', startLine || '', Number(run.runIndex || 0) + 1].filter(Boolean).join('_'));
+    const visualKinds = detectVisualKinds(original);
+    const conditionVariables = uniqueStrings(semantics.conditions.flatMap(variablesFromCondition));
+    const textVariables = variablesFromDendryText(original);
+    const editability = run.forceManual ? 'manual_review' : 'guarded_replace_section';
     return {
       id,
       role: 'section_text',
-      label: sectionId ? 'Section text: ' + humanSectionId(sectionId) : 'Opening page text',
+      semanticRole: semantics.semanticRole,
+      branchKind: semantics.branchKind,
+      label: semantics.label,
+      sectionLabel: semantics.sectionLabel,
       sectionId: String(sectionId || ''),
+      conditions: semantics.conditions,
+      relatedOptionIds: semantics.relatedOptionIds,
+      relatedOptionLabels: semantics.relatedOptionLabels,
+      visualKinds,
+      conditionVariables,
+      textVariables,
+      logicContext: {
+        conditions: semantics.conditions.map((condition) => ({
+          raw: condition,
+          variables: variablesFromCondition(condition)
+        })),
+        reads: uniqueStrings(conditionVariables.concat(textVariables)),
+        textVariables,
+        conditionVariables
+      },
+      hasConditionalRows: semantics.hasConditionalRows,
       fieldIds: usable.map((row) => safeId(row.id || [row.role || 'text', sectionId, sourceLine(row.source)].filter(Boolean).join('_'))),
       original,
       value: original,
@@ -354,10 +562,227 @@
         anchorText,
         endAnchorText
       },
-      editability: 'guarded_replace_section',
+      editability,
       confidence: 'exact',
-      reason: 'Exact source-backed text block can be checked before replacement.'
+      reason: run.forceManual
+        ? 'This text shares a source line with another parsed block, so Studio keeps the replacement in manual review.'
+        : 'Exact source-backed text block can be checked before replacement.'
     };
+  }
+
+  function detectVisualKinds(value) {
+    const text = String(value || '');
+    const kinds = [];
+    if (/<\s*(?:table|thead|tbody|tfoot|tr|th|td|caption)\b/i.test(text) ||
+        /\b(?:chart|graph|canvas)\b/i.test(text) ||
+        /<\s*(?:canvas|svg)\b/i.test(text)) {
+      kinds.push('chart');
+    }
+    if (/<\s*img\b/i.test(text) ||
+        /!\[[^\]]*\]\([^)]+\.(?:png|jpe?g|gif|webp|svg)(?:[?#][^)]*)?\)/i.test(text) ||
+        /\b(?:img|images|assets|out\/html\/img)\/[^\s'"<>]+\.(?:png|jpe?g|gif|webp|svg)\b/i.test(text)) {
+      kinds.push('asset');
+    }
+    if (/<\s*[a-z][a-z0-9-]*\b/i.test(text)) {
+      kinds.push('html');
+    }
+    return uniqueStrings(kinds);
+  }
+
+  function textBlockSemantics(scene, sectionId, rows, options) {
+    const sceneId = String(scene && scene.id || '');
+    const id = String(sectionId || '');
+    const section = findSceneSection(scene, id);
+    const relatedOptions = ensureArray(options).filter((option) => sectionMatchesOption(sceneId, id, option));
+    const hasConditionalRows = ensureArray(rows).some((row) => String(row && row.role || '') === 'conditional_body');
+    const inlineConditions = ensureArray(rows)
+      .filter((row) => String(row && row.role || '') === 'conditional_body')
+      .map((row) => lastMeaningfulCondition(row && row.conditions))
+      .filter(Boolean);
+    const sectionConditions = [
+      section && section.viewIf,
+      section && section.chooseIf
+    ].map((value) => String(value || '').trim()).filter(Boolean);
+    const conditions = uniqueStrings(sectionConditions.concat(inlineConditions));
+    const sectionLabel = sectionDisplayLabel(sceneId, section, id);
+    const relatedOptionIds = relatedOptions.map((option) => String(option.id || '')).filter(Boolean);
+    const relatedOptionLabels = relatedOptions.map((option) => String(option.label || option.id || '')).filter(Boolean);
+    if (relatedOptions.length && conditions.length) {
+      return {
+        semanticRole: 'conditional_option_result_text',
+        branchKind: 'option_result',
+        label: 'Conditional option result: ' + (relatedOptionLabels.join(' / ') || sectionLabel),
+        sectionLabel,
+        conditions,
+        relatedOptionIds,
+        relatedOptionLabels,
+        hasConditionalRows
+      };
+    }
+    if (relatedOptions.length) {
+      return {
+        semanticRole: 'option_result_text',
+        branchKind: 'option_result',
+        label: 'Option result: ' + (relatedOptionLabels.join(' / ') || sectionLabel),
+        sectionLabel,
+        conditions,
+        relatedOptionIds,
+        relatedOptionLabels,
+        hasConditionalRows
+      };
+    }
+    if (conditions.length || hasConditionalRows) {
+      return {
+        semanticRole: 'conditional_text',
+        branchKind: 'conditional',
+        label: 'Conditional text: ' + sectionLabel,
+        sectionLabel,
+        conditions,
+        relatedOptionIds,
+        relatedOptionLabels,
+        hasConditionalRows
+      };
+    }
+    if (isOpeningSectionId(sceneId, id)) {
+      return {
+        semanticRole: 'opening_text',
+        branchKind: 'opening',
+        label: 'Opening page text',
+        sectionLabel,
+        conditions,
+        relatedOptionIds,
+        relatedOptionLabels,
+        hasConditionalRows
+      };
+    }
+    return {
+      semanticRole: 'section_text',
+      branchKind: 'section',
+      label: 'Scene step: ' + sectionLabel,
+      sectionLabel,
+      conditions,
+      relatedOptionIds,
+      relatedOptionLabels,
+      hasConditionalRows
+    };
+  }
+
+  function findSceneSection(scene, sectionId) {
+    const id = String(sectionId || '');
+    if (!id) {
+      return null;
+    }
+    const sceneId = String(scene && scene.id || '');
+    const variants = new Set(sectionIdVariants(sceneId, id));
+    return ensureArray(scene && scene.sections).find((section) => {
+      return variants.has(String(section && section.id || ''));
+    }) || null;
+  }
+
+  function sectionMatchesOption(sceneId, sectionId, option) {
+    const sectionVariants = new Set(sectionIdVariants(sceneId, sectionId));
+    if (!sectionVariants.size) {
+      return false;
+    }
+    return optionIdVariants(sceneId, option).some((candidate) => sectionVariants.has(candidate));
+  }
+
+  function sectionIdVariants(sceneId, sectionId) {
+    const raw = String(sectionId || '').trim();
+    if (!raw) {
+      return [];
+    }
+    const variants = [raw];
+    const local = raw.startsWith(sceneId + '.') ? raw.slice(sceneId.length + 1) : raw;
+    if (local && local !== raw) {
+      variants.push(local);
+    }
+    if (sceneId && local && raw.indexOf('.') < 0) {
+      variants.push(sceneId + '.' + local);
+    }
+    return uniqueStrings(variants);
+  }
+
+  function optionIdVariants(sceneId, option) {
+    const values = [
+      option && option.targetId,
+      option && option.rawTargetId,
+      option && option.id,
+      option && option.sectionId
+    ];
+    const out = [];
+    values.forEach((value) => {
+      const text = String(value || '').trim().replace(/^[@#]/, '');
+      if (!text) {
+        return;
+      }
+      out.push.apply(out, sectionIdVariants(sceneId, text));
+    });
+    return uniqueStrings(out);
+  }
+
+  function isOpeningSectionId(sceneId, sectionId) {
+    const text = String(sectionId || '').trim();
+    if (!text) {
+      return true;
+    }
+    const local = text.startsWith(sceneId + '.') ? text.slice(sceneId.length + 1) : text;
+    return /^(?:start|opening|intro|main)$/i.test(local);
+  }
+
+  function sectionDisplayLabel(sceneId, section, sectionId) {
+    const raw = String(sectionId || '');
+    const local = raw.startsWith(sceneId + '.') ? raw.slice(sceneId.length + 1) : raw;
+    return String(section && (section.title || section.subtitle) || humanSectionId(local || raw || 'opening'));
+  }
+
+  function lastMeaningfulCondition(values) {
+    const rows = ensureArray(values).map((value) => String(value || '').trim()).filter(Boolean);
+    return rows.length ? rows[rows.length - 1] : '';
+  }
+
+  function uniqueStrings(values) {
+    const seen = new Set();
+    const out = [];
+    ensureArray(values).forEach((value) => {
+      const text = String(value || '').trim();
+      if (!text || seen.has(text)) {
+        return;
+      }
+      seen.add(text);
+      out.push(text);
+    });
+    return out;
+  }
+
+  function variablesFromCondition(value) {
+    const text = String(value || '')
+      .replace(/'[^']*'|"[^"]*"/g, ' ')
+      .replace(/<[^>]+>/g, ' ');
+    const names = [];
+    let match;
+    const dotted = /\bQ\.([A-Za-z_][A-Za-z0-9_]*)\b/g;
+    while ((match = dotted.exec(text)) !== null) {
+      names.push(match[1]);
+    }
+    const bare = /\b([A-Za-z_][A-Za-z0-9_]*)\b/g;
+    while ((match = bare.exec(text)) !== null) {
+      const name = match[1];
+      if (!RESERVED_CONDITION_WORDS.has(name) && !/^\d/.test(name)) {
+        names.push(name);
+      }
+    }
+    return uniqueStrings(names);
+  }
+
+  function variablesFromDendryText(value) {
+    const names = [];
+    const re = /\[\+\s*([A-Za-z_][A-Za-z0-9_]*)\b/g;
+    let match;
+    while ((match = re.exec(String(value || ''))) !== null) {
+      names.push(match[1]);
+    }
+    return uniqueStrings(names);
   }
 
   function isBlockTextRole(role) {
@@ -367,6 +792,7 @@
 
   function renderTextBlockContent(rows) {
     const lines = [];
+    const seenConditionalSourceLines = new Set();
     ensureArray(rows).forEach((row) => {
       const role = String(row.role || '');
       const text = String(row.text || '').trim();
@@ -380,6 +806,11 @@
         lines.push(text.startsWith('=') ? text : '= ' + text);
       } else if (role === 'conditional_body') {
         const source = row.source || {};
+        const sourceKey = [source.path || '', sourceLine(source) || '', String(source.anchorText || '').trim()].join(':');
+        if (seenConditionalSourceLines.has(sourceKey)) {
+          return;
+        }
+        seenConditionalSourceLines.add(sourceKey);
         lines.push(String(source.anchorText || text).trim());
       } else {
         lines.push(text);
@@ -510,11 +941,45 @@
         label: definition.label,
         original,
         sceneId: scene.id,
+        sectionId: '',
         source: metadataSource(scene, definition.key, sceneSourcePath),
         reason: definition.reason
       }));
     });
+    const sectionDefinitions = definitions.filter((definition) => {
+      return ['viewIf', 'chooseIf', 'priority', 'frequency', 'frequencyVar', 'maxVisits', 'maxVisitsVar', 'newPage', 'setRoot', 'gameOver'].includes(definition.key);
+    });
+    ensureArray(scene && scene.sections).forEach((section) => {
+      const sectionId = String(section && section.id || '');
+      sectionDefinitions.forEach((definition) => {
+        if (!section || section[definition.key] === undefined || section[definition.key] === null || section[definition.key] === '') {
+          return;
+        }
+        const original = metadataValue(section[definition.key]);
+        const source = metadataSource(section, definition.key, sceneSourcePath);
+        if (metadataAlreadyCaptured(existingFields.concat(fields), definition.role, original, source)) {
+          return;
+        }
+        fields.push(metadataEditableField({
+          id: 'metadata_' + safeId(sectionId || 'section') + '_' + definition.key,
+          role: definition.role,
+          label: sectionMetadataLabel(definition.label, scene, section),
+          original,
+          sceneId: scene.id,
+          sectionId,
+          source,
+          reason: definition.reason
+        }));
+      });
+    });
     return fields.filter(Boolean);
+  }
+
+  function sectionMetadataLabel(label, scene, section) {
+    const sceneId = String(scene && scene.id || '');
+    const sectionId = String(section && section.id || '');
+    const local = sectionId.startsWith(sceneId + '.') ? sectionId.slice(sceneId.length + 1) : sectionId;
+    return String(label || 'Metadata') + ': ' + String(section && (section.title || section.subtitle) || local || 'Section');
   }
 
   function metadataEditableField(input) {
@@ -530,8 +995,8 @@
       source,
       sourcePath: source.path || '',
       editability: guarded ? 'guarded_replace_text' : 'manual_review',
-      owner: {sceneId: String(input.sceneId || ''), sectionId: '', itemId: '', kind: 'metadata'},
-      sectionId: '',
+      owner: {sceneId: String(input.sceneId || ''), sectionId: String(input.sectionId || ''), itemId: '', kind: 'metadata'},
+      sectionId: String(input.sectionId || ''),
       optionId: '',
       confidence: guarded ? 'exact' : 'approximate',
       reason: guarded
@@ -577,6 +1042,13 @@
           variable: String(effect.variable || ''),
           op: String(effect.op || effect.operator || ''),
           value: String(effect.value === undefined || effect.value === null ? '' : effect.value),
+          condition: String(effect.condition || ''),
+          hook: String(effect.hook || ''),
+          syntax: String(effect.syntax || ''),
+          expression: String(effect.expression || effect.displayExpression || ''),
+          displayExpression: String(effect.displayExpression || effect.expression || ''),
+          sourceExpression: String(effect.sourceExpression || ''),
+          sourceOrder: Number(effect.sourceOrder || 0) || 0,
           sectionId: String(effect.sectionId || ''),
           source: sourceRef(effect.source || {}),
           evidence: effect.evidence || 'workbench'
@@ -601,20 +1073,307 @@
     return rows;
   }
 
+  function effectEditableFields(scene, effects, options) {
+    const api = logicFieldsApi();
+    return api && typeof api.buildEffectFields === 'function' ? api.buildEffectFields(scene, effects, options) : [];
+  }
+
+  function structuralActionFields(scene, options, effects, textBlocks, source) {
+    const sceneId = String(scene && scene.id || '');
+    const sceneSource = sourceRef(source || scene && scene.sourceSpan || {path: scene && scene.path});
+    const fields = [
+      structuralField({
+        id: 'structure_add_option',
+        label: 'Add option and result layer',
+        action: 'add_option',
+        sceneId,
+        source: sceneSource,
+        inputType: 'textarea',
+        placeholder: '- @new_option: Player-facing option text\n# new_option\nResult prose, routes, and effects.',
+        help: 'Draft a new option line plus the result section it should open.'
+      }),
+      structuralField({
+        id: 'structure_add_branch',
+        label: 'Add conditional or follow-up layer',
+        action: 'add_branch',
+        sceneId,
+        source: sceneSource,
+        inputType: 'textarea',
+        placeholder: '# follow_up\n[? if variable >= 1 : Conditional prose or a nested choice layer. ?]',
+        help: 'Draft a new conditional section, follow-up section, or nested event layer.'
+      }),
+      structuralField({
+        id: 'structure_add_trigger_effect',
+        role: 'effect',
+        label: 'Add trigger effect',
+        action: 'add_trigger_effect',
+        sceneId,
+        source: sceneSource,
+        inputType: 'text',
+        placeholder: 'Q.variable += 1',
+        help: 'Add a new Q effect that should run when this object opens.'
+      })
+    ];
+    ensureArray(options).forEach((option) => {
+      const optionId = String(option && option.id || '');
+      const optionLabel = String(option && option.label || optionId || 'option');
+      fields.push(structuralField({
+        id: 'structure_add_option_effect_' + safeId(optionId || optionLabel),
+        role: 'effect',
+        label: 'Add effect to option: ' + optionLabel,
+        action: 'add_option_effect',
+        sceneId,
+        sectionId: String(option && (option.targetId || option.sectionId) || ''),
+        optionId,
+        targetLabel: optionLabel,
+        source: option && option.source || sceneSource,
+        inputType: 'text',
+        placeholder: 'Q.variable += 1 if condition',
+        help: 'Add a new Q effect that should run from this option/result.'
+      }));
+      fields.push(structuralField({
+        id: 'structure_remove_option_' + safeId(optionId || optionLabel),
+        role: 'route',
+        label: 'Remove option: ' + optionLabel,
+        action: 'remove_option',
+        sceneId,
+        sectionId: String(option && option.sectionId || ''),
+        optionId,
+        targetLabel: optionLabel,
+        source: option && option.source || sceneSource,
+        inputType: 'checkbox',
+        original: 'false',
+        before: [
+          'option: ' + optionLabel,
+          option && option.rawTargetId ? 'target: ' + option.rawTargetId : '',
+          firstNonEmpty(option && option.chooseIf, option && option.sectionChooseIf, option && option.sectionViewIf)
+            ? 'condition: ' + firstNonEmpty(option && option.chooseIf, option && option.sectionChooseIf, option && option.sectionViewIf)
+            : ''
+        ].filter(Boolean).join('\n'),
+        help: 'Remove this option only after checking its target section, incoming references, effects, and unavailable text.'
+      }));
+      const condition = firstNonEmpty(option && option.chooseIf, option && option.sectionChooseIf, option && option.sectionViewIf);
+      if (condition) {
+        fields.push(structuralField({
+          id: 'structure_remove_option_condition_' + safeId(optionId || optionLabel),
+          role: 'condition',
+          label: 'Remove prerequisite: ' + optionLabel,
+          action: 'remove_option_condition',
+          sceneId,
+          sectionId: String(option && option.sectionId || ''),
+          optionId,
+          targetLabel: optionLabel,
+          source: option && option.source || sceneSource,
+          inputType: 'checkbox',
+          original: 'false',
+          before: condition,
+          help: 'Remove this option prerequisite after checking unavailable text and routes.'
+        }));
+      }
+    });
+    ensureArray(effects).forEach((effect, index) => {
+      const expression = effectLabelText(effect);
+      if (!expression) {
+        return;
+      }
+      const option = optionForEffect(effect, options);
+      fields.push(structuralField({
+        id: 'structure_remove_effect_' + safeId(String(effect && effect.variable || 'effect') + '_' + String(index + 1)),
+        role: 'effect',
+        label: 'Remove effect: ' + expression,
+        action: 'remove_effect',
+        sceneId,
+        sectionId: String(effect && effect.sectionId || ''),
+        optionId: option && option.id || '',
+        targetLabel: option && option.label || String(effect && effect.sectionId || '') || 'trigger',
+        source: effect && effect.source || sceneSource,
+        inputType: 'checkbox',
+        original: 'false',
+        before: expression,
+        help: 'Remove this effect only after checking which option or trigger currently writes the variable.'
+      }));
+    });
+    ensureArray(textBlocks).filter((block) => {
+      const role = String(block && block.semanticRole || '');
+      return role === 'conditional_text' || role === 'conditional_option_result_text';
+    }).forEach((block) => {
+      fields.push(structuralField({
+        id: 'structure_remove_layer_' + safeId(block.id || block.sectionId || block.label),
+        label: 'Remove layer: ' + String(block.label || block.sectionLabel || block.sectionId || 'branch'),
+        action: 'remove_layer',
+        sceneId,
+        sectionId: String(block.sectionId || ''),
+        targetLabel: String(block.label || block.sectionLabel || block.sectionId || 'branch'),
+        source: block.source || sceneSource,
+        inputType: 'checkbox',
+        original: 'false',
+        before: [
+          block.sectionId ? 'section: ' + block.sectionId : '',
+          ensureArray(block.conditions).length ? 'conditions: ' + ensureArray(block.conditions).join(' / ') : '',
+          String(block.original || '').trim().slice(0, 240)
+        ].filter(Boolean).join('\n'),
+        help: 'Remove or split this composite layer only after checking nested options, routes, and effects.'
+      }));
+    });
+    return fields;
+  }
+
+  function structuralField(input) {
+    const value = isObject(input) ? input : {};
+    const original = value.original === undefined ? '' : String(value.original);
+    const source = sourceRef(value.source || {});
+    return {
+      id: safeId(value.id || value.action || 'structure_action'),
+      role: String(value.role || 'structure'),
+      label: String(value.label || 'Structure action'),
+      original,
+      value: original,
+      source,
+      sourcePath: source.path || '',
+      editability: 'manual_review',
+      owner: {sceneId: String(value.sceneId || ''), sectionId: String(value.sectionId || ''), itemId: String(value.optionId || ''), kind: 'structure'},
+      sectionId: String(value.sectionId || ''),
+      optionId: String(value.optionId || ''),
+      inputType: String(value.inputType || 'text'),
+      placeholder: String(value.placeholder || ''),
+      transform: 'structure_action',
+      structureAction: String(value.action || 'structure_action'),
+      structureBefore: String(value.before || ''),
+      structureTargetLabel: String(value.targetLabel || ''),
+      confidence: 'proposal',
+      reason: String(value.help || 'Structural changes need manual review because they can affect routes, variables, and nested event flow.')
+    };
+  }
+
   function parseEffectText(text) {
     const rows = [];
-    const re = /Q\.([A-Za-z_][A-Za-z0-9_]*)\s*([+\-*/]?=)\s*([^;\n]+)/g;
-    let match;
-    while ((match = re.exec(String(text || ''))) !== null) {
-      rows.push({variable: match[1], op: match[2], value: match[3].trim()});
-    }
+    const raw = String(text || '').trim();
+    const hookMatch = raw.match(/^(on-arrival|on-display)\s*:\s*(.+)$/i);
+    const hook = hookMatch ? hookMatch[1].toLowerCase() : '';
+    const body = hookMatch ? hookMatch[2] : raw;
+    splitEffectClauses(body).forEach((clause) => {
+      const parsed = parseEffectClause(clause, hook);
+      if (parsed) {
+        rows.push(parsed);
+      }
+    });
     return rows;
   }
 
   function isEffectScriptRow(row) {
     const text = String(row && row.text || '').trim();
-    return /^Q\.[A-Za-z_][A-Za-z0-9_]*\s*(?:[+\-*/]?=)/.test(text) ||
+    return /^(?:on-arrival|on-display)\s*:/i.test(text) ||
+      /^(?:Q\.)?[A-Za-z_][A-Za-z0-9_]*\s*(?:[+\-*/]?=)/.test(text) ||
       (/(?:^|[;\s])Q\.[A-Za-z_][A-Za-z0-9_]*\s*(?:[+\-*/]?=)/.test(text) && text.includes(';'));
+  }
+
+  function splitEffectClauses(text) {
+    const clauses = [];
+    let current = '';
+    let quote = '';
+    let escaped = false;
+    String(text || '').split('').forEach((char) => {
+      if (escaped) {
+        current += char;
+        escaped = false;
+        return;
+      }
+      if (char === '\\' && quote) {
+        current += char;
+        escaped = true;
+        return;
+      }
+      if (quote) {
+        current += char;
+        if (char === quote) {
+          quote = '';
+        }
+        return;
+      }
+      if (char === '"' || char === "'") {
+        quote = char;
+        current += char;
+        return;
+      }
+      if (char === ';') {
+        if (current.trim()) {
+          clauses.push(current.trim());
+        }
+        current = '';
+        return;
+      }
+      current += char;
+    });
+    if (current.trim()) {
+      clauses.push(current.trim());
+    }
+    return clauses;
+  }
+
+  function parseEffectClause(clause, hook) {
+    const parts = splitTrailingIf(clause);
+    const match = parts.expression.match(/^(?:Q\.)?([A-Za-z_][A-Za-z0-9_]*)\s*(\+=|-=|\*=|\/=|=)\s*(.+)$/);
+    if (!match) {
+      return null;
+    }
+    const syntax = hook && !/^Q\./.test(parts.expression) ? 'dendry_shorthand' : '';
+    const variable = match[1];
+    const op = match[2];
+    const value = String(match[3] || '').trim();
+    const displayExpression = effectExpressionText(variable, op, value, parts.condition, true);
+    return {
+      variable,
+      op,
+      value,
+      condition: parts.condition,
+      hook,
+      syntax,
+      expression: displayExpression,
+      displayExpression,
+      sourceExpression: effectExpressionText(variable, op, value, parts.condition, syntax !== 'dendry_shorthand')
+    };
+  }
+
+  function splitTrailingIf(value) {
+    const text = String(value || '').trim();
+    let quote = '';
+    let escaped = false;
+    let splitAt = -1;
+    for (let index = 0; index < text.length; index += 1) {
+      const char = text.charAt(index);
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (char === '\\' && quote) {
+        escaped = true;
+        continue;
+      }
+      if (quote) {
+        if (char === quote) {
+          quote = '';
+        }
+        continue;
+      }
+      if (char === '"' || char === "'") {
+        quote = char;
+        continue;
+      }
+      if (text.slice(index, index + 4).toLowerCase() === ' if ') {
+        splitAt = index;
+      }
+    }
+    if (splitAt < 0) {
+      return {expression: text, condition: ''};
+    }
+    return {expression: text.slice(0, splitAt).trim(), condition: text.slice(splitAt + 4).trim()};
+  }
+
+  function effectExpressionText(variable, op, value, condition, qPrefix) {
+    if (!variable || !op || !value) {
+      return '';
+    }
+    return (qPrefix ? 'Q.' : '') + variable + ' ' + op + ' ' + value + (condition ? ' if ' + condition : '');
   }
 
   function buildProposal(modelInput, editedValues, options) {
@@ -660,17 +1419,7 @@
       if (String(after === undefined || after === null ? '' : after) === String(field.original || '')) {
         return null;
       }
-      return {
-        fieldId: field.id,
-        role: field.role || 'text',
-        label: field.label || roleLabel(field.role),
-        sectionId: field.sectionId || '',
-        optionId: field.optionId || '',
-        source: sourceRef(field.source || {}),
-        editability: field.editability || 'manual_review',
-        before: String(field.original || ''),
-        after: String(after === undefined || after === null ? '' : after)
-      };
+      return changeFromField(field, after);
     }).filter(Boolean);
     const changes = blockChanges.concat(fieldChanges);
     const diagnostics = [];
@@ -691,6 +1440,130 @@
       warnings: ensureArray(model.warnings),
       diagnostics
     });
+  }
+
+  function changeFromField(field, afterValue) {
+    if (String(field && field.transform || '') === 'structure_action') {
+      return structuralChangeFromField(field, afterValue);
+    }
+    const api = logicFieldsApi();
+    if (api && typeof api.changeForLogicField === 'function') {
+      const logicChange = api.changeForLogicField(field, afterValue, baseFieldChange);
+      if (logicChange) {
+        return logicChange;
+      }
+    }
+    const afterText = String(afterValue === undefined || afterValue === null ? '' : afterValue);
+    return baseFieldChange(field, String(field.original || ''), afterText);
+  }
+
+  function structuralChangeFromField(field, afterValue) {
+    const afterText = String(afterValue === undefined || afterValue === null ? '' : afterValue).trim();
+    if (!afterText || (field.inputType === 'checkbox' && !/^(1|true|yes|on)$/i.test(afterText))) {
+      return null;
+    }
+    const change = baseFieldChange(field, structuralBeforeText(field), structuralAfterText(field, afterText));
+    change.editability = 'manual_review';
+    change.operationType = 'manual_snippet';
+    return change;
+  }
+
+  function structuralBeforeText(field) {
+    const action = String(field && field.structureAction || '');
+    const explicit = String(field && field.structureBefore || '').trim();
+    if (explicit) {
+      return explicit;
+    }
+    if (action === 'add_option' || action === 'add_branch' || action === 'add_trigger_effect' || action === 'add_option_effect') {
+      return '(not present yet)';
+    }
+    return String(field && field.original || '');
+  }
+
+  function structuralAfterText(field, afterText) {
+    const action = String(field && field.structureAction || '');
+    const target = String(field && field.structureTargetLabel || field && field.optionId || field && field.sectionId || '').trim();
+    if (action === 'add_trigger_effect') {
+      return ['Add trigger effect to this object:', normalizeStructuralEffect(afterText)].join('\n');
+    }
+    if (action === 'add_option_effect') {
+      return ['Add option effect' + (target ? ' for ' + target : '') + ':', normalizeStructuralEffect(afterText)].join('\n');
+    }
+    if (action === 'add_option') {
+      return [
+        'Add option and result layer proposal:',
+        afterText,
+        '',
+        'Review the option line, target section id, result text, route target, prerequisite, unavailable text, and any effects together.'
+      ].join('\n');
+    }
+    if (action === 'add_branch') {
+      return [
+        'Add conditional or follow-up layer proposal:',
+        afterText,
+        '',
+        'Review section id, condition, ordering, nested routes, and consumed/written variables together.'
+      ].join('\n');
+    }
+    if (action === 'remove_option_condition') {
+      return 'Remove prerequisite' + (target ? ' from ' + target : '') + ' after checking unavailable text and route fallout.';
+    }
+    if (action === 'remove_option') {
+      return 'Remove option' + (target ? ': ' + target : '') + ' after checking its result section, effects, incoming references, and unavailable text.';
+    }
+    if (action === 'remove_effect') {
+      return 'Remove effect' + (target ? ' for ' + target : '') + ' after checking variable consumers and adjacent route logic.';
+    }
+    if (action === 'remove_layer') {
+      return 'Remove this composite layer after checking nested options, routes, effects, variables, and incoming references.';
+    }
+    return afterText;
+  }
+
+  function normalizeStructuralEffect(value) {
+    const text = String(value || '').trim().replace(/;+$/, '');
+    const api = logicFieldsApi();
+    if (api && typeof api.isSimpleEffectExpression === 'function' && api.isSimpleEffectExpression(text)) {
+      return text;
+    }
+    return text + '\nManual review: effect expression was not recognized as a simple Q assignment.';
+  }
+
+  function effectLabelText(effect) {
+    const api = logicFieldsApi();
+    if (api && typeof api.effectExpression === 'function') {
+      const expression = String(api.effectExpression(effect) || '').trim();
+      if (expression) {
+        return expression;
+      }
+    }
+    return String(effect && (effect.displayExpression || effect.expression || effect.sourceExpression) || '').trim();
+  }
+
+  function optionForEffect(effect, options) {
+    const sectionId = String(effect && effect.sectionId || '');
+    if (!sectionId) {
+      return null;
+    }
+    return ensureArray(options).find((option) => {
+      return String(option && option.targetId || '') === sectionId ||
+        String(option && option.rawTargetId || '') === sectionId ||
+        String(option && option.id || '') === sectionId;
+    }) || null;
+  }
+
+  function baseFieldChange(field, before, after) {
+    return {
+      fieldId: field.id,
+      role: field.role || 'text',
+      label: field.label || roleLabel(field.role),
+      sectionId: field.sectionId || '',
+      optionId: field.optionId || '',
+      source: sourceRef(field.source || {}),
+      editability: field.editability || 'manual_review',
+      before: String(before === undefined || before === null ? '' : before),
+      after: String(after === undefined || after === null ? '' : after)
+    };
   }
 
   function normalizeProposal(input) {
@@ -737,7 +1610,8 @@
     const list = ensureArray(changes);
     return list.reduce((summary, change) => {
       summary.total += 1;
-      if (String(change.role || '').includes('metadata') || ['condition'].includes(String(change.role || ''))) {
+      const role = String(change.role || '');
+      if (role.includes('metadata') || ['condition', 'route', 'effect'].includes(role)) {
         summary.metadataFields += 1;
       } else {
         summary.textFields += 1;
@@ -879,7 +1753,13 @@
       path,
       type: String(item.type || assetType(path)),
       label: String(item.label || item.name || fileName(path) || path),
-      role: String(item.role || '').trim()
+      role: String(item.role || item.directive || '').trim(),
+      source: sourceRef(item.source || {}),
+      sourceKind: String(item.sourceKind || ''),
+      editability: String(item.editability || ''),
+      confidence: String(item.confidence || ''),
+      fileExists: item.fileExists,
+      previewUrl: String(item.previewUrl || '')
     };
   }
 
@@ -907,7 +1787,10 @@
     return {
       path: String(value.path || '').trim(),
       line,
-      endLine
+      startLine: line,
+      endLine,
+      anchorText: String(value.anchorText || '').trim(),
+      endAnchorText: String(value.endAnchorText || '').trim()
     };
   }
 
@@ -935,8 +1818,11 @@
       option_subtitle: 'Option subtitle',
       unavailable_text: 'Unavailable text',
       section_text: 'Section text',
+      structure: 'Structure action',
       metadata: 'Metadata',
-      condition: 'Condition'
+      condition: 'Condition',
+      route: 'Route target',
+      effect: 'Effect'
     };
     return labels[String(role || '')] || String(role || 'Text');
   }
@@ -981,6 +1867,16 @@
       text = 'field_' + text;
     }
     return ID_RE.test(text) ? text : 'field';
+  }
+
+  function firstNonEmpty() {
+    for (let index = 0; index < arguments.length; index += 1) {
+      const value = arguments[index];
+      if (value !== undefined && value !== null && String(value).trim()) {
+        return String(value).trim();
+      }
+    }
+    return '';
   }
 
   function diagnostic(severity, code, message) {
