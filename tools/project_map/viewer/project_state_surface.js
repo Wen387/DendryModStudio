@@ -1,32 +1,51 @@
 (function initProjectMapProjectStateSurface(global) {
   'use strict';
 
+  const DEFAULT_ROW_LIMIT = 120;
+  const ROW_LIMIT_STEP = 120;
+  const rowCache = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+
   function render(model, options) {
     const opts = options && typeof options === 'object' ? options : {};
     const selected = String(opts.selected || 'object');
-    const rows = variableRows(opts.projectIndex, model);
-    const selectedVariable = selected.indexOf('variable:') === 0
-      ? rows.find((row) => row.name === selected.slice('variable:'.length))
-      : rows[0] || null;
+    const rowModel = variableRowModel(opts.projectIndex, model, {
+      selected,
+      query: opts.query || opts.variableQuery,
+      limit: opts.limit || opts.variableLimit
+    });
+    const collapsed = Boolean(opts.boardChromeCollapsed);
     return [
       '<section class="object-canvas-stage project-state-surface" data-object-canvas-stage="true" data-project-state-surface="true" data-object-canvas-workspace="project_state" aria-label="' + escapeAttr(t('projectState.surfaceAria', 'Project State Dependency Board')) + '">',
-      '<header class="object-canvas-stage-toolbar">',
+      '<header class="object-canvas-stage-toolbar project-state-toolbar' + (collapsed ? ' is-collapsed' : '') + '" data-board-stage-toolbar="true" data-board-toolbar-collapsed="' + (collapsed ? 'true' : 'false') + '">',
       '<div><div class="template-eyebrow">' + escapeHtml(t('authoring.surface.projectStateBoard', 'Project State Board')) + '</div><h3>' + escapeHtml(model.title || t('authoring.workspace.projectState', 'Project State')) + '</h3></div>',
-      '<div class="object-canvas-zoom-controls"><button type="button" data-object-canvas-action="legacy_form">' + escapeHtml(t('objectCanvas.legacyForm', 'Advanced Form')) + '</button></div>',
+      '<div class="object-canvas-zoom-controls">',
+      '<button type="button" data-object-canvas-action="project_state_new_variable">' + escapeHtml(t('projectState.addVariable', 'Add variable')) + '</button>',
+      '<button type="button" data-object-canvas-action="project_state_edit_selected">' + escapeHtml(t('projectState.editSelected', 'Edit selected')) + '</button>',
+      '<button class="danger-action" type="button" data-object-canvas-action="project_state_delete_selected">' + escapeHtml(t('projectState.deleteSelected', 'Delete selected')) + '</button>',
+      '<button type="button" data-object-canvas-action="legacy_form">' + escapeHtml(t('objectCanvas.legacyForm', 'Advanced Form')) + '</button>',
+      '</div>',
       '</header>',
       '<div class="project-state-layout">',
-      renderVariableBoard(rows, selectedVariable),
-      renderStateInspector(model, selectedVariable),
+      renderVariableBoard(rowModel),
+      renderStateInspector(model, rowModel.selectedVariable),
       '</div>',
       '</section>'
     ].join('');
   }
 
-  function renderVariableBoard(rows, selected) {
-    const items = rows.length ? rows : [emptyVariable()];
+  function renderVariableBoard(rowModel) {
+    const items = rowModel.visibleRows;
     return [
       '<section class="project-state-board" data-project-state-board="true">',
-      '<div class="template-eyebrow">' + escapeHtml(t('projectState.variables', 'Variables')) + '</div>',
+      '<div class="project-state-board-head">',
+      '<div><div class="template-eyebrow">' + escapeHtml(t('projectState.variables', 'Variables')) + '</div>',
+      '<p>' + escapeHtml(summaryLabel(rowModel)) + '</p></div>',
+      rowModel.query ? '<button type="button" data-object-canvas-action="project_state_clear_search">' + escapeHtml(t('projectState.clearSearch', 'Clear')) + '</button>' : '',
+      '</div>',
+      '<label class="project-state-search">',
+      '<span>' + escapeHtml(t('projectState.search', 'Search variables')) + '</span>',
+      '<input type="search" data-project-state-variable-search="true" value="' + escapeAttr(rowModel.query) + '" placeholder="' + escapeAttr(t('projectState.searchPlaceholder', 'name, tag, source...')) + '" autocomplete="off">',
+      '</label>',
       '<div class="project-state-table" role="table">',
       '<div class="project-state-row project-state-row-head" role="row">',
       '<span>' + escapeHtml(t('projectState.variable', 'Variable')) + '</span>',
@@ -34,8 +53,13 @@
       '<span>' + escapeHtml(t('projectState.writes', 'Writes')) + '</span>',
       '<span>' + escapeHtml(t('projectState.diagnostic', 'Diagnostic')) + '</span>',
       '</div>',
-      items.map((row) => renderVariableRow(row, selected)).join(''),
+      items.length
+        ? items.map((row) => renderVariableRow(row, rowModel.selectedVariable)).join('')
+        : '<div class="project-state-empty">' + escapeHtml(rowModel.query ? t('projectState.noMatches', 'No matching variables.') : t('projectState.noVariables', 'No variables were indexed.')) + '</div>',
       '</div>',
+      rowModel.remaining > 0
+        ? '<button class="project-state-more" type="button" data-object-canvas-action="project_state_show_more">' + escapeHtml(t('projectState.showMore', 'Show {count} more').replace('{count}', String(Math.min(ROW_LIMIT_STEP, rowModel.remaining)))) + '</button>'
+        : '',
       '</section>'
     ].join('');
   }
@@ -117,12 +141,49 @@
   function renderField(field) {
     const value = String(field && field.value !== undefined ? field.value : field && field.original || '');
     const id = field && field.id || '';
+    const inputType = String(field && (field.inputType || field.control) || '').trim();
+    if (inputType === 'checkbox') {
+      return [
+        '<label class="object-inline-field object-inline-field-checkbox">',
+        '<input type="checkbox" class="object-inline-input" data-object-canvas-field="' + escapeAttr(id) + '" data-editing-field="' + escapeAttr(id) + '"' + (isChecked(value) ? ' checked' : '') + (field && field.readOnly ? ' disabled' : '') + '>',
+        '<span>' + escapeHtml(field && field.label || id || '') + '</span>',
+        '</label>'
+      ].join('');
+    }
+    if (inputType === 'select' && Array.isArray(field && field.options)) {
+      return [
+        '<label class="object-inline-field">',
+        '<span>' + escapeHtml(field && field.label || id || '') + '</span>',
+        '<select class="object-inline-input" data-object-canvas-field="' + escapeAttr(id) + '" data-editing-field="' + escapeAttr(id) + '"' + (field && field.readOnly ? ' disabled' : '') + '>',
+        field.options.map((option) => renderOption(option, value)).join(''),
+        '</select>',
+        '</label>'
+      ].join('');
+    }
+    const multiline = inputType === 'textarea' || value.indexOf('\n') >= 0 || value.length > 88 || /description|body|text|lines/i.test(field && field.label || id);
     return [
       '<label class="object-inline-field">',
       '<span>' + escapeHtml(field && field.label || id || '') + '</span>',
-      '<input type="text" class="object-inline-input" data-object-canvas-field="' + escapeAttr(id) + '" data-editing-field="' + escapeAttr(id) + '" value="' + escapeAttr(value) + '"' + (field && field.readOnly ? ' readonly' : '') + '>',
+      multiline
+        ? '<textarea rows="' + rowsFor(value) + '" class="object-inline-input" data-object-canvas-field="' + escapeAttr(id) + '" data-editing-field="' + escapeAttr(id) + '"' + (field && field.readOnly ? ' readonly' : '') + '>' + escapeHtml(value) + '</textarea>'
+        : '<input type="text" class="object-inline-input" data-object-canvas-field="' + escapeAttr(id) + '" data-editing-field="' + escapeAttr(id) + '" value="' + escapeAttr(value) + '"' + (field && field.readOnly ? ' readonly' : '') + '>',
       '</label>'
     ].join('');
+  }
+
+  function renderOption(option, current) {
+    const value = typeof option === 'string' ? option : String(option && option.value || '');
+    const label = typeof option === 'string' ? option : String(option && (option.label || option.value) || '');
+    return '<option value="' + escapeAttr(value) + '"' + (value === current ? ' selected' : '') + '>' + escapeHtml(label) + '</option>';
+  }
+
+  function rowsFor(value) {
+    const text = String(value || '');
+    return String(Math.max(3, Math.min(8, text.split('\n').length + Math.floor(text.length / 120))));
+  }
+
+  function isChecked(value) {
+    return /^(1|true|yes|on)$/i.test(String(value || '').trim());
   }
 
   function renderActions() {
@@ -135,38 +196,150 @@
     ].join('');
   }
 
-  function variableRows(projectIndex, model) {
-    const byName = {};
+  function variableRowModel(projectIndex, model, options) {
+    const opts = options || {};
+    const base = cachedVariableRows(projectIndex);
+    const merged = mergeVariableRows(base, model);
+    const query = normalizeQuery(opts.query);
+    const selectedName = selectedVariableName(opts.selected) || draftVariableName(model);
+    const filtered = query ? merged.rows.filter((row) => row.searchTextLower.includes(query)) : merged.rows;
+    const selectedCandidate = selectedName ? merged.byName.get(selectedName) : null;
+    const selectedMatches = selectedCandidate && (!query || selectedCandidate.searchTextLower.includes(query));
+    const selectedBase = selectedMatches ? selectedCandidate : filtered[0] || (!query ? merged.rows[0] : null);
+    const limit = Math.max(1, Number(opts.limit) || DEFAULT_ROW_LIMIT);
+    const visibleBase = visibleRows(filtered, selectedBase, limit);
+    const visibleRowsWithDiagnostics = visibleBase.map(withDiagnostic);
+    const selectedVariable = selectedBase ? withDiagnostic(selectedBase) : (visibleRowsWithDiagnostics[0] || null);
+    return {
+      query,
+      totalCount: merged.rows.length,
+      matchCount: filtered.length,
+      limit,
+      remaining: Math.max(0, filtered.length - visibleBase.length),
+      visibleRows: visibleRowsWithDiagnostics,
+      selectedVariable
+    };
+  }
+
+  function cachedVariableRows(projectIndex) {
+    const index = projectIndex && typeof projectIndex === 'object' ? projectIndex : null;
+    if (index && rowCache && rowCache.has(index)) {
+      return rowCache.get(index);
+    }
+    const byName = new Map();
     ensureArray(projectIndex && projectIndex.variables).forEach((variable) => {
       const name = String(variable && variable.name || '').trim();
       if (!name) {
         return;
       }
-      byName[name] = normalizeVariable(variable);
+      byName.set(name, normalizeVariable(variable));
     });
+    const rows = Array.from(byName.values()).sort(compareVariableRows);
+    const cached = {rows, byName};
+    if (index && rowCache) {
+      rowCache.set(index, cached);
+    }
+    return cached;
+  }
+
+  function mergeVariableRows(base, model) {
+    const extras = [];
+    const byName = base && base.byName instanceof Map ? base.byName : new Map();
+    const seen = new Set(Array.from(byName.keys()));
     ensureArray(model && model.contextBoard && model.contextBoard.variables).forEach((variable) => {
       const name = String(variable && variable.name || '').trim();
-      if (name && !byName[name]) {
-        byName[name] = normalizeVariable(variable);
+      if (name && !seen.has(name)) {
+        seen.add(name);
+        extras.push(normalizeVariable(variable));
       }
     });
     const draftName = model && model.changeState && model.changeState.draft && model.changeState.draft.variableName;
-    if (draftName && !byName[draftName]) {
-      byName[draftName] = normalizeVariable({name: draftName, reads: [], writes: []});
+    if (draftName && !seen.has(String(draftName))) {
+      extras.push(normalizeVariable({name: draftName, reads: [], writes: []}));
     }
-    return Object.keys(byName).sort().map((name) => withDiagnostic(byName[name]));
+    if (!extras.length) {
+      return base;
+    }
+    const mergedByName = new Map(byName);
+    extras.forEach((row) => mergedByName.set(row.name, row));
+    return {
+      rows: (base.rows || []).concat(extras).sort(compareVariableRows),
+      byName: mergedByName
+    };
   }
 
   function normalizeVariable(variable) {
     const reads = ensureArray(variable.reads);
     const writes = ensureArray(variable.writes);
+    const tags = ensureArray(variable.tags).map(String);
+    const scope = String(variable.scope || 'q');
+    const name = String(variable.name || '').trim();
     return {
-      name: String(variable.name || ''),
+      name,
+      scope,
+      tags,
       reads,
       writes,
       readCount: Number(variable.readCount || reads.length || 0),
-      writeCount: Number(variable.writeCount || writes.length || 0)
+      writeCount: Number(variable.writeCount || writes.length || 0),
+      searchTextLower: [
+        name,
+        scope,
+        tags.join(' '),
+        sourceSearchText(reads),
+        sourceSearchText(writes)
+      ].join(' ').toLowerCase()
     };
+  }
+
+  function visibleRows(rows, selected, limit) {
+    const slice = rows.slice(0, limit);
+    if (!selected || slice.some((row) => row.name === selected.name)) {
+      return slice;
+    }
+    if (slice.length >= limit) {
+      slice.pop();
+    }
+    return [selected].concat(slice);
+  }
+
+  function selectedVariableName(selected) {
+    const value = String(selected || '');
+    return value.indexOf('variable:') === 0 ? value.slice('variable:'.length) : '';
+  }
+
+  function draftVariableName(model) {
+    const name = model && model.changeState && model.changeState.draft && model.changeState.draft.variableName;
+    return String(name || '').trim();
+  }
+
+  function summaryLabel(rowModel) {
+    const shown = String(rowModel.visibleRows.length);
+    const total = String(rowModel.totalCount);
+    if (rowModel.query) {
+      return t('projectState.summaryFiltered', '{shown} shown / {matches} matching / {total} total')
+        .replace('{shown}', shown)
+        .replace('{matches}', String(rowModel.matchCount))
+        .replace('{total}', total);
+    }
+    return t('projectState.summary', '{shown} shown / {total} total')
+      .replace('{shown}', shown)
+      .replace('{total}', total);
+  }
+
+  function normalizeQuery(value) {
+    return String(value || '').trim().toLowerCase();
+  }
+
+  function compareVariableRows(left, right) {
+    return String(left && left.name || '').localeCompare(String(right && right.name || ''));
+  }
+
+  function sourceSearchText(refs) {
+    return ensureArray(refs).slice(0, 12).map((ref) => {
+      const value = ref && typeof ref === 'object' ? ref : {};
+      return [value.path, value.line, value.text].filter(Boolean).join(' ');
+    }).join(' ');
   }
 
   function withDiagnostic(row) {
@@ -179,10 +352,6 @@
       diagnostic = t('projectState.diagnostic.readOnly', 'Read-only');
     }
     return Object.assign({}, row, {diagnostic});
-  }
-
-  function emptyVariable() {
-    return withDiagnostic({name: 'new_variable', reads: [], writes: [], readCount: 0, writeCount: 0});
   }
 
   function sourceLabel(ref) {

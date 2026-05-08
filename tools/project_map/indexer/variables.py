@@ -276,6 +276,10 @@ class VariableScanner:
             self.record_write(name, rel, line_num)
             if op != "=":
                 self.record_read(name, rel, line_num)
+        for statement in raw.split(";"):
+            condition_match = re.search(r"\bif\s+(.+)$", statement)
+            if condition_match:
+                self.extract_vars_from_condition(condition_match.group(1), rel, line_num)
         self.scan_js_text(rel, [(line_num, raw)])
 
     def scan_js_block(self, rel: str, block: list[tuple[int, str]]) -> None:

@@ -11,6 +11,7 @@
       title: 'Variable Editor',
       addNew: 'Add new variable',
       editExisting: 'Edit existing variable',
+      deleteExisting: 'Delete existing variable',
       name: 'Variable',
       label: 'Label',
       initial: 'Initial value',
@@ -24,14 +25,17 @@
       safety: 'Safety:',
       safetyRoot: '- New variable initialization can be inserted only after the root anchor still matches.',
       safetyExisting: '- Existing variables are shown with source references; editing game logic still needs review.',
+      safetyDelete: '- Variable deletion is manual-review only; every read, write, and definition must be checked first.',
       safetyQuality: '- Quality files are generated for manual review because project conventions vary.',
       manualExisting: 'Review this existing variable before changing initialization or quality metadata.',
+      manualDelete: 'Review every source-backed definition and consumer before deleting this variable.',
       noop: 'No variable change was generated.'
     },
     'zh-Hant': {
       title: '變數編輯器',
       addNew: '新增變數',
       editExisting: '編輯既有變數',
+      deleteExisting: '刪除既有變數',
       name: '變數',
       label: '標籤',
       initial: '初始值',
@@ -45,8 +49,10 @@
       safety: '安全性：',
       safetyRoot: '- 新變數初始化只有在 root anchor 仍可精確比對時才會插入。',
       safetyExisting: '- 既有變數會顯示 source 參照；修改遊戲邏輯仍需要審查。',
+      safetyDelete: '- 刪除變數只會產生手動審查；必須先檢查所有讀取、寫入與定義。',
       safetyQuality: '- quality 檔因專案慣例差異，先產生為手動審查內容。',
       manualExisting: '修改初始化或 quality metadata 前，請先審查這個既有變數。',
+      manualDelete: '刪除這個變數前，請先審查所有 source-backed 定義與消費處。',
       noop: '沒有產生變數變更。'
     }
   };
@@ -89,6 +95,26 @@
     };
   }
 
+  function buildVariableConsumerModel(projectIndex) {
+    const index = isObject(projectIndex) ? projectIndex : {};
+    const model = buildVariableModel(index);
+    const lookup = buildConsumerLookup(index);
+    const variables = model.variables.map((variable) => {
+      const consumers = variableConsumers(variable, lookup);
+      return Object.assign({}, variable, {
+        consumers,
+        consumerSummary: summarizeConsumers(consumers)
+      });
+    });
+    return {
+      schemaVersion: VARIABLE_EDITOR_VERSION,
+      kind: 'variable_consumer_model',
+      project: model.project,
+      variables,
+      variableNames: variables.map((item) => item.name)
+    };
+  }
+
   function normalizeVariable(variable) {
     const value = isObject(variable) ? variable : {};
     return {
@@ -113,21 +139,125 @@
     };
   }
 
+  function buildConsumerLookup(index) {
+    const semantic = isObject(index.semantic) ? index.semantic : {};
+    const scenes = ensureArray(index.scenes);
+    const events = new Set(ensureArray(semantic.events).map((item) => String(item && item.id || '')).filter(Boolean));
+    const cards = new Set(ensureArray(semantic.cards).map((item) => String(item && item.id || '')).filter(Boolean));
+    const scenesByPath = new Map();
+    scenes.forEach((scene) => {
+      const path = normalizePath(scene && (scene.path || scene.sourcePath || scene.sourceSpan && scene.sourceSpan.path) || '');
+      if (path) {
+        scenesByPath.set(path, scene);
+      }
+    });
+    return {index, semantic, scenesByPath, events, cards};
+  }
+
+  function variableConsumers(variable, lookup) {
+    const rows = [];
+    ensureArray(variable.definedIn).forEach((ref) => rows.push(consumerRow(variable, ref, 'definition', lookup)));
+    ensureArray(variable.reads).forEach((ref) => rows.push(consumerRow(variable, ref, 'read', lookup)));
+    ensureArray(variable.writes).forEach((ref) => rows.push(consumerRow(variable, ref, 'write', lookup)));
+    return rows
+      .filter((row) => row.source.path)
+      .sort((left, right) => {
+        return compareText(left.source.path, right.source.path) ||
+          compareNumber(left.source.line || 0, right.source.line || 0) ||
+          compareText(left.accessType, right.accessType);
+      });
+  }
+
+  function consumerRow(variable, ref, accessType, lookup) {
+    const source = normalizeSourceRef(ref);
+    const scene = lookup.scenesByPath.get(normalizePath(source.path)) || null;
+    const sceneId = String(scene && scene.id || '');
+    const area = variableAreaForSource(source.path, scene, sceneId, lookup);
+    return {
+      variableName: variable.name,
+      accessType,
+      area,
+      source,
+      owner: {
+        kind: area,
+        sceneId,
+        title: String(scene && (scene.title || scene.id) || ''),
+        path: source.path
+      },
+      label: consumerLabel(area, accessType, scene, source)
+    };
+  }
+
+  function variableAreaForSource(path, scene, sceneId, lookup) {
+    const rel = normalizePath(path);
+    if (rel === 'source/info.dry' || rel === 'source/scenes/root.scene.dry' || rel.startsWith('source/qdisplays/') || rel.startsWith('source/scenes/status')) {
+      return 'system_ui';
+    }
+    if (rel === 'source/scenes/post_event.scene.dry' || rel === 'source/scenes/post_event_news.scene.dry' || rel.includes('/post_event')) {
+      return 'news_router';
+    }
+    if (sceneId && lookup.cards.has(sceneId)) {
+      return 'card';
+    }
+    if (sceneId && lookup.events.has(sceneId)) {
+      return 'event';
+    }
+    const tags = ensureArray(scene && scene.tags).map(String);
+    if (tags.includes('card') || tags.includes('advisor') || tags.includes('deck') || rel.includes('/cards/') || rel.includes('/advisors/')) {
+      return 'card';
+    }
+    if (rel.startsWith('source/scenes/')) {
+      return 'event';
+    }
+    return 'source';
+  }
+
+  function consumerLabel(area, accessType, scene, source) {
+    const owner = scene && (scene.title || scene.id) || source.path || area;
+    return accessType + ' in ' + owner;
+  }
+
+  function summarizeConsumers(consumers) {
+    const byArea = {};
+    const byAccess = {};
+    ensureArray(consumers).forEach((row) => {
+      byArea[row.area] = (byArea[row.area] || 0) + 1;
+      byAccess[row.accessType] = (byAccess[row.accessType] || 0) + 1;
+    });
+    return {
+      total: ensureArray(consumers).length,
+      byArea,
+      byAccess
+    };
+  }
+
+  function normalizePath(path) {
+    return String(path || '').replace(/\\/g, '/').replace(/^\.\//, '').trim();
+  }
+
+  function compareText(left, right) {
+    return String(left || '').localeCompare(String(right || ''));
+  }
+
+  function compareNumber(left, right) {
+    return Number(left || 0) - Number(right || 0);
+  }
+
   function defaultDraft(projectIndex) {
     const model = buildVariableModel(projectIndex);
-    const first = model.variables[0] || null;
+    const variableName = uniqueVariableName(projectIndex, 'new_variable');
     return normalizeDraft({
-      id: first ? 'edit_' + safeId(first.name) : 'new_variable',
-      title: first ? 'Edit ' + first.name : 'New Variable',
-      mode: first ? 'edit_existing' : 'add_new',
-      variableName: first ? first.name : 'new_variable',
-      label: first ? labelFromName(first.name) : 'New Variable',
+      id: variableName,
+      title: 'New Variable',
+      mode: 'add_new',
+      variableName,
+      label: labelFromName(variableName),
       initialValue: '0',
       valueType: 'number',
       description: '',
-      includeRootInit: !first,
+      includeRootInit: true,
       includePostEventInit: false,
-      includeQualityFile: !first,
+      includeQualityFile: true,
       evidence: model
     });
   }
@@ -150,21 +280,40 @@
     });
   }
 
+  function deleteDraftFromVariable(variable, projectIndex) {
+    const item = normalizeVariable(variable || {});
+    return normalizeDraft({
+      id: item.name ? 'delete_' + safeId(item.name) : 'delete_variable',
+      title: item.name ? 'Delete ' + item.name : 'Delete Variable',
+      mode: 'delete_existing',
+      variableName: item.name,
+      label: labelFromName(item.name),
+      initialValue: '',
+      valueType: 'number',
+      description: '',
+      includeRootInit: false,
+      includePostEventInit: false,
+      includeQualityFile: false,
+      evidence: buildVariableModel(projectIndex)
+    });
+  }
+
   function normalizeDraft(input) {
     const draft = isObject(input) ? clone(input) : {};
     draft.schemaVersion = String(draft.schemaVersion || VARIABLE_EDITOR_VERSION);
     draft.kind = VARIABLE_EDITOR_KIND;
     draft.id = safeId(draft.id || draft.variableName || 'variable_editor');
     draft.title = singleLine(draft.title || 'Variable Editor');
-    draft.mode = draft.mode === 'edit_existing' ? 'edit_existing' : 'add_new';
+    const mode = String(draft.mode || '').trim();
+    draft.mode = mode === 'delete_existing' ? 'delete_existing' : mode === 'edit_existing' ? 'edit_existing' : 'add_new';
     draft.variableName = safeVariableName(draft.variableName || draft.name || 'new_variable');
     draft.label = singleLine(draft.label || labelFromName(draft.variableName));
     draft.initialValue = singleLine(draft.initialValue === undefined ? draft.value : draft.initialValue);
     draft.valueType = VALUE_TYPES.has(String(draft.valueType || 'number')) ? String(draft.valueType || 'number') : 'number';
     draft.description = String(draft.description || '').trim();
-    draft.includeRootInit = draft.includeRootInit !== false;
-    draft.includePostEventInit = draft.includePostEventInit === true;
-    draft.includeQualityFile = draft.includeQualityFile !== false;
+    draft.includeRootInit = draft.mode === 'delete_existing' ? false : draft.includeRootInit !== false;
+    draft.includePostEventInit = draft.mode === 'delete_existing' ? false : draft.includePostEventInit === true;
+    draft.includeQualityFile = draft.mode === 'delete_existing' ? false : draft.includeQualityFile !== false;
     draft.evidence = isObject(draft.evidence) ? draft.evidence : {};
     return draft;
   }
@@ -182,10 +331,13 @@
       diagnostic(diagnostics, 'error', 'variable_editor.value', 'Number variables need a numeric initial value.');
     }
     if (draft.mode === 'add_new' && findVariable(projectIndex, draft.variableName)) {
-      diagnostic(diagnostics, 'warning', 'variable_editor.duplicate', 'A ProjectIndex variable with this name already exists.');
+      diagnostic(diagnostics, 'error', 'variable_editor.duplicate', 'Add-new mode cannot target an existing ProjectIndex variable. Switch to edit existing or choose a new variable name.');
     }
     if (draft.mode === 'edit_existing' && !findVariable(projectIndex, draft.variableName)) {
       diagnostic(diagnostics, 'warning', 'variable_editor.missing_existing', 'This variable was not found in the current ProjectIndex.');
+    }
+    if (draft.mode === 'delete_existing' && !findVariable(projectIndex, draft.variableName)) {
+      diagnostic(diagnostics, 'warning', 'variable_editor.missing_delete_target', 'This variable was not found in the current ProjectIndex.');
     }
     return {ok: diagnostics.every((item) => item.severity !== 'error'), draft, diagnostics};
   }
@@ -279,6 +431,17 @@
           description: 'Review and add this quality file if the project tracks this variable as a Dendry quality.'
         });
       }
+    } else if (draft.mode === 'delete_existing') {
+      const existing = findVariable(projectIndex, draft.variableName);
+      operations.push({
+        id: 'variable_delete_review',
+        type: 'manual_snippet',
+        path: existingSourcePath(existing) || 'source/scenes/root.scene.dry',
+        content: deleteVariableNotes(draft, existing, projectIndex),
+        safety: 'manual_review',
+        role: 'variable.delete_review',
+        description: 'Review every variable definition and consumer before deleting this Q variable.'
+      });
     } else {
       const existing = findVariable(projectIndex, draft.variableName);
       operations.push({
@@ -321,7 +484,7 @@
       text(options, 'initial') + ': ' + displayInitialValue(draft),
       text(options, 'description') + ': ' + (draft.description || '-'),
       '',
-      draft.mode === 'add_new' ? text(options, 'addNew') : text(options, 'editExisting')
+      modeLabel(draft, options)
     ];
     if (existing) {
       rows.push('reads: ' + existing.readCount + ' / writes: ' + existing.writeCount);
@@ -350,8 +513,16 @@
       text(options, 'safety'),
       text(options, 'safetyRoot'),
       text(options, 'safetyExisting'),
+      text(options, 'safetyDelete'),
       text(options, 'safetyQuality')
     ].join('\n') + '\n';
+  }
+
+  function modeLabel(draft, options) {
+    if (draft.mode === 'delete_existing') {
+      return text(options, 'deleteExisting');
+    }
+    return draft.mode === 'add_new' ? text(options, 'addNew') : text(options, 'editExisting');
   }
 
   function renderQualityFile(input) {
@@ -385,6 +556,47 @@
       });
     }
     return rows.join('\n') + '\n';
+  }
+
+  function deleteVariableNotes(draft, existing, projectIndex) {
+    const rows = [
+      text(optionsFromLocale(), 'manualDelete'),
+      '',
+      'Q.' + draft.variableName,
+      draft.label ? 'label: ' + draft.label : '',
+      '',
+      'Checklist:',
+      '- Remove or replace the definition only after every reader has a fallback.',
+      '- Remove writes only after every route and effect has been reviewed.',
+      '- Remove quality metadata only if the project tracks this variable as a quality.',
+      ''
+    ].filter(Boolean);
+    if (existing) {
+      rows.push('Definitions and writes:');
+      ensureArray(existing.definedIn).concat(ensureArray(existing.writes)).slice(0, 12).forEach((source) => {
+        rows.push('- ' + sourceLabel(source));
+      });
+      rows.push('', 'Reads:');
+      ensureArray(existing.reads).slice(0, 12).forEach((source) => {
+        rows.push('- ' + sourceLabel(source));
+      });
+      const consumers = variableConsumerRows(existing, projectIndex);
+      if (consumers.length) {
+        rows.push('', 'Consumer map:');
+        consumers.slice(0, 12).forEach((consumer) => {
+          rows.push('- ' + consumer.accessType + ' / ' + consumer.area + ' / ' + sourceLabel(consumer.source));
+        });
+      }
+    } else {
+      rows.push('No source-backed definition was found in the current ProjectIndex.');
+    }
+    return rows.join('\n') + '\n';
+  }
+
+  function variableConsumerRows(variable, projectIndex) {
+    const model = buildVariableConsumerModel(projectIndex);
+    const row = ensureArray(model.variables).find((item) => item.name === variable.name);
+    return ensureArray(row && row.consumers);
   }
 
   function findVariable(projectIndex, name) {
@@ -470,6 +682,21 @@
     return textValue;
   }
 
+  function uniqueVariableName(projectIndex, baseName) {
+    const base = safeVariableName(baseName || 'new_variable');
+    const existing = new Set(buildVariableModel(projectIndex).variables.map((item) => item.name));
+    if (!existing.has(base)) {
+      return base;
+    }
+    let index = 2;
+    let next = base + '_' + index;
+    while (existing.has(next)) {
+      index += 1;
+      next = base + '_' + index;
+    }
+    return next;
+  }
+
   function labelFromName(name) {
     return String(name || 'New Variable')
       .replace(/^q_/, '')
@@ -509,8 +736,11 @@
     VARIABLE_EDITOR_VERSION,
     VARIABLE_EDITOR_KIND,
     buildVariableModel,
+    buildVariableConsumerModel,
     defaultDraft,
+    uniqueVariableName,
     draftFromVariable,
+    deleteDraftFromVariable,
     normalizeDraft,
     validateDraft,
     buildExportBundle,

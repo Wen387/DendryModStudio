@@ -9,6 +9,7 @@ const {readViewerI18n, readExploreBundle} = require('./check_viewer_assets.js');
 const ROOT = __dirname;
 const variableDraft = require('./authoring/variable_editor_draft.js');
 const installPlan = require('./authoring/install_plan.js');
+const projectStateSurface = require('./viewer/project_state_surface.js');
 
 function fail(message) {
   process.stderr.write('FAIL: ' + message + '\n');
@@ -66,6 +67,17 @@ const index = syntheticIndex(tmpRoot);
 const model = variableDraft.buildVariableModel(index);
 assert(model.kind === 'variable_editor_model', 'variable model should build from ProjectIndex');
 assert(model.variables.length === 1 && model.variables[0].name === 'demo_resources', 'variable model should expose indexed variables');
+const consumerModel = variableDraft.buildVariableConsumerModel(index);
+assert(consumerModel.kind === 'variable_consumer_model', 'variable consumer model should build from ProjectIndex');
+const consumerRow = consumerModel.variables.find((item) => item.name === 'demo_resources');
+assert(consumerRow && consumerRow.consumers.length === 3, 'variable consumer model should expose read/write/definition consumers');
+assert(consumerRow.consumerSummary.byArea.system_ui === 2, 'root definition/write should be classified as System UI consumers');
+assert(consumerRow.consumerSummary.byArea.card === 1, 'card read should be classified as a card consumer');
+const defaultAddDraft = variableDraft.defaultDraft(index);
+assert(defaultAddDraft.mode === 'add_new', 'default variable draft should create a new variable instead of editing the first indexed variable');
+assert(defaultAddDraft.variableName === 'new_variable', 'default variable draft should not target the first indexed variable');
+const uniqueDefaultDraft = variableDraft.defaultDraft(Object.assign({}, index, {variables: index.variables.concat([{name: 'new_variable'}])}));
+assert(uniqueDefaultDraft.variableName === 'new_variable_2', 'default variable draft should avoid an existing new_variable name');
 
 const editDraft = variableDraft.draftFromVariable(index.variables[0], index);
 const editBundle = variableDraft.buildExportBundle(editDraft, index, {locale: 'en'});
@@ -73,6 +85,15 @@ assert(editBundle.ok, 'existing variable draft should validate: ' + JSON.stringi
 assert(editBundle.installPlan.operations.length === 1, 'existing variables should stay manual-review by default');
 assert(editBundle.installPlan.operations[0].safety === 'manual_review', 'existing variable edits should not auto-apply source logic');
 assert(editBundle.playerPreview.includes('Q.demo_resources'), 'existing variable preview should show the selected Q variable');
+
+const deleteDraft = variableDraft.deleteDraftFromVariable(index.variables[0], index);
+const deleteBundle = variableDraft.buildExportBundle(deleteDraft, index, {locale: 'en'});
+assert(deleteDraft.mode === 'delete_existing', 'delete draft should use delete_existing mode');
+assert(deleteBundle.installPlan.operations.length === 1, 'delete variables should produce a single review operation');
+assert(deleteBundle.installPlan.operations[0].id === 'variable_delete_review', 'delete variables should produce a deletion review operation');
+assert(deleteBundle.installPlan.operations[0].safety === 'manual_review', 'variable deletion should not auto-apply source changes');
+assert(deleteBundle.installPlan.operations[0].content.includes('Consumer map'), 'variable delete review should include consumer evidence');
+assert(deleteBundle.playerPreview.includes('Delete existing variable'), 'delete preview should label the destructive mode');
 
 const addDraft = variableDraft.normalizeDraft({
   id: 'add_campaign_energy',
@@ -93,6 +114,13 @@ assert(addBundle.qualityFile.includes('name: Campaign Energy'), 'quality file sh
 assert(addBundle.installPlan.operations.some((op) => op.id === 'variable_root_init' && op.safety === 'guarded_apply'), 'new variables should generate a guarded root init');
 assert(addBundle.installPlan.operations.some((op) => op.id === 'variable_quality_file' && op.safety === 'manual_review'), 'quality files should remain manual review');
 assert(!/[\u3400-\u9fff]/.test(addBundle.playerPreview), 'English variable preview should not contain CJK text');
+const duplicateAdd = variableDraft.buildExportBundle(Object.assign({}, addDraft, {
+  id: 'add_demo_resources_again',
+  variableName: 'demo_resources'
+}), index, {locale: 'en'});
+assert(!duplicateAdd.ok, 'add-new should fail when the variable already exists');
+assert(duplicateAdd.diagnostics.some((diag) => diag.code === 'variable_editor.duplicate' && diag.severity === 'error'), 'duplicate add-new variable should be a blocking diagnostic');
+assert(!duplicateAdd.installPlan.operations.some((op) => op.id === 'variable_root_init' && op.safety === 'guarded_apply'), 'duplicate add-new variable should not generate a guarded root init');
 
 const dryRun = installPlan.applyInstallPlan(addBundle.installPlan, {projectRoot: tmpRoot, dryRun: true});
 assert(dryRun.ok && dryRun.results.some((item) => item.id === 'variable_root_init' && item.status === 'would_apply'), 'guarded root init should dry-run cleanly: ' + JSON.stringify(dryRun));
@@ -108,9 +136,43 @@ const app = readExploreBundle(path.join(ROOT, 'viewer'));
 assert(authoringWorkspaceUi.includes("key: 'variables'"), 'Create template switch should include Variables');
 assert(html.includes('id="variable-editor-name"'), 'Variable Editor should expose a variable selector/input');
 assert(html.includes('id="variable-editor-root-init"'), 'Variable Editor should expose a root init toggle');
+assert(html.includes('value="delete_existing"'), 'Variable Editor should expose a delete-existing mode');
 assert(i18n.includes("'create.preview': 'Player preview'"), 'English player preview label should be localized and title-cased');
 assert(i18n.includes("'create.variables'"), 'Variables Create tab should be localized');
+assert(i18n.includes("'create.option.deleteExisting'"), 'Delete variable mode should be localized');
+assert(i18n.includes("'variableEditor.evidence.consumers'"), 'Variable consumer evidence should be localized');
 assert(app.includes('data-edit-variable'), 'Explore variable inspector should offer an edit action');
+const variableSurfaceHtml = projectStateSurface.render({
+  title: 'Variables',
+  contextBoard: {variables: []},
+  changeState: {draft: addDraft},
+  eventBody: {
+    title: {id: 'variables.title', label: 'Draft title', value: addDraft.title},
+    heading: {id: 'variables.label', label: 'Label', value: addDraft.label},
+    sections: [{id: 'variables.description', label: 'Description', value: addDraft.description}],
+    metaFields: [
+      {id: 'variables.mode', label: 'Mode', value: addDraft.mode, inputType: 'select', options: ['add_new', 'edit_existing', 'delete_existing']},
+      {id: 'variables.includeRootInit', label: 'Root init', value: addDraft.includeRootInit, inputType: 'checkbox'}
+    ]
+  }
+}, {projectIndex: index, selected: 'variable:demo_resources'});
+assert(variableSurfaceHtml.includes('data-object-canvas-action="project_state_new_variable"'), 'Project State surface should expose Add Variable');
+assert(variableSurfaceHtml.includes('data-object-canvas-action="project_state_edit_selected"'), 'Project State surface should expose Edit Selected');
+assert(variableSurfaceHtml.includes('data-object-canvas-action="project_state_delete_selected"'), 'Project State surface should expose Delete Selected');
+assert(variableSurfaceHtml.includes('delete_existing'), 'Project State variable editor should expose delete mode');
+assert(variableSurfaceHtml.includes('type="checkbox"'), 'Project State variable editor should render boolean toggles as checkboxes');
+const draftSelectedSurfaceHtml = projectStateSurface.render({
+  title: 'Variables',
+  contextBoard: {variables: []},
+  changeState: {draft: addDraft},
+  eventBody: {
+    title: {id: 'variables.title', label: 'Draft title', value: addDraft.title},
+    heading: {id: 'variables.label', label: 'Label', value: addDraft.label},
+    sections: [],
+    metaFields: []
+  }
+}, {projectIndex: index, selected: 'object'});
+assert(draftSelectedSurfaceHtml.includes('class="project-state-row is-selected" data-object-canvas-graph-node="variable:campaign_energy"'), 'Project State surface should select the add-new draft variable instead of the first indexed variable');
 
 fs.rmSync(tmpRoot, {recursive: true, force: true});
 

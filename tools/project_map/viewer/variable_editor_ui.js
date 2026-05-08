@@ -8,10 +8,15 @@
     'ProjectMapIndexLoaded',
     'project-map:model-loaded'
   ];
+  const VARIABLE_OPTION_LIMIT = 260;
 
   const state = {
     projectIndex: null,
     variableModel: null,
+    variableConsumerModel: null,
+    variableByName: new Map(),
+    variableOptionBase: [],
+    variableOptionsKey: '',
     lastDraft: null,
     lastOutput: null
   };
@@ -214,6 +219,12 @@
     state.variableModel = core && typeof core.buildVariableModel === 'function'
       ? core.buildVariableModel(state.projectIndex)
       : null;
+    state.variableConsumerModel = core && typeof core.buildVariableConsumerModel === 'function'
+      ? core.buildVariableConsumerModel(state.projectIndex)
+      : null;
+    state.variableByName = buildVariableByName(state.variableModel);
+    state.variableOptionBase = buildVariableOptionBase(state.variableModel);
+    state.variableOptionsKey = '';
     renderVariableOptions();
     if (!elements) {
       return;
@@ -272,12 +283,13 @@
   }
 
   function draftFromForm() {
+    const modeValue = fieldValue('variable-editor-mode');
     return {
       schemaVersion: '0.1',
       kind: 'variable_editor',
       id: normalizeIdentifier(fieldValue('variable-editor-id'), 'variable_editor'),
       title: fieldValue('variable-editor-title') || t('create.sample.variableEditorTitle', 'Variable Editor Update'),
-      mode: fieldValue('variable-editor-mode') === 'edit_existing' ? 'edit_existing' : 'add_new',
+      mode: modeValue === 'delete_existing' ? 'delete_existing' : modeValue === 'edit_existing' ? 'edit_existing' : 'add_new',
       variableName: normalizeVariableName(fieldValue('variable-editor-name') || 'new_variable'),
       label: fieldValue('variable-editor-label'),
       initialValue: fieldValue('variable-editor-initial'),
@@ -337,8 +349,19 @@
     if (!elements || !elements.nameOptions) {
       return;
     }
-    const model = state.variableModel || {};
-    const variables = Array.isArray(model.variables) ? model.variables : [];
+    const selectedName = fieldValue('variable-editor-name');
+    const variables = variableOptionsFor(selectedName);
+    const key = [
+      state.variableOptionBase.length,
+      state.variableByName.size,
+      selectedName,
+      variables.length && variables[0].name || '',
+      variables.length && variables[variables.length - 1].name || ''
+    ].join('::');
+    if (state.variableOptionsKey === key) {
+      return;
+    }
+    state.variableOptionsKey = key;
     elements.nameOptions.innerHTML = variables.map((item) => {
       return '<option value="' + escapeAttr(item.name) + '">' + escapeHtml(item.name) + '</option>';
     }).join('');
@@ -346,7 +369,7 @@
 
   function seedFromSelectedVariable() {
     const draft = draftFromForm();
-    if (draft.mode !== 'edit_existing') {
+    if (draft.mode !== 'edit_existing' && draft.mode !== 'delete_existing') {
       return;
     }
     const variable = selectedVariable(draft.variableName);
@@ -383,9 +406,35 @@
       evidenceRow('ready', t('variableEditor.evidence.counts', 'Usage'), readWrite, variable.confidence || ''),
       evidenceRow(defined ? 'ready' : 'warning', t('variableEditor.evidence.defined', 'Definition'), defined ? sourceLabel(defined) : t('variableEditor.evidence.noSource', 'No source-backed definition.'), ''),
       evidenceRow(variable.reads.length ? 'ready' : 'warning', t('variableEditor.evidence.readRefs', 'Read refs'), sourceList(variable.reads), ''),
-      evidenceRow(variable.writes.length ? 'ready' : 'warning', t('variableEditor.evidence.writeRefs', 'Write refs'), sourceList(variable.writes), '')
+      evidenceRow(variable.writes.length ? 'ready' : 'warning', t('variableEditor.evidence.writeRefs', 'Write refs'), sourceList(variable.writes), ''),
+      evidenceRow('ready', t('variableEditor.evidence.consumers', 'Consumers'), consumerSummary(variable.name), consumerList(variable.name))
     ];
     elements.evidence.innerHTML = rows.join('');
+  }
+
+  function consumerSummary(variableName) {
+    const row = variableConsumer(variableName);
+    const summary = row && row.consumerSummary || {};
+    const byArea = summary.byArea || {};
+    const parts = Object.keys(byArea).sort().map((key) => key + ' ' + byArea[key]);
+    return parts.join(', ') || t('variableEditor.evidence.noConsumers', 'No consumers found.');
+  }
+
+  function consumerList(variableName) {
+    const row = variableConsumer(variableName);
+    const consumers = row && Array.isArray(row.consumers) ? row.consumers : [];
+    return consumers.slice(0, 8).map((item) => {
+      const source = item.source || {};
+      return item.accessType + ' / ' + item.area + ' / ' + sourceLabel(source);
+    }).join(' | ') || '';
+  }
+
+  function variableConsumer(variableName) {
+    const target = String(variableName || '');
+    const rows = state.variableConsumerModel && Array.isArray(state.variableConsumerModel.variables)
+      ? state.variableConsumerModel.variables
+      : [];
+    return rows.find((item) => item.name === target) || null;
   }
 
   function renderDiagnostics(diagnostics) {
@@ -435,9 +484,41 @@
   }
 
   function selectedVariable(name) {
-    const model = state.variableModel || {};
-    const variables = Array.isArray(model.variables) ? model.variables : [];
-    return variables.find((item) => item.name === name) || null;
+    return state.variableByName && typeof state.variableByName.get === 'function'
+      ? state.variableByName.get(name) || null
+      : null;
+  }
+
+  function buildVariableByName(model) {
+    const variables = Array.isArray(model && model.variables) ? model.variables : [];
+    const byName = new Map();
+    variables.forEach((item) => {
+      if (item && item.name) {
+        byName.set(item.name, item);
+      }
+    });
+    return byName;
+  }
+
+  function buildVariableOptionBase(model) {
+    const variables = Array.isArray(model && model.variables) ? model.variables : [];
+    return variables.slice().sort((left, right) => {
+      const leftUsage = Number(left && left.readCount || 0) + Number(left && left.writeCount || 0);
+      const rightUsage = Number(right && right.readCount || 0) + Number(right && right.writeCount || 0);
+      if (leftUsage !== rightUsage) {
+        return rightUsage - leftUsage;
+      }
+      return String(left && left.name || '').localeCompare(String(right && right.name || ''));
+    }).slice(0, VARIABLE_OPTION_LIMIT);
+  }
+
+  function variableOptionsFor(selectedName) {
+    const options = state.variableOptionBase.slice();
+    const selected = selectedVariable(selectedName);
+    if (selected && !options.some((item) => item.name === selected.name)) {
+      options.unshift(selected);
+    }
+    return options;
   }
 
   function firstSource(items) {
