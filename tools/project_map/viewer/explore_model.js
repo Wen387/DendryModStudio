@@ -149,6 +149,20 @@
     return null;
   }
 
+  function visibleObjectCoverageApi() {
+    if (global && global.ProjectMapVisibleObjectCoverage) {
+      return global.ProjectMapVisibleObjectCoverage;
+    }
+    if (typeof module !== 'undefined' && module.exports && typeof require === 'function') {
+      try {
+        return require('../authoring/visible_object_coverage_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   function viewLabel(view) {
     const def = VIEW_DEFS[view];
     return def ? t(def.i18nKey || '', def.label) : view;
@@ -301,6 +315,7 @@
     const hands = ensureArray(semantic.hands);
     const pinned = ensureArray(semantic.pinnedCards);
     const scenes = ensureArray(index && index.scenes);
+    const visibleCoverage = visibleObjectCoverageReport(index);
     return [
       {
         id: 'find_and_compare',
@@ -435,6 +450,7 @@
         studioPath: 'Explore or Design -> select item -> Edit Text Proposal.',
         workflowSteps: ['Select existing content', 'Click Edit Text Proposal', 'Change replacement text in Create', 'Use source ref and install notes to edit manually']
       },
+      visibleObjectCoverageRow(visibleCoverage),
       {
         id: 'hands_sidebar',
         label: 'Hands / Sidebar Wiring',
@@ -510,6 +526,71 @@
         workflowSteps: ['Open Assets view', 'Copy/reference asset path', 'Review missing asset diagnostics', 'Install asset files manually']
       }
     ];
+  }
+
+  function visibleObjectCoverageReport(index) {
+    const api = visibleObjectCoverageApi();
+    if (api && typeof api.buildCoverageReport === 'function') {
+      try {
+        const semantic = index && index.semantic || {};
+        const textCorpusCount = ensureArray(semantic.textCorpus && semantic.textCorpus.items).length;
+        const largeProjectOptions = textCorpusCount > 2000
+          ? {includeVariables: false, includeStructuredLogic: false}
+          : {};
+        return api.buildCoverageReport(index || {}, largeProjectOptions);
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function visibleObjectCoverageRow(report) {
+    const summary = report && report.summary || {};
+    const goalW = summary.goalW || {};
+    const safeCoverage = percentLabel(goalW.safeEditCoverage);
+    const routeCoverage = percentLabel(summary.routeCoverage);
+    const previewCoverage = percentLabel(goalW.previewCoverage);
+    const structuredCoverage = percentLabel(summary.structuredLogicCoverage);
+    const passesGoalW = goalW.passes70 !== false;
+    return {
+      id: 'visible_object_editor',
+      label: 'Visible Object Editor',
+      count: summary.total || 0,
+      coverageLevel: passesGoalW ? 'mixed' : 'guided_only',
+      coverageLabel: passesGoalW ? 'Goal W 70% met' : 'Goal W needs work',
+      releasePriority: 'must-have',
+      noCodeCompletion: passesGoalW ? 'mostly' : 'partial',
+      authoringStatus: 'coverage report for visible event/card/news/text editing routes',
+      installStatus: 'guarded where source-backed; manual boundaries remain explicit',
+      safeApplyCount: summary.safeEditable || 0,
+      manualReviewCount: summary.manualBoundaryCount || 0,
+      unsupportedCount: summary.unsupportedCount || 0,
+      userCanDo: 'Check whether visible objects can be routed, previewed, edited, or sent to manual review before planning parser work.',
+      remainingGap: 'Goal W focuses on player-visible text. Goal X still needs structured conditions, routes, effects, variables, and System UI consumers.',
+      nextAction: 'Use this row as the coverage denominator before improving parser routes or graphical editor entry points.',
+      studioPath: 'Coverage Map -> Visible Object Editor; Storyboard/Card Board/Explore -> open object editor.',
+      workflowSteps: [
+        'Build visible object coverage report',
+        'Check route, safe edit, preview, and manual-boundary counts',
+        'Open object editor for supported rows',
+        'Escalate complex logic to Goal X'
+      ],
+      coverageMetrics: {
+        routeCoverage,
+        goalWSafeEditCoverage: safeCoverage,
+        goalWPreviewCoverage: previewCoverage,
+        structuredLogicCoverage: structuredCoverage
+      }
+    };
+  }
+
+  function percentLabel(value) {
+    const num = Number(value);
+    if (!Number.isFinite(num)) {
+      return '0%';
+    }
+    return Math.round(num * 100) + '%';
   }
 
   function coverageField(row, field) {
@@ -632,6 +713,7 @@
       edgesByTo,
       variablesByName,
       variableAccessesByPath: buildVariableAccessesByPath(variables),
+      textCorpusContextIndex: buildTextCorpusContextIndex(textCorpus),
       normalizedRowsByView: new Map(),
       sortedRowsByView: new Map(),
       diagnosticsByScene,
@@ -872,7 +954,6 @@
     if (view === 'textCorpus') {
       const source = firstSource(item);
       const owner = item.owner || {};
-      const capability = editCapabilityForModel(model, view, item);
       return {
         key: 'textCorpus:' + (item.id || index),
         primary: item.text || '(empty text)',
@@ -880,7 +961,6 @@
         meta: sourceLabel(source),
         badges: [
           {text: item.role || 'text', className: ''},
-          capability ? {text: editCapabilityRouteLabel(capability.routeClass), className: capabilityBadgeClass(capability)} : null,
           {text: item.editability || 'text_proposal', className: item.editability || ''},
           {text: item.confidence || 'static_inferred', className: item.confidence || 'static_inferred'}
         ].filter(Boolean),
@@ -888,8 +968,6 @@
           item.text,
           item.role,
           item.editability,
-          capability && capability.routeClass,
-          capability && capability.reason,
           item.confidence,
           owner.kind,
           owner.sceneId,
@@ -1146,28 +1224,73 @@
     if (!model || !item) {
       return [];
     }
+    if (!model.textCorpusContextIndex) {
+      model.textCorpusContextIndex = buildTextCorpusContextIndex(model.lists && model.lists.textCorpus);
+    }
     const owner = item.owner || {};
     const source = item.source || {};
-    const items = ensureArray(model.lists && model.lists.textCorpus).filter((candidate) => {
-      const candidateOwner = candidate.owner || {};
-      const candidateSource = candidate.source || {};
-      if (owner.sceneId && candidateOwner.sceneId === owner.sceneId) {
-        return true;
-      }
-      if (owner.itemId && candidateOwner.itemId === owner.itemId) {
-        return true;
-      }
-      return source.path && candidateSource.path === source.path;
-    }).sort((a, b) => {
-      return compareValues(sourceLine(a.source), sourceLine(b.source)) ||
-        compareValues(a.role || '', b.role || '');
-    });
-    const index = items.findIndex((candidate) => candidate.id === item.id);
+    const contextIndex = model.textCorpusContextIndex || {};
+    const items = owner.sceneId && contextIndex.bySceneId && contextIndex.bySceneId.get(String(owner.sceneId)) ||
+      owner.itemId && contextIndex.byItemId && contextIndex.byItemId.get(String(owner.itemId)) ||
+      source.path && contextIndex.bySourcePath && contextIndex.bySourcePath.get(String(source.path)) ||
+      [];
+    const index = items.findIndex((candidate) => sameTextCorpusContextItem(candidate, item));
     if (index < 0) {
       return items.slice(0, 7);
     }
     const start = Math.max(0, index - 3);
     return items.slice(start, Math.min(items.length, index + 4));
+  }
+
+  function buildTextCorpusContextIndex(items) {
+    const contextIndex = {
+      bySceneId: new Map(),
+      byItemId: new Map(),
+      bySourcePath: new Map()
+    };
+    ensureArray(items).forEach((item) => {
+      if (!item) {
+        return;
+      }
+      const owner = item.owner || {};
+      const source = item.source || {};
+      addTextCorpusContextRow(contextIndex.bySceneId, owner.sceneId, item);
+      addTextCorpusContextRow(contextIndex.byItemId, owner.itemId, item);
+      addTextCorpusContextRow(contextIndex.bySourcePath, source.path, item);
+    });
+    [contextIndex.bySceneId, contextIndex.byItemId, contextIndex.bySourcePath].forEach((map) => {
+      map.forEach((rows) => rows.sort(compareTextCorpusContextRows));
+    });
+    return contextIndex;
+  }
+
+  function addTextCorpusContextRow(map, key, item) {
+    const value = String(key || '');
+    if (!value) {
+      return;
+    }
+    if (!map.has(value)) {
+      map.set(value, []);
+    }
+    map.get(value).push(item);
+  }
+
+  function compareTextCorpusContextRows(a, b) {
+    return compareValues(sourceLine(a && a.source), sourceLine(b && b.source)) ||
+      compareValues(a && a.role || '', b && b.role || '') ||
+      compareValues(a && a.id || '', b && b.id || '');
+  }
+
+  function sameTextCorpusContextItem(candidate, item) {
+    if (candidate === item) {
+      return true;
+    }
+    if (candidate && item && candidate.id && item.id && String(candidate.id) === String(item.id)) {
+      return true;
+    }
+    return sourceLabel(candidate && candidate.source) === sourceLabel(item && item.source) &&
+      String(candidate && candidate.role || '') === String(item && item.role || '') &&
+      String(candidate && candidate.text || '') === String(item && item.text || '');
   }
 
   function textRevisionKey(item) {
@@ -1309,7 +1432,7 @@
     }
     let result = null;
     try {
-      result = api.buildEditCapability(model.index, view, item, opts);
+      result = api.buildEditCapability(model.index, view, item, editCapabilityOptionsForModel(model, api, opts));
     } catch (err) {
       result = {
         routeClass: 'manual_review',
@@ -1321,6 +1444,39 @@
       model.editCapabilityByKey.set(key, result);
     }
     return result;
+  }
+
+  function editCapabilityOptionsForModel(model, api, options) {
+    const opts = Object.assign({}, isObject(options) ? options : {});
+    if (!model || !api) {
+      return opts;
+    }
+    const context = editCapabilityContextForModel(model, api);
+    if (context.lookup && !opts.lookup) {
+      opts.lookup = context.lookup;
+    }
+    if (context.existingModelCache && !opts.existingModelCache) {
+      opts.existingModelCache = context.existingModelCache;
+    }
+    return opts;
+  }
+
+  function editCapabilityContextForModel(model, api) {
+    if (!model.editCapabilityContext) {
+      const context = {
+        lookup: null,
+        existingModelCache: new Map()
+      };
+      if (api && typeof api.buildLookup === 'function') {
+        try {
+          context.lookup = api.buildLookup(model.index);
+        } catch (_err) {
+          context.lookup = null;
+        }
+      }
+      model.editCapabilityContext = context;
+    }
+    return model.editCapabilityContext;
   }
 
   function editCapabilityRouteLabel(routeClass) {

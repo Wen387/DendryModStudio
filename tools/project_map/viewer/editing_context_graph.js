@@ -53,7 +53,7 @@
     }
 
     function isEditorNode(node) {
-      return ['page_sections', 'option_text', 'conditions', 'player_text'].includes(String(node && node.type || ''));
+      return ['page_sections', 'option_text', 'conditions', 'routes', 'effects', 'player_text'].includes(String(node && node.type || ''));
     }
 
     function isEvidenceNode(node) {

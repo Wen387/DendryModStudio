@@ -197,17 +197,24 @@
   }
 
   function canEditExisting(view) {
-    return view === 'events' || view === 'cards';
+    return view === 'events' || view === 'cards' || view === 'news';
   }
 
   function existingEditSupported(index, view, item) {
+    if (view === 'news' && (!item || item.delivery !== 'legacy_event_popup' || !item.linkedSceneId)) {
+      return false;
+    }
     const editor = global.ProjectMapExistingSceneEdit;
     if (!editor || typeof editor.buildEditModel !== 'function') {
       return false;
     }
     try {
       const model = editor.buildEditModel(index, view, item, {});
-      return Boolean(model && model.ok && model.source && model.source.path);
+      return Boolean(model && model.ok && model.source && model.source.path && (
+        ensureArray(model.fields).length ||
+        ensureArray(model.textBlocks).length ||
+        ensureArray(model.options).length
+      ));
     } catch (err) {
       return false;
     }
@@ -407,7 +414,7 @@
     const replacementText = currentTextReplacementValue(elements);
     const changed = replacementText !== String(item.text || '');
     const capability = editCapabilityForModel
-      ? editCapabilityForModel(state.model, 'textCorpus', item, {replacementText})
+      ? editCapabilityForModel(state.model, 'textCorpus', item, changed ? {replacementText} : null)
       : null;
     const routeClass = String(capability && capability.routeClass || '');
     if (routeClass === 'direct_field_replace' || routeClass === 'direct_section_replace' || routeClass === 'object_workspace') {
@@ -857,7 +864,10 @@
   function renderTextCorpusInspector(item, model, state) {
     const owner = item.owner || {};
     const replacement = textRevisionReplacementFor(state, item);
-    const capability = editCapabilityForModel ? editCapabilityForModel(model, 'textCorpus', item, {replacementText: replacement}) : null;
+    const revisionModel = buildTextRevisionModel(item, replacement);
+    const capability = editCapabilityForModel
+      ? editCapabilityForModel(model, 'textCorpus', item, revisionModel.changed ? {replacementText: replacement} : null)
+      : null;
     const ownerButton = owner.sceneId
       ? '<button type="button" data-scene-id="' + escapeAttr(owner.sceneId) + '">' + escapeHtml(t('textCorpus.openOwner', 'Open owner scene')) + '</button>'
       : '';
@@ -902,9 +912,9 @@
     const key = textRevisionKey(item);
     const model = buildTextRevisionModel(item, replacement);
     const capability = capabilityInput || (state && state.model && editCapabilityForModel
-      ? editCapabilityForModel(state.model, 'textCorpus', item, {replacementText: model.after})
+      ? editCapabilityForModel(state.model, 'textCorpus', item, model.changed ? {replacementText: model.after} : null)
       : null);
-    const result = state && state.model
+    const result = state && state.model && model.changed
       ? previewTextReplacement(state.model.index, 'textCorpus', item, {replacementText: model.after})
       : null;
     const routeClass = capability && capability.routeClass || '';
@@ -931,7 +941,7 @@
       '<div class="text-revision-actions" data-edit-text-panel="true">',
       '<button class="draft-action-button" type="button" data-edit-route-action="true"' +
         (disabled ? ' disabled' : '') + '>' + escapeHtml(capability ? capabilityAction(capability.routeClass) : t('textRevision.actionButton', 'Edit Text Proposal')) + '</button>',
-      '<div class="draft-action-status">' + escapeHtml(status) + '</div>',
+      '<div class="draft-action-status" data-text-action-status="true">' + escapeHtml(status) + '</div>',
       renderExtractionScope(result),
       diagnostics.length ? renderMiniSection(t('textProposal.notesTitle', 'Text proposal notes'), diagnostics) : '',
       '</div>',
@@ -972,11 +982,11 @@
       diff.innerHTML = renderTextRevisionDiff(model);
     }
     if (action || actionStatus) {
-      const result = state && state.model
+      const result = state && state.model && model.changed
         ? previewTextReplacement(state.model.index, 'textCorpus', item, {replacementText: model.after})
         : null;
       const capability = state && state.model && editCapabilityForModel
-        ? editCapabilityForModel(state.model, 'textCorpus', item, {replacementText: model.after})
+        ? editCapabilityForModel(state.model, 'textCorpus', item, model.changed ? {replacementText: model.after} : null)
         : null;
       const routeClass = capability && capability.routeClass || '';
       const routeCanOpenWithoutChange = routeClass === 'object_workspace' || routeClass === 'system_ui_workspace';

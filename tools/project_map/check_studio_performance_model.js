@@ -7,8 +7,11 @@ const {readExploreBundle} = require('./check_viewer_assets.js');
 
 const viewer = require('./viewer/app.js');
 const design = require('./viewer/design_model.js');
+const projectStateSurface = require('./viewer/project_state_surface.js');
 
 const DESIGN_UI = path.join(__dirname, 'viewer', 'design_ui.js');
+const PROJECT_STATE_SURFACE = path.join(__dirname, 'viewer', 'project_state_surface.js');
+const VARIABLE_EDITOR_UI = path.join(__dirname, 'viewer', 'variable_editor_ui.js');
 
 function fail(message) {
   process.stderr.write('FAIL: ' + message + '\n');
@@ -97,11 +100,22 @@ const index = largeIndex();
 const model = viewer.buildViewModel(index);
 
 assert(model.normalizedRowsByView instanceof Map, 'viewer model should expose a normalized row cache');
+assert(model.textCorpusContextIndex && model.textCorpusContextIndex.bySceneId instanceof Map, 'viewer model should pre-index Text Corpus context by owner scene');
+const firstTextContext = viewer.textCorpusContextRows(model, index.semantic.textCorpus.items[0]);
+assert(firstTextContext.length > 0 && firstTextContext.length <= 7, 'Text Corpus inspector context should use a bounded cached window');
 const firstNeedle = viewer.filterAndSortItems(model, 'textCorpus', 'needle', 'primary', 'asc');
 assert(firstNeedle.length > 0, 'cached textCorpus search should still find matching rows');
 assert(
   Array.from(model.normalizedRowsByView.keys()).some((key) => String(key).includes('textCorpus')),
   'filterAndSortItems should populate a per-view normalized row cache'
+);
+const firstCapability = viewer.editCapabilityForModel(model, 'textCorpus', index.semantic.textCorpus.items[0]);
+assert(firstCapability && firstCapability.routeClass, 'Text Corpus inspector should still compute an edit route for a selected row');
+assert(model.editCapabilityContext && model.editCapabilityContext.lookup, 'Explore edit capability checks should reuse one lookup per ProjectIndex');
+assert(model.editCapabilityContext.existingModelCache instanceof Map, 'Explore edit capability checks should reuse existing-scene model cache');
+assert(
+  model.editCapabilityContext.existingModelCache.size <= index.scenes.length,
+  'Text Corpus inspector route checks should not rebuild existing-scene models per text row'
 );
 const cachedRows = Array.from(model.normalizedRowsByView.values()).find((value) => Array.isArray(value) && value.length === index.semantic.textCorpus.items.length);
 assert(cachedRows && cachedRows.every((row) => typeof row.searchTextLower === 'string'), 'cached rows should store lowercased search text');
@@ -129,12 +143,41 @@ const elapsed = Date.now() - started;
 assert(designModel.summary.itemCount === index.scenes.length, 'Design model should preserve synthetic event count');
 assert(elapsed < 750, 'Design model should build from indexed variable refs without quadratic path scans; elapsed=' + elapsed + 'ms');
 
+const largeVariableIndex = largeIndex();
+largeVariableIndex.variables = Array.from({length: 3000}, (_, variableIndex) => ({
+  name: 'global_variable_' + variableIndex,
+  scope: 'q',
+  reads: [{path: 'source/scenes/state_' + (variableIndex % 10) + '.scene.dry', line: variableIndex + 1}],
+  writes: variableIndex % 3 === 0 ? [{path: 'source/scenes/root.scene.dry', line: variableIndex + 1}] : [],
+  readCount: 1,
+  writeCount: variableIndex % 3 === 0 ? 1 : 0
+}));
+const projectStateHtml = projectStateSurface.render({
+  ok: true,
+  title: 'Global Variables',
+  contextBoard: {variables: []},
+  changeState: {draft: {variableName: 'global_variable_2999'}},
+  eventBody: {}
+}, {
+  projectIndex: largeVariableIndex,
+  selected: 'variable:global_variable_2999',
+  limit: 120
+});
+const projectStateRows = projectStateHtml.match(/data-project-state-variable-row=/g) || [];
+assert(projectStateRows.length <= 120, 'Project State should not render every global variable at once; rows=' + projectStateRows.length);
+assert(projectStateHtml.includes('data-project-state-variable-search'), 'Project State should expose search instead of requiring full-row render');
+assert(projectStateHtml.includes('project_state_show_more'), 'Project State should expose incremental loading for large variable sets');
+
 const appUi = readExploreBundle(path.join(__dirname, 'viewer'));
 const designUi = fs.readFileSync(DESIGN_UI, 'utf8');
+const projectStateUi = fs.readFileSync(PROJECT_STATE_SURFACE, 'utf8');
+const variableEditorUi = fs.readFileSync(VARIABLE_EDITOR_UI, 'utf8');
 assert(appUi.includes('SORT_COLLATOR'), 'Explore sorting should reuse one collator instead of rebuilding localeCompare options per comparison');
 assert(appUi.includes('EXPLORE_SEARCH_DEBOUNCE_MS'), 'Explore search should use a named debounce interval');
 assert(appUi.includes('scheduleSearchRender'), 'Explore search input should debounce full renders');
 assert(appUi.includes('state.currentItems'), 'Explore row clicks should reuse the last rendered item list');
+assert(appUi.includes('editCapabilityContextForModel'), 'Explore edit capability routing should reuse ProjectIndex-level lookup/cache state');
+assert(appUi.includes('textCorpusContextIndex'), 'Text Corpus inspector context should be indexed, not re-sorted on every selection');
 assert(appUi.includes('VIRTUAL_LIST_THRESHOLD'), 'Explore large lists should use a named virtualization threshold');
 assert(appUi.includes('renderVirtualTextCorpusList'), 'Text Corpus should render a virtualized list when row count is large');
 assert(appUi.includes('renderVirtualAssetGallery'), 'Assets should render a virtualized gallery when asset count is large');
@@ -142,6 +185,8 @@ assert(appUi.includes('renderVirtualNewsList'), 'News should render a virtualize
 assert(designUi.includes('inspectorCache'), 'Design inspector should cache selected-item render output');
 assert(designUi.includes('inspectorCacheKey'), 'Design inspector should build explicit cache keys');
 assert(designUi.includes('renderInspectorContent'), 'Design inspector heavy HTML construction should be isolated behind cache lookup');
+assert(projectStateUi.includes('rowCache'), 'Project State variable rows should be cached per ProjectIndex object');
+assert(variableEditorUi.includes('VARIABLE_OPTION_LIMIT'), 'Variable Editor should cap datalist options for large global variable sets');
 const inspectorContentMatch = designUi.match(/function renderInspectorContent[\s\S]*?\n  function renderEventWorkbenchForSelected/);
 assert(inspectorContentMatch, 'Design inspector content renderer should have a stable function boundary');
 assert(!inspectorContentMatch[0].includes('elements.inspector.innerHTML ='), 'Design inspector content renderer should return HTML, not assign undefined through the cache path');
