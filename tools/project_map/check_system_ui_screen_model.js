@@ -10,6 +10,7 @@ const screenPreview = require('./viewer/system_ui_screen_preview.js');
 global.ProjectMapSystemUiScreenPreview = screenPreview;
 global.ProjectMapSystemUiRegionEditor = require('./viewer/system_ui_region_editor.js');
 const surface = require('./viewer/system_ui_preview_surface.js');
+const electionSurface = require('./viewer/election_results_surface.js');
 
 function fail(message) {
   process.stderr.write('FAIL: ' + message + '\n');
@@ -20,6 +21,10 @@ function assert(condition, message) {
   if (!condition) {
     fail(message);
   }
+}
+
+function countOccurrences(text, needle) {
+  return String(text || '').split(needle).length - 1;
 }
 
 const index = {
@@ -253,6 +258,8 @@ const electionHtml = surface.render(election, {selected: 'ui:election_results_ta
 assert(electionHtml.includes('Social Democrats'), 'Election Results party edits should update the WYSIWYG preview');
 assert(electionHtml.includes('data-system-ui-selected-region="election_results_table"'), 'Election Results should edit through the selected table region');
 assert(electionHtml.includes('type="color"'), 'Election Results should expose color inputs for party colors');
+const electionBoardHtml = electionSurface.render(election, {projectIndex: index});
+assert(countOccurrences(electionBoardHtml, 'data-object-canvas-field="election.targetSceneId"') === 1, 'Election Results board should expose one source event selector, not duplicate target-scene controls');
 const electionChoicesHtml = surface.render(election, {selected: 'ui:election_results_choices'});
 assert(electionChoicesHtml.includes('type="checkbox"'), 'Election Results should expose disabled-choice checkboxes');
 

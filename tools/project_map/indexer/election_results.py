@@ -30,7 +30,7 @@ ELECTION_EVIDENCE_RE = re.compile(
     r"\b(election|elections|wahl|landtag|reichstag|parliament|seat chart|results)\b",
     re.IGNORECASE,
 )
-D3_EVIDENCE_RE = re.compile(r"\bd3\.parliament\b|d3\.select\(\s*['\"]#|<svg[^>]+id=['\"]", re.IGNORECASE)
+D3_PARLIAMENT_RE = re.compile(r"\bd3\.parliament\b", re.IGNORECASE)
 
 
 def extract_election_results(root: Path, scenes: list[dict[str, Any]]) -> dict[str, Any]:
@@ -56,35 +56,41 @@ def extract_election_results(root: Path, scenes: list[dict[str, Any]]) -> dict[s
         if not is_election_results_source(scene, path, text):
             continue
 
-        parties = extract_d3_parties(text, path)
-        chart_id = infer_chart_element_id(text)
-        uses_d3 = bool(re.search(r"\bd3\.parliament\b", text, re.IGNORECASE))
-        if not parties and not chart_id and not uses_d3:
+        targets = extract_d3_parliament_targets(text)
+        uses_d3 = bool(D3_PARLIAMENT_RE.search(text))
+        if not uses_d3:
             continue
 
-        source_line = election_source_line(text, chart_id)
         title = str(scene.get("title") or scene.get("name") or scene.get("id") or Path(path).stem)
-        item = {
-            "id": str(scene.get("id") or safe_id(Path(path).stem)),
-            "sceneId": str(scene.get("id") or ""),
-            "title": compact_line(title),
-            "subtitle": infer_election_subtitle(title, path, text),
-            "path": path,
-            "line": source_line,
-            "electionKind": infer_election_kind(title, path, text),
-            "year": infer_year(title + " " + path),
-            "month": "",
-            "viewIf": metadata_line(scene, "viewIf") or metadata_line(scene, "requires"),
-            "conditionText": infer_condition_text(text),
-            "chartElementId": chart_id,
-            "usesD3Parliament": uses_d3,
-            "seatsTotal": infer_seats_total(text, parties),
-            "parties": parties,
-            "reason": "d3_parliament" if uses_d3 else "election_results_source",
-            "confidence": CONF_STATIC,
-        }
-        sources.add(path)
-        items.append(item)
+        scene_id = str(scene.get("id") or safe_id(Path(path).stem))
+        for index, target in enumerate(targets or [{}]):
+            chart_id = str(target.get("chart_id") or infer_chart_element_id(text))
+            datum_scope = d3_datum_scope(text, str(target.get("datum") or "data"), int(target.get("call_start") or 0))
+            parties = extract_d3_parties(text, path, datum_scope[0], datum_scope[1])
+            if not parties and not chart_id:
+                continue
+            source_line = line_for_offset(text, int(target.get("call_start") or -1)) if target else election_source_line(text, chart_id)
+            item = {
+                "id": election_source_id(scene_id, chart_id, index, len(targets)),
+                "sceneId": scene_id,
+                "title": election_source_title(title, chart_id, len(targets)),
+                "subtitle": infer_election_subtitle(title, path, text, chart_id),
+                "path": path,
+                "line": source_line,
+                "electionKind": infer_election_kind(title, path, text, chart_id),
+                "year": infer_year(title + " " + path),
+                "month": "",
+                "viewIf": metadata_line(scene, "viewIf") or metadata_line(scene, "requires"),
+                "conditionText": infer_condition_text(text),
+                "chartElementId": chart_id,
+                "usesD3Parliament": uses_d3,
+                "seatsTotal": infer_seats_total(text, parties),
+                "parties": parties,
+                "reason": "d3_parliament",
+                "confidence": CONF_STATIC,
+            }
+            sources.add(path)
+            items.append(item)
 
     items.sort(key=lambda item: (0 if item.get("usesD3Parliament") else 1, item.get("path", ""), item.get("id", "")))
     return {
@@ -95,7 +101,7 @@ def extract_election_results(root: Path, scenes: list[dict[str, Any]]) -> dict[s
 
 
 def is_election_results_source(scene: dict[str, Any], path: str, text: str) -> bool:
-    if not D3_EVIDENCE_RE.search(text):
+    if not D3_PARLIAMENT_RE.search(text):
         return False
     haystack = " ".join([
         path,
@@ -107,9 +113,12 @@ def is_election_results_source(scene: dict[str, Any], path: str, text: str) -> b
     return bool(ELECTION_EVIDENCE_RE.search(haystack))
 
 
-def extract_d3_parties(text: str, path: str) -> list[dict[str, Any]]:
+def extract_d3_parties(text: str, path: str, start: int = 0, end: int | None = None) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
-    for block, start in iter_js_object_blocks_with_id(text):
+    source = text[start:end] if end is not None else text[start:]
+    seen_keys: set[str] = set()
+    seen_names: set[str] = set()
+    for block, local_start in iter_js_object_blocks_with_id(source):
         if not re.search(r"['\"]?seats['\"]?\s*:", block):
             continue
         party_id = js_string_property(block, "id")
@@ -117,9 +126,15 @@ def extract_d3_parties(text: str, path: str) -> list[dict[str, Any]]:
             continue
         legend = js_label_property(block, "legend", party_id)
         name = js_label_property(block, "name", party_id) or legend
+        key = safe_id(party_id).lower()
+        name_key = compact_line(name or party_id.upper()).lower()
+        if key in seen_keys or name_key in seen_names:
+            continue
+        seen_keys.add(key)
+        seen_names.add(name_key)
         seats_expression = js_expression_property(block, "seats")
         rows.append({
-            "key": safe_id(party_id).lower(),
+            "key": key,
             "name": compact_line(name or party_id.upper()),
             "color": color_for_party_id(party_id),
             "voteShare": "",
@@ -128,9 +143,71 @@ def extract_d3_parties(text: str, path: str) -> list[dict[str, Any]]:
             "seatsChange": "0",
             "seats": numeric_preview_seats(seats_expression),
             "seatsExpression": compact_line(seats_expression),
-            "source": source_ref(path, line_for_offset(text, start)),
+            "source": source_ref(path, line_for_offset(text, start + local_start)),
         })
     return rows[:48]
+
+
+def extract_d3_parliament_targets(text: str) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    pattern = re.compile(
+        r"d3\.select\(\s*['\"]#([^'\"]+)['\"]\s*\)\s*"
+        r"\.datum\(\s*([A-Za-z_$][A-Za-z0-9_$]*)\s*\)\s*"
+        r"\.call\(\s*parliament\s*\)",
+        re.DOTALL,
+    )
+    for match in pattern.finditer(text):
+        rows.append({
+            "chart_id": match.group(1),
+            "datum": match.group(2),
+            "call_start": match.start(),
+        })
+    if rows:
+        return rows
+    chart_id = infer_chart_element_id(text)
+    parliament = D3_PARLIAMENT_RE.search(text)
+    if chart_id and parliament:
+        return [{"chart_id": chart_id, "datum": "data", "call_start": parliament.start()}]
+    return []
+
+
+def election_source_id(scene_id: str, chart_id: str, index: int, total: int) -> str:
+    if total <= 1 or index == 0:
+        return scene_id
+    suffix = safe_id(chart_id or f"chart_{index + 1}").lower()
+    return f"{scene_id}__{suffix}"
+
+
+def election_source_title(title: str, chart_id: str, total: int) -> str:
+    base = compact_line(title)
+    if total <= 1 or not chart_id:
+        return base
+    label = chart_label(chart_id)
+    return f"{base} / {label}" if label else base
+
+
+def chart_label(chart_id: str) -> str:
+    text = re.sub(r"[_-]+", " ", str(chart_id or "")).strip()
+    if not text:
+        return ""
+    words = []
+    for word in text.split():
+        lower = word.lower()
+        if lower in {"d3", "svg"}:
+            words.append(lower.upper())
+        else:
+            words.append(lower[:1].upper() + lower[1:])
+    return " ".join(words)
+
+
+def d3_datum_scope(text: str, datum: str, call_start: int) -> tuple[int, int]:
+    end = call_start if call_start > 0 else len(text)
+    name = datum if re.match(r"^[A-Za-z_$][A-Za-z0-9_$]*$", datum or "") else "data"
+    pattern = re.compile(r"\b(?:const|let|var)\s+" + re.escape(name) + r"\s*=")
+    start = 0
+    for match in pattern.finditer(text, 0, end):
+        start = match.start()
+    return start, end
 
 
 def iter_js_object_blocks_with_id(text: str) -> list[tuple[str, int]]:
@@ -250,22 +327,33 @@ def line_for_offset(text: str, offset: int) -> int:
 
 def color_for_party_id(party_id: str) -> str:
     key = safe_id(party_id).lower()
-    return PARTY_COLOR_BY_ID.get(key, PARTY_COLOR_BY_ID.get(key.rstrip("0123456789"), "#999999"))
+    return PARTY_COLOR_BY_ID.get(
+        key,
+        PARTY_COLOR_BY_ID.get(
+            key.rstrip("0123456789"),
+            PARTY_COLOR_BY_ID.get(key.split("_", 1)[0], "#999999"),
+        ),
+    )
 
 
-def infer_election_kind(title: str, path: str, text: str) -> str:
-    source = " ".join([title, path, text[:8000]]).lower()
-    if re.search(r"landtag|thuringia|prussia|state", source):
+def infer_election_kind(title: str, path: str, text: str, chart_id: str = "") -> str:
+    focused = " ".join([title, path, chart_id]).lower()
+    if re.search(r"reichstag|parliament", focused):
+        return "reichstag"
+    if re.search(r"landtag|thuringia|prussia|state", focused):
         return "state"
+    source = " ".join([title, path, text[:8000]]).lower()
     if re.search(r"reichstag|parliament", source):
         return "reichstag"
+    if re.search(r"landtag|thuringia|prussia|state", source):
+        return "state"
     return "election"
 
 
-def infer_election_subtitle(title: str, path: str, text: str) -> str:
-    kind = infer_election_kind(title, path, text)
+def infer_election_subtitle(title: str, path: str, text: str, chart_id: str = "") -> str:
+    kind = infer_election_kind(title, path, text, chart_id)
     if kind == "state":
-        match = re.search(r"(Thuringia|Prussia|Bavaria|Saxony|Hesse|Hamburg|Berlin)", title + " " + path, re.IGNORECASE)
+        match = re.search(r"(Thuringia|Prussia|Bavaria|Saxony|Hesse|Hamburg|Berlin|Wurttemberg|Württemberg|Lippe)", title + " " + path + " " + chart_id, re.IGNORECASE)
         return (match.group(1) + " election results") if match else "State election results"
     if kind == "reichstag":
         return "Reichstag election results"

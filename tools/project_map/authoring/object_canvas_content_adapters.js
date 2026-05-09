@@ -1049,28 +1049,41 @@
       return null;
     }
     const existing = ensureArray(draft && draft.electionEvents).find((item) => item && String(item.id || '') === target);
-    if (existing) {
+    if (existing && hasElectionSourceText(existing)) {
       return existing;
     }
     const api = context && context.api;
     if (api && typeof api.collectElectionEvents === 'function') {
       const rows = api.collectElectionEvents(context.projectIndex);
-      return ensureArray(rows).find((item) => item && String(item.id || '') === target) || null;
+      return ensureArray(rows).find((item) => item && String(item.id || '') === target) || existing || null;
     }
-    return null;
+    return existing || null;
   }
 
   function applySelectedElectionSource(draft, source) {
     if (!draft || !source) {
       return draft;
     }
+    const hasSourceText = hasElectionSourceText(source);
     draft.targetSceneId = String(source.id || draft.targetSceneId || '').trim();
+    draft.sourceBacked = hasSourceText;
+    draft.title = String(hasSourceText ? (source.screenTitle || source.title || draft.title || '') : (source.title || draft.title || '')).trim();
     draft.subtitle = String(source.subtitle || draft.subtitle || '').trim();
+    if (hasSourceText) {
+      draft.intro = String(source.intro || '').trim();
+    } else {
+      draft.intro = '';
+    }
     draft.electionKind = String(source.electionKind || draft.electionKind || 'election').trim();
     draft.year = String(source.year || draft.year || '').trim();
     draft.month = String(source.month || draft.month || '').trim();
     draft.viewIf = String(source.viewIf || '').trim();
     draft.conditionText = String(source.conditionText || '').trim();
+    if (hasSourceText) {
+      draft.resultText = String(source.resultText || '').trim();
+    } else {
+      draft.resultText = '';
+    }
     draft.sourcePath = String(source.path || draft.sourcePath || '').trim();
     draft.chartElementId = String(source.chartElementId || draft.chartElementId || '').trim();
     if (source.seatsTotal) {
@@ -1082,7 +1095,25 @@
     if (Array.isArray(source.parties) && source.parties.length) {
       draft.parties = clone(source.parties);
     }
+    if (hasSourceText) {
+      draft.coalitions = Array.isArray(source.coalitions) ? clone(source.coalitions) : [];
+      draft.choices = Array.isArray(source.choices) ? clone(source.choices) : [];
+    } else {
+      draft.coalitions = [];
+      draft.choices = [];
+    }
+    draft.evidence = Object.assign({}, draft.evidence || {}, source.evidence || {});
     return draft;
+  }
+
+  function hasElectionSourceText(source) {
+    return Boolean(source && (
+      source.intro ||
+      source.resultText ||
+      ensureArray(source.choices).length ||
+      ensureArray(source.coalitions).length ||
+      source.evidence && Number(source.evidence.sourceChoices || 0) > 0
+    ));
   }
 
   function electionPartyFromAddFields(data) {
@@ -1425,7 +1456,15 @@
   }
 
   function changedCountFromValues(values) {
-    return isObject(values) ? Object.keys(values).length : 0;
+    if (!isObject(values)) {
+      return 0;
+    }
+    return Object.keys(values).reduce((count, key) => {
+      if (key === '__structureCommands' || key === 'structure_commands' || key === 'structureCommands') {
+        return count + (Array.isArray(values[key]) ? values[key].length : 0);
+      }
+      return count + 1;
+    }, 0);
   }
 
   function entryInfo(entry) {
