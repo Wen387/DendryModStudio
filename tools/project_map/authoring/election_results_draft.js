@@ -40,7 +40,7 @@
       title: 'Election Results',
       subtitle: selected && selected.subtitle || 'Reichstag election results',
       intro: 'There are some potential coalition arrangements.',
-      seatsTotal: '515',
+      seatsTotal: selected && selected.seatsTotal || '515',
       targetSceneId: selected && selected.id || '',
       electionKind: selected && selected.electionKind || 'reichstag',
       year: selected && selected.year || '',
@@ -51,7 +51,7 @@
       sourcePath: selected && selected.path || 'source/scenes/events/election_results.scene.dry',
       chartElementId: selected && selected.chartElementId || 'reichstag_results',
       useD3Parliament: selected ? selected.usesD3Parliament !== false : true,
-      parties: DEFAULT_PARTIES,
+      parties: selected && selected.parties && selected.parties.length ? selected.parties : DEFAULT_PARTIES,
       coalitions: DEFAULT_COALITIONS,
       choices: DEFAULT_CHOICES,
       effects: [],
@@ -258,7 +258,8 @@
       signedNumericText(value.voteChange, fallback.voteChange),
       numericText(value.seatsShare, fallback.seatsShare),
       signedNumericText(value.seatsChange, fallback.seatsChange),
-      numericText(value.seats, fallback.seats)
+      positivePreviewSeats(value.seats, fallback.seats, value.seatsExpression || fallback.seatsExpression),
+      String(value.seatsExpression || fallback.seatsExpression || '').trim()
     );
   }
 
@@ -286,8 +287,12 @@
     );
   }
 
-  function party(key, name, color, voteShare, voteChange, seatsShare, seatsChange, seats) {
-    return {key, name, color, voteShare, voteChange, seatsShare, seatsChange, seats};
+  function party(key, name, color, voteShare, voteChange, seatsShare, seatsChange, seats, seatsExpression) {
+    const row = {key, name, color, voteShare, voteChange, seatsShare, seatsChange, seats};
+    if (seatsExpression) {
+      row.seatsExpression = seatsExpression;
+    }
+    return row;
   }
 
   function coalition(key, name, parties, share, description) {
@@ -316,7 +321,10 @@
 
   function collectElectionEvents(projectIndex) {
     const scenes = ensureArray(projectIndex && projectIndex.scenes);
-    const rows = scenes.map(electionEventFromScene).filter(Boolean);
+    const semanticRows = ensureArray(projectIndex && projectIndex.semantic && projectIndex.semantic.electionResults && projectIndex.semantic.electionResults.items)
+      .map(electionEventFromSemantic).filter(Boolean);
+    const sceneRows = scenes.map(electionEventFromScene).filter(Boolean);
+    const rows = mergeElectionEventRows(semanticRows, sceneRows);
     rows.sort((a, b) => b.score - a.score || String(a.title).localeCompare(String(b.title)));
     return rows.map((row) => {
       const copy = Object.assign({}, row);
@@ -350,9 +358,60 @@
       conditionText: inferConditionText(haystack),
       chartElementId: inferChartElementId(haystack),
       usesD3Parliament: /\bd3\.parliament\b/i.test(haystack),
-      reason: score >= 8 ? 'd3_parliament' : 'election_text',
+      reason: /\bd3\.parliament\b/i.test(haystack) ? 'd3_parliament' : 'election_text',
       score
     };
+  }
+
+  function electionEventFromSemantic(row) {
+    if (!isObject(row)) {
+      return null;
+    }
+    const id = String(row.id || row.sceneId || '').trim();
+    if (!id) {
+      return null;
+    }
+    return {
+      id,
+      title: singleLine(row.title || id),
+      subtitle: singleLine(row.subtitle || ''),
+      path: String(row.path || row.sourcePath || '').trim(),
+      line: Number(row.line || 1) || 1,
+      electionKind: safeId(row.electionKind || 'election').toLowerCase(),
+      year: String(row.year || '').trim(),
+      month: String(row.month || '').trim(),
+      viewIf: String(row.viewIf || '').trim(),
+      conditionText: String(row.conditionText || '').trim(),
+      chartElementId: String(row.chartElementId || '').trim(),
+      usesD3Parliament: booleanValue(row.usesD3Parliament !== undefined ? row.usesD3Parliament : true),
+      seatsTotal: String(row.seatsTotal || '').trim(),
+      parties: normalizeRows(row.parties, [], normalizeParty),
+      reason: String(row.reason || 'd3_parliament').trim(),
+      score: row.usesD3Parliament === false ? 12 : 18
+    };
+  }
+
+  function mergeElectionEventRows(primary, fallback) {
+    const byId = new Map();
+    ensureArray(primary).forEach((row) => {
+      if (row && row.id) {
+        byId.set(row.id, row);
+      }
+    });
+    ensureArray(fallback).forEach((row) => {
+      if (!row || !row.id) {
+        return;
+      }
+      if (!byId.has(row.id)) {
+        byId.set(row.id, row);
+        return;
+      }
+      const current = byId.get(row.id);
+      byId.set(row.id, Object.assign({}, row, current, {
+        score: Math.max(Number(row.score || 0), Number(current.score || 0))
+      }));
+    });
+    return Array.from(byId.values());
   }
 
   function sceneSearchText(scene) {
@@ -458,6 +517,8 @@
         conditionText: String(value.conditionText || '').trim(),
         chartElementId: String(value.chartElementId || '').trim(),
         usesD3Parliament: booleanValue(value.usesD3Parliament !== undefined ? value.usesD3Parliament : false),
+        seatsTotal: String(value.seatsTotal || '').trim(),
+        parties: normalizeRows(value.parties, [], normalizeParty),
         reason: String(value.reason || '').trim()
       };
     }).filter((row) => row.id);
@@ -497,6 +558,11 @@
     const text = String(value === undefined || value === null || value === '' ? fallback : value).trim();
     const parsed = Number(text);
     return Number.isFinite(parsed) ? String(parsed) : String(fallback || '0');
+  }
+
+  function positivePreviewSeats(value, fallback, expression) {
+    const text = numericText(value, fallback);
+    return Number(text) > 0 || !expression ? text : '1';
   }
 
   function signedNumericText(value, fallback) {

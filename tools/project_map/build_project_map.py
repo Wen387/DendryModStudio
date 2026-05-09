@@ -123,6 +123,7 @@ def build_index(
             "eventPopupCount": len(semantic.get("news", {}).get("eventPopups", [])),
             "surfaceTextCount": len(semantic.get("surfaceText", {}).get("items", [])),
             "textCorpusCount": len(semantic.get("textCorpus", {}).get("items", [])),
+            "electionResultsCount": len(semantic.get("electionResults", {}).get("items", [])),
             "effectCount": sum(len(scene.get("effects", [])) for scene in scenes),
             "assetCount": len(semantic.get("assets", {}).get("items", [])),
             "imageAssetCount": len([
@@ -158,6 +159,7 @@ def render_summary(index: dict[str, Any]) -> str:
         f"Monthly event popups: {summary.get('eventPopupCount', 0)}",
         f"Surface text items: {summary.get('surfaceTextCount', 0)}",
         f"Text corpus items: {summary.get('textCorpusCount', 0)}",
+        f"Election result screens: {summary.get('electionResultsCount', 0)}",
         f"Assets: {summary.get('assetCount', 0)} "
         f"(images {summary.get('imageAssetCount', 0)}, audio {summary.get('audioAssetCount', 0)})",
         f"Diagnostics: {summary['diagnosticCount']}",

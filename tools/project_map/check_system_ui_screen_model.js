@@ -42,6 +42,44 @@ const index = {
   semantic: {
     hands: [{id: 'main', title: 'Workspace Hand', path: 'source/scenes/main.scene.dry'}],
     cards: [{id: 'starter_card', title: 'Starter Action Card', path: 'source/scenes/cards/starter_card.scene.dry'}],
+    electionResults: {
+      items: [
+        {
+          id: 'reichstag_results_event',
+          title: 'Reichstag Results',
+          subtitle: 'Reichstag election results',
+          path: 'source/scenes/events/election_1928.scene.dry',
+          line: 88,
+          electionKind: 'reichstag',
+          year: '1928',
+          chartElementId: 'reichstag',
+          usesD3Parliament: true,
+          seatsTotal: '493',
+          parties: [
+            {key: 'spd', name: 'SPD', color: '#E3000F', seats: '153'},
+            {key: 'z', name: 'Center', color: '#000000', seats: '64'}
+          ],
+          reason: 'd3_parliament'
+        },
+        {
+          id: 'prussia_results_event',
+          title: 'Z Prussian Landtag Results',
+          subtitle: 'Prussia election results',
+          path: 'source/scenes/events/prussia_election_1928.scene.dry',
+          line: 144,
+          electionKind: 'state',
+          year: '1928',
+          chartElementId: 'prussia_landtag',
+          usesD3Parliament: true,
+          seatsTotal: '450',
+          parties: [
+            {key: 'spd_prussia', name: 'Prussian SPD', color: '#E3000F', seatsExpression: 'Math.round(Q.spd_r_prussia * Q.landtag_size)'},
+            {key: 'dnvp_prussia', name: 'Prussian DNVP', color: '#3E88B3', seats: '73'}
+          ],
+          reason: 'd3_parliament'
+        }
+      ]
+    },
     textCorpus: {
       items: [
         textItem('root_title', 'Dynamic Social Democracy', 'title', 'root', 'source/scenes/root.scene.dry', 1),
@@ -217,6 +255,23 @@ assert(electionHtml.includes('data-system-ui-selected-region="election_results_t
 assert(electionHtml.includes('type="color"'), 'Election Results should expose color inputs for party colors');
 const electionChoicesHtml = surface.render(election, {selected: 'ui:election_results_choices'});
 assert(electionChoicesHtml.includes('type="checkbox"'), 'Election Results should expose disabled-choice checkboxes');
+
+const switchedElection = objectCanvasModel.buildTemplateCanvas(index, 'election_results', {}, {
+  values: {
+    'election.targetSceneId': 'prussia_results_event',
+    'election.sourcePath': 'source/scenes/events/election_1928.scene.dry',
+    'election.chartElementId': 'reichstag',
+    'election.party.0.name': 'Stale Reichstag SPD'
+  }
+});
+const switchedDraft = switchedElection.changeState.draft;
+assert(switchedDraft.targetSceneId === 'prussia_results_event', 'Election Results source selector should switch target scenes');
+assert(switchedDraft.sourcePath === 'source/scenes/events/prussia_election_1928.scene.dry', 'Election Results source selector should rebase source path from the selected event');
+assert(switchedDraft.chartElementId === 'prussia_landtag', 'Election Results source selector should rebase the D3 chart target');
+assert(switchedDraft.parties.some((party) => party.name === 'Prussian SPD'), 'Election Results source selector should load source-backed party rows');
+assert(!switchedDraft.parties.some((party) => party.name === 'Stale Reichstag SPD'), 'Election Results source switch should ignore stale party form fields from the previous event');
+const switchedElectionHtml = surface.render(switchedElection, {selected: 'ui:election_results_chart'});
+assert(switchedElectionHtml.includes('Prussian SPD'), 'Election Results preview should visibly change after selecting a different source event');
 
 const selectedCategory = objectCanvasModel.buildTemplateCanvas(index, 'sidebar_status', {}, {values: {}});
 const categoryScreen = screenModel.buildScreen(selectedCategory, {projectIndex: index, selected: 'ui:sidebar_category:economics'});

@@ -80,6 +80,7 @@ function summarizeIndex(item) {
       monthlyPopups: (news.eventPopups || []).length,
       surfaceText: semantic.surfaceText && (semantic.surfaceText.items || []).length || 0,
       textCorpus: semantic.textCorpus && (semantic.textCorpus.items || []).length || 0,
+      electionResults: semantic.electionResults && (semantic.electionResults.items || []).length || 0,
       assets: semantic.assets && (semantic.assets.items || semantic.assets || []).length || 0,
       diagnostics: diagnostics.length
     },
@@ -208,6 +209,7 @@ function assertDynamicPressureSample(dynamic) {
   assert(dynamic.profiles.includes('sdaah-style'), 'Dynamic fixture should be detected as sdaah-style', dynamic.profiles);
   assert(dynamic.counts.scenes >= 400, 'Dynamic fixture should exercise a large scene corpus', dynamic.counts);
   assert(dynamic.counts.monthlyPopups >= 100, 'Dynamic fixture should expose monthly event popups', dynamic.counts);
+  assert(dynamic.counts.electionResults >= 5, 'Dynamic fixture should expose source-backed D3 election result screens', dynamic.counts);
 }
 
 const built = FIXTURES.map(buildIndex);
@@ -237,7 +239,8 @@ process.stdout.write(JSON.stringify({
       assertions: [
         'SDAAH-style profile detection',
         'large real scene corpus',
-        'SDAAH-style monthly popup corpus'
+        'SDAAH-style monthly popup corpus',
+        'source-backed D3 election result screen corpus'
       ],
       note: 'These assertions are intentionally project-profile specific and should not be read as generic Dendry compatibility guarantees.'
     }

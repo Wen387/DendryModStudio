@@ -248,7 +248,7 @@
       : defaultDraftForTemplate(projectIndex, key);
     const normalized = normalizeDraft(def, baseDraft, api);
     const draft = typeof def.applyValues === 'function'
-      ? def.applyValues(normalized, opts.values || {})
+      ? def.applyValues(normalized, opts.values || {}, {projectIndex, api, template: key})
       : normalized;
     const bundle = buildBundle(def, api, draft, projectIndex, opts);
     const output = normalizeOutput(bundle, draft, def);
@@ -951,7 +951,13 @@
     ], ['id', 'sectionId']);
   }
 
-  function applyElectionResultsValues(baseDraft, values) {
+  function applyElectionResultsValues(baseDraft, values, context) {
+    const data = isObject(values) ? values : {};
+    const previousTarget = String(baseDraft && baseDraft.targetSceneId || '').trim();
+    const requestedTarget = has(data, 'election.targetSceneId')
+      ? String(data['election.targetSceneId'] || '').trim()
+      : previousTarget;
+    const targetChanged = Boolean(requestedTarget && requestedTarget !== previousTarget);
     const draft = applyScalarValues(baseDraft, values, 'election.', [
       'id',
       'title',
@@ -968,7 +974,13 @@
       'sourcePath',
       'chartElementId'
     ], ['id']);
-    const data = isObject(values) ? values : {};
+    const selectedSource = targetChanged ? selectedElectionSourceForDraft(draft, requestedTarget, context) : null;
+    if (selectedSource) {
+      applySelectedElectionSource(draft, selectedSource);
+    }
+    if (targetChanged && selectedSource) {
+      return draft;
+    }
     if (has(data, 'election.useD3Parliament')) {
       draft.useD3Parliament = booleanValue(data['election.useD3Parliament']);
     }
@@ -1027,6 +1039,48 @@
     const addedChoice = electionChoiceFromAddFields(data);
     if (addedChoice) {
       draft.choices.push(addedChoice);
+    }
+    return draft;
+  }
+
+  function selectedElectionSourceForDraft(draft, targetSceneId, context) {
+    const target = String(targetSceneId || '').trim();
+    if (!target) {
+      return null;
+    }
+    const existing = ensureArray(draft && draft.electionEvents).find((item) => item && String(item.id || '') === target);
+    if (existing) {
+      return existing;
+    }
+    const api = context && context.api;
+    if (api && typeof api.collectElectionEvents === 'function') {
+      const rows = api.collectElectionEvents(context.projectIndex);
+      return ensureArray(rows).find((item) => item && String(item.id || '') === target) || null;
+    }
+    return null;
+  }
+
+  function applySelectedElectionSource(draft, source) {
+    if (!draft || !source) {
+      return draft;
+    }
+    draft.targetSceneId = String(source.id || draft.targetSceneId || '').trim();
+    draft.subtitle = String(source.subtitle || draft.subtitle || '').trim();
+    draft.electionKind = String(source.electionKind || draft.electionKind || 'election').trim();
+    draft.year = String(source.year || draft.year || '').trim();
+    draft.month = String(source.month || draft.month || '').trim();
+    draft.viewIf = String(source.viewIf || '').trim();
+    draft.conditionText = String(source.conditionText || '').trim();
+    draft.sourcePath = String(source.path || draft.sourcePath || '').trim();
+    draft.chartElementId = String(source.chartElementId || draft.chartElementId || '').trim();
+    if (source.seatsTotal) {
+      draft.seatsTotal = String(source.seatsTotal);
+    }
+    if (source.usesD3Parliament !== undefined) {
+      draft.useD3Parliament = booleanValue(source.usesD3Parliament);
+    }
+    if (Array.isArray(source.parties) && source.parties.length) {
+      draft.parties = clone(source.parties);
     }
     return draft;
   }

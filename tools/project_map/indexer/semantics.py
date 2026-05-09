@@ -4,6 +4,7 @@ from .news import extract_legacy_event_popups, extract_news
 from .surface_text import extract_surface_text
 from .text_corpus import extract_text_corpus
 from .assets import extract_assets
+from .election_results import extract_election_results
 
 def classify_semantics(root: Path, scenes: list[dict[str, Any]],
                        variables: list[dict[str, Any]],
@@ -104,6 +105,7 @@ def classify_semantics(root: Path, scenes: list[dict[str, Any]],
     news["eventPopups"] = extract_legacy_event_popups(root, scenes, post_event_summary)
     surface_text = extract_surface_text(root, variables)
     text_corpus = extract_text_corpus(root, scenes, news, surface_text)
+    election_results = extract_election_results(root, scenes)
 
     return {
         "events": sorted(events, key=lambda item: item["id"]),
@@ -114,6 +116,7 @@ def classify_semantics(root: Path, scenes: list[dict[str, Any]],
         "news": news,
         "surfaceText": surface_text,
         "textCorpus": text_corpus,
+        "electionResults": election_results,
         "assets": extract_assets(root, scenes),
         "systems": [
             {"id": system_id, "label": system_id.replace("_", " ").title(), "members": sorted(members)}
