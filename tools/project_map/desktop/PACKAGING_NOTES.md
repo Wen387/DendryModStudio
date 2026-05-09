@@ -1,16 +1,17 @@
 # Dendry Mod Studio Desktop Packaging Notes
 
-## v0.9.3 Dev Preview Scope
+## v0.9.6 Dev Preview Scope
 
-v0.9.3 aligns the desktop feasibility package with the current Mod Studio
-source/dev preview. It includes the v0.9 authoring and review surface, Existing
-Scene Editor condition edits, variable candidates, Runtime Preview sandbox /
-debug bridge, the latest localization/version cleanup, and the Explore / Design
-performance pass: cached Explore rows, virtual Text / Assets / News lists, and
-Design inspector caching. It also includes the Update Notice MVP: static
-manifest polling, the bundled `update_manifest.json` schema/example, and a
-manual in-app notice banner. It remains a local feasibility package, not a
-signed public release.
+v0.9.6 aligns the desktop feasibility package with the current Mod Studio
+source/dev preview. It includes the v0.9 authoring and review surface, the
+unified Event Structure editing work, Dynamic Mod pressure-audit coverage,
+Existing Scene Editor condition edits, variable candidates, Runtime Preview
+sandbox / debug bridge, the latest localization/version cleanup, and the
+Explore / Design performance pass: cached Explore rows, virtual Text / Assets /
+News lists, and Design inspector caching. It also includes the Update Notice
+MVP: static manifest polling, the bundled `update_manifest.json`
+schema/example, and a manual in-app notice banner. It remains a local
+feasibility package, not a signed public release.
 
 The release workflow uses `electron-builder` for Linux AppImage, Linux Deb, and
 Windows NSIS packages. The local `package:deb` script remains available for
@@ -52,6 +53,11 @@ stale app payload in place.
 2026-05-04 version note: the preview package version was advanced to v0.9.3 so
 Windows, Deb, and update-notice metadata can distinguish this build from older
 v0.9.2 preview artifacts.
+
+2026-05-09 version note: the preview package version was advanced to v0.9.6.
+Release packages now include the Python `indexer/` package beside
+`build_project_map.py`, so packaged scans use the same semantic ProjectIndex
+builder as the development checkout.
 
 2026-05-04 Windows app icon note: Windows release builds now include a generated
 multi-size `assets/dendry-mod-studio.ico`, wire it into `win.icon`, the NSIS

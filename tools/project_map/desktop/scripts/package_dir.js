@@ -85,7 +85,8 @@ function packageDir(options) {
     'authoring',
     'profiles',
     'schema',
-    'templates'
+    'templates',
+    'indexer'
   ].forEach((name) => copyPath(path.join(projectMapDir, name), path.join(appRoot, 'project_map', name)));
 
   [

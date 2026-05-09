@@ -78,6 +78,10 @@
         "to": "app/project_map/build_project_map.py"
       },
       {
+        "from": "../indexer",
+        "to": "app/project_map/indexer"
+      },
+      {
         "from": "runtime",
         "to": "app/runtime"
       },

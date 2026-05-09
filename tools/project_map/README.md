@@ -114,7 +114,7 @@ for safe operations; v0.66.1 adds operation checklist previews and human CLI
 breakdowns; v0.67 adds Explore -> Edit as Draft for existing indexed content,
 an Install mode, Coverage Map, and card wiring proposals; v0.7 adds the
 Direction C graph-first Design tab with optional baseline compare.
-The desktop package version is now `0.9.3` to match the current dev preview
+The desktop package version is now `0.9.6` to match the current dev preview
 surface. This is still preparation for the future beginner-facing app, not a
 signed public installer yet. The root game package stays untouched.
 
@@ -156,7 +156,7 @@ The desktop shell:
   temporary copies are built separately, the install plan is applied only to the
   modified copy, and a `127.0.0.1` compare page shows original versus modified.
 
-Current v0.9.3 limits:
+Current v0.9.6 limits:
 
 - release builds include the Python runtime used by the desktop indexer;
 - public release installers are unsigned and still need clean-machine QA,
@@ -251,8 +251,8 @@ cover the bundled Demo Template path from Quick Start into a writable starter
 project. They write screenshots and a `QA_LEDGER.md` under `/tmp/dendry_mod_studio_qa/`. See
 `tools/project_map/qa/README.md`.
 
-See `tools/project_map/desktop/PACKAGING_NOTES.md` for the v0.9.3 packaging
-boundary and `tools/project_map/RELEASE_NOTES_v0.9.3.md` for the tester-facing
+See `tools/project_map/desktop/PACKAGING_NOTES.md` for the v0.9.6 packaging
+boundary and `tools/project_map/RELEASE_NOTES_v0.9.6.md` for the tester-facing
 dev preview notes and known limits. Do not commit `tools/project_map/desktop/dist/`
 or `node_modules/`. Before any public release claim, run `npm run check:ci`,
 attach the release notes, and record the exact package artifact tested.

@@ -118,6 +118,7 @@ function main() {
     'deb should include cached starter demo excerpt ProjectIndex'
   );
   assert(contents.includes('./opt/dendry-mod-studio/resources/app/project_map/build_project_map.py'), 'deb should include Python indexer');
+  assert(contents.includes('./opt/dendry-mod-studio/resources/app/project_map/indexer/common.py'), 'deb should include Python indexer package modules');
   assert(contents.includes('./opt/dendry-mod-studio/resources/app/scripts/doctor.js'), 'deb should include doctor script');
   assert(contents.includes('./opt/dendry-mod-studio/resources/app/runtime_preview.js'), 'deb should include Runtime Preview core');
   assert(contents.includes('./opt/dendry-mod-studio/resources/app/dendry_cli_runner.js'), 'deb should include Windows-safe Dendry CLI runner');

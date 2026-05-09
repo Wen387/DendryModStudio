@@ -71,6 +71,10 @@ function main() {
     pkg.build.extraResources && pkg.build.extraResources.some((item) => item.from === 'runtime' && item.to === 'app/runtime'),
     'desktop builder config should include bundled runtime resources'
   );
+  assert(
+    pkg.build.extraResources && pkg.build.extraResources.some((item) => item.from === '../indexer' && item.to === 'app/project_map/indexer'),
+    'desktop builder config should include the Python indexer package'
+  );
   assert(fs.existsSync(path.join(DESKTOP_DIR, 'scripts', 'package_portable.js')), 'package_portable.js should exist');
   assert(fs.existsSync(path.join(DESKTOP_DIR, 'scripts', 'fetch_bundled_python.js')), 'fetch_bundled_python.js should exist');
   assert(fs.existsSync(path.join(DESKTOP_DIR, 'scripts', 'generate_windows_icon.js')), 'generate_windows_icon.js should exist');
@@ -133,6 +137,10 @@ function main() {
   assert(
     fs.existsSync(path.join(appRoot, 'project_map', 'templates', 'starter-demo', 'project-index-excerpts.json')),
     'packaged app should include cached starter demo excerpt ProjectIndex'
+  );
+  assert(
+    fs.existsSync(path.join(appRoot, 'project_map', 'indexer', 'common.py')),
+    'packaged app should include the Python indexer package modules'
   );
   assert(
     fs.existsSync(path.join(appRoot, 'node_modules', 'dendrynexus', 'lib', 'cli', 'main.js')),
