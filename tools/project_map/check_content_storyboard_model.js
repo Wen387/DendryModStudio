@@ -76,6 +76,7 @@ civilWar.sections = [
   }
 ];
 const cardPath = 'source/scenes/cards/campaign_card.scene.dry';
+const advisorPath = 'source/scenes/advisors/campaign_advisor.scene.dry';
 
 const index = {
   schemaVersion: '0.1',
@@ -94,6 +95,16 @@ const index = {
       tags: ['cards'],
       options: [{target: {id: 'election_rally'}, title: 'Organize the rally'}],
       sourceSpan: {path: cardPath, startLine: 1, endLine: 70}
+    },
+    {
+      id: 'campaign_advisor',
+      title: 'Campaign Advisor',
+      path: advisorPath,
+      type: 'advisor',
+      flags: {isCard: true, isPinnedCard: true},
+      tags: ['advisor'],
+      options: [],
+      sourceSpan: {path: advisorPath, startLine: 1, endLine: 44}
     }
   ],
   edges: [
@@ -157,6 +168,7 @@ assert(timeline.view === 'timeline', 'timeline view should be selected');
 assert(timeline.cards.some((card) => card.key === 'event:election_start' && card.current && card.editable), 'current event should be an editable story card');
 assert(timeline.canvasCategory && timeline.canvasCategory.key === 'story', 'storyboard should default to the story-only category');
 assert(!timeline.cards.some((card) => card.kind === 'card' && card.title === 'Campaign Organizing Card'), 'story category should keep card/advisor objects out of the world-event canvas by default');
+assert(!timeline.cards.some((card) => card.kind === 'advisor' && card.title === 'Campaign Advisor'), 'story category should keep advisor objects out of the world-event canvas by default');
 assert(timeline.metrics && timeline.metrics.hiddenByCategoryCount >= 1, 'story category should report hidden card/advisor objects');
 assert(timeline.cards.some((card) => card.kind === 'news'), 'timeline should include news story objects');
 assert(timeline.timeline.lanes.some((lane) => lane.year === 1929 && lane.cards.length >= 2), 'timeline should include a 1929 lane with story cards');
@@ -168,6 +180,9 @@ assert(timeline.cards.some((card) => card.key === 'draft:election_start_followup
 assert(timeline.cards.some((card) => card.key === 'event:election_start' && card.body.includes('chain opens')), 'story cards should prefer player-facing text corpus excerpts');
 assert(timeline.palette && timeline.palette.groups.some((group) => group.key === 'current_scope' && group.entries.length), 'timeline palette should expose current-scope story objects');
 assert(timeline.palette.groups.some((group) => group.key === 'drafts' && group.entries.some((entry) => entry.key === 'draft:election_start_followup')), 'timeline palette should expose draft story objects');
+assert(timeline.palette.groups.some((group) => group.entries.some((entry) => entry.key === 'card:campaign_card')), 'default Story Palette should include cards hidden from the story canvas category');
+assert(timeline.palette.groups.some((group) => group.entries.some((entry) => entry.key === 'advisor:campaign_advisor')), 'default Story Palette should include advisors hidden from the story canvas category');
+assert(timeline.palette.groups.every((group) => !group.hiddenCount), 'empty Story Palette search should not hide entries behind a group limit');
 assert(timeline.storyContext && timeline.storyContext.selected && timeline.storyContext.selected.positionLabel.includes('1929'), 'story context should explain selected global timeline position');
 assert(timeline.storyContext.timeline.lanes.some((lane) => lane.selected && lane.count >= 2), 'story context should mark the selected dense lane');
 assert(timeline.storyContext.creationTargets.some((target) => target.key === 'time:1929'), 'story context should expose timeline creation targets');
@@ -186,6 +201,7 @@ const cardsCategory = storyboardModel.buildStoryboard(index, existing, {
 });
 assert(cardsCategory.canvasCategory && cardsCategory.canvasCategory.key === 'cards', 'cards category should be selectable');
 assert(cardsCategory.cards.some((card) => card.kind === 'card' && card.title === 'Campaign Organizing Card'), 'cards category should show card/advisor objects when requested');
+assert(cardsCategory.cards.some((card) => card.kind === 'advisor' && card.title === 'Campaign Advisor'), 'cards category should show advisor objects when requested');
 assert(cardsCategory.cards.some((card) => card.key === 'event:election_start' && card.current), 'cards category should keep the current story object as the selected anchor');
 
 const allCategory = storyboardModel.buildStoryboard(index, existing, {
@@ -193,6 +209,7 @@ const allCategory = storyboardModel.buildStoryboard(index, existing, {
   storyCanvasCategory: 'all'
 });
 assert(allCategory.cards.some((card) => card.kind === 'card' && card.title === 'Campaign Organizing Card'), 'all category should include card/advisor objects for cross-context switching');
+assert(allCategory.cards.some((card) => card.kind === 'advisor' && card.title === 'Campaign Advisor'), 'all category should include advisors for cross-context switching');
 assert(allCategory.cards.some((card) => card.kind === 'news'), 'all category should retain news objects');
 
 const chain = storyboardModel.buildStoryboard(index, existing, {
@@ -282,6 +299,25 @@ assert(sectionSelectState.editorOverlay && sectionSelectRendered, 'section selec
 const filteredPalette = storyPaletteModel.buildPalette(timeline, {storyPaletteQuery: 'rally', storyPaletteType: 'event'});
 assert(filteredPalette.groups.some((group) => group.entries.some((entry) => entry.key === 'event:election_rally')), 'palette search should retain matching event entries');
 assert(!filteredPalette.groups.some((group) => group.entries.some((entry) => entry.kind === 'news')), 'palette type filter should remove non-event entries');
+const cardPalette = storyboardModel.buildStoryboard(index, existing, {view: 'timeline', storyPaletteType: 'card'}).palette;
+assert(cardPalette.groups.some((group) => group.entries.some((entry) => entry.key === 'card:campaign_card')), 'card palette filter should search the full project candidate pool');
+assert(!cardPalette.groups.some((group) => group.entries.some((entry) => entry.kind === 'event')), 'card palette filter should hide non-card entries');
+const advisorPalette = storyboardModel.buildStoryboard(index, existing, {view: 'timeline', storyPaletteType: 'advisor'}).palette;
+assert(advisorPalette.groups.some((group) => group.entries.some((entry) => entry.key === 'advisor:campaign_advisor')), 'advisor palette filter should search the full project candidate pool');
+assert(!advisorPalette.groups.some((group) => group.entries.some((entry) => entry.kind === 'event')), 'advisor palette filter should hide non-advisor entries');
+const syntheticCards = Array.from({length: 14}, (_item, index) => ({
+  key: 'event:fixture_' + index,
+  id: 'fixture_' + index,
+  kind: 'event',
+  title: 'Fixture item ' + index,
+  body: 'Fixture body ' + index
+}));
+const unlimitedPalette = storyPaletteModel.buildPalette({view: 'timeline', cards: syntheticCards}, {storyPaletteType: 'all'});
+const unlimitedGroup = unlimitedPalette.groups.find((group) => group.key === 'unplaced');
+assert(unlimitedGroup && unlimitedGroup.entries.length === 14 && unlimitedGroup.hiddenCount === 0, 'empty palette search should show every matching entry in a group');
+const limitedPalette = storyPaletteModel.buildPalette({view: 'timeline', cards: syntheticCards}, {storyPaletteQuery: 'Fixture', storyPaletteType: 'all'});
+const limitedGroup = limitedPalette.groups.find((group) => group.key === 'unplaced');
+assert(limitedGroup && limitedGroup.entries.length === 12 && limitedGroup.hiddenCount === 2, 'active palette search should still use the compact group limit');
 
 const timelineHtml = storyboardSurface.render(existing, {
   projectIndex: index,

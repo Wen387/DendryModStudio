@@ -30,6 +30,10 @@
     const chain = buildChain(projectIndex, storyboardCards, selected, model, opts);
     const storyContext = buildStoryContext(projectIndex, storyboardCards, selected, timeline, chain);
     const displaySelectedKey = view === 'chain' && chainCardByKey(chain, opts.selected) ? String(opts.selected) : selectedKey;
+    const paletteSelected = cardByKey(allCards, displaySelectedKey) || cardByKey(allCards, selectedKey) || selected;
+    const paletteRawTimeline = buildTimeline(projectIndex, allCards, paletteSelected, opts);
+    const paletteTimeline = buildScopedTimeline(projectIndex, paletteRawTimeline, paletteSelected, opts);
+    const paletteChain = buildChain(projectIndex, allCards, paletteSelected, model, opts);
     const palette = buildPalette({
       view,
       canvasCategory: {
@@ -37,7 +41,7 @@
         totalCardCount: allCards.length,
         storyObjectCount: categorySummary.storyObjectCount,
         cardObjectCount: categorySummary.cardObjectCount,
-        visibleCardCount: storyboardCards.length,
+        visibleCardCount: allCards.length,
         hiddenCardCount: categorySummary.hiddenCardCount
       },
       search: {
@@ -47,9 +51,9 @@
       },
       selectedKey: displaySelectedKey,
       currentKey: current.key,
-      cards: storyboardCards,
-      timeline,
-      chain,
+      cards: allCards,
+      timeline: paletteTimeline,
+      chain: paletteChain,
       storyContext
     }, opts);
     return {
@@ -664,11 +668,11 @@
 
   function sceneKind(scene) {
     const value = isObject(scene) ? scene : {};
+    if (value.flags && value.flags.isPinnedCard || value.type === 'pinned_card' || value.type === 'advisor') {
+      return 'advisor';
+    }
     if (value.flags && value.flags.isCard || value.type === 'card') {
       return 'card';
-    }
-    if (value.flags && value.flags.isPinnedCard || value.type === 'pinned_card') {
-      return 'advisor';
     }
     return 'event';
   }

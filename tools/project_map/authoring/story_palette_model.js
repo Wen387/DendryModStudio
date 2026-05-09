@@ -86,6 +86,8 @@
   function filterGroup(groupValue, filters) {
     const query = String(filters.query || '').toLowerCase();
     const type = normalizeType(filters.type);
+    const shouldLimit = Boolean(query);
+    const limit = shouldLimit ? filters.limit : Number.MAX_SAFE_INTEGER;
     const filtered = ensureArray(groupValue.entries).filter((entry) => {
       if (type !== 'all' && typeForEntry(entry) !== type) {
         return false;
@@ -97,8 +99,8 @@
     });
     return Object.assign({}, groupValue, {
       totalCount: filtered.length,
-      hiddenCount: Math.max(0, filtered.length - filters.limit),
-      entries: filtered.slice(0, filters.limit)
+      hiddenCount: shouldLimit ? Math.max(0, filtered.length - filters.limit) : 0,
+      entries: filtered.slice(0, limit)
     });
   }
 
