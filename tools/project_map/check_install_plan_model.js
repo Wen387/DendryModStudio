@@ -284,6 +284,13 @@ const eventApply = installPlan.applyInstallPlan(eventBundle.installPlan, {projec
 assert(eventApply.ok, 'event apply should create scene and insert guarded init/migration: ' + JSON.stringify(eventApply));
 assert(fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'root.scene.dry'), 'utf8').includes('Q.sample_world_event_seen = 0;'), 'event apply should insert root seen flag init');
 assert(fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'post_event.scene.dry'), 'utf8').includes('Q.sample_world_event_seen === undefined'), 'event apply should insert post_event migration guard');
+const eventApplyAgain = installPlan.applyInstallPlan(eventBundle.installPlan, {projectRoot: tmpRoot, dryRun: false});
+assert(eventApplyAgain.ok, 'reapplying identical event create should be idempotent: ' + JSON.stringify(eventApplyAgain));
+assert(eventApplyAgain.results.some((result) => result.id === 'create_scene' && result.status === 'already_applied'), 'identical event scene create should report already_applied');
+fs.writeFileSync(path.join(tmpRoot, 'source', 'scenes', 'events', 'sample_world_event.scene.dry'), 'title: Different Existing Event\n', 'utf8');
+const eventCreateConflict = installPlan.applyInstallPlan(eventBundle.installPlan, {projectRoot: tmpRoot, dryRun: true});
+assert(!eventCreateConflict.ok, 'different existing event scene should still block create_file overwrite');
+assert(eventCreateConflict.diagnostics.some((diag) => diag.code === 'install_plan.create_exists'), 'different existing event scene should report create_exists');
 
 const newsDryRun = installPlan.applyInstallPlan(newsBundle.installPlan, {projectRoot: tmpRoot, dryRun: true});
 assert(newsDryRun.ok, 'news dry-run should accept guarded post_event_news insert: ' + JSON.stringify(newsDryRun));

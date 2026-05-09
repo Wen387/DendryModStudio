@@ -1148,7 +1148,11 @@
 
   function applyCreateFile(fs, path, target, operation, dryRun, diagnostics) {
     if (fs.existsSync(target)) {
-      diagnostics.push(diagnostic('error', 'install_plan.create_exists', 'Target file already exists: ' + operation.path, operation));
+      const existing = fs.readFileSync(target, 'utf8');
+      if (existing === (operation.content || '')) {
+        return {id: operation.id, type: operation.type, path: operation.path, status: 'already_applied'};
+      }
+      diagnostics.push(diagnostic('error', 'install_plan.create_exists', 'Target file already exists with different content: ' + operation.path, operation));
       return {id: operation.id, type: operation.type, path: operation.path, status: 'failed'};
     }
     if (!dryRun) {
