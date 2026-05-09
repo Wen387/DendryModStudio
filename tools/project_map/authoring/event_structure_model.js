@@ -132,6 +132,7 @@
     const data = isObject(values) ? values : {};
     const current = isObject(structure) ? structure : {};
     const commands = [];
+    pushFieldUpdateCommands(commands, data);
     pushTextCommand(commands, data, 'structure_add_option', 'add_option');
     pushTextCommand(commands, data, 'structure_add_branch', 'add_section');
     pushTextCommand(commands, data, 'structure_add_trigger_effect', 'add_trigger_effect');
@@ -158,9 +159,10 @@
   }
 
   function draftEventBody(structure) {
-    const options = ensureArray(structure.options).filter((option) => !option.ownerSectionId);
+    const allOptions = ensureArray(structure.options);
+    const rootOptions = allOptions.filter((option) => !option.ownerSectionId);
     const branchSections = ensureArray(structure.sections).map((section, index) => branchField(section, index));
-    const actions = draftStructureActions(structure, options);
+    const actions = draftStructureActions(structure, rootOptions, allOptions);
     return {
       mode: 'new_event',
       bodyEyebrow: 'Event body',
@@ -173,9 +175,9 @@
         sectionId: 'opening'
       })],
       branchSections,
-      options: options.map((option, index) => optionRow(option, index)),
+      options: allOptions.map((option, index) => optionRow(option, index, structure)),
       effects: effectFields('event.effect', ensureArray(structure.triggerEffects)),
-      optionEffects: options.map((option, index) => ({
+      optionEffects: allOptions.map((option, index) => ({
         id: option.id || 'option_' + (index + 1),
         optionId: option.id || 'option_' + (index + 1),
         label: option.label || option.id || ('Option ' + (index + 1)),
@@ -194,9 +196,11 @@
     };
   }
 
-  function draftStructureActions(structure, options) {
+  function draftStructureActions(structure, rootOptions, allOptions) {
     const actions = [];
-    if (ensureArray(options).length < 4) {
+    const root = ensureArray(rootOptions);
+    const options = ensureArray(allOptions).length ? ensureArray(allOptions) : root;
+    if (root.length < 4) {
       actions.push(structuralField({
         id: 'structure_add_option',
         action: 'add_option',
@@ -223,8 +227,8 @@
       placeholder: 'Q.variable += 1',
       help: 'Add a Q effect that runs when this event opens.'
     }));
-    if (ensureArray(options).length > 2) {
-      options.forEach((option) => {
+    options.forEach((option) => {
+      if (option.ownerSectionId || root.length > 2) {
         actions.push(structuralField({
           id: 'structure_remove_option_' + safeId(option.id),
           role: 'route',
@@ -236,8 +240,8 @@
           before: 'option: ' + (option.label || option.id),
           help: 'Remove this draft option from the event.'
         }));
-      });
-    }
+      }
+    });
     options.forEach((option) => {
       actions.push(structuralField({
         id: 'structure_add_option_effect_' + safeId(option.id),
@@ -302,6 +306,151 @@
       }));
     });
     return actions;
+  }
+
+  function structureActionsForSource(input) {
+    const value = isObject(input) ? input : {};
+    const sceneId = stringValue(value.sceneId);
+    const sceneSource = sourceRef(value.source || value.sceneSource || {path: value.sourcePath});
+    const options = ensureArray(value.options);
+    const effects = ensureArray(value.effects);
+    const textBlocks = ensureArray(value.textBlocks);
+    const fields = [
+      structuralField({
+        id: 'structure_add_option',
+        label: 'Add option and result layer',
+        action: 'add_option',
+        sceneId,
+        source: sceneSource,
+        inputType: 'textarea',
+        placeholder: '- @new_option: Player-facing option text\n# new_option\nResult prose, routes, and effects.',
+        help: 'Draft a new option line plus the result section it should open.'
+      }),
+      structuralField({
+        id: 'structure_add_branch',
+        label: 'Add conditional or follow-up layer',
+        action: 'add_branch',
+        sceneId,
+        source: sceneSource,
+        inputType: 'textarea',
+        placeholder: '# follow_up\n[? if variable >= 1 : Conditional prose or a nested choice layer. ?]',
+        help: 'Draft a new conditional section, follow-up section, or nested event layer.'
+      }),
+      structuralField({
+        id: 'structure_add_trigger_effect',
+        role: 'effect',
+        label: 'Add trigger effect',
+        action: 'add_trigger_effect',
+        sceneId,
+        source: sceneSource,
+        inputType: 'text',
+        placeholder: 'Q.variable += 1',
+        help: 'Add a new Q effect that should run when this object opens.'
+      })
+    ];
+    options.forEach((option) => {
+      const optionId = stringValue(option && option.id);
+      const optionLabel = stringValue(option && (option.label || optionId || 'option'));
+      const optionKey = safeId(optionId || optionLabel);
+      fields.push(structuralField({
+        id: 'structure_add_option_effect_' + optionKey,
+        role: 'effect',
+        label: 'Add effect to option: ' + optionLabel,
+        action: 'add_option_effect',
+        sceneId,
+        sectionId: stringValue(option && (option.targetId || option.sectionId)),
+        optionId,
+        targetLabel: optionLabel,
+        source: option && option.source || sceneSource,
+        inputType: 'text',
+        placeholder: 'Q.variable += 1 if condition',
+        help: 'Add a new Q effect that should run from this option/result.'
+      }));
+      fields.push(structuralField({
+        id: 'structure_remove_option_' + optionKey,
+        role: 'route',
+        label: 'Remove option: ' + optionLabel,
+        action: 'remove_option',
+        sceneId,
+        sectionId: stringValue(option && option.sectionId),
+        optionId,
+        targetLabel: optionLabel,
+        source: option && option.source || sceneSource,
+        inputType: 'checkbox',
+        original: 'false',
+        before: [
+          'option: ' + optionLabel,
+          option && option.rawTargetId ? 'target: ' + option.rawTargetId : '',
+          firstNonEmpty(option && option.chooseIf, option && option.sectionChooseIf, option && option.sectionViewIf)
+            ? 'condition: ' + firstNonEmpty(option && option.chooseIf, option && option.sectionChooseIf, option && option.sectionViewIf)
+            : ''
+        ].filter(Boolean).join('\n'),
+        help: 'Remove this option only after checking its target section, incoming references, effects, and unavailable text.'
+      }));
+      const condition = firstNonEmpty(option && option.chooseIf, option && option.sectionChooseIf, option && option.sectionViewIf);
+      if (condition) {
+        fields.push(structuralField({
+          id: 'structure_remove_option_condition_' + optionKey,
+          role: 'condition',
+          label: 'Remove prerequisite: ' + optionLabel,
+          action: 'remove_option_condition',
+          sceneId,
+          sectionId: stringValue(option && option.sectionId),
+          optionId,
+          targetLabel: optionLabel,
+          source: option && option.source || sceneSource,
+          inputType: 'checkbox',
+          original: 'false',
+          before: condition,
+          help: 'Remove this option prerequisite after checking unavailable text and routes.'
+        }));
+      }
+    });
+    effects.forEach((effect, index) => {
+      const expression = effectLabelForSource(effect);
+      if (!expression) {
+        return;
+      }
+      const option = optionForSourceEffect(effect, options);
+      fields.push(structuralField({
+        id: 'structure_remove_effect_' + safeId(stringValue(effect && effect.variable || 'effect') + '_' + String(index + 1)),
+        role: 'effect',
+        label: 'Remove effect: ' + expression,
+        action: 'remove_effect',
+        sceneId,
+        sectionId: stringValue(effect && effect.sectionId),
+        optionId: option && option.id || '',
+        targetLabel: option && option.label || stringValue(effect && effect.sectionId) || 'trigger',
+        source: effect && effect.source || sceneSource,
+        inputType: 'checkbox',
+        original: 'false',
+        before: expression,
+        help: 'Remove this effect only after checking which option or trigger currently writes the variable.'
+      }));
+    });
+    textBlocks.filter((block) => {
+      const role = stringValue(block && block.semanticRole);
+      return role === 'conditional_text' || role === 'conditional_option_result_text';
+    }).forEach((block) => {
+      fields.push(structuralField({
+        id: 'structure_remove_layer_' + safeId(block.id || block.sectionId || block.label),
+        label: 'Remove layer: ' + stringValue(block.label || block.sectionLabel || block.sectionId || 'branch'),
+        action: 'remove_layer',
+        sceneId,
+        sectionId: stringValue(block.sectionId),
+        targetLabel: stringValue(block.label || block.sectionLabel || block.sectionId || 'branch'),
+        source: block.source || sceneSource,
+        inputType: 'checkbox',
+        original: 'false',
+        before: [
+          block.sectionId ? 'section: ' + block.sectionId : '',
+          ensureArray(block.conditions).length ? 'conditions: ' + ensureArray(block.conditions).join(' / ') : '',
+          stringValue(block.original).trim().slice(0, 240)
+        ].filter(Boolean).join('\n'),
+        help: 'Remove or split this composite layer only after checking nested options, routes, and effects.'
+      }));
+    });
+    return fields;
   }
 
   function optionFromDraft(option, index, ownerSectionId) {
@@ -429,12 +578,15 @@
     return out;
   }
 
-  function optionRow(option, index) {
+  function optionRow(option, index, structure) {
     const id = option.id || 'option_' + (index + 1);
+    const section = sectionById(structure, option.ownerSectionId);
     return {
       id,
       optionId: id,
       targetId: option.gotoAfter || '',
+      sectionId: option.ownerSectionId || '',
+      sectionLabel: section && (section.title || section.id) || '',
       label: option.label || id,
       subtitle: option.subtitle || '',
       chooseIf: option.chooseIf || '',
@@ -496,6 +648,8 @@
       source,
       sourcePath: source.path || '',
       editability: 'manual_review',
+      owner: {sceneId: stringValue(value.sceneId), sectionId: stringValue(value.sectionId), itemId: stringValue(value.optionId), kind: 'structure'},
+      sceneId: stringValue(value.sceneId),
       sectionId: stringValue(value.sectionId),
       optionId: stringValue(value.optionId),
       inputType: stringValue(value.inputType || 'text'),
@@ -535,10 +689,14 @@
   function removeOption(structure, optionId) {
     const id = safeId(optionId);
     const rootOptions = ensureArray(structure.options).filter((option) => !option.ownerSectionId);
-    if (rootOptions.length <= 2) {
+    const target = ensureArray(structure.options).find((option) => safeId(option.id) === id);
+    if (target && !target.ownerSectionId && rootOptions.length <= 2) {
       return;
     }
     structure.options = ensureArray(structure.options).filter((option) => safeId(option.id) !== id);
+    ensureArray(structure.sections).forEach((section) => {
+      section.options = ensureArray(section.options).filter((option) => safeId(option.id) !== id);
+    });
   }
 
   function addSection(structure, draft) {
@@ -561,14 +719,19 @@
 
   function updateOption(structure, optionId, callback) {
     const id = safeId(optionId);
+    const seen = new Set();
     ensureArray(structure.options).forEach((option) => {
-      if (safeId(option.id) === id && typeof callback === 'function') {
+      const optionKey = safeId(option.id);
+      if (optionKey === id && typeof callback === 'function' && !seen.has(option)) {
+        seen.add(option);
         callback(option);
       }
     });
     ensureArray(structure.sections).forEach((section) => {
       ensureArray(section.options).forEach((option) => {
-        if (safeId(option.id) === id && typeof callback === 'function') {
+        const optionKey = safeId(option.id);
+        if (optionKey === id && typeof callback === 'function' && !seen.has(option)) {
+          seen.add(option);
           callback(option);
         }
       });
@@ -591,6 +754,101 @@
       structure.heading = stringValue(value);
     } else if (id === 'event.intro') {
       structure.openingText = stringValue(value);
+    } else if (id === 'event.id') {
+      structure.id = safeId(value || structure.id || 'new_world_event');
+    } else if (id.indexOf('event.section.') === 0) {
+      updateSectionField(structure, id, value);
+    } else if (id.indexOf('event.effect.') === 0) {
+      updateTriggerEffectField(structure, id, value);
+    } else if (id.indexOf('event.') === 0) {
+      updateEventMetaField(structure, id, value);
+    } else if (id.indexOf('option.') === 0) {
+      updateOptionField(structure, id, value);
+    }
+  }
+
+  function updateEventMetaField(structure, fieldId, value) {
+    const key = fieldId.slice('event.'.length);
+    structure.when = isObject(structure.when) ? structure.when : {};
+    if (key === 'year' || key === 'monthStart' || key === 'monthEnd' || key === 'priority') {
+      const number = Number(value);
+      if (Number.isFinite(number)) {
+        structure.when[key] = number;
+      }
+    } else if (key === 'requires') {
+      structure.when.requires = stringValue(value);
+    }
+  }
+
+  function updateSectionField(structure, fieldId, value) {
+    const match = fieldId.match(/^event\.section\.(\d+)\.(body|title|condition)$/);
+    if (!match) {
+      return;
+    }
+    const section = ensureArray(structure.sections)[Number(match[1])];
+    if (!section) {
+      return;
+    }
+    if (match[2] === 'body') {
+      section.text = stringValue(value);
+    } else if (match[2] === 'title') {
+      section.title = stringValue(value);
+    } else if (match[2] === 'condition') {
+      section.condition = stringValue(value);
+    }
+  }
+
+  function updateTriggerEffectField(structure, fieldId, value) {
+    const match = fieldId.match(/^event\.effect\.(\d+)\.(variable|op|value|condition|hook)$/);
+    if (!match) {
+      return;
+    }
+    const effect = ensureArray(structure.triggerEffects)[Number(match[1])];
+    if (effect) {
+      setEffectPart(effect, match[2], value);
+    }
+  }
+
+  function updateOptionField(structure, fieldId, value) {
+    const effectMatch = fieldId.match(/^option\.(\d+)\.effect\.(\d+)\.(variable|op|value|condition|hook)$/);
+    if (effectMatch) {
+      const option = ensureArray(structure.options)[Number(effectMatch[1])];
+      if (!option) {
+        return;
+      }
+      updateOption(structure, option.id, (targetOption) => {
+        const effect = ensureArray(targetOption.effects)[Number(effectMatch[2])];
+        if (effect) {
+          setEffectPart(effect, effectMatch[3], value);
+        }
+      });
+      return;
+    }
+    const match = fieldId.match(/^option\.(\d+)\.(label|subtitle|body|chooseIf|unavailableText|gotoAfter)$/);
+    if (!match) {
+      return;
+    }
+    const option = ensureArray(structure.options)[Number(match[1])];
+    if (!option) {
+      return;
+    }
+    const key = match[2];
+    updateOption(structure, option.id, (targetOption) => {
+      targetOption[key] = key === 'gotoAfter' ? safeId(value || targetOption.gotoAfter || 'continue_' + targetOption.id) : stringValue(value);
+    });
+  }
+
+  function setEffectPart(effect, key, value) {
+    if (key === 'variable') {
+      effect.variable = safeId(value);
+    } else if (key === 'op') {
+      effect.op = stringValue(value || '+=');
+    } else if (key === 'value') {
+      effect.value = effectValue(value, effect.op);
+    } else if (key === 'condition') {
+      effect.condition = stringValue(value);
+    } else if (key === 'hook') {
+      effect.hook = stringValue(value);
     }
   }
 
@@ -653,6 +911,34 @@
     return {type: 'remove_option_effect', optionId: option && option.id || optionId, effectIndex: index};
   }
 
+  function pushFieldUpdateCommands(commands, data) {
+    Object.keys(data || {}).forEach((key) => {
+      if (isStructureCommandField(key)) {
+        return;
+      }
+      if (isEventStructureField(key)) {
+        commands.push({type: 'update_field', fieldId: key, value: data[key]});
+      }
+    });
+  }
+
+  function isStructureCommandField(key) {
+    return /^structure_/.test(stringValue(key));
+  }
+
+  function isEventStructureField(key) {
+    const text = stringValue(key);
+    return text === 'event.title' ||
+      text === 'event.heading' ||
+      text === 'event.intro' ||
+      text === 'event.id' ||
+      /^event\.(year|monthStart|monthEnd|requires|priority)$/.test(text) ||
+      /^event\.section\.\d+\.(body|title|condition)$/.test(text) ||
+      /^event\.effect\.\d+\.(variable|op|value|condition|hook)$/.test(text) ||
+      /^option\.\d+\.(label|subtitle|body|chooseIf|unavailableText|gotoAfter)$/.test(text) ||
+      /^option\.\d+\.effect\.\d+\.(variable|op|value|condition|hook)$/.test(text);
+  }
+
   function pushTextCommand(commands, data, key, type) {
     const text = stringValue(data && data[key]).trim();
     if (text) {
@@ -695,12 +981,50 @@
     };
   }
 
+  function sectionById(structure, sectionId) {
+    const raw = stringValue(sectionId).trim();
+    if (!raw) {
+      return null;
+    }
+    const id = safeId(raw);
+    return ensureArray(structure && structure.sections).find((section) => safeId(section && section.id) === id) || null;
+  }
+
   function effectLabel(effect) {
     const value = isObject(effect) ? effect : {};
     const variable = value.variable ? 'Q.' + value.variable : 'Q.variable';
     const op = value.op || '+=';
     const tail = variable + ' ' + op + ' ' + stringValue(value.value === undefined ? 1 : value.value);
     return value.condition ? tail + ' if ' + value.condition : tail;
+  }
+
+  function effectLabelForSource(effect) {
+    const value = isObject(effect) ? effect : {};
+    const explicit = stringValue(value.displayExpression || value.expression || value.sourceExpression).trim();
+    if (explicit) {
+      return explicit;
+    }
+    const variable = stringValue(value.variable).trim();
+    if (!variable) {
+      return '';
+    }
+    const op = stringValue(value.op || value.operator || '+=').trim() || '+=';
+    const amount = stringValue(value.value === undefined || value.value === null ? 1 : value.value).trim();
+    const expression = (variable.indexOf('Q.') === 0 ? variable : 'Q.' + variable) + ' ' + op + ' ' + amount;
+    return value.condition ? expression + ' if ' + value.condition : expression;
+  }
+
+  function optionForSourceEffect(effect, options) {
+    const sectionId = stringValue(effect && effect.sectionId).trim();
+    if (!sectionId) {
+      return null;
+    }
+    return ensureArray(options).find((option) => {
+      return stringValue(option && option.targetId) === sectionId ||
+        stringValue(option && option.rawTargetId) === sectionId ||
+        stringValue(option && option.id) === sectionId ||
+        stringValue(option && option.sectionId) === sectionId;
+    }) || null;
   }
 
   function effectValue(value, op) {
@@ -746,6 +1070,16 @@
     return stringValue(value || 'section').replace(/_/g, ' ').replace(/\b[a-z]/g, (char) => char.toUpperCase());
   }
 
+  function firstNonEmpty() {
+    for (let index = 0; index < arguments.length; index += 1) {
+      const text = stringValue(arguments[index]).trim();
+      if (text) {
+        return text;
+      }
+    }
+    return '';
+  }
+
   function truthy(value) {
     return /^(1|true|yes|on)$/i.test(stringValue(value).trim());
   }
@@ -788,7 +1122,8 @@
     applyCommand,
     toDraft,
     toExistingProposalCommands,
-    commandsFromValues
+    commandsFromValues,
+    structureActionsForSource
   };
 
   if (typeof module !== 'undefined' && module.exports) {

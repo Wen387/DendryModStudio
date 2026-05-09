@@ -481,6 +481,43 @@ const removedStructure = eventStructureModel.applyCommand(
 const removedDraft = eventStructureModel.toDraft(removedStructure, structureEvent.changeState.draft);
 assert(removedDraft.options.length === 2 && !removedDraft.options.some((option) => option.id === 'third_path'), 'EventStructure remove-option command should preserve a valid two-option draft');
 
+const compositeNewEvent = canvasModel.buildNewEventCanvas(index, {
+  id: 'composite_new_event',
+  title: 'Composite new event',
+  heading: 'Composite new event',
+  when: {year: 1936, monthStart: 2, monthEnd: 4},
+  options: [
+    {id: 'stay', label: 'Stay', narrativeParagraphs: ['Stay here.']},
+    {id: 'leave', label: 'Leave', narrativeParagraphs: ['Leave now.']}
+  ],
+  sections: [{
+    id: 'follow_up',
+    title: 'Follow-up layer',
+    paragraphs: ['Nested setup.'],
+    options: [{
+      id: 'nested_choice',
+      label: 'Nested choice',
+      narrativeParagraphs: ['Nested result.'],
+      effects: [{variable: 'public_order', op: '+=', value: 1}]
+    }]
+  }]
+}, {
+  values: {
+    'event.section.0.body': 'Nested setup with a clearer cue.',
+    'option.2.label': 'Nested choice edited',
+    'option.2.effect.0.value': '3',
+    structure_add_option_effect_nested_choice: 'Q.public_order += 4'
+  }
+});
+assert(compositeNewEvent.ok, 'composite new Event should remain valid: ' + JSON.stringify(compositeNewEvent.changeState.diagnostics));
+assert(compositeNewEvent.eventBody.options.some((option) => option.sectionId === 'follow_up' && option.label === 'Nested choice edited'), 'section-owned options should render in the unified Event editor');
+assert(compositeNewEvent.eventBody.structureActions.some((field) => field.id === 'structure_add_option_effect_nested_choice'), 'section-owned options should expose effect creation controls');
+assert(compositeNewEvent.changeState.draft.sections[0].paragraphs[0] === 'Nested setup with a clearer cue.', 'section body edits should write back through EventStructure');
+assert(compositeNewEvent.changeState.draft.sections[0].options[0].label === 'Nested choice edited', 'section-owned option edits should write back through EventStructure');
+assert(compositeNewEvent.changeState.draft.sections[0].options[0].effects.length === 2, 'adding an effect to a section-owned option should not duplicate through the flattened structure list');
+assert(compositeNewEvent.changeState.draft.sections[0].options[0].effects.some((effect) => effect.variable === 'public_order' && effect.value === 3), 'section-owned option effect edits should update existing effects');
+assert(compositeNewEvent.changeState.draft.sections[0].options[0].effects.some((effect) => effect.variable === 'public_order' && effect.value === 4), 'section-owned option effect additions should write back to the nested draft option');
+
 process.stdout.write(JSON.stringify({
   ok: true,
   existingMode: existing.mode,

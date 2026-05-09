@@ -60,6 +60,20 @@
     return null;
   }
 
+  function eventStructureApi() {
+    if (global && global.ProjectMapEventStructureModel) {
+      return global.ProjectMapEventStructureModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./event_structure_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   function buildEditModel(projectIndex, view, itemOrId, options) {
     const index = isObject(projectIndex) ? projectIndex : {};
     const opts = isObject(options) ? options : {};
@@ -1079,170 +1093,17 @@
   }
 
   function structuralActionFields(scene, options, effects, textBlocks, source) {
-    const sceneId = String(scene && scene.id || '');
-    const sceneSource = sourceRef(source || scene && scene.sourceSpan || {path: scene && scene.path});
-    const fields = [
-      structuralField({
-        id: 'structure_add_option',
-        label: 'Add option and result layer',
-        action: 'add_option',
-        sceneId,
-        source: sceneSource,
-        inputType: 'textarea',
-        placeholder: '- @new_option: Player-facing option text\n# new_option\nResult prose, routes, and effects.',
-        help: 'Draft a new option line plus the result section it should open.'
-      }),
-      structuralField({
-        id: 'structure_add_branch',
-        label: 'Add conditional or follow-up layer',
-        action: 'add_branch',
-        sceneId,
-        source: sceneSource,
-        inputType: 'textarea',
-        placeholder: '# follow_up\n[? if variable >= 1 : Conditional prose or a nested choice layer. ?]',
-        help: 'Draft a new conditional section, follow-up section, or nested event layer.'
-      }),
-      structuralField({
-        id: 'structure_add_trigger_effect',
-        role: 'effect',
-        label: 'Add trigger effect',
-        action: 'add_trigger_effect',
-        sceneId,
-        source: sceneSource,
-        inputType: 'text',
-        placeholder: 'Q.variable += 1',
-        help: 'Add a new Q effect that should run when this object opens.'
-      })
-    ];
-    ensureArray(options).forEach((option) => {
-      const optionId = String(option && option.id || '');
-      const optionLabel = String(option && option.label || optionId || 'option');
-      fields.push(structuralField({
-        id: 'structure_add_option_effect_' + safeId(optionId || optionLabel),
-        role: 'effect',
-        label: 'Add effect to option: ' + optionLabel,
-        action: 'add_option_effect',
-        sceneId,
-        sectionId: String(option && (option.targetId || option.sectionId) || ''),
-        optionId,
-        targetLabel: optionLabel,
-        source: option && option.source || sceneSource,
-        inputType: 'text',
-        placeholder: 'Q.variable += 1 if condition',
-        help: 'Add a new Q effect that should run from this option/result.'
-      }));
-      fields.push(structuralField({
-        id: 'structure_remove_option_' + safeId(optionId || optionLabel),
-        role: 'route',
-        label: 'Remove option: ' + optionLabel,
-        action: 'remove_option',
-        sceneId,
-        sectionId: String(option && option.sectionId || ''),
-        optionId,
-        targetLabel: optionLabel,
-        source: option && option.source || sceneSource,
-        inputType: 'checkbox',
-        original: 'false',
-        before: [
-          'option: ' + optionLabel,
-          option && option.rawTargetId ? 'target: ' + option.rawTargetId : '',
-          firstNonEmpty(option && option.chooseIf, option && option.sectionChooseIf, option && option.sectionViewIf)
-            ? 'condition: ' + firstNonEmpty(option && option.chooseIf, option && option.sectionChooseIf, option && option.sectionViewIf)
-            : ''
-        ].filter(Boolean).join('\n'),
-        help: 'Remove this option only after checking its target section, incoming references, effects, and unavailable text.'
-      }));
-      const condition = firstNonEmpty(option && option.chooseIf, option && option.sectionChooseIf, option && option.sectionViewIf);
-      if (condition) {
-        fields.push(structuralField({
-          id: 'structure_remove_option_condition_' + safeId(optionId || optionLabel),
-          role: 'condition',
-          label: 'Remove prerequisite: ' + optionLabel,
-          action: 'remove_option_condition',
-          sceneId,
-          sectionId: String(option && option.sectionId || ''),
-          optionId,
-          targetLabel: optionLabel,
-          source: option && option.source || sceneSource,
-          inputType: 'checkbox',
-          original: 'false',
-          before: condition,
-          help: 'Remove this option prerequisite after checking unavailable text and routes.'
-        }));
-      }
+    const api = eventStructureApi();
+    if (!api || typeof api.structureActionsForSource !== 'function') {
+      return [];
+    }
+    return api.structureActionsForSource({
+      sceneId: String(scene && scene.id || ''),
+      source: source || scene && scene.sourceSpan || {path: scene && scene.path},
+      options,
+      effects,
+      textBlocks
     });
-    ensureArray(effects).forEach((effect, index) => {
-      const expression = effectLabelText(effect);
-      if (!expression) {
-        return;
-      }
-      const option = optionForEffect(effect, options);
-      fields.push(structuralField({
-        id: 'structure_remove_effect_' + safeId(String(effect && effect.variable || 'effect') + '_' + String(index + 1)),
-        role: 'effect',
-        label: 'Remove effect: ' + expression,
-        action: 'remove_effect',
-        sceneId,
-        sectionId: String(effect && effect.sectionId || ''),
-        optionId: option && option.id || '',
-        targetLabel: option && option.label || String(effect && effect.sectionId || '') || 'trigger',
-        source: effect && effect.source || sceneSource,
-        inputType: 'checkbox',
-        original: 'false',
-        before: expression,
-        help: 'Remove this effect only after checking which option or trigger currently writes the variable.'
-      }));
-    });
-    ensureArray(textBlocks).filter((block) => {
-      const role = String(block && block.semanticRole || '');
-      return role === 'conditional_text' || role === 'conditional_option_result_text';
-    }).forEach((block) => {
-      fields.push(structuralField({
-        id: 'structure_remove_layer_' + safeId(block.id || block.sectionId || block.label),
-        label: 'Remove layer: ' + String(block.label || block.sectionLabel || block.sectionId || 'branch'),
-        action: 'remove_layer',
-        sceneId,
-        sectionId: String(block.sectionId || ''),
-        targetLabel: String(block.label || block.sectionLabel || block.sectionId || 'branch'),
-        source: block.source || sceneSource,
-        inputType: 'checkbox',
-        original: 'false',
-        before: [
-          block.sectionId ? 'section: ' + block.sectionId : '',
-          ensureArray(block.conditions).length ? 'conditions: ' + ensureArray(block.conditions).join(' / ') : '',
-          String(block.original || '').trim().slice(0, 240)
-        ].filter(Boolean).join('\n'),
-        help: 'Remove or split this composite layer only after checking nested options, routes, and effects.'
-      }));
-    });
-    return fields;
-  }
-
-  function structuralField(input) {
-    const value = isObject(input) ? input : {};
-    const original = value.original === undefined ? '' : String(value.original);
-    const source = sourceRef(value.source || {});
-    return {
-      id: safeId(value.id || value.action || 'structure_action'),
-      role: String(value.role || 'structure'),
-      label: String(value.label || 'Structure action'),
-      original,
-      value: original,
-      source,
-      sourcePath: source.path || '',
-      editability: 'manual_review',
-      owner: {sceneId: String(value.sceneId || ''), sectionId: String(value.sectionId || ''), itemId: String(value.optionId || ''), kind: 'structure'},
-      sectionId: String(value.sectionId || ''),
-      optionId: String(value.optionId || ''),
-      inputType: String(value.inputType || 'text'),
-      placeholder: String(value.placeholder || ''),
-      transform: 'structure_action',
-      structureAction: String(value.action || 'structure_action'),
-      structureBefore: String(value.before || ''),
-      structureTargetLabel: String(value.targetLabel || ''),
-      confidence: 'proposal',
-      reason: String(value.help || 'Structural changes need manual review because they can affect routes, variables, and nested event flow.')
-    };
   }
 
   function parseEffectText(text) {
@@ -1527,29 +1388,6 @@
       return text;
     }
     return text + '\nManual review: effect expression was not recognized as a simple Q assignment.';
-  }
-
-  function effectLabelText(effect) {
-    const api = logicFieldsApi();
-    if (api && typeof api.effectExpression === 'function') {
-      const expression = String(api.effectExpression(effect) || '').trim();
-      if (expression) {
-        return expression;
-      }
-    }
-    return String(effect && (effect.displayExpression || effect.expression || effect.sourceExpression) || '').trim();
-  }
-
-  function optionForEffect(effect, options) {
-    const sectionId = String(effect && effect.sectionId || '');
-    if (!sectionId) {
-      return null;
-    }
-    return ensureArray(options).find((option) => {
-      return String(option && option.targetId || '') === sectionId ||
-        String(option && option.rawTargetId || '') === sectionId ||
-        String(option && option.id || '') === sectionId;
-    }) || null;
   }
 
   function baseFieldChange(field, before, after) {
@@ -1867,16 +1705,6 @@
       text = 'field_' + text;
     }
     return ID_RE.test(text) ? text : 'field';
-  }
-
-  function firstNonEmpty() {
-    for (let index = 0; index < arguments.length; index += 1) {
-      const value = arguments[index];
-      if (value !== undefined && value !== null && String(value).trim()) {
-        return String(value).trim();
-      }
-    }
-    return '';
   }
 
   function diagnostic(severity, code, message) {

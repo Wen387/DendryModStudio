@@ -253,6 +253,7 @@ function nodeEntry() {
     ELECTRON_DISABLE_SECURITY_WARNINGS: '1'
   };
   delete childEnv.ELECTRON_RUN_AS_NODE;
+  delete childEnv.ELECTRON_NO_ATTACH_CONSOLE;
   const result = spawnSync(electronPath, childArgs, {
     stdio: 'inherit',
     env: childEnv
