@@ -554,14 +554,18 @@ assert(installUi.includes('renderHumanChecklist'), 'Install should render a huma
 assert(installUi.includes('install.human.safeApply'), 'Install should translate safe_apply into player-facing labels');
 assert(installUi.includes('install.report.wouldApplyHuman'), 'Install result report should avoid raw would_apply labels in the main summary');
 assert(installUi.includes('createRuntimePreview'), 'Install Assistant should call the desktop Runtime Preview API');
+assert(installUi.includes('endRuntimePreview'), 'Install Assistant should expose a Runtime Preview end action');
 assert(installUi.includes('renderRuntimePreviewResult'), 'Install Assistant should render Runtime Preview results');
+assert(installUi.includes('runtime-preview-progress'), 'Install Assistant should render Runtime Preview progress feedback');
 assert(installUi.includes('state.projectIndex'), 'Install Assistant should keep ProjectIndex for Runtime Preview debug controls');
 assert(installUi.includes('projectIndex: state.projectIndex'), 'Runtime Preview should pass ProjectIndex to desktop for debug controls');
 assert(desktopMain.includes('dendry:runtime-preview-create'), 'desktop main should expose Runtime Preview IPC');
+assert(desktopMain.includes('dendry:runtime-preview-close'), 'desktop main should expose Runtime Preview close IPC');
 assert(desktopMain.includes('dendry:runtime-preview-history'), 'desktop main should expose runtime preview history IPC');
 assert(desktopMain.includes('dendry:update-notice-check'), 'desktop main should expose Update Notice IPC');
 assert(desktopMain.includes('dendry:open-external-url'), 'desktop main should expose safe external URL IPC');
 assert(desktopPreload.includes('createRuntimePreview'), 'desktop preload should expose Runtime Preview to the viewer');
+assert(desktopPreload.includes('closeRuntimePreview'), 'desktop preload should expose Runtime Preview shutdown to the viewer');
 assert(desktopPreload.includes('recordRuntimePreviewHistory'), 'desktop preload should expose runtime preview history recording');
 assert(desktopPreload.includes('checkUpdateNotice'), 'desktop preload should expose Update Notice checks');
 assert(desktopPreload.includes('openExternalUrl'), 'desktop preload should expose safe external URL opens');

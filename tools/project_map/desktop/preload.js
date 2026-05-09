@@ -97,6 +97,7 @@ contextBridge.exposeInMainWorld('dendryDesktop', {
   },
   applyInstallPlan: (options) => ipcRenderer.invoke('dendry:install-plan-apply', options || {}),
   createRuntimePreview: (options) => ipcRenderer.invoke('dendry:runtime-preview-create', options || {}),
+  closeRuntimePreview: (options) => ipcRenderer.invoke('dendry:runtime-preview-close', options || {}),
   createRuntimeLens: (options) => ipcRenderer.invoke('dendry:runtime-lens-create', options || {}),
   recordRuntimePreviewHistory: (options) => ipcRenderer.invoke('dendry:runtime-preview-history', options || {}),
   checkUpdateNotice: (options) => ipcRenderer.invoke('dendry:update-notice-check', options || {}),

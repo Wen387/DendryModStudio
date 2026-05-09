@@ -110,6 +110,15 @@ const runtimeHtml = assistant.renderRuntimePreviewResult({
 });
 assert(runtimeHtml.includes('data-runtime-preview-frame="true"'), 'runtime preview result should embed an inline frame');
 assert(runtimeHtml.includes('http://127.0.0.1:47999/session/compare/'), 'runtime preview frame should prefer the comparison URL');
+assert(runtimeHtml.includes('data-runtime-preview-action="end"'), 'runtime preview result should expose an explicit end preview action');
+
+const pendingRuntimeHtml = assistant.renderRuntimePreviewResult({
+  ok: true,
+  pending: true,
+  message: 'Creating preview...'
+});
+assert(pendingRuntimeHtml.includes('<progress'), 'pending runtime preview should show progress');
+assert(pendingRuntimeHtml.includes('full deployment preview'), 'pending runtime preview should explain full deployment preview cost');
 
 process.stdout.write(JSON.stringify({
   ok: true,

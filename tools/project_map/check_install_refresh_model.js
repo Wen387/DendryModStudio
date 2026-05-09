@@ -36,6 +36,7 @@ function desktopHarness(options) {
   let applyCalls = 0;
   let lastApplyOptions = null;
   let lastRuntimePreviewOptions = null;
+  let closeRuntimePreviewCalls = 0;
   const desktop = {
     applyInstallPlan: async (applyOptions) => {
       applyCalls += 1;
@@ -74,6 +75,10 @@ function desktopHarness(options) {
         diagnostics: []
       };
     },
+    closeRuntimePreview: async () => {
+      closeRuntimePreviewCalls += 1;
+      return {ok: true};
+    },
     scanProject: async (scanOptions) => {
       scanCalls += 1;
       lastScanOptions = scanOptions || {};
@@ -96,7 +101,7 @@ function desktopHarness(options) {
   };
   return {
     desktop,
-    calls: () => ({scanCalls, applyCalls, lastScanOptions, lastApplyOptions, lastRuntimePreviewOptions})
+    calls: () => ({scanCalls, applyCalls, closeRuntimePreviewCalls, lastScanOptions, lastApplyOptions, lastRuntimePreviewOptions})
   };
 }
 
@@ -200,9 +205,12 @@ async function main() {
   assert(emptyCalls.applyCalls === 1, 'empty plan apply must not call desktop after dry-run');
 
   const runtimePreview = await assistant.createRuntimePreview({});
+  const endedPreview = await assistant.endRuntimePreview();
   calls = harness.calls();
   assert(runtimePreview && runtimePreview.ok, 'runtime preview should return the desktop result');
   assert(calls.lastRuntimePreviewOptions.projectRoot === '/tmp/dms-refresh-project', 'runtime preview should receive the active project root');
+  assert(endedPreview && endedPreview.ended === true, 'ending runtime preview should mark the preview ended');
+  assert(calls.closeRuntimePreviewCalls === 1, 'ending runtime preview should call the desktop close API');
 
   assistant.loadPlan(null);
   const barePreview = await assistant.createRuntimePreview({});

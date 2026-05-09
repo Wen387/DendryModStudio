@@ -389,6 +389,17 @@ ipcMain.handle('dendry:runtime-preview-history', async (_event, options) => {
   return core.recordRuntimePreviewHistory(options || {});
 });
 
+ipcMain.handle('dendry:runtime-preview-close', async () => {
+  return new Promise((resolve) => {
+    core.closeRuntimePreviewServer(() => {
+      resolve({
+        ok: true,
+        message: 'Runtime preview server closed.'
+      });
+    });
+  });
+});
+
 ipcMain.handle('dendry:runtime-lens-create', async (_event, options) => {
   const projectRoot = chooseProjectRootForOperation(options || {});
   if (!projectRoot) {

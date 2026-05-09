@@ -28,6 +28,7 @@
     renderInstallAssistantPlan,
     applyLoadedPlan,
     createRuntimePreview,
+    endRuntimePreview,
     renderResultReport,
     renderRuntimePreviewResult,
     getState: () => ({
@@ -107,6 +108,17 @@
         createRuntimePreview({
           allowAdvanced: Boolean(elements.allowAdvanced && elements.allowAdvanced.checked)
         });
+      });
+    }
+    if (elements.runtimePreviewResult) {
+      elements.runtimePreviewResult.addEventListener('click', (event) => {
+        const button = event.target && event.target.closest && event.target.closest('[data-runtime-preview-action]');
+        if (!button) {
+          return;
+        }
+        if (button.dataset.runtimePreviewAction === 'end') {
+          endRuntimePreview();
+        }
       });
     }
     if (elements.allowAdvanced) {
@@ -313,6 +325,7 @@
       ok: true,
       pending: true,
       allowAdvanced,
+      progressStage: 'full-build',
       message: t('install.runtimePreviewStarting', 'Creating a temporary baseline and modified preview...')
     });
     try {
@@ -332,6 +345,36 @@
       });
       return state.runtimePreviewResult;
     }
+  }
+
+  async function endRuntimePreview() {
+    const previous = state.runtimePreviewResult;
+    if (!previous) {
+      return null;
+    }
+    removeRuntimePreviewFrames();
+    const desktop = global.dendryDesktop;
+    let closeResult = null;
+    if (desktop && typeof desktop.closeRuntimePreview === 'function') {
+      try {
+        closeResult = await desktop.closeRuntimePreview({});
+      } catch (err) {
+        closeResult = {
+          ok: false,
+          message: err && err.message ? err.message : String(err)
+        };
+      }
+    }
+    state.runtimePreviewSuspended = false;
+    setRuntimePreviewResult(Object.assign({}, previous, {
+      pending: false,
+      ended: true,
+      closeResult,
+      message: closeResult && closeResult.ok === false
+        ? t('install.runtimePreviewEndFailed', 'Studio removed the inline preview, but could not close the local preview server.')
+        : t('install.runtimePreviewEnded', 'Runtime preview ended. Create a new preview when you want to inspect the sandbox again.')
+    }));
+    return state.runtimePreviewResult;
   }
 
   async function refreshProjectIndexAfterApply(result, options) {
@@ -438,7 +481,7 @@
     elements.dryRun.disabled = !state.plan || !global.dendryDesktop;
     elements.apply.disabled = !canApplyReviewed(Boolean(elements.allowAdvanced && elements.allowAdvanced.checked));
     if (elements.runtimePreview) {
-      elements.runtimePreview.disabled = !global.dendryDesktop;
+      elements.runtimePreview.disabled = !global.dendryDesktop || Boolean(state.runtimePreviewResult && state.runtimePreviewResult.pending);
     }
     if (elements.runtimePreviewResult) {
       elements.runtimePreviewResult.innerHTML = renderRuntimePreviewResult(state.runtimePreviewResult);
@@ -660,21 +703,25 @@
     const diagnostics = Array.isArray(result.diagnostics) ? result.diagnostics : [];
     const status = result.pending
       ? t('install.runtimePreviewStarting', 'Creating a temporary baseline and modified preview...')
-      : result.ok
+      : result.ended
+        ? t('install.runtimePreviewEndedTitle', 'Runtime preview ended.')
+        : result.ok
         ? t('install.runtimePreviewReady', 'Runtime preview is ready.')
         : t('install.runtimePreviewFailed', 'Runtime preview could not be created.');
     const message = result.message || (result.ok && result.installResult && result.installResult.ok === false
       ? t('install.runtimePreviewReadyWithInstallWarnings', 'Runtime preview was created, but some proposed changes could not be applied to the temporary modified copy. Check diagnostics below.')
       : '');
     const links = [
-      result.compareUrl ? ['install.runtimePreviewOpenCompare', t('install.runtimePreviewOpenCompare', 'Open comparison'), result.compareUrl] : null,
-      result.baselineUrl ? ['install.runtimePreviewOpenBaseline', t('install.runtimePreviewOpenBaseline', 'Open original'), result.baselineUrl] : null,
-      result.modifiedUrl ? ['install.runtimePreviewOpenModified', t('install.runtimePreviewOpenModified', 'Open modified'), result.modifiedUrl] : null
+      !result.ended && result.compareUrl ? ['install.runtimePreviewOpenCompare', t('install.runtimePreviewOpenCompare', 'Open comparison'), result.compareUrl] : null,
+      !result.ended && result.baselineUrl ? ['install.runtimePreviewOpenBaseline', t('install.runtimePreviewOpenBaseline', 'Open original'), result.baselineUrl] : null,
+      !result.ended && result.modifiedUrl ? ['install.runtimePreviewOpenModified', t('install.runtimePreviewOpenModified', 'Open modified'), result.modifiedUrl] : null
     ].filter(Boolean);
     return [
-      '<article class="runtime-preview-card ' + (result.ok ? 'is-ready' : 'is-error') + '">',
+      '<article class="runtime-preview-card ' + runtimePreviewCardClass(result) + '">',
       '<header><strong>' + escapeHtml(status) + '</strong>' + (result.sessionId ? '<span>' + escapeHtml(result.sessionId) + '</span>' : '') + '</header>',
       message ? '<p>' + escapeHtml(message) + '</p>' : '',
+      renderRuntimePreviewProgress(result),
+      renderRuntimePreviewActions(result),
       links.length ? '<div class="runtime-preview-links">' + links.map((item) => {
         return '<a href="' + escapeHtml(item[2]) + '" target="_blank" rel="noopener">' + escapeHtml(item[1]) + '</a>';
       }).join('') + '</div>' : '',
@@ -688,9 +735,55 @@
     ].join('');
   }
 
+  function runtimePreviewCardClass(result) {
+    if (result && result.pending) {
+      return 'is-pending';
+    }
+    if (result && result.ended) {
+      return 'is-ended';
+    }
+    return result && result.ok ? 'is-ready' : 'is-error';
+  }
+
+  function renderRuntimePreviewProgress(result) {
+    if (!result || !result.pending) {
+      return '';
+    }
+    const steps = [
+      t('install.runtimePreviewProgress.copy', 'Copying the project into a temporary sandbox'),
+      t('install.runtimePreviewProgress.apply', 'Applying this plan to the modified copy'),
+      t('install.runtimePreviewProgress.build', 'Building generated game output for preview'),
+      t('install.runtimePreviewProgress.server', 'Starting the local comparison server')
+    ];
+    return [
+      '<div class="runtime-preview-progress" role="status" aria-live="polite">',
+      '<progress max="100" aria-label="' + escapeHtml(t('install.runtimePreviewProgressLabel', 'Runtime preview progress')) + '"></progress>',
+      '<p>' + escapeHtml(t('install.runtimePreviewFullBuildNote', 'This is a full deployment preview: Studio copies the project, applies the plan to a temporary modified copy, and rebuilds game output. Large projects can take a while.')) + '</p>',
+      '<ol>',
+      steps.map((step) => '<li>' + escapeHtml(step) + '</li>').join(''),
+      '</ol>',
+      '</div>'
+    ].join('');
+  }
+
+  function renderRuntimePreviewActions(result) {
+    if (!result || result.pending || result.ended || !result.ok) {
+      return result && result.ended
+        ? '<div class="runtime-preview-ended-note">' + escapeHtml(t('install.runtimePreviewServerClosed', 'The inline frame was removed and the local preview server was closed.')) + '</div>'
+        : '';
+    }
+    return [
+      '<div class="runtime-preview-actions">',
+      '<button type="button" class="runtime-preview-end" data-runtime-preview-action="end">',
+      escapeHtml(t('install.runtimePreviewEnd', 'End preview')),
+      '</button>',
+      '</div>'
+    ].join('');
+  }
+
   function renderRuntimePreviewFrame(result) {
     const url = result && (result.compareUrl || result.modifiedUrl || result.baselineUrl);
-    if (!result || !result.ok || !url) {
+    if (!result || !result.ok || result.ended || !url) {
       return '';
     }
     if (state.runtimePreviewSuspended) {
