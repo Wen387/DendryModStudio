@@ -51,9 +51,8 @@
     const scenes = ensureArray(index.scenes);
     const status = statusScene(index, scenes);
     const textRows = ensureArray(index.semantic && index.semantic.textCorpus && index.semantic.textCorpus.items);
-    const statusRows = status
-      ? textRows.filter((row) => row && row.owner && row.owner.sceneId === status.id)
-      : [];
+    const surfaceRows = ensureArray(index.semantic && index.semantic.surfaceText && index.semantic.surfaceText.items);
+    const statusRows = status ? statusTextRows(status, textRows, surfaceRows) : [];
     const sections = status ? sidebarSections(status, statusRows) : [];
     const suggestions = variableSuggestionsApi();
     const variableCandidates = suggestions && typeof suggestions.buildVariableCandidates === 'function'
@@ -293,7 +292,7 @@
 
   function sidebarSections(status, statusRows) {
     const rows = ensureArray(statusRows)
-      .filter((row) => ['heading', 'body', 'conditional_body'].includes(String(row.role || '')))
+      .filter((row) => ['heading', 'body', 'conditional_body', 'status_line'].includes(String(row.role || '')))
       .sort((a, b) => sourceLine(a.source) - sourceLine(b.source));
     const sections = [];
     const mainRows = rows.filter((row) => !String(row.owner && row.owner.sectionId || '').trim());
@@ -319,6 +318,84 @@
       }, sectionRows));
     });
     return sections.filter((section) => section && section.id);
+  }
+
+  function statusTextRows(status, textRows, surfaceRows) {
+    const statusId = String(status && status.id || 'status');
+    const rows = ensureArray(textRows)
+      .filter((row) => row && row.owner && String(row.owner.sceneId || '') === statusId)
+      .filter((row) => ['heading', 'body', 'conditional_body'].includes(String(row.role || '')));
+    return uniqueStatusRows(rows.concat(statusSurfaceRows(status, surfaceRows)))
+      .sort((a, b) => sourceLine(a.source) - sourceLine(b.source));
+  }
+
+  function statusSurfaceRows(status, surfaceRows) {
+    const statusId = String(status && status.id || 'status');
+    const statusPath = normalizedPath(status && status.path || 'source/scenes/status.scene.dry');
+    return ensureArray(surfaceRows).map((row) => {
+      const source = row && row.source || {};
+      const line = sourceLine(source);
+      const path = normalizedPath(source.path || '');
+      if (!line || path !== statusPath) {
+        return null;
+      }
+      const original = String(row.originalText || row.label || '').trim();
+      if (!original) {
+        return null;
+      }
+      const section = sectionForLine(status, line);
+      const heading = /^=+\s*/.test(original);
+      return {
+        id: row.id || ('surface_status_' + line),
+        role: heading ? 'heading' : 'status_line',
+        text: heading ? cleanSurfaceText(row.label || original) : original,
+        originalText: original,
+        owner: {
+          kind: 'scene',
+          sceneId: statusId,
+          sectionId: section && section.id || '',
+          sceneType: status.type || 'status'
+        },
+        source: Object.assign({}, source, {
+          startLine: line,
+          endLine: sourceEndLine(source) || line,
+          anchorText: original,
+          endAnchorText: original
+        }),
+        confidence: row.confidence || 'static',
+        editability: row.editability || 'draft_exportable',
+        surfaceText: true
+      };
+    }).filter(Boolean);
+  }
+
+  function sectionForLine(status, line) {
+    const lineNumber = Number(line || 0);
+    if (!lineNumber) {
+      return null;
+    }
+    return ensureArray(status && status.sections).find((section) => {
+      const span = section && section.sourceSpan || {};
+      const start = Number(span.startLine || span.line || 0);
+      const end = Number(span.endLine || span.startLine || span.line || 0);
+      return start && end && start <= lineNumber && lineNumber <= end;
+    }) || null;
+  }
+
+  function uniqueStatusRows(rows) {
+    const seen = new Set();
+    return ensureArray(rows).filter((row) => {
+      const key = [
+        String(row && row.role || ''),
+        String(sourceLine(row && row.source) || ''),
+        String(sourceAnchor(row))
+      ].join('|');
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
   }
 
   function sectionFromRows(section, rows) {
@@ -448,7 +525,7 @@
 
   function bodyText(rows) {
     return ensureArray(rows)
-      .filter((row) => !['heading', 'conditional_body'].includes(String(row.role || '')))
+      .filter((row) => !['heading', 'conditional_body', 'status_line'].includes(String(row.role || '')))
       .map((row) => cleanSurfaceText(row.text || row.originalText || ''))
       .filter(Boolean)
       .join('\n');
@@ -456,7 +533,7 @@
 
   function conditionalStatusLines(rows) {
     return ensureArray(rows)
-      .filter((row) => String(row.role || '') === 'conditional_body')
+      .filter((row) => ['conditional_body', 'status_line'].includes(String(row.role || '')))
       .map((row) => sourceAnchor(row))
       .filter(Boolean)
       .join('\n');

@@ -69,9 +69,9 @@
   function renderEditor(model, draft, body, sourceRows, selectedSource) {
     return [
       '<aside class="election-results-editor" data-election-results-editor="true">',
+      renderActions(),
       renderSelector(draft, sourceRows, selectedSource),
       renderFieldGroups(body),
-      renderActions(),
       renderChangeSummary(model),
       '</aside>'
     ].join('');
@@ -304,12 +304,20 @@
 
   function renderActions() {
     return [
+      '<section class="object-canvas-command-dock election-results-command-dock" data-object-canvas-command-dock="true">',
+      '<div class="object-canvas-command-head">',
+      '<div>',
+      '<div class="template-eyebrow">' + escapeHtml(t('objectCanvas.changeTitle', 'Change and safety')) + '</div>',
+      '<h3>' + escapeHtml(t('electionResults.editDefinition', 'Election definition')) + '</h3>',
+      '</div>',
+      '</div>',
       '<div class="editing-actions object-canvas-actions">',
       '<button type="button" data-object-canvas-action="refresh">' + escapeHtml(t('existingScene.refresh', 'Refresh proposal')) + '</button>',
       '<button type="button" data-object-canvas-action="save">' + escapeHtml(t('editing.saveToChanges', 'Save to My Changes')) + '</button>',
       '<button class="primary-action" type="button" data-object-canvas-action="review">' + escapeHtml(t('existingScene.review', 'Review & Apply')) + '</button>',
       '<button type="button" data-object-canvas-action="legacy_form">' + escapeHtml(t('objectCanvas.legacyForm', 'Advanced Form')) + '</button>',
-      '</div>'
+      '</div>',
+      '</section>'
     ].join('');
   }
 

@@ -326,6 +326,20 @@
     return {};
   }
 
+  function eventStructureApi() {
+    if (global && global.ProjectMapEventStructureModel) {
+      return global.ProjectMapEventStructureModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./event_structure_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   function draftApi(def) {
     if (global && global[def.globalName]) {
       return global[def.globalName];
@@ -706,7 +720,7 @@
   }
 
   function applyEventValues(baseDraft, values) {
-    const draft = clone(baseDraft);
+    let draft = clone(baseDraft);
     const data = isObject(values) ? values : {};
     if (!draft.when) {
       draft.when = {};
@@ -736,13 +750,42 @@
       next.effects = applyEffectValues(data, 'option.' + index + '.effect', next.effects);
       return next;
     });
+    const sections = ensureArray(draft.sections).map((section, index) => {
+      const next = clone(section);
+      if (has(data, 'event.section.' + index + '.body')) {
+        next.paragraphs = paragraphs(data['event.section.' + index + '.body']);
+      }
+      return next;
+    });
+    if (sections.length) {
+      draft.sections = sections;
+    } else {
+      delete draft.sections;
+    }
     if (!draft.heading) {
       draft.heading = draft.title;
     }
     if (!draft.seenFlag || has(data, 'event.id')) {
       draft.seenFlag = safeId((draft.id || 'new_world_event') + '_seen');
     }
+    draft = applyEventStructureValues(draft, data);
     return draft;
+  }
+
+  function applyEventStructureValues(draft, data) {
+    const structureApi = eventStructureApi();
+    if (!structureApi || typeof structureApi.fromDraft !== 'function' || typeof structureApi.commandsFromValues !== 'function' || typeof structureApi.applyCommand !== 'function' || typeof structureApi.toDraft !== 'function') {
+      return draft;
+    }
+    let structure = structureApi.fromDraft(draft);
+    const commands = structureApi.commandsFromValues(data, structure);
+    if (!commands.length) {
+      return draft;
+    }
+    commands.forEach((command) => {
+      structure = structureApi.applyCommand(structure, command);
+    });
+    return structureApi.toDraft(structure, draft);
   }
 
   function applyNewsValues(baseDraft, values) {

@@ -249,15 +249,87 @@
     const element = options && options.element === 'input' ? 'input' : 'textarea';
     const className = options && options.titleClass ? ' object-field-title' : '';
     const common = ' class="object-inline-input' + className + '" data-object-canvas-field="' + escapeAttr(id) + '" data-editing-field="' + escapeAttr(id) + '"' + (readOnly ? ' readonly' : '');
+    const rawLabel = field && field.label || id || '';
+    const label = displayFieldLabel(field, rawLabel);
+    const context = fieldContextHint(field);
+    const sourceStatus = [statusLabel(field && field.status), sourceLabel(field && field.source)].filter(Boolean).join(' / ');
+    const title = rawLabel && rawLabel !== label ? ' title="' + escapeAttr(rawLabel) + '"' : '';
     return [
       '<label class="object-inline-field object-inline-field-' + escapeAttr(field && field.status || 'review') + '">',
-      '<span>' + escapeHtml(field && field.label || id || '') + '</span>',
+      '<span' + title + '>' + escapeHtml(label) + '</span>',
+      context ? '<small class="object-inline-field-context">' + escapeHtml(context) + '</small>' : '',
       element === 'input'
         ? '<input type="text"' + common + ' value="' + escapeAttr(value) + '">'
         : '<textarea rows="' + rowsFor(value) + '"' + common + '>' + escapeHtml(value) + '</textarea>',
-      '<small>' + escapeHtml([statusLabel(field && field.status), sourceLabel(field && field.source)].filter(Boolean).join(' / ')) + '</small>',
+      sourceStatus ? '<small class="object-inline-field-status">' + escapeHtml(sourceStatus) + '</small>' : '',
       '</label>'
     ].join('');
+  }
+
+  function displayFieldLabel(field, fallbackLabel) {
+    const label = String(fallbackLabel || field && field.label || field && field.id || '').trim();
+    const role = String(field && (field.semanticRole || field.branchKind || field.role) || '').toLowerCase();
+    const action = String(field && field.structureAction || '').toLowerCase();
+    if (action === 'add_option') {
+      return t('previewObjectEditor.structureAddOptionTitle', 'New player option');
+    }
+    if (action === 'add_branch') {
+      return t('previewObjectEditor.structureAddBranchTitle', 'New branch or follow-up');
+    }
+    if (action === 'add_trigger_effect') {
+      return t('previewObjectEditor.structureTriggerEffectTitle', 'New trigger effect');
+    }
+    if (action === 'add_option_effect') {
+      return t('previewObjectEditor.structureChoiceEffectTitle', 'New choice effect');
+    }
+    if (action === 'remove_option') {
+      return t('previewObjectEditor.structureRemoveOptionTitle', 'Remove choice');
+    }
+    if (action === 'remove_option_condition') {
+      return t('previewObjectEditor.structureRemoveConditionTitle', 'Remove prerequisite');
+    }
+    if (action === 'remove_effect') {
+      return t('previewObjectEditor.structureRemoveEffectTitle', 'Remove effect');
+    }
+    if (action === 'remove_layer') {
+      return t('previewObjectEditor.structureRemoveLayerTitle', 'Remove layer');
+    }
+    if (role.indexOf('option_result') >= 0 || /^conditional option result\s*:/i.test(label) || /^option result\s*:/i.test(label)) {
+      return t('previewObjectEditor.optionResult', 'Option result');
+    }
+    if (role.indexOf('conditional') >= 0 || /^conditional text\s*:/i.test(label)) {
+      return t('previewObjectEditor.conditionalText', 'Conditional text');
+    }
+    if (/^scene step\s*:/i.test(label)) {
+      return t('previewObjectEditor.sceneStep', 'Scene step');
+    }
+    if (/^option condition\s*:/i.test(label)) {
+      return t('previewObjectEditor.chooseIf', 'Choose if');
+    }
+    if (/^section gate\s*:/i.test(label)) {
+      return t('previewObjectEditor.viewIf', 'View if');
+    }
+    return label;
+  }
+
+  function fieldContextHint(field) {
+    if (!field || typeof field !== 'object') {
+      return '';
+    }
+    const parts = [];
+    const optionLabels = ensureArray(field.relatedOptionLabels).map(String).filter(Boolean);
+    if (optionLabels.length) {
+      parts.push(t('previewObjectEditor.afterChoice', 'After choice') + ': ' + optionLabels.join(' / '));
+    }
+    const conditions = ensureArray(field.conditions).map(String).filter(Boolean);
+    if (conditions.length) {
+      parts.push(t('previewObjectEditor.when', 'When') + ': ' + conditions.join(' / '));
+    }
+    const section = String(field.sectionLabel || '').trim();
+    if (section && !optionLabels.length) {
+      parts.push(t('previewObjectEditor.section', 'Section') + ': ' + section);
+    }
+    return parts.join(' / ');
   }
 
   function workspaceForTemplate(template) {
@@ -279,6 +351,10 @@
   function rowsFor(value) {
     const lines = String(value || '').split('\n').length;
     return String(Math.max(3, Math.min(12, lines + 1)));
+  }
+
+  function ensureArray(value) {
+    return Array.isArray(value) ? value : [];
   }
 
   function statusLabel(status) {

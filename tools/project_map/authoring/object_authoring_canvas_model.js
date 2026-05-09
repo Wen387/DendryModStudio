@@ -54,6 +54,20 @@
     return null;
   }
 
+  function eventStructureApi() {
+    if (global && global.ProjectMapEventStructureModel) {
+      return global.ProjectMapEventStructureModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./event_structure_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   function installPlanApi() {
     if (global && global.ProjectMapInstallPlan) {
       return global.ProjectMapInstallPlan;
@@ -212,23 +226,31 @@
   function eventBodyForExisting(context, projectIndex) {
     const editors = context.editors || {};
     const allEditors = ensureArray(editors.all);
-    const titleEditor = allEditors.find((editor) => editor.role === 'title' || editor.role === 'heading') || null;
+    const sceneId = String(context && context.sceneId || '');
+    const titleEditor = allEditors.find((editor) => editor.role === 'title' && !String(editor.sectionId || '').trim()) ||
+      allEditors.find((editor) => editor.role === 'title') ||
+      allEditors.find((editor) => editor.role === 'heading' && isOpeningSectionId(sceneId, editor.sectionId)) ||
+      allEditors.find((editor) => editor.role === 'heading') ||
+      null;
     const pageSectionEditors = ensureArray(editors.pageSections);
+    const playerTextEditors = ensureArray(editors.playerText)
+      .filter((editor) => !titleEditor || editor.id !== titleEditor.id);
     const optionRows = optionBodyRows(context, pageSectionEditors);
     const consumedSectionIds = new Set();
     optionRows.forEach((option) => {
       ensureArray(option.resultFields).forEach((field) => consumedSectionIds.add(String(field.id || '')));
     });
     const primarySectionEditors = pageSectionEditors.filter((editor) => {
-      return !consumedSectionIds.has(String(editor.id || '')) && isPrimaryExistingSection(editor);
+      return !consumedSectionIds.has(String(editor.id || '')) && isPrimaryExistingSection(editor, sceneId);
     });
     const branchSectionEditors = pageSectionEditors.filter((editor) => {
-      return !consumedSectionIds.has(String(editor.id || '')) && !isPrimaryExistingSection(editor);
+      return !consumedSectionIds.has(String(editor.id || '')) && !isPrimaryExistingSection(editor, sceneId);
     });
-    const sectionEditors = primarySectionEditors.concat(ensureArray(editors.playerText))
-      .filter((editor) => !titleEditor || editor.id !== titleEditor.id);
+    const primaryPlayerTextEditors = playerTextEditors.filter((editor) => isPrimaryExistingSection(editor, sceneId));
+    const branchPlayerTextEditors = playerTextEditors.filter((editor) => !isPrimaryExistingSection(editor, sceneId));
+    const sectionEditors = primarySectionEditors.concat(primaryPlayerTextEditors);
     const effectEditors = ensureArray(editors.effects);
-    return {
+    const body = {
       mode: 'existing',
       title: titleEditor || {
         id: '',
@@ -239,7 +261,7 @@
         readOnly: true
       },
       sections: sectionEditors.map((editor, index) => Object.assign({slot: 'section_' + (index + 1)}, editor)),
-      branchSections: branchSectionEditors.map((editor, index) => Object.assign({slot: 'branch_' + (index + 1)}, editor)),
+      branchSections: branchSectionEditors.concat(branchPlayerTextEditors).map((editor, index) => Object.assign({slot: 'branch_' + (index + 1)}, editor)),
       options: optionRows,
       assets: assetRowsForExisting(context, projectIndex),
       assetBaseUrl: String(projectIndex && projectIndex.project && projectIndex.project.assetBaseUrl || ''),
@@ -254,6 +276,11 @@
         fields: effectEditors.filter((editor) => effectMatchesOption(editor, option))
       })).filter((group) => group.fields.length)
     };
+    const structureApi = eventStructureApi();
+    if (structureApi && typeof structureApi.fromEditingContext === 'function' && typeof structureApi.toEventBody === 'function') {
+      return structureApi.toEventBody(structureApi.fromEditingContext(context, projectIndex, {body}));
+    }
+    return body;
   }
 
   function variableRowsForExisting(context) {
@@ -302,12 +329,29 @@
     })).filter((asset) => asset.path);
   }
 
-  function isPrimaryExistingSection(editor) {
+  function isPrimaryExistingSection(editor, sceneId) {
     const role = String(editor && editor.semanticRole || '');
     if (!role || role === 'opening_text') {
+      return isOpeningEditor(editor, sceneId);
+    }
+    if (role === 'section_text') {
+      return isOpeningEditor(editor, sceneId);
+    }
+    return false;
+  }
+
+  function isOpeningEditor(editor, sceneId) {
+    return isOpeningSectionId(sceneId, editor && editor.sectionId);
+  }
+
+  function isOpeningSectionId(sceneId, sectionId) {
+    const text = String(sectionId || '').trim();
+    if (!text) {
       return true;
     }
-    return role === 'section_text' && !ensureArray(editor && editor.conditions).length && !ensureArray(editor && editor.relatedOptionIds).length;
+    const scene = String(sceneId || '').trim();
+    const local = scene && text.startsWith(scene + '.') ? text.slice(scene.length + 1) : text;
+    return /^(?:start|opening|intro|main)$/i.test(local);
   }
 
   function effectMatchesOption(editor, option) {

@@ -50,6 +50,7 @@ const AUTHORING_WORKSPACE_UI = path.join(ROOT, 'viewer', 'authoring_workspace_ui
 const EDITING_CONTEXT_MODEL = path.join(ROOT, 'authoring', 'editing_context_model.js');
 const EXISTING_SCENE_LOGIC_FIELDS = path.join(ROOT, 'authoring', 'existing_scene_logic_fields.js');
 const VISIBLE_OBJECT_COVERAGE_MODEL = path.join(ROOT, 'authoring', 'visible_object_coverage_model.js');
+const EVENT_STRUCTURE_MODEL = path.join(ROOT, 'authoring', 'event_structure_model.js');
 const OBJECT_CANVAS_CONTENT_BODIES = path.join(ROOT, 'authoring', 'object_canvas_content_bodies.js');
 const OBJECT_CANVAS_CONTENT_ADAPTERS = path.join(ROOT, 'authoring', 'object_canvas_content_adapters.js');
 const OBJECT_AUTHORING_CANVAS_UI = path.join(ROOT, 'viewer', 'object_authoring_canvas_ui.js');
@@ -175,6 +176,7 @@ const variableEditorDraft = fs.readFileSync(VARIABLE_EDITOR_DRAFT, 'utf8');
 const editingContextModel = fs.readFileSync(EDITING_CONTEXT_MODEL, 'utf8');
 const existingSceneLogicFields = fs.readFileSync(EXISTING_SCENE_LOGIC_FIELDS, 'utf8');
 const visibleObjectCoverageModel = fs.readFileSync(VISIBLE_OBJECT_COVERAGE_MODEL, 'utf8');
+const eventStructureModel = fs.readFileSync(EVENT_STRUCTURE_MODEL, 'utf8');
 const objectCanvasContentBodies = fs.readFileSync(OBJECT_CANVAS_CONTENT_BODIES, 'utf8');
 const objectCanvasContentAdapters = fs.readFileSync(OBJECT_CANVAS_CONTENT_ADAPTERS, 'utf8');
 const objectAuthoringCanvasModel = fs.readFileSync(OBJECT_AUTHORING_CANVAS_MODEL, 'utf8');
@@ -182,7 +184,7 @@ const objectAuthoringCanvasModel = fs.readFileSync(OBJECT_AUTHORING_CANVAS_MODEL
 assert(html.includes('data-studio-surface="direction-b"'), 'viewer should mark Direction B Studio as the active surface');
 assert(html.includes('brand-mark branch-mark'), 'viewer should expose a Branch brand mark');
 assert(html.includes('Dendry <span>Mod Studio</span>'), 'viewer should emphasize Mod Studio in the wordmark');
-assert(html.includes('Dendry Mod Studio v0.9.3 dev preview'), 'topbar should expose the Studio version for testers');
+assert(html.includes('Dendry Mod Studio v0.9.6 dev preview'), 'topbar should expose the Studio version for testers');
 assert(html.includes('https://github.com/Wen387'), 'topbar should link the author GitHub profile');
 assert(html.includes('nav-group-title'), 'Explore navigation should be grouped by authoring purpose');
 assert(html.includes('Story content'), 'Explore navigation should include a Story content group');
@@ -199,6 +201,7 @@ assert(html.includes('../authoring/existing_scene_edit_model.js'), 'viewer shoul
 assert(html.includes('../authoring/edit_capability_model.js'), 'viewer should load Parser-aware Edit Capability model');
 assert(html.includes('../authoring/visible_object_coverage_model.js'), 'viewer should load Visible Object Coverage model');
 assert(html.includes('../authoring/editing_context_model.js'), 'viewer should load Contextual Editing model');
+assert(html.includes('../authoring/event_structure_model.js'), 'viewer should load shared Event Structure model before Object Canvas content bodies');
 assert(html.includes('../authoring/object_canvas_content_bodies.js'), 'viewer should load Object Canvas content body builders');
 assert(html.includes('../authoring/object_canvas_content_adapters.js'), 'viewer should load Object Canvas content adapters');
 assert(html.includes('../authoring/object_authoring_canvas_model.js'), 'viewer should load Object Authoring Canvas model');
@@ -342,6 +345,9 @@ assert(objectAuthoringCanvasModel.includes('buildNewEventCanvas'), 'Object Autho
 assert(objectAuthoringCanvasModel.includes('buildTemplateCanvas'), 'Object Authoring Canvas model should support every Create template');
 assert(visibleObjectCoverageModel.includes('ProjectMapVisibleObjectCoverage'), 'Visible Object Coverage model should expose a browser API');
 assert(visibleObjectCoverageModel.includes('buildCoverageReport'), 'Visible Object Coverage model should build coverage reports');
+assert(eventStructureModel.includes('ProjectMapEventStructureModel'), 'Event Structure model should expose a browser API');
+assert(eventStructureModel.includes('fromDraft'), 'Event Structure model should normalize new EventDrafts');
+assert(eventStructureModel.includes('fromEditingContext'), 'Event Structure model should normalize source-backed editing contexts');
 assert(objectCanvasContentAdapters.includes('SUPPORTED_TEMPLATES'), 'Object Canvas content adapters should declare supported templates');
 assert(objectCanvasContentAdapters.includes('workspace_layout'), 'Object Canvas content adapters should include Workspace Layout');
 assert(objectCanvasContentAdapters.includes('election_results'), 'Object Canvas content adapters should include Election Results');

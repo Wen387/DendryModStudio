@@ -113,6 +113,7 @@ const appSource = readExploreBundle(VIEWER_DIR);
 const eventDraftSource = fs.readFileSync(path.join(ROOT, 'authoring', 'event_draft.js'), 'utf8');
 const meaningLayerSource = fs.readFileSync(path.join(ROOT, 'authoring', 'meaning_layer.js'), 'utf8');
 const meaningLayerUiSource = fs.readFileSync(path.join(VIEWER_DIR, 'meaning_layer_ui.js'), 'utf8');
+const eventWorkbenchUiSource = fs.readFileSync(path.join(VIEWER_DIR, 'event_workbench_ui.js'), 'utf8');
 const dictionaries = {
   en: extractDictionary(i18nSource, 'en:'),
   'zh-Hant': extractDictionary(i18nSource, '\'zh-Hant\':')
@@ -176,6 +177,20 @@ assert(!wizardSource.includes("': 繼續'"), 'wizard generated source should use
 assert(!eventDraftSource.includes(': 繼續'), 'EventDraft core should not hardcode a Chinese continuation label');
 assert(!meaningLayerSource.includes("locale || 'zh-Hant'"), 'MeaningLayer core should not default missing locale to zh-Hant');
 assert(!meaningLayerUiSource.includes(": 'zh-Hant';"), 'MeaningLayer UI should not default missing i18n to zh-Hant');
+assert(!eventWorkbenchUiSource.includes('const TEXT = {'), 'Event Workbench UI should use the shared i18n catalogs, not a local bilingual dictionary');
+assert(!cjkPattern.test(eventWorkbenchUiSource), 'Event Workbench UI source should not contain inline zh-Hant copy');
+assert(!cjkPattern.test(meaningLayerUiSource), 'MeaningLayer UI source should not contain inline zh-Hant copy');
+
+[
+  'eventWorkbench.playerText',
+  'eventWorkbench.action.edit_text',
+  'eventWorkbench.role.option_label',
+  'meaningPreview.section.playerText',
+  'meaningPreview.assetType.image',
+  'meaningPreview.readiness.notRuntime'
+].forEach((key) => {
+  assert(enKeys.has(key) && zhKeys.has(key), 'merged UI-localization key should exist in en and zh-Hant: ' + key);
+});
 
 const attrPattern = /data-i18n(?:-(?:aria-label|title|placeholder|value))?="([^"]+)"/g;
 const missingAttributeKeys = [];

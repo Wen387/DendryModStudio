@@ -427,20 +427,14 @@
     if (isTextReplacement(model)) {
       return [
         '<aside class="content-storyboard-editor content-storyboard-text-editor" data-content-storyboard-editor="true">',
-        renderOpenEditorCard(model, storyboard, options || {}),
+        renderCommandDock(model, storyboard, options || {}),
         renderPlan(model),
-        renderActions(model),
         '</aside>'
       ].join('');
     }
     return [
       '<aside class="content-storyboard-editor" data-content-storyboard-editor="true">',
-      '<section class="object-canvas-inspector-card">',
-      '<div class="template-eyebrow">' + escapeHtml(t('storyboard.selected', 'Selected story object')) + '</div>',
-      '<h3 data-content-storyboard-selected-title="true">' + escapeHtml((findStoryboardCard(storyboard, storyboard.selectedKey) || {}).title || model.title || '') + '</h3>',
-      '<p>' + escapeHtml(t('storyboard.editorHint', 'Canvas shows story structure. Open the object editor for detailed text changes.')) + '</p>',
-      '</section>',
-      renderOpenEditorCard(model, storyboard, options || {}),
+      renderCommandDock(model, storyboard, options || {}),
       renderRuntimeLens(model, storyboard, options || {}),
       renderIdentity(editor.identity || []),
       renderStoryContext(editor.storyContext || storyboard.storyContext || {}),
@@ -448,7 +442,6 @@
       renderPlacement(editor.timelinePlacement || {}),
       renderContext(editor.context || {}),
       renderPlan(model),
-      renderActions(model),
       '</aside>'
     ].join('');
   }
@@ -598,6 +591,28 @@
       '<section class="editing-preview">',
       '<div class="preview-heading">' + escapeHtml(t('objectCanvas.preview', 'Player-facing preview')) + '</div>',
       '<pre class="code-preview" data-object-canvas-preview="true" data-editing-preview="true">' + escapeHtml(output.playerPreview || output.proposalText || output.previewText || output.sceneDry || '') + '</pre>',
+      '</section>'
+    ].join('');
+  }
+
+  function renderCommandDock(model, storyboard, options) {
+    const selected = findStoryboardCard(storyboard, storyboard && storyboard.selectedKey) || {};
+    const title = selected.title || model && model.title || t('objectCanvas.titleFallback', 'Author object');
+    const kind = selected.kind ? kindLabel(selected.kind) : model && (model.templateLabel || model.objectKind) || '';
+    const active = Boolean(options && options.editorOverlay);
+    return [
+      '<section class="object-canvas-command-dock content-storyboard-command-dock" data-object-canvas-command-dock="true">',
+      '<div class="object-canvas-command-head">',
+      '<div>',
+      '<div class="template-eyebrow">' + escapeHtml(t('storyboard.selected', 'Selected story object')) + '</div>',
+      '<h3 data-content-storyboard-selected-title="true">' + escapeHtml(title) + '</h3>',
+      '</div>',
+      kind ? '<span class="object-canvas-command-pill">' + escapeHtml(kind) + '</span>' : '',
+      '</div>',
+      '<div class="object-canvas-command-row">',
+      '<button type="button" class="primary-action" data-object-canvas-action="toggle_overlay">' + escapeHtml(active ? t('objectCanvas.editorDock', 'Close editor') : t('objectCanvas.editorOverlay', 'Open object editor')) + '</button>',
+      '</div>',
+      renderActions(model),
       '</section>'
     ].join('');
   }

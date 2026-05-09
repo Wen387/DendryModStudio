@@ -5,75 +5,50 @@
     renderEventWorkbench
   };
 
-  const TEXT = {
-    en: {
-      eyebrow: 'Event Workbench',
-      playerText: 'Player-facing content',
-      options: 'Player choices',
-      conditions: 'Appearance conditions',
-      effects: 'Effects and variable changes',
-      variables: 'State touched by this event',
-      links: 'Follow-up and related flow',
-      actions: 'What you can do here',
-      advanced: 'Advanced details',
-      noText: 'No body text was extracted into this index.',
-      noOptions: 'This event has no parser-backed choices.',
-      noConditions: 'No explicit conditions were found.',
-      noEffects: 'No statically recognizable variable changes were found.',
-      noVariables: 'No variable reads/writes were found for this event.',
-      noLinks: 'No graph links were found.',
-      conditionYear: 'Year',
-      conditionMonth: 'Month',
-      conditionSeen: 'Not seen yet',
-      conditionAdvanced: 'Advanced condition',
-      source: 'Source',
-      rawViewIf: 'Raw view-if',
-      notCaptured: 'Not fully captured yet',
-      diagnostics: 'Diagnostics',
-      effect: 'Effect',
-      writesHere: 'writes here',
-      variableCondition: 'Variable condition',
-      action_edit_text: 'Rewrite player text',
-      action_copy_alt_timeline: 'Copy as alternate timeline event',
-      action_follow_up: 'Create follow-up event',
-      action_edit_text_desc: 'Create a text replacement proposal from player-facing prose.',
-      action_copy_alt_timeline_desc: 'Seed a new event draft from this event. Review body text and effects before export.',
-      action_follow_up_desc: 'Create a new event that continues this beat.'
-    },
-    'zh-Hant': {
-      eyebrow: '事件工作台',
-      playerText: '玩家會看到的內容',
-      options: '玩家選項',
-      conditions: '出現條件',
-      effects: '效果與變數改動',
-      variables: '此事件碰到的狀態',
-      links: '後續與關聯',
-      actions: '可以從這裡做什麼',
-      advanced: '進階資訊',
-      noText: '尚未在 index 中抽取到正文。',
-      noOptions: '此事件沒有 parser-backed 選項。',
-      noConditions: '未找到明確條件。',
-      noEffects: '沒有找到可靜態辨識的變數改動。',
-      noVariables: '沒有找到本事件的變數讀寫。',
-      noLinks: '沒有找到 graph 關聯。',
-      conditionYear: '年份',
-      conditionMonth: '月份',
-      conditionSeen: '尚未看過',
-      conditionAdvanced: '進階條件',
-      source: '來源',
-      rawViewIf: '原始 view-if',
-      notCaptured: '目前未完整捕獲',
-      diagnostics: '診斷',
-      effect: '效果',
-      writesHere: '在這裡寫入',
-      variableCondition: '變數條件',
-      action_edit_text: '改寫玩家文字',
-      action_copy_alt_timeline: '複製成另類世界線事件',
-      action_follow_up: '建立後續事件',
-      action_edit_text_desc: '從玩家可見文字建立修改提案。',
-      action_copy_alt_timeline_desc: '從這個事件建立一份新事件草稿；匯出前請審查正文與效果。',
-      action_follow_up_desc: '建立一個接續此事件的新事件。'
-    }
+  const FALLBACK = {
+    eyebrow: 'Event Workbench',
+    playerText: 'Player-facing content',
+    options: 'Player choices',
+    conditions: 'Appearance conditions',
+    effects: 'Effects and variable changes',
+    variables: 'State touched by this event',
+    links: 'Follow-up and related flow',
+    actions: 'What you can do here',
+    advanced: 'Advanced details',
+    noText: 'No body text was extracted into this index.',
+    noOptions: 'This event has no parser-backed choices.',
+    noConditions: 'No explicit conditions were found.',
+    noEffects: 'No statically recognizable variable changes were found.',
+    noVariables: 'No variable reads/writes were found for this event.',
+    noLinks: 'No graph links were found.',
+    conditionYear: 'Year',
+    conditionMonth: 'Month',
+    conditionSeen: 'Not seen yet',
+    conditionAdvanced: 'Advanced condition',
+    source: 'Source',
+    rawViewIf: 'Raw view-if',
+    notCaptured: 'Not fully captured yet',
+    diagnostics: 'Diagnostics',
+    effect: 'Effect',
+    writesHere: 'writes here',
+    variableCondition: 'Variable condition',
+    'action.edit_text': 'Rewrite player text',
+    'action.copy_alt_timeline': 'Copy as alternate timeline event',
+    'action.follow_up': 'Create follow-up event',
+    'action.edit_text.desc': 'Create a text replacement proposal from player-facing prose.',
+    'action.copy_alt_timeline.desc': 'Seed a new event draft from this event. Review body text and effects before export.',
+    'action.follow_up.desc': 'Create a new event that continues this beat.',
+    'role.title': 'Title',
+    'role.heading': 'Heading',
+    'role.subtitle': 'Subtitle',
+    'role.body': 'Body',
+    'role.conditional_body': 'Conditional text',
+    'role.option_label': 'Player option',
+    'role.option_subtitle': 'Option subtitle',
+    'role.unavailable_text': 'Unavailable text',
+    'role.news_headline': 'News headline',
+    'role.news_description': 'News description',
+    'role.monthly_popup_excerpt': 'Monthly popup excerpt'
   };
 
   if (global) {
@@ -260,47 +235,40 @@
   }
 
   function label(locale, key) {
-    const table = TEXT[locale] || TEXT.en;
-    return table[key] || TEXT.en[key] || key;
+    return translate(locale, 'eventWorkbench.' + key, FALLBACK[key] || key);
   }
 
   function roleLabel(role, locale) {
-    const zh = {
-      title: '標題',
-      heading: '小標題',
-      subtitle: '副標題',
-      body: '正文',
-      conditional_body: '條件正文',
-      option_label: '玩家選項',
-      option_subtitle: '選項副標題',
-      unavailable_text: '不可用時文字',
-      news_headline: '新聞標題',
-      news_description: '新聞描述',
-      monthly_popup_excerpt: '月度彈窗摘錄'
-    };
-    const en = {
-      title: 'Title',
-      heading: 'Heading',
-      subtitle: 'Subtitle',
-      body: 'Body',
-      conditional_body: 'Conditional text',
-      option_label: 'Player option',
-      option_subtitle: 'Option subtitle',
-      unavailable_text: 'Unavailable text',
-      news_headline: 'News headline',
-      news_description: 'News description',
-      monthly_popup_excerpt: 'Monthly popup excerpt'
-    };
-    const table = locale === 'zh-Hant' ? zh : en;
-    return table[String(role || '')] || '';
+    const key = String(role || '');
+    return key ? optionalLabel(locale, 'role.' + key) : '';
   }
 
   function actionLabel(row, locale) {
-    return label(locale, 'action_' + (row.id || '')) || row.label || row.id || '';
+    return optionalLabel(locale, 'action.' + (row.id || '')) || row.label || row.id || '';
   }
 
   function actionDescription(row, locale) {
-    return label(locale, 'action_' + (row.id || '') + '_desc') || row.description || '';
+    return optionalLabel(locale, 'action.' + (row.id || '') + '.desc') || row.description || '';
+  }
+
+  function optionalLabel(locale, key) {
+    const fullKey = 'eventWorkbench.' + key;
+    const translated = translate(locale, fullKey, FALLBACK[key] || '');
+    return translated === fullKey || translated === key ? '' : translated;
+  }
+
+  function translate(locale, key, fallback) {
+    const i18n = global && global.ProjectMapI18n;
+    if (
+      i18n &&
+      typeof i18n.t === 'function' &&
+      (!locale || typeof i18n.getLocale !== 'function' || i18n.getLocale() === locale)
+    ) {
+      return i18n.t(key, fallback);
+    }
+    const dictionaries = global && global.ProjectMapI18nDictionaries || {};
+    const dictionary = dictionaries[locale] || dictionaries.en || {};
+    return dictionary[key] || fallback || key;
   }
 
   function sourceLabel(source) {

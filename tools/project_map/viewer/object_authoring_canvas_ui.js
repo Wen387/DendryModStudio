@@ -1194,6 +1194,14 @@
       input.addEventListener('input', scheduleRefresh);
       input.addEventListener('change', scheduleRefresh);
     });
+    elements.host.querySelectorAll('[data-preview-object-structure-part]').forEach((input) => {
+      if (input.__dmsStructureBuilderBound) {
+        return;
+      }
+      input.__dmsStructureBuilderBound = true;
+      input.addEventListener('input', () => syncStructureBuilder(input.closest('[data-preview-object-structure-builder]')));
+      input.addEventListener('change', () => syncStructureBuilder(input.closest('[data-preview-object-structure-builder]')));
+    });
     elements.host.querySelectorAll('[data-project-state-variable-search]').forEach((input) => {
       input.addEventListener('input', () => scheduleProjectStateSearch(input));
     });
@@ -1290,6 +1298,9 @@
 
   function selectCanvasNode(nodeKey) {
     const next = String(nodeKey || 'object').trim() || 'object';
+    if (fastSelectProjectStateNode(next)) {
+      return;
+    }
     state.values = collectValues();
     state.deleteProposal = null;
     if (switchSystemUiTemplateForRegion(next)) {
@@ -1307,6 +1318,47 @@
     state.selectedCanvasNode = next;
     markRuntimeLensStale();
     render();
+  }
+
+  function fastSelectProjectStateNode(next) {
+    if (!/^variable:/.test(String(next || ''))) {
+      return false;
+    }
+    if (!state.model || currentSurface(state.model).key !== 'project_state_board') {
+      return false;
+    }
+    state.selectedCanvasNode = next;
+    if (!syncProjectStateVariableSelection()) {
+      render();
+    }
+    return true;
+  }
+
+  function syncProjectStateVariableSelection() {
+    if (!elements || !elements.host || !state.model) {
+      return false;
+    }
+    const surface = global.ProjectMapProjectStateSurface;
+    if (!surface || typeof surface.renderInspectorCard !== 'function') {
+      return false;
+    }
+    const selectedName = selectedProjectStateVariableName();
+    elements.host.querySelectorAll('[data-project-state-variable-row]').forEach((row) => {
+      const active = String(row.dataset && row.dataset.projectStateVariableRow || '') === selectedName;
+      row.classList.toggle('is-selected', active);
+      row.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    const card = elements.host.querySelector('[data-project-state-consumers], [data-project-state-metadata]');
+    if (!card) {
+      return false;
+    }
+    card.outerHTML = surface.renderInspectorCard(state.model, {
+      projectIndex: state.projectIndex,
+      selected: state.selectedCanvasNode,
+      query: state.projectStateQuery,
+      limit: state.projectStateLimit
+    });
+    return true;
   }
 
   function switchSystemUiTemplateForRegion(nodeKey) {
@@ -1948,6 +2000,9 @@
       openRelatedEventDraft(branch, context, action);
       return;
     }
+    if (branch && branch.draft && openRelatedTemplateDraft(branch, context, action)) {
+      return;
+    }
     const api = storyboardWorkspaceApi(); if (api && typeof api.createRelatedDraft === 'function') { api.createRelatedDraft(state, action, target, {render, t}); }
   }
 
@@ -1980,6 +2035,115 @@
     showWorkspace('event');
     render();
     return true;
+  }
+
+  function openRelatedTemplateDraft(branch, context, action) {
+    const template = normalizeTemplate(branch && branch.template || '');
+    if (template !== 'card' && template !== 'news') {
+      return false;
+    }
+    const draft = template === 'card'
+      ? relatedCardDraft(branch, context, action)
+      : relatedNewsDraft(branch, context, action);
+    const opened = openTemplate(template, draft, {source: 'Storyboard', action: 'create_' + String(action || template), template});
+    if (!opened) {
+      return false;
+    }
+    if (template === 'card') {
+      const key = draftStoryboardKey('card', draft, branch);
+      state.cardBoardSelectedKey = key;
+      state.selectedCanvasNode = key;
+      state.cardBoardLane = 'drafts';
+      state.cardBoardDropContext = {
+        itemKey: key,
+        itemTitle: draft.title || draft.heading || branch.title || '',
+        laneKey: 'drafts',
+        laneLabel: t('cardBoard.lane.drafts', 'Drafts'),
+        laneTag: '',
+        action: 'create_related_card',
+        sourceKey: context && context.selectedKey || ''
+      };
+      state.model = buildTemplateModel({values: state.values, entry: {source: 'Storyboard', action: 'create_' + String(action || template)}});
+      state.status = t('objectCanvas.status.relatedCardOpened', 'Related card draft opened for editing.');
+      showWorkspace('card');
+      render();
+      return true;
+    }
+    restoreStoryboardContextAfterDraftOpen(context, draft, branch);
+    state.status = t('objectCanvas.status.relatedNewsOpened', 'Related news draft opened for editing.');
+    showWorkspace('news');
+    render();
+    return true;
+  }
+
+  function relatedCardDraft(branch, context, action) {
+    const base = cloneDraft(safeDefaultDraftForTemplate('card'));
+    const sourceTitle = relatedSourceTitle();
+    const branchDraft = cloneDraft(branch && branch.draft || {});
+    const id = uniqueDraftId(branchDraft.id || branch && branch.id || 'related_card');
+    const title = branchDraft.title || branchDraft.heading || relatedTitle(t('objectCanvas.branch.card', 'Related card'), sourceTitle);
+    return Object.assign({}, base, branchDraft, {
+      schemaVersion: String(branchDraft.schemaVersion || base.schemaVersion || '0.1'),
+      kind: 'card',
+      id,
+      title,
+      heading: branchDraft.heading || title,
+      introParagraphs: ensureArray(branchDraft.introParagraphs).length
+        ? branchDraft.introParagraphs
+        : [relatedDescription(t('objectCanvas.branch.card.detail', 'Card created from the selected beat.'), sourceTitle)],
+      options: ensureArray(branchDraft.options).length ? branchDraft.options : ensureArray(base.options),
+      studioAuthoringContext: {
+        workspace: 'content',
+        surface: 'card_board',
+        selectedCardKey: 'draft:card:' + id,
+        selectedLane: 'drafts',
+        cardBoardQuery: '',
+        cardBoardType: 'all',
+        cardBoardDropContext: {
+          itemKey: 'draft:card:' + id,
+          itemTitle: title,
+          laneKey: 'drafts',
+          laneLabel: t('cardBoard.lane.drafts', 'Drafts'),
+          laneTag: '',
+          action: 'create_' + String(action || 'card'),
+          sourceKey: context && context.selectedKey || ''
+        },
+        editorOverlay: false
+      }
+    });
+  }
+
+  function relatedNewsDraft(branch, context, action) {
+    const base = cloneDraft(safeDefaultDraftForTemplate('news'));
+    const sourceTitle = relatedSourceTitle();
+    const branchDraft = cloneDraft(branch && branch.draft || {});
+    const id = uniqueDraftId(branchDraft.id || branch && branch.id || 'related_news');
+    const headline = branchDraft.headline || branchDraft.title || relatedTitle(t('objectCanvas.branch.news', 'Related news'), sourceTitle);
+    return Object.assign({}, base, branchDraft, {
+      schemaVersion: String(branchDraft.schemaVersion || base.schemaVersion || '0.1'),
+      kind: 'news_item',
+      id,
+      headline,
+      description: branchDraft.description || relatedDescription(t('objectCanvas.branch.news.detail', 'News item attached to this story moment.'), sourceTitle),
+      studioAuthoringContext: Object.assign({}, context || {}, {
+        workspace: 'content',
+        surface: 'content_storyboard',
+        action: 'create_' + String(action || 'news'),
+        selectedCanvasNode: context && context.selectedKey || ''
+      })
+    });
+  }
+
+  function relatedSourceTitle() {
+    return String(state.model && (state.model.title || state.model.objectId) || '').trim();
+  }
+
+  function relatedTitle(prefix, sourceTitle) {
+    return sourceTitle ? prefix + ': ' + sourceTitle : prefix;
+  }
+
+  function relatedDescription(fallback, sourceTitle) {
+    return sourceTitle ? fallback + ' ' + sourceTitle : fallback;
   }
 
   function openStandaloneEventDraft(context) {
@@ -2020,7 +2184,7 @@
     state.storyScopeWindow = String(context && (context.insertKey || context.storyScopeWindow) || '');
     state.storyChainDepth = normalizeStoryDepth(context && context.storyChainDepth);
     state.storyPaletteDropContext = context && context.paletteDropContext || null;
-    state.selectedCanvasNode = draftStoryboardKey('event', draft, branch);
+    state.selectedCanvasNode = draftStoryboardKey(state.template || branch && branch.template || 'event', draft, branch);
     state.editorOverlay = true;
     state.values = {};
     state.valueOriginals = {};
@@ -2294,7 +2458,11 @@
   }
 
   function openLegacyForm() {
-    const draft = state.model && state.model.changeState && state.model.changeState.draft;
+    state.values = collectValues();
+    state.model = state.deleteProposal
+      ? buildDeleteProposalModel(state.deleteProposal)
+      : state.mode === 'existing' ? buildExistingModel({values: state.values}) : buildTemplateModel({values: state.values});
+    const draft = draftWithAuthoringContext() || state.model && state.model.changeState && state.model.changeState.draft;
     const template = state.template || 'event';
     deactivate();
     elements.templateButtons.forEach((button) => {
@@ -2318,6 +2486,8 @@
     if (!elements || !elements.host) {
       return values;
     }
+    const changed = {};
+    const originalKeys = new Set();
     elements.host.querySelectorAll('[data-object-canvas-field]').forEach((input) => {
       const key = input.dataset.objectCanvasField;
       if (!key) {
@@ -2325,24 +2495,96 @@
       }
       const hasOriginal = input.dataset && Object.prototype.hasOwnProperty.call(input.dataset, 'objectCanvasOriginal');
       if (input.type === 'checkbox') {
-        const domOriginal = hasOriginal && /^(1|true|yes|on)$/i.test(input.dataset.objectCanvasOriginal || '') || !hasOriginal && input.defaultChecked ? 'true' : 'false';
+        const domOriginal = hasOriginal
+          ? (/^(1|true|yes|on)$/i.test(input.dataset.objectCanvasOriginal || '') ? 'true' : 'false')
+          : (input.defaultChecked ? 'true' : 'false');
         const originalChecked = rememberFieldOriginal(key, domOriginal) === 'true';
         if (input.checked !== originalChecked) {
-          values[key] = input.checked ? 'true' : 'false';
+          changed[key] = input.checked ? 'true' : 'false';
         } else if (hasOriginal) {
-          delete values[key];
+          originalKeys.add(key);
         }
         return;
       }
       const domOriginal = hasOriginal ? String(input.dataset.objectCanvasOriginal || '') : input.defaultValue;
       const originalValue = rememberFieldOriginal(key, domOriginal);
       if (input.value !== originalValue) {
-        values[key] = input.value;
+        changed[key] = input.value;
       } else if (hasOriginal) {
+        originalKeys.add(key);
+      }
+    });
+    Object.keys(changed).forEach((key) => {
+      values[key] = changed[key];
+    });
+    originalKeys.forEach((key) => {
+      if (!Object.prototype.hasOwnProperty.call(changed, key)) {
         delete values[key];
       }
     });
     return values;
+  }
+
+  function syncStructureBuilder(builder) {
+    if (!builder) {
+      return;
+    }
+    const output = builder.querySelector('[data-preview-object-structure-output]');
+    if (!output) {
+      return;
+    }
+    const action = builder.dataset.previewObjectStructureBuilder || '';
+    const parts = {};
+    builder.querySelectorAll('[data-preview-object-structure-part]').forEach((input) => {
+      parts[input.dataset.previewObjectStructurePart || ''] = String(input.value || '').trim();
+    });
+    const next = composeStructureValue(action, parts);
+    if (output.value === next) {
+      return;
+    }
+    output.value = next;
+    output.dispatchEvent(new global.Event('input', {bubbles: true}));
+  }
+
+  function composeStructureValue(action, parts) {
+    if (action === 'add_option') {
+      const label = String(parts.option_label || '').trim();
+      const result = String(parts.result_text || '').trim();
+      const target = String(parts.target_id || '').trim() || slugForStructure(label) || 'new_option';
+      if (!label && !result && !String(parts.target_id || '').trim()) {
+        return '';
+      }
+      return ['- @' + target + ': ' + (label || 'Player-facing option text'), '# ' + target, result || 'Result prose.'].join('\n');
+    }
+    if (action === 'add_branch') {
+      const section = String(parts.section_id || '').trim() || 'follow_up';
+      const condition = String(parts.condition || '').trim();
+      const text = String(parts.branch_text || '').trim();
+      if (!String(parts.section_id || '').trim() && !condition && !text) {
+        return '';
+      }
+      return ['# ' + section, condition ? '[? if ' + condition + ' : ' + (text || 'Conditional prose.') + ' ?]' : (text || 'Follow-up prose.')].join('\n');
+    }
+    if (action === 'add_trigger_effect' || action === 'add_option_effect') {
+      const variable = String(parts.variable || '').trim().replace(/^Q\./, '');
+      const op = String(parts.operation || '+=').trim() || '+=';
+      const value = String(parts.value || '').trim();
+      const condition = String(parts.condition || '').trim();
+      if (!variable || !value) {
+        return '';
+      }
+      return 'Q.' + variable + ' ' + op + ' ' + value + (condition ? ' if ' + condition : '');
+    }
+    return '';
+  }
+
+  function slugForStructure(value) {
+    return String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      .slice(0, 48);
   }
 
   function rememberFieldOriginal(key, value) {

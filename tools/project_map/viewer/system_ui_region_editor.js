@@ -7,11 +7,11 @@
     return [
       '<aside class="system-ui-inspector" data-system-ui-inspector="true">',
       selected ? renderSelectedRegion(screen, selected) : '',
+      renderActions(model, opts),
       renderRuntimeLens(model, screen, opts),
       renderRegionFields(selected),
       renderRegionContext(screen),
       renderDiagnostics(screen),
-      renderActions(model, opts),
       '</aside>'
     ].join('');
   }
@@ -176,13 +176,21 @@
 
   function renderActions(model, options) {
     return [
+      '<section class="object-canvas-command-dock system-ui-command-dock" data-object-canvas-command-dock="true">',
+      '<div class="object-canvas-command-head">',
+      '<div>',
+      '<div class="template-eyebrow">' + escapeHtml(t('objectCanvas.changeTitle', 'Change and safety')) + '</div>',
+      '<h3>' + escapeHtml(t('authoring.template.systemUiScreen', 'System UI Screen')) + '</h3>',
+      '</div>',
+      '</div>',
       '<div class="editing-actions object-canvas-actions">',
       '<button type="button" data-object-canvas-action="refresh">' + escapeHtml(t('existingScene.refresh', 'Refresh proposal')) + '</button>',
       '<button type="button" data-object-canvas-action="toggle_overlay">' + escapeHtml(options.editorOverlay ? t('objectCanvas.editorDock', 'Dock editor') : t('objectCanvas.editorOverlay', 'Expand editor')) + '</button>',
       '<button type="button" data-object-canvas-action="save">' + escapeHtml(t('editing.saveToChanges', 'Save to My Changes')) + '</button>',
       '<button class="primary-action" type="button" data-object-canvas-action="review">' + escapeHtml(t('existingScene.review', 'Review & Apply')) + '</button>',
       model.mode !== 'existing' ? '<button type="button" data-object-canvas-action="legacy_form">' + escapeHtml(t('objectCanvas.legacyForm', 'Advanced Form')) + '</button>' : '',
-      '</div>'
+      '</div>',
+      '</section>'
     ].join('');
   }
 

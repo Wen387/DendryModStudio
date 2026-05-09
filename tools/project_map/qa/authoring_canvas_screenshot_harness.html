@@ -82,6 +82,9 @@
         'content-pan': () => contentPanScenario(),
         'content-node-drag': () => contentNodeDragScenario(),
         'content-create-branch': () => contentCreateBranchScenario(),
+        'content-create-related-card': () => contentCreateRelatedCardScenario(),
+        'content-create-related-news': () => contentCreateRelatedNewsScenario(),
+        'content-advanced-form': () => contentAdvancedFormScenario(),
         'content-editor-overlay': () => contentEditorOverlayScenario(),
         'content-chain-view': () => contentChainViewScenario(),
         'content-chain-branch': () => contentChainBranchScenario(),
@@ -642,6 +645,59 @@
         await openTemplate('event', {'event.title': '1929 Event X', 'event.year': '1929'}, 'Create follow-up branch');
         click(win, '[data-object-canvas-action="create_followup"]');
         await waitFor(() => win.document.querySelector('[data-content-storyboard-card^="draft:"]'), 3000);
+      }
+
+      async function contentCreateRelatedCardScenario() {
+        const win = frame.contentWindow;
+        await openTemplate('event', {'event.title': '1929 Event X', 'event.year': '1929'}, 'Create related card');
+        click(win, '[data-object-canvas-action="create_card"]');
+        await waitFor(() => win.ProjectMapObjectAuthoringCanvas && win.ProjectMapObjectAuthoringCanvas.activeTemplate() === 'card' && win.document.querySelector('[data-card-board-surface]'), 3000);
+        const draft = win.ProjectMapObjectAuthoringCanvas.getDraft();
+        if (!draft || draft.kind !== 'card' || !draft.title || !Array.isArray(draft.options) || !draft.options.length) {
+          throw new Error('Create related card did not open a useful editable card draft.');
+        }
+        if (!win.document.querySelector('[data-card-face-preview="true"]')) {
+          throw new Error('Create related card did not show the player-facing card preview.');
+        }
+      }
+
+      async function contentCreateRelatedNewsScenario() {
+        const win = frame.contentWindow;
+        await openTemplate('event', {'event.title': '1929 Event X', 'event.year': '1929'}, 'Create related news');
+        click(win, '[data-object-canvas-action="create_news"]');
+        await waitFor(() => win.ProjectMapObjectAuthoringCanvas && win.ProjectMapObjectAuthoringCanvas.activeTemplate() === 'news' && win.document.querySelector('[data-content-storyboard-surface]'), 3000);
+        const draft = win.ProjectMapObjectAuthoringCanvas.getDraft();
+        if (!draft || draft.kind !== 'news_item' || !draft.headline || !draft.description) {
+          throw new Error('Create related news did not open a useful editable news draft.');
+        }
+        if (!win.document.querySelector('[data-object-authoring-canvas].is-editor-overlay')) {
+          throw new Error('Create related news did not open the focused object editor.');
+        }
+      }
+
+      async function contentAdvancedFormScenario() {
+        const win = frame.contentWindow;
+        await openTemplate('event', {}, 'Advanced form fallback');
+        click(win, '[data-object-canvas-action="toggle_overlay"]');
+        await waitFor(() => win.document.querySelector('[data-object-authoring-canvas].is-editor-overlay [data-object-canvas-field="event.title"]'), 3000);
+        await applyValues(win, {'event.title': 'Legacy fallback is secondary', 'event.year': '1929'});
+        await waitFor(() => {
+          const draft = win.ProjectMapObjectAuthoringCanvas && win.ProjectMapObjectAuthoringCanvas.getDraft
+            ? win.ProjectMapObjectAuthoringCanvas.getDraft()
+            : null;
+          return draft && draft.title === 'Legacy fallback is secondary';
+        }, 3000);
+        const draftBeforeLegacy = win.ProjectMapObjectAuthoringCanvas && win.ProjectMapObjectAuthoringCanvas.getDraft
+          ? win.ProjectMapObjectAuthoringCanvas.getDraft()
+          : null;
+        click(win, '[data-object-canvas-action="toggle_overlay"]');
+        await waitFor(() => !win.document.querySelector('[data-object-authoring-canvas].is-editor-overlay'), 3000);
+        click(win, '[data-object-canvas-action="legacy_form"]');
+        await waitFor(() => !win.ProjectMapObjectAuthoringCanvas.isActive() && !win.document.querySelector('[data-create-template-panel="event"].hidden'), 3000);
+        const title = win.document.getElementById('wizard-title');
+        if (!title || title.value !== 'Legacy fallback is secondary') {
+          throw new Error('Advanced Form did not load the current event draft into the legacy wizard. Canvas draft title: ' + (draftBeforeLegacy && draftBeforeLegacy.title || '(none)') + '; wizard title: ' + (title && title.value || '(missing)'));
+        }
       }
 
       async function contentEditorOverlayScenario() {
@@ -1673,6 +1729,13 @@
           const host = win.document.getElementById('existing-scene-editor-host');
           if (!host || !host.querySelector('[data-content-storyboard-card^="draft:"]')) {
             throw new Error('Content branch scenario did not create a visible draft node.');
+          }
+          return;
+        }
+        if (scenarioId === 'content-advanced-form') {
+          const title = win.document.getElementById('wizard-title');
+          if (!title || title.value !== 'Legacy fallback is secondary') {
+            throw new Error('Advanced Form scenario did not leave the loaded legacy form visible.');
           }
           return;
         }

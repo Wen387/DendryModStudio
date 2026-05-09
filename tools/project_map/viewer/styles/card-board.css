@@ -307,9 +307,9 @@
 .card-face-editor {
   display: grid;
   align-content: start;
-  gap: 14px;
+  gap: 10px;
   min-width: 0;
-  padding: 16px;
+  padding: 12px;
   border-left: 1px solid var(--border);
   background: color-mix(in srgb, var(--studio-panel) 82%, var(--surface));
   overflow: auto;
@@ -409,6 +409,12 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.object-canvas-command-dock .card-board-object-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  gap: 6px;
 }
 
 .card-board-object-actions button {

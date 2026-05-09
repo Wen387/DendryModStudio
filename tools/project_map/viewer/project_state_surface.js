@@ -67,7 +67,7 @@
   function renderVariableRow(row, selected) {
     const active = selected && selected.name === row.name;
     return [
-      '<button type="button" class="project-state-row' + (active ? ' is-selected' : '') + '" data-object-canvas-graph-node="variable:' + escapeAttr(row.name) + '" data-project-state-variable-row="' + escapeAttr(row.name) + '" role="row">',
+      '<button type="button" class="project-state-row' + (active ? ' is-selected' : '') + '" data-object-canvas-graph-node="variable:' + escapeAttr(row.name) + '" data-project-state-variable-row="' + escapeAttr(row.name) + '" role="row" aria-selected="' + (active ? 'true' : 'false') + '">',
       '<strong>Q.' + escapeHtml(row.name || '') + '</strong>',
       '<span>' + escapeHtml(String(row.readCount || 0)) + '</span>',
       '<span>' + escapeHtml(String(row.writeCount || 0)) + '</span>',
@@ -79,9 +79,9 @@
   function renderStateInspector(model, variable) {
     return [
       '<aside class="project-state-inspector" data-project-state-inspector="true">',
+      renderActions(),
       variable ? renderVariableInspector(variable) : renderProjectInspector(model),
       renderEditorFields(model),
-      renderActions(),
       '</aside>'
     ].join('');
   }
@@ -109,6 +109,12 @@
       '<p>' + escapeHtml(source.path ? source.path + (source.line ? ':' + source.line : '') : t('projectState.noSource', 'No source evidence loaded.')) + '</p>',
       '</section>'
     ].join('');
+  }
+
+  function renderInspectorCard(model, options) {
+    const opts = options && typeof options === 'object' ? options : {};
+    const variable = variableForInspector(opts.projectIndex, model, opts.selected);
+    return variable ? renderVariableInspector(variable) : renderProjectInspector(model || {});
   }
 
   function renderRefs(title, refs) {
@@ -188,11 +194,19 @@
 
   function renderActions() {
     return [
+      '<section class="object-canvas-command-dock project-state-command-dock" data-object-canvas-command-dock="true">',
+      '<div class="object-canvas-command-head">',
+      '<div>',
+      '<div class="template-eyebrow">' + escapeHtml(t('objectCanvas.changeTitle', 'Change and safety')) + '</div>',
+      '<h3>' + escapeHtml(t('authoring.workspace.projectState', 'Project State')) + '</h3>',
+      '</div>',
+      '</div>',
       '<div class="editing-actions object-canvas-actions">',
       '<button type="button" data-object-canvas-action="refresh">' + escapeHtml(t('existingScene.refresh', 'Refresh proposal')) + '</button>',
       '<button type="button" data-object-canvas-action="save">' + escapeHtml(t('editing.saveToChanges', 'Save to My Changes')) + '</button>',
       '<button class="primary-action" type="button" data-object-canvas-action="review">' + escapeHtml(t('existingScene.review', 'Review & Apply')) + '</button>',
-      '</div>'
+      '</div>',
+      '</section>'
     ].join('');
   }
 
@@ -266,6 +280,29 @@
       rows: (base.rows || []).concat(extras).sort(compareVariableRows),
       byName: mergedByName
     };
+  }
+
+  function variableForInspector(projectIndex, model, selected) {
+    const selectedName = selectedVariableName(selected) || draftVariableName(model);
+    if (!selectedName) {
+      return null;
+    }
+    const base = cachedVariableRows(projectIndex);
+    const existing = base && base.byName && base.byName.get(selectedName);
+    if (existing) {
+      return withDiagnostic(existing);
+    }
+    const contextual = ensureArray(model && model.contextBoard && model.contextBoard.variables)
+      .map(normalizeVariable)
+      .find((row) => row.name === selectedName);
+    if (contextual) {
+      return withDiagnostic(contextual);
+    }
+    const draftName = draftVariableName(model);
+    if (draftName && draftName === selectedName) {
+      return withDiagnostic(normalizeVariable({name: draftName, reads: [], writes: []}));
+    }
+    return null;
   }
 
   function normalizeVariable(variable) {
@@ -382,7 +419,7 @@
     }[char]));
   }
 
-  const api = {render};
+  const api = {render, renderInspectorCard};
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;
   }

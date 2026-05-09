@@ -29,6 +29,12 @@
     draft.assetRefs = ensureArray(draft.assetRefs).map(normalizeAssetRef);
     draft.assetInstallRequests = ensureArray(draft.assetInstallRequests).map(normalizeAssetInstallRequest);
     draft.options = ensureArray(draft.options).map(normalizeOption);
+    const sections = ensureArray(draft.sections).map(normalizeSection).filter((section) => section.id);
+    if (sections.length) {
+      draft.sections = sections;
+    } else {
+      delete draft.sections;
+    }
     return draft;
   }
 
@@ -64,7 +70,22 @@
     return {
       variable: String(value.variable || '').trim(),
       op: String(value.op || '').trim(),
-      value: value.value
+      value: value.value,
+      condition: String(value.condition || '').trim(),
+      hook: String(value.hook || '').trim()
+    };
+  }
+
+  function normalizeSection(section, index) {
+    const value = isObject(section) ? section : {};
+    const id = String(value.id || ('section_' + (index + 1))).trim();
+    return {
+      id,
+      title: String(value.title || value.heading || '').trim(),
+      condition: String(value.condition || value.viewIf || value.chooseIf || '').trim(),
+      paragraphs: normalizeTextList(value.paragraphs || value.narrativeParagraphs || value.body || value.text),
+      effects: ensureArray(value.effects).map(normalizeEffect),
+      options: ensureArray(value.options).map(normalizeOption)
     };
   }
 
@@ -207,8 +228,45 @@
     });
     draft.effectsOnTrigger.forEach((effect) => validateEffect(effect, variables, draft.seenFlag, diagnostics));
     draft.introParagraphs.forEach((paragraph) => checkFakeInlineOption(paragraph, diagnostics));
+    ensureArray(draft.sections).forEach((section) => validateSection(section, variables, renderedAnchors, diagnostics));
 
     return {draft, diagnostics, ok: diagnostics.every((item) => item.severity !== 'error')};
+  }
+
+  function validateSection(section, variables, renderedAnchors, diagnostics) {
+    if (!ID_RE.test(section.id)) {
+      diag(diagnostics, 'error', 'event_draft.section_id', 'Section id must be a valid anchor id.');
+    }
+    recordRenderedAnchor(renderedAnchors, section.id, diagnostics);
+    checkConditionText(section.condition, diagnostics, 'event_draft.section_condition');
+    section.effects.forEach((effect) => validateEffect(effect, variables, '', diagnostics));
+    section.paragraphs.forEach((paragraph) => checkFakeInlineOption(paragraph, diagnostics));
+    const optionIds = new Set();
+    section.options.forEach((option, index) => {
+      if (!ID_RE.test(option.id)) {
+        diag(diagnostics, 'error', 'event_draft.section_option_id', 'Section option ' + (index + 1) + ' id must be a valid anchor id.');
+      }
+      if (optionIds.has(option.id)) {
+        diag(diagnostics, 'error', 'event_draft.duplicate_option_id', 'Duplicate section option id: ' + option.id);
+      }
+      optionIds.add(option.id);
+      recordRenderedAnchor(renderedAnchors, option.id, diagnostics);
+      if (!option.label) {
+        diag(diagnostics, 'error', 'event_draft.section_option_label', 'Section option ' + option.id + ' needs a label.');
+      }
+      checkConditionText(option.chooseIf, diagnostics, 'event_draft.choose_if');
+      if (option.unavailableText && !option.chooseIf) {
+        diag(diagnostics, 'warning', 'event_draft.unavailable_without_choose_if', 'unavailableText only matters when chooseIf is set: ' + option.id);
+      }
+      checkGotoAfter(option.gotoAfter, diagnostics);
+      recordRenderedAnchor(renderedAnchors, option.gotoAfter, diagnostics);
+      option.effects.forEach((effect) => validateEffect(effect, variables, '', diagnostics));
+      option.variants.forEach((variant) => {
+        checkConditionText(variant.condition, diagnostics, 'event_draft.variant_condition');
+        checkFakeInlineOption(variant.text, diagnostics);
+      });
+      option.narrativeParagraphs.forEach((paragraph) => checkFakeInlineOption(paragraph, diagnostics));
+    });
   }
 
   function validateWhen(when, diagnostics) {
@@ -333,6 +391,7 @@
       }
       appendOption(lines, option, continueLabel);
     });
+    ensureArray(draft.sections).forEach((section) => appendSection(lines, section, continueLabel));
     return lines.join('\n') + '\n';
   }
 
@@ -381,6 +440,37 @@
     lines.push('go-to: root');
   }
 
+  function appendSection(lines, section, continueLabel) {
+    lines.push('');
+    lines.push('@' + section.id);
+    if (section.title) {
+      lines.push('= ' + section.title);
+      lines.push('');
+    }
+    lines.push('on-arrival: {!');
+    section.effects.forEach((effect) => lines.push(renderEffect(effect)));
+    lines.push('!}');
+    lines.push('');
+    if (section.condition) {
+      lines.push('[? if ' + section.condition + ' : ' + section.paragraphs.join('\n\n') + ' ?]');
+      lines.push('');
+    } else {
+      appendParagraphs(lines, section.paragraphs);
+    }
+    section.options.forEach((option) => {
+      lines.push('- @' + option.id + ': ' + option.label);
+    });
+    if (section.options.length) {
+      lines.push('');
+    }
+    section.options.forEach((option, index) => {
+      if (index > 0) {
+        lines.push('');
+      }
+      appendOption(lines, option, continueLabel);
+    });
+  }
+
   function appendParagraphs(lines, paragraphs) {
     ensureArray(paragraphs).forEach((paragraph) => {
       lines.push(paragraph);
@@ -389,7 +479,7 @@
   }
 
   function renderEffect(effect) {
-    return 'Q.' + effect.variable + ' ' + effect.op + ' ' + renderEffectValue(effect.value) + ';';
+    return 'Q.' + effect.variable + ' ' + effect.op + ' ' + renderEffectValue(effect.value) + (effect.condition ? ' if ' + effect.condition : '') + ';';
   }
 
   function renderEffectValue(value) {

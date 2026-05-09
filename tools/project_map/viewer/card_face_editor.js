@@ -9,15 +9,37 @@
     const canEdit = canEditObject(selectedObject, selected, model);
     return [
       '<aside class="card-face-editor" data-card-face-editor="true">',
-      renderHeader(selectedObject, selected, board),
+      renderCommandDock(model, selectedObject, selected, board, opts, canEdit),
       renderPreview(model, selected, selectedObject),
-      renderOpenEditorCard(model, selectedObject, selected, opts),
       renderRuntimeLens(model, board, opts),
       renderInspector(model, body, board, selectedObject, selected, canEdit),
       renderDropContext(board && board.dropContext),
       renderChangeSummary(model),
-      renderActions(model, selectedObject, selected, canEdit),
       '</aside>'
+    ].join('');
+  }
+
+  function renderCommandDock(model, selectedObject, selected, board, options, canEdit) {
+    const labels = board && board.labels || {};
+    const objectLabel = selectionLabel(selectedObject, selected, labels);
+    const title = selectedObject && selectedObject.title || selected && selected.title || model && model.title || t('cardBoard.editor.emptyTitle', 'No card selected');
+    const source = selected && selected.source && selected.source.path || '';
+    const active = Boolean(options && options.editorOverlay);
+    return [
+      '<section class="object-canvas-command-dock card-face-command-dock" data-object-canvas-command-dock="true">',
+      '<div class="object-canvas-command-head">',
+      '<div>',
+      '<div class="template-eyebrow">' + escapeHtml(objectLabel.eyebrow) + '</div>',
+      '<h3 data-card-face-selected-title="true">' + escapeHtml(title) + '</h3>',
+      '</div>',
+      objectLabel.kind ? '<span class="object-canvas-command-pill">' + escapeHtml(objectLabel.kind) + '</span>' : '',
+      '</div>',
+      source ? '<p class="object-canvas-command-meta">' + escapeHtml(source) + '</p>' : '',
+      '<div class="object-canvas-command-row">',
+      '<button type="button" class="primary-action" data-object-canvas-action="toggle_overlay">' + escapeHtml(active ? t('objectCanvas.editorDock', 'Close editor') : t('objectCanvas.editorOverlay', 'Open object editor')) + '</button>',
+      '</div>',
+      renderActions(model, selectedObject, selected, canEdit),
+      '</section>'
     ].join('');
   }
 

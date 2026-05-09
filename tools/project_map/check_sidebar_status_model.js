@@ -89,16 +89,54 @@ function syntheticIndex(options) {
   };
 }
 
+function surfaceItem(id, originalText, label, line) {
+  return {
+    id,
+    originalText,
+    label,
+    role: 'label',
+    source: {
+      path: 'source/scenes/status.scene.dry',
+      line,
+      startLine: line,
+      endLine: line
+    },
+    confidence: 'static',
+    editability: 'draft_exportable'
+  };
+}
+
 const starterIndex = buildIndex(TEMPLATE_ROOT, path.join(os.tmpdir(), 'dms_sidebar_status_index.json'));
 const starterModel = sidebarStatus.buildSidebarModel(starterIndex);
 
 assert.strictEqual(starterModel.kind, 'sidebar_status_model', 'Starter Demo should produce Sidebar / Status model');
 assert(starterModel.status.exists, 'Starter Demo should detect status.scene.dry');
 assert(starterModel.sections.some((section) => section.id === sidebarStatus.MAIN_SECTION_ID), 'model should expose top-level sidebar display');
+assert(starterModel.sections.some((section) => section.id === sidebarStatus.MAIN_SECTION_ID && section.statusLines.includes('Resources: [+ demo_resources +]')), 'model should merge source-backed surface status lines into the top-level sidebar display');
 assert(starterModel.sections.some((section) => section.id === 'organization' && section.evidence), 'model should expose source-backed organization section');
 assert(starterModel.sections.some((section) => section.id === 'cards' && section.evidence), 'model should expose source-backed card section');
 assert(starterModel.variables.some((item) => item.name === 'demo_support'), 'model should expose variable recommendations');
 assert(starterModel.readiness.some((row) => row.id === 'editable_section' && row.status === 'ready'), 'model should mark source-backed sections ready');
+
+const surfaceOnlyIndex = syntheticIndex();
+surfaceOnlyIndex.semantic.textCorpus.items = [];
+surfaceOnlyIndex.semantic.surfaceText = {
+  items: [
+    surfaceItem('surface_paramilitaries_heading', '= Paramilitaries', 'Paramilitaries', 9),
+    surfaceItem('surface_reichswehr', 'Reichswehr: [+ reichswehr_strength +] thousand troops.', 'Reichswehr', 11),
+    surfaceItem('surface_reichswehr_loyalty', 'Reichswehr Loyalty: [+ reichswehr_loyalty : loyalty +]', 'Reichswehr Loyalty', 12)
+  ],
+  sources: ['source/scenes/status.scene.dry']
+};
+surfaceOnlyIndex.scenes[0].sections = [
+  {id: 'status.paramilitaries', sourceSpan: {path: 'source/scenes/status.scene.dry', startLine: 7, endLine: 13}}
+];
+const surfaceOnlyModel = sidebarStatus.buildSidebarModel(surfaceOnlyIndex);
+const surfaceParamilitaries = surfaceOnlyModel.sections.find((section) => section.id === 'paramilitaries');
+assert(surfaceParamilitaries, 'surface-only status scene should expose the Paramilitaries section');
+assert.strictEqual(surfaceParamilitaries.heading, 'Paramilitaries', 'surface heading should become the category heading');
+assert(surfaceParamilitaries.statusLines.includes('Reichswehr: [+ reichswehr_strength +] thousand troops.'), 'surface-only status rows should include the Reichswehr count');
+assert(surfaceParamilitaries.statusLines.includes('Reichswehr Loyalty: [+ reichswehr_loyalty : loyalty +]'), 'surface-only status rows should include Reichswehr loyalty');
 
 const draft = sidebarStatus.normalizeDraft(Object.assign({}, sidebarStatus.defaultDraft(starterIndex), {
   id: 'justice_party_sidebar',

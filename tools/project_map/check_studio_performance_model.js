@@ -10,6 +10,7 @@ const design = require('./viewer/design_model.js');
 const projectStateSurface = require('./viewer/project_state_surface.js');
 
 const DESIGN_UI = path.join(__dirname, 'viewer', 'design_ui.js');
+const OBJECT_CANVAS_UI = path.join(__dirname, 'viewer', 'object_authoring_canvas_ui.js');
 const PROJECT_STATE_SURFACE = path.join(__dirname, 'viewer', 'project_state_surface.js');
 const VARIABLE_EDITOR_UI = path.join(__dirname, 'viewer', 'variable_editor_ui.js');
 
@@ -167,9 +168,22 @@ const projectStateRows = projectStateHtml.match(/data-project-state-variable-row
 assert(projectStateRows.length <= 120, 'Project State should not render every global variable at once; rows=' + projectStateRows.length);
 assert(projectStateHtml.includes('data-project-state-variable-search'), 'Project State should expose search instead of requiring full-row render');
 assert(projectStateHtml.includes('project_state_show_more'), 'Project State should expose incremental loading for large variable sets');
+const projectStateInspectorHtml = projectStateSurface.renderInspectorCard({
+  ok: true,
+  title: 'Global Variables',
+  contextBoard: {variables: []},
+  changeState: {draft: {variableName: 'global_variable_2999'}},
+  eventBody: {}
+}, {
+  projectIndex: largeVariableIndex,
+  selected: 'variable:global_variable_2999',
+  limit: 120
+});
+assert(projectStateInspectorHtml.includes('Q.global_variable_2999'), 'Project State should render selected variable inspector without full surface rerender');
 
 const appUi = readExploreBundle(path.join(__dirname, 'viewer'));
 const designUi = fs.readFileSync(DESIGN_UI, 'utf8');
+const objectCanvasUi = fs.readFileSync(OBJECT_CANVAS_UI, 'utf8');
 const projectStateUi = fs.readFileSync(PROJECT_STATE_SURFACE, 'utf8');
 const variableEditorUi = fs.readFileSync(VARIABLE_EDITOR_UI, 'utf8');
 assert(appUi.includes('SORT_COLLATOR'), 'Explore sorting should reuse one collator instead of rebuilding localeCompare options per comparison');
@@ -186,6 +200,9 @@ assert(designUi.includes('inspectorCache'), 'Design inspector should cache selec
 assert(designUi.includes('inspectorCacheKey'), 'Design inspector should build explicit cache keys');
 assert(designUi.includes('renderInspectorContent'), 'Design inspector heavy HTML construction should be isolated behind cache lookup');
 assert(projectStateUi.includes('rowCache'), 'Project State variable rows should be cached per ProjectIndex object');
+assert(projectStateUi.includes('renderInspectorCard'), 'Project State should expose a narrow inspector render path for variable selection');
+assert(objectCanvasUi.includes('fastSelectProjectStateNode'), 'Project State variable clicks should avoid rebuilding the full authoring model');
+assert(objectCanvasUi.includes('syncProjectStateVariableSelection'), 'Project State variable selection should update only row highlight and inspector card');
 assert(variableEditorUi.includes('VARIABLE_OPTION_LIMIT'), 'Variable Editor should cap datalist options for large global variable sets');
 const inspectorContentMatch = designUi.match(/function renderInspectorContent[\s\S]*?\n  function renderEventWorkbenchForSelected/);
 assert(inspectorContentMatch, 'Design inspector content renderer should have a stable function boundary');

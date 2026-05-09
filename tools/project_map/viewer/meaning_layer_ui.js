@@ -65,9 +65,11 @@
       return '';
     }
     const stats = [];
-    stats.push((readiness.warningCount || 0) + ' ' + (model.locale === 'zh-Hant' ? '項提示' : 'notes'));
-    stats.push((readiness.assetCount || 0) + ' ' + (model.locale === 'zh-Hant' ? '個資產' : 'assets'));
-    stats.push(readiness.runtimePreview ? (model.locale === 'zh-Hant' ? 'runtime' : 'runtime') : (model.locale === 'zh-Hant' ? '非 runtime' : 'not runtime'));
+    stats.push((readiness.warningCount || 0) + ' ' + translate(model.locale, 'meaningPreview.readiness.notes', 'notes'));
+    stats.push((readiness.assetCount || 0) + ' ' + translate(model.locale, 'meaningPreview.readiness.assets', 'assets'));
+    stats.push(readiness.runtimePreview
+      ? translate(model.locale, 'meaningPreview.readiness.runtime', 'runtime')
+      : translate(model.locale, 'meaningPreview.readiness.notRuntime', 'not runtime'));
     return [
       '<section class="meaning-readiness meaning-readiness-' + escapeAttr(readiness.key || 'needs_review') + '">',
       '<strong>' + escapeHtml(readiness.label || '') + '</strong>',
@@ -205,30 +207,39 @@
   }
 
   function sectionLabel(model, key) {
-    const zh = model.locale === 'zh-Hant';
-    return {
-      playerText: zh ? '玩家會看到的內容' : 'Player-facing content',
-      choices: zh ? '玩家選項' : 'Player choices',
-      mechanics: zh ? '遊戲規則' : 'Game rules',
-      notes: zh ? '審查提示' : 'Review notes',
-      assets: zh ? '引用資產' : 'Referenced assets',
-      advanced: zh ? '進階資訊' : 'Advanced details'
+    const fallback = {
+      playerText: 'Player-facing content',
+      choices: 'Player choices',
+      mechanics: 'Game rules',
+      notes: 'Review notes',
+      assets: 'Referenced assets',
+      advanced: 'Advanced details'
     }[key] || key;
+    return translate(model.locale, 'meaningPreview.section.' + key, fallback);
   }
 
   function assetTypeLabel(value) {
-    const zh = currentLocale() === 'zh-Hant';
-    const labels = {
-      image: zh ? '圖片' : 'Image',
-      audio: zh ? '音訊' : 'Audio',
-      asset: zh ? '資產' : 'Asset'
-    };
-    return labels[value] || value;
+    const fallback = {image: 'Image', audio: 'Audio', asset: 'Asset'}[value] || value;
+    return translate(currentLocale(), 'meaningPreview.assetType.' + value, fallback);
   }
 
   function currentLocale() {
     const i18n = global.ProjectMapI18n;
     return i18n && typeof i18n.getLocale === 'function' ? i18n.getLocale() : 'en';
+  }
+
+  function translate(locale, key, fallback) {
+    const i18n = global && global.ProjectMapI18n;
+    if (
+      i18n &&
+      typeof i18n.t === 'function' &&
+      (!locale || typeof i18n.getLocale !== 'function' || i18n.getLocale() === locale)
+    ) {
+      return i18n.t(key, fallback);
+    }
+    const dictionaries = global && global.ProjectMapI18nDictionaries || {};
+    const dictionary = dictionaries[locale] || dictionaries.en || {};
+    return dictionary[key] || fallback || key;
   }
 
   function escapeHtml(value) {

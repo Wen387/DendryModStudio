@@ -1,7 +1,11 @@
 (function initProjectMapObjectCanvasContentBodies(global) {
   'use strict';
 
-  function eventBody(draft) {
+  function eventBody(draft, projectIndex, options) {
+    const structureApi = eventStructureApi();
+    if (structureApi && typeof structureApi.fromDraft === 'function' && typeof structureApi.toEventBody === 'function') {
+      return structureApi.toEventBody(structureApi.fromDraft(draft, projectIndex, options), options);
+    }
     return {
       mode: 'new_event',
       bodyEyebrow: 'Event body',
@@ -433,6 +437,20 @@
 
   function joinParagraphs(value) {
     return ensureArray(value).map((item) => String(item || '').trim()).filter(Boolean).join('\n\n');
+  }
+
+  function eventStructureApi() {
+    if (global && global.ProjectMapEventStructureModel) {
+      return global.ProjectMapEventStructureModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./event_structure_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
   }
 
   function ensureArray(value) {

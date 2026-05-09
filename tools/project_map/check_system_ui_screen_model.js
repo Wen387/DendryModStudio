@@ -129,6 +129,29 @@ assert(economicsRegion.body.includes('The treasury report sits here.'), 'source 
 assert(!economicsRegion.body.includes('Resources available: 0'), 'source sidebar category preview should not inject default fixture sidebar body');
 assert(!economicsRegion.body.includes('Internal dissent: very low'), 'source sidebar category preview should not inject default fixture status lines');
 
+const surfaceOnlyIndex = JSON.parse(JSON.stringify(index));
+const surfaceStatus = surfaceOnlyIndex.scenes.find((item) => item.id === 'status');
+surfaceStatus.sections = [
+  {id: 'status.paramilitaries', sourceSpan: {path: 'source/scenes/status.scene.dry', startLine: 30, endLine: 36}}
+];
+surfaceOnlyIndex.semantic.textCorpus.items = surfaceOnlyIndex.semantic.textCorpus.items.filter((item) => !(item.owner && item.owner.sceneId === 'status'));
+surfaceOnlyIndex.semantic.surfaceText = {
+  items: [
+    surfaceTextItem('surface_paramilitaries_heading', '= Paramilitaries', 'Paramilitaries', 31),
+    surfaceTextItem('surface_reichswehr', 'Reichswehr: [+ reichswehr_strength +] thousand troops.', 'Reichswehr', 33),
+    surfaceTextItem('surface_police', 'Prussian police loyalty: [+ prussian_police_loyalty : loyalty +]', 'Prussian police loyalty', 35)
+  ],
+  sources: ['source/scenes/status.scene.dry']
+};
+const surfaceCategoryScreen = screenModel.buildScreen(
+  objectCanvasModel.buildTemplateCanvas(surfaceOnlyIndex, 'sidebar_status', {}, {values: {}}),
+  {projectIndex: surfaceOnlyIndex, selected: 'ui:sidebar_category:paramilitaries'}
+);
+const paramilitariesRegion = surfaceCategoryScreen.regions.find((region) => region.key === 'sidebar_status');
+assert(paramilitariesRegion && paramilitariesRegion.title === 'Paramilitaries', 'surface-only sidebar category selection should use the parsed surface heading');
+assert(paramilitariesRegion.body.includes('Reichswehr: [+ reichswehr_strength +] thousand troops.'), 'surface-only sidebar category selection should expose dynamic status lines');
+assert(paramilitariesRegion.body.includes('Prussian police loyalty: [+ prussian_police_loyalty : loyalty +]'), 'surface-only sidebar category selection should keep all source-backed surface rows');
+
 const edited = objectCanvasModel.buildTemplateCanvas(index, 'workspace_layout', {}, {
   values: {'layout.deckTitle': 'Live Edited Policy Deck'}
 });
@@ -236,5 +259,22 @@ function textItem(id, text, role, sceneId, path, line, itemId) {
     role,
     owner: {kind: 'scene', sceneId, sectionId: itemId || 'start', itemId: itemId || ''},
     source
+  };
+}
+
+function surfaceTextItem(id, originalText, label, line) {
+  return {
+    id,
+    originalText,
+    label,
+    role: 'label',
+    source: {
+      path: 'source/scenes/status.scene.dry',
+      line,
+      startLine: line,
+      endLine: line
+    },
+    confidence: 'static',
+    editability: 'draft_exportable'
   };
 }
