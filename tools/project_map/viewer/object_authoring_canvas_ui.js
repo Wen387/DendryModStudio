@@ -574,6 +574,9 @@
 
   function openTemplate(template, draft, meta) {
     const nextTemplate = normalizeTemplate(template) || templateFromDraft(draft) || 'event';
+    if (nextTemplate === 'existing' && draft && (draft.kind === 'existing_scene_edit' || draft.sceneId && draft.changes)) {
+      return loadDraft(draft, meta || {source: 'Create'});
+    }
     state.template = nextTemplate;
     state.mode = nextTemplate === 'event' ? 'new_event' : nextTemplate;
     state.view = nextTemplate;

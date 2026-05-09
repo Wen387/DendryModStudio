@@ -307,6 +307,31 @@ assert(existing.contextBoard.variables.some((row) => row.name === 'public_order'
 assert(existing.contextBoard.effects.some((row) => row.variable === 'public_order'), 'context board should include readonly effects');
 assert(existing.changeState.changedCount === 2, 'existing model should count changed fields');
 assert(existing.changeState.operationSummary.guardedApply === 2, 'existing source-backed text changes should be guarded');
+const savedExistingProposal = {
+  schemaVersion: '0.1',
+  kind: 'existing_scene_edit',
+  id: 'edit_existing_generic_intro',
+  title: 'Generic Intro',
+  sceneId: 'generic_intro',
+  sceneKind: 'event',
+  sourcePath: 'source/scenes/events/generic_intro.scene.dry',
+  changes: [{
+    fieldId: 'generic_intro_body',
+    role: 'body',
+    source: {path: 'source/scenes/events/generic_intro.scene.dry', line: 6},
+    before: 'The campaign office opens to a quiet morning.',
+    after: 'The campaign office opens to a saved existing-edit morning.'
+  }]
+};
+const savedExistingCanvas = canvasModel.buildCanvasModel(index, {template: 'existing', draft: savedExistingProposal}, {});
+assert(savedExistingCanvas.ok, 'saved existing proposal should reopen through the existing editor path');
+assert(savedExistingCanvas.mode === 'existing', 'saved existing proposal should not fall back to a new event canvas');
+assert(savedExistingCanvas.changeState.installPlan.draftKind === 'existing_scene_edit', 'saved existing proposal should preserve existing edit install kind');
+assert(savedExistingCanvas.changeState.installPlan.operations.length > 0, 'saved existing proposal should keep reviewable source edit operations');
+assert(savedExistingCanvas.changeState.installPlan.operations.every((operation) => operation.type !== 'create_file'), 'saved existing proposal must not create an already-existing scene file');
+const directExistingCanvas = canvasModel.buildCanvasModel(index, savedExistingProposal, {});
+assert(directExistingCanvas.mode === 'existing', 'direct existing_scene_edit inputs should route to the existing editor');
+assert(directExistingCanvas.changeState.installPlan.operations.every((operation) => operation.type !== 'create_file'), 'direct existing_scene_edit inputs should not emit create_file operations');
 
 const laborExisting = canvasModel.buildExistingCanvas(index, 'events', 'labor_unrest', {
   values: {},

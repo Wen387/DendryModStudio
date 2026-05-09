@@ -96,11 +96,63 @@
     return null;
   }
 
+  function isExistingProposal(value) {
+    return isObject(value) && (value.kind === 'existing_scene_edit' || Boolean(value.sceneId && value.changes));
+  }
+
+  function isExistingCanvasRequest(value, template) {
+    const request = isObject(value) ? value : {};
+    const draft = isObject(request.draft) ? request.draft : request;
+    const mode = String(request.mode || '').trim();
+    const type = String(request.type || '').trim();
+    const key = String(template || request.template || '').trim();
+    return mode === 'existing' ||
+      type === 'existing' ||
+      key === 'existing' ||
+      isExistingProposal(draft);
+  }
+
+  function existingViewForRequest(value) {
+    const request = isObject(value) ? value : {};
+    const draft = isObject(request.draft) ? request.draft : request;
+    const explicit = String(request.view || '').trim();
+    if (explicit) {
+      return explicit;
+    }
+    return String(draft.sceneKind || request.sceneKind || '') === 'card' ? 'cards' : 'events';
+  }
+
+  function existingItemForRequest(value) {
+    const request = isObject(value) ? value : {};
+    const draft = isObject(request.draft) ? request.draft : request;
+    return request.item || request.itemOrId || request.sceneId || draft.sceneId || draft.item || draft.id || '';
+  }
+
+  function existingOptionsForRequest(value, options) {
+    const request = isObject(value) ? value : {};
+    const draft = isObject(request.draft) ? request.draft : request;
+    const opts = Object.assign({}, isObject(options) ? options : {});
+    if (!isObject(opts.values) || !Object.keys(opts.values).length) {
+      const api = editingContextApi();
+      if (api && typeof api.proposalValues === 'function' && isExistingProposal(draft)) {
+        opts.values = api.proposalValues(draft);
+      }
+    }
+    if (!opts.entry && request.entry) {
+      opts.entry = request.entry;
+    }
+    return opts;
+  }
+
   function buildCanvasModel(projectIndex, input, options) {
     const value = isObject(input) ? input : {};
-    const mode = String(value.mode || value.type || '').trim();
-    if (mode === 'existing') {
-      return buildExistingCanvas(projectIndex, value.view, value.item || value.itemOrId || value.sceneId, options);
+    if (isExistingCanvasRequest(value)) {
+      return buildExistingCanvas(
+        projectIndex,
+        existingViewForRequest(value),
+        existingItemForRequest(value),
+        existingOptionsForRequest(value, options)
+      );
     }
     const adapters = contentAdaptersApi();
     if (adapters && typeof adapters.buildTemplateCanvas === 'function') {
@@ -200,6 +252,15 @@
   }
 
   function buildTemplateCanvas(projectIndex, template, draftInput, options) {
+    const existingRequest = {template, draft: draftInput};
+    if (isExistingCanvasRequest(existingRequest)) {
+      return buildExistingCanvas(
+        projectIndex,
+        existingViewForRequest(existingRequest),
+        existingItemForRequest(existingRequest),
+        existingOptionsForRequest(existingRequest, options)
+      );
+    }
     const adapters = contentAdaptersApi();
     if (adapters && typeof adapters.buildTemplateCanvas === 'function') {
       return adapters.buildTemplateCanvas(projectIndex, template, draftInput, options);
@@ -216,6 +277,9 @@
   }
 
   function templateFromDraft(draft) {
+    if (isExistingProposal(draft)) {
+      return 'existing';
+    }
     const adapters = contentAdaptersApi();
     if (adapters && typeof adapters.templateFromDraft === 'function') {
       return adapters.templateFromDraft(draft);
