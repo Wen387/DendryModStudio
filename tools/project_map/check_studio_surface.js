@@ -184,7 +184,7 @@ const objectAuthoringCanvasModel = fs.readFileSync(OBJECT_AUTHORING_CANVAS_MODEL
 assert(html.includes('data-studio-surface="direction-b"'), 'viewer should mark Direction B Studio as the active surface');
 assert(html.includes('brand-mark branch-mark'), 'viewer should expose a Branch brand mark');
 assert(html.includes('Dendry <span>Mod Studio</span>'), 'viewer should emphasize Mod Studio in the wordmark');
-assert(html.includes('Dendry Mod Studio v0.9.6 dev preview'), 'topbar should expose the Studio version for testers');
+assert(html.includes('Dendry Mod Studio v0.9.65 dev preview'), 'topbar should expose the Studio version for testers');
 assert(html.includes('https://github.com/Wen387'), 'topbar should link the author GitHub profile');
 assert(html.includes('nav-group-title'), 'Explore navigation should be grouped by authoring purpose');
 assert(html.includes('Story content'), 'Explore navigation should include a Story content group');
@@ -372,6 +372,7 @@ assert(authoringWorkspaceUi.includes("key: 'entry'"), 'System UI screen entry sh
 assert(authoringWorkspaceUi.includes('return [SYSTEM_UI_SCREEN_ITEM, ELECTION_RESULTS_ITEM]'), 'System UI workspace should show the unified screen entry plus Election Results, not four parallel low-level templates');
 assert(objectAuthoringCanvasUi.includes('systemUiTemplateForRegion'), 'Object Canvas should route preview-region clicks to internal System UI draft templates');
 assert(objectAuthoringCanvasUi.includes('renderElectionResultsStage'), 'Object Canvas should render Election Results through its dedicated surface');
+assert(objectAuthoringCanvasUi.includes("key === 'election_results_board'"), 'Election Results source selector refresh should re-render the dedicated board');
 assert(authoringSurfaceRegistry.includes("key: 'project'") && authoringSurfaceRegistry.includes("surface: 'system_ui_preview'"), 'Game Info should author through the System UI Preview surface');
 assert(authoringSurfaceRegistry.includes("key: 'election_results'") && authoringSurfaceRegistry.includes("surface: 'election_results_board'"), 'Election Results should author through the dedicated Election Results surface');
 assert(systemUiRegionRouter.includes("screen_header: 'project'"), 'System UI header clicks should open the Game Info draft');
@@ -379,6 +380,7 @@ assert(systemUiRegionRouter.includes("election_results_chart: 'election_results'
 assert(electionResultsChart.includes('data-d3-parliament-chart'), 'Election Results chart should expose a D3 parliament-compatible chart marker');
 assert(electionResultsChart.includes('d3.parliament'), 'Election Results chart should directly call d3.parliament when the runtime provides it');
 assert(electionResultsSurface.includes('data-election-results-source-selector'), 'Election Results surface should expose a source event selector');
+assert(electionResultsSurface.includes('open_selected_election_event'), 'Election Results surface should expose a source-backed event editor action');
 assert(electionResultsSurface.includes('create_election_event'), 'Election Results surface should expose a new election event action');
 assert(authoringWorkspaceUi.includes("key: 'variables'"), 'Create template switch should include Variables');
 assert(html.includes('data-view="surfaceText"'), 'Explore navigation should include Surface Text');

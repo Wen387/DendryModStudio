@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "channel": "dev-preview",
-  "latestVersion": "0.9.6",
-  "minimumRecommendedVersion": "0.9.6",
+  "latestVersion": "0.9.65",
+  "minimumRecommendedVersion": "0.9.65",
   "severity": "info",
-  "noticeId": "v0.9.6-preview-announcement-2026-05-08",
+  "noticeId": "v0.9.65-preview-announcement-2026-05-09",
   "title": "Dendry Mod Studio preview channel notice",
   "titleLocalized": {
     "en": "Dendry Mod Studio preview channel notice",
@@ -181,6 +181,6 @@
     }
   ],
   "downloadUrl": "https://github.com/Wen387/DendryModStudio/releases",
-  "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.9.6.md",
+  "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.9.65.md",
   "publishedAt": "2026-05-08"
 }
