@@ -11,6 +11,11 @@
 
   const MIN_OPTION_COUNT = 2;
   const MAX_OPTION_COUNT = 4;
+  const CONDITION_KEYWORDS = new Set([
+    'and', 'or', 'not', 'if', 'else', 'true', 'false', 'null', 'undefined',
+    'in', 'is', 'Q', 'Math'
+  ]);
+  const CONDITION_BUILTINS = new Set(['year', 'month', 'week', 'time']);
 
   const state = {
     projectIndex: null,
@@ -933,6 +938,7 @@
     if (looksLikeChineseStringComparison(draft.requires)) {
       diagnostics.push(warning('requires may contain a Chinese string comparison; prefer numeric flags.'));
     }
+    validateConditionLine(draft.requires, diagnostics, 'Requires');
     if (!draft.requires) {
       diagnostics.push(info('requires is empty; only time and seen-flag gates will be generated.'));
     }
@@ -951,6 +957,7 @@
       if (looksLikeChineseStringComparison(option.chooseIf)) {
         diagnostics.push(warning('Option ' + optionLabel(option.index) + ' chooseIf may contain a Chinese string comparison.'));
       }
+      validateConditionLine(option.chooseIf, diagnostics, 'Option ' + optionLabel(option.index));
       if (option.unavailableText.trim() && !option.chooseIf.trim()) {
         diagnostics.push(warning('Option ' + optionLabel(option.index) + ' unavailableText only matters when chooseIf is set.'));
       }
@@ -960,6 +967,9 @@
           diagnostics.push(warning('Option ' + optionLabel(option.index) + ' variant not parsed: "' + variant.raw + '".'));
         } else if (looksLikeChineseStringComparison(variant.condition)) {
           diagnostics.push(warning('Option ' + optionLabel(option.index) + ' variant condition may contain a Chinese string comparison.'));
+        }
+        if (variant.valid) {
+          validateConditionLine(variant.condition, diagnostics, 'Option ' + optionLabel(option.index) + ' variant');
         }
       });
       if (option.rawGotoAfter.trim() && option.rawGotoAfter.trim() !== option.gotoAfter) {
@@ -984,6 +994,37 @@
     } else if (state.variableNames.size && !state.variableNames.has(effect.variable)) {
       diagnostics.push(warning(label + ' effect variable "' + effect.variable + '" is not in the loaded Project Map.'));
     }
+  }
+
+  function validateConditionLine(text, diagnostics, label) {
+    unknownConditionVariables(text).forEach((name) => {
+      diagnostics.push(warning(t('create.warning.conditionVariableMissing', '{field} condition variable "{name}" is not in the loaded Project Map.')
+        .replace('{field}', label)
+        .replace('{name}', name)));
+    });
+  }
+
+  function unknownConditionVariables(text) {
+    if (!text || !state.variableNames.size) {
+      return [];
+    }
+    const unknown = new Set();
+    const stripped = String(text || '').replace(/(['"])(?:\\.|(?!\1)[\s\S])*\1/g, ' ');
+    const re = /(?:^|[^.A-Za-z0-9_])(?:Q\.)?([A-Za-z_][A-Za-z0-9_]*)\b/g;
+    let match;
+    while ((match = re.exec(stripped))) {
+      const name = match[1];
+      if (
+        !name ||
+        CONDITION_KEYWORDS.has(name) ||
+        CONDITION_BUILTINS.has(name) ||
+        state.variableNames.has(name)
+      ) {
+        continue;
+      }
+      unknown.add(name);
+    }
+    return Array.from(unknown).sort();
   }
 
   function renderDraftOutput(draft, diagnostics) {

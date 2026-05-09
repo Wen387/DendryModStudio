@@ -39,7 +39,6 @@ function minimalIndex() {
       {name: 'resources'},
       {name: 'media_reach'},
       {name: 'civil_society_trust'},
-      {name: 'founding_complete'},
       {name: 'year'},
       {name: 'month'}
     ]
@@ -98,6 +97,7 @@ assert(zhAdvancedBundle.scene.includes('- @after_public_response: 繼續'), 'adv
 assert(advancedBundle.scene.includes('@after_public_response'), 'advanced draft should render custom continuation anchor');
 assert(fourChoiceBundle.installNotes.includes('Export bundle files:'), 'install notes should list bundle files');
 assert(viewerHtml.includes('id="wizard-draft-file"'), 'wizard should expose an EventDraft JSON loader');
+assert(!viewerHtml.includes('value="founding_complete = 1"'), 'wizard should not hard-code a project-specific requires default');
 assert(viewerHtml.includes('id="wizard-option-count"'), 'wizard should expose a 2-4 option count control');
 assert(viewerHtml.includes('data-option-index="3"'), 'wizard should include a fourth option editor block');
 assert(viewerHtml.includes('id="wizard-seen-flag"'), 'wizard should expose custom seen flag');
@@ -135,6 +135,7 @@ const roundTripEffects = wizardApi.helpers.effectsFromText(effectText);
 assert(roundTripEffects[0].variable === 'media_reach' && roundTripEffects[0].op === '+=', 'effectsFromText should parse effect lines');
 assert(bundle.scene.includes('title: Sample World Event'), 'scene should include title');
 assert(bundle.scene.includes('view-if: year = 2024 and month >= 1 and month <= 3 and sample_world_event_seen = 0'), 'scene should include event window and seen flag');
+assert(!bundle.scene.includes('founding_complete'), 'sample scene should not include a hidden founding_complete gate');
 assert(bundle.scene.includes('Q.sample_world_event_seen = 1;'), 'scene should set seen flag');
 assert(bundle.rootSnippet.trim() === 'Q.sample_world_event_seen = 0;', 'root init snippet should match style');
 assert(
@@ -158,6 +159,13 @@ unknownVariable.options[0].effects.push({variable: 'not_in_index_var', op: '+=',
 assert(
   diagnosticCodes(eventDraft.validateDraft(unknownVariable, index)).includes('event_draft.missing_variable'),
   'unknown effect variable should be diagnosed'
+);
+
+const unknownConditionVariable = JSON.parse(JSON.stringify(sample));
+unknownConditionVariable.when.requires = 'founding_complete = 1';
+assert(
+  diagnosticCodes(eventDraft.validateDraft(unknownConditionVariable, index)).includes('event_draft.unknown_condition_variable'),
+  'unknown condition variable should be diagnosed'
 );
 
 const bad = JSON.parse(JSON.stringify(sample));

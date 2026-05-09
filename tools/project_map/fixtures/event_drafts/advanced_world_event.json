@@ -9,7 +9,7 @@
     "year": 2024,
     "monthStart": 7,
     "monthEnd": 9,
-    "requires": "founding_complete = 1",
+    "requires": "resources >= 1",
     "priority": 0
   },
   "effectsOnTrigger": [

@@ -6,6 +6,11 @@
   const ID_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
   const EFFECT_OPS = new Set(['=', '+=', '-=']);
   const RESERVED_PRIORITY = 4;
+  const CONDITION_KEYWORDS = new Set([
+    'and', 'or', 'not', 'if', 'else', 'true', 'false', 'null', 'undefined',
+    'in', 'is', 'Q', 'Math'
+  ]);
+  const CONDITION_BUILTINS = new Set(['year', 'month', 'week', 'time']);
 
   function ensureArray(value) {
     return Array.isArray(value) ? value : [];
@@ -44,7 +49,7 @@
       year: numberOrNull(value.year),
       monthStart: numberOrNull(value.monthStart),
       monthEnd: numberOrNull(value.monthEnd),
-      requires: String(value.requires || 'founding_complete = 1').trim(),
+      requires: String(value.requires || '').trim(),
       priority: numberOrNull(value.priority) ?? 0
     };
   }
@@ -194,7 +199,7 @@
       diag(diagnostics, 'error', 'event_draft.heading', 'Heading is required.');
     }
     validateWhen(draft.when, diagnostics);
-    checkConditionText(draft.when.requires, diagnostics, 'event_draft.requires');
+    checkConditionText(draft.when.requires, diagnostics, 'event_draft.requires', variables, draft.seenFlag);
 
     const optionIds = new Set();
     const renderedAnchors = new Set();
@@ -213,7 +218,7 @@
       if (!option.label) {
         diag(diagnostics, 'error', 'event_draft.option_label', 'Option ' + option.id + ' needs a label.');
       }
-      checkConditionText(option.chooseIf, diagnostics, 'event_draft.choose_if');
+      checkConditionText(option.chooseIf, diagnostics, 'event_draft.choose_if', variables, draft.seenFlag);
       if (option.unavailableText && !option.chooseIf) {
         diag(diagnostics, 'warning', 'event_draft.unavailable_without_choose_if', 'unavailableText only matters when chooseIf is set: ' + option.id);
       }
@@ -221,24 +226,24 @@
       recordRenderedAnchor(renderedAnchors, option.gotoAfter, diagnostics);
       option.effects.forEach((effect) => validateEffect(effect, variables, draft.seenFlag, diagnostics));
       option.variants.forEach((variant) => {
-        checkConditionText(variant.condition, diagnostics, 'event_draft.variant_condition');
+        checkConditionText(variant.condition, diagnostics, 'event_draft.variant_condition', variables, draft.seenFlag);
         checkFakeInlineOption(variant.text, diagnostics);
       });
       option.narrativeParagraphs.forEach((paragraph) => checkFakeInlineOption(paragraph, diagnostics));
     });
     draft.effectsOnTrigger.forEach((effect) => validateEffect(effect, variables, draft.seenFlag, diagnostics));
     draft.introParagraphs.forEach((paragraph) => checkFakeInlineOption(paragraph, diagnostics));
-    ensureArray(draft.sections).forEach((section) => validateSection(section, variables, renderedAnchors, diagnostics));
+    ensureArray(draft.sections).forEach((section) => validateSection(section, variables, draft.seenFlag, renderedAnchors, diagnostics));
 
     return {draft, diagnostics, ok: diagnostics.every((item) => item.severity !== 'error')};
   }
 
-  function validateSection(section, variables, renderedAnchors, diagnostics) {
+  function validateSection(section, variables, seenFlag, renderedAnchors, diagnostics) {
     if (!ID_RE.test(section.id)) {
       diag(diagnostics, 'error', 'event_draft.section_id', 'Section id must be a valid anchor id.');
     }
     recordRenderedAnchor(renderedAnchors, section.id, diagnostics);
-    checkConditionText(section.condition, diagnostics, 'event_draft.section_condition');
+    checkConditionText(section.condition, diagnostics, 'event_draft.section_condition', variables, seenFlag);
     section.effects.forEach((effect) => validateEffect(effect, variables, '', diagnostics));
     section.paragraphs.forEach((paragraph) => checkFakeInlineOption(paragraph, diagnostics));
     const optionIds = new Set();
@@ -254,7 +259,7 @@
       if (!option.label) {
         diag(diagnostics, 'error', 'event_draft.section_option_label', 'Section option ' + option.id + ' needs a label.');
       }
-      checkConditionText(option.chooseIf, diagnostics, 'event_draft.choose_if');
+      checkConditionText(option.chooseIf, diagnostics, 'event_draft.choose_if', variables, seenFlag);
       if (option.unavailableText && !option.chooseIf) {
         diag(diagnostics, 'warning', 'event_draft.unavailable_without_choose_if', 'unavailableText only matters when chooseIf is set: ' + option.id);
       }
@@ -262,7 +267,7 @@
       recordRenderedAnchor(renderedAnchors, option.gotoAfter, diagnostics);
       option.effects.forEach((effect) => validateEffect(effect, variables, '', diagnostics));
       option.variants.forEach((variant) => {
-        checkConditionText(variant.condition, diagnostics, 'event_draft.variant_condition');
+        checkConditionText(variant.condition, diagnostics, 'event_draft.variant_condition', variables, seenFlag);
         checkFakeInlineOption(variant.text, diagnostics);
       });
       option.narrativeParagraphs.forEach((paragraph) => checkFakeInlineOption(paragraph, diagnostics));
@@ -305,7 +310,7 @@
     }
   }
 
-  function checkConditionText(text, diagnostics, code) {
+  function checkConditionText(text, diagnostics, code, variables, seenFlag) {
     if (!text) {
       return;
     }
@@ -315,6 +320,33 @@
     if (/['"][^'"\n]*[\u4e00-\u9fff][^'"\n]*['"]/.test(text)) {
       diag(diagnostics, 'error', code || 'event_draft.chinese_string_comparison', 'Dendry conditionals must not compare Chinese strings.');
     }
+    unknownConditionVariables(text, variables, seenFlag).forEach((name) => {
+      diag(diagnostics, 'warning', 'event_draft.unknown_condition_variable', 'Condition variable is not in the loaded ProjectIndex: ' + name);
+    });
+  }
+
+  function unknownConditionVariables(text, variables, seenFlag) {
+    if (!variables) {
+      return [];
+    }
+    const unknown = new Set();
+    const stripped = String(text || '').replace(/(['"])(?:\\.|(?!\1)[\s\S])*\1/g, ' ');
+    const re = /(?:^|[^.A-Za-z0-9_])(?:Q\.)?([A-Za-z_][A-Za-z0-9_]*)\b/g;
+    let match;
+    while ((match = re.exec(stripped))) {
+      const name = match[1];
+      if (
+        !name ||
+        name === seenFlag ||
+        CONDITION_KEYWORDS.has(name) ||
+        CONDITION_BUILTINS.has(name) ||
+        variables.has(name)
+      ) {
+        continue;
+      }
+      unknown.add(name);
+    }
+    return Array.from(unknown).sort();
   }
 
   function checkGotoAfter(value, diagnostics) {

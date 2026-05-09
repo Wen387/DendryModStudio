@@ -8,7 +8,7 @@
     "year": 2024,
     "monthStart": 1,
     "monthEnd": 3,
-    "requires": "founding_complete = 1",
+    "requires": "",
     "priority": 0
   },
   "introParagraphs": [
