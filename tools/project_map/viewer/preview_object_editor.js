@@ -43,16 +43,23 @@
     const kind = editorKind(model, opts);
     const title = titleText(body, model, kind);
     const source = sourceLabel(model);
+    const expanded = Boolean(opts.previewExpanded);
+    const expandLabel = expanded
+      ? t('previewObjectEditor.collapsePreview', 'Collapse preview')
+      : t('previewObjectEditor.expandPreview', 'Expand preview');
     return [
-      '<div class="object-editing-modal-backdrop" data-object-editing-modal="true" data-object-editing-modal-kind="' + escapeAttr(kind) + '">',
-      '<section class="object-editing-modal-dialog" role="dialog" aria-modal="true" aria-label="' + escapeAttr(t('previewObjectEditor.modalTitle', 'Object editor')) + '">',
+      '<div class="object-editing-modal-backdrop' + (expanded ? ' is-preview-expanded' : '') + '" data-object-editing-modal="true" data-object-editing-modal-kind="' + escapeAttr(kind) + '" data-object-editing-preview-expanded="' + (expanded ? 'true' : 'false') + '">',
+      '<section class="object-editing-modal-dialog' + (expanded ? ' is-preview-expanded' : '') + '" role="dialog" aria-modal="true" aria-label="' + escapeAttr(t('previewObjectEditor.modalTitle', 'Object editor')) + '">',
       '<header class="object-editing-modal-header">',
       '<div>',
       '<span>' + escapeHtml(t('previewObjectEditor.eyebrow', 'Visible object editor')) + '</span>',
       '<h3 data-preview-object-editor-title="true">' + renderTextInline(title || labelForKind(kind)) + '</h3>',
       '<p>' + escapeHtml(subtitleForKind(kind)) + '</p>',
       '</div>',
+      '<div class="object-editing-modal-header-actions">',
+      '<button type="button" data-object-canvas-action="toggle_preview_expanded" aria-pressed="' + (expanded ? 'true' : 'false') + '">' + escapeHtml(expandLabel) + '</button>',
       '<button type="button" data-object-canvas-action="toggle_overlay" aria-label="' + escapeAttr(t('previewObjectEditor.close', 'Close editor')) + '">' + escapeHtml(t('previewObjectEditor.close', 'Close editor')) + '</button>',
+      '</div>',
       '</header>',
       '<div class="object-editing-modal-grid">',
       '<section class="object-editing-preview-pane" data-object-editing-modal-preview-pane="true">',
@@ -121,6 +128,7 @@
       previewBody.heading && fieldId(previewBody.heading) !== fieldId(previewBody.title) ? '<h5>' + renderTextInline(fieldValue(previewBody.heading)) + '</h5>' : '',
       sections.length ? renderPreviewSections(sections, previewBody, model) : renderEmpty(t('objectPreview.noPreview', 'No preview text')),
       renderPreviewChoices(options, 'event', previewBody, model),
+      renderFlowOverview(previewBody.flow, model, 'preview'),
       renderPreviewBranches(branchSections, previewTextOptions(previewBody, model)),
       renderPreviewAssets(assets),
       renderPreviewEffects(previewBody, model),
@@ -266,6 +274,18 @@
         context: sourceLabelFromRef(effect && effect.source)
       });
     });
+    ensureArray(body && body.pendingStructureRemovals).forEach((removal) => {
+      const action = String(removal && removal.action || '');
+      if (action !== 'remove_effect') {
+        return;
+      }
+      pushPreviewEffect(rows, seen, {
+        kind: 'pending-removal',
+        label: t('previewObjectEditor.pendingRemoval', 'Pending manual removal'),
+        value: String(removal && removal.before || removal && removal.label || '').trim(),
+        context: String(removal && removal.label || '').trim()
+      });
+    });
     return rows;
   }
 
@@ -287,11 +307,15 @@
     const label = firstField(fields, /(?:^|\.)(label|title)$/i) || fields[0] || fallbackField(owner + '.option.' + index + '.label', t('storyboard.option', 'Option') + ' ' + (index + 1), option && (option.label || option.id));
     const resultFields = optionResultFields(option, fields);
     const impacts = optionImpactRows(option, body, resultFields, model);
+    const pendingRemoval = pendingRemovalForOption(option, body);
+    const pendingAddition = Boolean(option && option.isPendingStructure);
     return [
-      '<article class="object-editing-preview-choice-card" data-object-editing-preview-choice="' + escapeAttr(option && option.id || String(index + 1)) + '">',
+      '<article class="object-editing-preview-choice-card' + (pendingRemoval ? ' is-pending-removal' : '') + (pendingAddition ? ' is-pending-addition' : '') + '" data-object-editing-preview-choice="' + escapeAttr(option && option.id || String(index + 1)) + '">',
       '<div class="object-editing-preview-choice-head">',
       '<b>' + escapeHtml(String(index + 1)) + '</b>',
       '<button type="button" disabled>' + renderTextInline(fieldValue(label) || option && option.id || String(index + 1)) + '</button>',
+      pendingRemoval ? '<span class="object-editing-pending-badge">' + escapeHtml(t('previewObjectEditor.pendingRemoval', 'Pending manual removal')) + '</span>' : '',
+      !pendingRemoval && pendingAddition ? '<span class="object-editing-pending-badge is-addition">' + escapeHtml(t('previewObjectEditor.pendingAdd', 'Pending addition')) + '</span>' : '',
       '</div>',
       resultFields.length ? [
         '<div class="object-editing-preview-choice-result" data-object-editing-preview-choice-result="true">',
@@ -306,6 +330,28 @@
       ].join('') : '',
       '</article>'
     ].join('');
+  }
+
+  function pendingRemovalForOption(option, body) {
+    const optionIds = [
+      option && option.id,
+      option && option.optionId,
+      option && option.targetId,
+      option && option.sectionId,
+      option && option.rawTargetId
+    ].map((value) => safeClass(value || '')).filter(Boolean);
+    if (!optionIds.length) {
+      return null;
+    }
+    return ensureArray(body && body.pendingStructureRemovals).find((removal) => {
+      if (String(removal && removal.action || '') !== 'remove_option') {
+        return false;
+      }
+      const removalIds = [removal && removal.optionId, removal && removal.sectionId, removal && removal.fieldId]
+        .map((value) => safeClass(value || ''))
+        .filter(Boolean);
+      return removalIds.some((id) => optionIds.includes(id));
+    }) || null;
   }
 
   function optionResultFields(option, fields) {
@@ -337,11 +383,11 @@
         });
       }
     });
-    optionConditions(option, resultFields).forEach((condition) => {
+    optionConditionSummaries(option, resultFields).forEach((condition) => {
       rows.push({
-        kind: 'condition',
-        label: t('previewObjectEditor.when', 'When'),
-        value: condition
+        kind: condition.kind || 'condition',
+        label: condition.label,
+        value: condition.value
       });
     });
     optionEffectFields(option, body).forEach((field) => {
@@ -427,6 +473,41 @@
       values.push.apply(values, ensureArray(field && field.conditions));
     });
     return uniqueStrings(values.map((value) => String(value || '').trim()).filter(Boolean));
+  }
+
+  function optionConditionSummaries(option, resultFields) {
+    const rows = [];
+    pushSummary(rows, 'section', t('previewObjectEditor.section', 'Section'), option && option.sectionLabel);
+    pushSummary(rows, 'choose-if', t('previewObjectEditor.chooseIf', 'Choose if'), option && option.chooseIf);
+    pushSummary(rows, 'view-if', t('previewObjectEditor.viewIf', 'View if'), option && option.sectionViewIf);
+    pushSummary(rows, 'choose-if', t('previewObjectEditor.chooseIf', 'Choose if'), option && option.sectionChooseIf);
+    pushSummary(rows, 'unavailable', t('previewObjectEditor.unavailableText', 'Unavailable text'), option && option.unavailableText);
+    ensureArray(resultFields).forEach((field) => {
+      ensureArray(field && field.conditions).forEach((condition) => {
+        pushSummary(rows, 'condition', t('previewObjectEditor.when', 'When'), condition);
+      });
+    });
+    return dedupeSummaries(rows);
+  }
+
+  function pushSummary(rows, kind, label, value) {
+    const text = String(value || '').trim();
+    if (!text) {
+      return;
+    }
+    rows.push({kind, label, value: text});
+  }
+
+  function dedupeSummaries(rows) {
+    const seen = new Set();
+    return ensureArray(rows).filter((row) => {
+      const key = [row.kind || '', row.label || '', row.value || ''].join('|');
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
   }
 
   function optionEffectFields(option, body) {
@@ -531,9 +612,103 @@
         renderStudioRoleLabel(branchLabel(field)),
         branchConditionText(field) ? '<small>' + escapeHtml(branchConditionText(field)) + '</small>' : '',
         renderTextBlocks(fieldValue(field), {empty: false, assetBaseUrl: opts.assetBaseUrl || ''}),
+        renderConditionalAlternatives(field, opts),
         '</article>'
       ].join('')).join(''),
       '</div>'
+    ].join('');
+  }
+
+  function renderFlowOverview(flow, model, mode) {
+    const value = flow && typeof flow === 'object' ? flow : {};
+    const nodes = ensureArray(value.nodes);
+    const edges = ensureArray(value.edges);
+    const summary = value.summary || {};
+    if (!nodes.length && !edges.length) {
+      return '';
+    }
+    const nodeMap = new Map(nodes.map((node) => [String(node && node.id || ''), node]));
+    const chips = [
+      summary.sectionCount ? t('previewObjectEditor.flowSections', 'Sections') + ': ' + summary.sectionCount : '',
+      summary.optionCount ? t('previewObjectEditor.flowOptions', 'Options') + ': ' + summary.optionCount : '',
+      summary.routeEdgeCount ? t('previewObjectEditor.flowRoutes', 'Routes') + ': ' + summary.routeEdgeCount : '',
+      summary.conditionalRouteCount ? t('previewObjectEditor.flowConditionalRoutes', 'Conditional routes') + ': ' + summary.conditionalRouteCount : '',
+      summary.targetTitleFallbackCount ? t('previewObjectEditor.flowTargetTitleFallbacks', 'Target-titled choices') + ': ' + summary.targetTitleFallbackCount : ''
+    ].filter(Boolean);
+    const menuRows = nodes.filter((node) => String(node && node.kind || '') === 'menu').slice(0, 6);
+    const routeRows = edges.filter((edge) => ['option', 'route', 'conditional_route'].includes(String(edge && edge.kind || ''))).slice(0, 8);
+    return [
+      '<section class="preview-object-flow-overview is-' + escapeAttr(mode || 'editor') + '" data-preview-object-flow="true">',
+      '<div class="preview-object-flow-header">',
+      '<strong>' + escapeHtml(t('previewObjectEditor.eventFlow', 'Event flow')) + '</strong>',
+      chips.length ? '<span>' + chips.map(escapeHtml).join(' / ') + '</span>' : '',
+      '</div>',
+      menuRows.length ? '<div class="preview-object-flow-menus"><small>' + escapeHtml(t('previewObjectEditor.flowMenuSections', 'Menu sections')) + '</small>' + menuRows.map((node) => renderFlowNode(node, model)).join('') + '</div>' : '',
+      routeRows.length ? '<div class="preview-object-flow-routes"><small>' + escapeHtml(t('previewObjectEditor.flowRoutePreview', 'Route preview')) + '</small>' + routeRows.map((edge) => renderFlowEdge(edge, nodeMap, model)).join('') + '</div>' : '',
+      '</section>'
+    ].join('');
+  }
+
+  function renderFlowNode(node, model) {
+    const count = Number(node && node.optionCount || 0);
+    const label = node && (node.label || node.localId || node.id) || '';
+    const detail = [
+      node && node.localId ? endpointDisplay(node.localId, model) : '',
+      count ? t('previewObjectEditor.flowOptions', 'Options') + ': ' + count : '',
+      node && node.viewIf ? t('previewObjectEditor.viewIf', 'View if') + ': ' + node.viewIf : '',
+      node && node.chooseIf ? t('previewObjectEditor.chooseIf', 'Choose if') + ': ' + node.chooseIf : ''
+    ].filter(Boolean).join(' / ');
+    return [
+      '<article>',
+      '<b>' + renderTextInline(label) + '</b>',
+      detail ? '<span>' + escapeHtml(detail) + '</span>' : '',
+      '</article>'
+    ].join('');
+  }
+
+  function renderFlowEdge(edge, nodeMap, model) {
+    const from = flowEndpointLabel(edge && edge.from, nodeMap, model);
+    const to = flowEndpointLabel(edge && edge.to, nodeMap, model);
+    const kind = String(edge && edge.kind || '');
+    const label = String(edge && edge.label || '');
+    const condition = String(edge && edge.condition || '');
+    return [
+      '<article data-preview-object-flow-edge-kind="' + escapeAttr(kind || 'route') + '">',
+      '<span>' + renderTextInline(label || kind || t('previewObjectEditor.route', 'Editor route')) + '</span>',
+      '<b>' + renderTextInline(from || '') + '</b>',
+      '<em>&rarr;</em>',
+      '<b>' + renderTextInline(to || '') + '</b>',
+      condition ? '<small>' + escapeHtml(t('previewObjectEditor.when', 'When') + ': ' + condition) + '</small>' : '',
+      '</article>'
+    ].join('');
+  }
+
+  function flowEndpointLabel(value, nodeMap, model) {
+    const id = String(value || '').trim();
+    if (!id) {
+      return '';
+    }
+    const node = nodeMap && nodeMap.get(id);
+    return node && (node.label || node.localId) || endpointDisplay(id, model);
+  }
+
+  function renderConditionalAlternatives(field, options) {
+    const rows = ensureArray(field && field.conditionalAlternatives).filter((item) => item && (item.condition || item.text));
+    if (rows.length <= 1) {
+      return '';
+    }
+    const opts = options || {};
+    return [
+      '<details class="preview-object-conditional-alternatives" open data-preview-object-conditional-alternatives="true">',
+      '<summary>' + escapeHtml(t('previewObjectEditor.conditionalAlternatives', 'Conditional alternatives')) + '</summary>',
+      rows.slice(0, 8).map((item) => [
+        '<article>',
+        item.condition ? '<code>' + escapeHtml(item.condition) + '</code>' : '',
+        item.text ? '<div>' + renderTextBlocks(item.text, {empty: false, assetBaseUrl: opts.assetBaseUrl || ''}) + '</div>' : '',
+        '</article>'
+      ].join('')).join(''),
+      rows.length > 8 ? '<small>' + escapeHtml(t('previewObjectEditor.moreAlternatives', 'More alternatives') + ': ' + String(rows.length - 8)) + '</small>' : '',
+      '</details>'
     ].join('');
   }
 
@@ -576,14 +751,15 @@
   function bodyWithPendingStructure(body) {
     const base = body && typeof body === 'object' ? body : {};
     const pending = pendingStructurePreview(base);
-    if (!pending.options.length && !pending.branches.length && !pending.triggerEffects.length && !pending.optionEffects.length) {
+    if (!pending.options.length && !pending.branches.length && !pending.triggerEffects.length && !pending.optionEffects.length && !pending.removals.length) {
       return base;
     }
     return Object.assign({}, base, {
       options: ensureArray(base.options).concat(pending.options),
       branchSections: ensureArray(base.branchSections).concat(pending.branches),
       effects: ensureArray(base.effects).concat(pending.triggerEffects),
-      optionEffects: ensureArray(base.optionEffects).concat(pending.optionEffects)
+      optionEffects: ensureArray(base.optionEffects).concat(pending.optionEffects),
+      pendingStructureRemovals: ensureArray(base.pendingStructureRemovals).concat(pending.removals)
     });
   }
 
@@ -592,12 +768,26 @@
       options: [],
       branches: [],
       triggerEffects: [],
-      optionEffects: []
+      optionEffects: [],
+      removals: []
     };
     ensureArray(body && body.structureActions).forEach((field) => {
       const action = String(field && field.structureAction || '');
       const value = fieldValue(field).trim();
-      if (!value || field && field.inputType === 'checkbox') {
+      if (field && field.inputType === 'checkbox') {
+        if (/^(1|true|yes|on)$/i.test(value)) {
+          pending.removals.push({
+            action,
+            fieldId: fieldId(field),
+            optionId: String(field && field.optionId || ''),
+            sectionId: String(field && field.sectionId || ''),
+            label: String(field && (field.structureTargetLabel || field.label || '') || ''),
+            before: String(field && field.structureBefore || field && field.original || '')
+          });
+        }
+        return;
+      }
+      if (!value) {
         return;
       }
       if (action === 'add_option') {
@@ -605,13 +795,16 @@
         const target = draft.target || slugForStructurePreview(draft.label) || 'new_option';
         const label = draft.label || t('previewObjectEditor.structureOptionTextPlaceholder', 'What the player clicks');
         const result = draft.result || '';
+        const ownerSectionId = String(field && field.sectionId || '').trim();
         pending.options.push({
           id: 'draft_' + safeClass(fieldId(field) || target),
           targetId: target,
           rawTargetId: target,
-          sectionId: target,
-          sectionLabel: target,
+          sectionId: ownerSectionId,
+          sectionLabel: ownerSectionId ? String(field && (field.structureTargetLabel || field.label || ownerSectionId) || '') : '',
           label,
+          chooseIf: draft.chooseIf || '',
+          unavailableText: draft.unavailableText || '',
           isPendingStructure: true,
           fields: [{
             id: (fieldId(field) || target) + '_preview_label',
@@ -767,6 +960,7 @@
         })).join('') + '</div>'
         : renderEmpty(t('objectCanvas.noBodyFields', 'No player-facing body fields are available yet.')),
       renderChoiceEditor(options, 'event', body),
+      renderFlowOverview(body.flow, model, 'editor'),
       renderBranchSectionEditor(branchSections, textOptions, body),
       renderLogicEditor(body, 'event'),
       renderAssetReferenceEditor(body.assets),
@@ -792,10 +986,15 @@
           fallbackLabel: branchLabel(field),
           assetBaseUrl: opts.assetBaseUrl
         }),
-        branchStructureActions(field, body).map(renderCompactStructureAction).join(''),
+        renderConditionalAlternatives(field, opts),
+        branchStructureActions(field, body).map((actionField) => {
+          return /^add_/.test(String(actionField && actionField.structureAction || ''))
+            ? renderInlineAddAction(actionField, body)
+            : renderCompactStructureAction(actionField, body);
+        }).join(''),
         '</article>'
       ].join('')).join(''),
-      addBranch ? renderInlineAddAction(addBranch) : '',
+      addBranch ? renderInlineAddAction(addBranch, body) : '',
       '</section>'
     ].join('');
   }
@@ -922,7 +1121,7 @@
       '<section class="preview-object-choices" data-preview-object-choices="true">',
       '<div class="preview-object-section-title">' + escapeHtml(t('objectPreview.choices', 'Choices')) + '</div>',
       rows.length ? rows.map((option, index) => renderChoice(option, index, owner, body)).join('') : renderEmpty(t('objectCanvas.noOptions', 'No options found for this object.')),
-      addOption ? renderInlineAddAction(addOption) : '',
+      addOption ? renderInlineAddAction(addOption, body) : '',
       '</section>'
     ].join('');
   }
@@ -952,7 +1151,7 @@
         ? '<section class="preview-object-logic-section"><h4>' + escapeHtml(t('previewObjectEditor.backgroundEffects', 'Background writes')) + '</h4>' + renderBackgroundEffectRows(backgroundEffects) + '</section>'
         : '',
       triggerEffects.length || triggerActions.length
-        ? '<section class="preview-object-logic-section"><h4>' + escapeHtml(t('previewObjectEditor.triggerEffects', 'Trigger effects')) + '</h4>' + renderEffectFields(triggerEffects.concat(triggerActions)) + '</section>'
+        ? '<section class="preview-object-logic-section"><h4>' + escapeHtml(t('previewObjectEditor.triggerEffects', 'Trigger effects')) + '</h4>' + renderEffectFields(triggerEffects.concat(triggerActions), body) + '</section>'
         : '',
       '</details>'
     ].join('');
@@ -999,16 +1198,23 @@
     ].join('');
   }
 
-  function renderStructureActionField(field) {
+  function renderStructureActionField(field, body) {
+    if (field && field.isQueuedStructure) {
+      return renderInlineField(field, {
+        role: 'structure-pending',
+        element: logicFieldElement(field),
+        forceReadOnly: true
+      });
+    }
     const action = String(field && field.structureAction || '');
     if (action === 'add_option') {
-      return renderAddOptionBuilder(field);
+      return renderAddOptionBuilder(field, body);
     }
     if (action === 'add_branch') {
-      return renderAddBranchBuilder(field);
+      return renderAddBranchBuilder(field, body);
     }
     if (action === 'add_trigger_effect' || action === 'add_option_effect') {
-      return renderEffectBuilder(field, action);
+      return renderEffectBuilder(field, action, body);
     }
     return renderInlineField(field, {
       role: 'structure',
@@ -1016,30 +1222,34 @@
     });
   }
 
-  function renderInlineAddAction(field) {
+  function renderInlineAddAction(field, body) {
+    const queued = Boolean(field && field.isQueuedStructure);
+    const target = structureActionTarget(field);
     return [
-      '<details class="preview-object-inline-add" data-preview-object-inline-add="' + escapeAttr(String(field && field.structureAction || 'add')) + '">',
-      '<summary><span>+</span>' + escapeHtml(displayFieldLabel(field, field && field.label || '')) + '</summary>',
-      renderStructureActionField(field),
+      '<details class="preview-object-inline-add' + (queued ? ' is-pending-addition' : '') + '" data-preview-object-inline-add="' + escapeAttr(String(field && field.structureAction || 'add')) + '"' + (queued ? ' open' : '') + '>',
+      '<summary><span>+</span><b>' + escapeHtml(displayFieldLabel(field, field && field.label || '')) + '</b>' + (target ? '<small class="preview-object-inline-add-target" title="' + escapeAttr(target.title) + '">' + escapeHtml(target.label) + '</small>' : '') + (queued ? '<small>' + escapeHtml(t('previewObjectEditor.pendingAdd', 'Pending addition')) + '</small>' : '') + '</summary>',
+      renderStructureActionField(field, body),
       '</details>'
     ].join('');
   }
 
-  function renderCompactStructureAction(field) {
+  function renderCompactStructureAction(field, body) {
     const action = String(field && field.structureAction || '');
     if (/^add_/.test(action)) {
-      return renderInlineAddAction(field);
+      return renderInlineAddAction(field, body);
     }
     const id = fieldId(field);
     const original = field && field.original !== undefined ? String(field.original || '') : 'false';
     const rawLabel = String(field && field.label || '');
     const title = rawLabel ? ' title="' + escapeAttr(rawLabel) + '"' : '';
     const context = structureActionContext(field);
+    const safety = structureActionSafetyLabel(body, field);
     return [
       '<label class="preview-object-structure-delete preview-object-action-' + escapeAttr(safeClass(action || 'remove')) + '"' + title + '>',
       id ? '<input type="checkbox" data-object-canvas-field="' + escapeAttr(id) + '" data-editing-field="' + escapeAttr(id) + '" data-object-canvas-original="' + escapeAttr(original) + '">' : '',
       '<span>' + escapeHtml(displayFieldLabel(field, rawLabel)) + '</span>',
       context ? '<small>' + escapeHtml(context) + '</small>' : '',
+      safety ? '<small class="preview-object-structure-safety">' + escapeHtml(safety) + '</small>' : '',
       '</label>'
     ].join('');
   }
@@ -1071,12 +1281,30 @@
   function branchStructureActions(field, body) {
     return ensureArray(body && body.structureActions).filter((actionField) => {
       const action = String(actionField && actionField.structureAction || '');
-      if (action !== 'remove_layer') {
+      if (action !== 'remove_layer' && action !== 'add_option') {
         return false;
       }
       const section = String(field && field.sectionId || field && field.id || '').trim();
       const actionSection = String(actionField && actionField.sectionId || '').trim();
       return Boolean(section && actionSection && section === actionSection);
+    });
+  }
+
+  function resultSectionActions(fields, body) {
+    const sectionIds = new Set(ensureArray(fields).map((field) => String(field && field.sectionId || '').trim()).filter(Boolean));
+    if (!sectionIds.size) {
+      return [];
+    }
+    const seen = new Set();
+    return ensureArray(body && body.structureActions).filter((actionField) => {
+      const action = String(actionField && actionField.structureAction || '');
+      const section = String(actionField && actionField.sectionId || '').trim();
+      const key = String(actionField && actionField.id || '') + '::' + section;
+      if (action !== 'add_option' || !sectionIds.has(section) || seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
     });
   }
 
@@ -1116,25 +1344,71 @@
     return target;
   }
 
-  function renderAddOptionBuilder(field) {
-    const draft = parseAddOptionDraft(fieldValue(field));
-    return renderStructureBuilder(field, 'add_option', t('previewObjectEditor.structureAddOptionTitle', 'New player option'), [
-      builderInput('option_label', t('previewObjectEditor.structureOptionText', 'Option text'), draft.label, t('previewObjectEditor.structureOptionTextPlaceholder', 'What the player clicks')),
-      builderInput('target_id', t('previewObjectEditor.structureTargetId', 'Target section ID'), draft.target, 'new_option'),
-      builderTextarea('result_text', t('previewObjectEditor.structureResultText', 'Result text'), draft.result, t('previewObjectEditor.structureResultTextPlaceholder', 'What happens after this choice'))
-    ]);
+  function structureActionTarget(field) {
+    const action = String(field && field.structureAction || '');
+    if (action !== 'add_option' || !(field && field.sectionId)) {
+      return null;
+    }
+    const sectionId = String(field.sectionId || '').trim();
+    const localId = sectionId ? '@' + (sectionId.includes('.') ? sectionId.split('.').pop() : sectionId) : '';
+    const rawLabel = String(field.structureTargetLabel || field.label || '').trim();
+    const label = cleanStructureTargetLabel(rawLabel);
+    const target = label && label !== sectionId && label !== localId
+      ? [localId, label].filter(Boolean).join(' / ')
+      : (localId || label || sectionId);
+    return {
+      label: t('previewObjectEditor.addToSection', 'Add to') + ': ' + target,
+      title: sectionId || target
+    };
   }
 
-  function renderAddBranchBuilder(field) {
+  function cleanStructureTargetLabel(value) {
+    return String(value || '')
+      .replace(/^add option to section:\s*/i, '')
+      .replace(/^option result:\s*/i, '')
+      .trim();
+  }
+
+  function structureActionSafetyLabel(body, field) {
+    if (isNewEventBody(body)) {
+      return t('previewObjectEditor.structureDraftNotice', 'Updates the current draft.');
+    }
+    if (String(field && field.structureAction || '') === 'add_option_effect') {
+      return t('previewObjectEditor.structureGuardedEffectNotice', 'Simple source-backed Q effects can be applied automatically after review.');
+    }
+    return t('previewObjectEditor.structureManualNotice', 'Manual review only; Studio will not change source automatically.');
+  }
+
+  function isNewEventBody(body) {
+    const value = body && typeof body === 'object' ? body : {};
+    const structure = value.eventStructure || {};
+    return String(value.mode || structure.mode || '') === 'new_event';
+  }
+
+  function renderAddOptionBuilder(field, body) {
+    const draft = parseAddOptionDraft(fieldValue(field));
+    const title = field && field.sectionId
+      ? t('previewObjectEditor.structureAddSectionOptionTitle', 'New option in this section')
+      : t('previewObjectEditor.structureAddOptionTitle', 'New player option');
+    return renderStructureBuilder(field, 'add_option', title, [
+      builderInput('option_label', t('previewObjectEditor.structureOptionText', 'Option text'), draft.label, t('previewObjectEditor.structureOptionTextPlaceholder', 'What the player clicks')),
+      builderInput('target_id', t('previewObjectEditor.structureTargetId', 'Target section ID'), draft.target, 'new_option'),
+      builderInput('choose_if', t('previewObjectEditor.chooseIf', 'Choose if'), draft.chooseIf, 'Q.variable >= 1'),
+      builderInput('unavailable_text', t('previewObjectEditor.unavailableText', 'Unavailable text'), draft.unavailableText, t('previewObjectEditor.unavailableTextPlaceholder', 'Requirement not met')),
+      builderTextarea('result_text', t('previewObjectEditor.structureResultText', 'Result text'), draft.result, t('previewObjectEditor.structureResultTextPlaceholder', 'What happens after this choice'))
+    ], body);
+  }
+
+  function renderAddBranchBuilder(field, body) {
     const draft = parseBranchDraft(fieldValue(field));
     return renderStructureBuilder(field, 'add_branch', t('previewObjectEditor.structureAddBranchTitle', 'New branch or follow-up'), [
       builderInput('section_id', t('previewObjectEditor.structureSectionId', 'Section ID'), draft.section, 'follow_up'),
       builderInput('condition', t('previewObjectEditor.structureCondition', 'Condition'), draft.condition, 'Q.variable >= 1'),
       builderTextarea('branch_text', t('previewObjectEditor.structureBranchText', 'Branch text'), draft.text, t('previewObjectEditor.structureBranchTextPlaceholder', 'Conditional or follow-up prose'))
-    ]);
+    ], body);
   }
 
-  function renderEffectBuilder(field, action) {
+  function renderEffectBuilder(field, action, body) {
     const draft = parseEffectDraft(fieldValue(field));
     return renderStructureBuilder(field, action, action === 'add_option_effect'
       ? t('previewObjectEditor.structureChoiceEffectTitle', 'New choice effect')
@@ -1143,23 +1417,28 @@
       builderSelect('operation', t('previewObjectEditor.structureOperation', 'Operation'), draft.op || '+=', ['=', '+=', '-=', '*=', '/=']),
       builderInput('value', t('previewObjectEditor.structureValue', 'Value'), draft.value, '1'),
       builderInput('condition', t('previewObjectEditor.structureConditionOptional', 'Condition (optional)'), draft.condition, 'Q.flag')
-    ]);
+    ], body);
   }
 
-  function renderStructureBuilder(field, action, title, controls) {
+  function renderStructureBuilder(field, action, title, controls, body) {
     const value = fieldValue(field);
     const id = fieldId(field);
     const original = field && field.original !== undefined ? String(field.original || '') : value;
+    const target = structureActionTarget(field);
+    const safety = structureActionSafetyLabel(body, field);
     return [
-      '<article class="preview-object-structure-builder preview-object-action-' + escapeAttr(safeClass(action)) + '" data-preview-object-structure-builder="' + escapeAttr(action) + '">',
+      '<article class="preview-object-structure-builder preview-object-action-' + escapeAttr(safeClass(action)) + '" data-preview-object-structure-builder="' + escapeAttr(action) + '" data-preview-object-structure-field-id="' + escapeAttr(id) + '" data-preview-object-structure-option-id="' + escapeAttr(field && field.optionId || '') + '" data-preview-object-structure-section-id="' + escapeAttr(field && field.sectionId || '') + '" data-preview-object-structure-target-label="' + escapeAttr(field && field.structureTargetLabel || field && field.label || '') + '">',
       '<header>',
       '<span>' + escapeHtml(t('previewObjectEditor.editorField', 'Editor field')) + '</span>',
       '<strong>' + escapeHtml(title) + '</strong>',
+      target ? '<small class="preview-object-structure-target" title="' + escapeAttr(target.title) + '">' + escapeHtml(target.label) + '</small>' : '',
       '</header>',
       '<div class="preview-object-structure-form">',
       controls.join(''),
       '</div>',
       structureActionHelp(action) ? '<small class="preview-object-structure-help">' + escapeHtml(structureActionHelp(action)) + '</small>' : '',
+      safety ? '<small class="preview-object-structure-safety">' + escapeHtml(safety) + '</small>' : '',
+      '<button class="preview-object-structure-commit" type="button" data-object-canvas-action="commit_structure_command">' + escapeHtml(t('previewObjectEditor.commitStructure', 'Add to current edit')) + '</button>',
       id ? '<input type="hidden" data-preview-object-structure-output="true" data-object-canvas-field="' + escapeAttr(id) + '" data-editing-field="' + escapeAttr(id) + '" data-object-canvas-original="' + escapeAttr(original) + '" value="' + escapeAttr(value) + '">' : '',
       '</article>'
     ].join('');
@@ -1208,10 +1487,14 @@
     const first = lines.find((line) => /^\s*-\s*@[^:]+:/.test(line)) || '';
     const match = first.match(/^\s*-\s*@([^:]+):\s*(.*)$/);
     const section = lines.find((line) => /^\s*#\s*\S+/.test(line)) || '';
+    const chooseLine = lines.find((line) => /^\s*choose-if\s*:/i.test(line)) || '';
+    const unavailableLine = lines.find((line) => /^\s*unavailable-(?:subtitle|text)\s*:/i.test(line)) || '';
     const target = match && match[1] || (section.match(/^\s*#\s*(\S+)/) || [])[1] || '';
     const label = match && match[2] || '';
-    const result = lines.filter((line) => line !== first && line !== section).join('\n').trim();
-    return {target, label, result};
+    const chooseIf = chooseLine.replace(/^\s*choose-if\s*:\s*/i, '').trim();
+    const unavailableText = unavailableLine.replace(/^\s*unavailable-(?:subtitle|text)\s*:\s*/i, '').trim();
+    const result = lines.filter((line) => line !== first && line !== section && line !== chooseLine && line !== unavailableLine).join('\n').trim();
+    return {target, label, result, chooseIf, unavailableText};
   }
 
   function parseBranchDraft(value) {
@@ -1257,12 +1540,12 @@
     ].join('');
   }
 
-  function renderEffectFields(fields) {
+  function renderEffectFields(fields, body) {
     return '<div class="preview-object-effect-fields">' + ensureArray(fields).map((field) => {
       if (field && field.structureAction) {
         return /^add_/.test(String(field.structureAction || ''))
-          ? renderInlineAddAction(field)
-          : renderCompactStructureAction(field);
+          ? renderInlineAddAction(field, body)
+          : renderCompactStructureAction(field, body);
       }
       return renderInlineField(field, {
         role: 'effect',
@@ -1287,12 +1570,8 @@
     const effectGroup = optionEffectGroup(option, eventBody);
     const choiceDeleteActions = choiceActions.filter((field) => ['remove_option', 'remove_option_condition'].includes(String(field && field.structureAction || '')));
     const choiceEffectActions = choiceActions.filter((field) => ['add_option_effect', 'remove_effect'].includes(String(field && field.structureAction || '')));
-    const routeNotes = [
-      option && option.sectionLabel ? t('previewObjectEditor.section', 'Section') + ': ' + option.sectionLabel : '',
-      option && option.chooseIf ? t('previewObjectEditor.chooseIf', 'Choose if') + ': ' + option.chooseIf : '',
-      option && option.sectionViewIf ? t('previewObjectEditor.viewIf', 'View if') + ': ' + option.sectionViewIf : '',
-      option && option.sectionChooseIf ? t('previewObjectEditor.chooseIf', 'Choose if') + ': ' + option.sectionChooseIf : ''
-    ].filter(Boolean);
+    const resultActions = resultSectionActions(ensureArray(option && option.resultFields), eventBody);
+    const conditionFields = optionResultFields(option, fields);
     const rest = fields.filter((field) => field !== label && field !== resultField && field !== subtitle);
     return [
       '<article class="preview-object-choice" data-preview-object-choice="' + escapeAttr(option && option.id || String(index + 1)) + '">',
@@ -1304,9 +1583,9 @@
         fallbackLabel: t('storyboard.option', 'Option') + ' ' + (index + 1)
       }),
       target ? '<small>' + escapeHtml(t('objectCanvas.optionTarget', 'Target') + ': ' + target) + '</small>' : '',
-      routeNotes.length ? '<small>' + escapeHtml(routeNotes.join(' / ')) + '</small>' : '',
+      renderOptionConditionChips(option, conditionFields),
       '</div>',
-      choiceDeleteActions.length ? '<div class="preview-object-entry-actions">' + choiceDeleteActions.map(renderCompactStructureAction).join('') + '</div>' : '',
+      choiceDeleteActions.length ? '<div class="preview-object-entry-actions">' + choiceDeleteActions.map((field) => renderCompactStructureAction(field, eventBody)).join('') + '</div>' : '',
       subtitle ? renderInlineField(subtitle, {
         role: 'choice-subtitle',
         element: 'input'
@@ -1315,14 +1594,32 @@
         role: 'choice-body',
         element: 'textarea'
       }) : '',
+      resultActions.length ? '<div class="preview-object-entry-actions preview-object-section-actions">' + resultActions.map((field) => renderInlineAddAction(field, eventBody)).join('') + '</div>' : '',
       effectGroup || choiceEffectActions.length
-        ? '<section class="preview-object-choice-effects"><h5>' + escapeHtml(t('previewObjectEditor.choiceEffects', 'Choice effects')) + '</h5>' + renderEffectFields(ensureArray(effectGroup && effectGroup.fields).concat(choiceEffectActions)) + '</section>'
+        ? '<section class="preview-object-choice-effects"><h5>' + escapeHtml(t('previewObjectEditor.choiceEffects', 'Choice effects')) + '</h5>' + renderEffectFields(ensureArray(effectGroup && effectGroup.fields).concat(choiceEffectActions), eventBody) + '</section>'
         : '',
       rest.length ? '<details class="preview-object-choice-details"><summary>' + escapeHtml(t('objectCanvas.advancedFields', 'Timing and advanced fields')) + '</summary>' + rest.map((field) => renderInlineField(field, {
         role: 'choice-detail',
         element: field && field.id && /body|text/i.test(field.id) ? 'textarea' : 'input'
       })).join('') + '</details>' : '',
       '</article>'
+    ].join('');
+  }
+
+  function renderOptionConditionChips(option, resultFields) {
+    const rows = optionConditionSummaries(option, resultFields);
+    if (!rows.length) {
+      return '';
+    }
+    return [
+      '<div class="preview-object-condition-chips" data-preview-object-condition-chips="true">',
+      rows.map((row) => [
+        '<span data-condition-kind="' + escapeAttr(row.kind || 'condition') + '">',
+        '<strong>' + escapeHtml(row.label) + '</strong>',
+        '<em>' + escapeHtml(row.value) + '</em>',
+        '</span>'
+      ].join('')).join(''),
+      '</div>'
     ].join('');
   }
 
@@ -1430,6 +1727,9 @@
     const role = String(field && (field.semanticRole || field.branchKind || field.role) || '').toLowerCase();
     const action = String(field && field.structureAction || '').toLowerCase();
     if (action === 'add_option') {
+      if (field && field.sectionId) {
+        return t('previewObjectEditor.structureAddSectionOptionTitle', 'New option in this section');
+      }
       return t('previewObjectEditor.structureAddOptionTitle', 'New player option');
     }
     if (action === 'add_branch') {
@@ -1458,6 +1758,9 @@
     }
     if (role.indexOf('conditional') >= 0 || /^conditional text\s*:/i.test(label)) {
       return t('previewObjectEditor.conditionalText', 'Conditional text');
+    }
+    if (isMenuSectionField(field)) {
+      return t('previewObjectEditor.followUpMenu', 'Follow-up menu');
     }
     if (isFollowUpSectionField(field) || /^scene step\s*:/i.test(label)) {
       return t('previewObjectEditor.followUpPage', 'Follow-up page');
@@ -1520,6 +1823,9 @@
     if (role.indexOf('conditional') >= 0) {
       return 'conditional-body';
     }
+    if (role.indexOf('menu_section') >= 0 || role.indexOf('follow_up_section') >= 0) {
+      return 'menu-body';
+    }
     return 'section-body';
   }
 
@@ -1531,6 +1837,9 @@
     }
     if (role.indexOf('conditional') >= 0) {
       return t('previewObjectEditor.conditionalText', 'Conditional text');
+    }
+    if (isMenuSectionField(field)) {
+      return t('previewObjectEditor.followUpMenu', 'Follow-up menu');
     }
     if (isFollowUpSectionField(field) || /^scene step\s*:/i.test(label)) {
       return t('previewObjectEditor.followUpPage', 'Follow-up page');
@@ -1547,6 +1856,10 @@
     if (labels.length) {
       return t('previewObjectEditor.afterChoice', 'After choice') + ': ' + labels.join(' / ');
     }
+    const ownedLabels = ensureArray(field && field.ownedOptionLabels).map(String).filter(Boolean);
+    if (ownedLabels.length) {
+      return t('previewObjectEditor.containsChoices', 'Contains choices') + ': ' + ownedLabels.join(' / ');
+    }
     const section = String(field && field.sectionLabel || '').trim();
     if (section && isFollowUpSectionField(field)) {
       return t('previewObjectEditor.section', 'Section') + ': ' + section;
@@ -1562,6 +1875,10 @@
     const optionLabels = ensureArray(field.relatedOptionLabels).map(String).filter(Boolean);
     if (optionLabels.length) {
       parts.push(t('previewObjectEditor.afterChoice', 'After choice') + ': ' + optionLabels.join(' / '));
+    }
+    const ownedLabels = ensureArray(field.ownedOptionLabels).map(String).filter(Boolean);
+    if (ownedLabels.length) {
+      parts.push(t('previewObjectEditor.containsChoices', 'Contains choices') + ': ' + ownedLabels.join(' / '));
     }
     const conditions = ensureArray(field.conditions).map(String).filter(Boolean);
     if (conditions.length) {
@@ -1618,6 +1935,9 @@
     if (role.indexOf('option_result') >= 0) {
       return t('previewObjectEditor.optionResult', 'Option result');
     }
+    if (isMenuSectionField(field)) {
+      return t('previewObjectEditor.followUpMenu', 'Follow-up menu');
+    }
     if (isFollowUpSectionField(field)) {
       return t('previewObjectEditor.followUpPage', 'Follow-up page');
     }
@@ -1632,6 +1952,9 @@
     const label = String(field.label || '').trim();
     if (role.indexOf('option_result') >= 0 || role.indexOf('conditional') >= 0) {
       return false;
+    }
+    if (isMenuSectionField(field)) {
+      return true;
     }
     if (role === 'section_text' || role === 'section' || /^scene step\s*:/i.test(label)) {
       return true;
@@ -1648,6 +1971,19 @@
       !ensureArray(field.relatedOptionLabels).length &&
       !ensureArray(field.conditions).length
     );
+  }
+
+  function isMenuSectionField(field) {
+    if (!field || typeof field !== 'object') {
+      return false;
+    }
+    const role = String(field.semanticRole || field.branchKind || field.role || '').toLowerCase();
+    return role.indexOf('menu_section') >= 0 ||
+      role.indexOf('follow_up_section') >= 0 ||
+      role === 'menu' ||
+      role === 'conditional_menu' ||
+      ensureArray(field.ownedOptionIds).length > 0 ||
+      ensureArray(field.ownedOptionLabels).length > 0;
   }
 
   function isLikelyOpeningSectionId(sectionId) {

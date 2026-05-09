@@ -72,6 +72,7 @@
       title: editModel.title || editModel.sceneId || '',
       source: sourceRef(editModel.source || {}),
       editModel,
+      flow: editModel.flow || {nodes: [], edges: [], summary: {}},
       proposal,
       output,
       operationSummary: summary,
@@ -107,6 +108,7 @@
       title: '',
       source: {},
       editModel: editModel || null,
+      flow: editModel && editModel.flow || {nodes: [], edges: [], summary: {}},
       proposal: null,
       output: null,
       operationSummary: operationSummary(null),
@@ -186,11 +188,22 @@
       optionId: relatedOptionIds[0] || '',
       relatedOptionIds,
       relatedOptionLabels: ensureArray(block.relatedOptionLabels).map(String).filter(Boolean),
+      ownedOptionIds: ensureArray(block.ownedOptionIds).map(String).filter(Boolean),
+      ownedOptionLabels: ensureArray(block.ownedOptionLabels).map(String).filter(Boolean),
       conditions: ensureArray(block.conditions).map(String).filter(Boolean),
       visualKinds: ensureArray(block.visualKinds).map(String).filter(Boolean),
       conditionVariables: ensureArray(block.conditionVariables).map(String).filter(Boolean),
+      inlineConditions: ensureArray(block.inlineConditions).map(String).filter(Boolean),
+      inlineConditionVariables: ensureArray(block.inlineConditionVariables).map(String).filter(Boolean),
+      hasInlineConditionals: Boolean(block.hasInlineConditionals),
       textVariables: ensureArray(block.textVariables).map(String).filter(Boolean),
       logicContext: isObject(block.logicContext) ? block.logicContext : null,
+      conditionalAlternatives: ensureArray(block.conditionalAlternatives).map((item) => ({
+        condition: String(item && item.condition || ''),
+        text: String(item && item.text || ''),
+        source: sourceRef(item && item.source || {})
+      })).filter((item) => item.condition || item.text),
+      hasConditionalAlternatives: Boolean(block.hasConditionalAlternatives),
       operationType: 'replace_section',
       status: editorStatus(block.editability || 'guarded_replace_section')
     };
@@ -312,6 +325,39 @@
         outgoing.push(row);
       }
     });
+    const relationshipKeys = new Set([].concat(incoming, outgoing, internal).map(relationshipKey));
+    ensureArray(editModel.flow && editModel.flow.edges).forEach((edge) => {
+      const from = endpointId(edge.from || edge.source || edge.sourceId);
+      const to = endpointId(edge.to || edge.target || edge.targetId);
+      if (!from || !to) {
+        return;
+      }
+      const fromInScene = endpointBelongsToScene(from, sceneId);
+      const toInScene = endpointBelongsToScene(to, sceneId);
+      if (!fromInScene || !toInScene) {
+        return;
+      }
+      const row = {
+        from,
+        to,
+        kind: String(edge.kind || edge.type || 'link'),
+        label: String(edge.label || edge.title || ''),
+        condition: String(edge.condition || edge.predicate || ''),
+        rawTarget: String(edge.rawTarget || ''),
+        source: sourceRef(edge.source || {}),
+        scene: null,
+        fromEndpoint: endpointSummary(scenesById, sectionsById, from),
+        toEndpoint: endpointSummary(scenesById, sectionsById, to)
+      };
+      const key = relationshipKey(row);
+      if (relationshipKeys.has(key)) {
+        return;
+      }
+      relationshipKeys.add(key);
+      if (fromInScene && toInScene) {
+        internal.push(row);
+      }
+    });
     const options = ensureArray(editModel.options).map((option, index) => ({
       id: String(option.id || 'option_' + (index + 1)),
       label: String(option.label || option.id || 'Option ' + (index + 1)),
@@ -323,6 +369,7 @@
       chooseIf: String(option.chooseIf || ''),
       sectionViewIf: String(option.sectionViewIf || ''),
       sectionChooseIf: String(option.sectionChooseIf || ''),
+      labelSource: String(option.labelSource || ''),
       source: sourceRef(option.source || {}),
       target: endpointSummary(scenesById, sectionsById, String(option.targetId || ''))
     }));
@@ -341,6 +388,16 @@
       });
     }
     return {incoming, outgoing, internal, options, current: sceneSummary(scene, sceneId)};
+  }
+
+  function relationshipKey(row) {
+    return [
+      String(row && row.from || ''),
+      String(row && row.to || ''),
+      String(row && row.kind || ''),
+      String(row && row.label || ''),
+      String(row && row.condition || '')
+    ].join('|');
   }
 
   function buildContextRows(index, editModel, scene, relationships) {
@@ -566,6 +623,10 @@
       return out;
     }
     Object.keys(values).forEach((key) => {
+      if (key === '__structureCommands' || key === 'structure_commands' || key === 'structureCommands') {
+        out[key] = Array.isArray(values[key]) ? values[key].slice() : values[key];
+        return;
+      }
       out[key] = String(values[key] === undefined || values[key] === null ? '' : values[key]);
     });
     return out;

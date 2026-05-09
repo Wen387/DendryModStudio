@@ -113,6 +113,7 @@
     const eventOptions = optionRows(scene, fields);
     const textBlocks = textBlocksForScene(scene, visibleTextRows, source.path, eventOptions);
     const effects = effectRows(index, scene, scriptRows);
+    const flow = flowForScene(scene, eventOptions, effects);
     fields = fields.concat(
       routeEditableFields(scene, eventOptions),
       effectEditableFields(scene, effects, eventOptions),
@@ -133,6 +134,7 @@
       options: eventOptions,
       sections: sectionRows(fields, eventOptions),
       effects,
+      flow,
       assets: ensureArray(scene.assetRefs).map(normalizeAssetRef).filter(Boolean),
       warnings: diagnostics.map((item) => item.message),
       diagnostics,
@@ -295,6 +297,7 @@
       const target = isObject(option.target) ? option.target : {};
       const rawTarget = rawOptionTarget(option, target);
       const resolvedTarget = resolveOptionTarget(scene, rawTarget, target);
+      const targetSection = findSceneSection(scene, resolvedTarget || rawTarget);
       const id = safeId(entry.sectionId
         ? [entry.sectionKey || 'section', rawTarget || option.id || 'option_' + (index + 1)].filter(Boolean).join('__')
         : (rawTarget || option.id || 'option_' + (index + 1)));
@@ -302,25 +305,57 @@
       const labelField = findOptionField(fields, rawTarget || id, 'option_label', parts.label, entry.sectionId);
       const subtitleField = findOptionField(fields, rawTarget || id, 'option_subtitle', parts.subtitle, entry.sectionId);
       const unavailableField = findOptionField(fields, rawTarget || id, 'unavailable_text', option.unavailableText || '', entry.sectionId);
+      const targetUnavailableField = targetSection
+        ? fields.find((field) => field.role === 'unavailable_text' && String(field.sectionId || '') === String(targetSection.id || ''))
+        : null;
       const source = optionSourceRef(option.sourceSpan || option.source || {}, labelField, subtitleField, unavailableField);
+      const labelInfo = optionLabelInfo(scene, option, parts, labelField, resolvedTarget, rawTarget, index);
+      const ownerViewIf = String(entry.section && entry.section.viewIf || '');
+      const ownerChooseIf = String(entry.section && entry.section.chooseIf || '');
+      const targetViewIf = String(targetSection && targetSection.viewIf || '');
+      const targetChooseIf = String(targetSection && targetSection.chooseIf || '');
       return {
         id,
         targetId: resolvedTarget,
         rawTargetId: rawTarget,
         sectionId: entry.sectionId,
         sectionLabel: entry.sectionLabel,
-        label: labelField ? labelField.original : (parts.label || String(option.title || 'Option ' + (index + 1))),
+        label: labelInfo.label,
+        labelSource: labelInfo.source,
         subtitle: subtitleField ? subtitleField.original : parts.subtitle,
         labelFieldId: labelField && labelField.id || '',
         subtitleFieldId: subtitleField && subtitleField.id || '',
         unavailableFieldId: unavailableField && unavailableField.id || '',
         chooseIf: String(option.chooseIf || ''),
-        sectionViewIf: String(entry.section && entry.section.viewIf || ''),
-        sectionChooseIf: String(entry.section && entry.section.chooseIf || ''),
-        unavailableText: unavailableField ? unavailableField.original : String(option.unavailableText || ''),
+        sectionViewIf: uniqueStrings([ownerViewIf, targetViewIf]).join(' / '),
+        sectionChooseIf: uniqueStrings([ownerChooseIf, targetChooseIf]).join(' / '),
+        unavailableText: unavailableField ? unavailableField.original : targetUnavailableField ? targetUnavailableField.original : String(option.unavailableText || ''),
         source
       };
     });
+  }
+
+  function optionLabelInfo(scene, option, parts, labelField, resolvedTarget, rawTarget, index) {
+    if (labelField && String(labelField.original || '').trim()) {
+      return {label: String(labelField.original || ''), source: 'field'};
+    }
+    if (parts && String(parts.label || '').trim()) {
+      return {label: String(parts.label || ''), source: 'inline'};
+    }
+    const title = String(option && option.title || '').trim();
+    if (title) {
+      return {label: title, source: 'option_title'};
+    }
+    const targetSection = findSceneSection(scene, resolvedTarget || rawTarget);
+    const targetTitle = String(targetSection && (targetSection.title || targetSection.subtitle) || '').trim();
+    if (targetTitle) {
+      return {label: targetTitle, source: 'target_title'};
+    }
+    const target = String(rawTarget || resolvedTarget || '').trim();
+    if (target) {
+      return {label: humanSectionId(target), source: 'target_id'};
+    }
+    return {label: 'Option ' + (Number(index || 0) + 1), source: 'generated'};
   }
 
   function collectSceneOptions(scene) {
@@ -448,9 +483,187 @@
     return Array.from(sections.values());
   }
 
+  function flowForScene(scene, options, effects) {
+    const sceneId = String(scene && scene.id || '');
+    const nodes = [];
+    const edges = [];
+    const seenNodes = new Set();
+    const seenEdges = new Set();
+    const sectionList = ensureArray(scene && scene.sections);
+    const effectCounts = countBySection(effects);
+    function addNode(node) {
+      if (!node || !node.id || seenNodes.has(node.id)) {
+        return;
+      }
+      seenNodes.add(node.id);
+      nodes.push(node);
+    }
+    function addEdge(edge) {
+      if (!edge || !edge.from || !edge.to) {
+        return;
+      }
+      const key = [edge.from, edge.to, edge.kind || '', edge.label || '', edge.condition || '', sourceLine(edge.source || {}) || ''].join('|');
+      if (seenEdges.has(key)) {
+        return;
+      }
+      seenEdges.add(key);
+      edges.push(edge);
+    }
+    addNode({
+      id: sceneId,
+      localId: '',
+      kind: 'root',
+      label: String(scene && (scene.title || scene.id) || sceneId),
+      optionCount: ensureArray(scene && scene.options).length,
+      effectCount: effectCounts.get('') || 0,
+      source: sourceRef(scene && (scene.sourceSpan || scene.topLevelSpan) || {})
+    });
+    sectionList.forEach((section) => {
+      const id = String(section && section.id || '');
+      addNode({
+        id,
+        localId: localSectionId(sceneId, id),
+        kind: flowNodeKind(section),
+        label: sectionDisplayLabel(sceneId, section, id),
+        optionCount: ensureArray(section && section.options).length,
+        effectCount: effectCounts.get(id) || effectCounts.get(localSectionId(sceneId, id)) || 0,
+        viewIf: String(section && section.viewIf || ''),
+        chooseIf: String(section && section.chooseIf || ''),
+        source: sourceRef(section && section.sourceSpan || {})
+      });
+    });
+    routeArray(scene && scene.routes && scene.routes.goTo).forEach((route, index) => {
+      addEdge(flowEdge(scene, sceneId, route, {
+        from: sceneId,
+        kind: 'route',
+        label: 'scene route',
+        index
+      }));
+    });
+    ensureArray(options).forEach((option, index) => {
+      const from = String(option.sectionId || sceneId);
+      const to = String(option.targetId || option.rawTargetId || '');
+      addEdge({
+        id: 'option:' + String(option.id || index + 1),
+        from,
+        to,
+        kind: 'option',
+        label: String(option.label || option.rawTargetId || option.id || ''),
+        condition: String(option.chooseIf || option.sectionViewIf || option.sectionChooseIf || ''),
+        rawTarget: String(option.rawTargetId || ''),
+        optionId: String(option.id || ''),
+        source: sourceRef(option.source || {})
+      });
+    });
+    sectionList.forEach((section) => {
+      const from = String(section && section.id || '');
+      routeArray(section && section.routes && section.routes.goTo).forEach((route, index) => {
+        addEdge(flowEdge(scene, from, route, {
+          from,
+          kind: routeCondition(route) ? 'conditional_route' : 'route',
+          label: 'section route',
+          index
+        }));
+      });
+    });
+    const conditionalRouteCount = edges.filter((edge) => edge.kind === 'conditional_route' || edge.condition).length;
+    const targetTitleFallbackCount = ensureArray(options).filter((option) => option.labelSource === 'target_title').length;
+    return {
+      nodes,
+      edges,
+      summary: {
+        sectionCount: sectionList.length,
+        optionCount: ensureArray(options).length,
+        routeEdgeCount: edges.filter((edge) => edge.kind === 'route' || edge.kind === 'conditional_route').length,
+        optionEdgeCount: edges.filter((edge) => edge.kind === 'option').length,
+        conditionalRouteCount,
+        targetTitleFallbackCount,
+        menuSectionCount: nodes.filter((node) => node.kind === 'menu').length,
+        effectSectionCount: nodes.filter((node) => Number(node.effectCount || 0) > 0).length
+      }
+    };
+  }
+
+  function flowEdge(scene, from, route, options) {
+    const opts = isObject(options) ? options : {};
+    const raw = routeRawTarget(route);
+    const target = normalizeFlowTarget(scene, raw);
+    return {
+      id: [opts.kind || 'route', from, raw || opts.index || 0].filter(Boolean).join(':'),
+      from,
+      to: target,
+      kind: String(opts.kind || 'route'),
+      label: String(route && (route.label || route.title) || opts.label || ''),
+      condition: routeCondition(route),
+      rawTarget: raw,
+      source: sourceRef(route && (route.source || route.sourceSpan) || {})
+    };
+  }
+
+  function routeArray(value) {
+    if (Array.isArray(value)) {
+      return value;
+    }
+    return value ? [value] : [];
+  }
+
+  function routeRawTarget(route) {
+    if (!route) {
+      return '';
+    }
+    if (typeof route === 'string') {
+      return route.replace(/^[@#]/, '');
+    }
+    return String(route.id || route.targetId || route.target || route.raw || '').replace(/^[@#]/, '');
+  }
+
+  function routeCondition(route) {
+    if (!route || typeof route === 'string') {
+      return '';
+    }
+    return String(route.condition || route.predicate || route.if || route.viewIf || '');
+  }
+
+  function normalizeFlowTarget(scene, rawTarget) {
+    const raw = String(rawTarget || '').trim();
+    if (!raw) {
+      return '';
+    }
+    if (raw.indexOf('.') >= 0 || raw.startsWith('runtime:') || raw.startsWith('tag:')) {
+      return raw;
+    }
+    const sceneId = String(scene && scene.id || '');
+    return sceneId && localAnchors(scene).has(raw) ? sceneId + '.' + raw : raw;
+  }
+
+  function flowNodeKind(section) {
+    if (ensureArray(section && section.options).length) {
+      return 'menu';
+    }
+    if (section && (section.routes && section.routes.goTo)) {
+      return 'step';
+    }
+    return 'content';
+  }
+
+  function countBySection(effects) {
+    const counts = new Map();
+    ensureArray(effects).forEach((effect) => {
+      const key = String(effect && effect.sectionId || '');
+      counts.set(key, (counts.get(key) || 0) + 1);
+    });
+    return counts;
+  }
+
+  function localSectionId(sceneId, sectionId) {
+    const raw = String(sectionId || '');
+    const scene = String(sceneId || '');
+    return scene && raw.startsWith(scene + '.') ? raw.slice(scene.length + 1) : raw;
+  }
+
   function textBlocksForScene(scene, rows, sceneSourcePath, options) {
     const bySection = new Map();
-    ensureArray(rows).forEach((row) => {
+    normalizeBlockTextRows(rows).forEach((row) => {
       if (!isBlockTextRole(row.role)) {
         return;
       }
@@ -496,6 +709,93 @@
     return blocks.sort((a, b) => (a.source.line || 0) - (b.source.line || 0));
   }
 
+  function normalizeBlockTextRows(rows) {
+    const inputRows = ensureArray(rows);
+    const byLine = new Map();
+    inputRows.forEach((row) => {
+      if (!isBlockTextRole(row && row.role)) {
+        return;
+      }
+      const key = blockSourceLineKey(row);
+      if (!key) {
+        return;
+      }
+      if (!byLine.has(key)) {
+        byLine.set(key, []);
+      }
+      byLine.get(key).push(row);
+    });
+    const mixedLineKeys = new Map();
+    byLine.forEach((lineRows, key) => {
+      const bodyRows = lineRows.filter((row) => String(row && row.role || '') === 'body');
+      const conditionalRows = lineRows.filter((row) => String(row && row.role || '') === 'conditional_body');
+      if (!bodyRows.length || !conditionalRows.length) {
+        return;
+      }
+      const anchor = sourceAnchor(bodyRows[0]) || sourceAnchor(conditionalRows[0]);
+      if (!isMixedInlineConditionalSource(anchor)) {
+        return;
+      }
+      mixedLineKeys.set(key, {
+        anchor,
+        inlineConditions: uniqueStrings(conditionalRows.map((row) => lastMeaningfulCondition(row && row.conditions)).filter(Boolean))
+      });
+    });
+    return inputRows.map((row) => {
+      const key = blockSourceLineKey(row);
+      const mixed = key ? mixedLineKeys.get(key) : null;
+      if (!mixed) {
+        return row;
+      }
+      if (String(row && row.role || '') === 'conditional_body') {
+        return null;
+      }
+      if (String(row && row.role || '') !== 'body') {
+        return row;
+      }
+      return Object.assign({}, row, {
+        text: mixed.anchor,
+        originalText: mixed.anchor,
+        hasInlineConditionals: true,
+        inlineConditions: mixed.inlineConditions
+      });
+    }).filter(Boolean);
+  }
+
+  function blockSourceLineKey(row) {
+    const source = row && row.source || {};
+    const path = String(source.path || '');
+    const line = sourceLine(source);
+    const section = String(row && row.owner && row.owner.sectionId || '');
+    return path && line ? [path, line, section].join(':') : '';
+  }
+
+  function isMixedInlineConditionalSource(value) {
+    const text = String(value || '').trim();
+    if (!/\[\?\s*if\s+/i.test(text)) {
+      return false;
+    }
+    const remainder = text.replace(/\[\?\s*if\s+.+?\s*:\s*.*?\s*\?\]/g, ' ').replace(/\s+/g, ' ').trim();
+    return Boolean(remainder && !isStructuralSceneLine(remainder));
+  }
+
+  function isStructuralSceneLine(value) {
+    const text = String(value || '').trim();
+    if (!text) {
+      return true;
+    }
+    if (/^(#|@|-|=)/.test(text)) {
+      return true;
+    }
+    if (/^[A-Za-z][A-Za-z0-9_-]*\s*:/.test(text)) {
+      return true;
+    }
+    if (/\bQ(?:\.[A-Za-z_][A-Za-z0-9_]*|\[\s*['"][^'"]+['"]\s*\])\s*(?:[+\-*/%]?=|\+\+|--)/.test(text)) {
+      return true;
+    }
+    return false;
+  }
+
   function logicalTextRuns(rows) {
     const runs = [];
     let current = null;
@@ -539,7 +839,10 @@
     const idRoot = 'section_text_' + (sectionId || scene && scene.id || 'opening');
     const id = safeId(run.singleRun ? idRoot : [idRoot, run.runKind || 'text', startLine || '', Number(run.runIndex || 0) + 1].filter(Boolean).join('_'));
     const visualKinds = detectVisualKinds(original);
+    const inlineConditions = uniqueStrings(usable.flatMap((row) => ensureArray(row && row.inlineConditions)));
+    const conditionalAlternatives = conditionalAlternativesForRows(usable);
     const conditionVariables = uniqueStrings(semantics.conditions.flatMap(variablesFromCondition));
+    const inlineConditionVariables = uniqueStrings(inlineConditions.flatMap(variablesFromCondition));
     const textVariables = variablesFromDendryText(original);
     const editability = run.forceManual ? 'manual_review' : 'guarded_replace_section';
     return {
@@ -553,19 +856,32 @@
       conditions: semantics.conditions,
       relatedOptionIds: semantics.relatedOptionIds,
       relatedOptionLabels: semantics.relatedOptionLabels,
+      ownedOptionIds: semantics.ownedOptionIds,
+      ownedOptionLabels: semantics.ownedOptionLabels,
       visualKinds,
       conditionVariables,
+      inlineConditions,
+      inlineConditionVariables,
+      hasInlineConditionals: inlineConditions.length > 0 || usable.some((row) => Boolean(row && row.hasInlineConditionals)),
       textVariables,
       logicContext: {
         conditions: semantics.conditions.map((condition) => ({
           raw: condition,
           variables: variablesFromCondition(condition)
         })),
-        reads: uniqueStrings(conditionVariables.concat(textVariables)),
+        inlineConditions: inlineConditions.map((condition) => ({
+          raw: condition,
+          variables: variablesFromCondition(condition)
+        })),
+        reads: uniqueStrings(conditionVariables.concat(inlineConditionVariables, textVariables)),
         textVariables,
-        conditionVariables
+        conditionVariables,
+        inlineConditionVariables,
+        conditionalAlternatives
       },
       hasConditionalRows: semantics.hasConditionalRows,
+      hasConditionalAlternatives: conditionalAlternatives.length > 1,
+      conditionalAlternatives,
       fieldIds: usable.map((row) => safeId(row.id || [row.role || 'text', sectionId, sourceLine(row.source)].filter(Boolean).join('_'))),
       original,
       value: original,
@@ -582,6 +898,33 @@
         ? 'This text shares a source line with another parsed block, so Studio keeps the replacement in manual review.'
         : 'Exact source-backed text block can be checked before replacement.'
     };
+  }
+
+  function conditionalAlternativesForRows(rows) {
+    const seen = new Set();
+    const out = [];
+    ensureArray(rows).forEach((row) => {
+      if (String(row && row.role || '') !== 'conditional_body') {
+        return;
+      }
+      const condition = lastMeaningfulCondition(row && row.conditions);
+      const text = String(row && row.text || '').trim();
+      if (!condition || !text) {
+        return;
+      }
+      const source = sourceRef(row && row.source || {});
+      const key = [condition, text, source.path || '', source.line || ''].join('|');
+      if (seen.has(key)) {
+        return;
+      }
+      seen.add(key);
+      out.push({
+        condition,
+        text,
+        source
+      });
+    });
+    return out;
   }
 
   function detectVisualKinds(value) {
@@ -607,7 +950,8 @@
     const sceneId = String(scene && scene.id || '');
     const id = String(sectionId || '');
     const section = findSceneSection(scene, id);
-    const relatedOptions = ensureArray(options).filter((option) => sectionMatchesOption(sceneId, id, option));
+    const incomingOptions = ensureArray(options).filter((option) => sectionTargetedByOption(sceneId, id, option));
+    const ownedOptions = ensureArray(options).filter((option) => sectionOwnsOption(sceneId, id, option));
     const hasConditionalRows = ensureArray(rows).some((row) => String(row && row.role || '') === 'conditional_body');
     const inlineConditions = ensureArray(rows)
       .filter((row) => String(row && row.role || '') === 'conditional_body')
@@ -619,29 +963,49 @@
     ].map((value) => String(value || '').trim()).filter(Boolean);
     const conditions = uniqueStrings(sectionConditions.concat(inlineConditions));
     const sectionLabel = sectionDisplayLabel(sceneId, section, id);
-    const relatedOptionIds = relatedOptions.map((option) => String(option.id || '')).filter(Boolean);
-    const relatedOptionLabels = relatedOptions.map((option) => String(option.label || option.id || '')).filter(Boolean);
-    if (relatedOptions.length && conditions.length) {
+    const relatedOptionIds = incomingOptions.map((option) => String(option.id || '')).filter(Boolean);
+    const relatedOptionLabels = incomingOptions.map((option) => String(option.label || option.id || '')).filter(Boolean);
+    const ownedOptionIds = ownedOptions.map((option) => String(option.id || '')).filter(Boolean);
+    const ownedOptionLabels = ownedOptions.map((option) => String(option.label || option.id || '')).filter(Boolean);
+    if (incomingOptions.length && conditions.length) {
       return {
         semanticRole: 'conditional_option_result_text',
-        branchKind: 'option_result',
+        branchKind: ownedOptions.length ? 'option_result_menu' : 'option_result',
         label: 'Conditional option result: ' + (relatedOptionLabels.join(' / ') || sectionLabel),
         sectionLabel,
         conditions,
         relatedOptionIds,
         relatedOptionLabels,
+        ownedOptionIds,
+        ownedOptionLabels,
         hasConditionalRows
       };
     }
-    if (relatedOptions.length) {
+    if (incomingOptions.length) {
       return {
         semanticRole: 'option_result_text',
-        branchKind: 'option_result',
+        branchKind: ownedOptions.length ? 'option_result_menu' : 'option_result',
         label: 'Option result: ' + (relatedOptionLabels.join(' / ') || sectionLabel),
         sectionLabel,
         conditions,
         relatedOptionIds,
         relatedOptionLabels,
+        ownedOptionIds,
+        ownedOptionLabels,
+        hasConditionalRows
+      };
+    }
+    if (ownedOptions.length) {
+      return {
+        semanticRole: 'menu_section_text',
+        branchKind: conditions.length || hasConditionalRows ? 'conditional_menu' : 'menu',
+        label: 'Follow-up menu: ' + sectionLabel,
+        sectionLabel,
+        conditions,
+        relatedOptionIds,
+        relatedOptionLabels,
+        ownedOptionIds,
+        ownedOptionLabels,
         hasConditionalRows
       };
     }
@@ -654,6 +1018,8 @@
         conditions,
         relatedOptionIds,
         relatedOptionLabels,
+        ownedOptionIds,
+        ownedOptionLabels,
         hasConditionalRows
       };
     }
@@ -666,6 +1032,8 @@
         conditions,
         relatedOptionIds,
         relatedOptionLabels,
+        ownedOptionIds,
+        ownedOptionLabels,
         hasConditionalRows
       };
     }
@@ -677,6 +1045,8 @@
       conditions,
       relatedOptionIds,
       relatedOptionLabels,
+      ownedOptionIds,
+      ownedOptionLabels,
       hasConditionalRows
     };
   }
@@ -693,12 +1063,20 @@
     }) || null;
   }
 
-  function sectionMatchesOption(sceneId, sectionId, option) {
+  function sectionTargetedByOption(sceneId, sectionId, option) {
     const sectionVariants = new Set(sectionIdVariants(sceneId, sectionId));
     if (!sectionVariants.size) {
       return false;
     }
-    return optionIdVariants(sceneId, option).some((candidate) => sectionVariants.has(candidate));
+    return optionTargetVariants(sceneId, option).some((candidate) => sectionVariants.has(candidate));
+  }
+
+  function sectionOwnsOption(sceneId, sectionId, option) {
+    const sectionVariants = new Set(sectionIdVariants(sceneId, sectionId));
+    if (!sectionVariants.size) {
+      return false;
+    }
+    return optionOwnerVariants(sceneId, option).some((candidate) => sectionVariants.has(candidate));
   }
 
   function sectionIdVariants(sceneId, sectionId) {
@@ -717,15 +1095,23 @@
     return uniqueStrings(variants);
   }
 
-  function optionIdVariants(sceneId, option) {
+  function optionTargetVariants(sceneId, option) {
     const values = [
       option && option.targetId,
       option && option.rawTargetId,
-      option && option.id,
-      option && option.sectionId
+      option && option.id
     ];
+    return endpointVariants(sceneId, values);
+  }
+
+  function optionOwnerVariants(sceneId, option) {
+    return endpointVariants(sceneId, [option && option.sectionId]);
+  }
+
+  function endpointVariants(sceneId, values) {
+    const rows = Array.isArray(values) ? values : [values];
     const out = [];
-    values.forEach((value) => {
+    rows.forEach((value) => {
       const text = String(value || '').trim().replace(/^[@#]/, '');
       if (!text) {
         return;
@@ -733,6 +1119,16 @@
       out.push.apply(out, sectionIdVariants(sceneId, text));
     });
     return uniqueStrings(out);
+  }
+
+  function optionIdVariants(sceneId, option) {
+    const values = [
+      option && option.targetId,
+      option && option.rawTargetId,
+      option && option.id,
+      option && option.sectionId
+    ];
+    return endpointVariants(sceneId, values);
   }
 
   function isOpeningSectionId(sceneId, sectionId) {
@@ -818,6 +1214,8 @@
       }
       if (role === 'heading') {
         lines.push(text.startsWith('=') ? text : '= ' + text);
+      } else if (row.hasInlineConditionals && isMixedInlineConditionalSource(sourceAnchor(row))) {
+        lines.push(sourceAnchor(row));
       } else if (role === 'conditional_body') {
         const source = row.source || {};
         const sourceKey = [source.path || '', sourceLine(source) || '', String(source.anchorText || '').trim()].join(':');
@@ -1282,7 +1680,8 @@
       }
       return changeFromField(field, after);
     }).filter(Boolean);
-    const changes = blockChanges.concat(fieldChanges);
+    const structureCommandChanges = structuralCommandChangesFromValues(model, values);
+    const changes = blockChanges.concat(fieldChanges, structureCommandChanges);
     const diagnostics = [];
     if (!changes.length) {
       diagnostics.push(diagnostic('warning', 'existing_scene_edit.no_changes', 'No changed fields were found yet.'));
@@ -1323,10 +1722,87 @@
     if (!afterText || (field.inputType === 'checkbox' && !/^(1|true|yes|on)$/i.test(afterText))) {
       return null;
     }
+    if (String(field && field.structureAction || '') === 'add_option_effect') {
+      const guarded = guardedOptionEffectChange(field, afterText);
+      if (guarded) {
+        return guarded;
+      }
+    }
     const change = baseFieldChange(field, structuralBeforeText(field), structuralAfterText(field, afterText));
     change.editability = 'manual_review';
     change.operationType = 'manual_snippet';
     return change;
+  }
+
+  function structuralCommandChangesFromValues(model, values) {
+    const commands = queuedStructureCommands(values);
+    if (!commands.length) {
+      return [];
+    }
+    return commands.map((command) => {
+      const field = fieldForStructureCommand(model, command);
+      if (!field) {
+        return null;
+      }
+      const next = Object.assign({}, field, {
+        id: command.id || command.fieldId || field.id,
+        optionId: command.optionId || field.optionId || '',
+        sectionId: command.sectionId || field.sectionId || '',
+        structureTargetLabel: command.targetLabel || field.structureTargetLabel || ''
+      });
+      return structuralChangeFromField(next, command.value || 'true');
+    }).filter(Boolean);
+  }
+
+  function queuedStructureCommands(values) {
+    const raw = values && (values.__structureCommands || values.structure_commands || values.structureCommands);
+    const rows = Array.isArray(raw) ? raw : parseJsonArray(raw);
+    return rows.map((row) => isObject(row) ? row : null).filter(Boolean);
+  }
+
+  function parseJsonArray(value) {
+    if (typeof value !== 'string' || !value.trim()) {
+      return [];
+    }
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (err) {
+      return [];
+    }
+  }
+
+  function fieldForStructureCommand(model, command) {
+    const fields = ensureArray(model && model.fields).filter((field) => String(field && field.transform || '') === 'structure_action');
+    const fieldId = String(command && command.fieldId || '').trim();
+    if (fieldId) {
+      const direct = fields.find((field) => field.id === fieldId);
+      if (direct) {
+        return direct;
+      }
+    }
+    const action = normalizeStructureAction(command && (command.action || command.type));
+    const rawOptionId = String(command && command.optionId || '').trim();
+    const rawSectionId = String(command && command.sectionId || '').trim();
+    const optionId = rawOptionId ? safeId(rawOptionId) : '';
+    const sectionId = rawSectionId ? safeId(rawSectionId) : '';
+    return fields.find((field) => {
+      if (normalizeStructureAction(field && field.structureAction) !== action) {
+        return false;
+      }
+      if (optionId && safeId(field.optionId || '') !== optionId) {
+        return false;
+      }
+      if (sectionId && safeId(field.sectionId || '') !== sectionId) {
+        return false;
+      }
+      return true;
+    }) || null;
+  }
+
+  function normalizeStructureAction(value) {
+    const text = String(value || '').trim();
+    return text === 'add_section' ? 'add_branch' : text === 'remove_section' ? 'remove_layer' : text;
   }
 
   function structuralBeforeText(field) {
@@ -1390,6 +1866,91 @@
     return text + '\nManual review: effect expression was not recognized as a simple Q assignment.';
   }
 
+  function guardedOptionEffectChange(field, afterText) {
+    const parsed = parseSimpleStructuralEffect(afterText);
+    if (!parsed) {
+      return null;
+    }
+    const source = sourceRef(field && field.source || {});
+    const path = String(source.path || '');
+    const line = Number(source.line || source.startLine || 0);
+    const endLine = Number(source.endLine || source.line || source.startLine || line || 0);
+    const anchor = String(source.anchorText || '').trim();
+    if (!path.startsWith('source/scenes/') || !path.endsWith('.scene.dry') || isProtectedRouterPath(path) ||
+      !Number.isInteger(line) || line <= 0 || (Number.isInteger(endLine) && endLine > 0 && endLine !== line) || !anchor) {
+      return null;
+    }
+    if (/^on-arrival\s*:/i.test(anchor) && anchor.indexOf('{!') < 0) {
+      const expression = structuralEffectSourceExpression(parsed, {qPrefix: /\bQ\.[A-Za-z_]/.test(anchor)});
+      const nextLine = appendOnArrivalEffect(anchor, expression);
+      if (!nextLine || nextLine === anchor) {
+        return null;
+      }
+      const change = baseFieldChange(field, anchor, nextLine);
+      change.editability = 'guarded_apply';
+      change.operationType = 'replace_text';
+      return change;
+    }
+    if (looksLikeStandaloneEffectAnchor(anchor)) {
+      if (parsed.condition) {
+        return null;
+      }
+      const expression = structuralEffectSourceExpression(parsed, {qPrefix: true}) + ';';
+      const change = baseFieldChange(field, '(not present yet)', expression);
+      change.editability = 'guarded_apply';
+      change.operationType = 'insert_text';
+      change.anchorText = anchor;
+      change.position = 'after';
+      change.dedupeSearch = expression;
+      return change;
+    }
+    return null;
+  }
+
+  function parseSimpleStructuralEffect(value) {
+    const text = String(value || '').trim().replace(/;+$/, '');
+    const api = logicFieldsApi();
+    if (api && typeof api.isSimpleEffectExpression === 'function' && !api.isSimpleEffectExpression(text)) {
+      return null;
+    }
+    const parts = splitTrailingIf(text);
+    const match = parts.expression.match(/^(?:Q\.)?([A-Za-z_][A-Za-z0-9_]*)\s*(=|\+=|-=|\*=|\/=)\s*([^;\n]+)$/);
+    if (!match) {
+      return null;
+    }
+    return {
+      variable: match[1],
+      op: match[2],
+      value: String(match[3] || '').trim(),
+      condition: parts.condition
+    };
+  }
+
+  function structuralEffectSourceExpression(effect, options) {
+    const qPrefix = Boolean(options && options.qPrefix);
+    const expression = (qPrefix ? 'Q.' : '') + effect.variable + ' ' + effect.op + ' ' + effect.value;
+    const condition = qPrefix ? effect.condition : String(effect.condition || '').replace(/\bQ\./g, '');
+    return expression + (condition ? ' if ' + condition : '');
+  }
+
+  function appendOnArrivalEffect(anchor, expression) {
+    const line = String(anchor || '').trim();
+    const effect = String(expression || '').trim().replace(/;+$/, '');
+    if (!line || !effect) {
+      return '';
+    }
+    const withoutTrailingSemicolon = line.replace(/\s*;+\s*$/, '');
+    return withoutTrailingSemicolon + '; ' + effect;
+  }
+
+  function looksLikeStandaloneEffectAnchor(anchor) {
+    const text = String(anchor || '').trim();
+    if (!text || /^on-arrival\s*:/i.test(text) || /^on-display\s*:/i.test(text)) {
+      return false;
+    }
+    return /^(?:Q\.)?[A-Za-z_][A-Za-z0-9_]*\s*(?:=|\+=|-=|\*=|\/=)/.test(text);
+  }
+
   function baseFieldChange(field, before, after) {
     return {
       fieldId: field.id,
@@ -1436,6 +1997,7 @@
       operationType: String(value.operationType || ''),
       anchorText: String(value.anchorText || ''),
       endAnchorText: String(value.endAnchorText || ''),
+      position: String(value.position || 'after') === 'before' ? 'before' : 'after',
       startLine: numberOrNull(value.startLine),
       endLine: numberOrNull(value.endLine),
       dedupeSearch: String(value.dedupeSearch || ''),

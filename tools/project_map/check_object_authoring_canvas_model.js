@@ -223,6 +223,59 @@ const index = {
   }
 };
 
+const menuFlow = scene('menu_flow', {
+  title: 'Menu Flow',
+  options: [],
+  routes: {goTo: [{id: 'menu', raw: 'menu'}]},
+  sections: [{
+    id: 'menu_flow.menu',
+    title: 'Choose a tactic.',
+    sourceSpan: {path: 'source/scenes/events/menu_flow.scene.dry', startLine: 20, endLine: 28},
+    routes: {},
+    options: [{
+      target: {id: 'first'},
+      title: 'First path.',
+      sourceSpan: {
+        path: 'source/scenes/events/menu_flow.scene.dry',
+        line: 24,
+        startLine: 24,
+        endLine: 24,
+        anchorText: '- @first: First path.',
+        endAnchorText: '- @first: First path.'
+      }
+    }, {
+      target: {id: 'second'},
+      title: 'Second path.',
+      sourceSpan: {
+        path: 'source/scenes/events/menu_flow.scene.dry',
+        line: 25,
+        startLine: 25,
+        endLine: 25,
+        anchorText: '- @second: Second path.',
+        endAnchorText: '- @second: Second path.'
+      }
+    }]
+  }]
+});
+index.scenes.push(menuFlow);
+index.semantic.events.push({id: menuFlow.id, title: menuFlow.title, path: menuFlow.path});
+index.semantic.textCorpus.items.push(
+  {
+    id: 'menu_flow_title',
+    text: 'Menu Flow',
+    role: 'title',
+    owner: {kind: 'scene', sceneId: 'menu_flow'},
+    source: {path: menuFlow.path, line: 1}
+  },
+  {
+    id: 'menu_flow_menu_body',
+    text: 'The player arrives at a follow-up menu with two choices.',
+    role: 'body',
+    owner: {kind: 'scene', sceneId: 'menu_flow', sectionId: 'menu_flow.menu'},
+    source: {path: menuFlow.path, line: 22}
+  }
+);
+
 const existing = canvasModel.buildExistingCanvas(index, 'events', 'generic_intro', {
   values: {
     generic_intro_body: 'The campaign office opens to a sharper morning.',
@@ -254,17 +307,35 @@ assert(existingPreviewHtml.includes('data-object-editing-preview-effects="true"'
 assert(existingPreviewHtml.includes('Q.budget += 1'), 'left preview should show trigger effect impact text');
 assert(existingPreviewHtml.includes('Follow-up page'), 'left preview should label same-scene follow-up text as a follow-up page');
 assert(existingPreviewHtml.includes('Section: Nice having you, Bruning.'), 'left preview should keep the follow-up page title as section context');
+const menuFlowCanvas = canvasModel.buildExistingCanvas(index, 'events', 'menu_flow', {});
+assert(menuFlowCanvas.ok, 'menu-flow existing Event should open in Object Canvas: ' + JSON.stringify(menuFlowCanvas.changeState.diagnostics));
+const menuBranch = menuFlowCanvas.eventBody.branchSections.find((field) => field.sectionId === 'menu_flow.menu');
+assert(menuBranch && menuBranch.semanticRole === 'menu_section_text', 'follow-up menus should stay in branch sections instead of choice result fields');
+assert(menuBranch.ownedOptionIds.length === 2, 'follow-up menu branch sections should expose their owned choices');
+assert(menuFlowCanvas.eventBody.options.length === 2, 'follow-up menu choices should still be editable option rows');
+assert(menuFlowCanvas.eventBody.options.every((option) => !option.resultFields.some((field) => field.sectionId === 'menu_flow.menu')), 'owned menu text must not be duplicated under every owned option');
+assert(menuFlowCanvas.eventBody.structureActions.some((field) => field.structureAction === 'add_option' && field.sectionId === 'menu_flow.menu'), 'follow-up menu sections should expose add-option-in-section controls');
+const menuPreviewHtml = previewEditor.renderPreviewPane(menuFlowCanvas);
+assert(menuPreviewHtml.includes('Follow-up menu'), 'left preview should label owned-choice sections as follow-up menus');
+assert(menuPreviewHtml.includes('Contains choices'), 'left preview should explain which choices belong to a follow-up menu');
+const menuEditorHtml = previewEditor.render(menuFlowCanvas);
+assert(menuEditorHtml.includes('New option in this section'), 'right editor should place a section-owned option creator inside follow-up sections');
+assert(menuEditorHtml.includes('Add to: @menu') && menuEditorHtml.includes('title="menu_flow.menu"'), 'section-owned option creator should show the target section context');
+assert(menuEditorHtml.includes('Manual review only; Studio will not change source automatically.'), 'existing structural creators should clearly show manual-review safety');
 const existingEditorHtml = previewEditor.render(existing);
 assert(existingEditorHtml.includes('data-preview-object-structure-builder="add_option"'), 'preview editor should show structured add-option controls');
 assert(existingEditorHtml.includes('New player option'), 'preview editor should present add-option as a creator form instead of a raw snippet');
 assert(existingEditorHtml.includes('data-preview-object-structure-builder="add_trigger_effect"'), 'preview editor should show structured trigger-effect controls');
 assert(existingEditorHtml.includes('data-preview-object-inline-add="add_option"'), 'preview editor should place structural add controls at the end of the relevant object category');
 assert(!existingEditorHtml.includes('preview-object-structure-workbench'), 'preview editor should not isolate structural controls in a separate workbench');
+const expandedModalHtml = previewEditor.renderModal(existing, {previewExpanded: true});
+assert(expandedModalHtml.includes('is-preview-expanded'), 'preview object modal should expose an expanded preview state');
+assert(expandedModalHtml.includes('Collapse preview'), 'expanded preview modal should offer a collapse action');
 const pendingStructureValues = {
   structure_add_option: '- @negotiate: Negotiate settlement.\n# negotiate\nThe committee spends [+ public_order +] legitimacy.',
   structure_add_branch: '# late_warning\n[? if Q.public_order >= 2 : Public order is under strain. ?]',
   structure_add_trigger_effect: 'Q.public_order += 2',
-  structure_add_option_effect_target_scene: 'Q.public_order -= 1 if Q.flag'
+  structure_add_option_effect_target_scene: 'Q.public_order -= 1'
 };
 const pendingStructureModel = canvasModel.buildExistingCanvas(index, 'events', 'generic_intro', {
   values: pendingStructureValues,
@@ -272,12 +343,39 @@ const pendingStructureModel = canvasModel.buildExistingCanvas(index, 'events', '
 });
 const pendingPreviewHtml = previewEditor.renderPreviewPane(pendingStructureModel);
 assert(pendingStructureModel.changeState.changedCount === 4, 'existing editor should collect add-option, add-branch, trigger-effect, and option-effect proposals');
-assert(pendingStructureModel.changeState.installPlan.operations.every((operation) => operation.type === 'manual_snippet'), 'new structural proposals for existing events should remain manual-review snippets');
+assert(pendingStructureModel.changeState.installPlan.operations.filter((operation) => operation.type === 'manual_snippet').length === 3, 'broad existing structural proposals should remain manual-review snippets');
+assert(pendingStructureModel.changeState.installPlan.operations.some((operation) => operation.type === 'insert_text' && operation.safety === 'guarded_apply'), 'simple source-backed option effects should become guarded inserts');
 assert(pendingPreviewHtml.includes('Negotiate settlement.'), 'left preview should materialize a pending new player option');
 assert(pendingPreviewHtml.includes('The committee spends') && pendingPreviewHtml.includes('Q.public_order'), 'left preview should show pending option result text and consumed variables');
 assert(pendingPreviewHtml.includes('Public order is under strain.'), 'left preview should materialize pending branch/follow-up text');
 assert(pendingPreviewHtml.includes('Q.public_order += 2'), 'left preview should show pending trigger effect changes');
-assert(pendingPreviewHtml.includes('Q.public_order -= 1 if Q.flag'), 'left preview should show pending option effect changes');
+assert(pendingPreviewHtml.includes('Q.public_order -= 1'), 'left preview should show pending option effect changes');
+const queuedStructureModel = canvasModel.buildExistingCanvas(index, 'events', 'generic_intro', {
+  values: {
+    __structureCommands: [
+      {id: 'queued_add_option', type: 'add_option', action: 'add_option', fieldId: 'structure_add_option', value: '- @press_line: Brief the press.\n# press_line\nThe press office takes over.'},
+      {id: 'queued_add_effect', type: 'add_option_effect', action: 'add_option_effect', fieldId: 'structure_add_option_effect_target_scene', optionId: 'target_scene', targetLabel: 'Continue', value: 'Q.public_order += 3'}
+    ]
+  },
+  entry: {source: 'Design', action: 'edit_existing'}
+});
+assert(queuedStructureModel.changeState.changedCount === 2, 'existing editor should turn queued structure commands into independent manual-review changes');
+assert(queuedStructureModel.changeState.installPlan.operations.some((operation) => operation.type === 'manual_snippet'), 'queued existing add-option commands should stay manual-review snippets');
+assert(queuedStructureModel.changeState.installPlan.operations.some((operation) => operation.type === 'insert_text' && operation.safety === 'guarded_apply'), 'queued source-backed option-effect commands should become guarded inserts');
+const queuedPreviewHtml = previewEditor.renderPreviewPane(queuedStructureModel);
+const queuedEditorHtml = previewEditor.render(queuedStructureModel);
+assert(queuedPreviewHtml.includes('Brief the press.'), 'left preview should materialize queued add-option commands');
+assert(queuedPreviewHtml.includes('Q.public_order += 3'), 'left preview should materialize queued add-option-effect commands');
+assert(queuedEditorHtml.includes('Q.public_order += 3'), 'right editor should keep queued option-effect commands visible after commit');
+assert(queuedEditorHtml.includes('Simple source-backed Q effects can be applied automatically after review.'), 'right editor should explain guarded source-backed option effects');
+assert(queuedEditorHtml.includes('is-readonly'), 'queued existing structural commands should render as reviewable pending rows rather than disappearing');
+assert(queuedEditorHtml.includes('is-pending-addition') && queuedEditorHtml.includes('open'), 'queued existing structural commands should stay expanded as pending additions');
+const removalPreviewHtml = previewEditor.renderPreviewPane(canvasModel.buildExistingCanvas(index, 'events', 'generic_intro', {
+  values: {structure_remove_option_target_scene: 'true'},
+  entry: {source: 'Design', action: 'edit_existing'}
+}));
+assert(removalPreviewHtml.includes('is-pending-removal'), 'existing option deletion should be visible as a pending removal in the preview');
+assert(removalPreviewHtml.includes('Pending manual removal'), 'existing option deletion should be labeled as manual-review removal');
 const manyChoicePreviewHtml = previewEditor.renderPreviewPane({
   title: 'Many choices',
   eventBody: {
@@ -465,6 +563,9 @@ assert(newEvent.eventBody.optionEffects[0].fields.some((field) => field.id === '
 assert(newEvent.eventBody.eventStructure && newEvent.eventBody.eventStructure.provenance === 'draft', 'new Event editor body should be derived through EventStructure');
 assert(newEvent.eventBody.structureActions.some((field) => field.structureAction === 'add_option'), 'new Event should expose EventStructure add-option controls');
 assert(newEvent.eventBody.structureActions.some((field) => field.structureAction === 'add_branch'), 'new Event should expose EventStructure add-section controls');
+const newEventHtml = previewEditor.render(newEvent);
+assert(newEventHtml.includes('data-preview-object-condition-chips="true"') && newEventHtml.includes('public_order &gt;= 0'), 'new Event editor should render option conditions as scan-friendly chips');
+assert(newEventHtml.includes('Updates the current draft.'), 'new Event structural creators should clearly show draft-update safety');
 assert(newEvent.changeState.draft.effectsOnTrigger.some((effect) => effect.variable === 'public_order' && effect.value === 2), 'trigger effect edits should update the draft');
 assert(newEvent.changeState.draft.options[0].effects.some((effect) => effect.variable === 'public_order' && effect.value === 1), 'option effect edits should update the draft');
 assert(newEvent.contextBoard.flow.some((row) => row.direction === 'seed'), 'new Event context should include Design/Create seed context');
@@ -498,6 +599,32 @@ assert(structureEvent.changeState.draft.sections.length === 1, 'EventStructure a
 assert(structureEvent.changeState.output.scene.includes('@follow_up'), 'composite EventDraft should render the new follow-up anchor');
 assert(structureEvent.changeState.output.scene.includes('- @third_path: Try a third path.'), 'composite EventDraft should render the new option line');
 assert(structureEvent.changeState.output.scene.includes('Q.public_order += 1;'), 'EventStructure trigger effect command should render into the scene');
+
+const queuedNewEvent = canvasModel.buildNewEventCanvas(index, {
+  id: 'queued_new_event',
+  title: 'Queued new event',
+  heading: 'Queued new event',
+  year: 1936,
+  monthStart: 2,
+  monthEnd: 4,
+  options: [
+    {id: 'stay', title: 'Stay', body: 'Stay here.'},
+    {id: 'leave', title: 'Leave', body: 'Leave now.'}
+  ]
+}, {
+  values: {
+    __structureCommands: [
+      {id: 'queued_option_1', type: 'add_option', action: 'add_option', value: '- @third_path: Third path\n# third_path\nThe third path opens.'},
+      {id: 'queued_option_2', type: 'add_option', action: 'add_option', value: '- @fourth_path: Fourth path\n# fourth_path\nThe fourth path opens.'},
+      {id: 'queued_effect_1', type: 'add_option_effect', action: 'add_option_effect', optionId: 'stay', value: 'Q.public_order += 1'},
+      {id: 'queued_effect_2', type: 'add_option_effect', action: 'add_option_effect', optionId: 'stay', value: 'Q.public_order += 2'}
+    ]
+  }
+});
+assert(queuedNewEvent.ok, 'queued new Event should remain valid: ' + JSON.stringify(queuedNewEvent.changeState.diagnostics));
+assert(queuedNewEvent.changeState.draft.options.length === 4, 'queued add-option commands should allow consecutive new choices');
+assert(queuedNewEvent.changeState.draft.options[0].effects.length === 2, 'queued option-effect commands should allow multiple effects on the same option');
+assert(queuedNewEvent.changeState.changedCount === 4, 'queued new Event should count each structure command as an individual change');
 
 const removedStructure = eventStructureModel.applyCommand(
   eventStructureModel.fromDraft(structureEvent.changeState.draft),
@@ -542,6 +669,47 @@ assert(compositeNewEvent.changeState.draft.sections[0].options[0].label === 'Nes
 assert(compositeNewEvent.changeState.draft.sections[0].options[0].effects.length === 2, 'adding an effect to a section-owned option should not duplicate through the flattened structure list');
 assert(compositeNewEvent.changeState.draft.sections[0].options[0].effects.some((effect) => effect.variable === 'public_order' && effect.value === 3), 'section-owned option effect edits should update existing effects');
 assert(compositeNewEvent.changeState.draft.sections[0].options[0].effects.some((effect) => effect.variable === 'public_order' && effect.value === 4), 'section-owned option effect additions should write back to the nested draft option');
+
+const sectionOptionNewEvent = canvasModel.buildNewEventCanvas(index, {
+  id: 'section_option_new_event',
+  title: 'Section option new event',
+  heading: 'Section option new event',
+  when: {year: 1936, monthStart: 2, monthEnd: 4},
+  options: [
+    {id: 'one', label: 'One', narrativeParagraphs: ['One result.']},
+    {id: 'two', label: 'Two', narrativeParagraphs: ['Two result.']},
+    {id: 'three', label: 'Three', narrativeParagraphs: ['Three result.']},
+    {id: 'four', label: 'Four', narrativeParagraphs: ['Four result.']}
+  ],
+  sections: [{
+    id: 'follow_up',
+    title: 'Follow-up layer',
+    paragraphs: ['Nested setup.'],
+    options: []
+  }]
+}, {
+  values: {
+    __structureCommands: [
+      {id: 'queued_nested_a', type: 'add_option', action: 'add_option', sectionId: 'follow_up', value: '- @nested_a: Nested A\n# nested_a\nchoose-if: public_order >= 1\nunavailable-subtitle: Public order is too low.\nNested A result.'},
+      {id: 'queued_nested_b', type: 'add_option', action: 'add_option', sectionId: 'follow_up', value: '- @nested_b: Nested B\n# nested_b\nNested B result.'},
+      {id: 'queued_nested_effect', type: 'add_option_effect', action: 'add_option_effect', optionId: 'nested_a', value: 'Q.public_order += 2'}
+    ]
+  }
+});
+assert(sectionOptionNewEvent.ok, 'section-owned option creation should keep a four-root-option draft valid: ' + JSON.stringify(sectionOptionNewEvent.changeState.diagnostics));
+assert(sectionOptionNewEvent.changeState.draft.options.length === 4, 'section-owned option creation should not bypass root option count by adding root choices');
+assert(sectionOptionNewEvent.changeState.draft.sections[0].options.length === 2, 'section-owned add-option commands should write into the target section');
+assert(sectionOptionNewEvent.changeState.draft.sections[0].options[0].chooseIf === 'public_order >= 1', 'section-owned add-option should preserve choose-if');
+assert(sectionOptionNewEvent.changeState.draft.sections[0].options[0].unavailableText === 'Public order is too low.', 'section-owned add-option should preserve unavailable text');
+assert(sectionOptionNewEvent.changeState.draft.sections[0].options[0].effects.some((effect) => effect.variable === 'public_order' && effect.value === 2), 'newly added section-owned options should accept follow-up effects');
+assert(sectionOptionNewEvent.changeState.output.scene.includes('choose-if: public_order >= 1'), 'section-owned add-option should render choose-if into scene output');
+assert(sectionOptionNewEvent.changeState.output.scene.includes('unavailable-subtitle: Public order is too low.'), 'section-owned add-option should render unavailable-subtitle into scene output');
+const removedNestedStructure = eventStructureModel.applyCommand(
+  eventStructureModel.fromDraft(sectionOptionNewEvent.changeState.draft),
+  {type: 'remove_option', optionId: 'nested_b'}
+);
+const removedNestedDraft = eventStructureModel.toDraft(removedNestedStructure, sectionOptionNewEvent.changeState.draft);
+assert(removedNestedDraft.sections[0].options.length === 1 && removedNestedDraft.sections[0].options[0].id === 'nested_a', 'section-owned remove-option should remove only the targeted nested option');
 
 process.stdout.write(JSON.stringify({
   ok: true,

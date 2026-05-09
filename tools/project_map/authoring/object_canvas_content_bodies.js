@@ -257,10 +257,6 @@
     const parties = ensureArray(draft.parties);
     const coalitions = ensureArray(draft.coalitions);
     const choices = ensureArray(draft.choices);
-    const eventOptions = ensureArray(draft.electionEvents).map((event) => ({
-      value: event.id || '',
-      label: event.title || event.id || ''
-    }));
     return {
       mode: 'election_results',
       bodyEyebrow: 'Election results',
@@ -269,7 +265,6 @@
       title: field('election.title', 'Title', draft.title, 'guarded'),
       heading: field('election.subtitle', 'Subtitle', draft.subtitle, 'guarded'),
       sections: [
-        field('election.targetSceneId', 'Election event', draft.targetSceneId, 'guarded', {inputType: 'select', options: eventOptions.length ? eventOptions : [{value: '', label: 'New / manual election event'}], help: 'Choose which source election event this results screen edits.'}),
         field('election.electionKind', 'Election type', draft.electionKind, 'guarded', {inputType: 'select', options: [
           {value: 'reichstag', label: 'Reichstag'},
           {value: 'state', label: 'State / Landtag'},

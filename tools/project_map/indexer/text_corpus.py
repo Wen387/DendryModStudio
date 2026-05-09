@@ -71,6 +71,17 @@ def extract_inline_conditionals(value: str) -> list[tuple[str, str]]:
     return out
 
 
+def inline_conditional_remainder(value: str) -> str:
+    return compact_visible_text(strip_inline_conditionals(value))
+
+
+def is_mixed_inline_conditional(value: str) -> bool:
+    if not extract_inline_conditionals(value):
+        return False
+    remainder = inline_conditional_remainder(value)
+    return bool(remainder and not is_structural_scene_line(remainder))
+
+
 def text_item_editability(scene: dict[str, Any], role: str) -> str:
     if role in {"option_label", "title", "subtitle", "unavailable_text"}:
         return "draft_extractable"
@@ -267,11 +278,20 @@ def extract_text_corpus_from_scene(root: Path, scene: dict[str, Any]) -> list[di
         conditional_items = extract_inline_conditionals(stripped)
         if conditional_items:
             flush_paragraph(line_num)
-            for condition, text in conditional_items:
-                append_item("conditional_body", text, line_num, active_section, condition)
-            remainder = compact_visible_text(strip_inline_conditionals(stripped))
-            if remainder and not is_structural_scene_line(remainder):
-                append_item("body", remainder, line_num, active_section)
+            if is_mixed_inline_conditional(stripped):
+                append_item(
+                    "body",
+                    stripped,
+                    line_num,
+                    active_section,
+                    extra={
+                        "hasInlineConditionals": True,
+                        "inlineConditions": [condition for condition, _text in conditional_items],
+                    }
+                )
+            else:
+                for condition, text in conditional_items:
+                    append_item("conditional_body", text, line_num, active_section, condition)
             continue
 
         if is_structural_scene_line(stripped):

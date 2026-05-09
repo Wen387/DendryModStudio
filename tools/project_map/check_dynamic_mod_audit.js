@@ -7,6 +7,8 @@ const os = require('os');
 const path = require('path');
 
 const coverage = require('./authoring/visible_object_coverage_model.js');
+const objectCanvasModel = require('./authoring/object_authoring_canvas_model.js');
+const previewEditor = require('./viewer/preview_object_editor.js');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const PROJECT_MAP_ROOT = __dirname;
@@ -215,9 +217,165 @@ function assertDynamicPressureSample(dynamic) {
 const built = FIXTURES.map(buildIndex);
 const summaries = built.map(summarizeIndex);
 const dynamic = summaries.find((item) => item.id === 'dynamic-mod');
+const dynamicBuilt = built.find((item) => item.id === 'dynamic-mod');
+
+function assertDynamicElectionEditing(item) {
+  const index = item && item.index || {};
+  const rows = index.semantic && index.semantic.electionResults && index.semantic.electionResults.items || [];
+  const sample = rows.find((row) => row.id === 'local_election_france') || rows[0];
+  assert(sample && sample.id, 'Dynamic election audit should have a source-backed election result sample', rows.slice(0, 3));
+  assert(!rows.some((row) => row.id === 'presidential_election_1932_campaign'), 'Dynamic presidential campaign should stay out of the D3 parliament results surface', rows.map((row) => row.id).slice(0, 20));
+  const reichstag = rows.find((row) => row.id === 'election_1928');
+  assert(reichstag && reichstag.chartElementId === 'reichstag', 'Dynamic Reichstag election should stay parsed as a reusable D3 parliament source', rows.map((row) => ({id: row.id, chart: row.chartElementId})).slice(0, 20));
+  assertNoDuplicatePartyNames(reichstag, 'Dynamic Reichstag election should not duplicate mutually exclusive party rows in the static preview');
+  const local1932 = rows.find((row) => row.id === 'local_election_1932');
+  assert(local1932 && local1932.chartElementId === 'bavaria_landtag', 'Dynamic local 1932 election should keep the first D3 parliament chart target', local1932);
+  assertNoDuplicatePartyNames(local1932, 'Dynamic local 1932 election should scope party rows to one D3 chart target');
+  assert(!(local1932.parties || []).some((party) => party.name === 'Center'), 'Dynamic local 1932 Bavaria chart should not include Wurttemberg party rows', local1932.parties);
+  const wurttemberg = rows.find((row) => row.id === 'local_election_1932__wurttemberg_landtag');
+  assert(wurttemberg && wurttemberg.sceneId === 'local_election_1932', 'Dynamic local 1932 Wurttemberg chart should be exposed as a separate D3 source', rows.filter((row) => row.id.indexOf('local_election_1932') === 0));
+  assert(wurttemberg.chartElementId === 'wurttemberg_landtag', 'Dynamic local 1932 Wurttemberg source should retain its chart target', wurttemberg);
+  assert((wurttemberg.parties || []).some((party) => party.name === 'Center'), 'Dynamic local 1932 Wurttemberg chart should carry its own scoped party rows', wurttemberg.parties);
+  const presidential = objectCanvasModel.buildExistingCanvas(index, 'events', 'presidential_election_1932_campaign', {});
+  assert(presidential.ok, 'Dynamic presidential campaign should still open through the existing Event editor', presidential.changeState && presidential.changeState.diagnostics);
+  assert((presidential.eventBody && presidential.eventBody.options || []).length > 0, 'Dynamic presidential campaign should expose event options in the existing Event editor');
+  const presidentialBody = presidential.eventBody || {};
+  const presidentialFlow = presidentialBody.flow || {};
+  assert(presidentialFlow.summary && presidentialFlow.summary.sectionCount >= 60, 'Dynamic presidential campaign should expose its large internal section graph', presidentialFlow.summary);
+  assert(presidentialFlow.summary && presidentialFlow.summary.conditionalRouteCount >= 8, 'Dynamic presidential campaign should surface conditional internal routes instead of hiding them in top-level edges', presidentialFlow.summary);
+  const ironFrontChoice = (presidentialBody.options || []).find((option) => option.rawTargetId === 'iron_front' && String(option.sectionId || '').includes('campaigning_braun'));
+  assert(ironFrontChoice && /Iron|Front/i.test(String(ironFrontChoice.label || '')) && ironFrontChoice.labelSource === 'target_title', 'Dynamic naked option lines should borrow readable labels from their target sections', ironFrontChoice);
+  const presidentialBlocks = (presidentialBody.sections || []).concat(presidentialBody.branchSections || []);
+  const richConditionalBlock = presidentialBlocks.find((field) => (field.conditionalAlternatives || []).length >= 4);
+  assert(richConditionalBlock, 'Dynamic presidential campaign should keep standalone conditional alternatives inspectable in the editor', presidentialBlocks.map((field) => ({label: field.label, alternatives: (field.conditionalAlternatives || []).length})).slice(0, 20));
+  const board = objectCanvasModel.buildTemplateCanvas(index, 'election_results', {}, {
+    values: {'election.targetSceneId': sample.id}
+  });
+  const draft = board.changeState && board.changeState.draft || {};
+  assert(board.ok, 'Dynamic election results board should build for the selected source event', board.changeState && board.changeState.diagnostics);
+  assert(draft.targetSceneId === sample.id, 'Dynamic election results selector should retain the selected source event id', {selected: sample.id, draft: draft.targetSceneId});
+  assert(String(draft.sourcePath || '') === String(sample.path || ''), 'Dynamic election results selector should rebase sourcePath from the selected source event', {expected: sample.path, actual: draft.sourcePath});
+  assert(String(draft.chartElementId || '') === String(sample.chartElementId || ''), 'Dynamic election results selector should rebase the D3 chart target from the selected source event', {expected: sample.chartElementId, actual: draft.chartElementId});
+  const existing = objectCanvasModel.buildExistingCanvas(index, 'events', sample.id, {});
+  assert(existing.ok, 'Dynamic selected election source should open through the existing Event editor', {id: sample.id, diagnostics: existing.changeState && existing.changeState.diagnostics});
+  assert((existing.eventBody && existing.eventBody.options || []).length > 0, 'Dynamic selected election source should expose player options in the existing Event editor', {id: sample.id});
+  return {
+    id: sample.id,
+    sourcePath: draft.sourcePath,
+    chartElementId: draft.chartElementId,
+    presidentialEventEditorOptions: (presidential.eventBody && presidential.eventBody.options || []).length,
+    presidentialFlowSections: presidentialFlow.summary && presidentialFlow.summary.sectionCount || 0,
+    presidentialConditionalRoutes: presidentialFlow.summary && presidentialFlow.summary.conditionalRouteCount || 0,
+    presidentialTargetTitleFallbacks: presidentialFlow.summary && presidentialFlow.summary.targetTitleFallbackCount || 0,
+    existingSections: (existing.eventBody && existing.eventBody.sections || []).length,
+    existingOptions: (existing.eventBody && existing.eventBody.options || []).length
+  };
+}
+
+function assertDynamicInlineCompositeEvent(item) {
+  const index = item && item.index || {};
+  const model = objectCanvasModel.buildExistingCanvas(index, 'events', 'center_party_conference', {});
+  assert(model.ok, 'Dynamic center_party_conference should open through the existing Event editor', model.changeState && model.changeState.diagnostics);
+  const body = model.eventBody || {};
+  const title = String(body.title && body.title.value || model.title || '');
+  assert(title.includes('Conference'), 'Dynamic inline conditional title should remain an event title', {title});
+  const opening = (body.sections || []).map((field) => String(field.value || '')).join('\n');
+  assert(opening.includes('Center Party') && opening.includes('CVP'), 'Dynamic mixed inline conditional prose should preserve both visible alternatives in the opening block', {opening: opening.slice(0, 600)});
+  assert(!opening.includes('leadership of the .') && !opening.includes('chairman of the .') && !opening.includes("The 's middle class"), 'Dynamic mixed inline conditional prose should not be hollowed out by conditional extraction', {opening: opening.slice(0, 600)});
+  const branches = (body.branchSections || []).filter((field) => String(field.semanticRole || '') === 'conditional_text');
+  assert(!branches.some((field) => String(field.value || '').includes('Center Party') || String(field.value || '').includes('CVP')), 'Mixed inline conditionals should not become standalone branch cards', branches.map((field) => ({label: field.label, value: String(field.value || '').slice(0, 180)})));
+  assert((body.options || []).length >= 4, 'Dynamic composite event should expose its four player options', (body.options || []).map((option) => option.id || option.label));
+  assert((body.optionEffects || []).filter((group) => (group.fields || []).length > 0).length >= 4, 'Dynamic composite event should keep option-owned effects attached to choices', (body.optionEffects || []).map((group) => ({id: group.id, count: (group.fields || []).length})));
+  return {
+    title,
+    openingBlocks: (body.sections || []).length,
+    options: (body.options || []).length,
+    optionEffectGroups: (body.optionEffects || []).filter((group) => (group.fields || []).length > 0).length
+  };
+}
+
+function assertDynamicFollowUpMenuSemantics(item) {
+  const index = item && item.index || {};
+  const model = objectCanvasModel.buildExistingCanvas(index, 'events', 'dnf_collapse_center_right_coalition', {});
+  assert(model.ok, 'Dynamic DNF coalition collapse event should open through the existing Event editor', model.changeState && model.changeState.diagnostics);
+  const body = model.eventBody || {};
+  const branchSections = body.branchSections || [];
+  const menu = branchSections.find((field) => String(field.sectionId || '').endsWith('.new_prussia_election'));
+  assert(menu, 'Dynamic DNF follow-up election menu should be exposed as a branch section', branchSections.map((field) => ({id: field.sectionId, role: field.semanticRole})));
+  assert(String(menu.semanticRole || '') === 'menu_section_text', 'Dynamic DNF follow-up election menu should not be classified as an option result', {role: menu.semanticRole, label: menu.label});
+  assert((menu.relatedOptionIds || []).length === 0, 'Dynamic DNF menu-owned options should not be treated as incoming options', {relatedOptionIds: menu.relatedOptionIds});
+  assert((menu.ownedOptionIds || []).length >= 4, 'Dynamic DNF follow-up menu should expose its owned player choices', {ownedOptionIds: menu.ownedOptionIds, ownedOptionLabels: menu.ownedOptionLabels});
+  assert(menu.hasInlineConditionals && (menu.inlineConditions || []).length >= 4, 'Dynamic DNF inline conditional prose should remain one mixed body block with inline condition metadata', {inlineConditions: menu.inlineConditions});
+  const ownedOptions = (body.options || []).filter((option) => String(option.sectionId || '').endsWith('.new_prussia_election'));
+  assert(ownedOptions.length >= 4, 'Dynamic DNF follow-up menu choices should remain editable option rows', ownedOptions.map((option) => option.id || option.label));
+  assert(ownedOptions.every((option) => !(option.resultFields || []).some((field) => String(field.sectionId || '').endsWith('.new_prussia_election'))), 'Dynamic DNF follow-up menu text should not be duplicated under every owned option');
+  const resultMenu = branchSections
+    .concat((body.options || []).reduce((rows, option) => rows.concat(option.resultFields || []), []))
+    .find((field) => String(field.sectionId || '').endsWith('.prussia_coalition') && String(field.semanticRole || '').indexOf('option_result') >= 0);
+  assert(resultMenu && String(resultMenu.semanticRole || '').indexOf('option_result') >= 0 && (resultMenu.ownedOptionIds || []).length >= 1, 'Dynamic DNF option result that opens another choice should preserve both incoming and owned-choice metadata', resultMenu && {role: resultMenu.semanticRole, relatedOptionIds: resultMenu.relatedOptionIds, ownedOptionIds: resultMenu.ownedOptionIds});
+  return {
+    menuRole: menu.semanticRole,
+    ownedOptions: (menu.ownedOptionIds || []).length,
+    inlineConditions: (menu.inlineConditions || []).length,
+    resultMenuOwnedOptions: resultMenu && (resultMenu.ownedOptionIds || []).length || 0
+  };
+}
+
+function assertDynamicSectionOwnedOptionEntrypoints(item) {
+  const index = item && item.index || {};
+  const model = objectCanvasModel.buildExistingCanvas(index, 'events', 'blutmai', {});
+  assert(model.ok, 'Dynamic blutmai should open through the existing Event editor', model.changeState && model.changeState.diagnostics);
+  const body = model.eventBody || {};
+  const actions = body.structureActions || [];
+  const sectionAdd = actions.find((field) => {
+    return String(field && field.structureAction || '') === 'add_option' &&
+      String(field && field.sectionId || '').endsWith('.ban');
+  });
+  assert(sectionAdd, 'Dynamic blutmai @ban result layer should expose a section-owned add-option entrypoint', actions.map((field) => ({
+    id: field && field.id,
+    action: field && field.structureAction,
+    sectionId: field && field.sectionId
+  })).slice(0, 20));
+  assert(String(sectionAdd.inputType || '') === 'textarea', 'Section-owned add option should use the same guided option builder surface', sectionAdd);
+  assert(/choose-if/i.test(String(sectionAdd.placeholder || '')) && /unavailable/i.test(String(sectionAdd.placeholder || '')), 'Section-owned add option placeholder should advertise optional condition fields', sectionAdd.placeholder);
+  const joinOption = (body.options || []).find((option) => String(option && (option.rawTargetId || option.targetId || option.gotoAfter) || '') === 'join');
+  assert(joinOption, 'Dynamic blutmai should expose the @join option row', (body.options || []).map((option) => ({
+    id: option && option.id,
+    targetId: option && option.targetId,
+    rawTargetId: option && option.rawTargetId,
+    label: option && option.label
+  })));
+  const conditionText = [
+    joinOption.chooseIf,
+    joinOption.sectionChooseIf,
+    joinOption.sectionViewIf,
+    joinOption.unavailableText
+  ].filter(Boolean).join(' / ');
+  assert(/kpd_relation\s*>=\s*45/.test(conditionText), 'Dynamic blutmai @join target section choose-if should be surfaced as an option condition hint', {conditionText, joinOption});
+  const html = previewEditor.render(model, {locale: 'en'});
+  assert(html.includes('New option in this section'), 'Existing editor HTML should render section-owned add-option builder text for Dynamic blutmai');
+  assert(html.includes('Add to: @ban') && html.includes('title="blutmai.ban"'), 'Dynamic blutmai section-owned add-option builder should show the target section context');
+  assert(html.includes('kpd_relation &gt;= 45'), 'Dynamic blutmai @join choose-if should render as a visible condition chip in the editor HTML');
+  assert(html.includes('Manual review only; Studio will not change source automatically.'), 'Dynamic existing structural creators should clearly show manual-review safety');
+  return {
+    sectionAddId: sectionAdd.id,
+    sectionId: sectionAdd.sectionId,
+    joinCondition: conditionText
+  };
+}
+
+function assertNoDuplicatePartyNames(row, message) {
+  const names = (row && row.parties || []).map((party) => String(party.name || '').trim().toLowerCase()).filter(Boolean);
+  const unique = new Set(names);
+  assert(unique.size === names.length, message, {id: row && row.id, names});
+}
 
 assertGenericCompatibility(summaries);
 assertDynamicPressureSample(dynamic);
+const dynamicElectionEditing = assertDynamicElectionEditing(dynamicBuilt);
+const dynamicInlineCompositeEvent = assertDynamicInlineCompositeEvent(dynamicBuilt);
+const dynamicFollowUpMenuSemantics = assertDynamicFollowUpMenuSemantics(dynamicBuilt);
+const dynamicSectionOwnedOptionEntrypoints = assertDynamicSectionOwnedOptionEntrypoints(dynamicBuilt);
 
 process.stdout.write(JSON.stringify({
   ok: true,
@@ -240,7 +398,8 @@ process.stdout.write(JSON.stringify({
         'SDAAH-style profile detection',
         'large real scene corpus',
         'SDAAH-style monthly popup corpus',
-        'source-backed D3 election result screen corpus'
+        'source-backed D3 election result screen corpus',
+        'selected D3 election result source opens through the existing Event editor'
       ],
       note: 'These assertions are intentionally project-profile specific and should not be read as generic Dendry compatibility guarantees.'
     }
@@ -268,6 +427,10 @@ process.stdout.write(JSON.stringify({
     manualSamples: dynamic.manualSamples,
     refusedSamples: dynamic.refusedSamples,
     weakSafeSamples: dynamic.weakSafeSamples,
+    electionEditing: dynamicElectionEditing,
+    inlineCompositeEvent: dynamicInlineCompositeEvent,
+    followUpMenuSemantics: dynamicFollowUpMenuSemantics,
+    sectionOwnedOptionEntrypoints: dynamicSectionOwnedOptionEntrypoints,
     gapCandidates: dynamic.gapCandidates
   }
 }, null, 2) + '\n');

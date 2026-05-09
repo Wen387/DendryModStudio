@@ -210,9 +210,11 @@ assert(workspaceUi.includes('ELECTION_RESULTS_ITEM'), 'System UI workspace shoul
 assert(workspaceUi.includes('return [SYSTEM_UI_SCREEN_ITEM, ELECTION_RESULTS_ITEM]'), 'System UI workspace should show System UI Screen plus Election Results, not the internal screen templates');
 assert(canvasUi.includes('systemUiTemplateForRegion'), 'Object Canvas should switch internal System UI draft type from preview-region clicks');
 assert(canvasUi.includes('renderElectionResultsStage'), 'Object Canvas should render Election Results through its dedicated surface');
+assert(canvasUi.includes("key === 'election_results_board'"), 'Election Results source selector refresh should re-render the dedicated board');
 assert(electionResultsChart.includes('data-d3-parliament-chart'), 'Election Results chart should expose a D3 parliament-compatible chart marker');
 assert(electionResultsChart.includes('d3.parliament'), 'Election Results chart should directly call d3.parliament when the runtime provides it');
 assert(electionResultsSurface.includes('data-election-results-source-selector'), 'Election Results surface should expose a source event selector');
+assert(electionResultsSurface.includes('open_selected_election_event'), 'Election Results surface should expose a source-backed event editor action');
 assert(electionResultsSurface.includes('create_election_event'), 'Election Results surface should expose a new election event action');
 assert(canvasUi.includes('templateMatchesExistingView'), 'Object Canvas should keep same-template events from replacing existing edits with new drafts');
 assert(canvasUi.includes('templateForExistingView'), 'Object Canvas should map existing views back to their authoring templates');
@@ -481,6 +483,9 @@ assert(canvasUi.includes('function createModeIsActive'), 'Object Canvas should h
 assert(canvasUi.includes('function reconcileActiveTemplate(document)') && canvasUi.includes('if (!createModeIsActive(document))'), 'Object Canvas reconciler should not reopen Create after users switch pages');
 assert(canvasUi.includes('function syncTemplateButtonClick(template)') && canvasUi.includes('if (!createModeIsActive(global.document))'), 'Object Canvas scheduled template clicks should not reopen Create after users switch pages');
 assert(canvasUi.includes('data-object-canvas-render-error'), 'Object Canvas should surface render failures instead of leaving stale content visible');
+assert(canvasUi.includes('captureObjectCanvasScroll') && canvasUi.includes('restoreObjectCanvasScroll'), 'Object Canvas field refreshes should preserve editor scroll position across re-renders');
+assert(canvasUi.includes('state.preserveScrollOnNextRefresh = true'), 'Object Canvas field changes should request scroll restoration before scheduled refresh');
+assert(canvasUi.includes('clearTimeout(refreshTimer)') && canvasUi.includes('render({scrollSnapshot})'), 'Object Canvas structure commits should cancel delayed refresh and preserve scroll during re-render');
 assert(surfaceGraphs.includes('function systemUiGraphNodes'), 'Surface graph builders should define a System UI graph');
 assert(surfaceGraphs.includes('function projectStateGraphNodes'), 'Surface graph builders should define a Project State graph');
 assert(contentStoryboardSurface.includes('data-content-storyboard-editor'), 'Content Storyboard should render an editor/detail panel');

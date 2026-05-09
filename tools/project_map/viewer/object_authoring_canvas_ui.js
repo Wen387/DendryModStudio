@@ -59,10 +59,14 @@
     runtimeLensEmbedsSuspended: false,
     authoringSidebarWidth: readStoredNumber(AUTHORING_SIDEBAR_WIDTH_KEY, 390),
     objectEditorPreviewWidth: readStoredNumber(OBJECT_EDITOR_PREVIEW_WIDTH_KEY, 620),
+    objectEditorPreviewExpanded: false,
     resizingPane: null,
     baseDraft: null,
     values: {},
     valueOriginals: {},
+    structureCommands: [],
+    structureCommandCounter: 0,
+    preserveScrollOnNextRefresh: false,
     model: null,
     status: ''
   };
@@ -419,6 +423,116 @@
     return elements && elements.host && elements.host.querySelector('[data-object-authoring-canvas]');
   }
 
+  function captureObjectCanvasScroll() {
+    if (!elements || !elements.host) {
+      return null;
+    }
+    const selectors = [
+      '[data-object-editing-modal-preview-pane]',
+      '.object-editing-fields-pane',
+      '[data-preview-object-editor]',
+      '[data-content-storyboard-canvas]',
+      '[data-content-storyboard-editor]',
+      '[data-card-board-surface]',
+      '[data-card-face-editor]',
+      '[data-system-ui-live-preview]',
+      '[data-system-ui-inspector]',
+      '[data-project-state-board]',
+      '[data-object-canvas-graph-canvas]',
+      '[data-object-canvas-stage]'
+    ];
+    const entries = [];
+    selectors.forEach((selector) => {
+      elements.host.querySelectorAll(selector).forEach((node, index) => {
+        entries.push({
+          selector,
+          index,
+          top: Number(node.scrollTop || 0),
+          left: Number(node.scrollLeft || 0)
+        });
+      });
+    });
+    const active = global.document && global.document.activeElement;
+    const activeField = active && elements.host.contains(active) && typeof active.closest === 'function'
+      ? active.closest('[data-object-canvas-field]')
+      : null;
+    const key = activeField && activeField.dataset && activeField.dataset.objectCanvasField || '';
+    return {
+      windowX: Number(global.scrollX || global.pageXOffset || 0),
+      windowY: Number(global.scrollY || global.pageYOffset || 0),
+      activeField: key ? {
+        key,
+        start: typeof activeField.selectionStart === 'number' ? activeField.selectionStart : null,
+        end: typeof activeField.selectionEnd === 'number' ? activeField.selectionEnd : null
+      } : null,
+      entries
+    };
+  }
+
+  function restoreObjectCanvasScroll(snapshot) {
+    if (!snapshot || !elements || !elements.host) {
+      return;
+    }
+    const apply = () => {
+      if (!elements || !elements.host) {
+        return;
+      }
+      restoreObjectCanvasFocus(snapshot.activeField);
+      ensureArray(snapshot.entries).forEach((entry) => {
+        const nodes = elements.host.querySelectorAll(entry.selector);
+        const node = nodes && nodes[entry.index];
+        if (!node) {
+          return;
+        }
+        node.scrollTop = Number(entry.top || 0);
+        node.scrollLeft = Number(entry.left || 0);
+      });
+      if (typeof global.scrollTo === 'function') {
+        try {
+          global.scrollTo(Number(snapshot.windowX || 0), Number(snapshot.windowY || 0));
+        } catch (_err) {
+          // Some embedded runtimes do not allow window scroll restoration.
+        }
+      }
+    };
+    apply();
+    if (typeof global.requestAnimationFrame === 'function') {
+      global.requestAnimationFrame(apply);
+    }
+  }
+
+  function restoreObjectCanvasFocus(activeField) {
+    const key = activeField && activeField.key;
+    if (!key || !elements || !elements.host) {
+      return;
+    }
+    const field = elements.host.querySelector('[data-object-canvas-field="' + cssEscape(key) + '"]');
+    if (!field || typeof field.focus !== 'function' || global.document && global.document.activeElement === field) {
+      return;
+    }
+    try {
+      field.focus({preventScroll: true});
+    } catch (_err) {
+      try {
+        field.focus();
+      } catch (_focusErr) {
+        return;
+      }
+    }
+    if (
+      activeField.start !== null &&
+      activeField.end !== null &&
+      typeof field.setSelectionRange === 'function' &&
+      !/^(?:checkbox|radio)$/i.test(String(field.type || ''))
+    ) {
+      try {
+        field.setSelectionRange(activeField.start, activeField.end);
+      } catch (_err) {
+        // Unsupported input types can ignore selection restoration.
+      }
+    }
+  }
+
   function clampNumber(value, min, max) {
     const numeric = Number(value);
     const upper = Math.max(min, Number(max) || min);
@@ -535,6 +649,11 @@
     state.projectStateLimit = PROJECT_STATE_ROW_LIMIT;
   }
 
+  function resetStructureCommands() {
+    state.structureCommands = [];
+    state.structureCommandCounter = 0;
+  }
+
   function openFromSelection(projectIndex, view, item, options) {
     templateClickToken += 1;
     reconcileToken += 1;
@@ -565,6 +684,7 @@
     state.baseDraft = null;
     state.values = options && options.values || {};
     state.valueOriginals = {};
+    resetStructureCommands();
     state.model = buildExistingModel(options || {});
     state.active = true;
     state.status = state.model && state.model.ok
@@ -610,6 +730,7 @@
     }
     state.values = {};
     state.valueOriginals = {};
+    resetStructureCommands();
     state.model = buildTemplateModel(meta || {});
     state.active = true;
     state.status = statusForTemplate(nextTemplate, meta);
@@ -699,6 +820,8 @@
       return;
     }
     if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = null; }
+    const scrollSnapshot = state.preserveScrollOnNextRefresh ? captureObjectCanvasScroll() : null;
+    state.preserveScrollOnNextRefresh = false;
     state.values = collectValues();
     state.model = state.deleteProposal
       ? buildDeleteProposalModel(state.deleteProposal)
@@ -706,14 +829,15 @@
     markRuntimeLensStale();
     const surface = currentSurface(state.model);
     if (surface.key === 'system_ui_preview' || surface.key === 'card_board' && !activeInsidePreviewObjectEditor() || shouldRenderSurfaceRefresh(surface)) {
-      render();
+      render({scrollSnapshot});
       return;
     }
     updateDynamicSurfaces();
+    restoreObjectCanvasScroll(scrollSnapshot);
   }
 
   function buildExistingModel(options) {
-    return buildExistingModelFor(state.view, state.item, options);
+    return buildExistingModelFor(state.view, state.item, withStructureCommandValues(options));
   }
 
   function buildExistingModelFor(view, item, options) {
@@ -737,14 +861,25 @@
   function buildTemplateModel(options) {
     const apiModel = modelApi();
     const template = state.template || 'event';
+    const nextOptions = withStructureCommandValues(options);
     try {
       if (apiModel && typeof apiModel.buildTemplateCanvas === 'function') {
-        return apiModel.buildTemplateCanvas(state.projectIndex, template, state.baseDraft || {}, options || {});
+        return apiModel.buildTemplateCanvas(state.projectIndex, template, state.baseDraft || {}, nextOptions || {});
       }
-      return buildNewEventModel(options);
+      return buildNewEventModel(nextOptions);
     } catch (err) {
-      return diagnosticModel('template', template, state.baseDraft && state.baseDraft.id || '', err, options);
+      return diagnosticModel('template', template, state.baseDraft && state.baseDraft.id || '', err, nextOptions);
     }
+  }
+
+  function withStructureCommandValues(options) {
+    const opts = Object.assign({}, options || {});
+    const values = Object.assign({}, opts.values || {});
+    if (state.structureCommands && state.structureCommands.length) {
+      values.__structureCommands = state.structureCommands.slice();
+    }
+    opts.values = values;
+    return opts;
   }
 
   function diagnosticModel(mode, template, objectId, err, options) {
@@ -822,10 +957,12 @@
     }
   }
 
-  function render() {
+  function render(options) {
     if (!elements || !elements.host) {
       return;
     }
+    const opts = options && typeof options === 'object' ? options : {};
+    const scrollSnapshot = opts.scrollSnapshot || (opts.preserveScroll ? captureObjectCanvasScroll() : null);
     if (!state.active) {
       elements.host.hidden = true;
       if (elements.createPane) {
@@ -861,6 +998,7 @@
     ].join('');
     bindCanvasEvents();
     updateDynamicSurfaces();
+    restoreObjectCanvasScroll(scrollSnapshot);
   }
 
   function renderHeader(model, surface) {
@@ -999,14 +1137,25 @@
 
   function shouldRenderSurfaceRefresh(surface) {
     const key = surface && surface.key || '';
-    if (key !== 'content_storyboard') {
-      return false;
-    }
     if (!elements || !elements.host) {
       return false;
     }
     const active = global.document && global.document.activeElement;
+    if (key === 'election_results_board') {
+      return Boolean(
+        active &&
+        elements.host.contains(active) &&
+        active.dataset &&
+        active.dataset.objectCanvasField === 'election.targetSceneId'
+      );
+    }
+    if (key !== 'content_storyboard') {
+      return false;
+    }
     if (!active || !elements.host.contains(active) || typeof active.closest !== 'function') {
+      return true;
+    }
+    if (active.closest('.preview-object-structure-delete')) {
       return true;
     }
     return !active.closest('[data-preview-object-editor]');
@@ -1021,7 +1170,8 @@
       return editor.renderModal(model, {
         template: state.template,
         selectedKey: state.selectedCanvasNode,
-        surface: surface && surface.key || ''
+        surface: surface && surface.key || '',
+        previewExpanded: state.objectEditorPreviewExpanded
       });
     }
     return '';
@@ -1265,7 +1415,11 @@
     restoreProjectStateSearchFocus();
   }
 
-  function scheduleRefresh() { if (refreshTimer) { clearTimeout(refreshTimer); } refreshTimer = setTimeout(refresh, 180); }
+  function scheduleRefresh() {
+    state.preserveScrollOnNextRefresh = true;
+    if (refreshTimer) { clearTimeout(refreshTimer); }
+    refreshTimer = setTimeout(refresh, 180);
+  }
 
   function scheduleProjectStateSearch(input) {
     if (!input) {
@@ -1471,6 +1625,12 @@
     } else if (action === 'toggle_overlay') {
       global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
       toggleEditorOverlay();
+    } else if (action === 'toggle_preview_expanded') {
+      global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
+      toggleObjectEditorPreviewExpanded();
+    } else if (action === 'commit_structure_command') {
+      global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
+      commitStructureCommand(target);
     } else if (action === 'toggle_board_chrome') {
       global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
       toggleBoardChrome();
@@ -1481,6 +1641,10 @@
     } else if (action === 'create_election_event') {
       global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
       openElectionEventDraft(relatedDraftContext(target));
+      return;
+    } else if (action === 'open_selected_election_event') {
+      global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
+      openSelectedElectionEvent();
       return;
     } else if (handleProjectStateAction(action)) {
       return;
@@ -1509,6 +1673,7 @@
     state.deleteProposal = buildDeleteProposal(state.model);
     state.values = {};
     state.valueOriginals = {};
+    resetStructureCommands();
     state.model = buildDeleteProposalModel(state.deleteProposal);
     state.editorOverlay = true;
     state.status = t('objectCanvas.status.deletePrepared', 'Delete proposal prepared for Review & Apply.');
@@ -1838,6 +2003,7 @@
   function openVariableDraft(draft, statusKey, selectedNode) {
     state.values = {};
     state.valueOriginals = {};
+    resetStructureCommands();
     state.baseDraft = draft || newVariableDraft();
     state.template = 'variables';
     state.mode = 'variables';
@@ -2187,6 +2353,31 @@
     return true;
   }
 
+  function openSelectedElectionEvent() {
+    state.values = collectValues();
+    state.model = buildTemplateModel({values: state.values});
+    const draft = state.model && state.model.changeState && state.model.changeState.draft || {};
+    const sourceRow = ensureArray(draft.electionEvents).find((row) => row && String(row.id || '') === String(draft.targetSceneId || '')) || null;
+    const sceneId = String(sourceRow && sourceRow.sceneId || draft.targetSceneId || '').trim();
+    if (!sceneId) {
+      state.status = t('electionResults.status.noSourceEvent', 'Choose an election source event first.');
+      render();
+      return false;
+    }
+    const opened = openFromSelection(state.projectIndex, 'events', sceneId, {
+      entry: {
+        source: 'Election Results',
+        action: 'open_selected_election_event',
+        selectedCanvasNode: sceneId
+      }
+    });
+    state.status = opened
+      ? t('electionResults.status.sourceOpened', 'Opened the selected election source in the Event editor.')
+      : t('electionResults.status.sourceOpenFailed', 'This election source needs more source evidence before Studio can edit it here.');
+    render();
+    return opened;
+  }
+
   function restoreStoryboardContextAfterDraftOpen(context, draft, branch) {
     state.storyboardView = String(context && context.view || '') === 'chain' ? 'chain' : 'timeline';
     state.storyCanvasCategory = normalizeStoryCanvasCategory(context && context.storyCanvasCategory);
@@ -2199,6 +2390,7 @@
     state.editorOverlay = true;
     state.values = {};
     state.valueOriginals = {};
+    resetStructureCommands();
     state.model = buildTemplateModel({values: state.values, source: 'Storyboard'});
   }
 
@@ -2237,16 +2429,27 @@
     const year = draftYear(base) || 1936;
     const id = uniqueDraftId('new_election_event_' + year);
     const title = t('electionResults.sample.eventTitle', 'New election results');
-    const option = {
+    const primaryOption = {
       id: 'continue_after_election',
       label: t('electionResults.sample.optionLabel', 'Continue after the election'),
       subtitle: '',
       chooseIf: '',
       unavailableText: '',
-      effects: [{variable: 'government_budget', op: '+=', value: 1, hook: 'choice', condition: ''}],
+      effects: [],
       narrativeParagraphs: [t('electionResults.sample.optionResult', 'The election result changes the political balance.')],
       variants: [],
       gotoAfter: 'post_election_followup'
+    };
+    const secondaryOption = {
+      id: 'review_election_balance',
+      label: t('electionResults.sample.optionLabelAlt', 'Review the coalition balance'),
+      subtitle: '',
+      chooseIf: '',
+      unavailableText: '',
+      effects: [],
+      narrativeParagraphs: [t('electionResults.sample.optionResultAlt', 'The result remains open for follow-up political choices.')],
+      variants: [],
+      gotoAfter: 'post_election_review'
     };
     return Object.assign({}, base, {
       id,
@@ -2255,7 +2458,7 @@
       seenFlag: id + '_seen',
       introParagraphs: [t('electionResults.sample.intro', 'Write the election result text here. Use the Election Results workspace to shape the chart, table, conditions, and consequences.')],
       effectsOnTrigger: [],
-      options: [option],
+      options: [primaryOption, secondaryOption],
       studioAuthoringContext: Object.assign({}, base.studioAuthoringContext || {}, context || {}, {
         workspace: 'content',
         surface: 'content_storyboard',
@@ -2360,6 +2563,7 @@
     state.editorOverlay = true;
     state.values = {};
     state.valueOriginals = {};
+    resetStructureCommands();
     state.baseDraft = null;
     state.deleteProposal = null;
     state.model = nextModel;
@@ -2436,6 +2640,74 @@
   function toggleBoardChrome(next) {
     state.boardChromeCollapsed = next === undefined ? !state.boardChromeCollapsed : Boolean(next);
     render();
+  }
+
+  function toggleObjectEditorPreviewExpanded(next) {
+    state.objectEditorPreviewExpanded = next === undefined ? !state.objectEditorPreviewExpanded : Boolean(next);
+    render();
+  }
+
+  function commitStructureCommand(target) {
+    const builder = target && typeof target.closest === 'function'
+      ? target.closest('[data-preview-object-structure-builder]')
+      : null;
+    if (!builder) {
+      return;
+    }
+    const scrollSnapshot = captureObjectCanvasScroll();
+    syncStructureBuilder(builder);
+    if (refreshTimer) {
+      clearTimeout(refreshTimer);
+      refreshTimer = null;
+    }
+    state.preserveScrollOnNextRefresh = false;
+    const output = builder.querySelector('[data-preview-object-structure-output]');
+    const value = output ? String(output.value || '').trim() : '';
+    if (!value) {
+      state.status = t('objectCanvas.status.structureCommandEmpty', 'Fill in the structure fields before adding it.');
+      updateDynamicSurfaces();
+      return;
+    }
+    const action = builder.dataset.previewObjectStructureBuilder || '';
+    const fieldId = builder.dataset.previewObjectStructureFieldId || output && output.dataset.objectCanvasField || '';
+    const command = {
+      id: 'structure_command_' + (++state.structureCommandCounter),
+      type: action,
+      action,
+      fieldId,
+      optionId: builder.dataset.previewObjectStructureOptionId || '',
+      sectionId: builder.dataset.previewObjectStructureSectionId || '',
+      targetLabel: builder.dataset.previewObjectStructureTargetLabel || '',
+      value,
+      mode: state.mode === 'existing' ? 'manual_review' : 'draft'
+    };
+    state.structureCommands = (state.structureCommands || []).concat(command);
+    state.values = collectValues();
+    if (fieldId) {
+      delete state.values[fieldId];
+      delete state.valueOriginals[fieldId];
+    }
+    clearStructureBuilder(builder);
+    state.model = state.mode === 'existing' ? buildExistingModel({values: state.values}) : buildTemplateModel({values: state.values});
+    state.status = t('objectCanvas.status.structureCommandQueued', 'Structure command added to the current proposal.');
+    render({scrollSnapshot});
+  }
+
+  function clearStructureBuilder(builder) {
+    if (!builder) {
+      return;
+    }
+    builder.querySelectorAll('[data-preview-object-structure-part]').forEach((input) => {
+      if (input.tagName === 'SELECT') {
+        input.selectedIndex = 0;
+      } else {
+        input.value = '';
+      }
+    });
+    const output = builder.querySelector('[data-preview-object-structure-output]');
+    if (output) {
+      output.value = '';
+    }
   }
 
   function reviewCurrentPlan() {
@@ -2561,11 +2833,19 @@
     if (action === 'add_option') {
       const label = String(parts.option_label || '').trim();
       const result = String(parts.result_text || '').trim();
+      const chooseIf = String(parts.choose_if || '').trim();
+      const unavailableText = String(parts.unavailable_text || '').trim();
       const target = String(parts.target_id || '').trim() || slugForStructure(label) || 'new_option';
-      if (!label && !result && !String(parts.target_id || '').trim()) {
+      if (!label && !result && !String(parts.target_id || '').trim() && !chooseIf && !unavailableText) {
         return '';
       }
-      return ['- @' + target + ': ' + (label || 'Player-facing option text'), '# ' + target, result || 'Result prose.'].join('\n');
+      return [
+        '- @' + target + ': ' + (label || 'Player-facing option text'),
+        '# ' + target,
+        chooseIf ? 'choose-if: ' + chooseIf : '',
+        unavailableText ? 'unavailable-subtitle: ' + unavailableText : '',
+        result || 'Result prose.'
+      ].filter(Boolean).join('\n');
     }
     if (action === 'add_branch') {
       const section = String(parts.section_id || '').trim() || 'follow_up';

@@ -132,6 +132,7 @@
     const data = isObject(values) ? values : {};
     const current = isObject(structure) ? structure : {};
     const commands = [];
+    queuedCommandsFromValues(data).forEach((command) => commands.push(command));
     pushFieldUpdateCommands(commands, data);
     pushTextCommand(commands, data, 'structure_add_option', 'add_option');
     pushTextCommand(commands, data, 'structure_add_branch', 'add_section');
@@ -141,7 +142,9 @@
       if (!text) {
         return;
       }
-      if (key.indexOf('structure_add_option_effect_') === 0) {
+      if (key.indexOf('structure_add_option_section_') === 0) {
+        commands.push({type: 'add_option', sectionId: key.slice('structure_add_option_section_'.length), value: text});
+      } else if (key.indexOf('structure_add_option_effect_') === 0) {
         commands.push({type: 'add_option_effect', optionId: key.slice('structure_add_option_effect_'.length), value: text});
       } else if (key.indexOf('structure_remove_option_condition_') === 0 && truthy(text)) {
         commands.push({type: 'remove_option_condition', optionId: key.slice('structure_remove_option_condition_'.length)});
@@ -156,6 +159,46 @@
       }
     });
     return commands.filter(Boolean);
+  }
+
+  function queuedCommandsFromValues(data) {
+    const raw = data && (data.__structureCommands || data.structure_commands || data.structureCommands);
+    const rows = Array.isArray(raw) ? raw : parseJsonArray(raw);
+    return rows.map(normalizeQueuedCommand).filter(Boolean);
+  }
+
+  function normalizeQueuedCommand(input) {
+    const value = isObject(input) ? input : {};
+    const type = stringValue(value.type || value.action);
+    if (!type) {
+      return null;
+    }
+    return {
+      id: stringValue(value.id),
+      type: type === 'add_branch' ? 'add_section' : type,
+      action: type,
+      fieldId: stringValue(value.fieldId),
+      optionId: stringValue(value.optionId),
+      sectionId: stringValue(value.sectionId),
+      targetId: stringValue(value.targetId),
+      targetLabel: stringValue(value.targetLabel),
+      effectIndex: value.effectIndex === undefined || value.effectIndex === null || value.effectIndex === '' ? null : Number(value.effectIndex),
+      value: stringValue(value.value),
+      sourceContext: isObject(value.sourceContext) ? clone(value.sourceContext) : null,
+      mode: stringValue(value.mode)
+    };
+  }
+
+  function parseJsonArray(value) {
+    if (typeof value !== 'string' || !value.trim()) {
+      return [];
+    }
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (err) {
+      return [];
+    }
   }
 
   function draftEventBody(structure) {
@@ -210,6 +253,23 @@
         help: 'Create a new player choice and the result text it opens.'
       }));
     }
+    ensureArray(structure.sections).forEach((section) => {
+      const sectionId = safeId(section && section.id || '');
+      if (!sectionId) {
+        return;
+      }
+      const sectionLabel = stringValue(section && (section.title || section.id || sectionId));
+      actions.push(structuralField({
+        id: 'structure_add_option_section_' + sectionId,
+        action: 'add_option',
+        sectionId,
+        label: 'Add option to section: ' + sectionLabel,
+        targetLabel: sectionLabel,
+        inputType: 'textarea',
+        placeholder: '- @new_option: Player-facing option text\n# new_option\nchoose-if: variable >= 1\nunavailable-subtitle: Requirement not met.\nResult prose, routes, and effects.',
+        help: 'Create a new player choice owned by this follow-up or menu section.'
+      }));
+    });
     actions.push(structuralField({
       id: 'structure_add_branch',
       action: 'add_branch',
@@ -348,10 +408,32 @@
         help: 'Add a new Q effect that should run when this object opens.'
       })
     ];
+    const sectionAdditions = new Set();
+    textBlocks.forEach((block) => {
+      const sectionId = stringValue(block && block.sectionId);
+      if (!sectionId || sectionAdditions.has(sectionId)) {
+        return;
+      }
+      sectionAdditions.add(sectionId);
+      const sectionLabel = stringValue(block && (block.sectionLabel || block.label || sectionId));
+      fields.push(structuralField({
+        id: 'structure_add_option_section_' + safeId(sectionId),
+        label: 'Add option to section: ' + sectionLabel,
+        action: 'add_option',
+        sceneId,
+        sectionId,
+        targetLabel: sectionLabel,
+        source: block && block.source || sceneSource,
+        inputType: 'textarea',
+        placeholder: '- @new_option: Player-facing option text\n# new_option\nchoose-if: variable >= 1\nunavailable-subtitle: Requirement not met.\nResult prose, routes, and effects.',
+        help: 'Draft a new option owned by this follow-up, menu, or result section.'
+      }));
+    });
     options.forEach((option) => {
       const optionId = stringValue(option && option.id);
       const optionLabel = stringValue(option && (option.label || optionId || 'option'));
       const optionKey = safeId(optionId || optionLabel);
+      const effectSource = effectSourceForOption(option, effects, options);
       fields.push(structuralField({
         id: 'structure_add_option_effect_' + optionKey,
         role: 'effect',
@@ -361,7 +443,7 @@
         sectionId: stringValue(option && (option.targetId || option.sectionId)),
         optionId,
         targetLabel: optionLabel,
-        source: option && option.source || sceneSource,
+        source: effectSource || option && option.source || sceneSource,
         inputType: 'text',
         placeholder: 'Q.variable += 1 if condition',
         help: 'Add a new Q effect that should run from this option/result.'
@@ -451,6 +533,38 @@
       }));
     });
     return fields;
+  }
+
+  function effectSourceForOption(option, effects, options) {
+    const matches = ensureArray(effects).filter((effect) => {
+      const owner = optionForSourceEffect(effect, options);
+      return owner && safeId(owner.id || owner.targetId || owner.rawTargetId || '') === safeId(option && (option.id || option.targetId || option.rawTargetId));
+    }).map((effect) => {
+      const source = sourceRef(effect && effect.source || {});
+      return source.path && source.anchorText ? Object.assign({}, source, {
+        sourceOrder: Number(effect && effect.sourceOrder || 0) || 0
+      }) : null;
+    }).filter(Boolean);
+    if (!matches.length) {
+      return null;
+    }
+    matches.sort((a, b) => {
+      const aOrder = Number(a.sourceOrder || 0) || 0;
+      const bOrder = Number(b.sourceOrder || 0) || 0;
+      if (aOrder !== bOrder) {
+        return aOrder - bOrder;
+      }
+      return Number(a.line || 0) - Number(b.line || 0);
+    });
+    const last = matches[matches.length - 1];
+    return {
+      path: last.path,
+      line: last.line,
+      startLine: last.startLine || last.line,
+      endLine: last.endLine || last.line,
+      anchorText: last.anchorText,
+      endAnchorText: last.endAnchorText || last.anchorText
+    };
   }
 
   function optionFromDraft(option, index, ownerSectionId) {
@@ -664,23 +778,28 @@
   }
 
   function addOption(structure, draft, command) {
+    const ownerSection = sectionById(structure, command && command.sectionId);
     const options = ensureArray(structure.options).filter((option) => !option.ownerSectionId);
-    if (options.length >= 4) {
+    if (!ownerSection && options.length >= 4) {
       return;
     }
     const id = uniqueId(structure, safeId(draft.target || draft.id || draft.label || 'new_option'));
-    structure.options = ensureArray(structure.options).concat({
+    const option = {
       id,
-      ownerSectionId: '',
+      ownerSectionId: ownerSection ? ownerSection.id : '',
       label: draft.label || 'New option',
       subtitle: '',
-      chooseIf: '',
-      unavailableText: '',
+      chooseIf: draft.chooseIf || '',
+      unavailableText: draft.unavailableText || '',
       gotoAfter: uniqueId(structure, 'continue_' + id),
       body: draft.result || 'Result prose.',
       effects: [],
       variants: []
-    });
+    };
+    structure.options = ensureArray(structure.options).concat(option);
+    if (ownerSection) {
+      ownerSection.options = ensureArray(ownerSection.options).concat(option);
+    }
     if (command && command.select) {
       structure.selectedId = id;
     }
@@ -857,10 +976,14 @@
     const first = lines.find((line) => /^\s*-\s*@[^:]+:/.test(line)) || '';
     const match = first.match(/^\s*-\s*@([^:]+):\s*(.*)$/);
     const section = lines.find((line) => /^\s*#\s*\S+/.test(line)) || '';
+    const chooseLine = lines.find((line) => /^\s*choose-if\s*:/i.test(line)) || '';
+    const unavailableLine = lines.find((line) => /^\s*unavailable-(?:subtitle|text)\s*:/i.test(line)) || '';
     const target = match && match[1] || (section.match(/^\s*#\s*(\S+)/) || [])[1] || '';
     const label = match && match[2] || '';
-    const result = lines.filter((line) => line !== first && line !== section).join('\n').trim();
-    return {target, label, result};
+    const chooseIf = chooseLine.replace(/^\s*choose-if\s*:\s*/i, '').trim();
+    const unavailableText = unavailableLine.replace(/^\s*unavailable-(?:subtitle|text)\s*:\s*/i, '').trim();
+    const result = lines.filter((line) => line !== first && line !== section && line !== chooseLine && line !== unavailableLine).join('\n').trim();
+    return {target, label, result, chooseIf, unavailableText};
   }
 
   function parseBranch(value) {

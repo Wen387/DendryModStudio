@@ -179,13 +179,26 @@ index.scenes.push({
         target: {kind: 'scene', id: 'rw_help'},
         title: 'Appeal to the Reichswehr.',
         sourceSpan: {path: complexPath, line: 12, startLine: 12, endLine: 12, anchorText: '- @rw_help: Appeal to the Reichswehr.', endAnchorText: '- @rw_help: Appeal to the Reichswehr.'}
+      }, {
+        id: '@army_backing',
+        target: {kind: 'scene', id: 'army_backing'},
+        sourceSpan: {path: complexPath, line: 13, startLine: 13, endLine: 13, anchorText: '- @army_backing', endAnchorText: '- @army_backing'}
       }]
     },
     {
       id: 'civil_war.rw_help',
+      title: 'Ask the Reichswehr for support.',
       maxVisits: '1',
-      sourceSpan: {path: complexPath, startLine: 15, endLine: 19},
+      sourceSpan: {path: complexPath, startLine: 15, endLine: 17},
       metadata: {$file: complexPath, $line: 15, maxVisits: {path: complexPath, line: 16}, goTo: {path: complexPath, line: 17}},
+      routes: {goTo: [{id: 'war_menu', raw: 'war_menu'}]},
+      options: []
+    },
+    {
+      id: 'civil_war.army_backing',
+      title: 'Ask the Army command for backing.',
+      sourceSpan: {path: complexPath, startLine: 18, endLine: 19},
+      metadata: {$file: complexPath, $line: 18},
       routes: {goTo: [{id: 'war_menu', raw: 'war_menu'}]},
       options: []
     },
@@ -228,6 +241,62 @@ index.semantic.textCorpus.items.push(
     editability: 'text_proposal',
     owner: {kind: 'scene', sceneId: 'civil_war', sectionId: 'civil_war.war_menu', itemId: 'rw_help'},
     source: {path: complexPath, line: 12, anchorText: '- @rw_help: Appeal to the Reichswehr.', endAnchorText: '- @rw_help: Appeal to the Reichswehr.'}
+  }
+);
+
+const inlinePath = 'source/scenes/events/inline_condition_conference.scene.dry';
+const inlineConditionalLine = 'The leadership of the [? if party_name != "CVP": <span style="color: #000000;">Center Party</span>?][? if party_name == "CVP": <span style="color: #000000;">**CVP**</span>?] meets tonight.';
+index.scenes.push({
+  id: 'inline_condition_conference',
+  title: '[? if party_name != "CVP": Center Party?][? if party_name == "CVP": CVP?] Conference',
+  path: inlinePath,
+  type: 'event',
+  tags: ['event'],
+  flags: {isCard: false, isPinnedCard: false},
+  options: [],
+  sections: [],
+  sourceSpan: {path: inlinePath, startLine: 1, endLine: 20},
+  topLevelSpan: {path: inlinePath, startLine: 1, endLine: 20},
+  metadata: {title: {path: inlinePath, line: 1}},
+  assetRefs: []
+});
+index.semantic.events.push({id: 'inline_condition_conference', title: '[? if party_name != "CVP": Center Party?][? if party_name == "CVP": CVP?] Conference', path: inlinePath, confidence: 'exact'});
+index.semantic.textCorpus.items.push(
+  {
+    id: 'inline_title',
+    text: '[? if party_name != "CVP": Center Party?][? if party_name == "CVP": CVP?] Conference',
+    role: 'title',
+    editability: 'text_proposal',
+    owner: {kind: 'scene', sceneId: 'inline_condition_conference'},
+    source: {path: inlinePath, line: 1, anchorText: 'title: ' + inlineConditionalLine, endAnchorText: 'title: ' + inlineConditionalLine}
+  },
+  {
+    id: 'inline_body_split',
+    text: 'The leadership of the  meets tonight.',
+    role: 'body',
+    editability: 'text_proposal',
+    owner: {kind: 'scene', sceneId: 'inline_condition_conference'},
+    hasInlineConditionals: true,
+    inlineConditions: ['party_name != "CVP"', 'party_name == "CVP"'],
+    source: {path: inlinePath, line: 8, anchorText: inlineConditionalLine, endAnchorText: inlineConditionalLine}
+  },
+  {
+    id: 'inline_body_center',
+    text: '<span style="color: #000000;">Center Party</span>',
+    role: 'conditional_body',
+    editability: 'text_proposal',
+    owner: {kind: 'scene', sceneId: 'inline_condition_conference'},
+    conditions: ['party_name != "CVP"'],
+    source: {path: inlinePath, line: 8, anchorText: inlineConditionalLine, endAnchorText: inlineConditionalLine}
+  },
+  {
+    id: 'inline_body_cvp',
+    text: '<span style="color: #000000;">**CVP**</span>',
+    role: 'conditional_body',
+    editability: 'text_proposal',
+    owner: {kind: 'scene', sceneId: 'inline_condition_conference'},
+    conditions: ['party_name == "CVP"'],
+    source: {path: inlinePath, line: 8, anchorText: inlineConditionalLine, endAnchorText: inlineConditionalLine}
   }
 );
 
@@ -530,26 +599,51 @@ assert(removeEffectField && removeEffectField.inputType === 'checkbox', 'existin
 const structureProposal = existingEdit.buildProposal(eventModel, {
   [addOptionField.id]: '- @public_meeting: Hold a public meeting.\\n# public_meeting\\nThe public meeting reframes the controversy.',
   [addTriggerEffectField.id]: 'Q.public_order += 2',
-  [addOptionEffectField.id]: 'Q.public_order -= 1 if public_order > 0',
+  [addOptionEffectField.id]: 'Q.public_order -= 1',
   [removeOptionField.id]: 'true',
   [removePrereqField.id]: 'true',
   [removeEffectField.id]: 'true'
 });
 assert(structureProposal.changes.length === 6, 'structural edits should become proposal changes');
-assert(structureProposal.changes.every((change) => change.editability === 'manual_review'), 'structural edits should stay manual-review');
+assert(structureProposal.changes.filter((change) => change.editability === 'manual_review').length === 5, 'broad structural edits should stay manual-review');
+assert(structureProposal.changes.some((change) => change.fieldId === addOptionEffectField.id && change.editability === 'guarded_apply' && change.operationType === 'insert_text'), 'simple source-backed option effects should become guarded source inserts');
 assert(structureProposal.changes.some((change) => change.after.includes('Add option and result layer proposal')), 'add-option proposal should explain the structural insertion');
 assert(structureProposal.changes.some((change) => change.after.includes('Remove option: Ban the film')), 'remove-option proposal should explain structural deletion');
 assert(structureProposal.changes.some((change) => change.before.includes('public_order >= 0') && change.after.includes('Remove prerequisite')), 'remove-prerequisite proposal should carry the deleted condition');
 assert(structureProposal.changes.some((change) => change.before.includes('Q.public_order += 1') && change.after.includes('Remove effect')), 'remove-effect proposal should carry the deleted effect');
 const structureBundle = existingEdit.buildExportBundle(structureProposal, index);
-assert(structureBundle.installPlan.operations.every((op) => op.type === 'manual_snippet'), 'structural changes should produce manual review snippets');
+assert(structureBundle.installPlan.operations.filter((op) => op.type === 'manual_snippet').length === 5, 'broad structural changes should produce manual review snippets');
+assert(structureBundle.installPlan.operations.some((op) => op.type === 'insert_text' && op.safety === 'guarded_apply' && op.content.includes('Q.public_order -= 1')), 'simple source-backed option-effect insertion should produce a guarded install operation');
 assert(structureBundle.proposalText.includes('Add trigger effect'), 'structural proposal preview should include effect creation');
+const singleLineEffectModel = Object.assign({}, eventModel, {
+  fields: [{
+    id: 'structure_add_option_effect_inline',
+    role: 'effect',
+    label: 'Add effect to option: Inline',
+    transform: 'structure_action',
+    structureAction: 'add_option_effect',
+    inputType: 'text',
+    source: {path: eventModel.source.path, line: 50, startLine: 50, endLine: 50, anchorText: 'on-arrival: rfb_banned = 1; hindenburg_angry -= 4', endAnchorText: 'on-arrival: rfb_banned = 1; hindenburg_angry -= 4'}
+  }]
+});
+const singleLineEffectProposal = existingEdit.buildProposal(singleLineEffectModel, {
+  structure_add_option_effect_inline: 'Q.resources += 2 if Q.flag'
+});
+assert(singleLineEffectProposal.changes[0].operationType === 'replace_text', 'single-line on-arrival option effects should append through guarded line replacement');
+assert(singleLineEffectProposal.changes[0].after === 'on-arrival: rfb_banned = 1; hindenburg_angry -= 4; resources += 2 if flag', 'single-line on-arrival append should preserve SDAAH shorthand syntax');
+const singleLineEffectBundle = existingEdit.buildExportBundle(singleLineEffectProposal, index);
+assert(singleLineEffectBundle.installPlan.operations[0].type === 'replace_text' && singleLineEffectBundle.installPlan.operations[0].safety === 'guarded_apply', 'single-line on-arrival option effects should become guarded replace_text operations');
 
 const complexModel = existingEdit.buildEditModel(index, 'events', 'civil_war');
 assert(complexModel.ok, 'single composite event model should build: ' + JSON.stringify(complexModel.diagnostics));
-assert(complexModel.options.length === 1, 'single composite event should expose section-owned options');
+assert(complexModel.options.length === 2, 'single composite event should expose section-owned options');
 assert(complexModel.options[0].targetId === 'civil_war.rw_help', 'section option target should resolve to the local section endpoint');
 assert(complexModel.options[0].rawTargetId === 'rw_help', 'section option should retain the editable raw target id');
+const nakedOption = complexModel.options.find((option) => option.rawTargetId === 'army_backing');
+assert(nakedOption && nakedOption.label === 'Ask the Army command for backing.' && nakedOption.labelSource === 'target_title', 'naked option lines should fall back to their target section title instead of generated Option labels');
+assert(complexModel.flow && complexModel.flow.summary.sectionCount >= 4, 'single composite event should expose a source-backed internal flow summary');
+assert(complexModel.flow.summary.optionEdgeCount === 2, 'flow summary should count section-owned option edges');
+assert(complexModel.flow.summary.conditionalRouteCount >= 1, 'flow summary should count conditional section routes');
 assert(complexModel.fields.some((field) => field.role === 'condition' && field.sectionId === 'civil_war.war_outcome' && field.original === 'war_choices >= 2'), 'section view-if should be exposed as editable logic context');
 assert(complexModel.fields.some((field) => field.id === 'structure_add_branch'), 'single composite event should expose add-layer structure action');
 const sectionGotoField = complexModel.fields.find((field) => field.role === 'route' && field.sectionId === 'civil_war.war_outcome' && field.original === 'defeat');
@@ -579,6 +673,104 @@ assert(stresemannOpening && stresemannOpening.original.includes('liberal movemen
 assert(stresemannBranch && stresemannBranch.conditions.length === 2, 'inline conditional alternatives should be grouped as conditional branch text');
 assert(stresemannBranch.conditionVariables.includes('dvp_leader'), 'conditional branch text should expose the variable it consumes');
 assert(stresemannBranch.logicContext && stresemannBranch.logicContext.reads.includes('dvp_leader'), 'conditional branch text should carry logic context for the editor');
+assert(stresemannBranch.conditionalAlternatives && stresemannBranch.conditionalAlternatives.length === 2, 'standalone conditional alternatives should remain inspectable as separate alternatives');
+
+const inlineModel = existingEdit.buildEditModel(index, 'events', 'inline_condition_conference');
+assert(inlineModel.ok, 'mixed inline conditional fixture should build: ' + JSON.stringify(inlineModel.diagnostics));
+assert(inlineModel.title.includes('Conference'), 'metadata title with inline conditionals should remain the object title');
+const inlineOpening = inlineModel.textBlocks.find((block) => block.semanticRole === 'opening_text');
+assert(inlineOpening && String(inlineOpening.original || '').trim() === inlineConditionalLine, 'mixed inline conditionals should stay as one source-line-aware opening block');
+assert(inlineOpening.hasInlineConditionals && inlineOpening.inlineConditions.length === 2, 'mixed inline block should carry inline conditional metadata');
+assert(!inlineModel.textBlocks.some((block) => block.semanticRole === 'conditional_text' && String(block.original || '').includes('Center Party')), 'mixed inline conditionals should not become standalone branch cards');
+
+const menuPath = 'source/scenes/events/menu_branch_fixture.scene.dry';
+index.scenes.push({
+  id: 'menu_branch_fixture',
+  title: 'Menu Branch Fixture',
+  path: menuPath,
+  type: 'event',
+  tags: ['event'],
+  flags: {isCard: false, isPinnedCard: false},
+  routes: {goTo: [{id: 'free_menu', raw: 'free_menu'}]},
+  options: [
+    optionFixture(menuPath, 14, 'result_menu', 'Open negotiations.')
+  ],
+  sections: [
+    {
+      id: 'menu_branch_fixture.free_menu',
+      title: 'Choose a tactic.',
+      sourceSpan: {path: menuPath, startLine: 20, endLine: 26},
+      metadata: {$file: menuPath, $line: 20},
+      routes: {},
+      options: [{
+        id: '@talk',
+        target: {kind: 'scene', id: 'talk'},
+        title: 'Talk.',
+        sourceSpan: {path: menuPath, line: 23, startLine: 23, endLine: 23, anchorText: '- @talk: Talk.', endAnchorText: '- @talk: Talk.'}
+      }, {
+        id: '@walk',
+        target: {kind: 'scene', id: 'walk'},
+        title: 'Walk away.',
+        sourceSpan: {path: menuPath, line: 24, startLine: 24, endLine: 24, anchorText: '- @walk: Walk away.', endAnchorText: '- @walk: Walk away.'}
+      }]
+    },
+    {
+      id: 'menu_branch_fixture.result_menu',
+      title: 'Negotiations open.',
+      sourceSpan: {path: menuPath, startLine: 30, endLine: 36},
+      metadata: {$file: menuPath, $line: 30},
+      routes: {},
+      options: [{
+        id: '@continue',
+        target: {kind: 'scene', id: 'continue'},
+        title: 'Continue.',
+        sourceSpan: {path: menuPath, line: 34, startLine: 34, endLine: 34, anchorText: '- @continue: Continue.', endAnchorText: '- @continue: Continue.'}
+      }]
+    }
+  ],
+  sourceSpan: {path: menuPath, startLine: 1, endLine: 40},
+  topLevelSpan: {path: menuPath, startLine: 1, endLine: 18},
+  metadata: {goTo: {path: menuPath, line: 5}, title: {path: menuPath, line: 1}},
+  assetRefs: []
+});
+index.semantic.events.push({id: 'menu_branch_fixture', title: 'Menu Branch Fixture', path: menuPath, confidence: 'exact'});
+index.semantic.textCorpus.items.push(
+  {
+    id: 'menu_branch_fixture_title',
+    text: 'Menu Branch Fixture',
+    role: 'title',
+    editability: 'text_proposal',
+    owner: {kind: 'scene', sceneId: 'menu_branch_fixture'},
+    source: {path: menuPath, line: 1}
+  },
+  {
+    id: 'menu_branch_fixture_free_menu_body',
+    text: 'This is a follow-up menu that owns choices but is not itself a choice result.',
+    role: 'body',
+    editability: 'text_proposal',
+    owner: {kind: 'scene', sceneId: 'menu_branch_fixture', sectionId: 'menu_branch_fixture.free_menu'},
+    source: {path: menuPath, line: 22}
+  },
+  {
+    id: 'menu_branch_fixture_result_menu_body',
+    text: 'The first choice opens this result and then presents another decision.',
+    role: 'body',
+    editability: 'text_proposal',
+    owner: {kind: 'scene', sceneId: 'menu_branch_fixture', sectionId: 'menu_branch_fixture.result_menu'},
+    source: {path: menuPath, line: 32}
+  }
+);
+
+const menuModel = existingEdit.buildEditModel(index, 'events', 'menu_branch_fixture');
+assert(menuModel.ok, 'menu branch fixture should build: ' + JSON.stringify(menuModel.diagnostics));
+const freeMenuBlock = menuModel.textBlocks.find((block) => block.sectionId === 'menu_branch_fixture.free_menu');
+const resultMenuBlock = menuModel.textBlocks.find((block) => block.sectionId === 'menu_branch_fixture.result_menu');
+assert(freeMenuBlock && freeMenuBlock.semanticRole === 'menu_section_text', 'a section that only owns choices should be a follow-up menu, not an option result');
+assert(freeMenuBlock.relatedOptionIds.length === 0, 'owned choices must not be treated as incoming options for menu-only sections');
+assert(freeMenuBlock.ownedOptionIds.length === 2, 'menu-only sections should expose the choices they own');
+assert(resultMenuBlock && resultMenuBlock.semanticRole === 'option_result_text', 'a section targeted by a choice should remain an option result');
+assert(resultMenuBlock.relatedOptionIds.includes('result_menu'), 'targeted result sections should preserve incoming option ids');
+assert(resultMenuBlock.ownedOptionIds.length === 1, 'option-result sections can also expose follow-up choices without duplicating their text');
 
 const dnvpModel = existingEdit.buildEditModel(index, 'events', 'dnvp_congress');
 assert(dnvpModel.ok, 'DNVP Congress model should build: ' + JSON.stringify(dnvpModel.diagnostics));

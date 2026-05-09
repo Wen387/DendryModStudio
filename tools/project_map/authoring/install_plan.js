@@ -425,6 +425,21 @@
     const after = String(value.after === undefined || value.after === null ? '' : value.after);
     const id = 'replace_existing_' + (index + 1);
     const label = String(value.label || value.role || 'field').trim();
+    if (value.operationType === 'insert_text' && existingSceneInsertCanGuard(value, path, line, after)) {
+      return {
+        id: 'insert_existing_' + (index + 1),
+        type: 'insert_text',
+        path,
+        line,
+        anchorText: value.anchorText || source.anchorText,
+        content: after.endsWith('\n') ? after : after + '\n',
+        position: value.position === 'before' ? 'before' : 'after',
+        dedupeSearch: value.dedupeSearch || after.trim(),
+        safety: 'guarded_apply',
+        role: 'existing_scene.structure_insert',
+        description: 'Insert existing ' + label + ' after confirming the source anchor and dedupe evidence still match.'
+      };
+    }
     if (value.operationType !== 'manual_snippet' && existingSceneSectionCanGuard(value, path, line, endLine, after)) {
       return {
         id,
@@ -486,6 +501,24 @@
       sourceLine > 0 &&
       (!Number.isInteger(sourceEndLine) || sourceEndLine <= 0 || sourceEndLine === sourceLine) &&
       String(before || '').trim() &&
+      String(after || '').trim()
+    );
+  }
+
+  function existingSceneInsertCanGuard(change, path, line, after) {
+    const value = isObject(change) ? change : {};
+    const rel = String(path || '').replace(/\\/g, '/');
+    const sourceLine = Number(line || 0);
+    const anchor = String(value.anchorText || (value.source && value.source.anchorText) || '').trim();
+    const dedupe = String(value.dedupeSearch || after || '').trim();
+    return Boolean(
+      rel.startsWith('source/scenes/') &&
+      rel.endsWith('.scene.dry') &&
+      !isProtectedRouterPath(rel) &&
+      Number.isInteger(sourceLine) &&
+      sourceLine > 0 &&
+      anchor &&
+      dedupe &&
       String(after || '').trim()
     );
   }

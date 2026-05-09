@@ -173,7 +173,7 @@
     if (!context || !context.ok) {
       return emptyCanvas('existing', diagnostic('warning', 'object_canvas.existing_unavailable', 'This object cannot be opened in the authoring Canvas yet.'), context);
     }
-    const body = eventBodyForExisting(context, projectIndex);
+    const body = eventBodyForExisting(context, projectIndex, opts.values || {});
     const output = context.output || {};
     return {
       schemaVersion: OBJECT_AUTHORING_CANVAS_VERSION,
@@ -287,7 +287,7 @@
     return 'event';
   }
 
-  function eventBodyForExisting(context, projectIndex) {
+  function eventBodyForExisting(context, projectIndex, values) {
     const editors = context.editors || {};
     const allEditors = ensureArray(editors.all);
     const sceneId = String(context && context.sceneId || '');
@@ -333,6 +333,7 @@
       backgroundEffects: backgroundEffectRowsForExisting(context),
       metaFields: ensureArray(editors.conditions).concat(ensureArray(editors.routes)),
       structureActions: ensureArray(editors.structureActions),
+      flow: context.flow || context.editModel && context.editModel.flow || {nodes: [], edges: [], summary: {}},
       effects: effectEditors.filter((editor) => !editor.optionId && !editor.sectionId),
       optionEffects: optionRows.map((option) => ({
         id: option.id,
@@ -341,10 +342,118 @@
       })).filter((group) => group.fields.length)
     };
     const structureApi = eventStructureApi();
-    if (structureApi && typeof structureApi.fromEditingContext === 'function' && typeof structureApi.toEventBody === 'function') {
-      return structureApi.toEventBody(structureApi.fromEditingContext(context, projectIndex, {body}));
+    const modeledBody = structureApi && typeof structureApi.fromEditingContext === 'function' && typeof structureApi.toEventBody === 'function'
+      ? structureApi.toEventBody(structureApi.fromEditingContext(context, projectIndex, {body}))
+      : body;
+    return bodyWithQueuedStructurePreviews(modeledBody, values);
+  }
+
+  function bodyWithQueuedStructurePreviews(body, values) {
+    const commands = queuedStructureCommands(values);
+    if (!commands.length) {
+      return body;
     }
-    return body;
+    const next = clone(body || {});
+    next.structureActions = ensureArray(next.structureActions).slice();
+    commands.forEach((command, index) => {
+      const field = queuedStructurePreviewField(next, command, index);
+      if (field) {
+        next.structureActions.push(field);
+      }
+    });
+    return next;
+  }
+
+  function queuedStructureCommands(values) {
+    const raw = values && (values.__structureCommands || values.structure_commands || values.structureCommands);
+    const rows = Array.isArray(raw) ? raw : parseJsonArray(raw);
+    return rows.map((row) => isObject(row) ? row : null).filter(Boolean);
+  }
+
+  function parseJsonArray(value) {
+    if (typeof value !== 'string' || !value.trim()) {
+      return [];
+    }
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (_err) {
+      return [];
+    }
+  }
+
+  function queuedStructurePreviewField(body, command, index) {
+    const action = normalizeStructureAction(command.action || command.type);
+    if (!action) {
+      return null;
+    }
+    const template = structureActionFieldForCommand(body, command, action) || {};
+    const id = safeId(command.id || command.fieldId || action + '_' + (index + 1));
+    const targetLabel = String(command.targetLabel || template.structureTargetLabel || template.label || '').trim();
+    const field = Object.assign({}, template, {
+      id,
+      fieldId: id,
+      original: /^remove_/.test(action) ? 'false' : '',
+      value: /^remove_/.test(action) ? 'true' : String(command.value || ''),
+      editability: 'manual_review',
+      status: 'manual',
+      transform: 'structure_action',
+      structureAction: action,
+      optionId: String(command.optionId || template.optionId || ''),
+      sectionId: String(command.sectionId || template.sectionId || ''),
+      structureTargetLabel: targetLabel,
+      inputType: /^remove_/.test(action) ? 'checkbox' : (template.inputType || (action === 'add_option' || action === 'add_branch' ? 'textarea' : 'text')),
+      readOnly: true,
+      isQueuedStructure: true,
+      queuedStructureCommandId: String(command.id || id)
+    });
+    if (!field.label) {
+      field.label = targetLabel || action.replace(/_/g, ' ');
+    }
+    return field;
+  }
+
+  function structureActionFieldForCommand(body, command, action) {
+    const fields = ensureArray(body && body.structureActions).filter((field) => String(field && field.transform || '') === 'structure_action' || field && field.structureAction);
+    const fieldId = String(command && command.fieldId || '').trim();
+    if (fieldId) {
+      const direct = fields.find((field) => String(field && field.id || '') === fieldId);
+      if (direct) {
+        return direct;
+      }
+    }
+    const optionId = safeCompareId(command && command.optionId);
+    const sectionId = safeCompareId(command && command.sectionId);
+    return fields.find((field) => {
+      if (normalizeStructureAction(field && field.structureAction) !== action) {
+        return false;
+      }
+      if (optionId && safeCompareId(field && field.optionId) !== optionId) {
+        return false;
+      }
+      if (sectionId && safeCompareId(field && field.sectionId) !== sectionId) {
+        return false;
+      }
+      return true;
+    }) || null;
+  }
+
+  function normalizeStructureAction(value) {
+    const text = String(value || '').trim();
+    if (text === 'add_section') {
+      return 'add_branch';
+    }
+    if (text === 'remove_section') {
+      return 'remove_layer';
+    }
+    if (text === 'remove_trigger_effect' || text === 'remove_option_effect') {
+      return 'remove_effect';
+    }
+    return text;
+  }
+
+  function safeCompareId(value) {
+    return String(value || '').trim().replace(/[^A-Za-z0-9_]+/g, '_').replace(/^_+|_+$/g, '');
   }
 
   function variableRowsForExisting(context) {
@@ -459,6 +568,7 @@
           chooseIf: option.chooseIf || '',
           sectionViewIf: option.sectionViewIf || '',
           sectionChooseIf: option.sectionChooseIf || '',
+          labelSource: option.labelSource || '',
           label: option.label || ('Option ' + (index + 1)),
           subtitle: option.subtitle || '',
           fields: fields.concat(resultFields),
@@ -481,8 +591,7 @@
     const optionIds = [
       option && option.id,
       option && option.rawTargetId,
-      option && option.targetId,
-      option && option.sectionId
+      option && option.targetId
     ].map(normalizeEndpointToken).filter(Boolean);
     if (editorIds.some((id) => optionIds.includes(id))) {
       return true;
@@ -859,7 +968,13 @@
     if (!isObject(values)) {
       return 0;
     }
-    return Object.keys(values).length;
+    return Object.keys(values).reduce((count, key) => {
+      if (key === '__structureCommands' || key === 'structure_commands' || key === 'structureCommands') {
+        const rows = Array.isArray(values[key]) ? values[key] : [];
+        return count + rows.length;
+      }
+      return count + 1;
+    }, 0);
   }
 
   function emptyCanvas(mode, extraDiagnostic, rawContext) {
