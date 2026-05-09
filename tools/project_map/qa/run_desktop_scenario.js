@@ -12,6 +12,7 @@ const REPO_ROOT = path.resolve(PROJECT_MAP_DIR, '..', '..');
 const DESKTOP_DIR = path.join(PROJECT_MAP_DIR, 'desktop');
 const DEFAULT_PROJECT_ROOT = path.join(PROJECT_MAP_DIR, 'fixtures', 'qa-mini');
 const DEFAULT_WRONG_PROJECT_ROOT = path.join(PROJECT_MAP_DIR, 'fixtures', 'generic-mini');
+const DEFAULT_DYNAMIC_PROJECT_ROOT = path.join(REPO_ROOT, 'SDAAHdynamic', 'dynamic_social_democracy-main');
 
 const SCENARIOS = {
   first_time_user: {
@@ -140,6 +141,25 @@ const SCENARIOS = {
     shortcuts: [
       'uses the packaged starter template and Electron DOM automation instead of manual clicking'
     ]
+  },
+  dynamic_mod_smoke: {
+    title: 'Player opens SDAAH Dynamic, audits existing editing, drafts new content, and dry-runs Dynamic-aware paths.',
+    run: scenarioDynamicModSmoke,
+    artifactBase: path.join(REPO_ROOT, '.studio-local', 'playtests', 'dynamic-mod-smoke'),
+    dialogRoots: ['dynamicProjectRoot'],
+    playerLike: [
+      'opens a real SDAAH Dynamic checkout through Quick Start',
+      'searches for a complex existing event',
+      'edits source-backed existing event prose through the unified Object Canvas',
+      'saves and reviews an existing_scene_edit plan',
+      'creates a new world event proposal',
+      'creates a Dynamic-tagged card proposal',
+      'dry-runs the Dynamic card create path without unsafe_path refusal'
+    ],
+    shortcuts: [
+      'uses a deterministic test dialog adapter for the local Dynamic fixture path',
+      'uses DOM automation for repeatability while keeping Review & Apply and dry-run real'
+    ]
   }
 };
 
@@ -148,6 +168,7 @@ function parseArgs(argv) {
     scenario: 'first_time_user',
     projectRoot: DEFAULT_PROJECT_ROOT,
     wrongProjectRoot: DEFAULT_WRONG_PROJECT_ROOT,
+    dynamicProjectRoot: path.resolve(process.env.DMS_DYNAMIC_FIXTURE_ROOT || process.env.DMS_SDAAH_FIXTURE_ROOT || DEFAULT_DYNAMIC_PROJECT_ROOT),
     headed: false,
     stepDelayMs: 0,
     timeoutMs: 30000,
@@ -163,7 +184,7 @@ function parseArgs(argv) {
       args.headed = true;
       continue;
     }
-    if (arg === '--scenario' || arg === '--project-root' || arg === '--wrong-project-root' || arg === '--artifact-dir' || arg === '--timeout-ms' || arg === '--step-delay-ms') {
+    if (arg === '--scenario' || arg === '--project-root' || arg === '--wrong-project-root' || arg === '--dynamic-project-root' || arg === '--artifact-dir' || arg === '--timeout-ms' || arg === '--step-delay-ms') {
       const value = argv[index + 1];
       if (!value || value.startsWith('--')) {
         throw new Error(arg + ' requires a value.');
@@ -175,6 +196,8 @@ function parseArgs(argv) {
         args.projectRoot = path.resolve(value);
       } else if (arg === '--wrong-project-root') {
         args.wrongProjectRoot = path.resolve(value);
+      } else if (arg === '--dynamic-project-root') {
+        args.dynamicProjectRoot = path.resolve(value);
       } else if (arg === '--artifact-dir') {
         args.artifactDir = path.resolve(value);
       } else if (arg === '--timeout-ms') {
@@ -210,6 +233,7 @@ function usage() {
     '  --list                         Print available scenarios as JSON.',
     '  --project-root <path>          Dendry project to open for the happy path.',
     '  --wrong-project-root <path>    Valid but different project for provenance refusal.',
+    '  --dynamic-project-root <path>  SDAAH Dynamic checkout for dynamic_mod_smoke.',
     '  --artifact-dir <path>          Directory for screenshots, logs, and QA ledger.',
     '  --timeout-ms <number>          Per-wait timeout. Defaults to 30000.',
     '  --step-delay-ms <number>       Slow visible scenario playback after key steps.',
@@ -843,6 +867,94 @@ async function scenarioLoadBundledDemoTemplate(win, args, artifactDir, log) {
   log('Variables show demo effect state', 'PASS', '04-demo-variable-inspector.png');
 }
 
+async function scenarioDynamicModSmoke(win, args, artifactDir, log) {
+  const dynamicRoot = args.dynamicProjectRoot;
+  if (!fs.existsSync(path.join(dynamicRoot, 'source', 'info.dry'))) {
+    throw new Error('dynamic_mod_smoke requires a Dynamic project root with source/info.dry: ' + dynamicRoot);
+  }
+  const timeoutMs = Math.max(args.timeoutMs, 90000);
+
+  await expectVisible(win, '#studio-onboarding', 'Quick Start overlay should be visible on first launch');
+  await screenshot(win, artifactDir, '01-quick-start-dynamic');
+  log('Quick Start appears for Dynamic smoke', 'PASS', '01-quick-start-dynamic.png');
+
+  await click(win, '#onboarding-primary');
+  await waitForHidden(win, '#studio-onboarding', 'Quick Start should close after opening Dynamic');
+  const loaded = await waitForProjectLoaded(win, dynamicRoot, timeoutMs);
+  if (!String(loaded.projectName || '').includes('Social Democracy')) {
+    throw new Error('Dynamic project did not load with the expected project name: ' + JSON.stringify(loaded));
+  }
+  await screenshot(win, artifactDir, '02-dynamic-loaded');
+  log('Dynamic project loads through Quick Start', 'PASS', JSON.stringify(loaded.summary || {}));
+
+  await click(win, '#mode-explore');
+  await click(win, '[data-view="events"]');
+  await fill(win, '#search', 'All Quiet');
+  await clickRowContaining(win, '#list [data-row-key]', 'All Quiet on the Western Front');
+  await expectText(win, '#inspector', 'All Quiet on the Western Front');
+  await screenshot(win, artifactDir, '03-dynamic-existing-event');
+  log('Explore selects a source-backed Dynamic event', 'PASS', '03-dynamic-existing-event.png');
+
+  await click(win, '#inspector [data-edit-existing]');
+  await expectVisible(win, '#existing-scene-editor-host [data-object-authoring-canvas="true"]', 'Dynamic existing event should open in Object Canvas');
+  await click(win, '#existing-scene-editor-host [data-object-canvas-action="toggle_overlay"]');
+  await expectVisible(win, '#existing-scene-editor-host [data-preview-object-editor="true"]', 'Dynamic existing object editor should open from the Storyboard');
+  await editFirstExistingLongTextField(win, 'As a Dynamic smoke-test edit, this copied event now records a bounded prose replacement.');
+  await expectText(win, '#existing-scene-editor-host', 'Dynamic smoke-test edit');
+  await screenshot(win, artifactDir, '04-dynamic-existing-editor');
+  log('Unified existing editor edits Dynamic source-backed prose', 'PASS', '04-dynamic-existing-editor.png');
+
+  await click(win, '#draft-workspace-save');
+  await expectText(win, '#draft-workspace-list', 'All Quiet on the Western Front');
+  await click(win, '#draft-workspace-list [data-draft-action="review"]');
+  await waitFor(win, () => evalInPage(win, () => {
+    const state = window.ProjectMapInstallAssistant && window.ProjectMapInstallAssistant.getState();
+    return Boolean(state && state.plan && state.plan.draftKind === 'existing_scene_edit');
+  }), 'Dynamic existing edit should review as existing_scene_edit');
+  await screenshot(win, artifactDir, '05-dynamic-existing-review');
+  log('Dynamic existing edit reviews as existing_scene_edit', 'PASS', '05-dynamic-existing-review.png');
+
+  await click(win, '#install-dry-run');
+  await expectDryRunWouldApply(win, 'Dynamic existing edit dry-run should produce a guarded operation');
+  await screenshot(win, artifactDir, '06-dynamic-existing-dry-run');
+  log('Dynamic existing edit dry-run succeeds', 'PASS', '06-dynamic-existing-dry-run.png');
+
+  await closeObjectEditorIfOpen(win);
+  await click(win, '#mode-create');
+  await click(win, '[data-create-template="event"]');
+  await fillDynamicSmokeWorldEvent(win);
+  await screenshot(win, artifactDir, '07-dynamic-new-event-proposal');
+  log('Dynamic new world event proposal renders', 'PASS', '07-dynamic-new-event-proposal.png');
+
+  await click(win, '#draft-workspace-save');
+  await expectText(win, '#draft-workspace-list', 'Dynamic smoke world event');
+  await click(win, '#draft-workspace-list [data-draft-action="review"]');
+  await expectInstallOperationPath(win, 'source/scenes/events/dms_dynamic_smoke_world_event.scene.dry');
+  await click(win, '#install-dry-run');
+  await expectDryRunWouldApply(win, 'Dynamic world event dry-run should produce would_apply operations');
+  await screenshot(win, artifactDir, '08-dynamic-new-event-dry-run');
+  log('Dynamic new world event dry-run succeeds', 'PASS', '08-dynamic-new-event-dry-run.png');
+
+  await click(win, '#mode-create');
+  await click(win, '[data-create-template="card"]');
+  await fillDynamicSmokeCard(win);
+  await screenshot(win, artifactDir, '09-dynamic-card-proposal');
+  log('Dynamic card proposal renders', 'PASS', '09-dynamic-card-proposal.png');
+
+  await click(win, '#draft-workspace-save');
+  await expectText(win, '#draft-workspace-list', 'Dynamic smoke card');
+  await click(win, '#draft-workspace-list [data-draft-action="review"]');
+  await waitFor(win, () => evalInPage(win, () => {
+    const state = window.ProjectMapInstallAssistant && window.ProjectMapInstallAssistant.getState();
+    const operation = state && state.plan && state.plan.operations && state.plan.operations.find((item) => item.id === 'create_scene');
+    return Boolean(operation && operation.type === 'create_file' && operation.path && operation.path.indexOf('source/scenes/') === 0);
+  }), 'Dynamic card review should expose a source/scenes create_file operation');
+  await click(win, '#install-dry-run');
+  await expectDryRunWouldApply(win, 'Dynamic card dry-run should not hit unsafe_path');
+  await screenshot(win, artifactDir, '10-dynamic-card-dry-run');
+  log('Dynamic card dry-run succeeds without unsafe_path refusal', 'PASS', '10-dynamic-card-dry-run.png');
+}
+
 async function scenarioRuntimePreviewEntryFlow(_win, args, artifactDir, log) {
   const {BrowserWindow} = require('electron');
   const core = require(path.join(DESKTOP_DIR, 'studio_core.js'));
@@ -1403,6 +1515,71 @@ async function fillIslandStyleJusticeNews(win) {
   await fill(win, '#news-description', 'A Justice Party local office invites labor organizers and climate groups into a joint campaign committee, testing whether a small party can turn issue overlap into durable support.');
 }
 
+async function fillDynamicSmokeWorldEvent(win) {
+  await openObjectCanvasDraft(win, 'event', {
+    id: 'dms_dynamic_smoke_world_event',
+    title: 'Dynamic smoke world event',
+    heading: 'A Dynamic smoke proposal reaches review',
+    year: 1930,
+    monthStart: 2,
+    monthEnd: 2,
+    requires: 'started = 1',
+    priority: 0,
+    intro: 'A player writes a small Dynamic-style monthly popup and expects Studio to explain the resulting source changes before anything is applied.',
+    options: [
+      {
+        id: 'acknowledge_dynamic_report',
+        label: 'Acknowledge the report',
+        subtitle: 'Keep the Dynamic edit modest.',
+        effects: [{variable: 'resources', op: '-=', value: 1}],
+        body: 'The party records the report and checks that Review & Apply stays bounded to the copied Dynamic project.'
+      },
+      {
+        id: 'defer_dynamic_report',
+        label: 'Defer the matter',
+        subtitle: 'Leave the route for later.',
+        body: 'The proposal remains visible without forcing source changes before review.'
+      }
+    ]
+  });
+  await expectText(win, '#existing-scene-editor-host', 'Dynamic smoke world event');
+}
+
+async function fillDynamicSmokeCard(win) {
+  await openObjectCanvasDraft(win, 'card', {
+    kind: 'card',
+    id: 'dms_dynamic_smoke_card',
+    cardKind: 'action_card',
+    title: 'Dynamic smoke card',
+    heading: 'Dynamic smoke card',
+    tags: ['party_affairs'],
+    priority: 1,
+    frequency: 100,
+    subtitle: 'A temporary Dynamic card proposal for path safety.',
+    introParagraphs: ['The card verifies that Dynamic project-specific scene folders can be reviewed and dry-run safely.'],
+    options: [
+      {
+        id: 'organize_dynamic_meeting',
+        label: 'Organize a small meeting',
+        subtitle: 'Spend one resource on party work.',
+        chooseIf: 'resources >= 1',
+        unavailableText: 'Resources are too low.',
+        effects: [{variable: 'resources', op: '-=', value: 1}],
+        narrativeParagraphs: ['A small meeting leaves a bounded source-level trace in the copied Dynamic fixture.'],
+        gotoAfter: 'root'
+      },
+      {
+        id: 'wait_dynamic_card',
+        label: 'Wait',
+        subtitle: 'Avoid spending resources.',
+        narrativeParagraphs: ['Nothing changes beyond the reviewed card proposal.'],
+        gotoAfter: 'root'
+      }
+    ]
+  });
+  await expectText(win, '#existing-scene-editor-host', 'Dynamic smoke card');
+}
+
 async function fillPersistentWorldEventDraft(win) {
   await fill(win, '#wizard-id', 'qa_persistent_event');
   await fill(win, '#wizard-title', 'QA persistent event');
@@ -1466,17 +1643,28 @@ async function waitForPageReady(win, timeoutMs) {
 }
 
 async function click(win, selector) {
-  const ok = await evalInPage(win, (targetSelector) => {
-    const element = document.querySelector(targetSelector);
+  const result = await evalInPage(win, (targetSelector) => {
+    const isVisible = (candidate) => {
+      if (!candidate) {
+        return false;
+      }
+      const rect = candidate.getBoundingClientRect();
+      const style = window.getComputedStyle(candidate);
+      return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden' && !candidate.hidden;
+    };
+    const element = Array.from(document.querySelectorAll(targetSelector)).find(isVisible) || document.querySelector(targetSelector);
     if (!element) {
-      return false;
+      return {ok: false, reason: 'missing'};
+    }
+    if (element.disabled || element.getAttribute('aria-disabled') === 'true') {
+      return {ok: false, reason: 'disabled'};
     }
     element.scrollIntoView({block: 'center', inline: 'center'});
     element.click();
-    return true;
+    return {ok: true};
   }, selector);
-  if (!ok) {
-    throw new Error('Could not click selector: ' + selector);
+  if (!result || !result.ok) {
+    throw new Error('Could not click selector: ' + selector + (result && result.reason ? ' (' + result.reason + ')' : ''));
   }
 }
 
@@ -1518,6 +1706,58 @@ async function dispatchStoryboardPointerClick(win, cardKey) {
   if (!result || !result.ok) {
     throw new Error('Could not dispatch Storyboard pointer click for ' + cardKey + ': ' + JSON.stringify(result));
   }
+}
+
+async function clickIfExists(win, selector) {
+  return evalInPage(win, (targetSelector) => {
+    const isVisible = (candidate) => {
+      if (!candidate) {
+        return false;
+      }
+      const rect = candidate.getBoundingClientRect();
+      const style = window.getComputedStyle(candidate);
+      return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden' && !candidate.hidden;
+    };
+    const element = Array.from(document.querySelectorAll(targetSelector)).find(isVisible);
+    if (!element || element.disabled || element.getAttribute('aria-disabled') === 'true') {
+      return false;
+    }
+    element.scrollIntoView({block: 'center', inline: 'center'});
+    element.click();
+    return true;
+  }, selector);
+}
+
+async function closeObjectEditorIfOpen(win) {
+  await clickIfExists(win, '#existing-scene-editor-host [data-object-editing-modal] [data-object-canvas-action="toggle_overlay"]');
+  await evalInPage(win, () => {
+    if (!document.querySelector('#existing-scene-editor-host [data-object-editing-modal]')) {
+      return true;
+    }
+    if (window.ProjectMapObjectAuthoringCanvas && typeof window.ProjectMapObjectAuthoringCanvas.toggleEditorOverlay === 'function') {
+      window.ProjectMapObjectAuthoringCanvas.toggleEditorOverlay(false);
+      return true;
+    }
+    return false;
+  });
+  await waitFor(win, () => evalInPage(win, () => !document.querySelector('#existing-scene-editor-host [data-object-editing-modal]')), 'Object editor modal should close before switching templates');
+}
+
+async function openObjectCanvasDraft(win, template, draft) {
+  const ok = await evalInPage(win, (nextTemplate, nextDraft) => {
+    const api = window.ProjectMapObjectAuthoringCanvas || window.ProjectMapEditingWorkspace;
+    if (!api || typeof api.openTemplate !== 'function') {
+      return false;
+    }
+    return Boolean(api.openTemplate(nextTemplate, nextDraft, {source: 'QA dynamic smoke'}));
+  }, template, draft);
+  if (!ok) {
+    throw new Error('Could not open Object Canvas draft for template: ' + template);
+  }
+  await waitFor(win, () => evalInPage(win, (nextTemplate) => {
+    const api = window.ProjectMapObjectAuthoringCanvas || window.ProjectMapEditingWorkspace;
+    return Boolean(api && typeof api.activeTemplate === 'function' && api.activeTemplate() === nextTemplate);
+  }, template), 'Object Canvas should activate template: ' + template);
 }
 
 async function fill(win, selector, value) {
@@ -1874,6 +2114,31 @@ async function expectFieldContains(win, selector, expected) {
   }, selector, expected), 'Expected field ' + selector + ' to contain "' + expected + '"');
 }
 
+async function expectDryRunWouldApply(win, message) {
+  await waitFor(win, async () => {
+    return evalInPage(win, () => {
+      const state = window.ProjectMapInstallAssistant && window.ProjectMapInstallAssistant.getState();
+      const result = state && state.lastResult;
+      return Boolean(result && result.dryRun === true && Array.isArray(result.results));
+    });
+  }, message || 'Dry-run should produce an install result');
+  const dryRunResult = await evalInPage(win, () => {
+    const state = window.ProjectMapInstallAssistant && window.ProjectMapInstallAssistant.getState();
+    return state && state.lastResult;
+  });
+  if (!dryRunResult || dryRunResult.ok !== true || !dryRunResult.results.some((item) => item.status === 'would_apply')) {
+    throw new Error((message || 'Dry-run did not succeed') + ': ' + JSON.stringify(dryRunResult));
+  }
+}
+
+async function expectInstallOperationPath(win, expectedPath) {
+  await waitFor(win, () => evalInPage(win, (pathText) => {
+    const state = window.ProjectMapInstallAssistant && window.ProjectMapInstallAssistant.getState();
+    const operations = state && state.plan && Array.isArray(state.plan.operations) ? state.plan.operations : [];
+    return operations.some((operation) => String(operation.path || '') === pathText);
+  }, expectedPath), 'Install plan should include operation path: ' + expectedPath);
+}
+
 async function replaceExistingFieldByOriginal(win, original, replacement) {
   const ok = await evalInPage(win, (originalText, replacementText) => {
     const field = Array.from(document.querySelectorAll('#existing-scene-editor-host [data-existing-field], #existing-scene-editor-host [data-editing-field]')).find((input) => {
@@ -1890,6 +2155,76 @@ async function replaceExistingFieldByOriginal(win, original, replacement) {
   }, original, replacement);
   if (!ok) {
     throw new Error('Could not find existing scene field with original text: ' + original);
+  }
+}
+
+async function editFirstExistingFieldContaining(win, needle, replacement) {
+  const ok = await evalInPage(win, (needleText, replacementText) => {
+    const field = Array.from(document.querySelectorAll('#existing-scene-editor-host [data-existing-field], #existing-scene-editor-host [data-existing-block], #existing-scene-editor-host [data-editing-field]')).find((input) => {
+      return String(input.value || '').includes(needleText);
+    });
+    if (!field) {
+      return false;
+    }
+    field.scrollIntoView({block: 'center', inline: 'center'});
+    field.value = replacementText;
+    field.dispatchEvent(new Event('input', {bubbles: true}));
+    field.dispatchEvent(new Event('change', {bubbles: true}));
+    return true;
+  }, needle, replacement);
+  if (!ok) {
+    throw new Error('Could not find existing scene field containing: ' + needle);
+  }
+}
+
+async function editFirstExistingLongTextField(win, replacement) {
+  const result = await evalInPage(win, (replacementText) => {
+    const fields = Array.from(document.querySelectorAll('#existing-scene-editor-host [data-object-editing-modal] [data-object-canvas-field], #existing-scene-editor-host [data-preview-object-editor] [data-object-canvas-field]'))
+      .filter((field) => ['INPUT', 'TEXTAREA', 'SELECT'].includes(field.tagName));
+    const isVisible = (field) => {
+      if (!field || field.disabled || field.readOnly) {
+        return false;
+      }
+      const rect = field.getBoundingClientRect();
+      const style = window.getComputedStyle(field);
+      return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+    };
+    const chosen = fields.find((field) => {
+      const value = String(field.value || '');
+      return isVisible(field) && field.type !== 'hidden' && field.type !== 'checkbox' && (field.tagName === 'TEXTAREA' || value.length >= 80);
+    });
+    if (!chosen) {
+      const host = document.querySelector('#existing-scene-editor-host');
+      const activeMode = document.querySelector('[data-mode].is-active');
+      return {
+        ok: false,
+        fieldCount: fields.length,
+        activeMode: activeMode && activeMode.getAttribute('data-mode') || '',
+        hostHidden: host ? Boolean(host.hidden || host.classList.contains('hidden')) : true,
+        hostText: host ? String(host.textContent || '').slice(0, 240) : '',
+        hostHtml: host ? String(host.innerHTML || '').slice(0, 240) : '',
+        samples: fields.slice(0, 8).map((field) => String(field.value || field.textContent || '').slice(0, 80))
+      };
+    }
+    chosen.scrollIntoView({block: 'center', inline: 'center'});
+    if (typeof chosen.focus === 'function') {
+      chosen.focus();
+    }
+    chosen.value = replacementText;
+    chosen.dispatchEvent(new InputEvent('input', {bubbles: true, inputType: 'insertText', data: replacementText}));
+    chosen.dispatchEvent(new Event('change', {bubbles: true}));
+    if (window.ProjectMapObjectAuthoringCanvas && typeof window.ProjectMapObjectAuthoringCanvas.refresh === 'function') {
+      window.ProjectMapObjectAuthoringCanvas.refresh();
+    }
+    return {
+      ok: true,
+      key: chosen.dataset && chosen.dataset.objectCanvasField || '',
+      tag: chosen.tagName,
+      value: chosen.value
+    };
+  }, replacement);
+  if (!result || !result.ok) {
+    throw new Error('Could not find a visible long existing scene field. State: ' + JSON.stringify(result || {}));
   }
 }
 

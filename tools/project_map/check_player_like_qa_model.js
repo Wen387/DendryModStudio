@@ -36,6 +36,7 @@ function read(filePath) {
   path.join(SCENARIO_DIR, 'load_bundled_demo_template.md'),
   path.join(SCENARIO_DIR, 'justice_party_template_mod.md'),
   path.join(SCENARIO_DIR, 'runtime_preview_entry_flow.md'),
+  path.join(SCENARIO_DIR, 'dynamic_mod_smoke.md'),
   path.join(QA_FIXTURE, 'source', 'info.dry'),
   path.join(QA_FIXTURE, 'source', 'scenes', 'root.scene.dry'),
   path.join(QA_FIXTURE, 'source', 'scenes', 'generic_intro.scene.dry'),
@@ -52,6 +53,7 @@ const persistenceScenarioCard = read(path.join(SCENARIO_DIR, 'draft_persistence_
 const demoScenarioCard = read(path.join(SCENARIO_DIR, 'load_bundled_demo_template.md'));
 const justicePartyScenarioCard = read(path.join(SCENARIO_DIR, 'justice_party_template_mod.md'));
 const runtimePreviewScenarioCard = read(path.join(SCENARIO_DIR, 'runtime_preview_entry_flow.md'));
+const dynamicSmokeScenarioCard = read(path.join(SCENARIO_DIR, 'dynamic_mod_smoke.md'));
 const rootScene = read(path.join(QA_FIXTURE, 'source', 'scenes', 'root.scene.dry'));
 const postEvent = read(path.join(QA_FIXTURE, 'source', 'scenes', 'post_event.scene.dry'));
 
@@ -67,6 +69,7 @@ const postEvent = read(path.join(QA_FIXTURE, 'source', 'scenes', 'post_event.sce
   'load_bundled_demo_template',
   'justice_party_template_mod',
   'runtime_preview_entry_flow',
+  'dynamic_mod_smoke',
   'Runtime preview support is visible',
   'waitForGameText',
   'demo_support',
@@ -208,9 +211,24 @@ assert(
     runtimePreviewScenarioCard.includes('Runtime preview support is visible'),
   'Runtime Preview scenario card should cover first route click and sidebar/status change'
 );
+assert(
+  runner.includes('dynamic_mod_smoke') &&
+    runner.includes('--dynamic-project-root') &&
+    runner.includes('existing_scene_edit') &&
+    runner.includes('unsafe_path'),
+  'runner should include Dynamic Mod smoke scenario with Dynamic root, existing edit, and card path refusal coverage'
+);
+assert(
+  dynamicSmokeScenarioCard.includes('Persona:') &&
+    dynamicSmokeScenarioCard.includes('Required checkpoints:') &&
+    dynamicSmokeScenarioCard.includes('All Quiet on the Western Front') &&
+    dynamicSmokeScenarioCard.includes('Dynamic `party_affairs` Card') &&
+    dynamicSmokeScenarioCard.includes('unsafe_path'),
+  'Dynamic Mod scenario card should cover real Dynamic existing event and card path safety'
+);
 
 process.stdout.write(JSON.stringify({
   ok: true,
-  scenarioCount: 7,
+  scenarioCount: 8,
   runner: path.relative(REPO, RUNNER)
 }, null, 2) + '\n');

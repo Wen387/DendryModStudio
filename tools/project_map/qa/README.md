@@ -14,6 +14,7 @@ node tools/project_map/qa/run_desktop_scenario.js --scenario draft_persistence_r
 node tools/project_map/qa/run_desktop_scenario.js --scenario load_bundled_demo_template
 node tools/project_map/qa/run_desktop_scenario.js --scenario justice_party_template_mod
 node tools/project_map/qa/run_desktop_scenario.js --scenario runtime_preview_entry_flow
+node tools/project_map/qa/run_desktop_scenario.js --scenario dynamic_mod_smoke --dynamic-project-root /path/to/SDAAHdynamic
 ```
 
 By default it writes artifacts under `/tmp/dendry_mod_studio_qa/<run-id>/`.
@@ -112,6 +113,16 @@ Each run contains:
    workspace.
 6. The preview shows changed sidebar/status text after the choice.
 
+`dynamic_mod_smoke` covers a real SDAAH Dynamic checkout:
+
+1. Quick Start opens Dynamic through the player-facing Open Project action.
+2. Explore finds and opens an existing source-backed event in Object Canvas.
+3. The existing edit saves and reviews as `existing_scene_edit`.
+4. A small Dynamic-style World Event proposal renders and dry-runs.
+5. A Dynamic-tagged Card proposal renders and dry-runs.
+6. The Card dry-run confirms project-specific `source/scenes/*/` card folders
+   are not refused as unsafe paths.
+
 ## Shortcuts
 
 The runner uses a deterministic test dialog adapter for native folder
@@ -141,6 +152,11 @@ copy, screenshots, and ledger can be inspected locally without entering git.
 `.studio-local/playtests/runtime-preview-entry-flow/` and uses the packaged
 Starter Demo plus Electron DOM automation to check the real generated game UI.
 
+`dynamic_mod_smoke` writes under `.studio-local/playtests/dynamic-mod-smoke/`.
+It expects a local Dynamic checkout, passed with `--dynamic-project-root` or
+`DMS_DYNAMIC_FIXTURE_ROOT`. The scenario can take longer than mini-fixture runs
+because Dynamic has hundreds of scenes and thousands of variables.
+
 Do not treat these runs as full manual QA. They are repeatable smoke paths that
 find UI/runtime regressions before a human spends time on fresh package QA.
 
@@ -154,6 +170,7 @@ journey.
 node tools/project_map/qa/run_desktop_scenario.js --list
 node tools/project_map/qa/run_desktop_scenario.js --scenario first_time_user --headed
 node tools/project_map/qa/run_desktop_scenario.js --scenario justice_party_template_mod --headed --step-delay-ms 1200
+node tools/project_map/qa/run_desktop_scenario.js --scenario dynamic_mod_smoke --dynamic-project-root /path/to/SDAAHdynamic --timeout-ms 90000
 node tools/project_map/qa/run_desktop_scenario.js --artifact-dir /tmp/my-dms-qa
 ```
 

@@ -332,6 +332,7 @@
           type: 'create_file',
           path: options.suggestedPath || 'source/scenes/cards/' + id + '.scene.dry',
           content: options.scene || '',
+          sceneKind: options.cardKind === 'advisor_like' ? 'advisor_like' : 'card',
           safety: 'safe_apply',
           description: 'Create the exported card scene.'
         },
@@ -1029,6 +1030,9 @@
       if (!rel.endsWith('.scene.dry')) {
         return {ok: false, message: 'create_file safe apply is limited to .scene.dry files: ' + rel};
       }
+      if (isCardSceneCreate(operation, rel)) {
+        return {ok: true, message: 'Safe card create_file may use a project-specific source/scenes subdirectory.'};
+      }
       if (
         rel.startsWith('source/scenes/events/') ||
         rel.startsWith('source/scenes/decks/') ||
@@ -1129,6 +1133,17 @@
 
   function safeOperationPermission(operation, relative) {
     return operationPermission(operation, relative, 'safe_apply');
+  }
+
+  function isCardSceneCreate(operation, rel) {
+    const sceneKind = String(operation && (operation.sceneKind || operation.objectKind || '') || '').trim();
+    if (sceneKind !== 'card' && sceneKind !== 'advisor_like') {
+      return false;
+    }
+    if (!rel.startsWith('source/scenes/') || !rel.endsWith('.scene.dry')) {
+      return false;
+    }
+    return !isProtectedRouterPath(rel);
   }
 
   function applyCreateFile(fs, path, target, operation, dryRun, diagnostics) {

@@ -643,6 +643,7 @@ DMS_SDAAH_FIXTURE_ROOT=/path/to/SDAAH node tools/project_map/check_sdaah_install
 
 `check_sdaah_install_write_smoke.js` copies the SDAAH checkout to
 `/tmp/dms_sdaah_install_write_*`, builds a ProjectIndex for the copy, then
-dry-runs and applies Event / SDAAH monthly news-as-event / Card / source-backed
-Surface Text / Text Corpus / existing event / guarded event-chain edits there.
+dry-runs and applies Event / SDAAH monthly news-as-event / Card / Text Corpus /
+existing event / guarded event-chain edits there, and verifies status/sidebar
+Surface Text remains a manual System UI boundary.
 It verifies the original SDAAH checkout remains unchanged.

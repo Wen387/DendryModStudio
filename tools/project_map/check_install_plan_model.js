@@ -715,6 +715,40 @@ const unsafeApply = installPlan.applyInstallPlan(unsafePlan, {projectRoot: tmpRo
 assert(!unsafeApply.ok, 'out/html safe operation should be refused');
 assert(unsafeApply.diagnostics.some((diag) => diag.code === 'install_plan.unsafe_path'), 'unsafe path should produce unsafe_path diagnostic');
 
+const customCardPathPlan = installPlan.buildInstallPlan({
+  id: 'custom_card_path',
+  draftKind: 'card',
+  operations: [
+    {
+      id: 'create_scene',
+      type: 'create_file',
+      path: 'source/scenes/government_affairs/custom_card_path.scene.dry',
+      content: 'title: Custom Card Path\nis-card: true\n',
+      sceneKind: 'card',
+      safety: 'safe_apply'
+    }
+  ]
+});
+const customCardPathDryRun = installPlan.applyInstallPlan(customCardPathPlan, {projectRoot: tmpRoot, dryRun: true});
+assert(customCardPathDryRun.ok, 'card create_file should allow project-specific source/scenes subdirectories when the operation is tagged as a card scene');
+
+const untaggedCustomCardPathPlan = installPlan.buildInstallPlan({
+  id: 'untagged_custom_card_path',
+  draftKind: 'test',
+  operations: [
+    {
+      id: 'create_scene',
+      type: 'create_file',
+      path: 'source/scenes/government_affairs/untagged_custom_card_path.scene.dry',
+      content: 'title: Untagged Custom Card Path\n',
+      safety: 'safe_apply'
+    }
+  ]
+});
+const untaggedCustomCardPathDryRun = installPlan.applyInstallPlan(untaggedCustomCardPathPlan, {projectRoot: tmpRoot, dryRun: true});
+assert(!untaggedCustomCardPathDryRun.ok, 'untagged create_file should not open arbitrary project-specific scene subdirectories');
+assert(untaggedCustomCardPathDryRun.diagnostics.some((diag) => diag.code === 'install_plan.unsafe_path'), 'untagged custom card path refusal should use unsafe_path diagnostic');
+
 [
   ['root', 'source/scenes/root.scene.dry', 'ROOT_LABEL'],
   ['post_event', 'source/scenes/post_event.scene.dry', 'POST_EVENT_LABEL'],

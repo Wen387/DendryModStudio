@@ -137,8 +137,14 @@
   function bindTemplateEvents(document) {
     document.addEventListener('ProjectMap:create-template-changed', (event) => {
       const template = event && event.detail && event.detail.template;
+      const source = event && event.detail && event.detail.source || '';
       if (isCanvasTemplate(template)) {
         if (templateMatchesExistingView(template)) {
+          if (source === 'authoring-workspace') {
+            openTemplateFromCreate(template, {forceNew: true});
+            scheduleTemplateReconcile(document);
+            return;
+          }
           scheduleTemplateReconcile(document);
           return;
         }
@@ -156,6 +162,7 @@
         schedule(() => {
           if (token === templateClickToken) {
             if (templateMatchesExistingView(clickedTemplate)) {
+              openTemplateFromCreate(clickedTemplate, {forceNew: true});
               scheduleTemplateReconcile(document);
               return;
             }
@@ -611,9 +618,10 @@
     return Boolean(state.model && state.model.ok);
   }
 
-  function openTemplateFromCreate(template) {
+  function openTemplateFromCreate(template, options) {
     const nextTemplate = normalizeTemplate(template) || 'event';
-    if (templateMatchesExistingView(nextTemplate)) {
+    const opts = options && typeof options === 'object' ? options : {};
+    if (!opts.forceNew && templateMatchesExistingView(nextTemplate)) {
       showWorkspace(nextTemplate);
       return;
     }

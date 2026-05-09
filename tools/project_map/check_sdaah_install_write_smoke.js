@@ -167,14 +167,16 @@ function findTextCorpusItem(index, sceneId, textStart) {
 function applySurfaceText(index, copyRoot) {
   const item = findSurfaceItem(index, 'Government', 'source/scenes/status.scene.dry');
   assert(item, 'SDAAH index should expose source-backed status surface text');
+  const original = read(path.join(copyRoot, 'source', 'scenes', 'status.scene.dry'));
   const draftResult = draftExtract.textReplacementDraftFromItem(index, 'surfaceText', item.id, {
     replacementText: 'Government (Studio Smoke)'
   });
   assert(draftResult.ok, 'surface text extraction should produce a draft');
   const bundle = surfaceDraft.buildExportBundle(draftResult.draft, index);
-  assert(bundle.installPlan.operations[0].type === 'replace_text', 'source-backed surface text should produce replace_text');
-  dryRunThenApply(bundle.installPlan, copyRoot, 'surface text');
-  assert(read(path.join(copyRoot, 'source', 'scenes', 'status.scene.dry')).includes('= Government (Studio Smoke)'), 'surface text apply should update status.scene.dry');
+  const applied = installPlan.applyInstallPlan(bundle.installPlan, {projectRoot: copyRoot, dryRun: false});
+  assert(applied.ok, 'status surface text proposal should not fail');
+  assert(applied.results[0].status === 'manual_review', 'status/sidebar surface text should stay manual_review and route through System UI review');
+  assert(read(path.join(copyRoot, 'source', 'scenes', 'status.scene.dry')) === original, 'manual status surface text proposal must not mutate status.scene.dry');
 }
 
 function applyHtmlSurfaceManualCheck(index, copyRoot) {
@@ -260,8 +262,10 @@ assert(newsScene.includes('tags: event'), 'SDAAH news-as-event scene should be r
 
 const cardBundle = cardDraft.buildExportBundle(cardSmokeDraft(), index);
 assert(cardBundle.ok, 'card bundle should validate: ' + JSON.stringify(cardBundle.diagnostics));
+const cardCreate = cardBundle.installPlan.operations.find((operation) => operation.id === 'create_scene');
+assert(cardCreate && cardCreate.path && cardCreate.path.startsWith('source/scenes/'), 'card bundle should choose a source/scenes path for Dynamic card routes');
 dryRunThenApply(cardBundle.installPlan, copyRoot, 'card');
-assert(fs.existsSync(path.join(copyRoot, 'source', 'scenes', 'cards', 'dms_sdaah_smoke_card.scene.dry')), 'card apply should create card scene');
+assert(fs.existsSync(path.join(copyRoot, cardCreate.path)), 'card apply should create card scene at the suggested Dynamic-aware path');
 
 applySurfaceText(index, copyRoot);
 applyHtmlSurfaceManualCheck(index, copyRoot);
