@@ -21,6 +21,12 @@ __pycache__/
 *.log
 .DS_Store
 
+# Local fixture/project checkouts
+SDAAH/
+SDAAHdynamic/
+SDAAHDynamic/
+social_democracy_alternate_history-main/
+
 # Local agent/session notes
 .studio-local/
 .codex
