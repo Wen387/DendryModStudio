@@ -9,7 +9,7 @@
 
 Dendry Mod Studio is a preview desktop tool for exploring, reviewing, and safely editing Dendry / DendryNexus projects. It helps authors inspect scenes, events, cards, news, variables, assets, player-facing text, and install plans before changing project files.
 
-The current preview version is `v0.9.3`. Release builds are unsigned, so Windows may show a SmartScreen warning. Desktop release artifacts include the Python runtime used by the project indexer.
+The current preview version is `v0.9.65`. Release builds are unsigned, so Windows may show a SmartScreen warning. Desktop release artifacts include the Python runtime used by the project indexer.
 
 ## Download
 
@@ -46,8 +46,8 @@ source/info.dry
 
 The following community mods are known to work with Dendry and can be opened in the Studio. Compatibility varies — see Known Issues for details.
 
-- [Social Democracy: An Alternate History](https://github.com/aucchen/social_democracy_alternate_history) (original,well tested)
-- [Dynamic Social Democracy](https://github.com/originn0/dynamic_social_democracy) (partial tested)
+- [Social Democracy: An Alternate History](https://github.com/aucchen/social_democracy_alternate_history) (original, well tested)
+- [Dynamic Social Democracy](https://github.com/originn0/dynamic_social_democracy) (stress-tested, partial support)
 - [2 Steps, 1 Leap](https://github.com/passionario/2steps_1leap)
 - [Social Democracy Redux](https://github.com/cuttlecraft/social_democracy_redux)
 - [Biennio Rosso: An Alternate History](https://github.com/AwesDes/biennio_rosso_alternate_history)
@@ -70,7 +70,9 @@ The following are known limitations in the current preview. If you encounter any
 
 **Incomplete language switching.** The Studio supports both English and Chinese, but switching languages mid-session may leave some UI text unrefreshed. If you see mixed-language labels after switching, restart the app. Most text is dynamically rendered, but some static strings may have been missed — if you spot one, please report it so it can be fixed.
 
-**Fragile event editing.** The Studio edits existing game events by pattern-matching against source code and inferring replacement targets. This heuristic approach means edit operations can misfire, especially on non-standard code structures. Expect bugs in this area; always review install plans carefully before applying changes.
+**Heuristic event editing.** The Studio can inspect and edit more SDAAH-style event structures than earlier previews, including many options, option results, effects, follow-up sections, and inline conditional text. It still relies on source-backed parsing and safety checks, so non-standard code structures can misfire or fall back to manual review. Always review install plans carefully before applying changes.
+
+**D3 election-result support is specialized.** SDAAH-style `d3.parliament` result screens can be detected and previewed, but this is not a universal election editor. Presidential elections, narrative election events, and heavily custom renderers should usually be treated as normal events or manual-review work.
 
 **Uneven mod support.** The Studio is developed and tested primarily against the original SDAAH and one unreleased first-party mod. Third-party mods that follow similar coding conventions to the original game will likely work, but compatibility is not guaranteed. If you hit a mod-specific issue, please include the mod name and version in your report — this information is often essential for diagnosis. Mods with highly idiosyncratic coding patterns may never be fully supported by the Studio; for these cases, direct source editing in an IDE remains the recommended workflow.
 
@@ -78,9 +80,10 @@ The following are known limitations in the current preview. If you encounter any
 
 ## What It Can Do
 
-- Explore scenes, events, cards, news, variables, assets, and diagnostics.
+- Explore scenes, events, cards, news, variables, assets, system UI surfaces, and diagnostics.
 - Use Design view to inspect story flow and related content.
-- Create proposal-first changes for supported event, card, text, news, asset, sidebar, and metadata workflows.
+- Create proposal-first changes for supported event, card, text, news, asset, sidebar, system UI, election-result, and metadata workflows.
+- Inspect and propose edits for many SDAAH-style composite events, including player options, option results, effects, conditions, and follow-up sections.
 - Review install plans before applying changes.
 - Dry-run safe changes in the desktop app.
 - Build Runtime Preview comparisons from temporary project copies.
@@ -98,7 +101,7 @@ Open a GitHub Issue at [github.com/Wen387/DendryModStudio/issues](https://github
 
 A good report helps reproduce the problem. Try to cover as many of these as you can:
 
-1. **Studio version** — shown in the app's About or title bar (e.g. `v0.9.3`).
+1. **Studio version** — shown in the app's About or title bar (e.g. `v0.9.65`).
 2. **Operating system** — Windows 10, Windows 11, Ubuntu, etc.
 **Hardware specs** (if relevant) — CPU, RAM, and disk type (SSD/HDD). Particularly useful for performance-related reports such as slow loading or preview timeouts.
 3. **Desktop or browser mode.**
@@ -177,7 +180,7 @@ npm run smoke
 npm run doctor
 ```
 
-Additional engineering notes live in [tools/project_map/README.md](tools/project_map/README.md). Release preparation notes live in [docs/releases/v0.9.3-dev-preview.md](docs/releases/v0.9.3-dev-preview.md), and tester-facing preview notes live in [tools/project_map/RELEASE_NOTES_v0.9.3.md](tools/project_map/RELEASE_NOTES_v0.9.3.md).
+Additional engineering notes live in [tools/project_map/README.md](tools/project_map/README.md). Release preparation notes live in [docs/releases/v0.9.65-dev-preview.md](docs/releases/v0.9.65-dev-preview.md), and tester-facing preview notes live in [tools/project_map/RELEASE_NOTES_v0.9.65.md](tools/project_map/RELEASE_NOTES_v0.9.65.md).
 
 ## Release Builds
 
