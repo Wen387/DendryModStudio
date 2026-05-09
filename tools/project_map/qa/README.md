@@ -156,6 +156,11 @@ Starter Demo plus Electron DOM automation to check the real generated game UI.
 It expects a local Dynamic checkout, passed with `--dynamic-project-root` or
 `DMS_DYNAMIC_FIXTURE_ROOT`. The scenario can take longer than mini-fixture runs
 because Dynamic has hundreds of scenes and thousands of variables.
+This is a real-project pressure smoke, not a generic compatibility proof:
+generic routing, preview, and install-safety invariants should be covered by the
+model checks and `check_dynamic_mod_audit.js` comparison table, while specific
+objects such as Dynamic events or card folders are only sample coverage for the
+SDAAH-style profile.
 
 Do not treat these runs as full manual QA. They are repeatable smoke paths that
 find UI/runtime regressions before a human spends time on fresh package QA.

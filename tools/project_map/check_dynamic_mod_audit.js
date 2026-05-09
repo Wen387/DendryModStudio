@@ -193,18 +193,55 @@ function round(value) {
   return Number.isFinite(value) ? Math.round(value * 10000) / 10000 : 0;
 }
 
+function assertGenericCompatibility(summaries) {
+  summaries.forEach((summary) => {
+    assert(summary.profiles.length > 0, summary.id + ' should be assigned at least one parser/profile id', summary);
+    assert(summary.counts.scenes > 0, summary.id + ' should expose at least one source scene', summary.counts);
+    assert(summary.coverage.total > 0, summary.id + ' should produce visible-object coverage rows', summary.coverage);
+    assert(summary.coverage.routeCoverage === 1, summary.id + ' visible objects should stay routed to a Studio surface', summary.coverage);
+    assert(summary.coverage.previewCoverage > 0, summary.id + ' should keep at least some previewable content', summary.coverage);
+    assert(summary.coverage.unsupportedCount === 0, summary.id + ' should not produce unsupported visible-object rows', summary.coverage);
+  });
+}
+
+function assertDynamicPressureSample(dynamic) {
+  assert(dynamic.profiles.includes('sdaah-style'), 'Dynamic fixture should be detected as sdaah-style', dynamic.profiles);
+  assert(dynamic.counts.scenes >= 400, 'Dynamic fixture should exercise a large scene corpus', dynamic.counts);
+  assert(dynamic.counts.monthlyPopups >= 100, 'Dynamic fixture should expose monthly event popups', dynamic.counts);
+}
+
 const built = FIXTURES.map(buildIndex);
 const summaries = built.map(summarizeIndex);
 const dynamic = summaries.find((item) => item.id === 'dynamic-mod');
 
-assert(dynamic.profiles.includes('sdaah-style'), 'Dynamic fixture should be detected as sdaah-style', dynamic.profiles);
-assert(dynamic.counts.scenes >= 400, 'Dynamic fixture should exercise a large scene corpus', dynamic.counts);
-assert(dynamic.counts.monthlyPopups >= 100, 'Dynamic fixture should expose monthly event popups', dynamic.counts);
-assert(dynamic.coverage.routeCoverage === 1, 'Dynamic visible object route coverage should remain complete', dynamic.coverage);
+assertGenericCompatibility(summaries);
+assertDynamicPressureSample(dynamic);
 
 process.stdout.write(JSON.stringify({
   ok: true,
   dynamicRoot: DYNAMIC_ROOT,
+  scope: {
+    genericCompatibility: {
+      fixtures: summaries.map((item) => item.id),
+      assertions: [
+        'ProjectIndex builds from source/info.dry',
+        'parser/profile detection is non-empty',
+        'visible-object coverage has no unsupported rows',
+        'visible objects keep complete Studio routing',
+        'at least some content remains previewable'
+      ]
+    },
+    dynamicPressureSample: {
+      fixture: 'dynamic-mod',
+      root: DYNAMIC_ROOT,
+      assertions: [
+        'SDAAH-style profile detection',
+        'large real scene corpus',
+        'SDAAH-style monthly popup corpus'
+      ],
+      note: 'These assertions are intentionally project-profile specific and should not be read as generic Dendry compatibility guarantees.'
+    }
+  },
   comparison: summaries.map((item) => ({
     id: item.id,
     project: item.project,
@@ -213,6 +250,8 @@ process.stdout.write(JSON.stringify({
     coverage: {
       routeCoverage: item.coverage.routeCoverage,
       safeEditCoverage: item.coverage.safeEditCoverage,
+      previewCoverage: item.coverage.previewCoverage,
+      unsupportedCount: item.coverage.unsupportedCount,
       goalW: item.coverage.goalW,
       goalX: item.coverage.goalX,
       manualBoundaryCount: item.coverage.manualBoundaryCount,
