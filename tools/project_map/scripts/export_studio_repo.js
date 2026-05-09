@@ -145,7 +145,7 @@ function sanitizeExport(destRoot, commit) {
   const updateManifest = readJson(manifestPath);
   updateManifest.downloadUrl = 'https://github.com/' + TARGET_REPO + '/releases';
   updateManifest.releaseNotesUrl =
-    'https://raw.githubusercontent.com/' + TARGET_REPO + '/main/tools/project_map/RELEASE_NOTES_v0.9.3.md';
+    'https://raw.githubusercontent.com/' + TARGET_REPO + '/main/tools/project_map/RELEASE_NOTES_v0.9.6.md';
   writeJson(manifestPath, updateManifest);
 
   const profilePath = path.join(destRoot, 'tools/project_map/profiles/islands-sunrise.json');

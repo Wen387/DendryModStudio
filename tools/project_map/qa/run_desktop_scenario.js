@@ -433,7 +433,7 @@ function electronEntry() {
     configured: true,
     disabled: true,
     shouldNotify: false,
-    currentVersion: '0.9.3',
+    currentVersion: '0.9.6',
     reason: 'guided_ui_qa_offline'
   }));
   ipcMain.handle('dendry:open-external-url', async () => ({ok: true, opened: false, reason: 'guided_ui_qa_offline'}));
