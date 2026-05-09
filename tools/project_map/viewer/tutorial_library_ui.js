@@ -12,6 +12,16 @@
       ]
     },
     {
+      id: 'dev-preview',
+      titleKey: 'tutorial.article.devPreview.title',
+      titleFallback: 'Dev Preview status',
+      bodyKeys: [
+        ['tutorial.article.devPreview.body', 'This is a Dev Preview, not a finished editor. Studio is still in active feature development, and some workflows may move, break, or need redesign as real projects show what the first design missed.'],
+        ['tutorial.article.devPreview.body2', 'The project is not yet ready to shift from new feature development into mostly polish and repair. Please expect bugs, confusing UI, parser mistakes, and places where Studio asks for manual review instead of doing the edit automatically.'],
+        ['tutorial.article.devPreview.body3', 'I will keep improving it, but reports and suggestions are part of the work. When something feels wrong, please include your OS, Studio version, the mod or project, what you tried, what you expected, what happened, and any useful screenshot or source path.']
+      ]
+    },
+    {
       id: 'mode-buttons',
       titleKey: 'tutorial.article.modes.title',
       titleFallback: 'Explore, Design, Create, and Install',

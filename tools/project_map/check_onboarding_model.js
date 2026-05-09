@@ -56,6 +56,7 @@ assert(onboardingUi.includes('ProjectMapOnboarding'), 'onboarding UI should expo
 assert(onboardingUi.includes('data-onboarding-close'), 'onboarding UI should support explicit close actions');
 assert(onboardingUi.includes('openStarterDemo'), 'onboarding UI should call the desktop starter demo bridge');
 assert(tutorialUi.includes('ProjectMapTutorialLibrary'), 'tutorial library UI should expose a small browser API');
+assert(tutorialUi.includes('dev-preview'), 'tutorial library should define a Dev Preview status article');
 assert(tutorialUi.includes('what-is-ide'), 'tutorial library should define an IDE article');
 assert(tutorialUi.includes('sdaah-style'), 'tutorial library should define an SDAAH-style article');
 assert(tutorialUi.includes('variables-in-sdaah'), 'tutorial library should explain how SDAAH-like variables are used');
@@ -70,6 +71,7 @@ assert(tutorialUi.includes('faq-ide-project'), 'tutorial library should explain 
 assert(tutorialUi.includes('profile-compatibility'), 'tutorial library should explain profile compatibility before tester release');
 assert(tutorialUi.includes('compatibility-open-source'), 'tutorial library should define compatibility and open-source guidance');
 [
+  'dev-preview',
   'tags-event',
   'mode-buttons',
   'faq-export-open-diagnostics',
@@ -87,6 +89,9 @@ assert(i18nUi.includes("'onboarding.demoNote'"), 'onboarding bundled demo note s
 assert(i18nUi.includes("'onboarding.primary.desktop'"), 'desktop primary action should be localized');
 assert(i18nUi.includes("'onboarding.primary.browser'"), 'browser primary action should be localized');
 [
+  'tutorial.article.devPreview.body',
+  'tutorial.article.devPreview.body2',
+  'tutorial.article.devPreview.body3',
   'tutorial.article.ide.title',
   'tutorial.article.sdaah.body',
   'tutorial.article.variables.selector.body',
