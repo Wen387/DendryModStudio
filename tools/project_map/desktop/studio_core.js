@@ -37,6 +37,9 @@ function resolveResourcePaths(options) {
   const backendProjectMapDir = fs.existsSync(path.join(resourceProjectMapDir, 'build_project_map.py'))
     ? resourceProjectMapDir
     : projectMapDir;
+  const parserProjectMapDir = fs.existsSync(path.join(packagedProjectMapDir, 'parse_dry_project.js'))
+    ? packagedProjectMapDir
+    : backendProjectMapDir;
   const templateProjectMapDir = fs.existsSync(path.join(resourceProjectMapDir, 'templates', STARTER_DEMO_ID, 'source', 'info.dry'))
     ? resourceProjectMapDir
     : projectMapDir;
@@ -45,7 +48,7 @@ function resolveResourcePaths(options) {
     projectMapDir,
     viewerDir: path.join(projectMapDir, 'viewer'),
     viewerIndex: path.join(projectMapDir, 'viewer', 'index.html'),
-    parser: path.join(backendProjectMapDir, 'parse_dry_project.js'),
+    parser: path.join(parserProjectMapDir, 'parse_dry_project.js'),
     indexer: path.join(backendProjectMapDir, 'build_project_map.py'),
     templatesDir: path.join(templateProjectMapDir, 'templates'),
     starterDemoTemplate: path.join(templateProjectMapDir, 'templates', STARTER_DEMO_ID),

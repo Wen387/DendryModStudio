@@ -36,9 +36,12 @@ module.exports = {
   },
   files: [
     ...fastInstall.files,
+    fileSet('..', 'project_map', ['parse_dry_project.js']),
     fileSet('../../../node_modules', 'node_modules', trimFilter)
   ],
-  extraResources: fastInstall.extraResources.filter((entry) => entry.from !== '../../../node_modules'),
+  extraResources: fastInstall.extraResources.filter((entry) => {
+    return entry.from !== '../../../node_modules' && entry.from !== '../parse_dry_project.js';
+  }),
   win: {
     ...fastInstall.win,
     artifactName: 'DendryModStudio-win-x64-deps-in-asar.${ext}'
