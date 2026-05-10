@@ -31,10 +31,11 @@ package layout.
 
 2026-05-01 desktop release workflow note: GitHub Actions now has a
 tag/manual release workflow for Linux AppImage, Linux Deb, and Windows NSIS
-`.exe` builds through `electron-builder`. The builder config keeps `asar`
-disabled so the
-Python runtime, Python indexer, bundled Starter Demo, Project Map resources,
-and DendryNexus runtime files remain available through normal filesystem paths.
+`.exe` builds through `electron-builder`. The builder config packs
+Electron-readable app files, browser resources, the parser wrapper, and root
+`node_modules` into `app.asar`, while keeping the Python runtime, Python
+indexer, profiles, and bundled Starter Demo as loose resources available
+through normal filesystem paths.
 These artifacts are still unsigned dev-preview packages; Windows may show
 SmartScreen warnings, but users should not need to install Python separately.
 
@@ -61,8 +62,13 @@ builder as the development checkout.
 
 2026-05-10 Windows install performance experiment: branch
 `exp-windows-install-performance` adds a non-release `fast-install` Windows
-builder config and measurement helpers. The experiment keeps the normal
-`dist:win` release config unchanged, and adds:
+builder config and measurement helpers. The experiment identified loose root
+`node_modules` as the main Defender/installation slowdown, so the normal
+`dist:win` release config now uses the `deps-in-asar` layout:
+
+- `npm run dist:win`: builds the normal Windows NSIS installer with
+  `node_modules` and `parse_dry_project.js` packed into `app.asar`; Python,
+  templates, profiles, and the Python indexer remain loose resources.
 
 - `npm run dist:win:fast-install`: builds a Windows NSIS variant under
   `dist-builder/fast-install/` with `asar` enabled for Electron-readable app
@@ -77,13 +83,12 @@ builder config and measurement helpers. The experiment keeps the normal
   package is not release-ready; it exists to isolate whether Defender is mainly
   spending time scanning the Python runtime payload.
 - `npm run dist:win:no-node-modules`: builds a diagnostic-only Windows
-  installer under `dist-builder/no-node-modules/` without bundled Python or the
-  copied root `node_modules`. This isolates whether the remaining Defender cost
-  is mostly from packaged JavaScript dependencies.
+  installer under `dist-builder/no-node-modules/` without bundled Python or root
+  `node_modules`. This isolates whether the remaining Defender cost is mostly
+  from packaged JavaScript dependencies.
 - `npm run dist:win:deps-in-asar`: builds a Windows diagnostic installer under
-  `dist-builder/deps-in-asar/` with root `node_modules` packed into `app.asar`
-  instead of written as loose resources. This tests the likely fix for Defender
-  slowdowns while keeping the bundled Python runtime and DendryNexus modules.
+  `dist-builder/deps-in-asar/` using the same resource layout as normal
+  `dist:win`, but with a distinct artifact name for before/after comparisons.
 - `npm run dist:win:shell-only`: builds a diagnostic-only Windows installer
   under `dist-builder/shell-only/` with only the Electron shell and minimal
   startup support files. This estimates the unsigned Electron + NSIS baseline

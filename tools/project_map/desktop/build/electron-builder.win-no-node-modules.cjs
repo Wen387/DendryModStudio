@@ -9,7 +9,7 @@ module.exports = {
     ...noPython.directories,
     output: 'dist-builder/no-node-modules'
   },
-  extraResources: noPython.extraResources.filter((entry) => entry.from !== '../../../node_modules'),
+  files: noPython.files.filter((entry) => entry.from !== '../../../node_modules'),
   win: {
     ...noPython.win,
     artifactName: 'DendryModStudio-win-x64-no-node-modules.${ext}'

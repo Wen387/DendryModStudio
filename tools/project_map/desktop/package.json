@@ -36,7 +36,7 @@
     "appId": "studio.dendry.mod",
     "productName": "Dendry Mod Studio",
     "artifactName": "DendryModStudio-${os}-${arch}.${ext}",
-    "asar": false,
+    "asar": true,
     "directories": {
       "output": "dist-builder"
     },
@@ -53,32 +53,77 @@
       "update_manifest.json",
       "package.json",
       "scripts/**",
-      "assets/**"
-    ],
-    "extraResources": [
+      "assets/**",
       {
         "from": "../viewer",
-        "to": "app/project_map/viewer"
+        "to": "project_map/viewer",
+        "filter": [
+          "**/*",
+          "!**/__pycache__/**",
+          "!**/*.pyc",
+          "!**/*.map"
+        ]
       },
       {
         "from": "../authoring",
-        "to": "app/project_map/authoring"
+        "to": "project_map/authoring",
+        "filter": [
+          "**/*",
+          "!**/__pycache__/**",
+          "!**/*.pyc",
+          "!**/*.map"
+        ]
       },
+      {
+        "from": "../schema",
+        "to": "project_map/schema",
+        "filter": [
+          "**/*",
+          "!**/__pycache__/**",
+          "!**/*.pyc",
+          "!**/*.map"
+        ]
+      },
+      {
+        "from": "..",
+        "to": "project_map",
+        "filter": [
+          "parse_dry_project.js"
+        ]
+      },
+      {
+        "from": "../../../node_modules",
+        "to": "node_modules",
+        "filter": [
+          "**/*",
+          "!**/.git/**",
+          "!**/.github/**",
+          "!**/__pycache__/**",
+          "!**/*.pyc",
+          "!**/coverage/**",
+          "!**/doc/**",
+          "!**/docs/**",
+          "!**/example/**",
+          "!**/examples/**",
+          "!**/test/**",
+          "!**/tests/**",
+          "!**/*.map",
+          "!**/*.md",
+          "!**/*.markdown",
+          "!**/.jshint*",
+          "!**/.npmignore",
+          "!**/package-lock.json"
+        ]
+      }
+    ],
+    "extraResources": [
       {
         "from": "../profiles",
         "to": "app/project_map/profiles"
       },
       {
-        "from": "../schema",
-        "to": "app/project_map/schema"
-      },
-      {
         "from": "../templates",
         "to": "app/project_map/templates"
-      },
-      {
-        "from": "../parse_dry_project.js",
-        "to": "app/project_map/parse_dry_project.js"
       },
       {
         "from": "../build_project_map.py",
@@ -91,10 +136,6 @@
       {
         "from": "runtime",
         "to": "app/runtime"
-      },
-      {
-        "from": "../../../node_modules",
-        "to": "app/node_modules"
       }
     ],
     "linux": {
