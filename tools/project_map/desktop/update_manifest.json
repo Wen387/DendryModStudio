@@ -10,10 +10,10 @@
     "en": "Dendry Mod Studio v0.9.66 is available",
     "zh-Hant": "Dendry Mod Studio v0.9.66 已可下載"
   },
-  "body": "v0.9.66 keeps the v0.9.65 editing scope and improves Windows installer performance by packing JavaScript dependencies into app.asar.",
+  "body": "v0.9.66 is a development-preview update for real mod-authoring workflows, with better composite event editing, D3 parliament result previews, and Story Palette filtering. It also optimizes Windows first-time install and update install speed.",
   "bodyLocalized": {
-    "en": "v0.9.66 keeps the v0.9.65 editing scope and improves Windows installer performance by packing JavaScript dependencies into app.asar.",
-    "zh-Hant": "v0.9.66 延續 v0.9.65 的編輯範圍，並透過將 JavaScript 依賴打包進 app.asar 來改善 Windows 安裝速度。"
+    "en": "v0.9.66 is a development-preview update for real mod-authoring workflows, with better composite event editing, D3 parliament result previews, and Story Palette filtering. It also optimizes Windows first-time install and update install speed.",
+    "zh-Hant": "v0.9.66 是面向真實 Mod 創作流程的開發預覽更新，改善了複合事件編輯、D3 議會結果預覽與素材欄篩選，並優化 Windows 初次安裝與更新安裝速度。"
   },
   "details": "This is still a preview build, not a finished editor. Please keep backups of real projects and review every install plan before applying changes.\n\nThe update notice system is informational only: Studio will open download, release-note, or feedback links only after you choose them.",
   "detailsLocalized": {
@@ -31,15 +31,15 @@
         "en": "v0.9.66 preview release is ready",
         "zh-Hant": "v0.9.66 預覽版已發布"
       },
-      "body": "This update focuses on Windows installer performance while preserving the v0.9.65 editing and preview feature set.",
+      "body": "This update focuses on making the Studio more useful for real SDAAH-style mod work: complex events, safer existing-event proposals, D3 parliament result previews, and cleaner browsing. v0.9.66 also optimizes Windows first-time install and update install speed.",
       "bodyLocalized": {
-        "en": "This update focuses on Windows installer performance while preserving the v0.9.65 editing and preview feature set.",
-        "zh-Hant": "這次更新重點是改善 Windows 安裝速度，同時保留 v0.9.65 的編輯與預覽功能範圍。"
+        "en": "This update focuses on making the Studio more useful for real SDAAH-style mod work: complex events, safer existing-event proposals, D3 parliament result previews, and cleaner browsing. v0.9.66 also optimizes Windows first-time install and update install speed.",
+        "zh-Hant": "這次更新重點是讓 Studio 更能處理真實 SDAAH 風格 Mod 工作：複合事件、更安全的既有事件提案、D3 議會結果預覽，以及更清楚的瀏覽體驗。v0.9.66 也優化了 Windows 初次安裝與更新安裝速度。"
       },
-      "details": "v0.9.66 makes the normal Windows installer use the faster deps-in-asar layout validated during install-performance testing. Root JavaScript dependencies and parser resources are packed into app.asar instead of written as thousands of loose files, while the bundled Python runtime, profiles, templates, and Python indexer remain loose resources.\n\nThis should reduce Windows Defender scanning overhead during install. It does not change the unsigned preview status, so SmartScreen or antivirus prompts may still appear.\n\nIf you are maintaining a real mod, keep using an IDE alongside Studio and keep project backups.",
+      "details": "v0.9.66 improves composite event parsing and previewing for inline conditionals, follow-up sections, section-owned options, option results, and option effects. Some simple source-backed option-effect edits can now become guarded proposals, while broad structural edits still stay manual review.\n\nElection-result authoring has also been polished around D3 parliament screens. Narrative election events and presidential elections are still better handled as regular events.\n\nThis version also optimizes Windows first-time install and update install speed.\n\nThis is an unsigned preview release. If you are maintaining a real mod, keep using an IDE alongside Studio and keep project backups.",
       "detailsLocalized": {
-        "en": "v0.9.66 makes the normal Windows installer use the faster deps-in-asar layout validated during install-performance testing. Root JavaScript dependencies and parser resources are packed into app.asar instead of written as thousands of loose files, while the bundled Python runtime, profiles, templates, and Python indexer remain loose resources.\n\nThis should reduce Windows Defender scanning overhead during install. It does not change the unsigned preview status, so SmartScreen or antivirus prompts may still appear.\n\nIf you are maintaining a real mod, keep using an IDE alongside Studio and keep project backups.",
-        "zh-Hant": "v0.9.66 讓正常 Windows 安裝包採用安裝效能測試中驗證過的 deps-in-asar 布局。根目錄 JavaScript 依賴和 parser 資源會打包進 app.asar，不再以大量鬆散檔案寫入；內建 Python runtime、profiles、templates 和 Python indexer 則仍保留為鬆散資源。\n\n這應能降低安裝時 Windows Defender 的掃描負擔。不過它仍是未簽署預覽版，所以 SmartScreen 或防毒提示仍可能出現。\n\n如果你正在維護真實 Mod，請繼續搭配 IDE 使用 Studio，並保留專案備份。"
+        "en": "v0.9.66 improves composite event parsing and previewing for inline conditionals, follow-up sections, section-owned options, option results, and option effects. Some simple source-backed option-effect edits can now become guarded proposals, while broad structural edits still stay manual review.\n\nElection-result authoring has also been polished around D3 parliament screens. Narrative election events and presidential elections are still better handled as regular events.\n\nThis version also optimizes Windows first-time install and update install speed.\n\nThis is an unsigned preview release. If you are maintaining a real mod, keep using an IDE alongside Studio and keep project backups.",
+        "zh-Hant": "v0.9.66 改善了複合事件的解析與預覽，包括行內條件、後續分支、分支內選項、選項結果與選項效果。部分簡單且有 source-backed 證據的選項效果編輯，現在可以生成受保護的提案；較大的結構編輯仍然維持人工審閱。\n\n選舉結果創作也針對 D3 議會結果頁做了打磨。敘事型選舉事件與總統選舉目前仍更適合當作一般事件處理。\n\n這個版本也優化了 Windows 初次安裝與更新安裝速度。\n\n這是未簽署的預覽版。如果你正在維護真實 Mod，請繼續搭配 IDE 使用 Studio，並保留專案備份。"
       },
       "downloadUrl": "https://github.com/Wen387/DendryModStudio/releases",
       "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.9.66.md",
@@ -76,10 +76,10 @@
         "en": "Trying a real mod? Please tell me where it breaks.",
         "zh-Hant": "正在測試真實 Mod？歡迎告訴我哪裡壞了。"
       },
-      "body": "The most useful v0.9.66 feedback is about Windows install timing plus real editing flows: complex events, Review & Apply, Runtime Preview, D3 result screens, and material browsing.",
+      "body": "The most useful v0.9.66 feedback is about real editing flows: complex events, Review & Apply, Runtime Preview, D3 result screens, material browsing, and Windows install speed.",
       "bodyLocalized": {
-        "en": "The most useful v0.9.66 feedback is about Windows install timing plus real editing flows: complex events, Review & Apply, Runtime Preview, D3 result screens, and material browsing.",
-        "zh-Hant": "v0.9.66 最需要的回饋是 Windows 安裝時間，以及真實編輯流程：複合事件、審查與套用、Runtime Preview、D3 結果頁與素材瀏覽。"
+        "en": "The most useful v0.9.66 feedback is about real editing flows: complex events, Review & Apply, Runtime Preview, D3 result screens, material browsing, and Windows install speed.",
+        "zh-Hant": "v0.9.66 最需要的回饋是真實編輯流程：複合事件、審查與套用、Runtime Preview、D3 結果頁、素材瀏覽，以及 Windows 安裝速度。"
       },
       "details": "Screenshots are very helpful for layout or preview problems. For editing bugs, source paths and the generated install plan are even better because they make the issue reproducible.",
       "detailsLocalized": {
