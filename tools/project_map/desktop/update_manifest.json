@@ -1,19 +1,19 @@
 {
   "schemaVersion": 1,
   "channel": "dev-preview",
-  "latestVersion": "0.9.65",
-  "minimumRecommendedVersion": "0.9.65",
+  "latestVersion": "0.9.66",
+  "minimumRecommendedVersion": "0.9.66",
   "severity": "info",
-  "noticeId": "v0.9.65-preview-announcement-2026-05-09",
-  "title": "Dendry Mod Studio v0.9.65 is available",
+  "noticeId": "v0.9.66-preview-announcement-2026-05-10",
+  "title": "Dendry Mod Studio v0.9.66 is available",
   "titleLocalized": {
-    "en": "Dendry Mod Studio v0.9.65 is available",
-    "zh-Hant": "Dendry Mod Studio v0.9.65 已可下載"
+    "en": "Dendry Mod Studio v0.9.66 is available",
+    "zh-Hant": "Dendry Mod Studio v0.9.66 已可下載"
   },
-  "body": "v0.9.65 is a development-preview update for real mod-authoring workflows, with better composite event editing, D3 parliament result previews, and Story Palette filtering.",
+  "body": "v0.9.66 keeps the v0.9.65 editing scope and improves Windows installer performance by packing JavaScript dependencies into app.asar.",
   "bodyLocalized": {
-    "en": "v0.9.65 is a development-preview update for real mod-authoring workflows, with better composite event editing, D3 parliament result previews, and Story Palette filtering.",
-    "zh-Hant": "v0.9.65 是面向真實 Mod 創作流程的開發預覽更新，改善了複合事件編輯、D3 議會結果預覽與素材欄篩選。"
+    "en": "v0.9.66 keeps the v0.9.65 editing scope and improves Windows installer performance by packing JavaScript dependencies into app.asar.",
+    "zh-Hant": "v0.9.66 延續 v0.9.65 的編輯範圍，並透過將 JavaScript 依賴打包進 app.asar 來改善 Windows 安裝速度。"
   },
   "details": "This is still a preview build, not a finished editor. Please keep backups of real projects and review every install plan before applying changes.\n\nThe update notice system is informational only: Studio will open download, release-note, or feedback links only after you choose them.",
   "detailsLocalized": {
@@ -23,30 +23,30 @@
   "announcementOnly": true,
   "notices": [
     {
-      "noticeId": "v0.9.65-release-2026-05-09",
+      "noticeId": "v0.9.66-release-2026-05-10",
       "kind": "release",
       "severity": "info",
-      "title": "v0.9.65 preview release is ready",
+      "title": "v0.9.66 preview release is ready",
       "titleLocalized": {
-        "en": "v0.9.65 preview release is ready",
-        "zh-Hant": "v0.9.65 預覽版已發布"
+        "en": "v0.9.66 preview release is ready",
+        "zh-Hant": "v0.9.66 預覽版已發布"
       },
-      "body": "This update focuses on making the Studio more useful for real SDAAH-style mod work: complex events, safer existing-event proposals, D3 parliament result previews, and cleaner browsing.",
+      "body": "This update focuses on Windows installer performance while preserving the v0.9.65 editing and preview feature set.",
       "bodyLocalized": {
-        "en": "This update focuses on making the Studio more useful for real SDAAH-style mod work: complex events, safer existing-event proposals, D3 parliament result previews, and cleaner browsing.",
-        "zh-Hant": "這次更新重點是讓 Studio 更能處理真實 SDAAH 風格 Mod 工作：複合事件、更安全的既有事件提案、D3 議會結果預覽，以及更清楚的瀏覽體驗。"
+        "en": "This update focuses on Windows installer performance while preserving the v0.9.65 editing and preview feature set.",
+        "zh-Hant": "這次更新重點是改善 Windows 安裝速度，同時保留 v0.9.65 的編輯與預覽功能範圍。"
       },
-      "details": "v0.9.65 improves composite event parsing and previewing for inline conditionals, follow-up sections, section-owned options, option results, and option effects. Some simple source-backed option-effect edits can now become guarded proposals, while broad structural edits still stay manual review.\n\nElection-result authoring has also been polished around D3 parliament screens. Narrative election events and presidential elections are still better handled as regular events.\n\nThis is an unsigned preview release. If you are maintaining a real mod, keep using an IDE alongside Studio and keep project backups.",
+      "details": "v0.9.66 makes the normal Windows installer use the faster deps-in-asar layout validated during install-performance testing. Root JavaScript dependencies and parser resources are packed into app.asar instead of written as thousands of loose files, while the bundled Python runtime, profiles, templates, and Python indexer remain loose resources.\n\nThis should reduce Windows Defender scanning overhead during install. It does not change the unsigned preview status, so SmartScreen or antivirus prompts may still appear.\n\nIf you are maintaining a real mod, keep using an IDE alongside Studio and keep project backups.",
       "detailsLocalized": {
-        "en": "v0.9.65 improves composite event parsing and previewing for inline conditionals, follow-up sections, section-owned options, option results, and option effects. Some simple source-backed option-effect edits can now become guarded proposals, while broad structural edits still stay manual review.\n\nElection-result authoring has also been polished around D3 parliament screens. Narrative election events and presidential elections are still better handled as regular events.\n\nThis is an unsigned preview release. If you are maintaining a real mod, keep using an IDE alongside Studio and keep project backups.",
-        "zh-Hant": "v0.9.65 改善了複合事件的解析與預覽，包括行內條件、後續分支、分支內選項、選項結果與選項效果。部分簡單且有 source-backed 證據的選項效果編輯，現在可以生成受保護的提案；較大的結構編輯仍然維持人工審閱。\n\n選舉結果創作也針對 D3 議會結果頁做了打磨。敘事型選舉事件與總統選舉目前仍更適合當作一般事件處理。\n\n這是未簽署的預覽版。如果你正在維護真實 Mod，請繼續搭配 IDE 使用 Studio，並保留專案備份。"
+        "en": "v0.9.66 makes the normal Windows installer use the faster deps-in-asar layout validated during install-performance testing. Root JavaScript dependencies and parser resources are packed into app.asar instead of written as thousands of loose files, while the bundled Python runtime, profiles, templates, and Python indexer remain loose resources.\n\nThis should reduce Windows Defender scanning overhead during install. It does not change the unsigned preview status, so SmartScreen or antivirus prompts may still appear.\n\nIf you are maintaining a real mod, keep using an IDE alongside Studio and keep project backups.",
+        "zh-Hant": "v0.9.66 讓正常 Windows 安裝包採用安裝效能測試中驗證過的 deps-in-asar 布局。根目錄 JavaScript 依賴和 parser 資源會打包進 app.asar，不再以大量鬆散檔案寫入；內建 Python runtime、profiles、templates 和 Python indexer 則仍保留為鬆散資源。\n\n這應能降低安裝時 Windows Defender 的掃描負擔。不過它仍是未簽署預覽版，所以 SmartScreen 或防毒提示仍可能出現。\n\n如果你正在維護真實 Mod，請繼續搭配 IDE 使用 Studio，並保留專案備份。"
       },
       "downloadUrl": "https://github.com/Wen387/DendryModStudio/releases",
-      "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.9.65.md",
-      "publishedAt": "2026-05-09"
+      "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.9.66.md",
+      "publishedAt": "2026-05-10"
     },
     {
-      "noticeId": "v0.9.65-dev-preview-status-2026-05-09",
+      "noticeId": "v0.9.66-dev-preview-status-2026-05-10",
       "kind": "announcement",
       "severity": "info",
       "title": "A note about the dev preview",
@@ -64,11 +64,11 @@
         "en": "The editor is becoming more capable, but it is not yet at the stage where development can focus only on polish and repairs. If something feels confusing, too manual, unsafe, or simply absent, that is useful feedback.\n\nThe most helpful report includes the Studio version, OS, mod name, source path if available, what you tried, what you expected, and what actually happened.",
         "zh-Hant": "編輯器正在變得更有能力，但專案還沒有進入只需要打磨和修繕的階段。如果某個地方讓你困惑、太手動、不放心，或乾脆缺少入口，這些都是有用回饋。\n\n最有幫助的回報會包含 Studio 版本、作業系統、Mod 名稱、可用的 source 路徑、你嘗試了什麼、原本期待什麼，以及實際發生了什麼。"
       },
-      "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.9.65.md",
-      "publishedAt": "2026-05-09"
+      "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.9.66.md",
+      "publishedAt": "2026-05-10"
     },
     {
-      "noticeId": "v0.9.65-playtest-call-2026-05-09",
+      "noticeId": "v0.9.66-playtest-call-2026-05-10",
       "kind": "playtest",
       "severity": "info",
       "title": "Trying a real mod? Please tell me where it breaks.",
@@ -76,10 +76,10 @@
         "en": "Trying a real mod? Please tell me where it breaks.",
         "zh-Hant": "正在測試真實 Mod？歡迎告訴我哪裡壞了。"
       },
-      "body": "The most useful v0.9.65 feedback is about real editing flows: complex events, Review & Apply, Runtime Preview, D3 result screens, and material browsing.",
+      "body": "The most useful v0.9.66 feedback is about Windows install timing plus real editing flows: complex events, Review & Apply, Runtime Preview, D3 result screens, and material browsing.",
       "bodyLocalized": {
-        "en": "The most useful v0.9.65 feedback is about real editing flows: complex events, Review & Apply, Runtime Preview, D3 result screens, and material browsing.",
-        "zh-Hant": "v0.9.65 最需要的回饋是真實編輯流程：複合事件、審查與套用、Runtime Preview、D3 結果頁，以及素材瀏覽。"
+        "en": "The most useful v0.9.66 feedback is about Windows install timing plus real editing flows: complex events, Review & Apply, Runtime Preview, D3 result screens, and material browsing.",
+        "zh-Hant": "v0.9.66 最需要的回饋是 Windows 安裝時間，以及真實編輯流程：複合事件、審查與套用、Runtime Preview、D3 結果頁與素材瀏覽。"
       },
       "details": "Screenshots are very helpful for layout or preview problems. For editing bugs, source paths and the generated install plan are even better because they make the issue reproducible.",
       "detailsLocalized": {
@@ -92,10 +92,10 @@
         "en": "Share playtest feedback",
         "zh-Hant": "分享測試回饋"
       },
-      "publishedAt": "2026-05-09"
+      "publishedAt": "2026-05-10"
     },
     {
-      "noticeId": "v0.9.65-contact-bug-report-2026-05-09",
+      "noticeId": "v0.9.66-contact-bug-report-2026-05-10",
       "kind": "contact",
       "severity": "info",
       "notify": false,
@@ -120,10 +120,10 @@
         "en": "Report issue",
         "zh-Hant": "回報問題"
       },
-      "publishedAt": "2026-05-09"
+      "publishedAt": "2026-05-10"
     },
     {
-      "noticeId": "v0.9.65-contact-feature-request-2026-05-09",
+      "noticeId": "v0.9.66-contact-feature-request-2026-05-10",
       "kind": "contact",
       "severity": "info",
       "notify": false,
@@ -148,10 +148,10 @@
         "en": "Request feature",
         "zh-Hant": "提出功能需求"
       },
-      "publishedAt": "2026-05-09"
+      "publishedAt": "2026-05-10"
     }
   ],
   "downloadUrl": "https://github.com/Wen387/DendryModStudio/releases",
-  "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.9.65.md",
-  "publishedAt": "2026-05-09"
+  "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.9.66.md",
+  "publishedAt": "2026-05-10"
 }

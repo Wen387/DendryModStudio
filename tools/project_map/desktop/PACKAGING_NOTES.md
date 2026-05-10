@@ -60,6 +60,11 @@ Release packages now include the Python `indexer/` package beside
 `build_project_map.py`, so packaged scans use the same semantic ProjectIndex
 builder as the development checkout.
 
+2026-05-10 version note: the preview package version was advanced to v0.9.66
+for the Windows installer performance release. The version keeps the v0.9.65
+editing scope and formalizes the faster `deps-in-asar` Windows package layout
+as the normal `dist:win` build.
+
 2026-05-10 Windows install performance experiment: branch
 `exp-windows-install-performance` adds a non-release `fast-install` Windows
 builder config and measurement helpers. The experiment identified loose root
