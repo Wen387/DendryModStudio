@@ -59,6 +59,26 @@ Release packages now include the Python `indexer/` package beside
 `build_project_map.py`, so packaged scans use the same semantic ProjectIndex
 builder as the development checkout.
 
+2026-05-10 Windows install performance experiment: branch
+`exp-windows-install-performance` adds a non-release `fast-install` Windows
+builder config and measurement helpers. The experiment keeps the normal
+`dist:win` release config unchanged, and adds:
+
+- `npm run dist:win:fast-install`: builds a Windows NSIS variant under
+  `dist-builder/fast-install/` with `asar` enabled for Electron-readable app
+  resources, trimmed loose resource filters, and installer compression set to
+  `store` so installation speed can be measured against a larger artifact.
+- `npm run analyze:payload`: reports source payload file counts and sizes for
+  the desktop resources most likely to affect Windows installation time.
+- `npm run measure:win-install -- -InstallerPath path\to\installer.exe`: runs
+  repeated silent installs on Windows and writes JSON timings.
+
+The fast-install config intentionally keeps Python, the Python indexer,
+profiles, templates, and bundled Dendry runtime modules as loose resources so
+child processes can still use normal filesystem paths. `studio_core.js`
+understands this split layout by loading the browser app from `app.asar` while
+preferring loose `resources/app/project_map` backend files when they exist.
+
 2026-05-04 Windows app icon note: Windows release builds now include a generated
 multi-size `assets/dendry-mod-studio.ico`, wire it into `win.icon`, the NSIS
 installer/uninstaller, the packaged portable assets, and the Electron

@@ -22,6 +22,9 @@
     "package:deb": "node scripts/package_deb.js",
     "dist:linux": "npm run fetch:python && electron-builder --linux AppImage deb --x64",
     "dist:win": "npm run fetch:python && electron-builder --win nsis --x64",
+    "dist:win:fast-install": "npm run fetch:python && electron-builder --config build/electron-builder.win-fast-install.cjs --win nsis --x64",
+    "analyze:payload": "node scripts/analyze_payload.js",
+    "measure:win-install": "powershell -ExecutionPolicy Bypass -File scripts/measure_windows_install.ps1",
     "smoke": "node ../check_desktop_shell.js",
     "doctor": "node scripts/doctor.js"
   },

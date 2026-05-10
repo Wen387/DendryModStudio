@@ -28,20 +28,29 @@ const PROJECT_INDEX_TIMEOUT_MS = 10 * 60 * 1000;
 function resolveResourcePaths(options) {
   const desktopDir = path.resolve((options && options.desktopDir) || __dirname);
   const packagedProjectMapDir = path.join(desktopDir, 'project_map');
+  const resourceProjectMapDir = process.resourcesPath
+    ? path.join(process.resourcesPath, 'app', 'project_map')
+    : packagedProjectMapDir;
   const projectMapDir = fs.existsSync(path.join(packagedProjectMapDir, 'viewer', 'index.html'))
     ? packagedProjectMapDir
     : path.resolve(desktopDir, '..');
+  const backendProjectMapDir = fs.existsSync(path.join(resourceProjectMapDir, 'build_project_map.py'))
+    ? resourceProjectMapDir
+    : projectMapDir;
+  const templateProjectMapDir = fs.existsSync(path.join(resourceProjectMapDir, 'templates', STARTER_DEMO_ID, 'source', 'info.dry'))
+    ? resourceProjectMapDir
+    : projectMapDir;
   return {
     desktopDir,
     projectMapDir,
     viewerDir: path.join(projectMapDir, 'viewer'),
     viewerIndex: path.join(projectMapDir, 'viewer', 'index.html'),
-    parser: path.join(projectMapDir, 'parse_dry_project.js'),
-    indexer: path.join(projectMapDir, 'build_project_map.py'),
-    templatesDir: path.join(projectMapDir, 'templates'),
-    starterDemoTemplate: path.join(projectMapDir, 'templates', STARTER_DEMO_ID),
-    starterDemoIndex: path.join(projectMapDir, 'templates', STARTER_DEMO_ID, 'project-index.json'),
-    starterDemoIndexWithExcerpts: path.join(projectMapDir, 'templates', STARTER_DEMO_ID, 'project-index-excerpts.json')
+    parser: path.join(backendProjectMapDir, 'parse_dry_project.js'),
+    indexer: path.join(backendProjectMapDir, 'build_project_map.py'),
+    templatesDir: path.join(templateProjectMapDir, 'templates'),
+    starterDemoTemplate: path.join(templateProjectMapDir, 'templates', STARTER_DEMO_ID),
+    starterDemoIndex: path.join(templateProjectMapDir, 'templates', STARTER_DEMO_ID, 'project-index.json'),
+    starterDemoIndexWithExcerpts: path.join(templateProjectMapDir, 'templates', STARTER_DEMO_ID, 'project-index-excerpts.json')
   };
 }
 
