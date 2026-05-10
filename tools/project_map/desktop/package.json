@@ -23,6 +23,7 @@
     "dist:linux": "npm run fetch:python && electron-builder --linux AppImage deb --x64",
     "dist:win": "npm run fetch:python && electron-builder --win nsis --x64",
     "dist:win:fast-install": "npm run fetch:python && electron-builder --config build/electron-builder.win-fast-install.cjs --win nsis --x64",
+    "dist:win:deps-in-asar": "npm run fetch:python && electron-builder --config build/electron-builder.win-deps-in-asar.cjs --win nsis --x64",
     "dist:win:no-python": "electron-builder --config build/electron-builder.win-no-python.cjs --win nsis --x64",
     "dist:win:no-node-modules": "electron-builder --config build/electron-builder.win-no-node-modules.cjs --win nsis --x64",
     "dist:win:shell-only": "electron-builder --config build/electron-builder.win-shell-only.cjs --win nsis --x64",

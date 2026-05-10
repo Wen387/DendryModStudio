@@ -80,6 +80,10 @@ builder config and measurement helpers. The experiment keeps the normal
   installer under `dist-builder/no-node-modules/` without bundled Python or the
   copied root `node_modules`. This isolates whether the remaining Defender cost
   is mostly from packaged JavaScript dependencies.
+- `npm run dist:win:deps-in-asar`: builds a Windows diagnostic installer under
+  `dist-builder/deps-in-asar/` with root `node_modules` packed into `app.asar`
+  instead of written as loose resources. This tests the likely fix for Defender
+  slowdowns while keeping the bundled Python runtime and DendryNexus modules.
 - `npm run dist:win:shell-only`: builds a diagnostic-only Windows installer
   under `dist-builder/shell-only/` with only the Electron shell and minimal
   startup support files. This estimates the unsigned Electron + NSIS baseline
