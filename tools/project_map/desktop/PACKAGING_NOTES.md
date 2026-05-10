@@ -76,6 +76,14 @@ builder config and measurement helpers. The experiment keeps the normal
   under `dist-builder/no-python/` without the bundled Python runtime. This
   package is not release-ready; it exists to isolate whether Defender is mainly
   spending time scanning the Python runtime payload.
+- `npm run dist:win:no-node-modules`: builds a diagnostic-only Windows
+  installer under `dist-builder/no-node-modules/` without bundled Python or the
+  copied root `node_modules`. This isolates whether the remaining Defender cost
+  is mostly from packaged JavaScript dependencies.
+- `npm run dist:win:shell-only`: builds a diagnostic-only Windows installer
+  under `dist-builder/shell-only/` with only the Electron shell and minimal
+  startup support files. This estimates the unsigned Electron + NSIS baseline
+  cost on Windows.
 
 The fast-install config intentionally keeps Python, the Python indexer,
 profiles, templates, and bundled Dendry runtime modules as loose resources so
