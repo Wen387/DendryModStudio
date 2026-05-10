@@ -72,6 +72,10 @@ builder config and measurement helpers. The experiment keeps the normal
   the desktop resources most likely to affect Windows installation time.
 - `npm run measure:win-install -- -InstallerPath path\to\installer.exe`: runs
   repeated silent installs on Windows and writes JSON timings.
+- `npm run dist:win:no-python`: builds a diagnostic-only Windows installer
+  under `dist-builder/no-python/` without the bundled Python runtime. This
+  package is not release-ready; it exists to isolate whether Defender is mainly
+  spending time scanning the Python runtime payload.
 
 The fast-install config intentionally keeps Python, the Python indexer,
 profiles, templates, and bundled Dendry runtime modules as loose resources so
