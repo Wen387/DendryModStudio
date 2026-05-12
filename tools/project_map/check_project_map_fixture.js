@@ -147,7 +147,7 @@ function parseArgs(argv) {
       sceneCount: 2,
       edgeCount: 2,
       variableCount: 1,
-      diagnosticCount: 0,
+      diagnosticCount: 1,
       eventCount: 1,
       cardCount: 0,
       newsItemCount: 0

@@ -100,7 +100,7 @@
       session ? '<button type="button" data-runtime-lens-action="clear">' + escapeHtml(t('runtimeLens.clear', 'Clear')) + '</button>' : '',
       '</div>',
       '</header>',
-      renderSummary(focus, status, {isDesktop, stale, draftStale, canFocus}),
+      renderSummary(focus, status, {isDesktop, stale, draftStale, canFocus, snapshot: session && session.runtimeSnapshot, domMap: session && session.runtimeDomMap, visualSurface: session && session.runtimeVisualSurface}),
       opts.collapsed ? '' : renderBody({url, status, isDesktop, canFocus, session}),
       '</section>'
     ].join('');
@@ -116,7 +116,9 @@
           ? opts.draftStale
             ? t('runtimeLens.draftStale', 'Lens is behind the current edit. Refresh or rebuild it to observe the latest draft.')
             : t('runtimeLens.stale', 'Lens is showing a previous selection. Refresh to rebuild around this object.')
-          : statusText(status);
+          : opts.snapshot
+            ? snapshotSummaryText(opts.snapshot)
+            : statusText(status);
     return [
       '<div class="runtime-lens-summary">',
       '<div><span>' + escapeHtml(t('runtimeLens.focus', 'Focus')) + '</span><strong>' + escapeHtml(focus.title || focus.id || '') + '</strong></div>',
@@ -139,11 +141,123 @@
         '<div class="runtime-lens-frame-wrap">',
         '<iframe class="runtime-lens-frame" data-runtime-lens-frame="true" title="' + escapeAttr(t('runtimeLens.frameTitle', 'Focused runtime preview')) + '" src="' + escapeAttr(opts.url) + '"></iframe>',
         '</div>',
+        renderRuntimeSnapshot(opts.session && opts.session.runtimeSnapshot),
+        renderRuntimeDomMap(opts.session && (opts.session.runtimeDomMap || opts.session.runtimeSnapshot && opts.session.runtimeSnapshot.runtimeDomMap)),
+        renderRuntimeVisualSurface(opts.session && opts.session.runtimeVisualSurface),
         renderTimings(opts.session && opts.session.timings),
         renderDiagnostics(opts.session && opts.session.diagnostics)
       ].join('');
     }
-    return '<div class="runtime-lens-empty">' + escapeHtml(opts.isDesktop ? t('runtimeLens.empty', 'Open a Quick Lens to observe this object in the latest generated runtime.') : t('runtimeLens.browserOnlyShort', 'Desktop app required.')) + '</div>' + renderTimings(opts.session && opts.session.timings) + renderDiagnostics(opts.session && opts.session.diagnostics);
+    return '<div class="runtime-lens-empty">' + escapeHtml(opts.isDesktop ? t('runtimeLens.empty', 'Open a Quick Lens to observe this object in the latest generated runtime.') : t('runtimeLens.browserOnlyShort', 'Desktop app required.')) + '</div>' + renderRuntimeSnapshot(opts.session && opts.session.runtimeSnapshot) + renderRuntimeDomMap(opts.session && (opts.session.runtimeDomMap || opts.session.runtimeSnapshot && opts.session.runtimeSnapshot.runtimeDomMap)) + renderRuntimeVisualSurface(opts.session && opts.session.runtimeVisualSurface) + renderTimings(opts.session && opts.session.timings) + renderDiagnostics(opts.session && opts.session.diagnostics);
+  }
+
+  function renderRuntimeSnapshot(snapshot) {
+    if (!snapshot || typeof snapshot !== 'object') {
+      return '';
+    }
+    const summary = snapshot.summary || {};
+    const graphics = snapshot.graphics || {};
+    const diagnostics = ensureArray(snapshot.diagnostics).filter((diag) => diag && diag.severity !== 'info').slice(0, 3);
+    const status = String(snapshot.status || 'partial');
+    return [
+      '<div class="runtime-lens-health" data-runtime-lens-snapshot-status="' + escapeAttr(status) + '">',
+      '<strong>' + escapeHtml(t('runtimeLens.health', 'Runtime health')) + ' - ' + escapeHtml(status) + '</strong>',
+      '<span>' + escapeHtml('Loaded: ' + (summary.loaded ? 'yes' : 'no')) + '</span>',
+      '<span>' + escapeHtml('Focused: ' + (summary.sceneId || 'unknown')) + '</span>',
+      '<span>' + escapeHtml('Regions: ' + Number(summary.visibleRegionCount || 0) + '/' + Number(summary.indexedRegionCount || 0)) + '</span>',
+      '<span>' + escapeHtml('Choices: ' + Number(summary.choiceCount || 0)) + '</span>',
+      '<span>' + escapeHtml('Graphics: ' + (Number(graphics.svgCount || 0) + Number(graphics.canvasCount || 0)) + (graphics.d3Present ? ' + D3' : '')) + '</span>',
+      diagnostics.length ? '<p>' + diagnostics.map((diag) => escapeHtml(diag.message || diag.code || '')).join('<br>') + '</p>' : '',
+      '</div>'
+    ].join('');
+  }
+
+  function renderRuntimeDomMap(domMap) {
+    if (!domMap || typeof domMap !== 'object') {
+      return '';
+    }
+    const summary = domMap.summary || {};
+    const diagnostics = ensureArray(domMap.diagnostics).filter((diag) => diag && diag.severity !== 'info').slice(0, 3);
+    const items = ensureArray(domMap.items).slice(0, 8);
+    const status = String(domMap.status || 'partial');
+    return [
+      '<details class="runtime-lens-dom-map" data-runtime-lens-dom-map-status="' + escapeAttr(status) + '" open>',
+      '<summary><strong>' + escapeHtml(t('runtimeLens.domMap', 'DOM source map')) + ' - ' + escapeHtml(status) + '</strong> ' +
+        escapeHtml('Mapped ' + Number(summary.mappedCount || 0) + '/' + Number(summary.visibleCount || 0) + ', source-backed ' + Number(summary.sourceBackedCount || 0) + ', manual review ' + Number(summary.manualReviewCount || 0)) + '</summary>',
+      diagnostics.length ? '<p>' + diagnostics.map((diag) => escapeHtml(diag.message || diag.code || '')).join('<br>') + '</p>' : '',
+      items.length ? '<ol>' + items.map(renderDomMapItem).join('') + '</ol>' : '',
+      '</details>'
+    ].join('');
+  }
+
+  function renderDomMapItem(item) {
+    const source = item && item.source || {};
+    const sourceLabel = source.path ? source.path + (source.line || source.startLine ? ':' + (source.line || source.startLine) : '') : t('runtimeLens.manualReview', 'manual review');
+    const label = item && (item.text || fileName(item.src) || item.selector || item.role) || '';
+    const meta = [item && item.role, item && item.confidence, item && item.editability].filter(Boolean).join(' · ');
+    return '<li><span>' + escapeHtml(meta) + '</span><strong>' + escapeHtml(label) + '</strong><small>' + escapeHtml(sourceLabel) + '</small></li>';
+  }
+
+  function renderRuntimeVisualSurface(visualSurface) {
+    if (!visualSurface || typeof visualSurface !== 'object') {
+      return '';
+    }
+    const summary = visualSurface.summary || {};
+    const diagnostics = ensureArray(visualSurface.diagnostics).filter((diag) => diag && diag.severity !== 'info').slice(0, 3);
+    const candidates = ensureArray(visualSurface.candidates).slice(0, 8);
+    const status = String(visualSurface.status || 'partial');
+    return [
+      '<details class="runtime-lens-visual-surface" data-runtime-lens-visual-surface-status="' + escapeAttr(status) + '" open>',
+      '<summary><strong>' + escapeHtml(t('runtimeLens.visualSurface', 'Editable visual surfaces')) + ' - ' + escapeHtml(status) + '</strong> ' +
+        escapeHtml(Number(summary.draftableCount || 0) + ' draftable, ' + Number(summary.proposalOnlyCount || 0) + ' proposal-only, ' + Number(summary.manualReviewCount || 0) + ' manual review, ' + Number(summary.generatedOnlyCount || 0) + ' generated-only') + '</summary>',
+      diagnostics.length ? '<p>' + diagnostics.map((diag) => escapeHtml(diag.message || diag.code || '')).join('<br>') + '</p>' : '',
+      candidates.length ? '<ol>' + candidates.map(renderVisualSurfaceCandidate).join('') + '</ol>' : '',
+      '</details>'
+    ].join('');
+  }
+
+  function renderVisualSurfaceCandidate(candidate) {
+    const source = candidate && candidate.source || {};
+    const actions = ensureArray(candidate && candidate.actions).length ? ensureArray(candidate && candidate.actions) : [candidate && candidate.action || {}];
+    const sourceLabel = source.path ? source.path + (source.line || source.startLine ? ':' + (source.line || source.startLine) : '') : t('runtimeLens.manualReview', 'manual review');
+    const label = candidate && (candidate.label || candidate.currentValue || fileName(candidate.src) || candidate.role) || '';
+    const meta = [candidate && candidate.role, candidate && candidate.confidence, candidate && candidate.editability, candidate && candidate.routeClass].filter(Boolean).join(' · ');
+    const assetMeta = [candidate && candidate.assetDirective, candidate && candidate.assetDraftStatus, candidate && candidate.replacementTargetPath].filter(Boolean).join(' · ');
+    const buttons = actions
+      .filter((action) => action && action.enabled === true && (action.type === 'open_route' || action.type === 'create_asset_reference_draft'))
+      .map((action) => '<button type="button" data-runtime-visual-action="' + escapeAttr(action.type || '') + '" data-runtime-visual-candidate="' + escapeAttr(candidate.id || '') + '">' + escapeHtml(action.label || actionLabel(action.type)) + '</button>')
+      .join('');
+    return '<li><span>' + escapeHtml(meta) + '</span><strong>' + escapeHtml(label) + '</strong><small>' + escapeHtml(sourceLabel) + '</small>' +
+      (assetMeta ? '<small>' + escapeHtml(assetMeta) + '</small>' : '') +
+      (candidate && candidate.reason ? '<small>' + escapeHtml(candidate.reason) + '</small>' : '') + buttons + '</li>';
+  }
+
+  function actionLabel(type) {
+    if (type === 'create_asset_reference_draft') {
+      return t('runtimeLens.createAssetDraft', 'Create asset draft');
+    }
+    return t('runtimeLens.openRoute', 'Open route');
+  }
+
+  function snapshotSummaryText(snapshot) {
+    const status = String(snapshot && snapshot.status || '');
+    const summary = snapshot && snapshot.summary || {};
+    if (status === 'blocked') {
+      const diag = ensureArray(snapshot && snapshot.diagnostics).find((item) => item && item.severity === 'error');
+      return (diag && (diag.message || diag.code)) || t('runtimeLens.blocked', 'Runtime Lens is blocked by incomplete generated runtime files.');
+    }
+    if (status === 'partial') {
+      return 'Partial runtime snapshot: ' + Number(summary.visibleRegionCount || 0) + '/' + Number(summary.indexedRegionCount || 0) + ' regions visible, ' + Number(summary.choiceCount || 0) + ' choices rendered.';
+    }
+    if (status === 'failed') {
+      return t('runtimeLens.snapshotFailed', 'Runtime snapshot could not verify the loaded game page.');
+    }
+    return 'Runtime loaded, ' + Number(summary.visibleRegionCount || 0) + '/' + Number(summary.indexedRegionCount || 0) + ' regions visible, ' + Number(summary.choiceCount || 0) + ' choices rendered.';
+  }
+
+  function fileName(value) {
+    const parts = String(value || '').split(/[/?#]/);
+    return parts[parts.length - 1] || '';
   }
 
   function renderTimings(timings) {
@@ -206,6 +320,19 @@
         }
       });
     });
+    root.querySelectorAll('[data-runtime-visual-action]').forEach((button) => {
+      if (button.dataset.runtimeVisualBound === 'true') {
+        return;
+      }
+      button.dataset.runtimeVisualBound = 'true';
+      button.addEventListener('click', () => {
+        if (opts.onVisualAction) {
+          opts.onVisualAction(button.dataset.runtimeVisualAction || '', button.dataset.runtimeVisualCandidate || '', button);
+        } else if (opts.onAction) {
+          opts.onAction(button.dataset.runtimeVisualAction || '', button);
+        }
+      });
+    });
   }
 
   function statusText(status) {
@@ -213,6 +340,8 @@
       idle: t('runtimeLens.idle', 'Ready to create a focused runtime lens.'),
       building: t('runtimeLens.building', 'Building a temporary runtime lens...'),
       ready: t('runtimeLens.ready', 'Lens is ready.'),
+      partial: t('runtimeLens.partial', 'Lens loaded with runtime snapshot warnings.'),
+      blocked: t('runtimeLens.blocked', 'Runtime Lens is blocked by incomplete generated runtime files.'),
       stale: t('runtimeLens.stale', 'Lens is behind the current edit.'),
       suspended: t('runtimeLens.suspended', 'Lens is suspended while this workspace is in the background. Refresh to reload it.'),
       failed: t('runtimeLens.failed', 'Lens could not be created.'),

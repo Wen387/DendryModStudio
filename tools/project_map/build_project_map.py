@@ -68,6 +68,7 @@ def build_index(
         + post_event_diagnostics
         + overlay_diagnostics
         + variable_diagnostics
+        + semantic.get("runtimeSurface", {}).get("diagnostics", [])
     )
 
     by_scene_type = Counter(scene.get("type", "scene") for scene in scenes)
@@ -124,6 +125,9 @@ def build_index(
             "surfaceTextCount": len(semantic.get("surfaceText", {}).get("items", [])),
             "textCorpusCount": len(semantic.get("textCorpus", {}).get("items", [])),
             "electionResultsCount": len(semantic.get("electionResults", {}).get("items", [])),
+            "runtimeSurfaceRegionCount": len(semantic.get("runtimeSurface", {}).get("regions", [])),
+            "runtimeSurfaceControlCount": len(semantic.get("runtimeSurface", {}).get("controls", [])),
+            "runtimeSurfaceDiagnosticCount": len(semantic.get("runtimeSurface", {}).get("diagnostics", [])),
             "effectCount": sum(len(scene.get("effects", [])) for scene in scenes),
             "assetCount": len(semantic.get("assets", {}).get("items", [])),
             "imageAssetCount": len([
@@ -160,6 +164,9 @@ def render_summary(index: dict[str, Any]) -> str:
         f"Surface text items: {summary.get('surfaceTextCount', 0)}",
         f"Text corpus items: {summary.get('textCorpusCount', 0)}",
         f"Election result screens: {summary.get('electionResultsCount', 0)}",
+        f"Runtime surface: {summary.get('runtimeSurfaceRegionCount', 0)} regions, "
+        f"{summary.get('runtimeSurfaceControlCount', 0)} controls, "
+        f"{summary.get('runtimeSurfaceDiagnosticCount', 0)} diagnostics",
         f"Assets: {summary.get('assetCount', 0)} "
         f"(images {summary.get('imageAssetCount', 0)}, audio {summary.get('audioAssetCount', 0)})",
         f"Diagnostics: {summary['diagnosticCount']}",

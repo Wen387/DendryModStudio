@@ -107,7 +107,7 @@ function writeBundle(bundle, outDir, projectIndex) {
   const root = path.resolve(projectIndex.project.root);
   assertSafeRealOutDir(resolvedOut, root);
   bundle.files.forEach((file) => {
-    const target = path.resolve(outDir, file.path);
+    const target = path.resolve(resolvedOut, file.path);
     if (!isPathInside(target, resolvedOut)) {
       fail('Refusing to write a bundle file outside out-dir: ' + file.path, 2);
     }

@@ -17,8 +17,12 @@
   function bind(root, state, deps) {
     const ui = runtimeLensUi();
     if (ui && typeof ui.bind === 'function') {
-      ui.bind(root, {onAction: (action) => handleAction(state, action, deps || {})});
+      ui.bind(root, {
+        onAction: (action) => handleAction(state, action, deps || {}),
+        onVisualAction: (action, candidateId) => handleVisualAction(state, action, candidateId, deps || {})
+      });
     }
+    bindEvidenceListener(state, deps || {});
   }
 
   async function handleAction(state, action, deps) {
@@ -61,6 +65,27 @@
     }
   }
 
+  function handleVisualAction(state, action, candidateId, deps) {
+    if (action !== 'open_route' && action !== 'create_asset_reference_draft') {
+      return false;
+    }
+    refreshRuntimeVisualSurface(state);
+    const visualSurface = state.runtimeLensSession && state.runtimeLensSession.runtimeVisualSurface || {};
+    const candidate = ensureArray(visualSurface.candidates).find((item) => String(item && item.id || '') === String(candidateId || ''));
+    const opened = action === 'create_asset_reference_draft'
+      ? createVisualAssetDraft(state, candidate)
+      : openVisualCandidateRoute(state, candidate);
+    state.status = opened
+      ? action === 'create_asset_reference_draft'
+        ? translate('runtimeLens.visualAssetDraftOpened', 'Runtime asset reference draft opened. Review before applying any changes.')
+        : translate('runtimeLens.visualSurfaceOpened', 'Runtime visual surface route opened. Review before applying any changes.')
+      : action === 'create_asset_reference_draft'
+        ? translate('runtimeLens.visualAssetDraftOpenFailed', 'Runtime asset reference draft could not be created; keep this item as manual review.')
+        : translate('runtimeLens.visualSurfaceOpenFailed', 'Runtime visual surface route could not be opened; keep this item as manual review.');
+    deps && deps.render && deps.render();
+    return opened;
+  }
+
   async function createLens(state, deps, options) {
     const opts = options || {};
     if (state.runtimeLensStatus === 'building') {
@@ -101,12 +126,15 @@
         return;
       }
       state.runtimeLensSession = result || null;
-      state.runtimeLensStatus = result && result.ok ? 'ready' : 'failed';
+      state.runtimeLensStatus = result && result.status || (result && result.ok ? 'ready' : 'failed');
+      refreshRuntimeVisualSurface(state);
       state.runtimeLensFocusKey = focus.key || (focus.kind + ':' + focus.id);
       state.runtimeLensDraftKey = result && result.ok ? state.runtimeLensCurrentDraftKey : '';
       state.status = result && result.ok
         ? translate('runtimeLens.status.ready', 'Focused Runtime Lens is ready.')
-        : translate('runtimeLens.status.failed', 'Focused Runtime Lens could not be created.');
+        : state.runtimeLensStatus === 'blocked'
+          ? translate('runtimeLens.blocked', 'Runtime Lens is blocked by incomplete generated runtime files.')
+          : translate('runtimeLens.status.failed', 'Focused Runtime Lens could not be created.');
     } catch (err) {
       if (buildToken !== state.runtimeLensBuildSeq) {
         return;
@@ -137,6 +165,143 @@
     if ((behind || focusMoved) && state.runtimeLensStatus !== 'building') {
       state.runtimeLensStatus = 'stale';
       return true;
+    }
+    return false;
+  }
+
+  function bindEvidenceListener(state, deps) {
+    if (!state || state.runtimeLensEvidenceBound || !global || typeof global.addEventListener !== 'function') {
+      return;
+    }
+    state.runtimeLensEvidenceBound = true;
+    global.addEventListener('message', (event) => {
+      handleEvidenceMessage(state, event && event.data || {}, deps || {});
+    });
+  }
+
+  function handleEvidenceMessage(state, data, deps) {
+    if (!state || !data || data.kind !== 'dms-runtime-lens-session-evidence') {
+      return false;
+    }
+    const session = state.runtimeLensSession;
+    if (!session) {
+      return false;
+    }
+    const sessionId = String(session.sessionId || '');
+    if (sessionId && String(data.sessionId || '') !== sessionId) {
+      return false;
+    }
+    if (data.runtimeSnapshot) {
+      session.runtimeSnapshot = data.runtimeSnapshot;
+    }
+    if (data.runtimeDomMap) {
+      session.runtimeDomMap = data.runtimeDomMap;
+    }
+    refreshRuntimeVisualSurface(state);
+    if (session.runtimeSnapshot && session.runtimeSnapshot.status === 'blocked') {
+      session.status = 'blocked';
+      state.runtimeLensStatus = 'blocked';
+    } else if (session.ok && state.runtimeLensStatus !== 'stale' && state.runtimeLensStatus !== 'building') {
+      state.runtimeLensStatus = session.status || 'ready';
+    }
+    deps && deps.render && deps.render();
+    return true;
+  }
+
+  function refreshRuntimeVisualSurface(state) {
+    const session = state && state.runtimeLensSession;
+    const api = runtimeVisualSurfaceApi();
+    if (!session || !api || typeof api.buildVisualSurface !== 'function' || !session.runtimeDomMap) {
+      return null;
+    }
+    session.runtimeVisualSurface = api.buildVisualSurface({
+      projectIndex: state.projectIndex,
+      runtimeSurface: state.projectIndex && state.projectIndex.semantic && state.projectIndex.semantic.runtimeSurface || {},
+      runtimeSnapshot: session.runtimeSnapshot || {},
+      runtimeDomMap: session.runtimeDomMap,
+      focus: currentFocus(state)
+    });
+    return session.runtimeVisualSurface;
+  }
+
+  function openVisualCandidateRoute(state, candidate) {
+    const action = actionForCandidate(candidate, 'open_route');
+    if (!candidate || !action || action.enabled !== true) {
+      return false;
+    }
+    const route = candidate.route || {
+      routeClass: candidate.routeClass,
+      target: action && action.target || {}
+    };
+    const routeClass = String(route.routeClass || candidate.routeClass || '');
+    if (routeClass === 'system_ui_workspace') {
+      return openVisualSystemUiRoute(route);
+    }
+    if (routeClass === 'direct_field_replace' || routeClass === 'direct_section_replace' || routeClass === 'object_workspace') {
+      return openVisualObjectRoute(state, route, candidate);
+    }
+    return false;
+  }
+
+  function createVisualAssetDraft(state, candidate) {
+    const action = actionForCandidate(candidate, 'create_asset_reference_draft');
+    if (!candidate || !action || action.enabled !== true) {
+      return false;
+    }
+    const api = runtimeVisualAssetDraftApi();
+    if (!api || typeof api.buildAssetDraft !== 'function') {
+      return false;
+    }
+    const session = state.runtimeLensSession || {};
+    const draftModel = api.buildAssetDraft({
+      projectIndex: state.projectIndex,
+      runtimeVisualSurface: session.runtimeVisualSurface || {},
+      runtimeDomMap: session.runtimeDomMap || {},
+      candidate,
+      focus: currentFocus(state)
+    });
+    session.runtimeVisualAssetDraft = draftModel;
+    if (!draftModel || !draftModel.draft) {
+      return false;
+    }
+    const editor = global.ProjectMapObjectAuthoringCanvas || global.ProjectMapEditingWorkspace || global.ProjectMapExistingSceneEditor;
+    if (!editor || typeof editor.loadDraft !== 'function') {
+      return false;
+    }
+    return editor.loadDraft(draftModel.draft, {
+      source: 'Runtime visual asset draft',
+      runtimeVisualAssetDraft: draftModel
+    });
+  }
+
+  function actionForCandidate(candidate, type) {
+    const actions = ensureArray(candidate && candidate.actions).length ? ensureArray(candidate && candidate.actions) : [candidate && candidate.action || {}];
+    return actions.find((action) => action && action.type === type) || null;
+  }
+
+  function openVisualObjectRoute(state, route, candidate) {
+    const target = route && route.target || {};
+    const sceneId = target.sceneId || target.itemId || candidate.sceneId || '';
+    const view = target.view === 'cards' ? 'cards' : 'events';
+    const editor = global.ProjectMapObjectAuthoringCanvas || global.ProjectMapEditingWorkspace || global.ProjectMapExistingSceneEditor;
+    if (!editor || typeof editor.openFromSelection !== 'function' || !sceneId) {
+      return false;
+    }
+    return editor.openFromSelection(state.projectIndex, view, sceneId, {
+      route,
+      source: 'Runtime visual surface'
+    });
+  }
+
+  function openVisualSystemUiRoute(route) {
+    const target = route && route.target || {};
+    const template = target.template || 'entry';
+    const canvas = global.ProjectMapObjectAuthoringCanvas;
+    if (canvas && typeof canvas.openTemplate === 'function') {
+      return canvas.openTemplate(template, null, {
+        source: 'Runtime visual surface',
+        route
+      });
     }
     return false;
   }
@@ -262,7 +427,19 @@
     return i18n && typeof i18n.t === 'function' ? i18n.t(key, fallback) : fallback;
   }
 
-  const api = {reset, bind, handleAction, currentFocus, currentPlan, draftKey, markStale};
+  function runtimeVisualSurfaceApi() {
+    return global && global.ProjectMapRuntimeVisualSurfaceModel || null;
+  }
+
+  function runtimeVisualAssetDraftApi() {
+    return global && global.ProjectMapRuntimeVisualAssetDraftModel || null;
+  }
+
+  function ensureArray(value) {
+    return Array.isArray(value) ? value : [];
+  }
+
+  const api = {reset, bind, handleAction, handleVisualAction, handleEvidenceMessage, refreshRuntimeVisualSurface, currentFocus, currentPlan, draftKey, markStale};
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;
   }

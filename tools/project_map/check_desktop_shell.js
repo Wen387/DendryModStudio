@@ -172,6 +172,21 @@ async function main() {
     'utf8'
   );
   fs.writeFileSync(
+    path.join(packagedAppDir, 'project_map', 'authoring', 'runtime_snapshot_model.js'),
+    'module.exports = {buildSnapshot: function () { return {kind: "runtime_snapshot", status: "ready", summary: {}, diagnostics: []}; }};\n',
+    'utf8'
+  );
+  fs.writeFileSync(
+    path.join(packagedAppDir, 'project_map', 'authoring', 'runtime_dom_map_model.js'),
+    'module.exports = {buildSourceEvidence: function () { return {ready: true}; }, buildDomMap: function () { return {kind: "runtime_dom_map", status: "ready", summary: {}, diagnostics: []}; }};\n',
+    'utf8'
+  );
+  fs.writeFileSync(
+    path.join(packagedAppDir, 'project_map', 'authoring', 'runtime_visual_surface_model.js'),
+    'module.exports = {buildVisualSurface: function () { return {kind: "runtime_visual_surface", status: "ready", summary: {}, candidates: [], diagnostics: []}; }};\n',
+    'utf8'
+  );
+  fs.writeFileSync(
     path.join(packagedAppDir, 'project_map', 'authoring', 'runtime_lens_model.js'),
     'module.exports = {normalizeFocus: function (focus) { return focus || {}; }, buildModel: function () { return {kind: "runtime_lens_model"}; }};\n',
     'utf8'

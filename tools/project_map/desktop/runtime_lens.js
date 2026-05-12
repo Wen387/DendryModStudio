@@ -5,6 +5,9 @@ const path = require('path');
 
 const runtimePreview = require('./runtime_preview');
 const lensModel = requireAuthoringModule('runtime_lens_model.js');
+const snapshotModel = requireAuthoringModule('runtime_snapshot_model.js');
+const domMapModel = requireAuthoringModule('runtime_dom_map_model.js');
+const visualSurfaceModel = requireAuthoringModule('runtime_visual_surface_model.js');
 
 function requireAuthoringModule(fileName) {
   const candidates = [
@@ -83,22 +86,71 @@ function normalizePreviewMode(value) {
 function finalizeLens(preview, context) {
   const result = preview || {};
   const focus = context && context.focus || {};
+  const runtimeSurface = runtimeSurfaceFor(context && context.projectIndex);
+  const sourceEvidence = domMapModel.buildSourceEvidence(context && context.projectIndex, {
+    focus,
+    runtimeSurface,
+    limits: {scenes: 80, textCorpus: 120, assets: 120, controls: 120, regions: 120}
+  });
+  const runtimeSnapshot = result.runtimeSnapshot || (!result.ok
+    ? snapshotModel.buildSnapshot({
+      runtimeSurface,
+      snapshot: {},
+      diagnostics: result.diagnostics || []
+    })
+    : null);
+  const runtimeDomMap = result.runtimeDomMap || runtimeSnapshot && runtimeSnapshot.runtimeDomMap || (!result.ok
+    ? domMapModel.buildDomMap({
+      runtimeSurface,
+      runtimeSnapshot,
+      sourceEvidence,
+      diagnostics: result.diagnostics || []
+    })
+    : null);
+  const runtimeVisualSurface = result.runtimeVisualSurface || (runtimeDomMap
+    ? visualSurfaceModel.buildVisualSurface({
+      projectIndex: context && context.projectIndex,
+      runtimeSurface,
+      runtimeSnapshot,
+      runtimeDomMap,
+      focus,
+      diagnostics: result.diagnostics || []
+    })
+    : null);
   const postLoadCommands = focusCommands(focus, result);
-  const lensPage = result.ok ? writeLensPage(result, {focus, postLoadCommands}) : {url: '', path: ''};
+  const lensPage = result.ok ? writeLensPage(result, {focus, postLoadCommands, runtimeSurface, sourceEvidence}) : {url: '', path: ''};
+  const sessionStatus = result.ok
+    ? 'ready'
+    : runtimeSnapshot && runtimeSnapshot.status === 'blocked'
+      ? 'blocked'
+      : 'failed';
+  const session = Object.assign({}, result, {
+    status: sessionStatus,
+    lensUrl: lensPage.url || result.modifiedUrl,
+    externalUrl: lensPage.url || result.modifiedUrl || result.compareUrl
+  });
+  if (runtimeSnapshot) {
+    session.runtimeSnapshot = runtimeSnapshot;
+  }
+  if (runtimeDomMap) {
+    session.runtimeDomMap = runtimeDomMap;
+  }
+  if (runtimeVisualSurface) {
+    session.runtimeVisualSurface = runtimeVisualSurface;
+  }
   const model = lensModel.buildModel({
     isDesktop: true,
     focus,
     projectIndex: context && context.projectIndex,
-    session: Object.assign({}, result, {
-      status: result.ok ? 'ready' : 'failed',
-      lensUrl: lensPage.url || result.modifiedUrl,
-      externalUrl: lensPage.url || result.modifiedUrl || result.compareUrl
-    })
+    session
   });
   return Object.assign({}, result, {
     kind: 'runtime_lens_session',
     status: model.status,
     focus,
+    runtimeSnapshot,
+    runtimeDomMap,
+    runtimeVisualSurface,
     lensUrl: lensPage.url || result.modifiedUrl || '',
     lensPageUrl: lensPage.url || '',
     lensPagePath: lensPage.path || '',
@@ -122,7 +174,9 @@ function writeLensPage(preview, context) {
     title: context && context.focus && (context.focus.title || context.focus.id) || 'Runtime Lens',
     sessionId: result.sessionId || '',
     modifiedSrc: '../modified/out/html/',
-    postLoadCommands: context && context.postLoadCommands || []
+    postLoadCommands: context && context.postLoadCommands || [],
+    runtimeSurface: context && context.runtimeSurface || {},
+    sourceEvidence: context && context.sourceEvidence || {}
   }), 'utf8');
   return {
     path: filePath,
@@ -133,6 +187,8 @@ function writeLensPage(preview, context) {
 function lensPageHtml(options) {
   const opts = options || {};
   const commands = JSON.stringify(opts.postLoadCommands || []);
+  const runtimeSurface = JSON.stringify(opts.runtimeSurface || {});
+  const sourceEvidence = JSON.stringify(opts.sourceEvidence || {});
   const title = escapeHtml(opts.title || 'Runtime Lens');
   return [
     '<!doctype html>',
@@ -142,12 +198,17 @@ function lensPageHtml(options) {
     '<meta name="viewport" content="width=device-width, initial-scale=1">',
     '<title>Runtime Lens - ' + title + '</title>',
     '<style>',
-    'body{margin:0;background:#f4f2ec;color:#28231c;font:14px system-ui,sans-serif}',
+    'body{margin:0;height:100vh;display:grid;grid-template-rows:auto auto minmax(0,1fr);background:#f4f2ec;color:#28231c;font:14px system-ui,sans-serif}',
     'header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border-bottom:1px solid #d8cbb7;background:#fffaf1}',
     'header div{min-width:0}strong,span{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
     'button{padding:6px 9px;border:1px solid #b9a98d;border-radius:6px;background:white;color:#28231c}',
-    'main{height:calc(100vh - 48px)}iframe{display:block;width:100%;height:100%;border:0;background:white}',
+    'main{min-height:0}iframe{display:block;width:100%;height:100%;border:0;background:white}',
     '.status{color:#6b6255;font-size:12px}',
+    '.runtime-health{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;padding:7px 10px;border-bottom:1px solid #d8cbb7;background:#fffdf8}',
+    '.runtime-health span{padding:5px 7px;border:1px solid #e0d4bf;border-radius:6px;background:white;font-size:12px;white-space:normal}',
+    '.runtime-health strong{display:inline;font-size:12px}',
+    '.runtime-health .is-attention{border-color:#c9825f;color:#7a3418}',
+    '.runtime-health .diagnostics{grid-column:1/-1;color:#6b6255;background:transparent;border:0;padding:0}',
     '</style>',
     '</head>',
     '<body>',
@@ -156,29 +217,47 @@ function lensPageHtml(options) {
     '<div><button type="button" data-lens-action="focus">Focus</button> <button type="button" data-lens-action="reset">Reset</button></div>',
     '<span class="status" data-lens-status>Loading runtime...</span>',
     '</header>',
+    '<section class="runtime-health" aria-label="Runtime health" data-lens-health>',
+    '<span data-health-loaded>Loaded: pending</span>',
+    '<span data-health-focused>Focused: pending</span>',
+    '<span data-health-regions>Regions: pending</span>',
+    '<span data-health-choices>Choices: pending</span>',
+    '<span data-health-graphics>Graphics: pending</span>',
+    '<span data-health-map>Map: pending</span>',
+    '<span class="diagnostics" data-health-diagnostics></span>',
+    '</section>',
     '<main><iframe class="modified" title="Modified runtime" src="' + escapeAttr(opts.modifiedSrc || '../modified/out/html/') + '"></iframe></main>',
-    '<script>' + lensPageScript(commands, opts.sessionId || '') + '</script>',
+    '<script>' + lensPageScript(commands, opts.sessionId || '', runtimeSurface, sourceEvidence) + '</script>',
     '</body>',
     '</html>'
   ].join('\n') + '\n';
 }
 
-function lensPageScript(commandsJson, sessionId) {
+function lensPageScript(commandsJson, sessionId, runtimeSurfaceJson, sourceEvidenceJson) {
   return [
     '(function(){',
     '"use strict";',
     'var COMMANDS=' + commandsJson + ';',
+    'var RUNTIME_SURFACE=' + runtimeSurfaceJson + ';',
+    'var SOURCE_EVIDENCE=' + sourceEvidenceJson + ';',
     'var AUTO_COMMANDS=COMMANDS.filter(function(command){return command&&["jumpToScene","applyVariables","resetToInitialState"].indexOf(command.type)>=0;});',
     'var SESSION_ID=' + JSON.stringify(String(sessionId || '')) + ';',
     'var seq=0;',
+    'var pending={};',
     'var frame=document.querySelector("iframe.modified");',
     'var status=document.querySelector("[data-lens-status]");',
+    'var health={loaded:document.querySelector("[data-health-loaded]"),focused:document.querySelector("[data-health-focused]"),regions:document.querySelector("[data-health-regions]"),choices:document.querySelector("[data-health-choices]"),graphics:document.querySelector("[data-health-graphics]"),map:document.querySelector("[data-health-map]"),diagnostics:document.querySelector("[data-health-diagnostics]")};',
     'function setStatus(text){if(status)status.textContent=text;}',
-    'function send(command){if(!frame||!frame.contentWindow){setStatus("Runtime frame is not ready.");return;}var requestId="lens-"+(++seq);frame.contentWindow.postMessage({kind:"dms-runtime-preview-command",requestId:requestId,command:command}, window.location.origin);try{fetch("../api/debug-command-history",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({sessionId:SESSION_ID,command:command})}).catch(function(){});}catch(_err){}}',
-    'function focus(){if(!AUTO_COMMANDS.length){setStatus("No automatic focus command is available for this object.");return;}AUTO_COMMANDS.forEach(send);setStatus("Focus command sent.");}',
-    'frame&&frame.addEventListener("load",function(){setTimeout(focus,120);});',
-    'document.addEventListener("click",function(event){var action=event.target.closest&&event.target.closest("[data-lens-action]");if(!action)return;if(action.getAttribute("data-lens-action")==="focus")focus();if(action.getAttribute("data-lens-action")==="reset"){send({type:"resetToInitialState"});setStatus("Reset command sent.");}});',
-    'window.addEventListener("message",function(event){var data=event.data||{};if(data.kind==="dms-runtime-lens-action"){if(data.action==="focus")focus();if(data.action==="reset"){send({type:"resetToInitialState"});setStatus("Reset command sent.");}return;}if(data.kind!=="dms-runtime-preview-result")return;var result=data.result||{};setStatus((result.ok?"Ready":"Needs attention")+": "+(result.message||result.sceneId||"command complete"));});',
+    'function metric(node,text,attention){if(!node)return;node.textContent=text;node.classList.toggle("is-attention",Boolean(attention));}',
+    'function send(command){if(!frame||!frame.contentWindow){setStatus("Runtime frame is not ready.");return;}var requestId="lens-"+(++seq);pending[requestId]=command&&command.type||"";frame.contentWindow.postMessage({kind:"dms-runtime-preview-command",requestId:requestId,command:command}, window.location.origin);if(command&&command.type!=="getRuntimeSnapshot"){try{fetch("../api/debug-command-history",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({sessionId:SESSION_ID,command:command})}).catch(function(){});}catch(_err){}}}',
+    'function captureSnapshot(){send({type:"getRuntimeSnapshot"});}',
+    'function focus(){if(!AUTO_COMMANDS.length){setStatus("No automatic focus command is available for this object.");setTimeout(captureSnapshot,120);return;}AUTO_COMMANDS.forEach(send);setStatus("Focus command sent.");setTimeout(captureSnapshot,220);}',
+    'function publishEvidence(payload){try{if(window.parent&&window.parent!==window){window.parent.postMessage({kind:"dms-runtime-lens-session-evidence",sessionId:SESSION_ID,runtimeSnapshot:payload&&payload.runtimeSnapshot||null,runtimeDomMap:payload&&payload.runtimeDomMap||payload&&payload.runtimeSnapshot&&payload.runtimeSnapshot.runtimeDomMap||null},"*");}}catch(_err){}}',
+    'function handleSnapshot(snapshot){var summary=snapshot&&snapshot.summary||{};var state=snapshot&&snapshot.state||{};var doc=snapshot&&snapshot.document||{};var graphics=snapshot&&snapshot.graphics||{};var diagnostics=snapshot&&snapshot.diagnostics||[];metric(health.loaded,"Loaded: "+(doc.bodyPresent?"yes":"no"),!doc.bodyPresent);metric(health.focused,"Focused: "+(state.sceneId||"unknown"),!state.sceneId);metric(health.regions,"Regions: "+(summary.visibleRegionCount||0)+"/"+(summary.indexedRegionCount||0),Number(summary.visibleRegionCount||0)===0);metric(health.choices,"Choices: "+(summary.choiceCount||0),false);metric(health.graphics,"Graphics: "+((graphics.svgCount||0)+(graphics.canvasCount||0))+(graphics.d3Present?" + D3":""),false);metric(health.map,"Map: pending",false);if(health.diagnostics)health.diagnostics.textContent=diagnostics.slice(0,2).map(function(item){return item.message||item.code||"";}).filter(Boolean).join("  ");setStatus("Snapshot: "+(doc.bodyPresent?"runtime loaded":"needs attention"));try{fetch("../api/runtime-snapshot",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({sessionId:SESSION_ID,runtimeSnapshot:snapshot,runtimeSurface:RUNTIME_SURFACE,sourceEvidence:SOURCE_EVIDENCE})}).then(function(response){return response&&response.json?response.json():null;}).then(function(payload){if(payload&&(payload.runtimeDomMap||payload.runtimeSnapshot&&payload.runtimeSnapshot.runtimeDomMap))handleDomMap(payload.runtimeDomMap||payload.runtimeSnapshot.runtimeDomMap);publishEvidence(payload||{runtimeSnapshot:snapshot});}).catch(function(){publishEvidence({runtimeSnapshot:snapshot});});}catch(_err){publishEvidence({runtimeSnapshot:snapshot});}}',
+    'function handleDomMap(map){var summary=map&&map.summary||{};var status=map&&map.status||"";metric(health.map,"Map: "+(summary.mappedCount||0)+"/"+(summary.visibleCount||0),status==="blocked"||Number(summary.mappedCount||0)===0);if(health.diagnostics&&map&&map.diagnostics&&map.diagnostics.length&&!health.diagnostics.textContent)health.diagnostics.textContent=map.diagnostics.slice(0,2).map(function(item){return item.message||item.code||"";}).filter(Boolean).join("  ");}',
+    'frame&&frame.addEventListener("load",function(){setTimeout(function(){if(AUTO_COMMANDS.length)focus();else captureSnapshot();},120);});',
+    'document.addEventListener("click",function(event){var action=event.target.closest&&event.target.closest("[data-lens-action]");if(!action)return;if(action.getAttribute("data-lens-action")==="focus")focus();if(action.getAttribute("data-lens-action")==="reset"){send({type:"resetToInitialState"});setStatus("Reset command sent.");setTimeout(captureSnapshot,220);}});',
+    'window.addEventListener("message",function(event){var data=event.data||{};if(data.kind==="dms-runtime-lens-action"){if(data.action==="focus")focus();if(data.action==="reset"){send({type:"resetToInitialState"});setStatus("Reset command sent.");setTimeout(captureSnapshot,220);}return;}if(data.kind!=="dms-runtime-preview-result")return;var result=data.result||{};if(result.runtimeSnapshot){handleSnapshot(result.runtimeSnapshot);return;}setStatus((result.ok?"Ready":"Needs attention")+": "+(result.message||result.sceneId||"command complete"));if(pending[data.requestId]&&pending[data.requestId]!=="getRuntimeSnapshot")setTimeout(captureSnapshot,180);});',
     '})();'
   ].join('\n');
 }
@@ -241,6 +320,10 @@ function focusSceneType(focus) {
   if (kind === 'route') return 'route';
   if (kind === 'scene' || kind === 'text_replacement') return 'scene';
   return 'event';
+}
+
+function runtimeSurfaceFor(projectIndex) {
+  return projectIndex && projectIndex.semantic && projectIndex.semantic.runtimeSurface || {};
 }
 
 

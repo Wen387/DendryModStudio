@@ -103,6 +103,36 @@
   background: #fff;
 }
 
+.runtime-lens-health {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+  align-items: stretch;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
+.runtime-lens-health strong,
+.runtime-lens-health p {
+  grid-column: 1 / -1;
+}
+
+.runtime-lens-health span {
+  min-width: 0;
+  padding: 7px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-alt);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.runtime-lens-health p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
 .runtime-lens-panel.is-expanded .runtime-lens-frame {
   height: 100%;
 }
@@ -118,6 +148,66 @@
 .runtime-lens-diagnostics {
   border-top: 1px solid var(--border);
   padding-top: 8px;
+}
+
+.runtime-lens-dom-map,
+.runtime-lens-visual-surface {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
+.runtime-lens-dom-map summary,
+.runtime-lens-visual-surface summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.runtime-lens-dom-map summary strong,
+.runtime-lens-visual-surface summary strong {
+  color: var(--text);
+}
+
+.runtime-lens-dom-map p,
+.runtime-lens-visual-surface p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.runtime-lens-dom-map ol,
+.runtime-lens-visual-surface ol {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.runtime-lens-dom-map li,
+.runtime-lens-visual-surface li {
+  padding: 7px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-alt);
+}
+
+.runtime-lens-dom-map li span,
+.runtime-lens-dom-map li small,
+.runtime-lens-visual-surface li span,
+.runtime-lens-visual-surface li small {
+  display: block;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.runtime-lens-dom-map li strong,
+.runtime-lens-visual-surface li strong {
+  display: block;
+  margin: 3px 0;
+  overflow-wrap: anywhere;
+}
+
+.runtime-lens-visual-surface li button {
+  margin-top: 6px;
 }
 
 .runtime-lens-diagnostics summary {
@@ -136,5 +226,9 @@
 
   .runtime-lens-actions {
     justify-content: flex-start;
+  }
+
+  .runtime-lens-health {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

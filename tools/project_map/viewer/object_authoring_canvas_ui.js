@@ -62,6 +62,7 @@
     objectEditorPreviewExpanded: false,
     resizingPane: null,
     baseDraft: null,
+    proposalOptions: null,
     values: {},
     valueOriginals: {},
     structureCommands: [],
@@ -682,6 +683,7 @@
     state.editorOverlay = false;
     state.deleteProposal = null;
     state.baseDraft = null;
+    state.proposalOptions = options && options.proposalOptions || null;
     state.values = options && options.values || {};
     state.valueOriginals = {};
     resetStructureCommands();
@@ -722,6 +724,7 @@
     state.editorOverlay = false;
     state.deleteProposal = null;
     state.baseDraft = draft || safeDefaultDraftForTemplate(nextTemplate);
+    state.proposalOptions = null;
     if (nextTemplate === 'card') {
       state.cardBoardSelectedKey = 'draft:card:' + (state.baseDraft && state.baseDraft.id || 'new_action_card');
       state.selectedCanvasNode = state.cardBoardSelectedKey;
@@ -804,7 +807,14 @@
       const values = contextApi && typeof contextApi.proposalValues === 'function'
         ? contextApi.proposalValues(value)
         : {};
-      const opened = openFromSelection(state.projectIndex, value.sceneKind === 'card' ? 'cards' : 'events', value.sceneId, {values, entry: meta});
+      const opened = openFromSelection(state.projectIndex, value.sceneKind === 'card' ? 'cards' : 'events', value.sceneId, {
+        values,
+        entry: meta,
+        proposalOptions: {
+          id: value.id,
+          assetInstallRequests: value.assetInstallRequests || []
+        }
+      });
       if (opened) { restoreAuthoringContext(value.studioAuthoringContext || value.authoringContext || {}, meta); } return opened;
     }
     const context = value.studioAuthoringContext || value.authoringContext || {};
@@ -825,7 +835,7 @@
     state.values = collectValues();
     state.model = state.deleteProposal
       ? buildDeleteProposalModel(state.deleteProposal)
-      : state.mode === 'existing' ? buildExistingModel({values: state.values}) : buildTemplateModel({values: state.values});
+      : state.mode === 'existing' ? buildExistingModel({values: state.values, proposalOptions: state.proposalOptions}) : buildTemplateModel({values: state.values});
     markRuntimeLensStale();
     const surface = currentSurface(state.model);
     if (surface.key === 'system_ui_preview' || surface.key === 'card_board' && !activeInsidePreviewObjectEditor() || shouldRenderSurfaceRefresh(surface)) {

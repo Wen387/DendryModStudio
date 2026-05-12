@@ -34,6 +34,12 @@ function htmlBuildRunner(commandLabel) {
   };
 }
 
+const confinedSession = runtimePreview.resolvePreviewSessionRoot('/tmp/dms-preview-root', 'session-1/api/runtime-snapshot');
+assert(confinedSession.ok, 'preview session path should allow a normal session segment');
+assert(confinedSession.root === path.resolve('/tmp/dms-preview-root', 'session-1'), 'preview session path should resolve under preview root');
+assert(!runtimePreview.resolvePreviewSessionRoot('/tmp/dms-preview-root', '../escape/api/runtime-snapshot').ok, 'preview session path should reject parent traversal');
+assert(!runtimePreview.resolvePreviewSessionRoot('/tmp/dms-preview-root', '/api/runtime-snapshot').ok, 'preview session path should reject missing session segment');
+
 const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dms_runtime_preview_source_'));
 fs.mkdirSync(path.join(sourceRoot, 'source', 'scenes'), {recursive: true});
 fs.mkdirSync(path.join(sourceRoot, '.git'), {recursive: true});
@@ -274,6 +280,49 @@ assert(historyResult.ok, 'recordDebugCommandHistory should succeed: ' + JSON.str
 const metadataAfterHistory = JSON.parse(fs.readFileSync(path.join(realBuildSession.paths.root, 'metadata.json'), 'utf8'));
 assert(metadataAfterHistory.debugCommandHistory.length === 1, 'metadata should store debug command history');
 assert(metadataAfterHistory.debugCommandHistory[0].sceneId === 'runtime_replace', 'history should store target scene id');
+const snapshotResult = runtimePreview.recordRuntimeSnapshot(realBuildSession.paths.root, {
+  document: {readyState: 'complete', bodyPresent: true, title: 'Runtime Replace'},
+  state: {exportable: true, sceneId: 'runtime_replace', qualityCount: 2},
+  regions: [
+    {selector: '#content', role: 'content', found: true, visible: true, text: 'Modified label', samples: [{selector: '#content p', role: 'content', tag: 'p', text: 'Modified label', visible: true}]},
+    {selector: 'ul.choices', role: 'choices', found: true, visible: true, text: 'Next', samples: [{selector: 'ul.choices li', role: 'choices', tag: 'li', text: 'Next', visible: true}]}
+  ],
+  graphics: {d3Present: true, svgCount: 1, svgNonEmptyCount: 1, canvasCount: 0}
+}, {
+  runtimeSurface: {
+    readiness: {status: 'ready', quickPreviewReady: true, missingDependencyCount: 0},
+    regions: [
+      {id: 'content', role: 'content', selector: '#content', label: 'Story content'},
+      {id: 'choices', role: 'choices', selector: 'ul.choices', label: 'Choices'}
+    ],
+    diagnostics: []
+  },
+  sourceEvidence: {
+    ready: true,
+    scenes: [
+      {
+        id: 'runtime_replace',
+        title: 'Runtime Replace',
+        source: {path: 'source/scenes/status.scene.dry', startLine: 1},
+        options: [{id: '@next', title: 'Next', source: {path: 'source/scenes/status.scene.dry', line: 2}}],
+        sections: []
+      }
+    ],
+    textCorpus: [
+      {id: 'text-modified-label', role: 'body', text: 'Modified label', sceneId: 'runtime_replace', source: {path: 'source/scenes/status.scene.dry', line: 1}, editability: 'text_proposal'},
+      {id: 'text-next', role: 'option_label', text: 'Next', sceneId: 'runtime_replace', source: {path: 'source/scenes/status.scene.dry', line: 2}, editability: 'draft_extractable'}
+    ],
+    assets: []
+  }
+}, () => new Date('2026-04-29T15:05:00.000Z'));
+assert(snapshotResult.ok, 'recordRuntimeSnapshot should succeed: ' + JSON.stringify(snapshotResult));
+const metadataAfterSnapshot = JSON.parse(fs.readFileSync(path.join(realBuildSession.paths.root, 'metadata.json'), 'utf8'));
+assert(metadataAfterSnapshot.runtimeSnapshot.status === 'ready', 'metadata should store normalized runtime snapshot status');
+assert(metadataAfterSnapshot.runtimeSnapshot.summary.visibleRegionCount === 2, 'metadata should store runtime snapshot region summary');
+assert(metadataAfterSnapshot.runtimeDomMap.status === 'ready', 'metadata should store normalized runtime DOM source map status');
+assert(metadataAfterSnapshot.runtimeDomMap.summary.sourceBackedCount === 2, 'metadata should store runtime DOM source map summary');
+assert(metadataAfterSnapshot.runtimeSnapshot.runtimeDomMap.summary.mappedCount === 2, 'runtime snapshot should carry the normalized DOM source map');
+assert(metadataAfterSnapshot.runtimeSnapshotUpdatedAt === '2026-04-29T15:05:00.000Z', 'metadata should store runtime snapshot update timestamp');
 
 Promise.resolve(runtimePreview.createRuntimePreview({
   projectRoot: sourceRoot,

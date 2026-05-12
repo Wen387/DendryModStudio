@@ -56,6 +56,8 @@ assert(runtimeLensUi.includes("const suspended = opts.status === 'suspended'"), 
 assert(runtimeLensUi.includes('!suspended &&'), 'Runtime Lens UI should not reframe suspended sessions as stale');
 assert(runtimeLensUi.includes('runtimeLens.suspended'), 'Runtime Lens UI should localize suspended state');
 assert(runtimeLensWorkspaceState.includes('runtimeLensEmbedsSuspended = false'), 'Runtime Lens actions should clear suspended state before rebuild');
+assert(runtimeLensWorkspaceState.includes('result && result.status'), 'Runtime Lens workspace should preserve blocked/partial session status from desktop results');
+assert(runtimeLensWorkspaceState.includes('runtimeLens.blocked'), 'Runtime Lens workspace should show blocked readiness copy');
 
 assert(desktopMain.includes("require('./runtime_session_cleanup')"), 'Desktop main should load runtime session cleanup helper');
 assert(desktopMain.includes('pruneRuntimeSessions'), 'Desktop main should prune runtime sessions');

@@ -5,6 +5,21 @@ const path = require('path');
 
 global.ProjectMapI18n = {t: (_key, fallback) => fallback};
 global.ProjectMapCardBoardModel = require('./authoring/card_board_model.js');
+global.ProjectMapEditCapability = {
+  buildEditCapability(_index, _view, item) {
+    return {
+      routeClass: 'direct_field_replace',
+      installSafety: 'guarded_apply',
+      reason: 'Fixture edit route.',
+      target: {view: 'events', sceneId: item && item.owner && item.owner.sceneId || 'election_start', valueKey: item && item.id || 'body'}
+    };
+  },
+  routeActionLabel() {
+    return 'Open object editor';
+  }
+};
+global.ProjectMapRuntimeVisualSurfaceModel = require('./authoring/runtime_visual_surface_model.js');
+global.ProjectMapRuntimeVisualAssetDraftModel = require('./authoring/runtime_visual_asset_draft_model.js');
 
 const runtimeLensUi = require('./viewer/runtime_lens_ui.js');
 const runtimeLensWorkspace = require('./viewer/runtime_lens_workspace_state.js');
@@ -27,7 +42,16 @@ const projectIndex = {
       title: 'Election Begins',
       type: 'event',
       path: 'source/scenes/events/election_start.scene.dry',
-      sourceSpan: {path: 'source/scenes/events/election_start.scene.dry', startLine: 1}
+      sourceSpan: {path: 'source/scenes/events/election_start.scene.dry', startLine: 1},
+      assetRefs: [
+        {
+          path: 'img/hero.png',
+          type: 'image',
+          directive: 'face-image',
+          source: {path: 'source/scenes/events/election_start.scene.dry', line: 12},
+          fileExists: true
+        }
+      ]
     },
     {
       id: 'post_vote_news',
@@ -50,7 +74,21 @@ const projectIndex = {
       path: 'source/scenes/decks/starter_deck.scene.dry',
       sourceSpan: {path: 'source/scenes/decks/starter_deck.scene.dry', startLine: 1}
     }
-  ]
+  ],
+  semantic: {
+    textCorpus: {
+      items: [
+        {
+          id: 'election_body',
+          role: 'body',
+          text: 'Election Begins',
+          owner: {sceneId: 'election_start'},
+          source: {path: 'source/scenes/events/election_start.scene.dry', line: 3},
+          editability: 'text_proposal'
+        }
+      ]
+    }
+  }
 };
 const model = {
   objectId: 'election_start',
@@ -131,16 +169,132 @@ const readyHtml = runtimeLensUi.renderPanel({
     ok: true,
     status: 'ready',
     lensUrl: 'http://127.0.0.1:4000/session/lens/',
-    externalUrl: 'http://127.0.0.1:4000/session/lens/'
+    externalUrl: 'http://127.0.0.1:4000/session/lens/',
+    runtimeSnapshot: {
+      status: 'ready',
+      summary: {
+        loaded: true,
+        sceneId: 'election_start',
+        indexedRegionCount: 4,
+        visibleRegionCount: 3,
+        choiceCount: 2
+      },
+      graphics: {svgCount: 1, canvasCount: 0, d3Present: true},
+      diagnostics: []
+    },
+    runtimeDomMap: {
+      status: 'partial',
+      summary: {visibleCount: 3, mappedCount: 2, sourceBackedCount: 1, manualReviewCount: 1},
+      diagnostics: [
+        {severity: 'warning', code: 'runtime_dom_map.unmapped_assets', message: 'One image needs manual review'}
+      ],
+      items: [
+        {role: 'content', selector: '#content p', text: 'Election Begins', source: {path: 'source/scenes/events/election_start.scene.dry', line: 3}, confidence: 'strong', editability: 'text_proposal'},
+        {role: 'd3_chart', selector: 'svg', text: 'Chart', source: {path: 'source/scenes/events/election_start.scene.dry', line: 20}, confidence: 'weak', editability: 'manual_review'}
+      ]
+    },
+    runtimeVisualSurface: {
+      status: 'partial',
+      summary: {candidateCount: 3, draftableCount: 1, proposalOnlyCount: 1, manualReviewCount: 1, generatedOnlyCount: 0},
+      diagnostics: [
+        {severity: 'warning', code: 'runtime_visual_surface.manual_review_surface', message: 'One chart needs manual review'}
+      ],
+      candidates: [
+        {
+          id: 'candidate_content',
+          role: 'content',
+          label: 'Election Begins',
+          currentValue: 'Election Begins',
+          source: {path: 'source/scenes/events/election_start.scene.dry', line: 3},
+          confidence: 'strong',
+          editability: 'draftable',
+          routeClass: 'direct_field_replace',
+          installSafety: 'guarded_apply',
+          action: {enabled: true, type: 'open_route', label: 'Open object editor', target: {view: 'events', sceneId: 'election_start'}}
+        },
+        {
+          id: 'candidate_chart',
+          role: 'd3_chart',
+          label: 'Chart',
+          currentValue: 'Chart',
+          source: {path: 'source/scenes/events/election_start.scene.dry', line: 20},
+          confidence: 'weak',
+          editability: 'manual_review',
+          routeClass: '',
+          installSafety: 'manual_review',
+          action: {enabled: false}
+        },
+        {
+          id: 'candidate_portrait',
+          role: 'portrait_image',
+          label: 'hero.png',
+          currentValue: 'img/hero.png',
+          src: 'http://127.0.0.1/out/html/img/hero.png',
+          source: {path: 'source/scenes/events/election_start.scene.dry', line: 12},
+          confidence: 'strong',
+          editability: 'proposal_only',
+          routeClass: 'object_workspace',
+          installSafety: 'guarded_apply',
+          assetDirective: 'face-image',
+          assetDraftStatus: 'proposal_only',
+          replacementTargetPath: 'assets/studio/events/election_start/hero.png',
+          action: {enabled: true, type: 'open_route', label: 'Open owning workspace', target: {view: 'events', sceneId: 'election_start'}},
+          actions: [
+            {enabled: true, type: 'open_route', label: 'Open owning workspace', target: {view: 'events', sceneId: 'election_start'}},
+            {enabled: true, type: 'create_asset_reference_draft', label: 'Create asset draft', target: {owner: {sceneId: 'election_start'}}}
+          ]
+        }
+      ]
+    }
   }
 });
 assert(readyHtml.includes('data-runtime-lens-frame="true"'), 'Ready Runtime Lens panel should render an iframe');
 assert(readyHtml.includes('http://127.0.0.1:4000/session/lens/'), 'Runtime Lens iframe should point at the focused wrapper URL');
+assert(readyHtml.includes('Runtime health'), 'Ready Runtime Lens panel should render runtime snapshot health');
+assert(readyHtml.includes('Regions: 3/4'), 'Ready Runtime Lens panel should summarize visible runtime regions');
+assert(readyHtml.includes('Choices: 2'), 'Ready Runtime Lens panel should summarize rendered choices');
+assert(readyHtml.includes('Graphics: 1 + D3'), 'Ready Runtime Lens panel should summarize D3 graphics');
+assert(readyHtml.includes('DOM source map'), 'Ready Runtime Lens panel should render DOM source map details');
+assert(readyHtml.includes('Mapped 2/3'), 'Ready Runtime Lens panel should summarize DOM source map coverage');
+assert(readyHtml.includes('source/scenes/events/election_start.scene.dry:3'), 'Ready Runtime Lens panel should list mapped source references');
+assert(readyHtml.includes('One image needs manual review'), 'Ready Runtime Lens panel should show DOM map diagnostics');
+assert(readyHtml.includes('Editable visual surfaces'), 'Ready Runtime Lens panel should render visual surface candidates');
+assert(readyHtml.includes('1 draftable'), 'Ready Runtime Lens panel should summarize draftable visual surfaces');
+assert(readyHtml.includes('data-runtime-visual-action="open_route"'), 'Draftable visual surface should render an open route action');
+assert(readyHtml.includes('data-runtime-visual-action="create_asset_reference_draft"'), 'Asset visual surface should render an asset draft action');
+assert(readyHtml.includes('assets/studio/events/election_start/hero.png'), 'Asset visual surface should show replacement target readiness');
+assert(readyHtml.includes('One chart needs manual review'), 'Ready Runtime Lens panel should show visual surface diagnostics');
 assert(readyHtml.includes('Refresh quick'), 'Ready Runtime Lens panel should offer quick refresh');
 assert(readyHtml.includes('Full Build'), 'Ready Runtime Lens panel should offer explicit full build');
 assert(readyHtml.includes('Reset'), 'Ready Runtime Lens panel should offer reset');
 assert(readyHtml.includes('Collapse'), 'Ready Runtime Lens panel should offer collapse');
 assert(readyHtml.includes('Open'), 'Ready Runtime Lens panel should offer external open');
+
+let loadedAssetDraft = null;
+global.ProjectMapObjectAuthoringCanvas = {
+  loadDraft(draft, meta) {
+    loadedAssetDraft = {draft, meta};
+    return true;
+  }
+};
+const assetActionState = {
+  projectIndex,
+  workspace: 'content',
+  mode: 'existing',
+  view: 'events',
+  item: 'election_start',
+  selectedCanvasNode: 'event:election_start',
+  model,
+  runtimeLensSession: readySessionForAssetAction(),
+  runtimeLensStatus: 'ready'
+};
+runtimeLensWorkspace.refreshRuntimeVisualSurface(assetActionState);
+const assetCandidateId = assetActionState.runtimeLensSession.runtimeVisualSurface.candidates[0].id;
+const assetActionOpened = runtimeLensWorkspace.handleVisualAction(assetActionState, 'create_asset_reference_draft', assetCandidateId, {render() {}});
+assert(assetActionOpened, 'Runtime Lens workspace should open a runtime visual asset draft action');
+assert(loadedAssetDraft && loadedAssetDraft.draft && loadedAssetDraft.draft.kind === 'existing_scene_edit', 'Runtime visual asset action should load an existing scene edit draft');
+assert(loadedAssetDraft.draft.assetInstallRequests && loadedAssetDraft.draft.assetInstallRequests.length === 1, 'Runtime visual asset draft should carry an asset install request');
+assert(assetActionState.runtimeLensSession.runtimeVisualAssetDraft && assetActionState.runtimeLensSession.runtimeVisualAssetDraft.status === 'proposal_only', 'Runtime visual asset action should store latest draft metadata on the session');
 
 const staleHtml = runtimeLensUi.renderPanel({
   focus,
@@ -161,6 +315,87 @@ const draftStaleHtml = runtimeLensUi.renderPanel({
 });
 assert(draftStaleHtml.includes('data-runtime-lens-status="stale"'), 'Runtime Lens panel should mark stale draft edits');
 assert(draftStaleHtml.includes('latest draft'), 'Runtime Lens draft stale panel should explain refresh or rebuild');
+
+const blockedHtml = runtimeLensUi.renderPanel({
+  focus,
+  status: 'blocked',
+  sessionFocusKey: 'event:election_start',
+  session: {
+    ok: false,
+    status: 'blocked',
+    runtimeSnapshot: {
+      status: 'blocked',
+      summary: {loaded: false, sceneId: '', indexedRegionCount: 0, visibleRegionCount: 0, choiceCount: 0},
+      graphics: {},
+      diagnostics: [
+        {severity: 'error', code: 'runtime_surface.missing_script', message: 'Missing out/html/core.js'}
+      ]
+    },
+    runtimeDomMap: {
+      status: 'blocked',
+      summary: {visibleCount: 0, mappedCount: 0, sourceBackedCount: 0, manualReviewCount: 0},
+      diagnostics: [
+        {severity: 'error', code: 'runtime_dom_map.blocked_by_snapshot', message: 'Runtime DOM source map is blocked.'}
+      ],
+      items: []
+    },
+    runtimeVisualSurface: {
+      status: 'blocked',
+      summary: {candidateCount: 0, draftableCount: 0, proposalOnlyCount: 0, manualReviewCount: 0, generatedOnlyCount: 0},
+      diagnostics: [
+        {severity: 'error', code: 'runtime_visual_surface.blocked_by_dom_map', message: 'Runtime visual surface authoring is blocked.'}
+      ],
+      candidates: []
+    },
+    diagnostics: [
+      {severity: 'error', code: 'runtime_surface.missing_script', message: 'Missing out/html/core.js'}
+    ]
+  }
+});
+assert(blockedHtml.includes('data-runtime-lens-status="blocked"'), 'Runtime Lens panel should expose blocked status');
+assert(blockedHtml.includes('Missing out/html/core.js'), 'Blocked Runtime Lens panel should show readiness diagnostics');
+assert(blockedHtml.includes('Runtime health'), 'Blocked Runtime Lens panel should still render snapshot health summary');
+assert(blockedHtml.includes('DOM source map'), 'Blocked Runtime Lens panel should still render DOM source map summary');
+assert(blockedHtml.includes('Runtime DOM source map is blocked.'), 'Blocked Runtime Lens panel should show DOM map blocker diagnostics');
+assert(blockedHtml.includes('Editable visual surfaces'), 'Blocked Runtime Lens panel should still render visual surface summary');
+assert(blockedHtml.includes('Runtime visual surface authoring is blocked.'), 'Blocked Runtime Lens panel should show visual surface blocker diagnostics');
+
+const evidenceState = {
+  projectIndex,
+  workspace: 'content',
+  mode: 'existing',
+  view: 'events',
+  item: 'election_start',
+  selectedCanvasNode: 'event:election_start',
+  model,
+  runtimeLensSession: {ok: true, status: 'ready', sessionId: 'session-1'},
+  runtimeLensStatus: 'ready'
+};
+let renderedAfterEvidence = false;
+assert(runtimeLensWorkspace.handleEvidenceMessage(evidenceState, {
+  kind: 'dms-runtime-lens-session-evidence',
+  sessionId: 'session-1',
+  runtimeSnapshot: {status: 'ready', state: {sceneId: 'election_start'}},
+  runtimeDomMap: {
+    status: 'ready',
+    items: [
+      {id: 'content_1', role: 'content', text: 'Election Begins', sceneId: 'election_start', source: {path: 'source/scenes/events/election_start.scene.dry', line: 3}, confidence: 'strong'}
+    ]
+  }
+}, {render: () => { renderedAfterEvidence = true; }}), 'Runtime Lens workspace should accept live session evidence messages');
+assert(renderedAfterEvidence, 'Runtime Lens workspace should render after live evidence updates');
+assert(evidenceState.runtimeLensSession.runtimeVisualSurface.summary.draftableCount === 1, 'Live evidence update should compute visual surface candidates with full ProjectIndex');
+
+let openedRoute = null;
+global.ProjectMapObjectAuthoringCanvas = {
+  openFromSelection(index, view, sceneId, options) {
+    openedRoute = {index, view, sceneId, options};
+    return true;
+  }
+};
+const candidateId = evidenceState.runtimeLensSession.runtimeVisualSurface.candidates[0].id;
+assert(runtimeLensWorkspace.handleVisualAction(evidenceState, 'open_route', candidateId, {render() {}}), 'Runtime Lens workspace should open draftable visual surface routes');
+assert(openedRoute && openedRoute.sceneId === 'election_start', 'Visual surface open route should target the owning scene');
 
 const collapsedHtml = runtimeLensUi.renderPanel({
   focus,
@@ -236,6 +471,51 @@ assert(routeFocus.targetSceneId, 'Hand route focus should have a runtime scene t
 const advisorLaneFocus = runtimeLensUi.focusFromCardBoard(starterIndex, cardModel, {cardBoardSelection: {kind: 'lane', laneKey: 'advisor'}});
 assert(advisorLaneFocus.kind === 'card', 'Advisor lane focus should use the first advisor-like card as runtime target');
 assert(advisorLaneFocus.targetSceneId === 'demo_advisor', 'Advisor lane focus should target the pinned advisor card');
+
+function readySessionForAssetAction() {
+  return {
+    ok: true,
+    status: 'ready',
+    runtimeDomMap: {
+      status: 'ready',
+      items: [
+        {
+          id: 'portrait_dom',
+          role: 'portrait_image',
+          selector: '.face-img',
+          src: 'http://127.0.0.1/out/html/img/hero.png',
+          sceneId: 'election_start',
+          source: {path: 'source/scenes/events/election_start.scene.dry', line: 12},
+          confidence: 'strong'
+        }
+      ]
+    },
+    runtimeVisualSurface: {
+      status: 'partial',
+      candidates: [
+        {
+          id: 'candidate_portrait',
+          role: 'portrait_image',
+          label: 'hero.png',
+          currentValue: 'img/hero.png',
+          src: 'http://127.0.0.1/out/html/img/hero.png',
+          sceneId: 'election_start',
+          source: {path: 'source/scenes/events/election_start.scene.dry', line: 12},
+          confidence: 'strong',
+          editability: 'proposal_only',
+          routeClass: 'object_workspace',
+          installSafety: 'guarded_apply',
+          action: {enabled: true, type: 'open_route', label: 'Open owning workspace', target: {view: 'events', sceneId: 'election_start'}},
+          actions: [
+            {enabled: true, type: 'open_route', label: 'Open owning workspace', target: {view: 'events', sceneId: 'election_start'}},
+            {enabled: true, type: 'create_asset_reference_draft', label: 'Create asset draft', target: {owner: {sceneId: 'election_start'}}}
+          ]
+        }
+      ],
+      diagnostics: []
+    }
+  };
+}
 
 process.stdout.write(JSON.stringify({
   ok: true,
