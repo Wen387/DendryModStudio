@@ -795,7 +795,7 @@
     if (value.kind === 'existing_scene_delete') {
       const opened = openFromSelection(state.projectIndex, value.sceneKind === 'card' ? 'cards' : 'events', value.sceneId, {entry: meta});
       if (opened) {
-        state.deleteProposal = normalizeDeleteProposal(value, state.model);
+        state.deleteProposal = objectDeleteProposalApi().normalizeProposal(value, state.model);
         state.model = buildDeleteProposalModel(state.deleteProposal);
         state.status = t('objectCanvas.status.deletePrepared', 'Delete proposal prepared for Review & Apply.');
         render();
@@ -998,58 +998,32 @@
       '--object-canvas-sidebar-width: ' + clampAuthoringSidebarWidth(state.authoringSidebarWidth) + 'px',
       '--object-editor-preview-width: ' + clampObjectEditorPreviewWidth(state.objectEditorPreviewWidth) + 'px'
     ].join('; ');
-    elements.host.innerHTML = [
-      '<section class="object-canvas editing-workspace' + (state.editorOverlay ? ' is-editor-overlay' : '') + (previewEditorIsActive(surface) ? ' has-preview-object-editor' : '') + (boardChromeCanCollapse(surface) && state.boardChromeCollapsed ? ' is-board-chrome-collapsed' : '') + '" data-object-authoring-canvas="true" data-editing-workspace="true" data-authoring-workspace="' + escapeAttr(state.workspace || 'content') + '" data-authoring-surface="' + escapeAttr(surface.key || 'content_graph') + '" data-preview-object-editor-active="' + (previewEditorIsActive(surface) ? 'true' : 'false') + '" data-board-chrome-collapsed="' + (state.boardChromeCollapsed ? 'true' : 'false') + '" style="' + escapeAttr(layoutStyle) + '">',
-      renderHeader(model, surface),
+    const shell = objectCanvasShellApi();
+    const bodyHtml = stageError
+      ? renderDiagnostics([{message: t('objectCanvas.renderFailed', 'Canvas render failed: {error}').replace('{error}', stageError && stageError.message ? stageError.message : String(stageError || 'unknown error'))}])
+      : model.ok ? renderBody(model) : renderUnavailable(model);
+    elements.host.innerHTML = shell.renderShell({
+      model,
+      surface,
+      state,
+      layoutStyle,
       stageHtml,
-      renderObjectEditingModal(model, surface),
-      stageError ? renderDiagnostics([{message: t('objectCanvas.renderFailed', 'Canvas render failed: {error}').replace('{error}', stageError && stageError.message ? stageError.message : String(stageError || 'unknown error'))}]) : model.ok ? renderBody(model) : renderUnavailable(model),
-      '</section>'
-    ].join('');
+      modalHtml: renderObjectEditingModal(model, surface),
+      bodyHtml,
+      translate: t,
+      surfaceLabelFor
+    });
     bindCanvasEvents();
     updateDynamicSurfaces();
     restoreObjectCanvasScroll(scrollSnapshot);
   }
 
   function renderHeader(model, surface) {
-    const source = model.source || {};
-    const systemUi = surface && surface.key === 'system_ui_preview';
-    const modeLabel = model.mode === 'existing'
-      ? t('objectCanvas.mode.existing', 'Editing existing object')
-      : t('objectCanvas.mode.newObject', 'Authoring object');
-    const kindLabel = systemUi ? t('authoring.template.systemUiScreen', 'System UI Screen') : model.templateLabel || model.objectKind || state.template || 'event';
-    const surfaceLabel = surface && surfaceLabelFor(surface) || t('objectCanvas.eyebrow', 'Object Authoring Canvas');
-    const title = headerTitle(model, surface);
-    const canCollapse = boardChromeCanCollapse(surface);
-    const collapsed = canCollapse && state.boardChromeCollapsed;
-    const toggleLabel = collapsed
-      ? t('objectCanvas.expandBoardChrome', 'Expand board details')
-      : t('objectCanvas.collapseBoardChrome', 'Collapse board details');
-    return [
-      '<header class="object-canvas-header editing-workspace-header' + (canCollapse ? ' is-collapsible' : '') + (collapsed ? ' is-collapsed' : '') + '" data-object-canvas-header="true">',
-      '<div>',
-      '<div class="object-canvas-title-row">',
-      '<div>',
-      '<div class="template-eyebrow" data-authoring-surface-label="true">' + escapeHtml(surfaceLabel) + '</div>',
-      '<h2 data-object-canvas-title="true">' + escapeHtml(title) + '</h2>',
-      '</div>',
-      canCollapse ? '<button class="object-canvas-chrome-toggle" type="button" data-object-canvas-action="toggle_board_chrome" aria-expanded="' + (collapsed ? 'false' : 'true') + '">' + escapeHtml(toggleLabel) + '</button>' : '',
-      '</div>',
-      '<p>' + escapeHtml(t('objectCanvas.body', 'Design the object itself: keep context beside it, edit player-facing text directly, then review the exact change operations.')) + '</p>',
-      '<div class="editing-status-line" data-object-canvas-status="true">' + escapeHtml(state.status || '') + '</div>',
-      '</div>',
-      '<dl class="editing-meta">',
-      '<dt>' + escapeHtml(t('objectCanvas.mode', 'Mode')) + '</dt><dd>' + escapeHtml(modeLabel) + '</dd>',
-      '<dt>' + escapeHtml(t('existingScene.kind', 'Kind')) + '</dt><dd>' + escapeHtml(kindLabel) + '</dd>',
-      '<dt>' + escapeHtml(t('existingScene.sceneId', 'Scene')) + '</dt><dd>' + escapeHtml(model.objectId || '') + '</dd>',
-      '<dt>' + escapeHtml(t('existingScene.source', 'Source')) + '</dt><dd>' + escapeHtml(source.path ? source.path + (source.line ? ':' + source.line : '') : '') + '</dd>',
-      '</dl>',
-      '</header>'
-    ].join('');
+    return objectCanvasShellApi().renderHeader(model, surface, state, {translate: t, surfaceLabelFor});
   }
 
   function renderBody(model) {
-    return '<div class="object-canvas-layout object-canvas-layout-retired" hidden data-object-canvas-support-panels="true"></div>';
+    return objectCanvasShellApi().renderBody(model, {translate: t});
   }
 
   function renderCanvasStage(model) {
@@ -1090,8 +1064,7 @@
   }
 
   function canRenderSurfaceWithDiagnostics(surface) {
-    const key = surface && surface.key || '';
-    return key === 'card_board';
+    return objectCanvasShellApi().canRenderSurfaceWithDiagnostics(surface);
   }
 
   function renderProjectStateStage(model) {
@@ -1128,13 +1101,11 @@
   }
 
   function boardChromeCanCollapse(surface) {
-    const key = surface && surface.key || '';
-    return key === 'content_storyboard' || key === 'card_board' || key === 'system_ui_preview' || key === 'election_results_board' || key === 'project_state_board';
+    return objectCanvasShellApi().boardChromeCanCollapse(surface);
   }
 
   function previewEditorIsActive(surface) {
-    const key = surface && surface.key || '';
-    return key === 'content_storyboard' || key === 'card_board';
+    return objectCanvasShellApi().previewEditorIsActive(surface);
   }
 
   function activeInsidePreviewObjectEditor() {
@@ -1196,24 +1167,11 @@
   }
 
   function renderUnavailable(model) {
-    const diagnostics = model && model.changeState && model.changeState.diagnostics || [];
-    return [
-      '<section class="editing-panel" open>',
-      '<div class="editing-empty">' + escapeHtml(t('objectCanvas.unavailable', 'Object Canvas cannot open this selection yet.')) + '</div>',
-      diagnostics.map((diag) => '<p class="editing-readonly-line">' + escapeHtml((diag.code || 'diagnostic') + ': ' + (diag.message || '')) + '</p>').join(''),
-      '</section>'
-    ].join('');
+    return objectCanvasShellApi().renderUnavailable(model, {translate: t});
   }
 
   function renderStageError(surface, err) {
-    return [
-      '<section class="object-canvas-stage object-canvas-render-error" data-object-canvas-stage="true" data-object-canvas-render-error="true" data-authoring-surface="' + escapeAttr(surface && surface.key || '') + '">',
-      '<div class="editing-empty">',
-      '<h3>' + escapeHtml(t('objectCanvas.renderErrorTitle', 'Canvas could not render this workspace.')) + '</h3>',
-      '<p>' + escapeHtml(err && err.message ? err.message : String(err || 'Unknown render error')) + '</p>',
-      '</div>',
-      '</section>'
-    ].join('');
+    return objectCanvasShellApi().renderStageError(surface, err, {translate: t});
   }
 
   function recordRenderError(err, surface) {
@@ -1229,91 +1187,23 @@
   }
 
   function renderChangePanel(model) {
-    const change = model.changeState || {};
-    const summary = change.operationSummary || {};
-    const output = change.output || {};
-    const installPlan = change.installPlan || output.installPlan || parseJson(output.installPlanJson);
-    return [
-      '<section class="editing-summary" data-object-canvas-operation-summary="true">',
-      '<h3>' + escapeHtml(t('objectCanvas.changeTitle', 'Change and safety')) + '</h3>',
-      '<div class="editing-summary-grid">',
-      summaryBox(t('editing.summary.guarded', 'Guarded'), summary.guardedApply),
-      summaryBox(t('editing.summary.manual', 'Manual'), summary.manualReview),
-      summaryBox(t('editing.summary.refused', 'Refused'), summary.refused),
-      summaryBox(t('objectCanvas.changedFields', 'Changed'), change.changedCount),
-      '</div>',
-      '</section>',
-      '<section class="editing-preview">',
-      '<div class="preview-heading">' + escapeHtml(t('objectCanvas.preview', 'Player-facing preview')) + '</div>',
-      '<pre class="code-preview" data-object-canvas-preview="true" data-editing-preview="true">' + escapeHtml(output.playerPreview || output.proposalText || output.previewText || output.sceneDry || '') + '</pre>',
-      '</section>',
-      renderPlanPreview(installPlan),
-      renderDiagnostics(change.diagnostics || []),
-      renderActions(model)
-    ].join('');
+    return objectCanvasShellApi().renderChangePanel(model, {translate: t});
   }
 
   function renderPlanPreview(plan) {
-    const operations = Array.isArray(plan && plan.operations) ? plan.operations : [];
-    return [
-      '<section class="editing-panel object-canvas-plan" data-object-canvas-review-plan="true">',
-      '<h3>' + escapeHtml(t('objectCanvas.planTitle', 'Modification plan')) + '</h3>',
-      operations.length
-        ? operations.slice(0, 6).map(renderPlanOperation).join('')
-        : '<p class="editing-empty">' + escapeHtml(t('objectCanvas.planEmpty', 'No install operations are available for review yet.')) + '</p>',
-      operations.length > 6 ? '<p class="editing-readonly-line">' + escapeHtml(t('objectCanvas.planMore', 'More operations are available in Review & Apply.')) + '</p>' : '',
-      '</section>'
-    ].join('');
+    return objectCanvasShellApi().renderPlanPreview(plan, {translate: t});
   }
 
   function renderPlanOperation(operation) {
-    const op = operation && typeof operation === 'object' ? operation : {};
-    const title = op.description || op.id || op.type || t('objectCanvas.planOperation', 'Operation');
-    const meta = [
-      op.safety || '',
-      op.type || '',
-      op.path || op.targetPath || ''
-    ].filter(Boolean).join(' / ');
-    return [
-      '<article class="object-canvas-plan-row">',
-      '<strong>' + escapeHtml(title) + '</strong>',
-      meta ? '<span>' + escapeHtml(meta) + '</span>' : '',
-      '</article>'
-    ].join('');
+    return objectCanvasShellApi().renderPlanOperation(operation, {translate: t});
   }
 
   function renderDiagnostics(rows) {
-    const items = Array.isArray(rows) ? rows : [];
-    if (!items.length) {
-      return '';
-    }
-    return [
-      '<details class="editing-panel object-canvas-diagnostics">',
-      '<summary><span>' + escapeHtml(t('create.diagnostics', 'Diagnostics')) + '</span><b>' + items.length + '</b></summary>',
-      items.slice(0, 8).map((diag) => '<p class="editing-readonly-line">' + escapeHtml(diag.message || diag.code || '') + '</p>').join(''),
-      '</details>'
-    ].join('');
+    return objectCanvasShellApi().renderDiagnostics(rows, {translate: t});
   }
 
   function renderActions(model) {
-    return [
-      '<div class="editing-actions object-canvas-actions">',
-      '<button type="button" data-object-canvas-action="refresh">' + escapeHtml(t('existingScene.refresh', 'Refresh proposal')) + '</button>',
-      '<button type="button" data-object-canvas-action="save">' + escapeHtml(t('editing.saveToChanges', 'Save to My Changes')) + '</button>',
-      '<button class="primary-action" type="button" data-object-canvas-action="review">' + escapeHtml(t('existingScene.review', 'Review & Apply')) + '</button>',
-      '<button class="danger-action" type="button" data-object-canvas-action="delete_current_object">' + escapeHtml(t(model.mode === 'existing' ? 'objectCanvas.action.deleteExisting' : 'objectCanvas.action.discardDraft', model.mode === 'existing' ? 'Delete event' : 'Discard draft')) + '</button>',
-      model.mode !== 'existing' ? '<button type="button" data-object-canvas-action="legacy_form">' + escapeHtml(t('objectCanvas.legacyForm', 'Advanced Form')) + '</button>' : '',
-      '</div>'
-    ].join('');
-  }
-
-  function summaryBox(label, value) {
-    return [
-      '<div class="editing-summary-box">',
-      '<strong>' + escapeHtml(String(Number(value || 0))) + '</strong>',
-      '<span>' + escapeHtml(label) + '</span>',
-      '</div>'
-    ].join('');
+    return objectCanvasShellApi().renderActions(model, {translate: t});
   }
 
   function bindCanvasEvents() {
@@ -1712,254 +1602,24 @@
   }
 
   function buildDeleteProposal(model) {
-    const source = normalizeSource(model && model.source || {});
-    const sceneId = String(model && model.objectId || state.item || '').trim();
-    const sceneKind = String(model && model.objectKind || '').trim() === 'card' ? 'card' : 'event';
-    const title = String(model && model.title || sceneId || '').trim();
-    return normalizeDeleteProposal({
-      schemaVersion: '0.1',
-      kind: 'existing_scene_delete',
-      id: 'delete_' + safeDraftId(sceneId || sceneKind),
-      title: 'Delete ' + (title || sceneId || sceneKind),
-      sceneId,
-      sceneKind,
-      view: sceneKind === 'card' ? 'cards' : 'events',
-      source,
-      references: collectDeleteReferences(model, sceneId, source.path),
-      reviewNote: 'Manual deletion review for ' + sceneKind + ' ' + sceneId + '.',
-      studioAuthoringContext: {
-        workspace: 'content',
-        surface: 'content_storyboard',
-        action: 'delete_current_object',
-        selectedCanvasNode: state.selectedCanvasNode || (sceneKind + ':' + sceneId),
-        view: state.view || (sceneKind === 'card' ? 'cards' : 'events')
-      }
-    }, model);
-  }
-
-  function normalizeDeleteProposal(input, model) {
-    const value = input && typeof input === 'object' ? input : {};
-    const sceneId = String(value.sceneId || model && model.objectId || '').trim();
-    const sceneKind = String(value.sceneKind || model && model.objectKind || '').trim() === 'card' ? 'card' : 'event';
-    const title = String(value.title || 'Delete ' + (model && model.title || sceneId || sceneKind)).trim();
-    return {
-      schemaVersion: String(value.schemaVersion || '0.1'),
-      kind: 'existing_scene_delete',
-      id: safeDraftId(value.id || 'delete_' + (sceneId || sceneKind)),
-      title,
-      sceneId,
-      sceneKind,
-      view: String(value.view || (sceneKind === 'card' ? 'cards' : 'events')).trim(),
-      source: normalizeSource(value.source || model && model.source || {}),
-      references: ensureArray(value.references).map(normalizeDeleteReference),
-      reviewNote: String(value.reviewNote || '').trim(),
-      studioAuthoringContext: value.studioAuthoringContext || value.authoringContext || {}
-    };
+    return objectDeleteProposalApi().buildProposal({
+      model,
+      item: state.item,
+      selectedCanvasNode: state.selectedCanvasNode,
+      view: state.view,
+      projectIndex: state.projectIndex
+    });
   }
 
   function buildDeleteProposalModel(proposalInput) {
-    const proposal = normalizeDeleteProposal(proposalInput, state.model);
-    const plan = buildDeleteInstallPlan(proposal);
-    const installApi = installPlanApi();
-    const output = {
-      ok: true,
-      draft: proposal,
-      playerPreview: deletePreviewText(proposal),
-      previewText: deletePreviewText(proposal),
-      proposalText: deletePreviewText(proposal),
-      installPlan: plan,
-      installPlanJson: installApi && typeof installApi.renderInstallPlanJson === 'function' ? installApi.renderInstallPlanJson(plan) : JSON.stringify(plan, null, 2) + '\n',
-      patchPreview: installApi && typeof installApi.renderPatchPreview === 'function' ? installApi.renderPatchPreview(plan) : '',
-      installChecklist: installApi && typeof installApi.renderOperationChecklist === 'function' ? installApi.renderOperationChecklist(plan, {locale: currentLocale()}) : '',
-      installNotes: deletePreviewText(proposal)
-    };
-    return {
-      schemaVersion: '0.1',
-      kind: 'object_authoring_canvas_model',
-      ok: true,
-      mode: 'existing',
-      template: 'existing',
-      templateLabel: proposal.sceneKind === 'card' ? t('objectPreview.card', 'Card') : t('objectPreview.event', 'World Event'),
-      objectKind: proposal.sceneKind,
-      objectId: proposal.sceneId,
-      title: proposal.title,
-      source: proposal.source,
-      entry: {source: 'Delete', action: 'delete_current_object', label: ''},
-      contextBoard: {
-        flow: proposal.references.map((ref) => ({
-          label: ref.label || ref.kind,
-          detail: [ref.kind, ref.detail].filter(Boolean).join(' / '),
-          direction: ref.kind === 'incoming' ? 'incoming' : ref.kind === 'outgoing' ? 'outgoing' : 'manual_review',
-          source: ref.source || {}
-        })),
-        variables: [],
-        effects: [],
-        assets: [],
-        sourceEvidence: [{label: 'delete target', path: proposal.source.path || '', line: proposal.source.line || null, status: 'manual_review'}],
-        manualBoundaries: [{label: 'Delete source object', reason: 'Deletion requires reviewing all routes, references, and variable consumers before changing files.', status: 'manual_review', source: proposal.source}]
-      },
-      eventBody: {
-        mode: 'delete_existing',
-        bodyEyebrow: t('objectCanvas.deleteProposal', 'Delete proposal'),
-        title: readOnlyField('delete.title', t('objectCanvas.deleteTarget', 'Delete target'), proposal.title),
-        sections: [readOnlyField('delete.review', t('objectCanvas.deleteReview', 'Review checklist'), deletePreviewText(proposal), {inputType: 'textarea'})],
-        options: [],
-        metaFields: [
-          readOnlyField('delete.sceneId', t('existingScene.sceneId', 'Scene'), proposal.sceneId),
-          readOnlyField('delete.sceneKind', t('existingScene.kind', 'Kind'), proposal.sceneKind),
-          readOnlyField('delete.source', t('existingScene.source', 'Source'), sourceLabel(proposal.source)),
-          readOnlyField('delete.references', t('objectCanvas.deleteReferences', 'References to check'), String(proposal.references.length))
-        ]
-      },
-      changeState: {
-        draft: proposal,
-        proposal,
-        output,
-        installPlan: plan,
-        operationSummary: installApi && typeof installApi.operationSummary === 'function' ? installApi.operationSummary(plan) : {safeApply: 0, guardedApply: 0, advancedApply: 0, manualReview: 1, refused: 0, total: 1},
-        changedCount: 1,
-        diagnostics: [{severity: 'warning', level: 'warning', code: 'object_canvas.delete_manual_review', message: t('objectCanvas.deleteManualReview', 'Deletion is manual-review only; Studio will not remove source automatically.')}],
-        warnings: [t('objectCanvas.deleteManualReview', 'Deletion is manual-review only; Studio will not remove source automatically.')]
-      },
-      legacy: {template: 'existing'},
-      rawContext: null
-    };
-  }
-
-  function buildDeleteInstallPlan(proposal) {
-    const installApi = installPlanApi();
-    const rawPlan = {
-      id: proposal.id,
-      draftKind: 'existing_scene_delete',
-      title: proposal.title,
-      project: installApi && typeof installApi.projectProvenanceFromIndex === 'function' ? installApi.projectProvenanceFromIndex(state.projectIndex) : null,
-      operations: [{
-        id: 'existing_scene_delete_review',
-        type: 'manual_snippet',
-        path: proposal.source.path || ('source/scenes/events/' + (proposal.sceneId || 'scene') + '.scene.dry'),
-        content: deletePreviewText(proposal),
-        safety: 'manual_review',
-        role: 'existing_scene.delete_review',
-        description: 'Review and delete this existing event or card after checking every route and reference.'
-      }]
-    };
-    return installApi && typeof installApi.buildInstallPlan === 'function'
-      ? installApi.buildInstallPlan(rawPlan)
-      : Object.assign({schemaVersion: '0.1', kind: 'install_plan', status: 'proposal_only'}, rawPlan);
-  }
-
-  function deletePreviewText(proposal) {
-    const rows = [
-      deleteText('objectCanvas.deletePreview.header', 'Delete existing {kind}: {id}', {kind: proposal.sceneKind, id: proposal.sceneId}),
-      deleteText('objectCanvas.deletePreview.title', 'Title: {title}', {title: proposal.title.replace(/^Delete\s+/, '')}),
-      deleteText('objectCanvas.deletePreview.source', 'Source: {source}', {source: sourceLabel(proposal.source) || '(unknown)'}),
-      '',
-      t('objectCanvas.deletePreview.checklist', 'Manual review checklist:'),
-      '- ' + t('objectCanvas.deletePreview.incoming', 'Remove or archive the source scene only after every incoming route has been rewired.'),
-      '- ' + t('objectCanvas.deletePreview.outgoing', 'Check outgoing routes and scheduled triggers so follow-up content still has an owner.'),
-      '- ' + t('objectCanvas.deletePreview.state', 'Check Q variables and effects referenced by this object before removing related state.'),
-      ''
-    ];
-    if (proposal.references.length) {
-      rows.push(t('objectCanvas.deletePreview.references', 'References to inspect:'));
-      proposal.references.slice(0, 16).forEach((ref) => {
-        rows.push('- ' + [ref.kind, ref.label, ref.detail, sourceLabel(ref.source)].filter(Boolean).join(' / '));
-      });
-    } else {
-      rows.push(t('objectCanvas.deletePreview.noReferences', 'References to inspect: none found in the current ProjectIndex.'));
-    }
-    return rows.join('\n') + '\n';
-  }
-
-  function deleteText(key, fallback, replacements) {
-    let value = t(key, fallback);
-    Object.keys(replacements || {}).forEach((name) => {
-      value = value.replace('{' + name + '}', String(replacements[name] || ''));
+    return objectDeleteProposalApi().buildModel({
+      proposal: proposalInput,
+      model: state.model,
+      projectIndex: state.projectIndex,
+      installPlanApi: installPlanApi(),
+      locale: currentLocale(),
+      translate: t
     });
-    return value;
-  }
-
-  function collectDeleteReferences(model, sceneId, sourcePath) {
-    const rows = [];
-    const relationships = model && model.rawContext && model.rawContext.relationships || {};
-    ['incoming', 'internal', 'outgoing'].forEach((key) => {
-      ensureArray(relationships[key]).forEach((row) => {
-        rows.push(normalizeDeleteReference({
-          kind: key,
-          label: row.label || row.from || row.to || row.kind || '',
-          detail: row.kind || row.condition || row.to || row.from || '',
-          source: row.source || row.scene && row.scene.source || {}
-        }));
-      });
-    });
-    ensureArray(state.projectIndex && state.projectIndex.scenes).forEach((scene) => {
-      const id = String(scene && scene.id || '');
-      const path = String(scene && (scene.path || scene.sourcePath || scene.sourceSpan && scene.sourceSpan.path) || '');
-      if (!sceneId || id === sceneId || path === sourcePath) {
-        return;
-      }
-      let text = '';
-      try {
-        text = JSON.stringify(scene);
-      } catch (_err) {
-        text = '';
-      }
-      if (text && text.indexOf(sceneId) >= 0) {
-        rows.push(normalizeDeleteReference({
-          kind: 'indexed reference',
-          label: scene.title || id,
-          detail: id,
-          source: scene.sourceSpan || {path}
-        }));
-      }
-    });
-    const seen = new Set();
-    return rows.filter((row) => {
-      const key = [row.kind, row.label, sourceLabel(row.source)].join('::');
-      if (seen.has(key)) {
-        return false;
-      }
-      seen.add(key);
-      return true;
-    });
-  }
-
-  function normalizeDeleteReference(ref) {
-    const value = ref && typeof ref === 'object' ? ref : {};
-    return {
-      kind: String(value.kind || 'reference').trim(),
-      label: String(value.label || '').trim(),
-      detail: String(value.detail || '').trim(),
-      source: normalizeSource(value.source || {})
-    };
-  }
-
-  function readOnlyField(id, label, value, extra) {
-    const textValue = value === undefined || value === null ? '' : String(value);
-    return Object.assign({
-      id,
-      label,
-      original: textValue,
-      value: textValue,
-      status: 'manual_review',
-      editability: 'manual_review',
-      readOnly: true,
-      source: {}
-    }, extra || {});
-  }
-
-  function normalizeSource(source) {
-    const value = source && typeof source === 'object' ? source : {};
-    const line = Number(value.line || value.startLine || 0);
-    return {
-      path: String(value.path || value.sourcePath || '').trim(),
-      line: Number.isFinite(line) && line > 0 ? Math.floor(line) : null
-    };
-  }
-
-  function sourceLabel(source) {
-    const value = normalizeSource(source);
-    return value.path ? value.path + (value.line ? ':' + value.line : '') : '';
   }
 
   function handleProjectStateAction(action) {
@@ -3244,6 +2904,8 @@
     return global.ProjectMapAuthoringSurfaceRegistry || null;
   }
 
+  function objectCanvasShellApi() { return global.ProjectMapObjectCanvasShellUi || null; }
+  function objectDeleteProposalApi() { return global.ProjectMapObjectDeleteProposalModel || null; }
   function systemUiWorkspaceApi() {
     return global.ProjectMapSystemUiWorkspaceState || null;
   }

@@ -46,6 +46,7 @@ const ELECTION_RESULTS_CHART = path.join(ROOT, 'viewer', 'election_results_chart
 const ELECTION_RESULTS_SURFACE = path.join(ROOT, 'viewer', 'election_results_surface.js');
 const OBJECT_CANVAS_VIEWPORT = path.join(ROOT, 'viewer', 'object_canvas_viewport.js');
 const OBJECT_CANVAS_GRAPH_STAGE = path.join(ROOT, 'viewer', 'object_canvas_graph_stage.js');
+const OBJECT_CANVAS_SHELL_UI = path.join(ROOT, 'viewer', 'object_canvas_shell_ui.js');
 const AUTHORING_WORKSPACE_UI = path.join(ROOT, 'viewer', 'authoring_workspace_ui.js');
 const EDITING_CONTEXT_MODEL = path.join(ROOT, 'authoring', 'editing_context_model.js');
 const EXISTING_SCENE_LOGIC_FIELDS = path.join(ROOT, 'authoring', 'existing_scene_logic_fields.js');
@@ -53,8 +54,10 @@ const VISIBLE_OBJECT_COVERAGE_MODEL = path.join(ROOT, 'authoring', 'visible_obje
 const EVENT_STRUCTURE_MODEL = path.join(ROOT, 'authoring', 'event_structure_model.js');
 const OBJECT_CANVAS_CONTENT_BODIES = path.join(ROOT, 'authoring', 'object_canvas_content_bodies.js');
 const OBJECT_CANVAS_CONTENT_ADAPTERS = path.join(ROOT, 'authoring', 'object_canvas_content_adapters.js');
+const OBJECT_DELETE_PROPOSAL_MODEL = path.join(ROOT, 'authoring', 'object_delete_proposal_model.js');
 const OBJECT_AUTHORING_CANVAS_UI = path.join(ROOT, 'viewer', 'object_authoring_canvas_ui.js');
 const OBJECT_AUTHORING_CANVAS_MODEL = path.join(ROOT, 'authoring', 'object_authoring_canvas_model.js');
+const PREVIEW_OBJECT_EDITOR_STYLE = path.join(ROOT, 'viewer', 'styles', 'preview-object-editor.css');
 const ENTRY_UI = path.join(ROOT, 'viewer', 'entry_sidebar_ui.js');
 const PLAY_SURFACE_UI = path.join(ROOT, 'viewer', 'play_surface_ui.js');
 const WORKSPACE_LAYOUT_UI = path.join(ROOT, 'viewer', 'workspace_layout_ui.js');
@@ -148,8 +151,11 @@ const electionResultsChart = fs.readFileSync(ELECTION_RESULTS_CHART, 'utf8');
 const electionResultsSurface = fs.readFileSync(ELECTION_RESULTS_SURFACE, 'utf8');
 const objectCanvasViewport = fs.readFileSync(OBJECT_CANVAS_VIEWPORT, 'utf8');
 const objectCanvasGraphStage = fs.readFileSync(OBJECT_CANVAS_GRAPH_STAGE, 'utf8');
+const objectCanvasShellUi = fs.readFileSync(OBJECT_CANVAS_SHELL_UI, 'utf8');
 const authoringWorkspaceUi = fs.readFileSync(AUTHORING_WORKSPACE_UI, 'utf8');
 const objectAuthoringCanvasUi = fs.readFileSync(OBJECT_AUTHORING_CANVAS_UI, 'utf8');
+const objectDeleteProposalModel = fs.readFileSync(OBJECT_DELETE_PROPOSAL_MODEL, 'utf8');
+const previewObjectEditorStyle = fs.readFileSync(PREVIEW_OBJECT_EDITOR_STYLE, 'utf8');
 const entryUi = fs.readFileSync(ENTRY_UI, 'utf8');
 const playSurfaceUi = fs.readFileSync(PLAY_SURFACE_UI, 'utf8');
 const workspaceLayoutUi = fs.readFileSync(WORKSPACE_LAYOUT_UI, 'utf8');
@@ -205,6 +211,7 @@ assert(html.includes('../authoring/event_structure_model.js'), 'viewer should lo
 assert(html.includes('../authoring/object_canvas_content_bodies.js'), 'viewer should load Object Canvas content body builders');
 assert(html.includes('../authoring/object_canvas_content_adapters.js'), 'viewer should load Object Canvas content adapters');
 assert(html.includes('../authoring/object_authoring_canvas_model.js'), 'viewer should load Object Authoring Canvas model');
+assert(html.includes('../authoring/object_delete_proposal_model.js'), 'viewer should load Object delete proposal model');
 assert(html.includes('../authoring/timeline_profile_model.js'), 'viewer should load Timeline Profile model');
 assert(html.includes('../authoring/timeline_coordinate_adapter.js'), 'viewer should load Timeline Coordinate adapter');
 assert(html.includes('../authoring/story_scope_model.js'), 'viewer should load Story Scope model');
@@ -249,6 +256,7 @@ assert(html.includes('election_results_chart.js'), 'viewer should load the D3-co
 assert(html.includes('election_results_surface.js'), 'viewer should load the Election Results workspace surface');
 assert(html.includes('object_canvas_viewport.js'), 'viewer should load Object Canvas viewport controls');
 assert(html.includes('object_canvas_graph_stage.js'), 'viewer should load extracted Object Canvas graph stage');
+assert(html.includes('object_canvas_shell_ui.js'), 'viewer should load extracted Object Canvas shell UI');
 assert(html.includes('authoring_workspace_ui.js'), 'viewer should load Authoring Workspace navigation UI');
 assert(html.includes('object_authoring_canvas_ui.js'), 'viewer should load Object Authoring Canvas UI');
 assert(authoringSurfaceRegistry.includes('ProjectMapAuthoringSurfaceRegistry'), 'Authoring Surface registry should expose a browser API');
@@ -334,7 +342,12 @@ assert(existingSceneLogicFields.includes('changeForLogicField'), 'Existing Scene
 assert(objectAuthoringCanvasUi.includes('ProjectMapObjectAuthoringCanvas'), 'Object Authoring Canvas should expose a browser API');
 assert(objectAuthoringCanvasUi.includes('openTemplate'), 'Object Authoring Canvas should route template authoring through Canvas');
 assert(objectAuthoringCanvasUi.includes('ProjectMapEditingWorkspace = api'), 'Object Authoring Canvas should bridge the existing editing API');
-assert(objectAuthoringCanvasUi.includes('data-object-authoring-canvas'), 'Object Authoring Canvas should expose a stable QA marker');
+assert(objectCanvasShellUi.includes('ProjectMapObjectCanvasShellUi'), 'Object Canvas shell UI should expose a browser API');
+assert(objectCanvasShellUi.includes('data-object-authoring-canvas'), 'Object Canvas shell UI should own the stable QA marker');
+assert(objectCanvasShellUi.includes('data-authoring-surface'), 'Object Canvas shell UI should expose the active authoring surface');
+assert(objectDeleteProposalModel.includes('ProjectMapObjectDeleteProposalModel'), 'Object delete proposal model should expose a browser API');
+assert(objectDeleteProposalModel.includes('existing_scene_delete'), 'Object delete proposal model should preserve existing scene delete proposals');
+assert(objectDeleteProposalModel.includes('manual_snippet') && objectDeleteProposalModel.includes('manual_review'), 'Object delete proposal model should keep deletes as manual-review install operations');
 assert(objectAuthoringCanvasUi.includes('renderCanvasStage') && objectCanvasGraphStage.includes('data-object-canvas-stage'), 'Object Authoring Canvas should render a visible Canvas stage through extracted stage modules');
 assert(objectAuthoringCanvasUi.includes('storyboardWorkspaceApi'), 'Object Authoring Canvas should delegate content authoring to Storyboard workspace state');
 assert(storyboardWorkspaceState.includes('ProjectMapContentStoryboardSurface'), 'Storyboard workspace state should route content authoring to Storyboard');
@@ -612,6 +625,7 @@ assert(i18nUi.includes('existingScene.eventChain'), 'i18n should label guarded e
 assert(css.includes('.existing-scene-condition-note'), 'CSS should style Existing Scene Editor condition guidance');
 assert(css.includes('.object-editing-preview-role-label'), 'Preview Object Editor should style Studio role labels separately from player prose');
 assert(css.includes('.preview-object-field-label'), 'Preview Object Editor should style editor field labels separately from editable text');
+assert(previewObjectEditorStyle.includes('.preview-object-editor'), 'split Preview Object Editor stylesheet should own preview-object editor styles');
 assert(css.includes('min-width: min(18rem, 100%)'), 'Preview Object Editor logic chips should not collapse into vertical text columns');
 assert(css.includes('.system-screen-copy'), 'System UI preview should style a bounded player-text copy region');
 assert(css.includes('.system-ui-region-context .system-ui-evidence-row'), 'System UI source evidence should override storyboard detail columns');

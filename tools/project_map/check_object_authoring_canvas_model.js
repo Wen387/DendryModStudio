@@ -3,6 +3,9 @@
 
 const canvasModel = require('./authoring/object_authoring_canvas_model.js');
 const eventStructureModel = require('./authoring/event_structure_model.js');
+const installPlanApi = require('./authoring/install_plan.js');
+const deleteProposalModel = require('./authoring/object_delete_proposal_model.js');
+const shellUi = require('./viewer/object_canvas_shell_ui.js');
 const previewEditor = require('./viewer/preview_object_editor.js');
 global.ProjectMapAuthoringSurfaceGraphs = {
   buildGraph(model) {
@@ -405,6 +408,19 @@ assert(existing.contextBoard.variables.some((row) => row.name === 'public_order'
 assert(existing.contextBoard.effects.some((row) => row.variable === 'public_order'), 'context board should include readonly effects');
 assert(existing.changeState.changedCount === 2, 'existing model should count changed fields');
 assert(existing.changeState.operationSummary.guardedApply === 2, 'existing source-backed text changes should be guarded');
+const shellHtml = shellUi.renderShell({
+  model: existing,
+  surface: {key: 'content_storyboard', label: 'Content Storyboard'},
+  state: {workspace: 'content', boardChromeCollapsed: false, status: 'Ready'},
+  layoutStyle: '--object-canvas-scale: 1;',
+  stageHtml: '<section data-object-canvas-stage="true"></section>',
+  bodyHtml: shellUi.renderChangePanel(existing, {translate: (_key, fallback) => fallback}),
+  translate: (_key, fallback) => fallback,
+  surfaceLabelFor: (surface) => surface && surface.label || ''
+});
+assert(shellHtml.includes('data-object-authoring-canvas="true"'), 'Object Canvas shell helper should render the stable Canvas marker');
+assert(shellHtml.includes('data-authoring-surface="content_storyboard"'), 'Object Canvas shell helper should render the active authoring surface marker');
+assert(shellHtml.includes('data-object-canvas-review-plan'), 'Object Canvas shell helper should render review-plan markers');
 const savedExistingProposal = {
   schemaVersion: '0.1',
   kind: 'existing_scene_edit',
@@ -444,6 +460,24 @@ assert(laborExisting.eventBody.options[0].fields.some((field) => field.semanticR
 assert(laborExisting.eventBody.branchSections.some((field) => field.semanticRole === 'conditional_text' && field.conditions.includes('labor_minister != "SPD"')), 'standalone conditional text should remain in a dedicated branch section');
 assert(laborExisting.eventBody.variables.some((variable) => variable.name === 'labor_minister' && variable.reads.length && variable.writes.length), 'existing event editor should surface condition/effect variable reads and writes');
 assert(laborExisting.eventBody.backgroundEffects.some((effect) => effect.variable === 'labor_minister' && effect.op === 'writes'), 'existing event editor should include readonly background writes from ProjectIndex variables');
+const deleteProposal = deleteProposalModel.buildProposal({
+  model: laborExisting,
+  projectIndex: index,
+  selectedCanvasNode: 'event:labor_unrest',
+  view: 'events'
+});
+const deleteCanvasModel = deleteProposalModel.buildModel({
+  proposal: deleteProposal,
+  model: laborExisting,
+  projectIndex: index,
+  installPlanApi,
+  translate: (_key, fallback) => fallback
+});
+assert(deleteProposal.kind === 'existing_scene_delete', 'Object delete helper should build existing_scene_delete proposals');
+assert(deleteCanvasModel.changeState.installPlan.operations.length === 1, 'Object delete helper should produce one review operation');
+assert(deleteCanvasModel.changeState.installPlan.operations[0].type === 'manual_snippet', 'Object delete helper should keep delete plans as manual snippets');
+assert(deleteCanvasModel.changeState.installPlan.operations[0].safety === 'manual_review', 'Object delete helper must keep deletes manual-review only');
+assert(deleteCanvasModel.changeState.output.installPlanJson.includes('existing_scene_delete'), 'Object delete helper should render install-plan JSON evidence');
 const longOptionLabel = 'Option result: Ban the demonstrations. / It is the fault of corrupt and reactionary elements within the police.';
 const compactLabelHtml = previewEditor.render({
   title: 'Long option label fixture',
