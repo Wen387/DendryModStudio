@@ -21,6 +21,10 @@ module.exports = {
     fileSet('../authoring', 'project_map/authoring', [
       'install_plan.js',
       'runtime_lens_model.js',
+      'runtime_snapshot_model.js',
+      'runtime_dom_map_model.js',
+      'runtime_visual_asset_draft_model.js',
+      'runtime_visual_surface_model.js',
       'runtime_preview_debug_model.js',
       'variable_suggestions.js'
     ])

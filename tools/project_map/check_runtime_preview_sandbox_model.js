@@ -34,6 +34,12 @@ function htmlBuildRunner(commandLabel) {
   };
 }
 
+const confinedSession = runtimePreview.resolvePreviewSessionRoot('/tmp/dms-preview-root', 'session-1/api/runtime-snapshot');
+assert(confinedSession.ok, 'preview session path should allow a normal session segment');
+assert(confinedSession.root === path.resolve('/tmp/dms-preview-root', 'session-1'), 'preview session path should resolve under preview root');
+assert(!runtimePreview.resolvePreviewSessionRoot('/tmp/dms-preview-root', '../escape/api/runtime-snapshot').ok, 'preview session path should reject parent traversal');
+assert(!runtimePreview.resolvePreviewSessionRoot('/tmp/dms-preview-root', '/api/runtime-snapshot').ok, 'preview session path should reject missing session segment');
+
 const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dms_runtime_preview_source_'));
 fs.mkdirSync(path.join(sourceRoot, 'source', 'scenes'), {recursive: true});
 fs.mkdirSync(path.join(sourceRoot, '.git'), {recursive: true});

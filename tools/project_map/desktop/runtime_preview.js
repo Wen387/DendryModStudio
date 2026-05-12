@@ -911,10 +911,13 @@ function servePreviewRequest(root, req, res) {
         res.end(JSON.stringify({ok: false, message: 'Invalid runtime snapshot payload.'}));
         return;
       }
-      const parts = safePath.split('/');
-      const sessionId = parts[0] || '';
-      const sessionRoot = path.join(root, sessionId);
-      const recorded = recordRuntimeSnapshot(sessionRoot, body && (body.runtimeSnapshot || body.snapshot) || {}, {
+      const session = resolvePreviewSessionRoot(root, safePath);
+      if (!session.ok) {
+        res.writeHead(403, {'content-type': 'application/json'});
+        res.end(JSON.stringify({ok: false, message: 'Forbidden runtime snapshot path.'}));
+        return;
+      }
+      const recorded = recordRuntimeSnapshot(session.root, body && (body.runtimeSnapshot || body.snapshot) || {}, {
         runtimeSurface: body && body.runtimeSurface || {},
         runtimeDomMap: body && body.runtimeDomMap || {},
         sourceEvidence: body && body.sourceEvidence || {},
@@ -932,10 +935,13 @@ function servePreviewRequest(root, req, res) {
         res.end(JSON.stringify({ok: false, message: 'Invalid debug history payload.'}));
         return;
       }
-      const parts = safePath.split('/');
-      const sessionId = parts[0] || '';
-      const sessionRoot = path.join(root, sessionId);
-      const recorded = recordDebugCommandHistory(sessionRoot, body && body.command || {}, {ok: true});
+      const session = resolvePreviewSessionRoot(root, safePath);
+      if (!session.ok) {
+        res.writeHead(403, {'content-type': 'application/json'});
+        res.end(JSON.stringify({ok: false, message: 'Forbidden debug history path.'}));
+        return;
+      }
+      const recorded = recordDebugCommandHistory(session.root, body && body.command || {}, {ok: true});
       res.writeHead(recorded.ok ? 200 : 400, {'content-type': 'application/json'});
       res.end(JSON.stringify(recorded));
     });
@@ -958,6 +964,21 @@ function servePreviewRequest(root, req, res) {
   }
   res.writeHead(200, {'content-type': contentType(file)});
   fs.createReadStream(file).pipe(res);
+}
+
+function resolvePreviewSessionRoot(root, safePath) {
+  const previewRoot = path.resolve(String(root || ''));
+  const parts = String(safePath || '').split('/');
+  const sessionId = parts[0] || '';
+  if (!sessionId || sessionId === '.' || sessionId === '..') {
+    return {ok: false, sessionId, root: previewRoot};
+  }
+  const sessionRoot = path.resolve(previewRoot, sessionId);
+  const relative = path.relative(previewRoot, sessionRoot);
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    return {ok: false, sessionId, root: sessionRoot};
+  }
+  return {ok: true, sessionId, root: sessionRoot};
 }
 
 function readJsonBody(req, callback) {
@@ -1103,6 +1124,7 @@ module.exports = {
   copyProject,
   copyGeneratedHtml,
   runtimeDependencyReadiness,
+  resolvePreviewSessionRoot,
   validateProjectRoot,
   recordDebugCommandHistory,
   recordRuntimeSnapshot,
