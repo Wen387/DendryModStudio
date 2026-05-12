@@ -265,6 +265,9 @@ assert(lensPageHtml.includes('SOURCE_EVIDENCE'), 'Runtime Lens wrapper should ca
 assert(lensPageHtml.includes('/api/runtime-snapshot'), 'Runtime Lens wrapper should record the latest runtime snapshot');
 assert(lensPageHtml.includes('dms-runtime-lens-session-evidence'), 'Runtime Lens wrapper should report snapshot evidence back to the viewer');
 assert(lensPageHtml.includes('dms-runtime-lens-action'), 'Runtime Lens wrapper should accept parent focus/reset actions');
+assert(lensPageHtml.includes('var autoFocused=false'), 'Runtime Lens wrapper should track whether automatic focus already ran');
+assert(lensPageHtml.includes('AUTO_COMMANDS.length&&!autoFocused'), 'Runtime Lens wrapper should not re-run automatic focus on every iframe load');
+assert(lensPageHtml.includes('else captureSnapshot()'), 'Runtime Lens wrapper should capture evidence after follow-up iframe loads instead of focusing again');
 assert(eventLens.focus.targetSceneId === 'focus_event', 'Runtime Lens should preserve focused scene target');
 assert(eventLens.postLoadCommands.some((command) => command.type === 'jumpToScene' && command.sceneId === 'focus_event'), 'Runtime Lens should queue a scene jump command');
 assert(eventLens.lensModel.commands.some((command) => command.type === 'focusScene'), 'Runtime Lens model should expose focusScene command');
