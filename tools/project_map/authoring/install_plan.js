@@ -405,7 +405,8 @@
     const opts = isObject(options) ? options : {};
     const draft = isObject(proposal) ? proposal : {};
     const id = String(draft.id || 'existing_scene_edit').trim();
-    const operations = ensureArray(draft.changes).map((change, index) => existingSceneChangeOperation(change, index));
+    const operations = ensureArray(draft.changes).map((change, index) => existingSceneChangeOperation(change, index))
+      .concat(assetInstallOperations(draft.assetInstallRequests));
     return buildInstallPlan({
       id,
       draftKind: 'existing_scene_edit',
@@ -983,8 +984,10 @@
     if (!pathApi) {
       return {ok: true};
     }
-    const expectedRoot = pathApi.resolve(String(provenance.root));
-    const actualRoot = pathApi.resolve(String(projectRoot));
+    const modules = nodeModules();
+    const fsApi = modules && modules.fs;
+    const expectedRoot = canonicalProjectRoot(String(provenance.root), pathApi, fsApi);
+    const actualRoot = canonicalProjectRoot(String(projectRoot), pathApi, fsApi);
     if (expectedRoot !== actualRoot) {
       return {
         ok: false,
@@ -992,6 +995,20 @@
       };
     }
     return {ok: true};
+  }
+
+  function canonicalProjectRoot(root, pathApi, fsApi) {
+    const resolved = pathApi.resolve(String(root || ''));
+    if (!fsApi || !fsApi.existsSync || !fsApi.realpathSync || !fsApi.existsSync(resolved)) {
+      return resolved;
+    }
+    try {
+      return fsApi.realpathSync.native
+        ? fsApi.realpathSync.native(resolved)
+        : fsApi.realpathSync(resolved);
+    } catch (_err) {
+      return resolved;
+    }
   }
 
   function portablePathSafety(relPath) {

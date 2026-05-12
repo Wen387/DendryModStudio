@@ -2,7 +2,7 @@
   'use strict';
 
   const MODEL_VERSION = '0.1';
-  const STATES = ['idle', 'building', 'ready', 'stale', 'failed', 'unavailable'];
+  const STATES = ['idle', 'building', 'ready', 'partial', 'blocked', 'stale', 'failed', 'suspended', 'unavailable'];
   const FOCUS_KINDS = [
     'scene',
     'event',
@@ -21,7 +21,7 @@
     const value = isObject(input) ? input : {};
     const desktop = value.isDesktop === true;
     const focus = normalizeFocus(value.focus, value.projectIndex);
-    const session = normalizeSession(value.session);
+    const session = normalizeSession(value.session, value.projectIndex, focus);
     const stale = value.stale === true;
     const diagnostics = [];
 
@@ -93,10 +93,34 @@
     };
   }
 
-  function normalizeSession(input) {
+  function normalizeSession(input, projectIndex, focus) {
     const value = isObject(input) ? input : {};
     const ok = value.ok === true;
-    const diagnostics = ensureArray(value.diagnostics);
+    const diagnostics = ensureArray(value.diagnostics).slice();
+    const runtimeSnapshot = normalizeRuntimeSnapshot(value.runtimeSnapshot || value.metadata && value.metadata.runtimeSnapshot, projectIndex);
+    const runtimeDomMap = normalizeRuntimeDomMap(
+      value.runtimeDomMap || value.metadata && value.metadata.runtimeDomMap || runtimeSnapshot && runtimeSnapshot.runtimeDomMap,
+      projectIndex
+    );
+    const runtimeVisualSurface = normalizeRuntimeVisualSurface(
+      value.runtimeVisualSurface || value.metadata && value.metadata.runtimeVisualSurface,
+      projectIndex,
+      runtimeSnapshot,
+      runtimeDomMap,
+      focus
+    );
+    const runtimeVisualAssetDraft = normalizeRuntimeVisualAssetDraft(
+      value.runtimeVisualAssetDraft || value.metadata && value.metadata.runtimeVisualAssetDraft
+    );
+    if (runtimeSnapshot && runtimeSnapshot.status === 'blocked') {
+      diagnostics.push.apply(diagnostics, ensureArray(runtimeSnapshot.diagnostics));
+    }
+    if (runtimeDomMap && runtimeDomMap.status === 'blocked') {
+      diagnostics.push.apply(diagnostics, ensureArray(runtimeDomMap.diagnostics));
+    }
+    if (runtimeVisualSurface && runtimeVisualSurface.status === 'blocked') {
+      diagnostics.push.apply(diagnostics, ensureArray(runtimeVisualSurface.diagnostics));
+    }
     const urls = {
       lensUrl: firstNonEmpty(value.lensUrl, value.modifiedUrl),
       modifiedUrl: String(value.modifiedUrl || ''),
@@ -107,7 +131,7 @@
     return {
       ok,
       sessionId: String(value.sessionId || ''),
-      status: normalizeStatus(value.status || (ok ? 'ready' : value.sessionId ? 'failed' : 'idle')),
+      status: normalizeStatus(value.status || (runtimeSnapshot && runtimeSnapshot.status === 'blocked' ? 'blocked' : ok ? 'ready' : value.sessionId ? 'failed' : 'idle')),
       title: String(value.title || value.metadata && value.metadata.title || ''),
       urls,
       paths: isObject(value.paths) ? {
@@ -115,8 +139,75 @@
         modifiedRoot: String(value.paths.modifiedRoot || ''),
         baselineRoot: String(value.paths.baselineRoot || '')
       } : {},
+      runtimeSnapshot,
+      runtimeDomMap,
+      runtimeVisualSurface,
+      runtimeVisualAssetDraft,
+      runtimeHealthStatus: runtimeSnapshot && runtimeSnapshot.status || '',
+      runtimeDomMapStatus: runtimeDomMap && runtimeDomMap.status || '',
+      runtimeVisualSurfaceStatus: runtimeVisualSurface && runtimeVisualSurface.status || '',
+      runtimeVisualAssetDraftStatus: runtimeVisualAssetDraft && runtimeVisualAssetDraft.status || '',
       diagnostics
     };
+  }
+
+  function normalizeRuntimeSnapshot(input, projectIndex) {
+    if (!isObject(input)) {
+      return null;
+    }
+    const api = runtimeSnapshotModelApi();
+    if (api && typeof api.buildSnapshot === 'function') {
+      return api.buildSnapshot({
+        runtimeSurface: projectIndex && projectIndex.semantic && projectIndex.semantic.runtimeSurface || {},
+        snapshot: input
+      });
+    }
+    return input;
+  }
+
+  function normalizeRuntimeDomMap(input, projectIndex) {
+    if (!isObject(input)) {
+      return null;
+    }
+    const api = runtimeDomMapModelApi();
+    if (api && typeof api.buildDomMap === 'function') {
+      return api.buildDomMap({
+        runtimeSurface: projectIndex && projectIndex.semantic && projectIndex.semantic.runtimeSurface || {},
+        runtimeDomMap: input
+      });
+    }
+    return input;
+  }
+
+  function normalizeRuntimeVisualSurface(input, projectIndex, runtimeSnapshot, runtimeDomMap, focus) {
+    const api = runtimeVisualSurfaceModelApi();
+    if (!api || typeof api.buildVisualSurface !== 'function') {
+      return isObject(input) ? input : null;
+    }
+    if (isObject(input)) {
+      return typeof api.normalizeVisualSurface === 'function' ? api.normalizeVisualSurface(input) : input;
+    }
+    if (isObject(runtimeDomMap)) {
+      return api.buildVisualSurface({
+        projectIndex,
+        runtimeSurface: projectIndex && projectIndex.semantic && projectIndex.semantic.runtimeSurface || {},
+        runtimeSnapshot,
+        runtimeDomMap,
+        focus
+      });
+    }
+    return null;
+  }
+
+  function normalizeRuntimeVisualAssetDraft(input) {
+    if (!isObject(input)) {
+      return null;
+    }
+    const api = runtimeVisualAssetDraftModelApi();
+    if (api && typeof api.normalizeAssetDraft === 'function') {
+      return api.normalizeAssetDraft(input);
+    }
+    return input;
   }
 
   function commandsForFocus(focus, session, options) {
@@ -200,6 +291,62 @@
   function normalizeStatus(value) {
     const text = String(value || '').trim().toLowerCase();
     return STATES.includes(text) ? text : 'idle';
+  }
+
+  function runtimeSnapshotModelApi() {
+    if (global && global.ProjectMapRuntimeSnapshotModel) {
+      return global.ProjectMapRuntimeSnapshotModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./runtime_snapshot_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function runtimeDomMapModelApi() {
+    if (global && global.ProjectMapRuntimeDomMapModel) {
+      return global.ProjectMapRuntimeDomMapModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./runtime_dom_map_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function runtimeVisualSurfaceModelApi() {
+    if (global && global.ProjectMapRuntimeVisualSurfaceModel) {
+      return global.ProjectMapRuntimeVisualSurfaceModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./runtime_visual_surface_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function runtimeVisualAssetDraftModelApi() {
+    if (global && global.ProjectMapRuntimeVisualAssetDraftModel) {
+      return global.ProjectMapRuntimeVisualAssetDraftModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./runtime_visual_asset_draft_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
   }
 
   function sceneFor(projectIndex, sceneId) {

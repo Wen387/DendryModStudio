@@ -106,7 +106,10 @@
     const textFields = visibleTextRows
       .filter((row) => !isEffectScriptRow(row))
       .map((row, index) => fieldFromTextRow(row, index, source.path));
-    let fields = textFields.concat(metadataEditableFields(scene, source.path, textFields));
+    let fields = textFields.concat(
+      metadataEditableFields(scene, source.path, textFields),
+      assetEditableFields(scene, source.path)
+    );
     if (!fields.length) {
       diagnostics.push(diagnostic('warning', 'existing_scene_edit.no_text_rows', 'No source-backed Text Corpus rows were found for this scene.'));
     }
@@ -1696,6 +1699,7 @@
       sourcePath: model.source && model.source.path || '',
       source: model.source || null,
       changes,
+      assetInstallRequests: ensureArray(opts.assetInstallRequests),
       changeSummary: summarizeChanges(changes),
       warnings: ensureArray(model.warnings),
       diagnostics
@@ -1978,6 +1982,7 @@
       sourcePath: String(value.sourcePath || (value.source && value.source.path) || '').trim(),
       source: sourceRef(value.source || {path: value.sourcePath}),
       changes,
+      assetInstallRequests: ensureArray(value.assetInstallRequests).map(normalizeAssetInstallRequest).filter((request) => request.targetPath),
       changeSummary: summarizeChanges(changes),
       warnings: ensureArray(value.warnings).map(String).filter(Boolean),
       diagnostics: ensureArray(value.diagnostics)
@@ -2225,6 +2230,69 @@
       effect: 'Effect'
     };
     return labels[String(role || '')] || String(role || 'Text');
+  }
+
+  function assetEditableFields(scene, sceneSourcePath) {
+    const sceneId = String(scene && scene.id || '');
+    return ensureArray(scene && scene.assetRefs).map((asset, index) => {
+      const directive = normalizeAssetDirective(asset && (asset.directive || asset.role));
+      const path = String(asset && (asset.path || asset.previewUrl || asset.src) || '').trim();
+      if (!directive || !path) {
+        return null;
+      }
+      const source = sourceRef(asset && asset.source || {});
+      const original = directive + ': ' + path;
+      const guarded = canGuardField(source, original);
+      return {
+        id: safeId(['asset', directive, source.line || index + 1].join('_')),
+        role: 'asset_reference',
+        label: assetDirectiveLabel(directive),
+        original,
+        value: original,
+        source,
+        sourcePath: source.path || sceneSourcePath || '',
+        editability: guarded ? 'guarded_replace_text' : 'manual_review',
+        owner: {
+          sceneId,
+          sectionId: '',
+          itemId: '',
+          kind: 'asset_reference'
+        },
+        sectionId: '',
+        optionId: '',
+        confidence: asset && asset.confidence || '',
+        reason: guarded
+          ? 'Exact source asset directive can be checked before replacement.'
+          : 'Needs IDE review because Studio lacks safe single-line asset directive evidence.'
+      };
+    }).filter(Boolean);
+  }
+
+  function normalizeAssetDirective(value) {
+    const text = String(value || '').trim().toLowerCase();
+    return text === 'face-image' || text === 'card-image' || text === 'set-bg' || text === 'audio' ? text : '';
+  }
+
+  function assetDirectiveLabel(directive) {
+    const labels = {
+      'face-image': 'Portrait image',
+      'card-image': 'Card image',
+      'set-bg': 'Background image',
+      audio: 'Audio asset'
+    };
+    return labels[directive] || 'Asset reference';
+  }
+
+  function normalizeAssetInstallRequest(input) {
+    const value = isObject(input) ? input : {};
+    return {
+      sourceName: String(value.sourceName || value.fileName || value.name || '').trim(),
+      sourcePath: String(value.sourcePath || '').trim(),
+      targetPath: String(value.targetPath || value.target || value.path || '').trim(),
+      type: String(value.type || value.assetType || '').trim(),
+      label: String(value.label || value.sourceName || value.name || '').trim(),
+      role: String(value.role || '').trim()
+    };
   }
 
   function humanSectionId(sectionId) {

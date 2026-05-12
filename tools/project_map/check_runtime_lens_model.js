@@ -76,6 +76,58 @@ assert(newsFocus.targetSceneId === 'focus_news', 'news focus should resolve targ
 const deckFocus = lensModel.normalizeFocus({kind: 'deck', id: 'starter_deck'}, projectIndex);
 assert(deckFocus.targetSceneId === 'starter_deck', 'deck focus should resolve target scene id');
 
+const snapshotModel = lensModel.buildModel({
+  isDesktop: true,
+  focus: {kind: 'event', id: 'focus_event'},
+  projectIndex,
+  session: {
+    ok: true,
+    status: 'ready',
+    runtimeSnapshot: {
+      document: {readyState: 'complete', bodyPresent: true},
+      state: {exportable: true, sceneId: 'focus_event', qualityCount: 2},
+      summary: {indexedRegionCount: 2, visibleRegionCount: 2, choiceCount: 1},
+      regions: [
+        {selector: '#content', role: 'content', found: true, visible: true, text: 'Focused event'}
+      ],
+      graphics: {d3Present: false, svgCount: 0, canvasCount: 0}
+    },
+    runtimeDomMap: {
+      status: 'partial',
+      summary: {visibleCount: 1, mappedCount: 1, sourceBackedCount: 1, manualReviewCount: 0},
+      items: [
+        {role: 'content', selector: '#content p', text: 'Focused event', source: {path: 'source/scenes/events/focus_event.scene.dry', line: 4}, confidence: 'strong', editability: 'text_proposal'}
+      ]
+    },
+    runtimeVisualSurface: {
+      status: 'partial',
+      summary: {candidateCount: 1, draftableCount: 0, proposalOnlyCount: 1, manualReviewCount: 0, generatedOnlyCount: 0},
+      candidates: [
+        {id: 'content_1', role: 'content', label: 'Focused event', currentValue: 'Focused event', source: {path: 'source/scenes/events/focus_event.scene.dry', line: 4}, confidence: 'strong', editability: 'proposal_only'}
+      ]
+    },
+    runtimeVisualAssetDraft: {
+      status: 'proposal_only',
+      currentAsset: {path: 'img/hero.png', type: 'image', directive: 'face-image'},
+      replacementAsset: {path: 'assets/studio/events/focus_event/hero.png', type: 'image', directive: 'face-image'},
+      source: {path: 'source/scenes/events/focus_event.scene.dry', line: 12},
+      owner: {sceneId: 'focus_event', sceneKind: 'event'},
+      changes: [
+        {fieldId: 'asset_face_image', role: 'asset_reference', source: {path: 'source/scenes/events/focus_event.scene.dry', line: 12}, before: 'face-image: img/hero.png', after: 'face-image: assets/studio/events/focus_event/hero.png'}
+      ],
+      diagnostics: []
+    }
+  }
+});
+assert(snapshotModel.session.runtimeSnapshot && snapshotModel.session.runtimeSnapshot.status === 'ready', 'Runtime Lens model should normalize runtime snapshots');
+assert(snapshotModel.session.runtimeHealthStatus === 'ready', 'Runtime Lens model should expose runtime health status');
+assert(snapshotModel.session.runtimeDomMap && snapshotModel.session.runtimeDomMap.status === 'partial', 'Runtime Lens model should normalize runtime DOM maps');
+assert(snapshotModel.session.runtimeDomMapStatus === 'partial', 'Runtime Lens model should expose runtime DOM map status');
+assert(snapshotModel.session.runtimeVisualSurface && snapshotModel.session.runtimeVisualSurface.status === 'partial', 'Runtime Lens model should normalize runtime visual surface authoring candidates');
+assert(snapshotModel.session.runtimeVisualSurfaceStatus === 'partial', 'Runtime Lens model should expose runtime visual surface status');
+assert(snapshotModel.session.runtimeVisualAssetDraft && snapshotModel.session.runtimeVisualAssetDraft.status === 'proposal_only', 'Runtime Lens model should preserve runtime visual asset draft metadata');
+assert(snapshotModel.session.runtimeVisualAssetDraftStatus === 'proposal_only', 'Runtime Lens model should expose runtime visual asset draft status');
+
 const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dms_runtime_lens_source_'));
 const sessionsRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dms_runtime_lens_sessions_'));
 fs.mkdirSync(path.join(sourceRoot, 'source', 'scenes', 'events'), {recursive: true});
@@ -152,6 +204,40 @@ assert(quickNewsLens.ok, 'quick Runtime Lens should focus a news scene: ' + JSON
 assert(quickNewsLens.focus.targetSceneId === 'focus_news', 'quick news Runtime Lens should resolve a scene target');
 assert(quickNewsLens.postLoadCommands.some((command) => command.type === 'jumpToScene' && command.sceneId === 'focus_news'), 'quick news Runtime Lens should queue a scene jump command');
 
+const blockedRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dms_runtime_lens_blocked_'));
+fs.mkdirSync(path.join(blockedRoot, 'source'), {recursive: true});
+fs.mkdirSync(path.join(blockedRoot, 'out', 'html'), {recursive: true});
+fs.writeFileSync(path.join(blockedRoot, 'source', 'info.dry'), 'title: Blocked Fixture\n', 'utf8');
+fs.writeFileSync(path.join(blockedRoot, 'out', 'html', 'index.html'), '<!doctype html><script src="core.js"></script>\n', 'utf8');
+const blockedLens = runtimeLens.createRuntimeLens({
+  projectRoot: blockedRoot,
+  sessionsRoot,
+  projectIndex: {
+    scenes: [{id: 'root', title: 'Root'}],
+    semantic: {
+      runtimeSurface: {
+        readiness: {status: 'partial', quickPreviewReady: false, missingDependencyCount: 1},
+        diagnostics: [
+          {severity: 'error', code: 'runtime_surface.missing_script', message: 'Missing out/html/core.js', missingPath: 'out/html/core.js'}
+        ],
+        regions: []
+      }
+    }
+  },
+  focus: {kind: 'event', id: 'root'},
+  previewMode: 'quick',
+  serverFactory: runtimePreview.fakeServerFactory(48114),
+  now: () => new Date('2026-05-06T12:29:45.000Z')
+});
+assert(!blockedLens.ok, 'quick Runtime Lens should fail when generated runtime dependencies are missing');
+assert(blockedLens.status === 'blocked', 'quick Runtime Lens should surface blocked runtime health status: ' + JSON.stringify(blockedLens));
+assert(blockedLens.runtimeSnapshot && blockedLens.runtimeSnapshot.status === 'blocked', 'blocked Runtime Lens should carry a runtimeSnapshot');
+assert(blockedLens.runtimeDomMap && blockedLens.runtimeDomMap.status === 'blocked', 'blocked Runtime Lens should carry a blocked runtimeDomMap');
+assert(blockedLens.runtimeVisualSurface && blockedLens.runtimeVisualSurface.status === 'blocked', 'blocked Runtime Lens should carry a blocked runtimeVisualSurface');
+assert(blockedLens.lensModel.session.runtimeHealthStatus === 'blocked', 'blocked Runtime Lens model should expose blocked health');
+assert(blockedLens.lensModel.session.runtimeDomMapStatus === 'blocked', 'blocked Runtime Lens model should expose blocked DOM map status');
+assert(blockedLens.lensModel.session.runtimeVisualSurfaceStatus === 'blocked', 'blocked Runtime Lens model should expose blocked visual surface status');
+
 const eventLens = runtimeLens.createRuntimeLens({
   projectRoot: sourceRoot,
   sessionsRoot,
@@ -172,6 +258,12 @@ assert(fs.existsSync(eventLens.lensPagePath), 'Runtime Lens should write a focus
 const lensPageHtml = fs.readFileSync(eventLens.lensPagePath, 'utf8');
 assert(lensPageHtml.includes('Focused Runtime Lens'), 'Runtime Lens wrapper should identify the focused lens');
 assert(lensPageHtml.includes('jumpToScene'), 'Runtime Lens wrapper should carry post-load focus commands');
+assert(lensPageHtml.includes('getRuntimeSnapshot'), 'Runtime Lens wrapper should request a runtime snapshot after load');
+assert(lensPageHtml.includes('data-lens-health'), 'Runtime Lens wrapper should render a health bar');
+assert(lensPageHtml.includes('data-health-map'), 'Runtime Lens wrapper should render a DOM source map metric');
+assert(lensPageHtml.includes('SOURCE_EVIDENCE'), 'Runtime Lens wrapper should carry a clipped source evidence packet');
+assert(lensPageHtml.includes('/api/runtime-snapshot'), 'Runtime Lens wrapper should record the latest runtime snapshot');
+assert(lensPageHtml.includes('dms-runtime-lens-session-evidence'), 'Runtime Lens wrapper should report snapshot evidence back to the viewer');
 assert(lensPageHtml.includes('dms-runtime-lens-action'), 'Runtime Lens wrapper should accept parent focus/reset actions');
 assert(eventLens.focus.targetSceneId === 'focus_event', 'Runtime Lens should preserve focused scene target');
 assert(eventLens.postLoadCommands.some((command) => command.type === 'jumpToScene' && command.sceneId === 'focus_event'), 'Runtime Lens should queue a scene jump command');

@@ -8,6 +8,8 @@ const {spawnSync} = require('child_process');
 
 const installPlan = requireAuthoringModule('install_plan.js');
 const debugModel = requireAuthoringModule('runtime_preview_debug_model.js');
+const snapshotModel = requireAuthoringModule('runtime_snapshot_model.js');
+const domMapModel = requireAuthoringModule('runtime_dom_map_model.js');
 const debugBridge = require('./runtime_preview_debug_bridge.js');
 
 const BUILD_TIMEOUT_MS = 5 * 60 * 1000;
@@ -172,6 +174,14 @@ function createQuickSession(options) {
     return {
       ok: false,
       diagnostics: [diagnostic('error', 'runtime_preview.quick_html_missing', 'Quick Runtime Lens needs an existing out/html/index.html. Use Full Build once to create it.')]
+    };
+  }
+  const readiness = runtimeDependencyReadiness(htmlRoot);
+  if (!readiness.ok) {
+    return {
+      ok: false,
+      diagnostics: readiness.diagnostics,
+      runtimeReadiness: readiness
     };
   }
   const plan = isObject(opts.plan) ? opts.plan : {};
@@ -366,6 +376,125 @@ function copyGeneratedHtml(sourceHtmlRoot, targetHtmlRoot) {
     errorOnExist: false,
     force: true
   });
+}
+
+function cleanRuntimeDependencyRef(value) {
+  const ref = String(value || '').trim().replace(/^['"]|['"]$/g, '');
+  if (!ref) {
+    return '';
+  }
+  return ref.split('#')[0].split('?')[0].trim();
+}
+
+function isExternalRuntimeDependencyRef(value) {
+  const ref = String(value || '').trim();
+  return ref.startsWith('//') ||
+    /^[A-Za-z][A-Za-z0-9+.-]*:/.test(ref) ||
+    ref.startsWith('data:') ||
+    ref.startsWith('javascript:') ||
+    ref.startsWith('mailto:') ||
+    ref.startsWith('about:');
+}
+
+function lineForOffset(text, offset) {
+  return String(text || '').slice(0, Math.max(0, offset)).split('\n').length;
+}
+
+function htmlTagAttribute(tag, name) {
+  const re = new RegExp('\\b' + name + '\\s*=\\s*(?:"([^"]*)"|\\\'([^\\\']*)\\\'|([^\\s>]+))', 'i');
+  const match = String(tag || '').match(re);
+  return match ? (match[1] || match[2] || match[3] || '') : '';
+}
+
+function runtimeDependencyPath(htmlRoot, fromRel, ref) {
+  const cleaned = cleanRuntimeDependencyRef(ref);
+  if (!cleaned || isExternalRuntimeDependencyRef(cleaned)) {
+    return {raw: ref, external: Boolean(cleaned), rel: '', fullPath: '', exists: true};
+  }
+  const rel = cleaned.startsWith('/')
+    ? path.posix.normalize(cleaned.replace(/^\/+/, ''))
+    : path.posix.normalize(path.posix.join(path.posix.dirname(fromRel || 'index.html'), cleaned));
+  const fullPath = path.join(htmlRoot, ...rel.split('/').filter(Boolean));
+  return {
+    raw: ref,
+    external: false,
+    rel,
+    fullPath,
+    exists: fs.existsSync(fullPath)
+  };
+}
+
+function runtimeDependencyReadiness(htmlRoot) {
+  const indexPath = path.join(htmlRoot, 'index.html');
+  if (!fs.existsSync(indexPath)) {
+    return {
+      ok: false,
+      scripts: [],
+      stylesheets: [],
+      diagnostics: [diagnostic('error', 'runtime_preview.quick_html_missing', 'Quick Runtime Lens needs an existing out/html/index.html. Use Full Build once to create it.')]
+    };
+  }
+  const html = fs.readFileSync(indexPath, 'utf8');
+  const scripts = [];
+  const stylesheets = [];
+  const diagnostics = [];
+  const scriptRe = /<script\b[^>]*\bsrc\s*=\s*(["'])(.*?)\1[^>]*>/gi;
+  let match;
+  while ((match = scriptRe.exec(html))) {
+    const ref = match[2] || '';
+    const dep = runtimeDependencyPath(htmlRoot, 'index.html', ref);
+    const line = lineForOffset(html, match.index);
+    const item = Object.assign({src: ref, source: {path: 'out/html/index.html', line}}, dep);
+    scripts.push(item);
+    if (!dep.external && !dep.exists) {
+      const missingPath = 'out/html/' + dep.rel;
+      diagnostics.push(diagnostic(
+        'error',
+        'runtime_surface.missing_script',
+        'Quick Runtime Lens cannot reuse generated HTML because a referenced script is missing: ' + missingPath + '. Use Full Build once to regenerate a complete runtime.',
+        {path: 'out/html/index.html', source: {path: 'out/html/index.html', line}, missingPath}
+      ));
+    }
+  }
+  const linkRe = /<link\b[^>]*>/gi;
+  while ((match = linkRe.exec(html))) {
+    const tag = match[0] || '';
+    const relAttr = htmlTagAttribute(tag, 'rel').toLowerCase();
+    const href = htmlTagAttribute(tag, 'href');
+    if (!href || !relAttr.includes('stylesheet')) {
+      continue;
+    }
+    const dep = runtimeDependencyPath(htmlRoot, 'index.html', href);
+    const line = lineForOffset(html, match.index);
+    const item = Object.assign({href, source: {path: 'out/html/index.html', line}}, dep);
+    stylesheets.push(item);
+    if (!dep.external && !dep.exists) {
+      const missingPath = 'out/html/' + dep.rel;
+      diagnostics.push(diagnostic(
+        'error',
+        'runtime_surface.missing_stylesheet',
+        'Quick Runtime Lens cannot reuse generated HTML because a referenced stylesheet is missing: ' + missingPath + '. Use Full Build once to regenerate a complete runtime.',
+        {path: 'out/html/index.html', source: {path: 'out/html/index.html', line}, missingPath}
+      ));
+    }
+  }
+  const missingPaths = diagnostics
+    .map((diag) => diag.missingPath)
+    .filter(Boolean);
+  if (missingPaths.length) {
+    diagnostics.push(diagnostic(
+      'warning',
+      'runtime_surface.partial_runtime',
+      'Quick Runtime Lens needs a complete out/html checkout before it can safely load the generated runtime.',
+      {missingPaths}
+    ));
+  }
+  return {
+    ok: diagnostics.every((diag) => diag.severity !== 'error'),
+    scripts,
+    stylesheets,
+    diagnostics
+  };
 }
 
 function shouldCopyPath(sourceRoot, source) {
@@ -672,7 +801,8 @@ function createDebugSession(session, options) {
   fs.writeFileSync(bridgePath, debugBridge.bridgeScript({
     sessionId: session.sessionId,
     allowedOrigin: opts.serverOrigin,
-    controls
+    controls,
+    runtimeSurface: opts.projectIndex && opts.projectIndex.semantic && opts.projectIndex.semantic.runtimeSurface || {}
   }), 'utf8');
   injectModifiedBridge(path.join(session.paths.modifiedRoot, 'out', 'html', 'index.html'), 'dms-preview-bridge.js');
   return {
@@ -774,6 +904,27 @@ function closePreviewServer(callback) {
 function servePreviewRequest(root, req, res) {
   const url = new URL(req.url || '/', 'http://127.0.0.1');
   const safePath = decodeURIComponent(url.pathname).replace(/^\/+/, '');
+  if (req.method === 'POST' && /\/api\/runtime-snapshot$/.test(url.pathname)) {
+    readJsonBody(req, (err, body) => {
+      if (err) {
+        res.writeHead(400, {'content-type': 'application/json'});
+        res.end(JSON.stringify({ok: false, message: 'Invalid runtime snapshot payload.'}));
+        return;
+      }
+      const parts = safePath.split('/');
+      const sessionId = parts[0] || '';
+      const sessionRoot = path.join(root, sessionId);
+      const recorded = recordRuntimeSnapshot(sessionRoot, body && (body.runtimeSnapshot || body.snapshot) || {}, {
+        runtimeSurface: body && body.runtimeSurface || {},
+        runtimeDomMap: body && body.runtimeDomMap || {},
+        sourceEvidence: body && body.sourceEvidence || {},
+        diagnostics: body && body.diagnostics || []
+      });
+      res.writeHead(recorded.ok ? 200 : 400, {'content-type': 'application/json'});
+      res.end(JSON.stringify(recorded));
+    });
+    return;
+  }
   if (req.method === 'POST' && /\/api\/debug-command-history$/.test(url.pathname)) {
     readJsonBody(req, (err, body) => {
       if (err) {
@@ -814,7 +965,7 @@ function readJsonBody(req, callback) {
   req.setEncoding('utf8');
   req.on('data', (chunk) => {
     data += chunk;
-    if (data.length > 20000) {
+    if (data.length > 1500000) {
       req.destroy();
     }
   });
@@ -877,8 +1028,8 @@ function escapeHtml(value) {
   }[char]));
 }
 
-function diagnostic(severity, code, message) {
-  return {severity, code, message, confidence: 'exact'};
+function diagnostic(severity, code, message, extra) {
+  return Object.assign({severity, code, message, confidence: 'exact'}, extra || {});
 }
 
 function recordDebugCommandHistory(sessionRoot, command, result, now) {
@@ -901,6 +1052,49 @@ function recordDebugCommandHistory(sessionRoot, command, result, now) {
   return {ok: true, entry, diagnostics: []};
 }
 
+function recordRuntimeSnapshot(sessionRoot, snapshot, options, now) {
+  const root = path.resolve(String(sessionRoot || ''));
+  const metadataPath = path.join(root, 'metadata.json');
+  if (!fs.existsSync(metadataPath)) {
+    return {
+      ok: false,
+      diagnostics: [diagnostic('error', 'runtime_snapshot.metadata_missing', 'Runtime preview metadata was not found.')]
+    };
+  }
+  const opts = options || {};
+  const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+  const snapshotInput = Object.assign({}, snapshot || {}, {
+    capturedAt: snapshot && snapshot.capturedAt || (typeof now === 'function' ? now() : new Date()).toISOString()
+  });
+  let normalized = snapshotModel.buildSnapshot({
+    runtimeSurface: opts.runtimeSurface || {},
+    snapshot: snapshotInput,
+    diagnostics: opts.diagnostics || []
+  });
+  const runtimeDomMapInput = isObject(opts.runtimeDomMap) && Object.keys(opts.runtimeDomMap).length ? opts.runtimeDomMap : snapshotInput.runtimeDomMap;
+  let runtimeDomMap = null;
+  if (runtimeDomMapInput || isObject(opts.sourceEvidence) && Object.keys(opts.sourceEvidence).length) {
+    runtimeDomMap = domMapModel.buildDomMap({
+      runtimeSurface: opts.runtimeSurface || {},
+      runtimeSnapshot: normalized,
+      runtimeDomMap: runtimeDomMapInput || null,
+      sourceEvidence: opts.sourceEvidence || {},
+      diagnostics: opts.diagnostics || []
+    });
+    normalized = snapshotModel.buildSnapshot({
+      runtimeSurface: opts.runtimeSurface || {},
+      snapshot: Object.assign({}, snapshotInput, {runtimeDomMap}),
+      diagnostics: opts.diagnostics || []
+    });
+    metadata.runtimeDomMap = runtimeDomMap;
+    metadata.runtimeDomMapUpdatedAt = runtimeDomMap.capturedAt || normalized.capturedAt || new Date().toISOString();
+  }
+  metadata.runtimeSnapshot = normalized;
+  metadata.runtimeSnapshotUpdatedAt = normalized.capturedAt || new Date().toISOString();
+  fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2) + '\n', 'utf8');
+  return {ok: true, runtimeSnapshot: normalized, runtimeDomMap, diagnostics: []};
+}
+
 module.exports = {
   createSession,
   createRuntimePreview,
@@ -908,8 +1102,10 @@ module.exports = {
   createQuickRuntimePreview,
   copyProject,
   copyGeneratedHtml,
+  runtimeDependencyReadiness,
   validateProjectRoot,
   recordDebugCommandHistory,
+  recordRuntimeSnapshot,
   closePreviewServer,
   resolveBuildCommand,
   resolveBuildWrapperCommand,

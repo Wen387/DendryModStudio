@@ -5,6 +5,7 @@ from .surface_text import extract_surface_text
 from .text_corpus import extract_text_corpus
 from .assets import extract_assets
 from .election_results import extract_election_results
+from .runtime_surface import extract_runtime_surface
 
 def classify_semantics(root: Path, scenes: list[dict[str, Any]],
                        variables: list[dict[str, Any]],
@@ -106,6 +107,7 @@ def classify_semantics(root: Path, scenes: list[dict[str, Any]],
     surface_text = extract_surface_text(root, variables)
     text_corpus = extract_text_corpus(root, scenes, news, surface_text)
     election_results = extract_election_results(root, scenes)
+    runtime_surface = extract_runtime_surface(root)
 
     return {
         "events": sorted(events, key=lambda item: item["id"]),
@@ -117,6 +119,7 @@ def classify_semantics(root: Path, scenes: list[dict[str, Any]],
         "surfaceText": surface_text,
         "textCorpus": text_corpus,
         "electionResults": election_results,
+        "runtimeSurface": runtime_surface,
         "assets": extract_assets(root, scenes),
         "systems": [
             {"id": system_id, "label": system_id.replace("_", " ").title(), "members": sorted(members)}

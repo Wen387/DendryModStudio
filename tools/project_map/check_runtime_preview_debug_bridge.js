@@ -24,6 +24,14 @@ const script = bridge.bridgeScript({
       {name: 'labor_law_seen', valueType: 'booleanNumber'}
     ],
     scenes: [{id: 'labor_law_crisis', title: 'Labor Law Crisis'}]
+  },
+  runtimeSurface: {
+    regions: [
+      {id: 'content', role: 'content', selector: '#content', label: 'Story content'},
+      {id: 'choices', role: 'choices', selector: 'ul.choices', label: 'Choices'},
+      {id: 'left_sidebar', role: 'left_sidebar', selector: '#stats_sidebar', label: 'Left sidebar'}
+    ],
+    cssVariables: [{name: '--accent'}]
   }
 });
 
@@ -32,6 +40,9 @@ assert(script.includes('applyVariables'), 'bridge should support applyVariables'
 assert(script.includes('jumpToScene'), 'bridge should support jumpToScene');
 assert(script.includes('resetToInitialState'), 'bridge should support resetToInitialState');
 assert(script.includes('getStateSummary'), 'bridge should support getStateSummary');
+assert(script.includes('getRuntimeSnapshot'), 'bridge should support getRuntimeSnapshot');
+assert(script.includes('RUNTIME_SURFACE'), 'bridge should carry Runtime Surface evidence');
+assert(script.includes('querySelectorAll'), 'bridge should inspect DOM selectors for snapshots');
 assert(script.includes('event.origin'), 'bridge should check event origin');
 assert(script.includes('dms-runtime-preview-command'), 'bridge should listen for structured command messages');
 assert(!/\beval\s*\(/.test(script), 'bridge must not use eval');
@@ -73,9 +84,21 @@ assert(parentScript.includes('No changed variable values'), 'parent script shoul
 assert(!/\beval\s*\(/.test(parentScript), 'parent script must not use eval');
 assert(!/\bnew Function\b/.test(parentScript), 'parent script must not use new Function');
 
-function runBridgeWithFakeEngine(fakeEngine) {
+function runBridgeWithFakeEngine(fakeEngine, fakeDocument) {
   const listeners = {};
   const fakeWindow = {
+    document: fakeDocument || null,
+    location: {href: 'http://127.0.0.1/runtime/'},
+    d3: fakeDocument ? {} : null,
+    getComputedStyle: (el) => ({
+      display: el && el.hidden ? 'none' : 'block',
+      visibility: 'visible',
+      opacity: '1',
+      position: 'static',
+      overflow: 'visible',
+      zIndex: 'auto',
+      getPropertyValue: (name) => name === '--accent' ? '#aa3333' : ''
+    }),
     dendryUI: {dendryEngine: fakeEngine},
     updateSidebar: () => {
       fakeEngine.sidebarUpdates = (fakeEngine.sidebarUpdates || 0) + 1;
@@ -87,6 +110,8 @@ function runBridgeWithFakeEngine(fakeEngine) {
   vm.runInNewContext(script, {
     window: fakeWindow,
     JSON,
+    Date,
+    Math,
     Object,
     Number,
     String,
@@ -156,5 +181,99 @@ const jumpPreview = runBridgeWithFakeEngine(jumpEngine);
 const jumpResult = jumpPreview.jumpToScene({sceneId: 'labor_law_crisis'});
 assert(jumpResult.ok, 'jumpToScene should accept allowlisted scenes');
 assert(jumpEngine.jumpedTo === 'labor_law_crisis', 'jumpToScene should use DendryEngine.goToScene so scene content and title render');
+
+function fakeElement(text, box, options) {
+  const opts = options || {};
+  return {
+    tagName: opts.tagName || 'DIV',
+    nodeName: opts.tagName || 'DIV',
+    id: opts.id || '',
+    className: opts.className || '',
+    dataset: opts.dataset || {},
+    textContent: text || '',
+    children: Array.from({length: opts.childCount || 0}, () => ({})),
+    offsetWidth: box && box.width || 0,
+    offsetHeight: box && box.height || 0,
+    width: opts.width || box && box.width || 0,
+    height: opts.height || box && box.height || 0,
+    hidden: opts.hidden === true,
+    getBoundingClientRect() {
+      return {
+        x: box && box.x || 0,
+        y: box && box.y || 0,
+        left: box && box.x || 0,
+        top: box && box.y || 0,
+        width: box && box.width || 0,
+        height: box && box.height || 0
+      };
+    },
+    getAttribute(name) {
+      return opts.attrs && opts.attrs[name] || '';
+    },
+    getContext() {
+      return opts.canvasData ? {
+        getImageData() {
+          return {data: opts.canvasData};
+        }
+      } : null;
+    }
+  };
+}
+
+const snapshotDocument = {
+  readyState: 'complete',
+  title: 'Snapshot Fixture',
+  body: fakeElement('', {width: 800, height: 600}),
+  documentElement: fakeElement('', {width: 800, height: 600}),
+  images: [
+    {src: 'img/loaded.png', currentSrc: 'img/loaded.png', complete: true, naturalWidth: 120},
+    {src: 'img/broken.png', currentSrc: 'img/broken.png', complete: true, naturalWidth: 0}
+  ],
+  querySelectorAll(selector) {
+    const rows = {
+      '#content': [fakeElement('Story content is visible.', {x: 10, y: 20, width: 500, height: 140})],
+      'ul.choices': [fakeElement('Choice A Choice B', {x: 20, y: 180, width: 420, height: 80}, {tagName: 'UL', id: 'choices', dataset: {dmsSceneId: 'labor_law_crisis', dmsSourcePath: 'source/scenes/events/labor_law.scene.dry', dmsSourceLine: '22', unrelated: 'ignored'}})],
+      '#stats_sidebar': [fakeElement('Emergency Status', {x: 0, y: 20, width: 180, height: 400})],
+      '#stats_sidebar_right': [],
+      '#options': [fakeElement('Options', {x: 200, y: 100, width: 260, height: 220}, {hidden: true})],
+      '#save': [],
+      '.background': [fakeElement('', {x: 0, y: 0, width: 800, height: 600})],
+      '.hand': [],
+      '.pinned-cards': [],
+      '.deck': [],
+      '.face-img': [],
+      'svg': [fakeElement('chart', {x: 40, y: 260, width: 220, height: 120}, {childCount: 2})],
+      'canvas': [fakeElement('', {x: 40, y: 400, width: 160, height: 100}, {width: 16, height: 16, canvasData: [0, 0, 0, 255]})],
+      'audio': [{src: 'music/theme.ogg', readyState: 4}]
+    };
+    return rows[selector] || [];
+  }
+};
+
+const snapshotEngine = {
+  state: {sceneId: 'labor_law_crisis', qualities: {year: 1930, labor_law_seen: 1}},
+  getExportableState() {
+    return this.state;
+  }
+};
+const snapshotPreview = runBridgeWithFakeEngine(snapshotEngine, snapshotDocument);
+const snapshotResult = snapshotPreview.getRuntimeSnapshot();
+assert(snapshotResult.ok, 'getRuntimeSnapshot should return a structured result: ' + JSON.stringify(snapshotResult));
+assert(snapshotResult.runtimeSnapshot.document.bodyPresent === true, 'snapshot should report document body presence');
+assert(snapshotResult.runtimeSnapshot.state.sceneId === 'labor_law_crisis', 'snapshot should include current scene id');
+assert(snapshotResult.runtimeSnapshot.regions.some((item) => item.selector === '#content' && item.visible), 'snapshot should inspect indexed content region');
+assert(snapshotResult.runtimeSnapshot.regions.some((item) => item.selector === 'ul.choices' && item.elementCount === 1), 'snapshot should inspect choices region');
+const choicesRegion = snapshotResult.runtimeSnapshot.regions.find((item) => item.selector === 'ul.choices');
+assert(choicesRegion.samples.length === 1, 'snapshot should include clipped element samples for a region');
+assert(choicesRegion.samples[0].selector === '#choices', 'snapshot sample should prefer stable element ids');
+assert(choicesRegion.samples[0].tag === 'ul', 'snapshot sample should include tag names');
+assert(choicesRegion.samples[0].dataset.dmsSceneId === 'labor_law_crisis', 'snapshot sample should include safe dms dataset fields');
+assert(!choicesRegion.samples[0].dataset.unrelated, 'snapshot sample should not include arbitrary dataset fields');
+assert(snapshotResult.runtimeSnapshot.assets.images.total === 2, 'snapshot should summarize images');
+assert(snapshotResult.runtimeSnapshot.assets.images.error === 1, 'snapshot should flag broken images');
+assert(snapshotResult.runtimeSnapshot.graphics.d3Present === true, 'snapshot should detect D3 presence');
+assert(snapshotResult.runtimeSnapshot.graphics.svgNonEmptyCount === 1, 'snapshot should detect non-empty SVG surfaces');
+assert(snapshotResult.runtimeSnapshot.graphics.canvasNonEmptyCount === 1, 'snapshot should detect non-empty canvas surfaces');
+assert(snapshotResult.runtimeSnapshot.css.variables.some((item) => item.name === '--accent' && item.value), 'snapshot should collect indexed CSS variables');
 
 process.stdout.write(JSON.stringify({ok: true, bridgeBytes: script.length, panelBytes: panel.length}, null, 2) + '\n');
