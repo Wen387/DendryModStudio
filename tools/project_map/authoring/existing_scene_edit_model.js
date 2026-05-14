@@ -2300,7 +2300,7 @@
         confidence: asset && asset.confidence || '',
         reason: guarded
           ? 'Exact source asset directive can be checked before replacement.'
-          : 'Needs IDE review because Studio lacks safe single-line asset directive evidence.'
+          : 'Needs Studio source review because safe single-line asset directive evidence is missing.'
       };
     }).filter(Boolean);
   }

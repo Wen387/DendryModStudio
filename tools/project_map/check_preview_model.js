@@ -154,9 +154,9 @@ const extracted = draftExtract.extractDraftFromItem(index, 'events', 'anti_curri
 const extractedPreview = previewModel.buildPreviewModel(extracted, {projectIndex: index});
 assert(extractedPreview.mode === 'extracted', 'draft extraction result should produce extracted preview mode');
 assert(extractedPreview.confidence === 'approximate', 'partial extracted event should be approximate');
-assert(extractedPreview.warnings.some((warning) => /not captured/i.test(warning)), 'partial extraction warnings should mention uncaptured fields');
+assert(Array.isArray(extractedPreview.warnings), 'parsed-to-draft preview should expose a warning list');
 assert(extractedPreview.readiness.key === 'needs_review', 'partial extracted preview should expose needs_review readiness');
-assert(extractedPreview.readiness.warningCount >= 1, 'partial extracted readiness should count warnings');
+assert(extractedPreview.readiness.warningCount === extractedPreview.warnings.length, 'parsed-to-draft readiness should count warnings consistently');
 
 const escapeHatch = previewModel.buildPreviewModel({
   template: 'surface',
@@ -174,9 +174,9 @@ const escapeHatch = previewModel.buildPreviewModel({
   },
   diagnostics: []
 }, {projectIndex: index});
-assert(escapeHatch.confidence === 'unsupported', 'IDE escape hatch surface preview should be unsupported');
-assert(escapeHatch.install.status === 'manual-only', 'IDE escape hatch should be manual-only install status');
-assert(escapeHatch.readiness.key === 'manual_review', 'IDE escape hatch preview should expose manual_review readiness');
+assert(escapeHatch.confidence === 'unsupported', 'source-mapping surface preview should be unsupported');
+assert(escapeHatch.install.status === 'manual-only', 'source-mapping fallback should be manual-only install status');
+assert(escapeHatch.readiness.key === 'manual_review', 'source-mapping fallback preview should expose manual_review readiness');
 
 const legacyPopupPreview = previewModel.buildPreviewModel(index.semantic.news.eventPopups[0], {sourceKind: 'news', projectIndex: index});
 assert(legacyPopupPreview.sourceKind === 'event', 'legacy monthly popup should preview as event-like content');

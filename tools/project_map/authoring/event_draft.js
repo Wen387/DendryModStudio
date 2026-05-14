@@ -745,9 +745,9 @@
       'Validation command:',
       'bash tools/build_and_validate.sh --skip-build --errors-only',
       '',
-      'Manual IDE steps:',
+      'Studio source review:',
       '- Review & Apply can dry-run and apply the scene file plus guarded root/post_event snippets when the project anchors still match.',
-      '- If a guarded anchor is missing or duplicated, Review & Apply stops and leaves that step for IDE review.',
+      '- If a guarded anchor is missing or duplicated, Review & Apply stops and asks for a source anchor or profile rule before applying.',
       '- SDAAH-style projects route tags:event scenes through the monthly #event popup lane; other project styles need a profile router rule before Studio can wire them automatically.'
     ].join('\n') + '\n';
     const notesFile = files.find((file) => file.kind === 'notes');

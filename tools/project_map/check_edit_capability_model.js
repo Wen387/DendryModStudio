@@ -8,6 +8,7 @@ const path = require('path');
 
 const editCapability = require('./authoring/edit_capability_model.js');
 const draftExtract = require('./authoring/draft_extract.js');
+const surfaceDraft = require('./authoring/surface_text_draft.js');
 const {pythonCommand} = require('./check_python_command.js');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
@@ -160,7 +161,9 @@ assert(surfaceCapability.routeClass === 'system_ui_workspace', 'protected root s
 assert(surfaceCapability.installSafety === 'advanced_apply', 'protected root surface text should remain editable through advanced apply', surfaceCapability);
 const surfaceDraftResult = draftExtract.textReplacementDraftFromItem(index, 'surfaceText', rootSurface, {replacementText: 'New Root'});
 assert(surfaceDraftResult.ok, 'root surface text should still create a reviewable proposal', surfaceDraftResult);
-assert(surfaceDraftResult.draft.editability === 'ide_escape_hatch', 'root surface text proposals should not look like ordinary safe replacements', surfaceDraftResult.draft);
+assert(surfaceDraftResult.draft.editability === 'source_patch', 'root surface text proposals should use Studio source patch instead of ordinary safe replacement', surfaceDraftResult.draft);
+const rootSurfaceBundle = surfaceDraft.buildExportBundle(surfaceDraftResult.draft, index);
+assert(rootSurfaceBundle.installPlan.operations[0].safety === 'advanced_apply', 'root surface source_patch should remain advanced apply', rootSurfaceBundle.installPlan.operations[0]);
 
 process.stdout.write(JSON.stringify({
   ok: true,

@@ -57,7 +57,7 @@ assert(onboardingUi.includes('data-onboarding-close'), 'onboarding UI should sup
 assert(onboardingUi.includes('openStarterDemo'), 'onboarding UI should call the desktop starter demo bridge');
 assert(tutorialUi.includes('ProjectMapTutorialLibrary'), 'tutorial library UI should expose a small browser API');
 assert(tutorialUi.includes('dev-preview'), 'tutorial library should define a Dev Preview status article');
-assert(tutorialUi.includes('what-is-ide'), 'tutorial library should define an IDE article');
+assert(tutorialUi.includes('what-is-ide'), 'tutorial library should define a source review article');
 assert(tutorialUi.includes('sdaah-style'), 'tutorial library should define an SDAAH-style article');
 assert(tutorialUi.includes('variables-in-sdaah'), 'tutorial library should explain how SDAAH-like variables are used');
 assert(tutorialUi.includes('world-events-router'), 'tutorial library should explain world events and routers');
@@ -67,7 +67,7 @@ assert(tutorialUi.includes('tags-event'), 'tutorial library should define a tags
 assert(tutorialUi.includes('mode-buttons'), 'tutorial library should explain Explore / Design / Create / Install');
 assert(tutorialUi.includes('faq-export-open-diagnostics'), 'tutorial library should explain open project, export, and diagnostics');
 assert(tutorialUi.includes('faq-git-safety'), 'tutorial library should explain Git safety for mod projects');
-assert(tutorialUi.includes('faq-ide-project'), 'tutorial library should explain installing/opening an IDE for a project');
+assert(tutorialUi.includes('faq-ide-project'), 'tutorial library should explain source paths and advanced edits');
 assert(tutorialUi.includes('profile-compatibility'), 'tutorial library should explain profile compatibility before tester release');
 assert(tutorialUi.includes('compatibility-open-source'), 'tutorial library should define compatibility and open-source guidance');
 [

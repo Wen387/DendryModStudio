@@ -29,8 +29,8 @@ def surface_editability_for_path(rel: str) -> str:
 
 def surface_reason_for_path(rel: str) -> str:
     if rel.startswith("out/html/"):
-        return "Generated/custom runtime UI evidence; Studio can guide the IDE edit but will not auto-edit it."
-    return "Source-backed Dendry display text; Studio can export a replacement proposal for manual review."
+        return "Generated/custom runtime UI evidence; Studio needs source mapping before it can build an executable patch."
+    return "Source-backed Dendry display text; Studio can export a replacement proposal for Review & Apply."
 
 
 def surface_confidence_for_path(rel: str) -> str:

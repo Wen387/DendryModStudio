@@ -960,7 +960,7 @@
       eventWorkbenchHtml || renderDesignPreview(model, selected),
       inspectorActionHtml,
       support.status === 'ide_escape_hatch'
-        ? '<div class="edge-item">' + escapeHtml(t('design.ideEscapeHatch', 'IDE escape hatch: Studio can draft guidance, but it will not pretend this is a safe automatic edit.')) + '</div>'
+        ? '<div class="edge-item">' + escapeHtml(t('design.ideEscapeHatch', 'Source mapping needed: Studio can draft guidance, but it needs a source owner before Review & Apply can build an executable patch.')) + '</div>'
         : '',
       miniSection('variables', t('design.variablesTouched', 'Variables touched'), variables),
       miniSection('flow_edges', t('design.flowEdges', 'Flow edges'), graphRows),

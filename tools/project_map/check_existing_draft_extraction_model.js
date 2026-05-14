@@ -159,9 +159,9 @@ assert(surface.draft.replacementLabel === '資金', 'surface draft should use re
 assert(surfaceDraft.validateDraft(surface.draft).ok, 'surface extracted draft should validate');
 
 const htmlSurface = draftExtract.extractDraftFromItem(index, 'surfaceText', 'surface_html_resources', {replacementLabel: '資金'});
-assert(htmlSurface.ok, 'IDE-only surface text should still produce a draft guidance object');
-assert(htmlSurface.status === 'ide_escape_hatch', 'IDE-only surface text should remain escape hatch');
-assert(htmlSurface.draft.editability === 'ide_escape_hatch', 'IDE-only draft should not become safe apply');
+assert(htmlSurface.ok, 'generated-only surface text should still produce a draft guidance object');
+assert(htmlSurface.status === 'ide_escape_hatch', 'generated-only surface text should remain source-mapping fallback');
+assert(htmlSurface.draft.editability === 'ide_escape_hatch', 'generated-only draft should not become safe apply');
 
 const corpusBodyProposal = draftExtract.textReplacementDraftFromItem(index, 'textCorpus', {
   id: 'anti_curriculum_body_1',

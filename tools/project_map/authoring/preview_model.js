@@ -371,7 +371,7 @@
       ].filter((row) => row.text),
       choices: [],
       confidence: unsupported ? 'unsupported' : confidenceFromContext(context),
-      warnings: unsupported ? ['This source is an IDE escape hatch; Studio cannot safely preview runtime ownership.'] : []
+      warnings: unsupported ? ['This source needs mapping before Studio can preview runtime ownership or build an executable patch.'] : []
     });
   }
 
@@ -382,7 +382,7 @@
     const sceneKind = String(draft.sceneKind || 'event') === 'card' ? 'Card' : 'Event';
     const manualCount = Number(summary.manualFields || 0);
     const warnings = manualCount
-      ? [manualCount + ' changed field' + (manualCount === 1 ? '' : 's') + ' need IDE review because Studio lacks safe source evidence.']
+      ? [manualCount + ' changed field' + (manualCount === 1 ? '' : 's') + ' need Studio source review because safe source evidence is missing.']
       : [];
     const body = [];
     if (!changes.length) {

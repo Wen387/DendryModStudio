@@ -120,9 +120,9 @@
             area: 'event_popup_title',
             originalLabel: scene.title || item.headline || '',
             replacementLabel: replacement || scene.title || item.headline || '',
-            editability: 'ide_escape_hatch',
+            editability: 'source_patch',
             source: scene.sourceSpan || scene.topLevelSpan || item.source,
-            reason: 'Legacy monthly popups are ordinary tags:event scenes selected by post_event. Studio exports event-scene editing guidance, not a post_event_news rewrite.'
+            reason: 'Legacy monthly popups are ordinary tags:event scenes selected by post_event. Studio opens a source patch for the linked event scene.'
           });
         }
       }
@@ -132,9 +132,11 @@
         area: 'news',
         originalLabel: item.headline || '',
         replacementLabel: replacement || item.headline || '',
-        editability: 'ide_escape_hatch',
+        editability: sourceBacked(item.source) ? 'source_patch' : 'ide_escape_hatch',
         source: item.source,
-        reason: 'News text lives in post_event_news or generated JS snippets. Studio exports guidance, not an automatic rewrite.'
+        reason: sourceBacked(item.source)
+          ? 'News text is source-backed; Studio can prepare an advanced source patch.'
+          : 'News text is generated or missing source ownership; Studio needs source mapping before it can apply a patch.'
       });
     }
     if (view === 'events' || view === 'cards' || view === 'scenes') {
@@ -146,9 +148,9 @@
         area: kind + '_title',
         originalLabel: (scene && (scene.title || scene.id)) || '',
         replacementLabel: replacement || (scene && (scene.title || scene.id)) || '',
-        editability: 'ide_escape_hatch',
+        editability: sourceBacked(scene && (scene.sourceSpan || scene.topLevelSpan)) ? 'source_patch' : 'ide_escape_hatch',
         source: scene && (scene.sourceSpan || scene.topLevelSpan),
-        reason: 'Scene text replacement is exported as IDE guidance until Studio has a bounded source-span editor for scene bodies.'
+        reason: 'Scene text replacement opens Studio source patch fallback when a bounded semantic editor is not available.'
       });
     }
     return unsupported(view, 'draft_extract.text_unsupported_view', 'Text replacement is not supported for this view: ' + view);
@@ -210,7 +212,7 @@
     const capability = opts.capability || null;
     const editability = surfaceProposalEditability(item, capability);
     if (editability === 'ide_escape_hatch') {
-      diagnostics.push(diagnostic('warning', 'draft_extract.ide_escape_hatch', capability && capability.reason || 'This surface text item needs manual IDE review.'));
+      diagnostics.push(diagnostic('warning', 'draft_extract.source_mapping_needed', capability && capability.reason || 'This surface text item needs source mapping before Studio can build an executable patch.'));
     }
     const label = String(item.label || '').trim();
     const replacement = String(opts.replacementLabel || '').trim() || label;
@@ -228,7 +230,7 @@
     };
     return {
       ok: Boolean(label && draft.source.path),
-      status: editability === 'draft_exportable' ? 'draft' : 'ide_escape_hatch',
+      status: editability === 'ide_escape_hatch' ? 'ide_escape_hatch' : 'draft',
       template: 'surface',
       draft,
       source: item.source || null,
@@ -254,8 +256,11 @@
 
   function surfaceProposalEditability(item, capability) {
     const routeClass = String(capability && capability.routeClass || '');
-    if (routeClass === 'system_ui_workspace' || routeClass === 'news_router_workflow' || routeClass === 'manual_review' || routeClass === 'unsupported') {
+    if (generatedSource(item && item.source)) {
       return 'ide_escape_hatch';
+    }
+    if (routeClass === 'system_ui_workspace' || routeClass === 'news_router_workflow' || routeClass === 'source_slice_editor' || routeClass === 'advanced_source_patch' || routeClass === 'manual_review' || routeClass === 'unsupported') {
+      return sourceBacked(item && item.source) ? 'source_patch' : 'ide_escape_hatch';
     }
     return String(item && item.editability || 'ide_escape_hatch');
   }
@@ -268,7 +273,7 @@
     if (routeClass === 'direct_section_replace' || routeClass === 'object_workspace' || routeClass === 'source_slice_editor' || routeClass === 'advanced_source_patch') {
       return 'text_proposal';
     }
-    return 'ide_escape_hatch';
+    return sourceBacked(item && item.source) ? 'source_patch' : 'ide_escape_hatch';
   }
 
   function textReplacementDraft(input) {
@@ -288,7 +293,7 @@
     };
     const diagnostics = [];
     if (draft.editability === 'ide_escape_hatch') {
-      diagnostics.push(diagnostic('warning', 'draft_extract.text_manual_review', draft.reason || 'This text replacement needs manual IDE review.'));
+      diagnostics.push(diagnostic('warning', 'draft_extract.text_source_mapping_needed', draft.reason || 'This text replacement needs source mapping before Studio can build an executable patch.'));
     }
     if (!draft.source.path) {
       diagnostics.push(diagnostic('warning', 'draft_extract.text_source_missing', 'No source path was available for this text replacement proposal.'));
@@ -584,8 +589,20 @@
     return {
       path: String(value.path || '').trim(),
       line,
-      endLine
+      endLine,
+      anchorText: String(value.anchorText || '').trim(),
+      endAnchorText: String(value.endAnchorText || '').trim()
     };
+  }
+
+  function sourceBacked(source) {
+    const path = String(source && source.path || '').replace(/\\/g, '/');
+    return Boolean(path && path.startsWith('source/'));
+  }
+
+  function generatedSource(source) {
+    const path = String(source && source.path || '').replace(/\\/g, '/');
+    return Boolean(path && (path.startsWith('out/') || path.startsWith('dist/') || path.includes('/out/')));
   }
 
   function sourceLine(source) {

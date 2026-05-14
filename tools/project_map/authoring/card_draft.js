@@ -517,7 +517,7 @@
       'Validation command:',
       'bash tools/build_and_validate.sh --skip-build --errors-only',
       '',
-      'Manual IDE steps:',
+      'Studio source review:',
       wiring.autoRouted
         ? '- No manual hand/deck/sidebar wiring step was generated because the ProjectIndex already routes this tag.'
         : '- Install Assistant can dry-run safe create-file operations, but hand/deck/sidebar wiring remains manual review.',

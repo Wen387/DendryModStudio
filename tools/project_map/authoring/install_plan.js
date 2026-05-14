@@ -413,10 +413,13 @@
       ? 'safe_apply'
       : editability === 'draft_extractable'
         ? 'guarded_apply'
-        : singleLineTextProposal
-          ? 'guarded_apply'
-        : 'manual_review';
+        : editability === 'source_patch'
+          ? 'advanced_apply'
+          : singleLineTextProposal
+            ? 'guarded_apply'
+            : 'manual_review';
     const isTextProposal = editability === 'text_proposal';
+    const isSourcePatch = editability === 'source_patch';
     return buildInstallPlan({
       id,
       draftKind: 'surface_text',
@@ -434,6 +437,8 @@
               safety,
               description: isTextProposal
                 ? 'Text proposal: replace player-facing prose after matching the indexed original text and exact line evidence.'
+                : isSourcePatch
+                ? 'Studio source patch: replace player-facing text through an advanced source-backed operation.'
                 : safety === 'guarded_apply'
                 ? 'Replace source scene text after matching the indexed original text and line evidence.'
                 : 'Replace a source-backed surface label after matching the original text.'
@@ -449,7 +454,7 @@
               safety: 'manual_review',
               description: isTextProposal
                 ? 'Text proposal: proposal-first manual review for Text Corpus prose; do not auto-apply as replace_text.'
-                : 'IDE escape hatch: source is generated, runtime-owned, or ambiguous.'
+                : 'Source mapping required: source is generated, runtime-owned, or ambiguous.'
             }
       ]
     });
@@ -573,7 +578,7 @@
       path,
       line,
       content: [
-        'Existing scene edit needs IDE review before changing source.',
+        'Existing scene edit needs Studio source review before changing source.',
         'Field: ' + label,
         'Before:',
         before || '(empty)',
@@ -583,7 +588,7 @@
       ].join('\n') + '\n',
       safety: 'manual_review',
       description: path && isProtectedRouterPath(path)
-        ? 'Protected/router scene field requires manual IDE review.'
+        ? 'Protected/router scene field requires Studio source review.'
         : 'Existing scene field lacks exact single-line source evidence for guarded apply.'
     };
   }

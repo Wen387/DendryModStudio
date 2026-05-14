@@ -335,7 +335,7 @@
               <option value="all" data-i18n="design.authoring.all">All authoring states</option>
               <option value="editable" data-i18n="design.authoring.editable">Edit as Draft</option>
               <option value="manual" data-i18n="design.authoring.manual">Manual review</option>
-              <option value="escape_hatch" data-i18n="design.authoring.escape">IDE escape hatch</option>
+              <option value="escape_hatch" data-i18n="design.authoring.escape">Source mapping needed</option>
             </select>
           </label>
 
@@ -1836,8 +1836,9 @@ media_reach += 1</textarea>
               <label>
                 <span data-i18n="create.field.editability">editability</span>
                 <select id="surface-editability" name="editability">
-                  <option value="draft_exportable" selected>draft_exportable</option>
-                  <option value="ide_escape_hatch">ide_escape_hatch</option>
+                  <option value="draft_exportable" selected data-i18n="textCorpus.editability.draftExportable">Source-backed apply</option>
+                  <option value="source_patch" data-i18n="textCorpus.editability.sourcePatch">Studio source patch</option>
+                  <option value="ide_escape_hatch" data-i18n="coverage.ideEscapeHatch">Source mapping needed</option>
                 </select>
                 <small class="wizard-field-help" data-i18n="create.help.surfaceEditability">Controls whether Review & Apply can verify a source-backed replacement or only export guidance.</small>
               </label>

@@ -7,7 +7,7 @@
     {id: 'cards_advisors', label: 'Cards / Advisor-like'},
     {id: 'news', label: 'News'},
     {id: 'surface_sidebar', label: 'Surface Text / Sidebar'},
-    {id: 'manual_review', label: 'Manual Review / Escape Hatch'}
+    {id: 'manual_review', label: 'Source Mapping / Review'}
   ];
   const CONFIDENCE_RANK = {
     exact: 0,
@@ -285,7 +285,7 @@
       compareKey: compareKeyForSurface(item),
       kind: 'surface_text',
       laneId: escapeHatch ? 'manual_review' : 'surface_sidebar',
-      laneLabel: escapeHatch ? 'Manual Review / Escape Hatch' : 'Surface Text / Sidebar',
+      laneLabel: escapeHatch ? 'Source Mapping / Review' : 'Surface Text / Sidebar',
       title: item.label || item.id || '(surface text)',
       subtitle: item.area || '',
       detail: item.reason || item.originalText || '',
