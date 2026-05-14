@@ -4,20 +4,42 @@
   const EVENT_STRUCTURE_VERSION = '0.1';
   const STRUCTURE_KIND = 'event_structure';
 
+  function ownershipMatchingApi() {
+    if (global && global.ProjectMapOwnershipMatching) {
+      return global.ProjectMapOwnershipMatching;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./ownership_matching_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   function fromDraft(input, projectIndex, options) {
     const draft = isObject(input) ? clone(input) : {};
     const rootOptions = ensureArray(draft.options).map((option, index) => optionFromDraft(option, index, ''));
+    const eventShape = normalizeEventShape(draft.eventShape, rootOptions.length);
     const sections = ensureArray(draft.sections).map(sectionFromDraft).filter((section) => section.id);
     return {
       schemaVersion: EVENT_STRUCTURE_VERSION,
       kind: STRUCTURE_KIND,
       provenance: 'draft',
       mode: 'new_event',
+      eventShape,
       id: stringValue(draft.id || 'new_world_event'),
       title: stringValue(draft.title || draft.heading || 'New World Event'),
+      subtitle: stringValue(draft.subtitle),
       heading: stringValue(draft.heading || draft.title || 'New World Event'),
       openingText: joinParagraphs(draft.introParagraphs),
       when: isObject(draft.when) ? clone(draft.when) : {},
+      rawViewIf: stringValue(draft.rawViewIf || draft.viewIf),
+      tags: ensureArray(draft.tags),
+      newPage: draft.newPage !== false,
+      useSeenFlag: draft.useSeenFlag !== undefined ? Boolean(draft.useSeenFlag) : eventShape === 'choice_event',
+      maxVisits: draft.maxVisits === undefined ? null : draft.maxVisits,
       source: sourceRef({path: 'source/scenes/events/' + (draft.id || 'new_world_event') + '.scene.dry'}),
       triggerEffects: ensureArray(draft.effectsOnTrigger).map(effectFromDraft).filter((effect) => effect.variable),
       options: rootOptions.concat(sections.reduce((rows, section) => rows.concat(section.options), [])),
@@ -37,6 +59,7 @@
       kind: STRUCTURE_KIND,
       provenance: 'source',
       mode: 'existing',
+      eventShape: ensureArray(body && body.options).length ? 'choice_event' : 'pure_event',
       id: stringValue(context && context.sceneId || ''),
       title: stringValue(context && context.title || context && context.sceneId || ''),
       heading: stringValue(context && context.title || context && context.sceneId || ''),
@@ -106,10 +129,22 @@
     const draft = clone(isObject(previousDraft) ? previousDraft : value.rawDraft || {});
     draft.kind = stringValue(draft.kind || 'world_event');
     draft.schemaVersion = stringValue(draft.schemaVersion || '0.1');
+    draft.eventShape = normalizeEventShape(value.eventShape || draft.eventShape, ensureArray(value.options).filter((option) => !option.ownerSectionId).length);
     draft.id = safeId(value.id || draft.id || 'new_world_event');
     draft.title = stringValue(value.title || draft.title || 'New World Event');
+    draft.subtitle = stringValue(value.subtitle || draft.subtitle || '');
     draft.heading = stringValue(value.heading || value.title || draft.heading || draft.title || 'New World Event');
     draft.when = isObject(value.when) ? clone(value.when) : (isObject(draft.when) ? draft.when : {});
+    draft.rawViewIf = stringValue(value.rawViewIf || draft.rawViewIf || draft.viewIf || '');
+    draft.tags = ensureArray(value.tags).length ? ensureArray(value.tags).slice() : ensureArray(draft.tags);
+    draft.newPage = value.newPage !== false;
+    draft.useSeenFlag = value.useSeenFlag !== undefined ? Boolean(value.useSeenFlag) : draft.eventShape === 'choice_event';
+    if (draft.useSeenFlag && !draft.seenFlag) {
+      draft.seenFlag = draft.id + '_seen';
+    }
+    if (value.maxVisits !== undefined) {
+      draft.maxVisits = value.maxVisits;
+    }
     draft.introParagraphs = paragraphs(value.openingText);
     draft.effectsOnTrigger = ensureArray(value.triggerEffects).map(effectToDraft).filter((effect) => effect.variable);
     draft.options = ensureArray(value.options)
@@ -204,14 +239,17 @@
   function draftEventBody(structure) {
     const allOptions = ensureArray(structure.options);
     const rootOptions = allOptions.filter((option) => !option.ownerSectionId);
+    const eventShape = normalizeEventShape(structure.eventShape, rootOptions.length);
     const branchSections = ensureArray(structure.sections).reduce((rows, section, index) => rows.concat(branchFields(section, index)), []);
     const actions = draftStructureActions(structure, rootOptions, allOptions);
     return {
       mode: 'new_event',
+      eventShape,
       bodyEyebrow: 'Event body',
       optionsLabel: 'Options',
       metaLabel: 'Timing and advanced fields',
       title: field('event.title', 'Title', structure.title, 'guarded'),
+      subtitle: field('event.subtitle', 'Subtitle', structure.subtitle || '', 'guarded'),
       heading: field('event.heading', 'Heading', structure.heading || structure.title, 'guarded'),
       sections: [field('event.intro', 'Opening text', structure.openingText, 'guarded', {
         semanticRole: 'opening_text',
@@ -229,11 +267,15 @@
       })),
       metaFields: [
         field('event.id', 'Event id', structure.id, 'guarded'),
+        field('event.eventShape', 'Event type', eventShape, 'guarded', {inputType: 'select', options: ['choice_event', 'pure_event']}),
+        field('event.tags', 'Tags', ensureArray(structure.tags).join(', '), 'guarded'),
+        field('event.newPage', 'New page', structure.newPage === false ? 'false' : 'true', 'guarded', {inputType: 'select', options: ['true', 'false']}),
         field('event.year', 'Year', structure.when && structure.when.year, 'guarded'),
         field('event.monthStart', 'Month start', structure.when && structure.when.monthStart, 'guarded'),
         field('event.monthEnd', 'Month end', structure.when && structure.when.monthEnd, 'guarded'),
-        field('event.requires', 'Condition', structure.when && structure.when.requires, 'guarded'),
-        field('event.priority', 'Priority', structure.when && structure.when.priority, 'guarded')
+        field('event.requires', eventShape === 'pure_event' ? 'Appearance condition' : 'Condition', structure.rawViewIf || structure.when && structure.when.requires, 'guarded'),
+        field('event.priority', 'Priority', structure.when && structure.when.priority, 'guarded'),
+        field('event.useSeenFlag', 'One-shot seen flag', structure.useSeenFlag ? 'true' : 'false', 'guarded', {inputType: 'select', options: ['true', 'false']})
       ],
       structureActions: actions,
       eventGraph: eventGraph(structure),
@@ -379,17 +421,19 @@
   }
 
   function readinessChecklist(structure, rootOptions) {
+    const eventShape = normalizeEventShape(structure && structure.eventShape, ensureArray(rootOptions).length);
     const anchors = eventAnchors(structure);
     const routeProblems = unresolvedRoutes(structure, anchors);
     const effectProblems = invalidEffects(structure);
-    const visibleTextOk = Boolean(stringValue(structure.openingText).trim()) &&
-      ensureArray(rootOptions).every((option) => stringValue(option.label).trim() && stringValue(option.body).trim());
+    const visibleTextOk = Boolean(stringValue(structure.openingText).trim()) && (
+      eventShape === 'pure_event' ||
+      ensureArray(rootOptions).every((option) => stringValue(option.label).trim() && stringValue(option.body).trim())
+    );
     const routerRegistration = eventRouterRegistrationHint(structure);
     const routerReady = Boolean(routerRegistration);
-    return [
+    const rows = [
       readinessItem('event_id', Boolean(safeId(structure.id || '')), 'Event id is valid.', editAction('open_object_field', 'event.id', structure.id || 'event')),
-      readinessItem('root_options', ensureArray(rootOptions).length >= 2 && ensureArray(rootOptions).length <= 4, 'Event has 2 to 4 root options.', editAction('open_object_field', 'option.0.label', 'option_1')),
-      readinessItem('visible_text', visibleTextOk, 'Opening text and root option result text are filled in.', editAction('open_object_section', 'event.intro', 'opening')),
+      readinessItem('visible_text', visibleTextOk, eventShape === 'pure_event' ? 'Text event title and body are filled in.' : 'Opening text and root option result text are filled in.', editAction('open_object_section', 'event.intro', 'opening')),
       readinessItem('routes_resolve', routeProblems.length === 0, routeProblems.length ? 'Some route targets do not resolve: ' + routeProblems.join(', ') : 'All draft route targets resolve.', editAction('open_route_editor', 'option.0.gotoAfter', 'option_1')),
       readinessItem('effect_ops', effectProblems.length === 0, effectProblems.length ? 'Some effects need a supported operation: ' + effectProblems.join(', ') : 'Effects use supported operations.', editAction('open_effect_editor', 'event.effect.0.value', 'opening')),
       readinessItem('router_registration', routerReady, routerReady ? 'Profile-aware router registration can be generated.' : 'Router wiring is pending profile setup.', {
@@ -402,6 +446,12 @@
         draftAction: true
       })
     ];
+    if (eventShape === 'choice_event') {
+      rows.splice(1, 0, readinessItem('root_options', ensureArray(rootOptions).length >= 2 && ensureArray(rootOptions).length <= 4, 'Choice event has 2 to 4 root options.', editAction('open_object_field', 'option.0.label', 'option_1')));
+    } else {
+      rows.splice(1, 0, readinessItem('event_shape', ensureArray(rootOptions).length === 0, 'Text event has no player choices.', editAction('open_object_field', 'event.eventShape', structure.id || 'event')));
+    }
+    return rows;
   }
 
   function eventVariableRows(structure) {
@@ -1186,6 +1236,8 @@
     const id = stringValue(fieldId);
     if (id === 'event.title') {
       structure.title = stringValue(value);
+    } else if (id === 'event.subtitle') {
+      structure.subtitle = stringValue(value);
     } else if (id === 'event.heading') {
       structure.heading = stringValue(value);
     } else if (id === 'event.intro') {
@@ -1206,13 +1258,25 @@
   function updateEventMetaField(structure, fieldId, value) {
     const key = fieldId.slice('event.'.length);
     structure.when = isObject(structure.when) ? structure.when : {};
-    if (key === 'year' || key === 'monthStart' || key === 'monthEnd' || key === 'priority') {
+    if (key === 'eventShape') {
+      structure.eventShape = normalizeEventShape(value, ensureArray(structure.options).filter((option) => !option.ownerSectionId).length);
+    } else if (key === 'tags') {
+      structure.tags = stringValue(value).split(',').map((item) => item.trim()).filter(Boolean);
+    } else if (key === 'newPage') {
+      structure.newPage = truthy(value);
+    } else if (key === 'useSeenFlag') {
+      structure.useSeenFlag = truthy(value);
+    } else if (key === 'year' || key === 'monthStart' || key === 'monthEnd' || key === 'priority') {
       const number = Number(value);
       if (Number.isFinite(number)) {
         structure.when[key] = number;
       }
     } else if (key === 'requires') {
-      structure.when.requires = stringValue(value);
+      if (normalizeEventShape(structure.eventShape, ensureArray(structure.options).length) === 'pure_event') {
+        structure.rawViewIf = stringValue(value);
+      } else {
+        structure.when.requires = stringValue(value);
+      }
     }
   }
 
@@ -1373,10 +1437,11 @@
   function isEventStructureField(key) {
     const text = stringValue(key);
     return text === 'event.title' ||
+      text === 'event.subtitle' ||
       text === 'event.heading' ||
       text === 'event.intro' ||
       text === 'event.id' ||
-      /^event\.(year|monthStart|monthEnd|requires|priority)$/.test(text) ||
+      /^event\.(eventShape|tags|newPage|useSeenFlag|year|monthStart|monthEnd|requires|priority)$/.test(text) ||
       /^event\.section\.\d+\.(body|title|condition|exitTarget)$/.test(text) ||
       /^event\.effect\.\d+\.(variable|op|value|condition|hook)$/.test(text) ||
       /^option\.\d+\.(label|subtitle|body|chooseIf|unavailableText|gotoAfter|returnTarget)$/.test(text) ||
@@ -1418,6 +1483,7 @@
       kind: STRUCTURE_KIND,
       provenance: stringValue(structure && structure.provenance),
       mode: stringValue(structure && structure.mode),
+      eventShape: normalizeEventShape(structure && structure.eventShape, ensureArray(structure && structure.options).filter((option) => !option.ownerSectionId).length),
       id: stringValue(structure && structure.id),
       optionCount: ensureArray(structure && structure.options).length,
       sectionCount: ensureArray(structure && structure.sections).length,
@@ -1459,15 +1525,17 @@
   }
 
   function optionForSourceEffect(effect, options) {
+    const api = ownershipMatchingApi();
     const sectionId = stringValue(effect && effect.sectionId).trim();
-    if (!sectionId) {
-      return null;
-    }
     return ensureArray(options).find((option) => {
-      return stringValue(option && option.targetId) === sectionId ||
-        stringValue(option && option.rawTargetId) === sectionId ||
-        stringValue(option && option.id) === sectionId ||
-        stringValue(option && option.sectionId) === sectionId;
+      return api && typeof api.ownerMatchesOption === 'function'
+        ? api.ownerMatchesOption(effect, option)
+        : (
+          stringValue(option && option.targetId) === sectionId ||
+          stringValue(option && option.rawTargetId) === sectionId ||
+          stringValue(option && option.id) === sectionId ||
+          stringValue(option && option.sectionId) === sectionId
+        );
     }) || null;
   }
 
@@ -1475,7 +1543,7 @@
     const text = stringValue(value).trim();
     if (op && op !== '=') {
       const num = Number(text);
-      return Number.isFinite(num) ? num : 0;
+      return Number.isFinite(num) ? num : text;
     }
     if (/^-?\d+(?:\.\d+)?$/.test(text)) {
       return Number(text);
@@ -1486,6 +1554,14 @@
   function normalizeEffectOp(value) {
     const op = stringValue(value || '+=').trim();
     return op === '=' || op === '+=' || op === '-=' ? op : '+=';
+  }
+
+  function normalizeEventShape(value, rootOptionCount) {
+    const text = stringValue(value).trim();
+    if (text === 'choice_event' || text === 'pure_event') {
+      return text;
+    }
+    return Number(rootOptionCount || 0) > 0 ? 'choice_event' : 'pure_event';
   }
 
   function sourceRef(ref) {

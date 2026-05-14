@@ -3,6 +3,8 @@
 
 const canvasModel = require('./authoring/object_authoring_canvas_model.js');
 const eventStructureModel = require('./authoring/event_structure_model.js');
+const eventWorkbench = require('./authoring/event_workbench_model.js');
+const ownershipMatching = require('./authoring/ownership_matching_model.js');
 const installPlanApi = require('./authoring/install_plan.js');
 const deleteProposalModel = require('./authoring/object_delete_proposal_model.js');
 const shellUi = require('./viewer/object_canvas_shell_ui.js');
@@ -31,6 +33,10 @@ function assert(condition, message) {
     fail(message);
   }
 }
+
+assert(ownershipMatching.endpointMatches('deport_hitler.force_approach', 'force_approach'), 'ownership matching should bridge qualified and local section ids');
+assert(ownershipMatching.endpointMatches('@force_approach', '#force_approach'), 'ownership matching should bridge route sigils');
+assert(!ownershipMatching.endpointMatches('deport_hitler.force_approach', 'other_scene.force_approach'), 'ownership matching should not merge different qualified scene owners');
 
 function textareaRows(html, fieldId) {
   const match = new RegExp('<textarea rows="(\\d+)"[^>]*data-object-canvas-field="' + fieldId + '"').exec(html);
@@ -173,6 +179,13 @@ const index = {
           source: {path: current.path, line: 25, anchorText: 'Q.public_order += 1;', endAnchorText: 'Q.public_order += 1;'}
         },
         {
+          id: 'generic_intro_qualified_effect',
+          text: 'Q.stability += 2;',
+          role: 'script',
+          owner: {kind: 'scene', sceneId: 'generic_intro', sectionId: 'generic_intro.target_scene'},
+          source: {path: current.path, line: 26, anchorText: 'Q.stability += 2;', endAnchorText: 'Q.stability += 2;'}
+        },
+        {
           id: 'generic_intro_followup_heading',
           text: 'Nice having you, Bruning.',
           role: 'heading',
@@ -303,11 +316,13 @@ assert(existing.eventBody.effects.some((field) => field.role === 'effect' && fie
 assert(existing.eventBody.structureActions.some((field) => field.id === 'structure_add_trigger_effect'), 'existing body should expose trigger effect creation fields');
 assert(existing.eventBody.structureActions.some((field) => field.id === 'structure_remove_effect_budget_1'), 'existing body should expose effect removal structural actions');
 assert(existing.eventBody.optionEffects[0].fields.some((field) => field.role === 'effect' && field.value === 'Q.public_order += 1'), 'existing body should expose option effect fields in the preview editor');
+assert(existing.eventBody.optionEffects[0].fields.some((field) => field.role === 'effect' && field.value === 'Q.stability += 2' && field.optionId === 'target_scene'), 'existing body should map fully-qualified section effects back to the matching option preview group');
 assert(existing.eventBody.structureActions.some((field) => field.id === 'structure_add_option_effect_target_scene'), 'existing body should expose option effect creation fields');
 assert(existing.eventBody.eventStructure && existing.eventBody.eventStructure.kind === 'event_structure', 'existing Event editor body should be derived through EventStructure');
 const existingPreviewHtml = previewEditor.renderPreviewPane(existing);
 assert(existingPreviewHtml.includes('data-object-editing-preview-effects="true"'), 'left preview should render an effects and impact block');
 assert(existingPreviewHtml.includes('Q.budget += 1'), 'left preview should show trigger effect impact text');
+assert(existingPreviewHtml.includes('Q.stability += 2'), 'left preview should show fully-qualified section option effects under the matching player choice');
 assert(existingPreviewHtml.includes('Follow-up page'), 'left preview should label same-scene follow-up text as a follow-up page');
 assert(existingPreviewHtml.includes('Section: Nice having you, Bruning.'), 'left preview should keep the follow-up page title as section context');
 const menuFlowCanvas = canvasModel.buildExistingCanvas(index, 'events', 'menu_flow', {});
@@ -357,20 +372,52 @@ const queuedStructureModel = canvasModel.buildExistingCanvas(index, 'events', 'g
   values: {
     __structureCommands: [
       {id: 'queued_add_option', type: 'add_option', action: 'add_option', fieldId: 'structure_add_option', value: '- @press_line: Brief the press.\n# press_line\nThe press office takes over.'},
-      {id: 'queued_add_effect', type: 'add_option_effect', action: 'add_option_effect', fieldId: 'structure_add_option_effect_target_scene', optionId: 'target_scene', targetLabel: 'Continue', value: 'Q.public_order += 3'}
+      {id: 'queued_add_effect', type: 'add_option_effect', action: 'add_option_effect', fieldId: 'structure_add_option_effect_target_scene', optionId: 'target_scene', targetLabel: 'Continue', value: 'Q.public_order += 3'},
+      {id: 'queued_add_effect_qualified', type: 'add_option_effect', action: 'add_option_effect', optionId: 'generic_intro.target_scene', targetLabel: 'Continue', value: 'Q.stability += 4'}
     ]
   },
   entry: {source: 'Design', action: 'edit_existing'}
 });
-assert(queuedStructureModel.changeState.changedCount === 2, 'existing editor should turn queued structure commands into independent manual-review changes');
+assert(queuedStructureModel.changeState.changedCount === 3, 'existing editor should turn queued structure commands into independent manual-review changes');
 assert(queuedStructureModel.changeState.installPlan.operations.some((operation) => operation.type === 'manual_snippet'), 'queued existing add-option commands should stay manual-review snippets');
 assert(queuedStructureModel.changeState.installPlan.operations.some((operation) => operation.type === 'insert_text' && operation.safety === 'guarded_apply'), 'queued source-backed option-effect commands should become guarded inserts');
 const queuedPreviewHtml = previewEditor.renderPreviewPane(queuedStructureModel);
 const queuedEditorHtml = previewEditor.render(queuedStructureModel);
 assert(queuedPreviewHtml.includes('Brief the press.'), 'left preview should materialize queued add-option commands');
 assert(queuedPreviewHtml.includes('Q.public_order += 3'), 'left preview should materialize queued add-option-effect commands');
+assert(queuedPreviewHtml.includes('Q.stability += 4'), 'left preview should materialize queued option effects whose command uses a fully-qualified option id');
 assert(queuedEditorHtml.includes('Q.public_order += 3'), 'right editor should keep queued option-effect commands visible after commit');
+assert(queuedEditorHtml.includes('Q.stability += 4'), 'right editor should keep queued fully-qualified option-effect commands visible after commit');
 assert(queuedEditorHtml.includes('Simple source-backed Q effects can be applied automatically after review.'), 'right editor should explain guarded source-backed option effects');
+
+const workbenchPath = 'source/scenes/events/workbench_matching.scene.dry';
+const workbenchIndex = {
+  project: {name: 'Workbench Matching Fixture'},
+  scenes: [{
+    id: 'workbench_matching',
+    title: 'Workbench Matching',
+    path: workbenchPath,
+    type: 'event',
+    options: [{
+      target: {id: 'force_approach'},
+      title: 'Force the approach!',
+      sourceSpan: {path: workbenchPath, line: 8, startLine: 8, endLine: 8, anchorText: '- @force_approach: Force the approach!', endAnchorText: '- @force_approach: Force the approach!'}
+    }],
+    sections: [{
+      id: 'workbench_matching.force_approach',
+      sourceSpan: {path: workbenchPath, startLine: 20, endLine: 30},
+      routes: {},
+      options: []
+    }],
+    sourceSpan: {path: workbenchPath, startLine: 1, endLine: 40}
+  }],
+  semantic: {textCorpus: {items: [
+    {id: 'workbench_option', text: 'Force the approach!', role: 'option_label', owner: {kind: 'scene', sceneId: 'workbench_matching', sectionId: 'start', itemId: 'force_approach'}, source: {path: workbenchPath, line: 8, anchorText: '- @force_approach: Force the approach!', endAnchorText: '- @force_approach: Force the approach!'}},
+    {id: 'workbench_effect', text: 'Q.stability += 2;', role: 'script', owner: {kind: 'scene', sceneId: 'workbench_matching', sectionId: 'workbench_matching.force_approach'}, source: {path: workbenchPath, line: 24, anchorText: 'Q.stability += 2;', endAnchorText: 'Q.stability += 2;'}}
+  ]}}
+};
+const workbench = eventWorkbench.buildEventWorkbench(workbenchIndex, 'workbench_matching', {});
+assert(workbench.options[0].effects.some((effect) => effect.displayExpression === 'Q.stability += 2'), 'Event Workbench should map fully-qualified section effects back to the matching option row');
 assert(queuedEditorHtml.includes('is-readonly'), 'queued existing structural commands should render as reviewable pending rows rather than disappearing');
 assert(queuedEditorHtml.includes('is-pending-addition') && queuedEditorHtml.includes('open'), 'queued existing structural commands should stay expanded as pending additions');
 const removalPreviewHtml = previewEditor.renderPreviewPane(canvasModel.buildExistingCanvas(index, 'events', 'generic_intro', {

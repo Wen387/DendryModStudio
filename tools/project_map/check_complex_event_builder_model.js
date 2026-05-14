@@ -67,6 +67,7 @@ const model = canvasModel.buildNewEventCanvas(index, draft, {});
 
 assert(model.ok, 'complex event draft should build from zero', model.changeState.diagnostics);
 assert(model.mode === 'new_event', 'complex builder should use the new_event Object Canvas flow', model.mode);
+assert(model.eventBody.eventShape === 'choice_event', 'complex builder should keep choice_event archetype', model.eventBody.eventShape);
 assert(model.eventBody.options.filter((option) => !option.sectionId).length === 4, 'builder should preserve four root options', model.eventBody.options);
 assert(model.eventBody.options.some((option) => option.sectionId === 'follow_up'), 'builder should expose section-owned options', model.eventBody.options);
 assert(model.eventBody.branchSections.some((field) => field.id === 'event.section.0.title'), 'branch editor should expose section title');

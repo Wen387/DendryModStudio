@@ -12,6 +12,20 @@
     return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
   }
 
+  function ownershipMatchingApi() {
+    if (global && global.ProjectMapOwnershipMatching) {
+      return global.ProjectMapOwnershipMatching;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./ownership_matching_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   function buildRouteFields(scene, options) {
     const sceneId = String(scene && scene.id || '');
     const fields = ensureArray(options).map((option, index) => {
@@ -297,12 +311,12 @@
   }
 
   function optionForEffect(options, effect) {
+    const api = ownershipMatchingApi();
     const sectionId = String(effect && effect.sectionId || '');
-    if (!sectionId) {
-      return null;
-    }
     return ensureArray(options).find((option) => {
-      return String(option.targetId || '') === sectionId || String(option.id || '') === sectionId;
+      return api && typeof api.ownerMatchesOption === 'function'
+        ? api.ownerMatchesOption(effect, option)
+        : String(option.targetId || '') === sectionId || String(option.id || '') === sectionId;
     }) || null;
   }
 

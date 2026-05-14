@@ -96,6 +96,20 @@
     return null;
   }
 
+  function ownershipMatchingApi() {
+    if (global && global.ProjectMapOwnershipMatching) {
+      return global.ProjectMapOwnershipMatching;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./ownership_matching_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   function isExistingProposal(value) {
     return isObject(value) && (value.kind === 'existing_scene_edit' || Boolean(value.sceneId && value.changes));
   }
@@ -297,7 +311,9 @@
       allEditors.find((editor) => editor.role === 'heading') ||
       null;
     const pageSectionEditors = ensureArray(editors.pageSections);
+    const metadataEditors = allEditors.filter((editor) => String(editor && editor.role || '') === 'metadata');
     const playerTextEditors = ensureArray(editors.playerText)
+      .filter((editor) => String(editor && editor.role || '') !== 'metadata')
       .filter((editor) => !titleEditor || editor.id !== titleEditor.id);
     const optionRows = optionBodyRows(context, pageSectionEditors);
     const consumedSectionIds = new Set();
@@ -316,6 +332,7 @@
     const effectEditors = ensureArray(editors.effects);
     const body = {
       mode: 'existing',
+      eventShape: optionRows.length ? 'choice_event' : 'pure_event',
       title: titleEditor || {
         id: '',
         label: 'Title',
@@ -331,7 +348,7 @@
       assetBaseUrl: String(projectIndex && projectIndex.project && projectIndex.project.assetBaseUrl || ''),
       variables: variableRowsForExisting(context),
       backgroundEffects: backgroundEffectRowsForExisting(context),
-      metaFields: ensureArray(editors.conditions).concat(ensureArray(editors.routes)),
+      metaFields: metadataEditors.concat(ensureArray(editors.conditions), ensureArray(editors.routes)),
       structureActions: ensureArray(editors.structureActions),
       flow: context.flow || context.editModel && context.editModel.flow || {nodes: [], edges: [], summary: {}},
       effects: effectEditors.filter((editor) => !editor.optionId && !editor.sectionId),
@@ -415,6 +432,7 @@
 
   function structureActionFieldForCommand(body, command, action) {
     const fields = ensureArray(body && body.structureActions).filter((field) => String(field && field.transform || '') === 'structure_action' || field && field.structureAction);
+    const ownership = ownershipMatchingApi();
     const fieldId = String(command && command.fieldId || '').trim();
     if (fieldId) {
       const direct = fields.find((field) => String(field && field.id || '') === fieldId);
@@ -428,11 +446,21 @@
       if (normalizeStructureAction(field && field.structureAction) !== action) {
         return false;
       }
-      if (optionId && safeCompareId(field && field.optionId) !== optionId) {
-        return false;
+      if (optionId) {
+        const optionMatches = ownership && typeof ownership.endpointMatches === 'function'
+          ? ownership.endpointMatches(field && field.optionId, command && command.optionId)
+          : safeCompareId(field && field.optionId) === optionId;
+        if (!optionMatches) {
+          return false;
+        }
       }
-      if (sectionId && safeCompareId(field && field.sectionId) !== sectionId) {
-        return false;
+      if (sectionId) {
+        const sectionMatches = ownership && typeof ownership.endpointMatches === 'function'
+          ? ownership.endpointMatches(field && field.sectionId, command && command.sectionId)
+          : safeCompareId(field && field.sectionId) === sectionId;
+        if (!sectionMatches) {
+          return false;
+        }
       }
       return true;
     }) || null;
@@ -528,15 +556,18 @@
   }
 
   function effectMatchesOption(editor, option) {
-    return Boolean(
-      editor &&
-      option &&
-      (
-        (editor.optionId && String(editor.optionId) === String(option.id || '')) ||
-        (editor.sectionId && String(editor.sectionId) === String(option.targetId || '')) ||
-        (editor.sectionId && String(editor.sectionId) === String(option.id || ''))
-      )
-    );
+    const api = ownershipMatchingApi();
+    return api && typeof api.ownerMatchesOption === 'function'
+      ? api.ownerMatchesOption(editor, option)
+      : Boolean(
+        editor &&
+        option &&
+        (
+          (editor.optionId && String(editor.optionId) === String(option.id || '')) ||
+          (editor.sectionId && String(editor.sectionId) === String(option.targetId || '')) ||
+          (editor.sectionId && String(editor.sectionId) === String(option.id || ''))
+        )
+      );
   }
 
   function optionBodyRows(context, sectionEditors) {
@@ -587,31 +618,29 @@
   }
 
   function sectionEditorMatchesOption(editor, option) {
-    const editorIds = ensureArray(editor && editor.relatedOptionIds).map(normalizeEndpointToken).filter(Boolean);
-    const optionIds = [
+    const api = ownershipMatchingApi();
+    const editorIds = ensureArray(editor && editor.relatedOptionIds);
+    if (api && typeof api.endpointMatches === 'function' && api.endpointMatches(editorIds, [
       option && option.id,
       option && option.rawTargetId,
       option && option.targetId
-    ].map(normalizeEndpointToken).filter(Boolean);
-    if (editorIds.some((id) => optionIds.includes(id))) {
+    ])) {
       return true;
     }
-    const sectionToken = normalizeEndpointToken(editor && editor.sectionId);
-    return Boolean(sectionToken && optionIds.includes(sectionToken));
-  }
-
-  function normalizeEndpointToken(value) {
-    const text = String(value || '').trim().replace(/^[@#]/, '');
-    if (!text) {
-      return '';
-    }
-    return text.includes('.') ? text.split('.').pop() : text;
+    return api && typeof api.ownerMatchesOption === 'function'
+      ? api.ownerMatchesOption({sectionId: editor && editor.sectionId}, option)
+      : Boolean(editor && option && (
+        String(editor.sectionId || '') === String(option.targetId || '') ||
+        String(editor.sectionId || '') === String(option.id || '')
+      ));
   }
 
   function eventBodyForNewEvent(draft) {
     return {
       mode: 'new_event',
+      eventShape: draft.eventShape || (ensureArray(draft.options).length ? 'choice_event' : 'pure_event'),
       title: field('event.title', 'Title', draft.title, 'guarded'),
+      subtitle: field('event.subtitle', 'Subtitle', draft.subtitle || '', 'guarded'),
       heading: field('event.heading', 'Heading', draft.heading || draft.title, 'guarded'),
       sections: [
         field('event.intro', 'Opening text', ensureArray(draft.introParagraphs).join('\n\n'), 'guarded')
@@ -629,6 +658,9 @@
       })),
       metaFields: [
         field('event.id', 'Event id', draft.id, 'guarded'),
+        field('event.eventShape', 'Event type', draft.eventShape || 'choice_event', 'guarded'),
+        field('event.tags', 'Tags', ensureArray(draft.tags).join(', '), 'guarded'),
+        field('event.newPage', 'New page', draft.newPage === false ? 'false' : 'true', 'guarded'),
         field('event.year', 'Year', draft.when && draft.when.year, 'guarded'),
         field('event.monthStart', 'Month start', draft.when && draft.when.monthStart, 'guarded'),
         field('event.monthEnd', 'Month end', draft.when && draft.when.monthEnd, 'guarded'),

@@ -50,7 +50,10 @@ const knownIndex = {
   schemaVersion: '0.1',
   project: {name: 'Workflow Fixture', root: '/tmp/workflow-entry', profileIds: ['generic-dendry']},
   profiles: [{id: 'generic-dendry'}],
-  scenes: [{id: 'post_event', title: 'Post Event', path: 'source/scenes/post_event.scene.dry'}],
+  scenes: [
+    {id: 'post_event', title: 'Post Event', path: 'source/scenes/post_event.scene.dry'},
+    {id: 'parsed_event', title: 'Parsed event', path: 'source/scenes/events/parsed_event.scene.dry'}
+  ],
   variables: []
 };
 const unknownIndex = {
@@ -62,8 +65,23 @@ const unknownIndex = {
 
 const knownModel = canvasModel.buildNewEventCanvas(knownIndex, draft, {});
 const unknownModel = canvasModel.buildNewEventCanvas(unknownIndex, draft, {});
+const textEventModel = canvasModel.buildNewEventCanvas(knownIndex, Object.assign({}, draft, {
+  id: 'workflow_text_event',
+  title: 'Workflow text event',
+  eventShape: 'pure_event',
+  subtitle: 'No choices',
+  options: [],
+  useSeenFlag: false
+}), {});
+const existingModel = canvasModel.buildCanvasModel(knownIndex, {
+  mode: 'existing',
+  view: 'events',
+  item: {id: 'parsed_event', title: 'Parsed event'}
+}, {});
 const renderedUi = [
   previewEditor.render(knownModel),
+  previewEditor.render(textEventModel),
+  previewEditor.renderModal(existingModel),
   graphStage.render(knownModel, {state: {selectedCanvasNode: 'object'}}),
   graphStage.render(unknownModel, {state: {selectedCanvasNode: 'object'}})
 ].join('\n');

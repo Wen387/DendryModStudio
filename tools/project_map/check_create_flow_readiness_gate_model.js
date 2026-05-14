@@ -66,6 +66,14 @@ const readyDraft = {
 
 const blocked = canvasModel.buildNewEventCanvas(unknownProfile, blockedDraft, {});
 const ready = canvasModel.buildNewEventCanvas(readyProfile, readyDraft, {});
+const readyPure = canvasModel.buildNewEventCanvas(readyProfile, Object.assign({}, readyDraft, {
+  id: 'ready_text_readiness_event',
+  eventShape: 'pure_event',
+  subtitle: 'No choice event',
+  rawViewIf: 'new_flag >= 0',
+  useSeenFlag: false,
+  options: []
+}), {});
 const blockedRows = blocked.eventBody.readinessChecklist.filter((row) => !row.ok);
 const blockedHtml = previewEditor.render(blocked);
 const objectUi = read('viewer/object_authoring_canvas_ui.js');
@@ -78,9 +86,13 @@ assert(objectUi.includes('eventReadinessReviewAllowed()'), 'Object Canvas should
 assert(objectUi.includes('dataset.reviewReadinessGate'), 'review button should expose readiness gate state');
 assert(ready.eventBody.readinessChecklist.every((row) => row.ok), 'fixed draft should pass readiness', ready.eventBody.readinessChecklist);
 assert(ready.changeState.installPlan && ready.changeState.installPlan.operations.length >= 1, 'ready draft should produce an install plan');
+assert(readyPure.eventBody.eventShape === 'pure_event', 'pure event readiness fixture should keep text-event shape', readyPure.eventBody);
+assert(!readyPure.eventBody.readinessChecklist.some((row) => row.id === 'root_options'), 'pure event readiness must not require root options', readyPure.eventBody.readinessChecklist);
+assert(readyPure.eventBody.readinessChecklist.every((row) => row.ok), 'pure text event should pass readiness without options/routes', readyPure.eventBody.readinessChecklist);
 
 process.stdout.write(JSON.stringify({
   ok: true,
   blocked: blockedRows.length,
-  readyOperations: ready.changeState.installPlan.operations.length
+  readyOperations: ready.changeState.installPlan.operations.length,
+  pureOperations: readyPure.changeState.installPlan.operations.length
 }, null, 2) + '\n');

@@ -690,6 +690,7 @@
     const triggerEffectsText = fieldValue('wizard-trigger-effects');
     const options = [];
     const optionCount = currentOptionCount();
+    const eventShape = optionCount === 0 ? 'pure_event' : 'choice_event';
 
     for (let index = 0; index < optionCount; index += 1) {
       const rawOptionId = fieldValue('wizard-option-' + index + '-id');
@@ -720,6 +721,7 @@
     return {
       kind: 'world_event',
       schemaVersion: '0.1',
+      eventShape,
       rawId,
       id,
       title: fieldValue('wizard-title'),
@@ -731,7 +733,8 @@
       priority: numberValue('wizard-priority'),
       intro: fieldValue('wizard-intro'),
       rawSeenFlag,
-      seenFlag,
+      seenFlag: eventShape === 'pure_event' ? '' : seenFlag,
+      useSeenFlag: eventShape === 'choice_event',
       triggerEffectsText,
       triggerEffects: parseEffects(triggerEffectsText, -1),
       assetRefs: parseAssetRefsText(fieldValue('wizard-asset-refs')),
@@ -796,10 +799,14 @@
     return {
       schemaVersion: '0.1',
       kind: 'world_event',
+      eventShape: draft.eventShape,
       id: draft.id,
       title: draft.title,
       heading: draft.heading,
       seenFlag: draft.seenFlag,
+      useSeenFlag: draft.useSeenFlag,
+      tags: draft.eventShape === 'pure_event' ? ['event'] : ['event', 'world'],
+      newPage: true,
       when: {
         year: draft.year,
         monthStart: draft.monthStart,
@@ -844,7 +851,7 @@
       if (draft.kind !== 'world_event') {
         throw new Error('Only world_event drafts are supported.');
       }
-      const optionCount = clampOptionCount(ensureArray(draft.options).length || MIN_OPTION_COUNT);
+      const optionCount = clampOptionCount(draft.eventShape === 'pure_event' ? 0 : (ensureArray(draft.options).length || MIN_OPTION_COUNT));
       setFieldValue('wizard-id', draft.id);
       setFieldValue('wizard-title', draft.title);
       setFieldValue('wizard-heading', draft.heading || draft.title);
@@ -1051,8 +1058,8 @@
   }
 
   function fallbackOutput(draft) {
-    const rootInitSnippet = 'Q.' + draft.seenFlag + ' = 0;\n';
-    const migrationSnippet = 'if (Q.' + draft.seenFlag + ' === undefined) Q.' + draft.seenFlag + ' = 0;\n';
+    const rootInitSnippet = draft.useSeenFlag === false ? '' : 'Q.' + draft.seenFlag + ' = 0;\n';
+    const migrationSnippet = draft.useSeenFlag === false ? '' : 'if (Q.' + draft.seenFlag + ' === undefined) Q.' + draft.seenFlag + ' = 0;\n';
     const sceneDry = renderSceneDry(draft);
     const draftJson = JSON.stringify(toEventDraft(draft), null, 2) + '\n';
     return {
@@ -1191,6 +1198,24 @@
   }
 
   function renderSceneDry(draft) {
+    if (draft.eventShape === 'pure_event') {
+      const effectLines = renderEffectLines(draft.triggerEffects);
+      return [
+        'title: ' + singleLine(draft.title || draft.id),
+        'new-page: true',
+        'tags: event',
+        'view-if: ' + renderViewIf(draft),
+        'priority: ' + (Number.isInteger(draft.priority) ? draft.priority : 0),
+        effectLines.length ? 'on-arrival: {!' : '',
+        ...effectLines,
+        effectLines.length ? '!}' : '',
+        '',
+        '= ' + singleLine(draft.heading || draft.title || draft.id),
+        '',
+        paragraphText(draft.intro),
+        ''
+      ].filter((line) => line !== '').join('\n') + '\n';
+    }
     const lines = [
       'title: ' + singleLine(draft.title || draft.id),
       'new-page: true',
@@ -1249,9 +1274,11 @@
     const clauses = [
       'year = ' + (Number.isInteger(draft.year) ? draft.year : 2014),
       'month >= ' + (validMonth(draft.monthStart) ? draft.monthStart : 1),
-      'month <= ' + (validMonth(draft.monthEnd) ? draft.monthEnd : 12),
-      draft.seenFlag + ' = 0'
+      'month <= ' + (validMonth(draft.monthEnd) ? draft.monthEnd : 12)
     ];
+    if (draft.useSeenFlag !== false && draft.seenFlag) {
+      clauses.push(draft.seenFlag + ' = 0');
+    }
     if (draft.requires) {
       clauses.push(draft.requires);
     }
@@ -1424,10 +1451,14 @@
     return {
       schemaVersion: String(value.schemaVersion || '0.1'),
       kind: String(value.kind || 'world_event'),
+      eventShape: String(value.eventShape || (ensureArray(value.options).length ? 'choice_event' : 'pure_event')),
       id: String(value.id || ''),
       title: String(value.title || ''),
       heading: String(value.heading || value.title || ''),
       seenFlag: String(value.seenFlag || (value.id ? value.id + '_seen' : '')),
+      useSeenFlag: value.useSeenFlag !== false,
+      tags: ensureArray(value.tags),
+      newPage: value.newPage !== false,
       when: value.when || {},
       effectsOnTrigger: ensureArray(value.effectsOnTrigger),
       introParagraphs: Array.isArray(value.introParagraphs) ? value.introParagraphs : [],
@@ -1450,13 +1481,17 @@
   }
 
   function currentOptionCount() {
-    return clampOptionCount(Number(fieldValue('wizard-option-count')) || MIN_OPTION_COUNT);
+    const value = Number(fieldValue('wizard-option-count'));
+    return clampOptionCount(Number.isFinite(value) ? value : MIN_OPTION_COUNT);
   }
 
   function clampOptionCount(value) {
     const count = Number(value);
     if (!Number.isFinite(count)) {
       return MIN_OPTION_COUNT;
+    }
+    if (count <= 0) {
+      return 0;
     }
     return Math.max(MIN_OPTION_COUNT, Math.min(MAX_OPTION_COUNT, Math.round(count)));
   }
@@ -1474,6 +1509,7 @@
       return;
     }
     const titledChoices = draft.options.filter((option) => option.title && option.title.trim());
+    const pureEvent = draft.eventShape === 'pure_event';
     const validEffectCount = draft.triggerEffects.filter((effect) => effect.valid).length +
       draft.options.reduce((count, option) => count + option.effects.filter((effect) => effect.valid).length, 0);
     const scheduleReady = Number.isInteger(draft.year) &&
@@ -1500,8 +1536,10 @@
       },
       {
         id: 'choices',
-        status: titledChoices.length >= MIN_OPTION_COUNT ? 'ready' : 'warning',
-        message: titledChoices.length >= MIN_OPTION_COUNT
+        status: pureEvent || titledChoices.length >= MIN_OPTION_COUNT ? 'ready' : 'warning',
+        message: pureEvent
+          ? t('event.readiness.textEventNoChoices', 'Text event has no player choices.')
+          : titledChoices.length >= MIN_OPTION_COUNT
           ? t('event.readiness.choicesReady', '{count} player choices have labels.').replace('{count}', String(titledChoices.length))
           : t('event.readiness.choicesMissing', 'At least two player choice labels are required.')
       },

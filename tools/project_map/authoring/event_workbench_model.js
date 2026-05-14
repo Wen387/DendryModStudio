@@ -17,6 +17,20 @@
     return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
   }
 
+  function ownershipMatchingApi() {
+    if (global && global.ProjectMapOwnershipMatching) {
+      return global.ProjectMapOwnershipMatching;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./ownership_matching_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   function buildEventWorkbench(projectIndex, sceneOrId, options) {
     const index = isObject(projectIndex) ? projectIndex : {};
     const opts = isObject(options) ? options : {};
@@ -613,6 +627,7 @@
   }
 
   function optionRows(projectIndex, scene, textRows, effects) {
+    const ownership = ownershipMatchingApi();
     const sectionByTarget = new Map();
     ensureArray(scene.sections).forEach((section) => {
       const local = String(section.id || '').split('.').pop();
@@ -626,9 +641,24 @@
       const sectionId = section && section.id || '';
       const sourceTexts = textRows.filter((row) => {
         const owner = row.owner || {};
-        return row.optionId === target || owner.sectionId === sectionId;
+        if (!ownership || typeof ownership.ownerMatchesOption !== 'function') {
+          return row.optionId === target || owner.sectionId === sectionId;
+        }
+        return ownership.ownerMatchesOption({optionId: row.optionId, sectionId: owner.sectionId}, {
+          id: target,
+          targetId: target,
+          rawTargetId: target,
+          sectionId
+        });
       }).filter((row) => !isEffectScriptRow(row));
-      const sectionEffects = effects.filter((effect) => sectionId && effect.sectionId === sectionId);
+      const sectionEffects = effects.filter((effect) => {
+        if (!sectionId) {
+          return false;
+        }
+        return ownership && typeof ownership.ownerMatchesSection === 'function'
+          ? ownership.ownerMatchesSection(effect, sectionId)
+          : effect.sectionId === sectionId;
+      });
       const output = {
         index,
         id: String(target || option.id || ('option_' + (index + 1))),

@@ -429,10 +429,15 @@
     return {
       schemaVersion: '0.1',
       kind: 'world_event',
+      eventShape: 'choice_event',
       id: 'new_world_event',
       title: 'New World Event',
+      subtitle: '',
       heading: 'New World Event',
       seenFlag: 'new_world_event_seen',
+      useSeenFlag: true,
+      tags: ['event', 'world'],
+      newPage: true,
       when: {year: 1936, monthStart: 1, monthEnd: 3, requires: '', priority: 0},
       introParagraphs: ['Write the opening event text here.'],
       effectsOnTrigger: [],
@@ -447,13 +452,25 @@
     const value = isObject(input) ? clone(input) : {};
     const when = isObject(value.when) ? value.when : value;
     const id = safeId(value.id || value.rawId || 'new_world_event');
+    const explicitOptions = Object.prototype.hasOwnProperty.call(value, 'options');
+    const eventShape = String(value.eventShape || '').trim() === 'pure_event' || (explicitOptions && ensureArray(value.options).length === 0)
+      ? 'pure_event'
+      : 'choice_event';
+    const defaultDraft = defaultEventDraft();
     const converted = Object.assign(defaultEventDraft(), value, {
       schemaVersion: String(value.schemaVersion || '0.1'),
       kind: 'world_event',
+      eventShape,
       id,
       title: String(value.title || value.heading || 'New World Event').trim(),
+      subtitle: String(value.subtitle || '').trim(),
       heading: String(value.heading || value.title || 'New World Event').trim(),
-      seenFlag: safeId(value.seenFlag || value.rawSeenFlag || id + '_seen'),
+      tags: normalizeTags(value.tags, eventShape),
+      newPage: value.newPage === undefined ? true : booleanValue(value.newPage),
+      rawViewIf: String(value.rawViewIf || value.viewIf || '').trim(),
+      useSeenFlag: value.useSeenFlag === undefined ? eventShape === 'choice_event' : booleanValue(value.useSeenFlag),
+      seenFlag: eventShape === 'choice_event' || booleanValue(value.useSeenFlag) ? safeId(value.seenFlag || value.rawSeenFlag || id + '_seen') : '',
+      maxVisits: value.maxVisits === undefined ? null : numberOr(value.maxVisits, null),
       when: {
         year: numberOr(value.year || when.year, 1936),
         monthStart: numberOr(value.monthStart || when.monthStart, 1),
@@ -462,9 +479,21 @@
         priority: numberOr(value.priority || when.priority, 0)
       },
       introParagraphs: paragraphs(value.introParagraphs || value.intro || value.body || 'Write the opening event text here.'),
-      options: normalizeEventOptions(ensureArray(value.options).length ? value.options : defaultEventDraft().options)
+      options: normalizeEventOptions(explicitOptions ? value.options : defaultDraft.options)
     });
     return normalizeWithApi(api, converted);
+  }
+
+  function normalizeTags(value, eventShape) {
+    if (Array.isArray(value)) {
+      const tags = value.map((tag) => String(tag || '').trim()).filter(Boolean);
+      return tags.length ? tags : (eventShape === 'pure_event' ? ['event'] : ['event', 'world']);
+    }
+    if (typeof value === 'string' && value.trim()) {
+      const tags = value.split(',').map((tag) => tag.trim()).filter(Boolean);
+      return tags.length ? tags : (eventShape === 'pure_event' ? ['event'] : ['event', 'world']);
+    }
+    return eventShape === 'pure_event' ? ['event'] : ['event', 'world'];
   }
 
   function normalizeEventOptions(options) {
@@ -728,7 +757,18 @@
     }
     setString(data, draft, 'event.id', 'id', safeId);
     setString(data, draft, 'event.title', 'title');
+    setString(data, draft, 'event.subtitle', 'subtitle');
     setString(data, draft, 'event.heading', 'heading');
+    setString(data, draft, 'event.eventShape', 'eventShape');
+    if (has(data, 'event.tags')) {
+      draft.tags = String(data['event.tags'] || '').split(',').map((tag) => tag.trim()).filter(Boolean);
+    }
+    if (has(data, 'event.newPage')) {
+      draft.newPage = booleanValue(data['event.newPage']);
+    }
+    if (has(data, 'event.useSeenFlag')) {
+      draft.useSeenFlag = booleanValue(data['event.useSeenFlag']);
+    }
     if (has(data, 'event.intro')) {
       draft.introParagraphs = paragraphs(data['event.intro']);
     }
@@ -736,6 +776,10 @@
     setNumber(data, draft.when, 'event.monthStart', 'monthStart');
     setNumber(data, draft.when, 'event.monthEnd', 'monthEnd');
     setString(data, draft.when, 'event.requires', 'requires');
+    if (String(draft.eventShape || '') === 'pure_event' && has(data, 'event.requires')) {
+      draft.rawViewIf = String(data['event.requires'] || '').trim();
+      draft.when.requires = '';
+    }
     setNumber(data, draft.when, 'event.priority', 'priority');
     draft.effectsOnTrigger = applyEffectValues(data, 'event.effect', draft.effectsOnTrigger);
     draft.options = ensureArray(draft.options).map((option, index) => {
@@ -772,6 +816,9 @@
     }
     if (!draft.seenFlag || has(data, 'event.id')) {
       draft.seenFlag = safeId((draft.id || 'new_world_event') + '_seen');
+    }
+    if (!draft.useSeenFlag) {
+      draft.seenFlag = '';
     }
     draft = applyEventStructureValues(draft, data);
     return draft;

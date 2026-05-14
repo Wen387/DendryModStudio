@@ -232,43 +232,46 @@
   function eventInstallPlan(options) {
     const id = String(options.id || '').trim();
     const routerOperation = eventRouterRegistrationOperation(options.routerRegistration);
+    const operations = [{
+      id: 'create_scene',
+      type: 'create_file',
+      path: 'source/scenes/events/' + id + '.scene.dry',
+      content: options.scene || '',
+      safety: 'safe_apply',
+      description: 'Create the exported world event scene.'
+    }];
+    if (String(options.rootSnippet || '').trim()) {
+      operations.push({
+        id: 'root_seen_flag',
+        type: 'insert_text',
+        path: 'source/scenes/root.scene.dry',
+        content: options.rootSnippet || '',
+        anchorText: options.rootAnchorText || '// ====== U. EVENT SEEN FLAGS ======',
+        position: 'after',
+        dedupeSearch: options.rootDedupeSearch || options.rootSnippet || '',
+        safety: 'guarded_apply',
+        description: 'Insert the generated seen flag init near event seen flags after matching the root anchor.'
+      });
+    }
+    if (String(options.migrationSnippet || '').trim()) {
+      operations.push({
+        id: 'post_event_migration',
+        type: 'insert_text',
+        path: 'source/scenes/post_event.scene.dry',
+        content: options.migrationSnippet || '',
+        anchorText: options.migrationAnchorText || '// Save compatibility: post_event split (post_event_news)',
+        position: 'after',
+        dedupeSearch: options.migrationDedupeSearch || options.migrationSnippet || '',
+        safety: 'guarded_apply',
+        description: 'Insert the generated old-save migration guard after matching the post_event compatibility anchor.'
+      });
+    }
     return buildInstallPlan({
       id,
       draftKind: 'world_event',
       title: options.title || id,
       project: options.project || null,
-      operations: [
-        {
-          id: 'create_scene',
-          type: 'create_file',
-          path: 'source/scenes/events/' + id + '.scene.dry',
-          content: options.scene || '',
-          safety: 'safe_apply',
-          description: 'Create the exported world event scene.'
-        },
-        {
-          id: 'root_seen_flag',
-          type: 'insert_text',
-          path: 'source/scenes/root.scene.dry',
-          content: options.rootSnippet || '',
-          anchorText: options.rootAnchorText || '// ====== U. EVENT SEEN FLAGS ======',
-          position: 'after',
-          dedupeSearch: options.rootDedupeSearch || options.rootSnippet || '',
-          safety: 'guarded_apply',
-          description: 'Insert the generated seen flag init near event seen flags after matching the root anchor.'
-        },
-        {
-          id: 'post_event_migration',
-          type: 'insert_text',
-          path: 'source/scenes/post_event.scene.dry',
-          content: options.migrationSnippet || '',
-          anchorText: options.migrationAnchorText || '// Save compatibility: post_event split (post_event_news)',
-          position: 'after',
-          dedupeSearch: options.migrationDedupeSearch || options.migrationSnippet || '',
-          safety: 'guarded_apply',
-          description: 'Insert the generated old-save migration guard after matching the post_event compatibility anchor.'
-        }
-      ].concat(eventVariableInitOperations(options.variableInitRequests, options.rootAnchorText))
+      operations: operations.concat(eventVariableInitOperations(options.variableInitRequests, options.rootAnchorText))
         .concat(routerOperation ? [routerOperation] : [])
         .concat(assetInstallOperations(options.assetInstallRequests))
     });

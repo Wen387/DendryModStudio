@@ -1903,6 +1903,9 @@
         return;
       }
       reviewCurrentPlan();
+    } else if (action === 'create_similar_event') {
+      global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
+      createSimilarEventDraft();
     } else if (action === 'legacy_form') {
       global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
       openLegacyForm();
@@ -1942,6 +1945,20 @@
     } else if (action.indexOf('create_') === 0) {
       createRelatedDraft(action.replace('create_', ''), target);
     }
+  }
+
+  function createSimilarEventDraft() {
+    const api = global.ProjectMapEventDraft;
+    const sceneId = state.model && (state.model.objectId || state.model.sceneId);
+    if (!api || typeof api.fromExistingScene !== 'function' || !sceneId) {
+      state.status = t('objectCanvas.status.createSimilarUnavailable', 'Studio could not build a new draft from this event.');
+      updateDynamicSurfaces();
+      return false;
+    }
+    const draft = api.fromExistingScene(state.projectIndex, sceneId);
+    openTemplate('event', draft, {source: 'Create similar event', action: 'create_similar_event'});
+    state.status = t('objectCanvas.status.createSimilarOpened', 'Similar event draft opened.');
+    return true;
   }
 
   function handleDeleteCurrentObject(target) {

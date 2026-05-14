@@ -108,6 +108,7 @@
     return [
       '<div class="editing-actions object-editing-modal-actions">',
       '<button type="button" data-object-canvas-action="refresh">' + escapeHtml(t('existingScene.refresh', 'Refresh proposal')) + '</button>',
+      model && model.mode === 'existing' && editorKind(model, {}) === 'event' ? '<button type="button" data-object-canvas-action="create_similar_event" data-create-similar-event="true">' + escapeHtml(t('previewObjectEditor.createSimilarEvent', 'Create similar event')) + '</button>' : '',
       '<button type="button" data-object-canvas-action="save">' + escapeHtml(t('editing.saveToChanges', 'Save to My Changes')) + '</button>',
       '<button class="primary-action" type="button" data-object-canvas-action="review">' + escapeHtml(t('existingScene.review', 'Review & Apply')) + '</button>',
       model && model.mode !== 'existing' ? '<button type="button" data-object-canvas-action="legacy_form">' + escapeHtml(t('objectCanvas.legacyForm', 'Advanced Form')) + '</button>' : '',
@@ -125,6 +126,7 @@
       '<article class="object-editing-live-preview object-editing-event-preview">',
       '<div class="object-editing-preview-kicker">' + escapeHtml(t('objectPreview.event', 'World Event')) + '</div>',
       '<h4>' + renderTextInline(fieldValue(previewBody.title || previewBody.heading) || model && model.title || t('objectPreview.event', 'World Event')) + '</h4>',
+      previewBody.subtitle && fieldValue(previewBody.subtitle) ? '<em>' + renderTextInline(fieldValue(previewBody.subtitle)) + '</em>' : '',
       previewBody.heading && fieldId(previewBody.heading) !== fieldId(previewBody.title) ? '<h5>' + renderTextInline(fieldValue(previewBody.heading)) + '</h5>' : '',
       sections.length ? renderPreviewSections(sections, previewBody, model) : renderEmpty(t('objectPreview.noPreview', 'No preview text')),
       renderPreviewChoices(options, 'event', previewBody, model),
@@ -947,6 +949,10 @@
         element: 'input',
         className: 'preview-object-title-input'
       }),
+      body.subtitle ? renderInlineField(body.subtitle, {
+        role: 'subtitle',
+        element: 'input'
+      }) : '',
       body.heading && fieldId(body.heading) !== fieldId(body.title) ? renderInlineField(body.heading, {
         role: 'heading',
         element: 'input'
@@ -1096,13 +1102,14 @@
   function renderChoiceEditor(options, owner, body) {
     const rows = ensureArray(options);
     const addOption = firstStructureAction(body, 'add_option');
+    const pureEvent = String(body && body.eventShape || '') === 'pure_event';
     if (!rows.length && !addOption) {
-      return '<section class="preview-object-choices is-empty">' + renderEmpty(t('objectCanvas.noOptions', 'No options found for this object.')) + '</section>';
+      return '<section class="preview-object-choices is-empty">' + renderEmpty(pureEvent ? t('previewObjectEditor.noChoiceEvent', 'This event has no player choices.') : t('objectCanvas.noOptions', 'No options found for this object.')) + '</section>';
     }
     return [
       '<section class="preview-object-choices" data-preview-object-choices="true">',
       '<div class="preview-object-section-title">' + escapeHtml(t('objectPreview.choices', 'Choices')) + '</div>',
-      rows.length ? rows.map((option, index) => renderChoice(option, index, owner, body)).join('') : renderEmpty(t('objectCanvas.noOptions', 'No options found for this object.')),
+      rows.length ? rows.map((option, index) => renderChoice(option, index, owner, body)).join('') : renderEmpty(pureEvent ? t('previewObjectEditor.noChoiceEvent', 'This event has no player choices.') : t('objectCanvas.noOptions', 'No options found for this object.')),
       addOption ? renderInlineAddAction(addOption, body) : '',
       '</section>'
     ].join('');
@@ -1114,8 +1121,31 @@
     const backgroundEffects = ensureArray(body && body.backgroundEffects);
     const triggerEffects = ensureArray(body && body.effects);
     const triggerActions = triggerStructureActions(body);
+    const pureEvent = String(body && body.eventShape || '') === 'pure_event';
     if (!meta.length && !variables.length && !backgroundEffects.length && !triggerEffects.length && !triggerActions.length) {
       return '';
+    }
+    if (pureEvent) {
+      return [
+        '<details class="preview-object-logic-details" open data-preview-object-logic="true" data-event-archetype="pure_event">',
+        '<summary>' + escapeHtml(t('previewObjectEditor.textEventLogic', 'Text event conditions and effects')) + '</summary>',
+        triggerEffects.length || triggerActions.length
+          ? '<section class="preview-object-logic-section"><h4>' + escapeHtml(t('previewObjectEditor.triggerEffects', 'Trigger effects')) + '</h4>' + renderEffectFields(triggerEffects.concat(triggerActions), body) + '</section>'
+          : '',
+        meta.length
+          ? '<section class="preview-object-logic-section"><h4>' + escapeHtml(t('previewObjectEditor.conditions', 'Conditions and scheduling')) + '</h4>' + meta.map((field) => renderInlineField(field, {
+            role: 'logic',
+            element: logicFieldElement(field)
+          })).join('') + '</section>'
+          : '',
+        backgroundEffects.length
+          ? '<section class="preview-object-logic-section"><h4>' + escapeHtml(t('previewObjectEditor.backgroundEffects', 'Background writes')) + '</h4>' + renderBackgroundEffectRows(backgroundEffects) + '</section>'
+          : '',
+        variables.length
+          ? '<details class="preview-object-logic-section" data-preview-object-variable-details="true"><summary>' + escapeHtml(t('previewObjectEditor.stateVariables', 'State variables')) + '</summary>' + renderVariableRows(variables) + '</details>'
+          : '',
+        '</details>'
+      ].join('');
     }
     return [
       '<details class="preview-object-logic-details" open data-preview-object-logic="true">',

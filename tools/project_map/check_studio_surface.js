@@ -51,6 +51,7 @@ const VISIBLE_EDIT_ACTION_UI = path.join(ROOT, 'viewer', 'visible_edit_action_ui
 const SOURCE_SLICE_WORKSPACE_UI = path.join(ROOT, 'viewer', 'source_slice_workspace_ui.js');
 const AUTHORING_WORKSPACE_UI = path.join(ROOT, 'viewer', 'authoring_workspace_ui.js');
 const EDITING_CONTEXT_MODEL = path.join(ROOT, 'authoring', 'editing_context_model.js');
+const OWNERSHIP_MATCHING_MODEL = path.join(ROOT, 'authoring', 'ownership_matching_model.js');
 const EXISTING_SCENE_LOGIC_FIELDS = path.join(ROOT, 'authoring', 'existing_scene_logic_fields.js');
 const VISIBLE_OBJECT_COVERAGE_MODEL = path.join(ROOT, 'authoring', 'visible_object_coverage_model.js');
 const SOURCE_SLICE_EDITOR_MODEL = path.join(ROOT, 'authoring', 'source_slice_editor_model.js');
@@ -185,6 +186,7 @@ const sidebarStatusDraft = fs.readFileSync(SIDEBAR_STATUS_DRAFT, 'utf8');
 const electionResultsDraft = fs.readFileSync(ELECTION_RESULTS_DRAFT, 'utf8');
 const variableEditorDraft = fs.readFileSync(VARIABLE_EDITOR_DRAFT, 'utf8');
 const editingContextModel = fs.readFileSync(EDITING_CONTEXT_MODEL, 'utf8');
+const ownershipMatchingModel = fs.readFileSync(OWNERSHIP_MATCHING_MODEL, 'utf8');
 const existingSceneLogicFields = fs.readFileSync(EXISTING_SCENE_LOGIC_FIELDS, 'utf8');
 const visibleObjectCoverageModel = fs.readFileSync(VISIBLE_OBJECT_COVERAGE_MODEL, 'utf8');
 const sourceSliceEditorModel = fs.readFileSync(SOURCE_SLICE_EDITOR_MODEL, 'utf8');
@@ -208,6 +210,9 @@ assert(html.includes('data-preview-tab="draft"'), 'Output tabs should include th
 assert(html.includes('data-preview-panel="migration"'), 'Output panels should include migration snippet output');
 assert(html.includes('data-preview-panel="install"'), 'Output panels should include install notes actions');
 assert(html.includes('../authoring/asset_model.js'), 'viewer should load shared AssetModel before PreviewModel');
+assert(html.includes('../authoring/ownership_matching_model.js'), 'viewer should load shared ownership matching helper before semantic authoring models');
+assert(ownershipMatchingModel.includes('ownerMatchesOption'), 'ownership matching helper should expose owner-to-option matching');
+assert(ownershipMatchingModel.includes('ownerMatchesSection'), 'ownership matching helper should expose owner-to-section matching');
 assert(html.includes('../authoring/existing_scene_logic_fields.js'), 'viewer should load Existing Scene logic field helpers');
 assert(html.includes('../authoring/existing_scene_edit_model.js'), 'viewer should load Existing Scene Edit model');
 assert(html.includes('../authoring/edit_capability_model.js'), 'viewer should load Parser-aware Edit Capability model');

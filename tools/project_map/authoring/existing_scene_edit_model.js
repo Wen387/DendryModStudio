@@ -74,6 +74,20 @@
     return null;
   }
 
+  function ownershipMatchingApi() {
+    if (global && global.ProjectMapOwnershipMatching) {
+      return global.ProjectMapOwnershipMatching;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./ownership_matching_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   function buildEditModel(projectIndex, view, itemOrId, options) {
     const index = isObject(projectIndex) ? projectIndex : {};
     const opts = isObject(options) ? options : {};
@@ -1778,6 +1792,7 @@
 
   function fieldForStructureCommand(model, command) {
     const fields = ensureArray(model && model.fields).filter((field) => String(field && field.transform || '') === 'structure_action');
+    const ownership = ownershipMatchingApi();
     const fieldId = String(command && command.fieldId || '').trim();
     if (fieldId) {
       const direct = fields.find((field) => field.id === fieldId);
@@ -1794,11 +1809,21 @@
       if (normalizeStructureAction(field && field.structureAction) !== action) {
         return false;
       }
-      if (optionId && safeId(field.optionId || '') !== optionId) {
-        return false;
+      if (optionId) {
+        const optionMatches = ownership && typeof ownership.endpointMatches === 'function'
+          ? ownership.endpointMatches(field.optionId || '', rawOptionId)
+          : safeId(field.optionId || '') === optionId;
+        if (!optionMatches) {
+          return false;
+        }
       }
-      if (sectionId && safeId(field.sectionId || '') !== sectionId) {
-        return false;
+      if (sectionId) {
+        const sectionMatches = ownership && typeof ownership.endpointMatches === 'function'
+          ? ownership.endpointMatches(field.sectionId || '', rawSectionId)
+          : safeId(field.sectionId || '') === sectionId;
+        if (!sectionMatches) {
+          return false;
+        }
       }
       return true;
     }) || null;
