@@ -31,7 +31,7 @@
         value: rawTarget,
         source,
         sourcePath: source.path || '',
-        editability: guarded ? 'guarded_replace_text' : 'manual_review',
+        editability: guarded ? 'guarded_replace_text' : 'advanced_source_patch',
         owner: {sceneId, sectionId: String(option.sectionId || ''), itemId: String(option.id || ''), kind: 'route'},
         sectionId: String(option.sectionId || ''),
         optionId: String(option.id || ''),
@@ -41,7 +41,7 @@
         confidence: guarded ? 'exact' : 'approximate',
         reason: guarded
           ? 'Route target token has exact line evidence and can be checked before replacement.'
-          : 'Route target needs manual review because Studio lacks exact option-line evidence.'
+          : 'Route target needs the source slice editor and an advanced apply confirmation.'
       };
     }).filter(Boolean);
     return fields.concat(routeFieldsFromScene(scene));
@@ -73,7 +73,7 @@
             value: rawTarget,
             source,
             sourcePath: source.path || '',
-            editability: guarded ? 'guarded_replace_text' : 'manual_review',
+            editability: guarded ? 'guarded_replace_text' : 'advanced_source_patch',
             owner: {sceneId, sectionId: owner.sectionId, itemId: fieldName, kind: 'route'},
             sectionId: owner.sectionId,
             optionId: '',
@@ -86,7 +86,7 @@
             confidence: guarded ? 'exact' : 'approximate',
             reason: guarded
               ? 'Go-to route clause has exact line evidence and can be checked before replacement.'
-              : 'Go-to route needs manual review because Studio lacks exact route-line evidence.'
+              : 'Go-to route needs the source slice editor and an advanced apply confirmation.'
           });
         });
       });
@@ -134,6 +134,7 @@
 
   function buildEffectFields(scene, effects, options) {
     const sceneId = String(scene && scene.id || '');
+    const sourceLineUse = countEffectSourceLines(effects);
     return ensureArray(effects).map((effect, index) => {
       const expression = effectExpression(effect);
       if (!expression) {
@@ -142,7 +143,12 @@
       const sourceExpression = effectSourceExpression(effect, expression);
       const source = sourceRef(effect.source || {});
       const search = effectSearchText(source.anchorText, sourceExpression || expression);
-      const guarded = canGuardField(source, search);
+      const sourceLineKey = effectSourceLineKey(source);
+      const sourceLineEffectCount = sourceLineKey ? (sourceLineUse.get(sourceLineKey) || 0) : 0;
+      const anchorEffectCount = countEffectExpressions(source.anchorText);
+      const sharedSourceLine = sourceLineEffectCount > 1 || anchorEffectCount > 1;
+      const uniqueSharedToken = !sharedSourceLine || countOccurrences(source.anchorText, search) === 1;
+      const guarded = uniqueSharedToken && canGuardField(source, search);
       const option = optionForEffect(options, effect);
       return {
         id: safeId('effect_' + (index + 1) + '_' + String(effect.variable || 'variable')),
@@ -157,7 +163,7 @@
         condition: String(effect.condition || ''),
         source,
         sourcePath: source.path || '',
-        editability: guarded ? 'guarded_replace_text' : 'manual_review',
+        editability: guarded ? 'guarded_replace_text' : 'advanced_source_patch',
         owner: {
           sceneId,
           sectionId: String(effect.sectionId || ''),
@@ -169,12 +175,77 @@
         inputType: 'text',
         transform: 'effect_expression',
         searchText: search,
+        sharedSourceLine,
+        sourceLineEffectCount: Math.max(sourceLineEffectCount, anchorEffectCount || 0),
+        sourceLineSafety: sharedSourceLine
+          ? (guarded ? 'shared_line_exact_token_guarded' : 'whole_line_advanced_source_patch')
+          : (guarded ? 'single_expression_guarded' : 'advanced_source_patch'),
         confidence: guarded ? 'exact' : 'approximate',
-        reason: guarded
+        reason: sharedSourceLine
+          ? (guarded
+            ? 'This effect shares a source line with adjacent logic. Studio can guard the exact token, and Review & Apply must still check the whole line before writing.'
+            : 'This effect shares a source line with adjacent logic and the replacement token is not unique, so Studio uses an advanced source slice edit.')
+          : guarded
           ? 'Simple event effect has exact line evidence and can be checked before replacement.'
-          : 'Effect needs manual review because it is not a simple line-backed assignment.'
+          : 'Effect needs the source slice editor because it is not a simple line-backed assignment.'
       };
     }).filter(Boolean);
+  }
+
+  function countEffectSourceLines(effects) {
+    const seen = new Map();
+    ensureArray(effects).forEach((effect) => {
+      const key = effectSourceLineKey(sourceRef(effect && effect.source || {}));
+      if (!key) {
+        return;
+      }
+      const identity = effectIdentity(effect);
+      if (!identity) {
+        return;
+      }
+      if (!seen.has(key)) {
+        seen.set(key, new Set());
+      }
+      seen.get(key).add(identity);
+    });
+    const counts = new Map();
+    seen.forEach((items, key) => {
+      counts.set(key, items.size);
+    });
+    return counts;
+  }
+
+  function effectSourceLineKey(source) {
+    const ref = sourceRef(source || {});
+    return ref.path && ref.line ? ref.path + ':' + ref.line : '';
+  }
+
+  function effectIdentity(effect) {
+    return effectExpression(effect);
+  }
+
+  function countEffectExpressions(value) {
+    const matches = String(value || '').match(/(?:Q\.)?[A-Za-z_][A-Za-z0-9_]*\s*(?:=|\+=|-=|\*=|\/=)/g);
+    return matches ? matches.length : 0;
+  }
+
+  function countOccurrences(haystack, needle) {
+    const text = String(haystack || '');
+    const search = String(needle || '');
+    if (!text || !search) {
+      return 0;
+    }
+    let count = 0;
+    let offset = 0;
+    while (offset <= text.length) {
+      const found = text.indexOf(search, offset);
+      if (found < 0) {
+        break;
+      }
+      count += 1;
+      offset = found + Math.max(1, search.length);
+    }
+    return count;
   }
 
   function changeForLogicField(field, afterValue, fallback) {
@@ -221,8 +292,7 @@
 
   function manualFieldChange(field, before, after, base) {
     const change = base(field, before, after);
-    change.source = sourceRef({});
-    change.editability = 'manual_review';
+    change.editability = 'advanced_source_patch';
     return change;
   }
 

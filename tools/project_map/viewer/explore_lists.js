@@ -843,9 +843,20 @@
       '<span><span class="primary">' + escapeHtml(item.primary) + '</span></span>',
       '<span class="secondary">' + escapeHtml(item.secondary) + '</span>',
       '<span class="meta">' + escapeHtml(item.meta) + '</span>',
-      '<span class="badge-line">' + badges + '</span>',
+      '<span class="badge-line">' + badges + visibleEditMarker(item, state) + '</span>',
       '</button>'
     ].join('');
+  }
+
+  function visibleEditMarker(item, state) {
+    const view = state && state.view || '';
+    if (!['events', 'cards', 'news', 'surfaceText', 'textCorpus', 'variables'].includes(view)) {
+      return '';
+    }
+    const ui = global.ProjectMapVisibleEditActionUi;
+    return ui && typeof ui.renderMarker === 'function'
+      ? ui.renderMarker({label: t('visibleEdit.action', 'Edit'), translate: t, escapeHtml, escapeAttr})
+      : '<span class="visible-edit-affordance" data-visible-edit-affordance="true">' + escapeHtml(t('visibleEdit.action', 'Edit')) + '</span>';
   }
 
   function badge(text, className) {

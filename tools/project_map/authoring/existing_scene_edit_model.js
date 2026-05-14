@@ -263,7 +263,7 @@
       value: original,
       source,
       sourcePath: source.path || sceneSourcePath || '',
-      editability: guarded ? 'guarded_replace_text' : 'manual_review',
+      editability: guarded ? 'guarded_replace_text' : 'advanced_source_patch',
       owner: {
         sceneId: String(owner.sceneId || ''),
         sectionId: String(owner.sectionId || ''),
@@ -275,7 +275,7 @@
       confidence: row.confidence || '',
       reason: guarded
         ? 'Exact source line can be checked before replacement.'
-        : 'Needs IDE review because Studio lacks safe single-line source evidence.'
+        : 'Needs source slice editing and advanced apply because Studio lacks safe single-line source evidence.'
     };
   }
 
@@ -847,7 +847,7 @@
     const conditionVariables = uniqueStrings(semantics.conditions.flatMap(variablesFromCondition));
     const inlineConditionVariables = uniqueStrings(inlineConditions.flatMap(variablesFromCondition));
     const textVariables = variablesFromDendryText(original);
-    const editability = run.forceManual ? 'manual_review' : 'guarded_replace_section';
+    const editability = run.forceManual ? 'advanced_source_patch' : 'guarded_replace_section';
     return {
       id,
       role: 'section_text',
@@ -898,7 +898,7 @@
       editability,
       confidence: 'exact',
       reason: run.forceManual
-        ? 'This text shares a source line with another parsed block, so Studio keeps the replacement in manual review.'
+        ? 'This text shares a source line with another parsed block, so Studio uses an advanced source slice edit.'
         : 'Exact source-backed text block can be checked before replacement.'
     };
   }
@@ -1409,14 +1409,14 @@
       value: original,
       source,
       sourcePath: source.path || '',
-      editability: guarded ? 'guarded_replace_text' : 'manual_review',
+      editability: guarded ? 'guarded_replace_text' : 'advanced_source_patch',
       owner: {sceneId: String(input.sceneId || ''), sectionId: String(input.sectionId || ''), itemId: '', kind: 'metadata'},
       sectionId: String(input.sectionId || ''),
       optionId: '',
       confidence: guarded ? 'exact' : 'approximate',
       reason: guarded
         ? String(input.reason || 'Exact source line can be checked before replacement.')
-        : 'Needs IDE review because Studio lacks safe single-line source evidence.'
+        : 'Needs source slice editing and advanced apply because Studio lacks safe single-line source evidence.'
     };
   }
 
@@ -2021,7 +2021,7 @@
       } else {
         summary.textFields += 1;
       }
-      if (change.editability === 'manual_review' || !(canGuardField(change.source, change.before) || canGuardSectionChange(change))) {
+      if (change.editability === 'manual_review' || !(canGuardField(change.source, change.before) || canGuardSectionChange(change) || canAdvancedSourceChange(change))) {
         summary.manualFields += 1;
       }
       if (change.operationType === 'replace_section') {
@@ -2029,6 +2029,18 @@
       }
       return summary;
     }, {total: 0, textFields: 0, metadataFields: 0, manualFields: 0, sectionFields: 0});
+  }
+
+  function canAdvancedSourceChange(change) {
+    const value = isObject(change) ? change : {};
+    const source = sourceRef(value.source || {});
+    return Boolean(
+      source.path &&
+      source.path.startsWith('source/scenes/') &&
+      source.path.endsWith('.scene.dry') &&
+      Number(source.line || source.startLine || 0) > 0 &&
+      String(value.after || '').trim()
+    );
   }
 
   function buildExportBundle(input, projectIndex) {

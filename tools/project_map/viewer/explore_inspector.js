@@ -78,6 +78,7 @@
     }
     const selected = state.selected;
     const preview = renderInspectorPreview(selected, state);
+    const visibleEdit = renderVisibleEditActionPanel(selected, state);
     if (selected.view === 'variables') {
       elements.inspector.innerHTML = renderVariableInspector(selected.item);
     } else if (selected.view === 'coverage') {
@@ -90,11 +91,11 @@
         : '';
       elements.inspector.innerHTML = workbench
         ? workbench
-        : renderNewsInspector(selected.item) + preview + renderEditDraftAction(selected, state) + renderTextProposalAction(selected, state);
+        : renderNewsInspector(selected.item) + preview + visibleEdit + renderEditDraftAction(selected, state) + renderTextProposalAction(selected, state);
     } else if (selected.view === 'surfaceText') {
-      elements.inspector.innerHTML = renderSurfaceTextInspector(selected.item) + preview + renderEditDraftAction(selected, state) + renderTextProposalAction(selected, state);
+      elements.inspector.innerHTML = renderSurfaceTextInspector(selected.item) + preview + visibleEdit + renderEditDraftAction(selected, state) + renderTextProposalAction(selected, state);
     } else if (selected.view === 'textCorpus') {
-      elements.inspector.innerHTML = renderTextCorpusInspector(selected.item, state.model, state);
+      elements.inspector.innerHTML = renderTextCorpusInspector(selected.item, state.model, state, visibleEdit);
     } else if (selected.view === 'assets') {
       elements.inspector.innerHTML = renderAssetInspector(selected.item, state.model);
     } else if (selected.view === 'source') {
@@ -106,8 +107,42 @@
       const workbench = renderEventWorkbenchInspector(scene || selected.item, state.model);
       elements.inspector.innerHTML = workbench
         ? workbench
-        : renderSceneInspector(scene || selected.item, state.model) + preview + renderEditDraftAction(selected, state) + renderTextProposalAction(selected, state);
+        : renderSceneInspector(scene || selected.item, state.model) + preview + visibleEdit + renderEditDraftAction(selected, state) + renderTextProposalAction(selected, state);
     }
+  }
+
+  function renderVisibleEditActionPanel(selected, state) {
+    if (!selected || !state || !state.model || !selected.item || selected.view === 'coverage' || selected.view === 'diagnostics') {
+      return '';
+    }
+    const ui = global.ProjectMapVisibleEditActionUi;
+    if (!ui || typeof ui.actionForItem !== 'function' || typeof ui.renderButton !== 'function') {
+      return '';
+    }
+    const action = ui.actionForItem(state.model.index, selected.view, selected.item, visibleHintsForSelection(selected));
+    if (!action) {
+      return '';
+    }
+    return [
+      '<div class="inspector-actions visible-edit-action-panel" data-visible-edit-affordance="explore-inspector">',
+      ui.renderButton(action, {label: t('visibleEdit.action', 'Edit'), translate: t, escapeHtml, escapeAttr}),
+      '<div class="draft-action-status">' + escapeHtml(t('visibleEdit.panelHelp', 'Open the editor for this visible content, then send the generated operation to Review & Apply.')) + '</div>',
+      '</div>'
+    ].join('');
+  }
+
+  function visibleHintsForSelection(selected) {
+    const item = selected && selected.item || {};
+    const view = selected && selected.view || '';
+    const role = String(item.role || (view === 'variables' ? 'variable_definition' : ''));
+    return {
+      area: view === 'variables' ? 'variables' : 'story',
+      objectType: view === 'variables' ? 'variable' : (view === 'textCorpus' ? '' : view),
+      role,
+      label: String(item.title || item.headline || item.text || item.label || item.id || item.name || ''),
+      safeEligible: true,
+      previewEligible: true
+    };
   }
 
   function renderInspectorPreview(selected, state) {
@@ -861,7 +896,7 @@
     ].join('');
   }
 
-  function renderTextCorpusInspector(item, model, state) {
+  function renderTextCorpusInspector(item, model, state, visibleEdit) {
     const owner = item.owner || {};
     const replacement = textRevisionReplacementFor(state, item);
     const revisionModel = buildTextRevisionModel(item, replacement);
@@ -902,6 +937,7 @@
       capability ? '<dt>' + escapeHtml(t('editCapability.routeReason', 'Route reason')) + '</dt><dd>' + escapeHtml(capabilityReason(capability)) + '</dd>' : '',
       roleGuidance ? '<dt>' + escapeHtml(t('textCorpus.guidance', 'Guidance')) + '</dt><dd>' + escapeHtml(roleGuidance) + '</dd>' : '',
       '</dl>',
+      visibleEdit || '',
       renderTextRevisionPanel(item, replacement, state, capability),
       contextRows.length ? '<div class="detail-section"><h3>' + escapeHtml(t('textCorpus.context', 'Nearby text')) + '</h3><div class="text-context-list">' + contextRows.join('') + '</div></div>' : '',
       '<p class="inspector-note">' + escapeHtml(t('textCorpus.note', 'Text Corpus is an inspection index: use it to find player-facing prose, then create a proposal or jump to the owning source.')) + '</p>'

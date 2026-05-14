@@ -14,13 +14,15 @@
     projectIndex: null,
     model: null,
     proposal: null,
-    output: null
+    output: null,
+    focusRequest: null
   };
 
   let elements = null;
 
   const api = {
     openFromSelection,
+    openVisibleEditAction,
     loadDraft,
     refresh,
     getDraft: () => state.proposal,
@@ -78,21 +80,29 @@
     }
   }
 
-  function openFromSelection(projectIndex, view, item) {
+  function openFromSelection(projectIndex, view, item, options) {
     const core = coreApi();
     if (!core || typeof core.buildEditModel !== 'function') {
       return false;
     }
+    const opts = options && typeof options === 'object' ? options : {};
     if (projectIndex) {
       state.projectIndex = projectIndex;
     }
-    state.model = core.buildEditModel(state.projectIndex, view, item, {});
+    state.model = core.buildEditModel(state.projectIndex, view, item, opts);
     state.proposal = core.buildProposal(state.model, {});
     state.output = core.buildExportBundle(state.proposal, state.projectIndex);
+    state.focusRequest = focusRequestFromOptions(opts);
     state.active = true;
     showEditor();
     render();
     return Boolean(state.model && state.model.ok);
+  }
+
+  function openVisibleEditAction(projectIndex, action) {
+    const item = action && (action.targetId || action.target && action.target.sceneId) || '';
+    const view = action && (action.targetView || action.target && action.target.view) || 'events';
+    return openFromSelection(projectIndex, view, item, {focus: action});
   }
 
   function loadDraft(draft) {
@@ -201,6 +211,53 @@
       reviewButton.addEventListener('click', reviewCurrentPlan);
     }
     refresh();
+    focusRequestedEditor();
+  }
+
+  function focusRequestFromOptions(options) {
+    const opts = options && typeof options === 'object' ? options : {};
+    const focus = opts.focus && typeof opts.focus === 'object' ? opts.focus : opts;
+    const valueKey = String(focus.valueKey || '').trim();
+    const fieldId = String(focus.fieldId || '').trim();
+    if (String(focus.focusBlockId || '').trim()) {
+      return {blockId: String(focus.focusBlockId || '').trim()};
+    }
+    if (String(focus.focusFieldId || '').trim()) {
+      return {fieldId: String(focus.focusFieldId || '').trim()};
+    }
+    if (valueKey.indexOf('block:') === 0) {
+      return {blockId: valueKey.slice('block:'.length)};
+    }
+    if (fieldId) {
+      return {fieldId};
+    }
+    if (valueKey) {
+      return {fieldId: valueKey};
+    }
+    return null;
+  }
+
+  function focusRequestedEditor() {
+    if (!elements || !elements.host || !state.focusRequest) {
+      return;
+    }
+    const request = state.focusRequest;
+    const selector = request.blockId
+      ? '[data-existing-block="' + cssEscape(request.blockId) + '"]'
+      : request.fieldId
+      ? '[data-existing-field="' + cssEscape(request.fieldId) + '"]'
+      : '';
+    const input = selector ? elements.host.querySelector(selector) : null;
+    if (input && typeof input.focus === 'function') {
+      if (typeof input.scrollIntoView === 'function') {
+        input.scrollIntoView({block: 'center', inline: 'nearest'});
+      }
+      input.focus();
+      if (typeof input.select === 'function') {
+        input.select();
+      }
+    }
+    state.focusRequest = null;
   }
 
   function renderHeader(model, proposal) {

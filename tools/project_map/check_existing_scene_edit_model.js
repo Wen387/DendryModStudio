@@ -584,6 +584,45 @@ assert(bundle.previewText.includes('Modify existing Event'), 'bundle preview tex
 assert(bundle.proposalText.includes('Before:'), 'bundle proposal text should include before text');
 assert(bundle.proposalText.includes('After:'), 'bundle proposal text should include after text');
 
+const sharedEffectIndex = syntheticIndex();
+const sharedEffectLine = 'Q.public_order += 1; Q.stability += 1;';
+const sharedEffectRows = sharedEffectIndex.semantic.textCorpus.items;
+const sharedPublicOrder = sharedEffectRows.find((item) => item.id === 'all_quiet_effect_script');
+sharedPublicOrder.source = Object.assign({}, sharedPublicOrder.source, {
+  anchorText: sharedEffectLine,
+  endAnchorText: sharedEffectLine
+});
+sharedEffectRows.push({
+  id: 'all_quiet_effect_script_stability',
+  text: 'Q.stability += 1;',
+  role: 'script',
+  editability: 'ide_escape_hatch',
+  owner: {kind: 'scene', sceneId: 'all_quiet', sectionId: 'ban'},
+  source: {path: eventModel.source.path, line: 31, anchorText: sharedEffectLine, endAnchorText: sharedEffectLine}
+});
+const sharedEffectModel = existingEdit.buildEditModel(sharedEffectIndex, 'events', 'all_quiet');
+const sharedEffectField = sharedEffectModel.fields.find((field) => field.role === 'effect' && field.original === 'Q.public_order += 1');
+assert(sharedEffectField, 'shared-line event model should expose the original effect field');
+assert(sharedEffectField.sharedSourceLine === true, 'co-located effects should carry shared source-line evidence');
+assert(sharedEffectField.sourceLineEffectCount === 2, 'shared effect fields should count adjacent source-line effects');
+assert(sharedEffectField.editability === 'guarded_replace_text', 'co-located effects with a unique token should keep guarded apply');
+assert(sharedEffectField.sourceLineSafety === 'shared_line_exact_token_guarded', 'co-located effect safety should name the shared-line guarded boundary');
+assert(sharedEffectField.reason.includes('shares a source line'), 'shared effect field should explain the shared-line boundary');
+
+const duplicateEffectIndex = syntheticIndex();
+const duplicateEffectLine = 'Q.public_order += 1; Q.public_order += 1;';
+const duplicatePublicOrder = duplicateEffectIndex.semantic.textCorpus.items.find((item) => item.id === 'all_quiet_effect_script');
+duplicatePublicOrder.source = Object.assign({}, duplicatePublicOrder.source, {
+  anchorText: duplicateEffectLine,
+  endAnchorText: duplicateEffectLine
+});
+const duplicateEffectModel = existingEdit.buildEditModel(duplicateEffectIndex, 'events', 'all_quiet');
+const duplicateEffectField = duplicateEffectModel.fields.find((field) => field.role === 'effect' && field.original === 'Q.public_order += 1');
+assert(duplicateEffectField, 'duplicate-token event model should expose the original effect field');
+assert(duplicateEffectField.sharedSourceLine === true, 'duplicate-token effects should carry shared source-line evidence');
+assert(duplicateEffectField.editability === 'advanced_source_patch', 'duplicate-token effects should use source slice advanced apply because the search token is ambiguous');
+assert(duplicateEffectField.sourceLineSafety === 'whole_line_advanced_source_patch', 'duplicate-token effect safety should name the whole-line advanced boundary');
+
 const addOptionField = eventModel.fields.find((field) => field.id === 'structure_add_option');
 const addTriggerEffectField = eventModel.fields.find((field) => field.id === 'structure_add_trigger_effect');
 const addOptionEffectField = eventModel.fields.find((field) => field.id === 'structure_add_option_effect_ban');
@@ -783,7 +822,7 @@ const unsafeLogicProposal = existingEdit.buildProposal(eventModel, {
   [effectField.id]: 'Q.public_order += 1; alert("unsafe")'
 });
 const unsafeLogicBundle = existingEdit.buildExportBundle(unsafeLogicProposal, index);
-assert(unsafeLogicBundle.installPlan.operations.every((op) => op.type === 'manual_snippet'), 'invalid route/effect edits should fall back to manual review');
+assert(unsafeLogicBundle.installPlan.operations.every((op) => op.type === 'replace_text' && op.safety === 'advanced_apply'), 'invalid but source-backed route/effect edits should fall back to advanced source patch');
 
 const openingBlock = eventModel.textBlocks.find((block) => block.original.includes('film arrives'));
 assert(openingBlock, 'event model should expose an opening text block');
@@ -842,7 +881,7 @@ assert(cardModel.sceneKind === 'card', 'card edit model should classify cards');
 assert(cardModel.options.length === 5, 'existing card editor must not cap options at four');
 assert(cardModel.fields.some((field) => field.id === 'agri_option_5'), 'existing card editor should include the fifth option field');
 
-const manualModel = existingEdit.buildEditModel({
+const advancedModel = existingEdit.buildEditModel({
   scenes: [{id: 'protected_router', title: 'Router Scene', sourceSpan: {path: 'source/scenes/post_event.scene.dry', startLine: 12, endLine: 20}}],
   semantic: {textCorpus: {items: [{
     id: 'router_text',
@@ -853,7 +892,7 @@ const manualModel = existingEdit.buildEditModel({
     source: {path: 'source/scenes/post_event.scene.dry', line: 12}
   }]}}
 }, 'events', 'protected_router');
-assert(manualModel.fields[0].editability === 'manual_review', 'protected router-backed fields should stay manual review');
+assert(advancedModel.fields[0].editability === 'advanced_source_patch', 'protected router-backed fields should stay editable through advanced source patch');
 
 console.log(JSON.stringify({
   ok: true,
@@ -861,5 +900,5 @@ console.log(JSON.stringify({
   textBlocks: eventModel.textBlocks.length,
   eventChanges: eventProposal.changes.length,
   cardOptions: cardModel.options.length,
-  manualEditability: manualModel.fields[0].editability
+  advancedEditability: advancedModel.fields[0].editability
 }, null, 2));

@@ -50,6 +50,10 @@
     draftBranches: [],
     editorOverlay: false,
     deleteProposal: null,
+    sourceSliceModel: null,
+    sourceSliceAdvancedConfirmed: false,
+    semanticLogicModel: null,
+    semanticLogicAdvancedConfirmed: false,
     boardChromeCollapsed: true,
     runtimeLensSession: null,
     runtimeLensStatus: 'idle',
@@ -76,12 +80,15 @@
 
   const api = {
     openFromSelection,
+    openVisibleEditAction,
     openTemplate,
     openNewEvent,
     loadDraft,
     refresh,
     getDraft: draftWithAuthoringContext,
     getOutput: () => state.model && state.model.changeState && state.model.changeState.output,
+    getSourceSliceModel: () => state.sourceSliceModel || null,
+    getSemanticLogicModel: () => state.semanticLogicModel || null,
     isActive: () => state.active,
     activeTemplate: () => state.mode === 'existing' ? 'existing' : state.template || 'event',
     activeWorkspace: () => state.workspace || workspaceForTemplate(state.template || 'event'),
@@ -655,6 +662,40 @@
     state.structureCommandCounter = 0;
   }
 
+  function resetTransientEditWorkspace(options) {
+    const opts = options || {};
+    state.mode = opts.mode || '';
+    state.template = opts.template || opts.mode || '';
+    state.view = opts.view || opts.mode || '';
+    state.item = opts.item || null;
+    state.workspace = opts.workspace || 'content';
+    state.selectedCanvasNode = opts.selectedCanvasNode || opts.mode || 'object';
+    resetStoryboardState();
+    resetCardBoardState();
+    resetRuntimeLens();
+    resetProjectStateState();
+    state.systemUiFixture = 'default';
+    state.canvasPanX = 0;
+    state.canvasPanY = 0;
+    state.nodePositions = {};
+    state.draftBranches = [];
+    state.editorOverlay = false;
+    state.deleteProposal = null;
+    if (opts.activeModel !== 'source_slice') {
+      state.sourceSliceModel = null;
+      state.sourceSliceAdvancedConfirmed = false;
+    }
+    if (opts.activeModel !== 'semantic_logic') {
+      state.semanticLogicModel = null;
+      state.semanticLogicAdvancedConfirmed = false;
+    }
+    state.baseDraft = null;
+    state.proposalOptions = null;
+    state.values = {};
+    state.valueOriginals = {};
+    resetStructureCommands();
+  }
+
   function openFromSelection(projectIndex, view, item, options) {
     templateClickToken += 1;
     reconcileToken += 1;
@@ -682,6 +723,10 @@
     state.draftBranches = [];
     state.editorOverlay = false;
     state.deleteProposal = null;
+    state.sourceSliceModel = null;
+    state.sourceSliceAdvancedConfirmed = false;
+    state.semanticLogicModel = null;
+    state.semanticLogicAdvancedConfirmed = false;
     state.baseDraft = null;
     state.proposalOptions = options && options.proposalOptions || null;
     state.values = options && options.values || {};
@@ -695,6 +740,157 @@
     showWorkspace(view === 'cards' ? 'card' : 'existing');
     render();
     return Boolean(state.model && state.model.ok);
+  }
+
+  function openVisibleEditAction(projectIndex, action) {
+    const editAction = action && action.editAction || action || {};
+    const kind = String(editAction.actionKind || '');
+    if (projectIndex) {
+      state.projectIndex = projectIndex;
+    }
+    if (kind === 'open_route_editor' || kind === 'open_effect_editor' || kind === 'open_profile_router_rule' || (editAction.draftAction && (kind === 'open_object_field' || kind === 'open_object_section' || kind === 'open_variable_editor'))) {
+      return openDraftEditAction(editAction);
+    }
+    if (shouldOpenSemanticLogicAction(editAction)) {
+      return openSemanticLogicAction(editAction);
+    }
+    if (kind === 'open_object_field' || kind === 'open_object_section' || kind === 'open_linked_event') {
+      return openFromSelection(state.projectIndex, editAction.targetView || 'events', editAction.targetId || '', {
+        entry: {source: 'visible_edit_action', actionKind: kind},
+        focus: editAction
+      });
+    }
+    if (kind === 'open_variable_editor') {
+      const draft = Object.assign({}, safeDefaultDraftForTemplate('variables'), {
+        kind: 'variable_editor',
+        mode: 'edit_existing',
+        id: 'edit_' + String(editAction.targetId || 'variable').replace(/[^A-Za-z0-9_]+/g, '_'),
+        title: 'Edit ' + String(editAction.targetId || 'variable'),
+        variableName: String(editAction.targetId || ''),
+        label: String(editAction.targetId || '')
+      });
+      return openTemplate('variables', draft, {source: 'visible_edit_action', actionKind: kind});
+    }
+    if (kind === 'open_system_ui_editor') {
+      const template = normalizeTemplate(editAction.targetView || editAction.target && editAction.target.template || 'entry') || 'entry';
+      return openTemplate(template, safeDefaultDraftForTemplate(template), {source: 'visible_edit_action', actionKind: kind});
+    }
+    if (kind === 'open_advanced_source_patch' && editAction.draftAction && !editAction.source) {
+      state.status = t('objectCanvas.status.profileRouterRule', 'Router setup needs a profile rule or an advanced source anchor.');
+      updateDynamicSurfaces();
+      return true;
+    }
+    if (kind === 'open_source_slice' || kind === 'open_advanced_source_patch') {
+      return openSourceSliceAction(editAction);
+    }
+    if (kind === 'open_profile_router_rule') {
+      state.status = t('objectCanvas.status.profileRouterRule', 'Router setup needs a profile rule or an advanced source anchor.');
+      updateDynamicSurfaces();
+      return true;
+    }
+    return false;
+  }
+
+  function openDraftEditAction(editAction) {
+    const action = editAction || {};
+    const kind = String(action.actionKind || '');
+    if (kind === 'open_variable_editor') {
+      const draft = Object.assign({}, safeDefaultDraftForTemplate('variables'), {
+        kind: 'variable_editor',
+        mode: 'create_or_edit',
+        id: 'edit_' + String(action.targetId || action.variableName || 'variable').replace(/[^A-Za-z0-9_]+/g, '_'),
+        title: 'Edit ' + String(action.targetId || action.variableName || 'variable'),
+        variableName: String(action.targetId || action.variableName || ''),
+        label: String(action.targetId || action.variableName || '')
+      });
+      return openTemplate('variables', draft, {source: 'event_graph', actionKind: kind});
+    }
+    if (kind === 'open_profile_router_rule') {
+      state.status = t('objectCanvas.status.profileRouterRule', 'Router setup needs a profile rule or an advanced source anchor.');
+      updateDynamicSurfaces();
+      return true;
+    }
+    const focused = focusDraftField(action.fieldId || action.valueKey || '');
+    state.status = focused
+      ? t('objectCanvas.status.graphEntryFocused', 'Opened the matching editor field.')
+      : t('objectCanvas.status.graphEntryMissing', 'Studio could not find that editor field in this draft.');
+    updateDynamicSurfaces();
+    return focused;
+  }
+
+  function focusDraftField(fieldId) {
+    const key = String(fieldId || '').trim();
+    if (!key || !elements || !elements.host) {
+      return false;
+    }
+    const field = elements.host.querySelector('[data-object-canvas-field="' + cssEscape(key) + '"]');
+    if (!field) {
+      return false;
+    }
+    if (typeof field.scrollIntoView === 'function') {
+      field.scrollIntoView({block: 'center', inline: 'nearest'});
+    }
+    if (typeof field.focus === 'function') {
+      field.focus();
+    }
+    if (typeof field.select === 'function' && /input|textarea/i.test(field.tagName || '')) {
+      field.select();
+    }
+    return true;
+  }
+
+  function openSourceSliceAction(editAction) {
+    const apiModel = sourceSliceApi();
+    if (!apiModel || typeof apiModel.buildSourceSliceEditor !== 'function') {
+      return false;
+    }
+    const sliceModel = apiModel.buildSourceSliceEditor(state.projectIndex, {editAction});
+    state.sourceSliceModel = sliceModel;
+    state.sourceSliceAdvancedConfirmed = false;
+    resetTransientEditWorkspace({
+      mode: 'source_slice',
+      item: sliceModel && sliceModel.targetId || null,
+      selectedCanvasNode: 'source_slice',
+      activeModel: 'source_slice'
+    });
+    state.model = buildSourceSliceCanvasModel(sliceModel, {});
+    state.active = true;
+    state.status = sliceModel && sliceModel.ok
+      ? t('sourceSlice.status.prepared', 'Precise source edit opened for this visible content.')
+      : t('sourceSlice.status.mappingBug', 'Studio could not find the source position for this visible content.');
+    showWorkspace('source_slice');
+    render();
+    return Boolean(sliceModel && sliceModel.ok);
+  }
+
+  function shouldOpenSemanticLogicAction(editAction) {
+    const editor = editAction && editAction.semanticEditor || null;
+    const kind = String(editor && editor.kind || '');
+    return kind === 'route_order' || kind === 'effect_clause';
+  }
+
+  function openSemanticLogicAction(editAction) {
+    const apiModel = semanticLogicApi();
+    if (!apiModel || typeof apiModel.buildSemanticLogicEditor !== 'function') {
+      return openSourceSliceAction(editAction);
+    }
+    const editorModel = apiModel.buildSemanticLogicEditor(state.projectIndex, {editAction});
+    state.semanticLogicModel = editorModel;
+    state.semanticLogicAdvancedConfirmed = false;
+    resetTransientEditWorkspace({
+      mode: 'semantic_logic',
+      item: editorModel && editorModel.targetId || null,
+      selectedCanvasNode: 'semantic_logic',
+      activeModel: 'semantic_logic'
+    });
+    state.model = buildSemanticLogicCanvasModel(editorModel, {});
+    state.active = true;
+    state.status = editorModel && editorModel.ok
+      ? t('semanticLogic.status.prepared', 'Semantic editor opened for this visible logic.')
+      : t('sourceSlice.status.mappingBug', 'Studio could not find the source position for this visible content.');
+    showWorkspace('semantic_logic');
+    render();
+    return Boolean(editorModel && editorModel.ok);
   }
 
   function openNewEvent(draft, meta) {
@@ -723,6 +919,10 @@
     state.draftBranches = [];
     state.editorOverlay = false;
     state.deleteProposal = null;
+    state.sourceSliceModel = null;
+    state.sourceSliceAdvancedConfirmed = false;
+    state.semanticLogicModel = null;
+    state.semanticLogicAdvancedConfirmed = false;
     state.baseDraft = draft || safeDefaultDraftForTemplate(nextTemplate);
     state.proposalOptions = null;
     if (nextTemplate === 'card') {
@@ -792,6 +992,10 @@
 
   function loadDraft(draft, meta) {
     const value = draft || {};
+    state.sourceSliceModel = null;
+    state.sourceSliceAdvancedConfirmed = false;
+    state.semanticLogicModel = null;
+    state.semanticLogicAdvancedConfirmed = false;
     if (value.kind === 'existing_scene_delete') {
       const opened = openFromSelection(state.projectIndex, value.sceneKind === 'card' ? 'cards' : 'events', value.sceneId, {entry: meta});
       if (opened) {
@@ -835,10 +1039,14 @@
     state.values = collectValues();
     state.model = state.deleteProposal
       ? buildDeleteProposalModel(state.deleteProposal)
+      : state.mode === 'source_slice'
+      ? buildSourceSliceCanvasModel(state.sourceSliceModel, state.values)
+      : state.mode === 'semantic_logic'
+      ? buildSemanticLogicCanvasModel(state.semanticLogicModel, state.values)
       : state.mode === 'existing' ? buildExistingModel({values: state.values, proposalOptions: state.proposalOptions}) : buildTemplateModel({values: state.values});
     markRuntimeLensStale();
     const surface = currentSurface(state.model);
-    if (surface.key === 'system_ui_preview' || surface.key === 'card_board' && !activeInsidePreviewObjectEditor() || shouldRenderSurfaceRefresh(surface)) {
+    if (surface.key === 'source_slice_editor' || surface.key === 'semantic_logic_editor' || surface.key === 'system_ui_preview' || surface.key === 'card_board' && !activeInsidePreviewObjectEditor() || shouldRenderSurfaceRefresh(surface)) {
       render({scrollSnapshot});
       return;
     }
@@ -880,6 +1088,27 @@
     } catch (err) {
       return diagnosticModel('template', template, state.baseDraft && state.baseDraft.id || '', err, nextOptions);
     }
+  }
+
+  function buildSourceSliceCanvasModel(sliceModel, values) {
+    const workspace = sourceSliceWorkspaceApi();
+    return workspace && typeof workspace.buildCanvasModel === 'function'
+      ? workspace.buildCanvasModel(sliceModel, values || {}, sourceSliceWorkspaceDeps())
+      : diagnosticModel('source_slice', 'source_slice', sliceModel && sliceModel.targetId || '', new Error('Source Slice workspace is unavailable.'), {});
+  }
+
+  function buildSemanticLogicCanvasModel(editorModel, values) {
+    const workspace = semanticLogicWorkspaceApi();
+    return workspace && typeof workspace.buildCanvasModel === 'function'
+      ? workspace.buildCanvasModel(editorModel, values || {}, semanticLogicWorkspaceDeps())
+      : diagnosticModel('semantic_logic', 'semantic_logic', editorModel && editorModel.targetId || '', new Error('Semantic Logic workspace is unavailable.'), {});
+  }
+
+  function sourceSliceReplacementText(values) {
+    const workspace = sourceSliceWorkspaceApi();
+    return workspace && typeof workspace.replacementText === 'function'
+      ? workspace.replacementText(values, state.sourceSliceModel)
+      : state.sourceSliceModel && state.sourceSliceModel.currentText || '';
   }
 
   function withStructureCommandValues(options) {
@@ -1029,6 +1258,12 @@
   function renderCanvasStage(model) {
     return withRuntimeLensRenderStatus(() => {
       const surface = currentSurface(model);
+      if (surface.key === 'source_slice_editor') {
+        return renderSourceSliceStage(model);
+      }
+      if (surface.key === 'semantic_logic_editor') {
+        return renderSemanticLogicStage(model);
+      }
       if (surface.key === 'project_state_board') {
         return renderProjectStateStage(model);
       }
@@ -1098,6 +1333,20 @@
 
   function renderCardBoardStage(model) {
     const api = cardWorkspaceApi(); return api && typeof api.renderStage === 'function' ? api.renderStage(state, model) : '';
+  }
+
+  function renderSourceSliceStage(model) {
+    const workspace = sourceSliceWorkspaceApi();
+    return workspace && typeof workspace.render === 'function'
+      ? workspace.render(model, state, sourceSliceWorkspaceDeps())
+      : '';
+  }
+
+  function renderSemanticLogicStage(model) {
+    const workspace = semanticLogicWorkspaceApi();
+    return workspace && typeof workspace.render === 'function'
+      ? workspace.render(model, state, semanticLogicWorkspaceDeps())
+      : '';
   }
 
   function boardChromeCanCollapse(surface) {
@@ -1255,6 +1504,18 @@
       input.addEventListener('input', scheduleRefresh);
       input.addEventListener('change', scheduleRefresh);
     });
+    const sourceSliceWorkspace = sourceSliceWorkspaceApi();
+    if (sourceSliceWorkspace && typeof sourceSliceWorkspace.bind === 'function') {
+      sourceSliceWorkspace.bind(elements.host, state, sourceSliceWorkspaceDeps());
+    }
+    const semanticLogicWorkspace = semanticLogicWorkspaceApi();
+    if (semanticLogicWorkspace && typeof semanticLogicWorkspace.bind === 'function') {
+      semanticLogicWorkspace.bind(elements.host, state, semanticLogicWorkspaceDeps());
+    }
+    const visibleEditUi = visibleEditActionUi();
+    if (visibleEditUi && typeof visibleEditUi.bind === 'function') {
+      visibleEditUi.bind(elements.host, {projectIndex: state.projectIndex});
+    }
     elements.host.querySelectorAll('[data-preview-object-structure-part]').forEach((input) => {
       if (input.__dmsStructureBuilderBound) {
         return;
@@ -1340,6 +1601,66 @@
     }, PROJECT_STATE_SEARCH_DEBOUNCE_MS);
   }
 
+  function sourceSliceReviewAllowed() {
+    if (state.mode !== 'source_slice' || !state.sourceSliceModel) {
+      return true;
+    }
+    const workspace = sourceSliceWorkspaceApi();
+    return workspace && typeof workspace.reviewAllowed === 'function'
+      ? workspace.reviewAllowed(state)
+      : false;
+  }
+
+  function sourceSliceBlockedStatus() {
+    if (state.mode !== 'source_slice') {
+      return t('sourceSlice.status.advancedRequired', 'Enable advanced apply before reviewing this protected source edit.');
+    }
+    const changed = Number(state.model && state.model.changeState && state.model.changeState.changedCount || 0) > 0;
+    if (!changed) {
+      return t('sourceSlice.status.noChanges', 'Make a change before sending this edit to Review & Apply.');
+    }
+    return t('sourceSlice.status.advancedRequired', 'Enable advanced apply before reviewing this protected source edit.');
+  }
+
+  function semanticLogicReviewAllowed() {
+    if (state.mode !== 'semantic_logic' || !state.semanticLogicModel) {
+      return true;
+    }
+    const workspace = semanticLogicWorkspaceApi();
+    return workspace && typeof workspace.reviewAllowed === 'function'
+      ? workspace.reviewAllowed(state)
+      : false;
+  }
+
+  function semanticLogicBlockedStatus() {
+    if (state.mode !== 'semantic_logic') {
+      return t('semanticLogic.status.advancedRequired', 'Enable advanced apply before reviewing this semantic source edit.');
+    }
+    const changed = Number(state.model && state.model.changeState && state.model.changeState.changedCount || 0) > 0;
+    if (!changed) {
+      return t('semanticLogic.status.noChanges', 'Make a route or effect change before sending this edit to Review & Apply.');
+    }
+    return t('semanticLogic.status.advancedRequired', 'Enable advanced apply before reviewing this semantic source edit.');
+  }
+
+  function eventReadinessReviewAllowed() {
+    if (state.mode !== 'new_event') {
+      return true;
+    }
+    const rows = ensureArray(state.model && state.model.eventBody && state.model.eventBody.readinessChecklist);
+    return !rows.length || rows.every((row) => row && row.ok);
+  }
+
+  function eventReadinessBlockedStatus() {
+    const blocked = ensureArray(state.model && state.model.eventBody && state.model.eventBody.readinessChecklist)
+      .filter((row) => row && !row.ok)
+      .map((row) => row.label || row.id)
+      .filter(Boolean);
+    return blocked.length
+      ? t('objectCanvas.status.readinessBlocked', 'Finish blocked checklist items before Review & Apply: {items}').replace('{items}', blocked.slice(0, 3).join('; '))
+      : t('objectCanvas.status.readinessBlockedGeneric', 'Finish the event checklist before Review & Apply.');
+  }
+
   function restoreProjectStateSearchFocus() {
     if (!projectStateSearchFocus || !elements || !elements.host) {
       projectStateSearchFocus = null;
@@ -1366,8 +1687,15 @@
     if (fastSelectProjectStateNode(next)) {
       return;
     }
+    if (openProjectStateVariableFromCanvas(next)) {
+      return;
+    }
     state.values = collectValues();
     state.deleteProposal = null;
+    state.sourceSliceModel = null;
+    state.sourceSliceAdvancedConfirmed = false;
+    state.semanticLogicModel = null;
+    state.semanticLogicAdvancedConfirmed = false;
     if (switchSystemUiTemplateForRegion(next)) {
       return;
     }
@@ -1397,6 +1725,44 @@
       render();
     }
     return true;
+  }
+
+  function openProjectStateVariableFromCanvas(next) {
+    if (!/^variable:/.test(String(next || ''))) {
+      return false;
+    }
+    const name = String(next).slice('variable:'.length);
+    const variable = findProjectStateVariable(name);
+    if (!variable) {
+      return false;
+    }
+    state.values = {};
+    state.deleteProposal = null;
+    state.template = 'variables';
+    state.mode = 'variables';
+    state.view = 'variables';
+    state.item = null;
+    state.workspace = 'project_state';
+    state.selectedCanvasNode = 'variable:' + name;
+    state.baseDraft = editVariableDraft(variable);
+    state.proposalOptions = null;
+    state.sourceSliceModel = null;
+    state.sourceSliceAdvancedConfirmed = false;
+    state.semanticLogicModel = null;
+    state.semanticLogicAdvancedConfirmed = false;
+    resetStructureCommands();
+    resetRuntimeLens();
+    state.model = buildTemplateModel({values: {}, entry: {source: 'Canvas Asset Rail'}});
+    state.status = t('projectState.status.openedFromAssetRail', 'Selected state variable opened from the Canvas asset rail.');
+    showWorkspace('variables');
+    render();
+    return true;
+  }
+
+  function findProjectStateVariable(name) {
+    const target = String(name || '');
+    return ensureArray(state.projectIndex && state.projectIndex.variables)
+      .find((variable) => variable && String(variable.name || '') === target) || null;
   }
 
   function syncProjectStateVariableSelection() {
@@ -1518,6 +1884,24 @@
       updateDynamicSurfaces();
     } else if (action === 'review') {
       global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
+      if (state.mode === 'source_slice' || state.mode === 'semantic_logic') {
+        refresh();
+      }
+      if (!sourceSliceReviewAllowed()) {
+        state.status = sourceSliceBlockedStatus();
+        updateDynamicSurfaces();
+        return;
+      }
+      if (!semanticLogicReviewAllowed()) {
+        state.status = semanticLogicBlockedStatus();
+        updateDynamicSurfaces();
+        return;
+      }
+      if (!eventReadinessReviewAllowed()) {
+        state.status = eventReadinessBlockedStatus();
+        updateDynamicSurfaces();
+        return;
+      }
       reviewCurrentPlan();
     } else if (action === 'legacy_form') {
       global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
@@ -1681,6 +2065,10 @@
     state.workspace = 'project_state';
     state.selectedCanvasNode = selectedNode || selectedNodeForVariableDraft(state.baseDraft);
     state.deleteProposal = null;
+    state.sourceSliceModel = null;
+    state.sourceSliceAdvancedConfirmed = false;
+    state.semanticLogicModel = null;
+    state.semanticLogicAdvancedConfirmed = false;
     state.model = buildTemplateModel({values: {}, entry: {source: 'Project State'}});
     state.status = t(statusKey, statusKey === 'projectState.status.deleteSelected'
       ? 'Selected variable loaded for deletion review.'
@@ -2236,6 +2624,10 @@
     resetStructureCommands();
     state.baseDraft = null;
     state.deleteProposal = null;
+    state.sourceSliceModel = null;
+    state.sourceSliceAdvancedConfirmed = false;
+    state.semanticLogicModel = null;
+    state.semanticLogicAdvancedConfirmed = false;
     state.model = nextModel;
     showWorkspace(parsed.view === 'cards' ? 'card' : 'existing');
     render();
@@ -2586,16 +2978,122 @@
     syncPreviewObjectEditorChrome();
     syncPreviewObjectEditorPane();
     syncObjectCanvasFieldValues();
+    syncSourceSliceAdvancedControls();
+    syncSemanticLogicAdvancedControls();
+    syncEventReadinessControls();
     syncPreviewObjectRenderedFields();
     const panel = elements.host.querySelector('[data-runtime-lens-panel]');
     if (panel && state.runtimeLensStatus === 'stale') {
       panel.dataset.runtimeLensStatus = 'stale';
-      panel.classList.add('is-stale');
+      syncRuntimeLensStatusClass(panel, 'stale');
       const message = panel.querySelector('[data-runtime-lens-message]');
       if (message) {
         message.textContent = t('runtimeLens.draftStale', 'Lens is behind the current edit. Refresh or rebuild it to observe the latest draft.');
       }
     }
+  }
+
+  function syncSourceSliceAdvancedControls() {
+    if (!elements || !elements.host || state.mode !== 'source_slice') {
+      return;
+    }
+    const allowed = sourceSliceReviewAllowed();
+    elements.host.querySelectorAll('[data-object-canvas-action="review"]').forEach((button) => {
+      button.disabled = !allowed;
+      button.setAttribute('aria-disabled', allowed ? 'false' : 'true');
+    });
+  }
+
+  function syncSemanticLogicAdvancedControls() {
+    if (!elements || !elements.host || state.mode !== 'semantic_logic') {
+      return;
+    }
+    const allowed = semanticLogicReviewAllowed();
+    elements.host.querySelectorAll('[data-object-canvas-action="review"]').forEach((button) => {
+      button.disabled = !allowed;
+      button.setAttribute('aria-disabled', allowed ? 'false' : 'true');
+    });
+  }
+
+  function syncEventReadinessControls() {
+    if (!elements || !elements.host || state.mode !== 'new_event') {
+      return;
+    }
+    const allowed = eventReadinessReviewAllowed();
+    elements.host.querySelectorAll('[data-object-canvas-action="review"]').forEach((button) => {
+      button.disabled = !allowed;
+      button.setAttribute('aria-disabled', allowed ? 'false' : 'true');
+      button.dataset.reviewReadinessGate = allowed ? 'ready' : 'blocked';
+    });
+  }
+
+  function updateRuntimeLensEvidence() {
+    if (!elements || !elements.host) {
+      return false;
+    }
+    const panel = elements.host.querySelector('[data-runtime-lens-panel]');
+    if (!panel) {
+      return false;
+    }
+    const session = state.runtimeLensSession || {};
+    const status = state.runtimeLensStatus || session.status || 'ready';
+    panel.dataset.runtimeLensStatus = status;
+    syncRuntimeLensStatusClass(panel, status);
+    const message = panel.querySelector('[data-runtime-lens-message]');
+    if (message) {
+      message.textContent = runtimeLensEvidenceMessage(session, status);
+    }
+    const statusNode = elements.host.querySelector('[data-object-canvas-status]');
+    if (statusNode) {
+      statusNode.textContent = state.status || '';
+    }
+    return true;
+  }
+
+  function syncRuntimeLensStatusClass(panel, status) {
+    if (!panel || !panel.classList) {
+      return;
+    }
+    ['idle', 'building', 'ready', 'partial', 'blocked', 'stale', 'failed', 'suspended', 'unavailable'].forEach((value) => {
+      panel.classList.remove('is-' + value);
+    });
+    const safe = safeRuntimeLensStatus(status);
+    if (safe) {
+      panel.classList.add('is-' + safe);
+    }
+    panel.classList.toggle('is-stale', safe === 'stale');
+  }
+
+  function runtimeLensEvidenceMessage(session, status) {
+    const snapshot = session && session.runtimeSnapshot || null;
+    if ((snapshot && snapshot.status === 'blocked') || status === 'blocked') {
+      const diag = firstRuntimeDiagnostic(snapshot) || firstRuntimeDiagnostic(session && session.runtimeDomMap) || firstRuntimeDiagnostic(session && session.runtimeVisualSurface);
+      return diag && (diag.message || diag.code) || t('runtimeLens.blocked', 'Runtime Lens is blocked by incomplete generated runtime files.');
+    }
+    if (snapshot && snapshot.summary) {
+      const summary = snapshot.summary || {};
+      const runtimeStatus = String(snapshot.status || status || 'ready');
+      const prefix = runtimeStatus === 'partial'
+        ? 'Partial runtime snapshot: '
+        : 'Runtime loaded, ';
+      return prefix + Number(summary.visibleRegionCount || 0) + '/' + Number(summary.indexedRegionCount || 0) + ' regions visible, ' + Number(summary.choiceCount || 0) + ' choices rendered.';
+    }
+    return {
+      ready: t('runtimeLens.ready', 'Lens is ready.'),
+      partial: t('runtimeLens.partial', 'Lens loaded with runtime snapshot warnings.'),
+      failed: t('runtimeLens.failed', 'Lens could not be created.'),
+      suspended: t('runtimeLens.suspended', 'Lens is suspended while this workspace is in the background. Refresh to reload it.')
+    }[status] || t('runtimeLens.ready', 'Lens is ready.');
+  }
+
+  function firstRuntimeDiagnostic(value) {
+    return ensureArray(value && value.diagnostics).find((diag) => diag && diag.severity === 'error') ||
+      ensureArray(value && value.diagnostics).find(Boolean) ||
+      null;
+  }
+
+  function safeRuntimeLensStatus(status) {
+    return String(status || '').trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
   }
 
   function syncPreviewObjectEditorPane() {
@@ -2794,6 +3292,9 @@
     if (state.deleteProposal) {
       return state.deleteProposal;
     }
+    if (state.mode === 'source_slice' || state.mode === 'semantic_logic') {
+      return draft;
+    }
     if ((state.workspace || 'content') === 'content') {
       const cardWorkspace = cardWorkspaceApi();
       if (cardWorkspace && typeof cardWorkspace.draftWithContext === 'function' && currentSurface().key === 'card_board') {
@@ -2885,6 +3386,22 @@
   }
 
   function currentSurface(model) {
+    if (state.mode === 'source_slice' || state.template === 'source_slice') {
+      return {
+        key: 'source_slice_editor',
+        workspace: 'content',
+        labelKey: 'sourceSlice.surface',
+        fallback: t('sourceSlice.surface', 'Precise Source Edit')
+      };
+    }
+    if (state.mode === 'semantic_logic' || state.template === 'semantic_logic') {
+      return {
+        key: 'semantic_logic_editor',
+        workspace: 'content',
+        labelKey: 'semanticLogic.surface',
+        fallback: t('semanticLogic.surface', 'Semantic Logic Editor')
+      };
+    }
     const cardWorkspace = cardWorkspaceApi();
     if (cardWorkspace && typeof cardWorkspace.isCardBoardState === 'function' && cardWorkspace.isCardBoardState(state)) {
       return surfaceForTemplate('card');
@@ -2914,10 +3431,10 @@
   function runtimeLensWorkspaceApi() { return global.ProjectMapRuntimeLensWorkspaceState || null; }
   function cardWorkspaceApi() { return global.ProjectMapCardWorkspaceState || null; }
   function cardDeps(entry) { return {buildExistingModel, buildExistingModelFor, buildTemplateModel, collectValues, defaultDraftForTemplate, entry, render, showWorkspace, t}; }
-  function runtimeLensDeps() { return {buildExistingModel, buildTemplateModel, collectValues, render}; }
+  function runtimeLensDeps() { return {buildExistingModel, buildTemplateModel, collectValues, render, renderRuntimeLensEvidence: updateRuntimeLensEvidence}; }
 
   function storyboardWorkspaceApi() { return global.ProjectMapStoryboardWorkspaceState || null; }
-  function storyboardDeps() { return {buildExistingModel, buildExistingModelFor, buildTemplateModel, collectValues, render, showWorkspace, t}; }
+  function storyboardDeps() { return {buildExistingModel, buildExistingModelFor, buildTemplateModel, collectValues, render, selectCanvasNode, showWorkspace, t}; }
 
   function systemUiDeps(entry) {
     return {buildExistingModel, buildTemplateModel, collectValues, defaultDraftForTemplate, entry, normalizeTemplate, render, showWorkspace, t, templateForRegion: systemUiTemplateForRegion, workspaceForTemplate};
@@ -2951,6 +3468,48 @@
 
   function installPlanApi() {
     return global.ProjectMapInstallPlan || null;
+  }
+
+  function sourceSliceApi() {
+    return global.ProjectMapSourceSliceEditor || null;
+  }
+
+  function sourceSliceWorkspaceApi() {
+    return global.ProjectMapSourceSliceWorkspace || null;
+  }
+
+  function semanticLogicApi() {
+    return global.ProjectMapSemanticLogicEditor || null;
+  }
+
+  function semanticLogicWorkspaceApi() {
+    return global.ProjectMapSemanticLogicWorkspace || null;
+  }
+
+  function visibleEditActionUi() {
+    return global.ProjectMapVisibleEditActionUi || null;
+  }
+
+  function sourceSliceWorkspaceDeps() {
+    return {
+      translate: t,
+      escapeHtml,
+      escapeAttr,
+      renderPlanPreview,
+      renderDiagnostics,
+      sourceSliceApi: sourceSliceApi()
+    };
+  }
+
+  function semanticLogicWorkspaceDeps() {
+    return {
+      translate: t,
+      escapeHtml,
+      escapeAttr,
+      renderPlanPreview,
+      renderDiagnostics,
+      semanticLogicApi: semanticLogicApi()
+    };
   }
 
   function schedule(callback) {

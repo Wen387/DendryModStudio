@@ -37,8 +37,8 @@ function syntheticIndex(root) {
         scope: 'q',
         confidence: 'exact',
         reads: [{path: 'source/scenes/cards/demo_card.scene.dry', line: 12}],
-        writes: [{path: 'source/scenes/root.scene.dry', line: 5, text: 'if (Q.demo_resources === undefined) { Q.demo_resources = 2; }'}],
-        definedIn: [{path: 'source/scenes/root.scene.dry', line: 5}],
+        writes: [{path: 'source/scenes/root.scene.dry', line: 3, text: 'if (Q.demo_resources === undefined) { Q.demo_resources = 2; }'}],
+        definedIn: [{path: 'source/scenes/root.scene.dry', line: 3, text: 'if (Q.demo_resources === undefined) { Q.demo_resources = 2; }'}],
         readCount: 1,
         writeCount: 1
       }
@@ -79,12 +79,16 @@ assert(defaultAddDraft.variableName === 'new_variable', 'default variable draft 
 const uniqueDefaultDraft = variableDraft.defaultDraft(Object.assign({}, index, {variables: index.variables.concat([{name: 'new_variable'}])}));
 assert(uniqueDefaultDraft.variableName === 'new_variable_2', 'default variable draft should avoid an existing new_variable name');
 
-const editDraft = variableDraft.draftFromVariable(index.variables[0], index);
+const editDraft = Object.assign(variableDraft.draftFromVariable(index.variables[0], index), {initialValue: '5'});
 const editBundle = variableDraft.buildExportBundle(editDraft, index, {locale: 'en'});
 assert(editBundle.ok, 'existing variable draft should validate: ' + JSON.stringify(editBundle.diagnostics));
-assert(editBundle.installPlan.operations.length === 1, 'existing variables should stay manual-review by default');
-assert(editBundle.installPlan.operations[0].safety === 'manual_review', 'existing variable edits should not auto-apply source logic');
+assert(editBundle.installPlan.operations.length === 1, 'existing source-backed variables should produce a single edit operation');
+assert(editBundle.installPlan.operations[0].type === 'replace_text', 'existing variable edits should replace the source-backed initializer');
+assert(editBundle.installPlan.operations[0].safety === 'advanced_apply', 'protected existing variable init should require advanced apply');
+assert(editBundle.installPlan.operations[0].replace.includes('Q.demo_resources = 5'), 'existing variable edit should carry the requested initial value');
 assert(editBundle.playerPreview.includes('Q.demo_resources'), 'existing variable preview should show the selected Q variable');
+const editDryRun = installPlan.applyInstallPlan(editBundle.installPlan, {projectRoot: tmpRoot, dryRun: true, allowAdvanced: true});
+assert(editDryRun.ok && editDryRun.results.some((item) => item.id === 'variable_existing_init' && item.status === 'would_apply'), 'advanced existing variable edit should dry-run when explicitly allowed: ' + JSON.stringify(editDryRun));
 
 const deleteDraft = variableDraft.deleteDraftFromVariable(index.variables[0], index);
 const deleteBundle = variableDraft.buildExportBundle(deleteDraft, index, {locale: 'en'});

@@ -120,6 +120,7 @@ const bodyCapability = editCapability.buildEditCapability(index, 'textCorpus', b
 assert(bodyCapability.routeClass === 'direct_section_replace', 'body prose should route to a bounded section editor', bodyCapability);
 assert(String(bodyCapability.target && bodyCapability.target.valueKey || '').startsWith('block:'), 'body route should identify an Existing Scene block value key', bodyCapability);
 assert(bodyCapability.installSafety === 'guarded_apply', 'body section route should preserve guarded apply intent', bodyCapability);
+assert(bodyCapability.operationTemplate && bodyCapability.operationTemplate.type === 'replace_section', 'body section route should expose an install operation template', bodyCapability);
 
 const optionLabel = corpus.find((item) => item.role === 'option_label' && item.text === 'Open debate');
 assert(optionLabel, 'fixture should expose option label text');
@@ -132,6 +133,7 @@ assert(rootBody, 'fixture should expose root body text');
 const rootCapability = editCapability.buildEditCapability(index, 'textCorpus', rootBody);
 assert(rootCapability.routeClass === 'system_ui_workspace', 'root text should route to System UI workspace instead of generic text replacement', rootCapability);
 assert(rootCapability.target && rootCapability.target.template === 'entry', 'root text should open the Entry/System UI screen route', rootCapability);
+assert(rootCapability.installSafety === 'advanced_apply', 'protected root text should remain editable through advanced apply', rootCapability);
 
 const routerText = {
   id: 'router_copy',
@@ -141,8 +143,9 @@ const routerText = {
   owner: {kind: 'news_router'}
 };
 const routerCapability = editCapability.buildEditCapability(index, 'textCorpus', routerText);
-assert(routerCapability.routeClass === 'news_router_workflow', 'post_event router text should stay in news/router review workflow', routerCapability);
-assert(routerCapability.installSafety === 'manual_review', 'router text should not be auto-applied', routerCapability);
+assert(routerCapability.routeClass === 'news_router_workflow', 'post_event router text should use the news/router source patch workflow', routerCapability);
+assert(routerCapability.installSafety === 'advanced_apply', 'router text should be editable through advanced apply, not manual review', routerCapability);
+assert(routerCapability.operationTemplate && routerCapability.operationTemplate.type !== 'manual_snippet', 'router text should expose an install operation template', routerCapability);
 
 const rootSurface = {
   id: 'root_title_surface',
@@ -154,6 +157,7 @@ const rootSurface = {
 };
 const surfaceCapability = editCapability.buildEditCapability(index, 'surfaceText', rootSurface);
 assert(surfaceCapability.routeClass === 'system_ui_workspace', 'protected root surface text should route to System UI', surfaceCapability);
+assert(surfaceCapability.installSafety === 'advanced_apply', 'protected root surface text should remain editable through advanced apply', surfaceCapability);
 const surfaceDraftResult = draftExtract.textReplacementDraftFromItem(index, 'surfaceText', rootSurface, {replacementText: 'New Root'});
 assert(surfaceDraftResult.ok, 'root surface text should still create a reviewable proposal', surfaceDraftResult);
 assert(surfaceDraftResult.draft.editability === 'ide_escape_hatch', 'root surface text proposals should not look like ordinary safe replacements', surfaceDraftResult.draft);
