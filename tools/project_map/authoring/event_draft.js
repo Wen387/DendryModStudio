@@ -66,7 +66,8 @@
       effects: ensureArray(value.effects).map(normalizeEffect),
       narrativeParagraphs: normalizeTextList(value.narrativeParagraphs),
       variants: ensureArray(value.variants).map(normalizeVariant),
-      gotoAfter: String(value.gotoAfter || ('continue_' + id)).trim()
+      gotoAfter: String(value.gotoAfter || ('continue_' + id)).trim(),
+      returnTarget: String(value.returnTarget || value.afterResultTarget || 'root').trim()
     };
   }
 
@@ -90,7 +91,8 @@
       condition: String(value.condition || value.viewIf || value.chooseIf || '').trim(),
       paragraphs: normalizeTextList(value.paragraphs || value.narrativeParagraphs || value.body || value.text),
       effects: ensureArray(value.effects).map(normalizeEffect),
-      options: ensureArray(value.options).map(normalizeOption)
+      options: ensureArray(value.options).map(normalizeOption),
+      exitTarget: String(value.exitTarget || value.returnTarget || 'root').trim()
     };
   }
 
@@ -224,6 +226,7 @@
       }
       checkGotoAfter(option.gotoAfter, diagnostics);
       recordRenderedAnchor(renderedAnchors, option.gotoAfter, diagnostics);
+      checkRouteTarget(option.returnTarget, diagnostics, 'event_draft.return_target');
       option.effects.forEach((effect) => validateEffect(effect, variables, draft.seenFlag, diagnostics));
       option.variants.forEach((variant) => {
         checkConditionText(variant.condition, diagnostics, 'event_draft.variant_condition', variables, draft.seenFlag);
@@ -234,6 +237,7 @@
     draft.effectsOnTrigger.forEach((effect) => validateEffect(effect, variables, draft.seenFlag, diagnostics));
     draft.introParagraphs.forEach((paragraph) => checkFakeInlineOption(paragraph, diagnostics));
     ensureArray(draft.sections).forEach((section) => validateSection(section, variables, draft.seenFlag, renderedAnchors, diagnostics));
+    validateResolvedRouteTargets(draft, renderedAnchors, diagnostics);
 
     return {draft, diagnostics, ok: diagnostics.every((item) => item.severity !== 'error')};
   }
@@ -244,6 +248,7 @@
     }
     recordRenderedAnchor(renderedAnchors, section.id, diagnostics);
     checkConditionText(section.condition, diagnostics, 'event_draft.section_condition', variables, seenFlag);
+    checkRouteTarget(section.exitTarget, diagnostics, 'event_draft.section_exit_target');
     section.effects.forEach((effect) => validateEffect(effect, variables, '', diagnostics));
     section.paragraphs.forEach((paragraph) => checkFakeInlineOption(paragraph, diagnostics));
     const optionIds = new Set();
@@ -265,6 +270,7 @@
       }
       checkGotoAfter(option.gotoAfter, diagnostics);
       recordRenderedAnchor(renderedAnchors, option.gotoAfter, diagnostics);
+      checkRouteTarget(option.returnTarget, diagnostics, 'event_draft.return_target');
       option.effects.forEach((effect) => validateEffect(effect, variables, '', diagnostics));
       option.variants.forEach((variant) => {
         checkConditionText(variant.condition, diagnostics, 'event_draft.variant_condition', variables, seenFlag);
@@ -303,7 +309,7 @@
       diag(diagnostics, 'error', 'event_draft.effect_op', 'Effect op must be one of =, +=, -=.');
     }
     if (variables && effect.variable !== seenFlag && !variables.has(effect.variable)) {
-      diag(diagnostics, 'error', 'event_draft.missing_variable', 'Effect variable is not in the loaded ProjectIndex: ' + effect.variable);
+      diag(diagnostics, 'warning', 'event_draft.missing_variable', 'Effect variable is not in the loaded ProjectIndex; Studio will prepare an init operation: ' + effect.variable);
     }
     if (effect.op !== '=' && typeof effect.value !== 'number') {
       diag(diagnostics, 'error', 'event_draft.effect_value', 'Delta effect value must be numeric for ' + effect.variable + '.');
@@ -357,6 +363,38 @@
     if (/\s+if\s+|;/.test(text)) {
       diag(diagnostics, 'warning', 'event_draft.conditional_goto', 'Option gotoAfter must be a plain anchor id in v0.4.');
     }
+  }
+
+  function checkRouteTarget(value, diagnostics, code) {
+    const text = String(value || 'root').trim();
+    if (!ID_RE.test(text)) {
+      diag(diagnostics, 'error', code || 'event_draft.route_target', 'Route target must be root or a valid anchor id.');
+    }
+    if (/\s+if\s+|;/.test(text)) {
+      diag(diagnostics, 'warning', 'event_draft.conditional_goto', 'Route target must be a plain anchor id in EventDraft.');
+    }
+  }
+
+  function validateResolvedRouteTargets(draft, renderedAnchors, diagnostics) {
+    const targets = [];
+    ensureArray(draft.options).forEach((option) => {
+      targets.push({target: option.returnTarget, owner: 'option ' + option.id});
+    });
+    ensureArray(draft.sections).forEach((section) => {
+      targets.push({target: section.exitTarget, owner: 'section ' + section.id});
+      ensureArray(section.options).forEach((option) => {
+        targets.push({target: option.returnTarget, owner: 'section option ' + option.id});
+      });
+    });
+    targets.forEach((item) => {
+      const target = String(item.target || 'root').trim();
+      if (!target || target === 'root' || !ID_RE.test(target)) {
+        return;
+      }
+      if (!renderedAnchors.has(target)) {
+        diag(diagnostics, 'error', 'event_draft.missing_route_target', 'Route target "' + target + '" from ' + item.owner + ' does not resolve to this event.');
+      }
+    });
   }
 
   function recordRenderedAnchor(anchors, anchorId, diagnostics) {
@@ -469,7 +507,7 @@
     lines.push('- @' + option.gotoAfter + ': ' + continueLabel);
     lines.push('');
     lines.push('@' + option.gotoAfter);
-    lines.push('go-to: root');
+    lines.push('go-to: ' + (option.returnTarget || 'root'));
   }
 
   function appendSection(lines, section, continueLabel) {
@@ -501,6 +539,9 @@
       }
       appendOption(lines, option, continueLabel);
     });
+    if (!section.options.length && section.exitTarget) {
+      lines.push('go-to: ' + section.exitTarget);
+    }
   }
 
   function appendParagraphs(lines, paragraphs) {
@@ -548,6 +589,12 @@
       migrationSnippet,
       rootAnchorText: anchors.rootAnchorText,
       migrationAnchorText: anchors.migrationAnchorText,
+      routerRegistration: routerInstallHint(draft, projectIndex, anchors),
+      variableInitRequests: missingEffectVariables(draft, projectIndex).map((name) => ({
+        name,
+        initialValue: '0',
+        anchorText: anchors.rootAnchorText
+      })),
       assetInstallRequests: draft.assetInstallRequests
     });
     const installPlanJson = installApi.renderInstallPlanJson(plan);
@@ -575,10 +622,13 @@
       '- Review ' + draft.id + '.patch-preview.diff before applying any safe operation.',
       '- Review the install operation checklist before deciding what to apply.',
       '- Review the root init and post_event migration snippets before copying them.',
+      '- Review any profile-aware router registration in Review & Apply.',
       '',
       'Where to copy/paste:',
       '- Suggested source path: source/scenes/events/' + draft.id + '.scene.dry',
-      '- Wire the event into your monthly router/news/event selection flow by hand.',
+      routerInstallHint(draft, projectIndex, anchors)
+        ? '- Studio generated a profile-aware router registration operation for Review & Apply.'
+        : '- Router registration is pending because this profile has no known monthly event router anchor.',
       '',
       'Variables/init/migration:',
       '- Add root init snippet near EVENT SEEN FLAGS in source/scenes/root.scene.dry.',
@@ -590,7 +640,7 @@
       'Manual IDE steps:',
       '- Review & Apply can dry-run and apply the scene file plus guarded root/post_event snippets when the project anchors still match.',
       '- If a guarded anchor is missing or duplicated, Review & Apply stops and leaves that step for IDE review.',
-      '- SDAAH-style projects route tags:event scenes through the monthly #event popup lane; other project styles may still need router review.'
+      '- SDAAH-style projects route tags:event scenes through the monthly #event popup lane; other project styles need a profile router rule before Studio can wire them automatically.'
     ].join('\n') + '\n';
     files[6].content = installNotes;
     return {
@@ -624,6 +674,47 @@
     };
   }
 
+  function routerInstallHint(draft, projectIndex, anchors) {
+    const profiles = projectProfileIds(projectIndex);
+    const known = profiles.has('generic-dendry') || profiles.has('sdaah-style');
+    if (!known) {
+      return null;
+    }
+    const anchorText = routerAnchorText(projectIndex, anchors);
+    if (!anchorText) {
+      return null;
+    }
+    return {
+      path: 'source/scenes/post_event.scene.dry',
+      anchorText,
+      position: 'after',
+      dedupeSearch: '- #event',
+      safety: 'advanced_apply',
+      content: [
+        '',
+        '// EventDraft router registration: monthly event tag lane',
+        '- #event: Monthly event popups',
+        ''
+      ].join('\n'),
+      description: 'Register the monthly event tag lane for new tags:event world event scenes.'
+    };
+  }
+
+  function routerAnchorText(projectIndex, anchors) {
+    const parserEvidence = projectIndex && projectIndex.semantic && projectIndex.semantic.parserEvidence || {};
+    const table = ensureArray(parserEvidence.monthlyPopupRouterTable);
+    const first = table.find((row) => row && row.router && row.router.source && row.router.source.anchorText);
+    if (first) {
+      return first.router.source.anchorText;
+    }
+    const scenes = ensureArray(projectIndex && projectIndex.scenes);
+    const postEvent = scenes.find((scene) => String(scene && scene.path || '').replace(/\\/g, '/') === 'source/scenes/post_event.scene.dry');
+    if (postEvent && postEvent.title) {
+      return '= ' + String(postEvent.title).trim();
+    }
+    return anchors && anchors.migrationAnchorText || '// Save compatibility: post_event split (post_event_news)';
+  }
+
   function projectProfileIds(projectIndex) {
     const ids = new Set();
     const projectProfiles = projectIndex && projectIndex.project && Array.isArray(projectIndex.project.profileIds)
@@ -642,6 +733,36 @@
     return ids;
   }
 
+  function missingEffectVariables(draft, projectIndex) {
+    const variables = variableSet(projectIndex);
+    if (!variables) {
+      return [];
+    }
+    const names = new Set();
+    collectEffects(draft).forEach((effect) => {
+      const name = effect && effect.variable;
+      if (name && name !== draft.seenFlag && !variables.has(name)) {
+        names.add(name);
+      }
+    });
+    return Array.from(names).sort();
+  }
+
+  function collectEffects(draft) {
+    const effects = [];
+    ensureArray(draft.effectsOnTrigger).forEach((effect) => effects.push(effect));
+    ensureArray(draft.options).forEach((option) => {
+      ensureArray(option.effects).forEach((effect) => effects.push(effect));
+    });
+    ensureArray(draft.sections).forEach((section) => {
+      ensureArray(section.effects).forEach((effect) => effects.push(effect));
+      ensureArray(section.options).forEach((option) => {
+        ensureArray(option.effects).forEach((effect) => effects.push(effect));
+      });
+    });
+    return effects;
+  }
+
   const api = {
     EVENT_DRAFT_VERSION,
     normalizeDraft,
@@ -650,7 +771,8 @@
     buildExportBundle,
     build: buildExportBundle,
     generate: buildExportBundle,
-    renderEffect
+    renderEffect,
+    routerInstallHint
   };
 
   if (typeof module !== 'undefined' && module.exports) {

@@ -231,6 +231,7 @@
 
   function eventInstallPlan(options) {
     const id = String(options.id || '').trim();
+    const routerOperation = eventRouterRegistrationOperation(options.routerRegistration);
     return buildInstallPlan({
       id,
       draftKind: 'world_event',
@@ -267,8 +268,58 @@
           safety: 'guarded_apply',
           description: 'Insert the generated old-save migration guard after matching the post_event compatibility anchor.'
         }
-      ].concat(assetInstallOperations(options.assetInstallRequests))
+      ].concat(eventVariableInitOperations(options.variableInitRequests, options.rootAnchorText))
+        .concat(routerOperation ? [routerOperation] : [])
+        .concat(assetInstallOperations(options.assetInstallRequests))
     });
+  }
+
+  function eventRouterRegistrationOperation(input) {
+    const router = isObject(input) ? input : {};
+    const path = String(router.path || '').trim();
+    const anchorText = String(router.anchorText || '').trim();
+    const content = router.content === undefined || router.content === null ? '' : String(router.content);
+    const dedupeSearch = String(router.dedupeSearch || content || '').trim();
+    if (!path || !anchorText || !content || !dedupeSearch) {
+      return null;
+    }
+    const requestedSafety = String(router.safety || '').trim();
+    return {
+      id: 'event_router_registration',
+      type: 'insert_text',
+      path,
+      content,
+      anchorText,
+      position: String(router.position || 'after').trim() === 'before' ? 'before' : 'after',
+      dedupeSearch,
+      safety: requestedSafety === 'guarded_apply' ? 'guarded_apply' : 'advanced_apply',
+      description: String(router.description || 'Register this event with the profile-aware monthly event router.').trim()
+    };
+  }
+
+  function eventVariableInitOperations(requests, rootAnchorText) {
+    return ensureArray(requests).map((request, index) => {
+      const value = isObject(request) ? request : {name: request};
+      const name = String(value.name || value.variable || '').trim();
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+        return null;
+      }
+      const initial = value.initialValue === undefined || value.initialValue === null || value.initialValue === ''
+        ? '0'
+        : String(value.initialValue);
+      const content = 'Q.' + name + ' = ' + initial + ';\n';
+      return {
+        id: 'event_variable_init_' + name + '_' + String(index + 1),
+        type: 'insert_text',
+        path: 'source/scenes/root.scene.dry',
+        content,
+        anchorText: value.anchorText || rootAnchorText || '// ====== U. EVENT SEEN FLAGS ======',
+        position: 'after',
+        dedupeSearch: 'Q.' + name + ' =',
+        safety: 'guarded_apply',
+        description: 'Initialize new event variable Q.' + name + ' near root event state.'
+      };
+    }).filter(Boolean);
   }
 
   function newsInstallPlan(options) {

@@ -204,7 +204,7 @@
   function draftEventBody(structure) {
     const allOptions = ensureArray(structure.options);
     const rootOptions = allOptions.filter((option) => !option.ownerSectionId);
-    const branchSections = ensureArray(structure.sections).map((section, index) => branchField(section, index));
+    const branchSections = ensureArray(structure.sections).reduce((rows, section, index) => rows.concat(branchFields(section, index)), []);
     const actions = draftStructureActions(structure, rootOptions, allOptions);
     return {
       mode: 'new_event',
@@ -219,6 +219,7 @@
       })],
       branchSections,
       options: allOptions.map((option, index) => optionRow(option, index, structure)),
+      variables: eventVariableRows(structure),
       effects: effectFields('event.effect', ensureArray(structure.triggerEffects)),
       optionEffects: allOptions.map((option, index) => ({
         id: option.id || 'option_' + (index + 1),
@@ -235,8 +236,294 @@
         field('event.priority', 'Priority', structure.when && structure.when.priority, 'guarded')
       ],
       structureActions: actions,
+      eventGraph: eventGraph(structure),
+      readinessChecklist: readinessChecklist(structure, rootOptions),
       eventStructure: compactStructure(structure)
     };
+  }
+
+  function eventGraph(structure) {
+    const nodes = [{
+      id: 'root',
+      kind: 'opening',
+      label: structure.title || structure.id || 'Event opening',
+      editAction: editAction('open_object_section', 'event.intro', 'opening')
+    }];
+    const edges = [];
+    const variables = new Set();
+    ensureArray(structure.options).forEach((option, index) => {
+      const optionId = option.id || 'option_' + (index + 1);
+      nodes.push({
+        id: 'option:' + optionId,
+        kind: option.ownerSectionId ? 'section_option' : 'root_option',
+        label: option.label || optionId,
+        ownerSectionId: option.ownerSectionId || '',
+        editAction: editAction('open_object_field', 'option.' + index + '.label', optionId)
+      });
+      nodes.push({
+        id: 'result:' + option.gotoAfter,
+        kind: 'result_section',
+        label: option.gotoAfter || ('continue_' + optionId),
+        editAction: editAction('open_object_field', 'option.' + index + '.body', optionId)
+      });
+      edges.push({
+        from: option.ownerSectionId ? 'section:' + option.ownerSectionId : 'root',
+        to: 'option:' + optionId,
+        kind: 'choice',
+        editAction: editAction('open_object_field', 'option.' + index + '.label', optionId)
+      });
+      edges.push({
+        from: 'option:' + optionId,
+        to: 'result:' + option.gotoAfter,
+        kind: 'result_route',
+        targetId: option.gotoAfter || '',
+        editAction: editAction('open_route_editor', 'option.' + index + '.gotoAfter', optionId)
+      });
+      edges.push({
+        from: 'result:' + option.gotoAfter,
+        to: option.returnTarget === 'root' ? 'root' : 'section:' + option.returnTarget,
+        kind: 'return_route',
+        targetId: option.returnTarget || 'root',
+        editAction: editAction('open_route_editor', 'option.' + index + '.returnTarget', optionId)
+      });
+      ensureArray(option.effects).forEach((effect, effectIndex) => {
+        if (effect && effect.variable) {
+          variables.add(effect.variable);
+        }
+        nodes.push({
+          id: 'effect:option:' + optionId + ':' + effectIndex,
+          kind: 'option_effect',
+          label: effectLabel(effect),
+          ownerNodeId: 'option:' + optionId,
+          editAction: editAction('open_effect_editor', 'option.' + index + '.effect.' + effectIndex + '.value', optionId)
+        });
+      });
+    });
+    ensureArray(structure.sections).forEach((section, index) => {
+      nodes.push({
+        id: 'section:' + section.id,
+        kind: section.condition ? 'conditional_section' : 'follow_up_section',
+        label: section.title || section.id,
+        condition: section.condition || '',
+        editAction: editAction('open_object_section', 'event.section.' + index + '.body', section.id)
+      });
+      if (!ensureArray(section.options).length) {
+        edges.push({
+          from: 'section:' + section.id,
+          to: section.exitTarget === 'root' ? 'root' : 'section:' + section.exitTarget,
+          kind: 'exit_route',
+          targetId: section.exitTarget || 'root',
+          editAction: editAction('open_route_editor', 'event.section.' + index + '.exitTarget', section.id)
+        });
+      }
+      ensureArray(section.effects).forEach((effect, effectIndex) => {
+        if (effect && effect.variable) {
+          variables.add(effect.variable);
+        }
+        nodes.push({
+          id: 'effect:section:' + section.id + ':' + effectIndex,
+          kind: 'section_effect',
+          label: effectLabel(effect),
+          ownerNodeId: 'section:' + section.id,
+          editAction: editAction('open_effect_editor', 'event.section.' + index + '.effect.' + effectIndex + '.value', section.id)
+        });
+      });
+    });
+    ensureArray(structure.triggerEffects).forEach((effect, index) => {
+      if (effect && effect.variable) {
+        variables.add(effect.variable);
+      }
+      nodes.push({
+        id: 'effect:trigger:' + index,
+        kind: 'trigger_effect',
+        label: effectLabel(effect),
+        ownerNodeId: 'root',
+        editAction: editAction('open_effect_editor', 'event.effect.' + index + '.value', 'opening')
+      });
+    });
+    Array.from(variables).sort().forEach((name) => {
+      nodes.push({
+        id: 'variable:' + name,
+        kind: 'variable',
+        label: 'Q.' + name,
+        editAction: {
+          actionKind: 'open_variable_editor',
+          routeClass: 'variable_workspace',
+          targetView: 'variables',
+          targetId: name,
+          variableName: name,
+          installSafety: 'guarded_apply',
+          draftAction: true
+        }
+      });
+    });
+    return {
+      kind: 'complex_event_graph',
+      nodes,
+      edges,
+      nodeCount: nodes.length,
+      edgeCount: edges.length
+    };
+  }
+
+  function editAction(actionKind, fieldId, targetId) {
+    return {
+      actionKind,
+      routeClass: actionKind === 'open_route_editor' ? 'semantic_route' : 'object_field',
+      targetView: 'events',
+      targetId: stringValue(targetId),
+      fieldId,
+      installSafety: 'guarded_apply',
+      draftAction: true
+    };
+  }
+
+  function readinessChecklist(structure, rootOptions) {
+    const anchors = eventAnchors(structure);
+    const routeProblems = unresolvedRoutes(structure, anchors);
+    const effectProblems = invalidEffects(structure);
+    const visibleTextOk = Boolean(stringValue(structure.openingText).trim()) &&
+      ensureArray(rootOptions).every((option) => stringValue(option.label).trim() && stringValue(option.body).trim());
+    const routerReady = hasKnownEventRouterProfile(structure.projectIndex);
+    return [
+      readinessItem('event_id', Boolean(safeId(structure.id || '')), 'Event id is valid.', editAction('open_object_field', 'event.id', structure.id || 'event')),
+      readinessItem('root_options', ensureArray(rootOptions).length >= 2 && ensureArray(rootOptions).length <= 4, 'Event has 2 to 4 root options.', editAction('open_object_field', 'option.0.label', 'option_1')),
+      readinessItem('visible_text', visibleTextOk, 'Opening text and root option result text are filled in.', editAction('open_object_section', 'event.intro', 'opening')),
+      readinessItem('routes_resolve', routeProblems.length === 0, routeProblems.length ? 'Some route targets do not resolve: ' + routeProblems.join(', ') : 'All draft route targets resolve.', editAction('open_route_editor', 'option.0.gotoAfter', 'option_1')),
+      readinessItem('effect_ops', effectProblems.length === 0, effectProblems.length ? 'Some effects need a supported operation: ' + effectProblems.join(', ') : 'Effects use supported operations.', editAction('open_effect_editor', 'event.effect.0.value', 'opening')),
+      readinessItem('router_registration', routerReady, routerReady ? 'Profile-aware router registration can be generated.' : 'Router wiring is pending profile setup.', {
+        actionKind: routerReady ? 'open_advanced_source_patch' : 'open_profile_router_rule',
+        routeClass: routerReady ? 'news_router_workflow' : 'profile_router_rule',
+        targetView: 'router',
+        targetId: structure.id || '',
+        fieldId: 'router.registration',
+        installSafety: routerReady ? 'advanced_apply' : 'guarded_apply',
+        draftAction: true
+      })
+    ];
+  }
+
+  function eventVariableRows(structure) {
+    const existing = variableMapForProject(structure && structure.projectIndex);
+    const names = new Set();
+    ensureArray(structure && structure.triggerEffects).forEach((effect) => {
+      if (effect && effect.variable) {
+        names.add(effect.variable);
+      }
+    });
+    ensureArray(structure && structure.options).forEach((option) => {
+      ensureArray(option && option.effects).forEach((effect) => {
+        if (effect && effect.variable) {
+          names.add(effect.variable);
+        }
+      });
+    });
+    ensureArray(structure && structure.sections).forEach((section) => {
+      ensureArray(section && section.effects).forEach((effect) => {
+        if (effect && effect.variable) {
+          names.add(effect.variable);
+        }
+      });
+    });
+    return Array.from(names).sort().map((name) => {
+      const variable = existing.get(name) || {};
+      const known = existing.has(name);
+      return {
+        name,
+        reads: ensureArray(variable.reads),
+        writes: ensureArray(variable.writes),
+        readCount: Number(variable.readCount || 0),
+        writeCount: Number(variable.writeCount || 0),
+        tags: ensureArray(variable.tags).map(String),
+        status: known ? 'referenced' : 'new_or_missing',
+        createAction: known ? null : {
+          actionKind: 'open_variable_editor',
+          targetView: 'variables',
+          targetId: name,
+          variableName: name,
+          installSafety: 'guarded_apply'
+        }
+      };
+    });
+  }
+
+  function variableMapForProject(projectIndex) {
+    const existing = new Map();
+    ensureArray(projectIndex && projectIndex.variables).forEach((variable) => {
+      if (variable && variable.name) {
+        existing.set(stringValue(variable.name), variable);
+      }
+    });
+    return existing;
+  }
+
+  function readinessItem(id, ok, label, repairAction) {
+    return {id, ok: Boolean(ok), status: ok ? 'ready' : 'blocked', label, repairAction: repairAction || null};
+  }
+
+  function eventAnchors(structure) {
+    const anchors = new Set(['root']);
+    ensureArray(structure.options).forEach((option) => {
+      if (option.gotoAfter) {
+        anchors.add(safeId(option.gotoAfter));
+      }
+    });
+    ensureArray(structure.sections).forEach((section) => {
+      if (section.id) {
+        anchors.add(safeId(section.id));
+      }
+      ensureArray(section.options).forEach((option) => {
+        if (option.gotoAfter) {
+          anchors.add(safeId(option.gotoAfter));
+        }
+      });
+    });
+    return anchors;
+  }
+
+  function unresolvedRoutes(structure, anchors) {
+    const missing = [];
+    ensureArray(structure.options).forEach((option) => {
+      const target = safeId(option.returnTarget || 'root');
+      if (!anchors.has(target)) {
+        missing.push(option.id + ' -> ' + target);
+      }
+    });
+    ensureArray(structure.sections).forEach((section) => {
+      const target = safeId(section.exitTarget || 'root');
+      if (!anchors.has(target)) {
+        missing.push(section.id + ' -> ' + target);
+      }
+      ensureArray(section.options).forEach((option) => {
+        const optionTarget = safeId(option.returnTarget || 'root');
+        if (!anchors.has(optionTarget)) {
+          missing.push(option.id + ' -> ' + optionTarget);
+        }
+      });
+    });
+    return missing;
+  }
+
+  function invalidEffects(structure) {
+    const rows = [];
+    ensureArray(structure.triggerEffects).forEach((effect) => rows.push(effect));
+    ensureArray(structure.options).forEach((option) => ensureArray(option.effects).forEach((effect) => rows.push(effect)));
+    ensureArray(structure.sections).forEach((section) => ensureArray(section.effects).forEach((effect) => rows.push(effect)));
+    return rows.filter((effect) => !['=', '+=', '-='].includes(stringValue(effect && effect.op))).map(effectLabel);
+  }
+
+  function hasKnownEventRouterProfile(projectIndex) {
+    const ids = new Set();
+    const projectProfiles = projectIndex && projectIndex.project && Array.isArray(projectIndex.project.profileIds)
+      ? projectIndex.project.profileIds
+      : [];
+    projectProfiles.forEach((profile) => ids.add(stringValue(profile)));
+    ensureArray(projectIndex && projectIndex.profiles).forEach((profile) => {
+      if (profile && profile.id) {
+        ids.add(stringValue(profile.id));
+      }
+    });
+    return ids.has('generic-dendry') || ids.has('sdaah-style');
   }
 
   function draftStructureActions(structure, rootOptions, allOptions) {
@@ -578,6 +865,7 @@
       chooseIf: stringValue(value.chooseIf),
       unavailableText: stringValue(value.unavailableText),
       gotoAfter: safeId(value.gotoAfter || 'continue_' + id),
+      returnTarget: safeId(value.returnTarget || value.afterResultTarget || 'root'),
       body: joinParagraphs(value.narrativeParagraphs || value.body || value.text),
       effects: ensureArray(value.effects).map(effectFromDraft).filter((effect) => effect.variable),
       variants: ensureArray(value.variants).map((variant) => ({
@@ -607,6 +895,7 @@
       title: stringValue(value.title || value.heading || humanize(id)),
       text: joinParagraphs(value.paragraphs || value.narrativeParagraphs || value.body || value.text),
       condition: stringValue(value.condition || value.viewIf || value.chooseIf),
+      exitTarget: safeId(value.exitTarget || value.returnTarget || 'root'),
       options: ensureArray(value.options).map((option, optionIndex) => optionFromDraft(option, optionIndex, id)),
       effects: ensureArray(value.effects).map(effectFromDraft).filter((effect) => effect.variable)
     };
@@ -619,6 +908,7 @@
       title: stringValue(value.sectionLabel || value.label || value.sectionId || value.id || 'Section'),
       text: stringValue(value.value || value.original),
       condition: ensureArray(value.conditions)[0] || '',
+      exitTarget: 'root',
       options: [],
       source: sourceRef(value.source || {})
     };
@@ -628,7 +918,7 @@
     const value = isObject(effect) ? effect : {};
     return {
       variable: safeId(value.variable || ''),
-      op: stringValue(value.op || '+='),
+      op: normalizeEffectOp(value.op || '+='),
       value: value.value,
       condition: stringValue(value.condition),
       hook: stringValue(value.hook)
@@ -646,7 +936,7 @@
     const value = isObject(effect) ? effect : {};
     const out = {
       variable: safeId(value.variable || ''),
-      op: stringValue(value.op || '+='),
+      op: normalizeEffectOp(value.op || '+='),
       value: effectValue(value.value, value.op)
     };
     if (value.condition) {
@@ -670,6 +960,9 @@
     if (value.condition) {
       out.condition = stringValue(value.condition);
     }
+    if (value.exitTarget && value.exitTarget !== 'root') {
+      out.exitTarget = safeId(value.exitTarget);
+    }
     return out;
   }
 
@@ -687,7 +980,8 @@
         condition: stringValue(variant && variant.condition),
         text: stringValue(variant && variant.text)
       })).filter((variant) => variant.condition || variant.text),
-      gotoAfter: safeId(value.gotoAfter || 'continue_' + (value.id || 'option'))
+      gotoAfter: safeId(value.gotoAfter || 'continue_' + (value.id || 'option')),
+      returnTarget: safeId(value.returnTarget || 'root')
     };
     return out;
   }
@@ -710,19 +1004,27 @@
         field('option.' + index + '.body', 'Result text', option.body, 'guarded'),
         field('option.' + index + '.chooseIf', 'Condition', option.chooseIf, 'guarded'),
         field('option.' + index + '.unavailableText', 'Unavailable text', option.unavailableText, 'guarded'),
-        field('option.' + index + '.gotoAfter', 'Go to after', option.gotoAfter, 'guarded')
+        field('option.' + index + '.gotoAfter', 'Result section', option.gotoAfter, 'guarded', {role: 'route'}),
+        field('option.' + index + '.returnTarget', 'After result route', option.returnTarget || 'root', 'guarded', {role: 'route'})
       ]
     };
   }
 
-  function branchField(section, index) {
-    return field('event.section.' + index + '.body', section.title || section.id || 'Follow-up', section.text || '', 'guarded', {
+  function branchFields(section, index) {
+    const label = section.title || section.id || 'Follow-up';
+    const meta = {
       sectionId: section.id || '',
       sectionLabel: section.title || section.id || '',
       semanticRole: section.condition ? 'conditional_text' : 'section_text',
       branchKind: section.condition ? 'conditional' : 'section',
       conditions: section.condition ? [section.condition] : []
-    });
+    };
+    return [
+      field('event.section.' + index + '.title', label + ' title', section.title || '', 'guarded', Object.assign({}, meta, {semanticRole: 'section_title'})),
+      field('event.section.' + index + '.condition', label + ' condition', section.condition || '', 'guarded', Object.assign({}, meta, {role: 'condition', semanticRole: 'section_condition'})),
+      field('event.section.' + index + '.body', label, section.text || '', 'guarded', meta),
+      field('event.section.' + index + '.exitTarget', label + ' exit route', section.exitTarget || 'root', 'guarded', Object.assign({}, meta, {role: 'route', semanticRole: 'section_exit_route'}))
+    ];
   }
 
   function effectFields(prefix, effects) {
@@ -792,6 +1094,7 @@
       chooseIf: draft.chooseIf || '',
       unavailableText: draft.unavailableText || '',
       gotoAfter: uniqueId(structure, 'continue_' + id),
+      returnTarget: 'root',
       body: draft.result || 'Result prose.',
       effects: [],
       variants: []
@@ -825,6 +1128,7 @@
       title: humanize(id),
       text: draft.text || 'Follow-up prose.',
       condition: draft.condition || '',
+      exitTarget: 'root',
       options: [],
       effects: []
     });
@@ -900,7 +1204,7 @@
   }
 
   function updateSectionField(structure, fieldId, value) {
-    const match = fieldId.match(/^event\.section\.(\d+)\.(body|title|condition)$/);
+    const match = fieldId.match(/^event\.section\.(\d+)\.(body|title|condition|exitTarget)$/);
     if (!match) {
       return;
     }
@@ -914,6 +1218,8 @@
       section.title = stringValue(value);
     } else if (match[2] === 'condition') {
       section.condition = stringValue(value);
+    } else if (match[2] === 'exitTarget') {
+      section.exitTarget = safeId(value || 'root');
     }
   }
 
@@ -943,7 +1249,7 @@
       });
       return;
     }
-    const match = fieldId.match(/^option\.(\d+)\.(label|subtitle|body|chooseIf|unavailableText|gotoAfter)$/);
+    const match = fieldId.match(/^option\.(\d+)\.(label|subtitle|body|chooseIf|unavailableText|gotoAfter|returnTarget)$/);
     if (!match) {
       return;
     }
@@ -953,7 +1259,9 @@
     }
     const key = match[2];
     updateOption(structure, option.id, (targetOption) => {
-      targetOption[key] = key === 'gotoAfter' ? safeId(value || targetOption.gotoAfter || 'continue_' + targetOption.id) : stringValue(value);
+      targetOption[key] = key === 'gotoAfter' || key === 'returnTarget'
+        ? safeId(value || (key === 'returnTarget' ? 'root' : targetOption.gotoAfter || 'continue_' + targetOption.id))
+        : stringValue(value);
     });
   }
 
@@ -961,7 +1269,7 @@
     if (key === 'variable') {
       effect.variable = safeId(value);
     } else if (key === 'op') {
-      effect.op = stringValue(value || '+=');
+      effect.op = normalizeEffectOp(value || '+=');
     } else if (key === 'value') {
       effect.value = effectValue(value, effect.op);
     } else if (key === 'condition') {
@@ -1002,7 +1310,7 @@
 
   function parseEffect(value) {
     const text = stringValue(value).trim().replace(/^Q\./, '');
-    const match = text.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*(\+=|-=|\*=|\/=|=)\s*([\s\S]*)$/);
+    const match = text.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*(\+=|-=|=)\s*([\s\S]*)$/);
     if (!match) {
       return {variable: '', op: '+=', value: '', condition: ''};
     }
@@ -1056,9 +1364,9 @@
       text === 'event.intro' ||
       text === 'event.id' ||
       /^event\.(year|monthStart|monthEnd|requires|priority)$/.test(text) ||
-      /^event\.section\.\d+\.(body|title|condition)$/.test(text) ||
+      /^event\.section\.\d+\.(body|title|condition|exitTarget)$/.test(text) ||
       /^event\.effect\.\d+\.(variable|op|value|condition|hook)$/.test(text) ||
-      /^option\.\d+\.(label|subtitle|body|chooseIf|unavailableText|gotoAfter)$/.test(text) ||
+      /^option\.\d+\.(label|subtitle|body|chooseIf|unavailableText|gotoAfter|returnTarget)$/.test(text) ||
       /^option\.\d+\.effect\.\d+\.(variable|op|value|condition|hook)$/.test(text);
   }
 
@@ -1160,6 +1468,11 @@
       return Number(text);
     }
     return text;
+  }
+
+  function normalizeEffectOp(value) {
+    const op = stringValue(value || '+=').trim();
+    return op === '=' || op === '+=' || op === '-=' ? op : '+=';
   }
 
   function sourceRef(ref) {

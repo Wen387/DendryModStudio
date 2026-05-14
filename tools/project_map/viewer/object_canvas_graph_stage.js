@@ -156,7 +156,8 @@
   }
 
   function renderVariableRow(row) {
-    return '<article class="object-canvas-context-row"><strong>Q.' + escapeHtml(row.name || '') + '</strong><span>' + escapeHtml([row.readCount + ' ' + t('editing.reads', 'reads'), row.writeCount + ' ' + t('editing.writes', 'writes')].join(' / ')) + '</span></article>';
+    const action = row && row.createAction ? renderContextAction(row.createAction, 'variable-create-from-effect', t('objectCanvas.createVariable', 'Create variable')) : '';
+    return '<article class="object-canvas-context-row"><strong>Q.' + escapeHtml(row.name || '') + '</strong><span>' + escapeHtml([row.readCount + ' ' + t('editing.reads', 'reads'), row.writeCount + ' ' + t('editing.writes', 'writes')].join(' / ')) + '</span>' + action + '</article>';
   }
 
   function renderEffectRow(row) {
@@ -169,7 +170,12 @@
   }
 
   function renderBoundaryRow(row) {
-    return '<article class="object-canvas-context-row"><strong>' + escapeHtml(row.label || '') + '</strong><span>' + escapeHtml(row.reason || '') + '</span></article>';
+    const action = row && row.action ? renderContextAction(row.action, row.status === 'pending_profile_rule' ? 'profile-router-rule' : 'profile-router-registration', row.status === 'pending_profile_rule' ? t('objectCanvas.addRouterRule', 'Add router rule') : t('objectCanvas.openRouterRegistration', 'Open registration')) : '';
+    return '<article class="object-canvas-context-row"><strong>' + escapeHtml(row.label || '') + '</strong><span>' + escapeHtml(row.reason || '') + '</span>' + action + '</article>';
+  }
+
+  function renderContextAction(action, entry, label) {
+    return '<button type="button" class="object-canvas-context-action" data-workflow-entry="' + escapeAttr(entry || 'context-action') + '" data-visible-edit-action="' + escapeAttr(encodeAction(action)) + '" aria-label="' + escapeAttr(label || t('visibleEdit.action', 'Edit')) + '">' + escapeHtml(label || t('visibleEdit.action', 'Edit')) + '</button>';
   }
 
   function renderEventBody(body) {
@@ -383,6 +389,14 @@
 
   function escapeAttr(value) {
     return escapeHtml(value).replace(/`/g, '&#96;');
+  }
+
+  function encodeAction(action) {
+    try {
+      return JSON.stringify(action || {});
+    } catch (_err) {
+      return '{}';
+    }
   }
 
   function escapeHtml(value) {

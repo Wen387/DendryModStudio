@@ -480,7 +480,8 @@
         effects: ensureArray(value.effects),
         narrativeParagraphs: paragraphs(value.narrativeParagraphs || value.body || value.text || 'Describe the result of this choice.'),
         variants: ensureArray(value.variants),
-        gotoAfter: safeId(value.gotoAfter || 'continue_' + id)
+        gotoAfter: safeId(value.gotoAfter || 'continue_' + id),
+        returnTarget: safeId(value.returnTarget || value.afterResultTarget || 'root')
       };
     });
   }
@@ -744,6 +745,7 @@
       setString(data, next, 'option.' + index + '.chooseIf', 'chooseIf');
       setString(data, next, 'option.' + index + '.unavailableText', 'unavailableText');
       setString(data, next, 'option.' + index + '.gotoAfter', 'gotoAfter', safeId);
+      setString(data, next, 'option.' + index + '.returnTarget', 'returnTarget', safeId);
       if (has(data, 'option.' + index + '.body')) {
         next.narrativeParagraphs = paragraphs(data['option.' + index + '.body']);
       }
@@ -752,6 +754,9 @@
     });
     const sections = ensureArray(draft.sections).map((section, index) => {
       const next = clone(section);
+      setString(data, next, 'event.section.' + index + '.title', 'title');
+      setString(data, next, 'event.section.' + index + '.condition', 'condition');
+      setString(data, next, 'event.section.' + index + '.exitTarget', 'exitTarget', safeId);
       if (has(data, 'event.section.' + index + '.body')) {
         next.paragraphs = paragraphs(data['event.section.' + index + '.body']);
       }
@@ -1209,7 +1214,7 @@
       effects: effectRows(draft),
       assets: assetRows(draft),
       sourceEvidence: sourceRows(def, draft),
-      manualBoundaries: boundaryRows(def, draft)
+      manualBoundaries: boundaryRows(projectIndex, def, draft)
     };
   }
 
@@ -1252,7 +1257,14 @@
         readCount: Number(variable.readCount || 0),
         writeCount: Number(variable.writeCount || 0),
         tags: ensureArray(variable.tags).map(String),
-        status: existing.has(name) ? 'referenced' : 'new_or_missing'
+        status: existing.has(name) ? 'referenced' : 'new_or_missing',
+        createAction: existing.has(name) ? null : {
+          actionKind: 'open_variable_editor',
+          targetView: 'variables',
+          targetId: name,
+          variableName: name,
+          installSafety: 'guarded_apply'
+        }
       };
     });
   }
@@ -1330,12 +1342,38 @@
     return rows;
   }
 
-  function boundaryRows(def) {
+  function boundaryRows(projectIndex, def, draft) {
     if (def.objectKind === 'event') {
+      if (hasKnownEventRouterProfile(projectIndex)) {
+        return [{
+          label: 'Profile-aware router registration',
+          reason: 'Known Dendry-style profiles can register the monthly #event lane through Review & Apply.',
+          status: 'advanced_apply',
+          source: {path: 'source/scenes/post_event.scene.dry'},
+          action: {
+            actionKind: 'open_advanced_source_patch',
+            routeClass: 'news_router_workflow',
+            targetView: 'router',
+            targetId: draft && draft.id || '',
+            fieldId: 'router.registration',
+            installSafety: 'advanced_apply',
+            draftAction: true
+          }
+        }];
+      }
       return [{
         label: 'Router wiring',
-        reason: 'New events may still need project-specific router review.',
-        status: 'manual_review',
+        reason: 'No known profile router rule was found; router wiring remains a pending profile setup item.',
+        status: 'pending_profile_rule',
+        action: {
+          actionKind: 'open_profile_router_rule',
+          routeClass: 'profile_router_rule',
+          targetView: 'router',
+          targetId: draft && draft.id || '',
+          fieldId: 'router.registration',
+          installSafety: 'guarded_apply',
+          draftAction: true
+        },
         source: {}
       }];
     }
@@ -1345,6 +1383,20 @@
       status: 'manual_review',
       source: {}
     }];
+  }
+
+  function hasKnownEventRouterProfile(projectIndex) {
+    const ids = new Set();
+    const projectProfiles = projectIndex && projectIndex.project && Array.isArray(projectIndex.project.profileIds)
+      ? projectIndex.project.profileIds
+      : [];
+    projectProfiles.forEach((profile) => ids.add(String(profile || '').trim()));
+    ensureArray(projectIndex && projectIndex.profiles).forEach((profile) => {
+      if (profile && profile.id) {
+        ids.add(String(profile.id));
+      }
+    });
+    return ids.has('generic-dendry') || ids.has('sdaah-style');
   }
 
   function objectId(draft) {
@@ -1503,6 +1555,7 @@
     rows.forEach((effect, index) => {
       setString(data, effect, prefix + '.' + index + '.variable', 'variable', safeId);
       setString(data, effect, prefix + '.' + index + '.op', 'op');
+      effect.op = normalizeEffectOp(effect.op);
       if (has(data, prefix + '.' + index + '.value')) {
         effect.value = effectValue(data[prefix + '.' + index + '.value'], effect.op, effect.value);
       }
@@ -1511,7 +1564,7 @@
     });
     const addVariable = String(data && data[prefix + '.add.variable'] || '').trim();
     if (addVariable) {
-      const op = String(data[prefix + '.add.op'] || '+=').trim() || '+=';
+      const op = normalizeEffectOp(data[prefix + '.add.op'] || '+=');
       rows.push({
         variable: safeId(addVariable),
         op,
@@ -1521,6 +1574,11 @@
       });
     }
     return rows.filter((effect) => effect.variable);
+  }
+
+  function normalizeEffectOp(value) {
+    const op = String(value || '+=').trim();
+    return op === '=' || op === '+=' || op === '-=' ? op : '+=';
   }
 
   function effectValue(value, op, fallback) {

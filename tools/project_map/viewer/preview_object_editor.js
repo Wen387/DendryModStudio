@@ -961,9 +961,11 @@
         : renderEmpty(t('objectCanvas.noBodyFields', 'No player-facing body fields are available yet.')),
       renderChoiceEditor(options, 'event', body),
       renderFlowOverview(body.flow, model, 'editor'),
+      eventBuilderUi().renderEventGraphSummary(body.eventGraph),
+      eventBuilderUi().renderEventReadiness(body.readinessChecklist),
       renderBranchSectionEditor(branchSections, textOptions, body),
       renderLogicEditor(body, 'event'),
-      renderAssetReferenceEditor(body.assets),
+      eventBuilderUi().renderAssetReferenceEditor(body.assets),
       '</article>'
     ].join('');
   }
@@ -995,26 +997,6 @@
         '</article>'
       ].join('')).join(''),
       addBranch ? renderInlineAddAction(addBranch, body) : '',
-      '</section>'
-    ].join('');
-  }
-
-  function renderAssetReferenceEditor(assets) {
-    const rows = ensureArray(assets).filter((asset) => asset && (asset.path || asset.label || asset.name));
-    if (!rows.length) {
-      return '';
-    }
-    return [
-      '<section class="preview-object-assets" data-preview-object-assets="true">',
-      '<div class="preview-object-section-title">' + escapeHtml(t('previewObjectEditor.assets', 'Referenced assets')) + '</div>',
-      rows.map((asset) => [
-        '<article>',
-        '<strong>' + escapeHtml(asset.label || asset.name || asset.path || t('previewObjectEditor.asset', 'Asset')) + '</strong>',
-        asset.role || asset.type ? '<small>' + escapeHtml([asset.role, asset.type].filter(Boolean).join(' / ')) + '</small>' : '',
-        asset.path ? '<code>' + escapeHtml(asset.path) + '</code>' : '',
-        asset.referenceState && asset.referenceState.help ? '<small>' + escapeHtml(asset.referenceState.help) + '</small>' : '',
-        '</article>'
-      ].join('')).join(''),
       '</section>'
     ].join('');
   }
@@ -1414,7 +1396,7 @@
       ? t('previewObjectEditor.structureChoiceEffectTitle', 'New choice effect')
       : t('previewObjectEditor.structureTriggerEffectTitle', 'New trigger effect'), [
       builderInput('variable', t('previewObjectEditor.structureVariable', 'Variable'), draft.variable, 'public_order'),
-      builderSelect('operation', t('previewObjectEditor.structureOperation', 'Operation'), draft.op || '+=', ['=', '+=', '-=', '*=', '/=']),
+      builderSelect('operation', t('previewObjectEditor.structureOperation', 'Operation'), draft.op || '+=', ['=', '+=', '-=']),
       builderInput('value', t('previewObjectEditor.structureValue', 'Value'), draft.value, '1'),
       builderInput('condition', t('previewObjectEditor.structureConditionOptional', 'Condition (optional)'), draft.condition, 'Q.flag')
     ], body);
@@ -1446,10 +1428,10 @@
 
   function structureActionHelp(action) {
     return {
-      add_option: t('previewObjectEditor.structureHelpAddOption', 'Creates a manual-reviewed proposal for an option line and its result section.'),
-      add_branch: t('previewObjectEditor.structureHelpAddBranch', 'Creates a manual-reviewed proposal for a conditional or follow-up section.'),
-      add_trigger_effect: t('previewObjectEditor.structureHelpTriggerEffect', 'Creates a manual-reviewed Q effect that runs when this object opens.'),
-      add_option_effect: t('previewObjectEditor.structureHelpChoiceEffect', 'Creates a manual-reviewed Q effect for this choice or result.')
+      add_option: t('previewObjectEditor.structureHelpAddOption', 'Adds an option and result section to the current draft.'),
+      add_branch: t('previewObjectEditor.structureHelpAddBranch', 'Adds a conditional or follow-up section to the current draft.'),
+      add_trigger_effect: t('previewObjectEditor.structureHelpTriggerEffect', 'Adds a Q effect that runs when this object opens.'),
+      add_option_effect: t('previewObjectEditor.structureHelpChoiceEffect', 'Adds a Q effect for this choice or result.')
     }[String(action || '')] || '';
   }
 
@@ -1718,6 +1700,7 @@
       '<span class="preview-object-field-label" data-preview-object-field-label="true"' + title + '>',
       '<em>' + escapeHtml(t('previewObjectEditor.editorField', 'Editor field')) + '</em>',
       '<b>' + escapeHtml(label || '') + '</b>',
+      '<i class="visible-edit-affordance" data-visible-edit-affordance="object-canvas-preview">' + escapeHtml(t('visibleEdit.action', 'Edit')) + '</i>',
       '</span>'
     ].join('');
   }
@@ -2253,6 +2236,28 @@
 
   function safeClass(value) {
     return String(value || 'item').replace(/[^a-z0-9_-]+/gi, '-').toLowerCase();
+  }
+
+  function eventBuilderUi() {
+    if (global && global.ProjectMapPreviewObjectEventBuilder) {
+      return global.ProjectMapPreviewObjectEventBuilder;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./preview_object_event_builder_ui.js');
+      } catch (_err) {
+        return fallbackEventBuilderUi();
+      }
+    }
+    return fallbackEventBuilderUi();
+  }
+
+  function fallbackEventBuilderUi() {
+    return {
+      renderAssetReferenceEditor: () => '',
+      renderEventGraphSummary: () => '',
+      renderEventReadiness: () => ''
+    };
   }
 
   function t(key, fallback) {
