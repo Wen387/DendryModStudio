@@ -3,6 +3,11 @@
 
   const EVENT_WORKBENCH_VERSION = '0.1';
   const ID_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+  const PROTECTED_PATHS = new Set([
+    'source/scenes/root.scene.dry',
+    'source/scenes/post_event.scene.dry',
+    'source/scenes/post_event_news.scene.dry'
+  ]);
 
   function ensureArray(value) {
     return Array.isArray(value) ? value : [];
@@ -23,12 +28,12 @@
     const textRows = textRowsForScene(lookup, scene);
     const scriptRows = textRows.filter(isEffectScriptRow);
     const playerRows = textRows.filter((row) => !isEffectScriptRow(row));
-    const effectRows = effectsForScene(lookup, scene, scriptRows);
+    const effectRows = effectsForScene(lookup, scene, scriptRows).map((row) => effectEditActionRow(index, scene, row));
     const variables = variablesForScene(lookup, scene);
     const links = linksForScene(lookup, scene);
     const diagnostics = diagnosticsForScene(lookup, scene);
     const conditions = conditionCards(scene, playerRows, opts);
-    const eventOptions = optionRows(scene, playerRows, effectRows);
+    const eventOptions = optionRows(index, scene, playerRows, effectRows);
     const path = sourcePath(scene);
 
     return {
@@ -47,7 +52,7 @@
         linkCount: links.outgoing.length + links.incoming.length,
         textCount: playerRows.length
       },
-      playerText: playerRows.map(playerTextRow),
+      playerText: playerRows.map((row) => playerTextRow(row, index)),
       options: eventOptions,
       conditions,
       effects: effectRows,
@@ -195,9 +200,9 @@
     return /(?:^|[;\s])Q\.[A-Za-z_][A-Za-z0-9_]*\s*(?:[+\-*/]?=)/.test(text) && text.includes(';');
   }
 
-  function playerTextRow(row) {
+  function playerTextRow(row, projectIndex) {
     const owner = row.owner || {};
-    return {
+    const output = {
       id: row.id || '',
       role: String(row.role || 'text'),
       label: roleLabel(row.role),
@@ -214,6 +219,23 @@
       optionId: row.optionId || '',
       conditions: ensureArray(row.conditions)
     };
+    output.editAction = visibleEditAction(projectIndex, 'textCorpus', row, {
+      area: 'story',
+      objectType: objectTypeForTextRow(row),
+      role: output.role,
+      label: output.label || output.text,
+      safeEligible: true,
+      previewEligible: true
+    });
+    return output;
+  }
+
+  function objectTypeForTextRow(row) {
+    const owner = row && row.owner || {};
+    if (String(owner.sceneType || '').toLowerCase().includes('card')) {
+      return 'card';
+    }
+    return 'event_text';
   }
 
   function roleLabel(role) {
@@ -590,7 +612,7 @@
     return [year ? String(year.value) : '', months ? 'month ' + months : ''].filter(Boolean).join(' / ');
   }
 
-  function optionRows(scene, textRows, effects) {
+  function optionRows(projectIndex, scene, textRows, effects) {
     const sectionByTarget = new Map();
     ensureArray(scene.sections).forEach((section) => {
       const local = String(section.id || '').split('.').pop();
@@ -607,7 +629,7 @@
         return row.optionId === target || owner.sectionId === sectionId;
       }).filter((row) => !isEffectScriptRow(row));
       const sectionEffects = effects.filter((effect) => sectionId && effect.sectionId === sectionId);
-      return {
+      const output = {
         index,
         id: String(target || option.id || ('option_' + (index + 1))),
         label: String(option.title || ''),
@@ -616,10 +638,174 @@
         chooseIf: option.chooseIf || (section && section.chooseIf) || '',
         unavailableText: option.unavailableText || (section && section.unavailableSubtitle) || '',
         subtitle: section && section.subtitle || '',
-        text: sourceTexts.map(playerTextRow),
+        text: sourceTexts.map((row) => playerTextRow(row, projectIndex)),
         effects: sectionEffects
       };
+      const optionItem = {
+        id: output.id,
+        title: output.label,
+        text: output.label,
+        source: output.source || sourceTexts[0] && sourceTexts[0].source || null,
+        owner: {sceneId: String(scene.id || ''), sectionId, kind: 'scene', sceneType: scene.type || ''}
+      };
+      output.editAction = visibleEditAction(projectIndex, 'textCorpus', optionItem, {
+        area: 'story',
+        objectType: String(scene.type || '').toLowerCase().includes('card') ? 'card' : 'event_text',
+        role: 'option_label',
+        label: output.label || output.id,
+        safeEligible: true,
+        previewEligible: true
+      });
+      return output;
     });
+  }
+
+  function effectEditActionRow(projectIndex, scene, row) {
+    const output = Object.assign({}, row || {});
+    const expression = output.displayExpression || output.sourceExpression || effectLabelForAction(output);
+    output.editAction = visibleEditAction(projectIndex, 'structuredLogic', {
+      id: [scene && scene.id || '', 'effect', output.variable || '', sourceLine(output.source)].join(':'),
+      text: expression,
+      label: expression,
+      source: output.source || null,
+      owner: {sceneId: String(scene && scene.id || ''), sectionId: output.sectionId || '', kind: 'scene'}
+    }, {
+      area: 'story',
+      objectType: 'structured_logic',
+      role: 'effect',
+      label: expression,
+      safeEligible: true,
+      previewEligible: true
+    });
+    return output;
+  }
+
+  function effectLabelForAction(row) {
+    return [row && row.variable, row && row.op, row && row.value].filter(Boolean).join(' ');
+  }
+
+  function visibleEditAction(projectIndex, view, item, hints) {
+    const value = item || {};
+    const owner = value.owner || {};
+    const source = actionSource(value.source || value.sourceSpan || {});
+    const role = String(hints && hints.role || value.role || '');
+    const sceneId = String(owner.sceneId || value.sceneId || value.id || '');
+    const installSafety = safetyForActionSource(source);
+    const operationType = source.endLine && source.line && source.endLine !== source.line ? 'replace_section' : 'replace_text';
+    const protectedSource = installSafety === 'advanced_apply';
+    if (!source.path && view !== 'variables') {
+      return null;
+    }
+    if (view === 'structuredLogic') {
+      return sourceEditAction(value, hints, source, protectedSource, operationType);
+    }
+    if (view === 'textCorpus' && sceneId && !protectedSource && isSectionTextRole(role)) {
+      const scene = findSceneById(projectIndex, sceneId);
+      const targetView = scene && String(scene.type || '').toLowerCase().includes('card') || owner.sceneType === 'card' ? 'cards' : 'events';
+      return {
+        schemaVersion: '0.1',
+        kind: 'visible_edit_action',
+        actionKind: 'open_object_section',
+        routeClass: 'direct_section_replace',
+        targetView,
+        targetId: sceneId,
+        fieldId: String(owner.sectionId || value.sectionId || ''),
+        valueKey: 'block:' + String(owner.sectionId || value.sectionId || ''),
+        source,
+        installSafety: 'guarded_apply',
+        operationType: 'replace_section',
+        operationTemplate: null,
+        routeReason: 'Open the owning object editor for this visible section.',
+        target: {workspace: 'content', view: targetView, sceneId, source},
+        visibleContent: true
+      };
+    }
+    return sourceEditAction(value, hints, source, protectedSource, operationType);
+  }
+
+  function sourceEditAction(item, hints, source, protectedSource, operationType) {
+    return {
+      schemaVersion: '0.1',
+      kind: 'visible_edit_action',
+      actionKind: protectedSource ? 'open_advanced_source_patch' : 'open_source_slice',
+      routeClass: protectedSource ? 'advanced_source_patch' : 'source_slice_editor',
+      targetView: 'source_slice',
+      targetId: String(item && item.id || source.path || ''),
+      fieldId: String(hints && hints.role || ''),
+      valueKey: String(hints && hints.role || ''),
+      source,
+      installSafety: protectedSource ? 'advanced_apply' : 'guarded_apply',
+      operationType,
+      operationTemplate: {
+        type: operationType,
+        path: source.path,
+        line: source.line || null,
+        startLine: source.startLine || source.line || null,
+        endLine: source.endLine || source.line || null,
+        anchorText: source.anchorText || '',
+        endAnchorText: source.endAnchorText || '',
+        search: operationType === 'replace_text' ? source.anchorText || String(item && (item.text || item.label) || '') : '',
+        replace: '',
+        content: '',
+        safety: protectedSource ? 'advanced_apply' : 'guarded_apply',
+        description: 'Edit visible content from Event Workbench.'
+      },
+      routeReason: protectedSource
+        ? 'Protected visible content opens Precise Source Edit with advanced apply.'
+        : 'Visible content opens Precise Source Edit when a field route is not already known.',
+      target: {workspace: 'content', view: 'source_slice', source},
+      semanticEditor: semanticEditorForSourceAction(item, hints, source, protectedSource ? 'advanced_apply' : 'guarded_apply', operationType),
+      visibleContent: true
+    };
+  }
+
+  function semanticEditorForSourceAction(item, hints, source, installSafety, operationType) {
+    const role = String(hints && hints.role || item && item.role || '');
+    if (role !== 'route' && role !== 'condition' && role !== 'effect') {
+      return null;
+    }
+    const owner = item && item.owner || {};
+    const kind = role === 'effect' ? 'effect_clause' : 'route_order';
+    return {
+      schemaVersion: '0.1',
+      kind,
+      role,
+      sceneId: String(owner.sceneId || item && item.sceneId || ''),
+      fieldId: String(item && item.id || role || ''),
+      valueKey: String(item && item.id || role || ''),
+      label: String(hints && hints.label || item && (item.label || item.text || item.id) || ''),
+      source,
+      installSafety,
+      operationType,
+      editorRoute: kind === 'effect_clause' ? 'effect_clause_editor' : 'route_editor'
+    };
+  }
+
+  function isSectionTextRole(role) {
+    return ['body', 'conditional_body', 'subtitle', 'heading', 'title', 'news_description'].includes(String(role || ''));
+  }
+
+  function safetyForActionSource(source) {
+    const path = String(source && source.path || '');
+    return PROTECTED_PATHS.has(path) || path.indexOf('out/') === 0 ? 'advanced_apply' : 'guarded_apply';
+  }
+
+  function actionSource(source) {
+    const value = source || {};
+    const line = sourceLine(value);
+    const endLine = Number(value.endLine || value.line || value.startLine) || line || null;
+    return {
+      path: String(value.path || ''),
+      line: line || null,
+      startLine: Number(value.startLine || value.line) || line || null,
+      endLine,
+      anchorText: String(value.anchorText || ''),
+      endAnchorText: String(value.endAnchorText || value.anchorText || '')
+    };
+  }
+
+  function findSceneById(index, sceneId) {
+    return ensureArray(index && index.scenes).find((scene) => scene && String(scene.id || '') === String(sceneId || '')) || null;
   }
 
   function linksForScene(lookup, scene) {

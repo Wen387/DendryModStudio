@@ -6,11 +6,14 @@ from .text_corpus import extract_text_corpus
 from .assets import extract_assets
 from .election_results import extract_election_results
 from .runtime_surface import extract_runtime_surface
+from .semantic_evidence import build_parser_evidence
 
 def classify_semantics(root: Path, scenes: list[dict[str, Any]],
                        variables: list[dict[str, Any]],
                        selected_profiles: list[dict[str, Any]],
-                       post_event_summary: dict[str, Any] | None = None) -> dict[str, Any]:
+                       post_event_summary: dict[str, Any] | None = None,
+                       route_order_groups: list[dict[str, Any]] | None = None,
+                       dynamic_key_evidence: list[dict[str, Any]] | None = None) -> dict[str, Any]:
     events = []
     cards = []
     hands = []
@@ -108,6 +111,7 @@ def classify_semantics(root: Path, scenes: list[dict[str, Any]],
     text_corpus = extract_text_corpus(root, scenes, news, surface_text)
     election_results = extract_election_results(root, scenes)
     runtime_surface = extract_runtime_surface(root)
+    parser_evidence = build_parser_evidence(scenes, route_order_groups, dynamic_key_evidence, news, selected_profiles)
 
     return {
         "events": sorted(events, key=lambda item: item["id"]),
@@ -120,6 +124,7 @@ def classify_semantics(root: Path, scenes: list[dict[str, Any]],
         "textCorpus": text_corpus,
         "electionResults": election_results,
         "runtimeSurface": runtime_surface,
+        "parserEvidence": parser_evidence,
         "assets": extract_assets(root, scenes),
         "systems": [
             {"id": system_id, "label": system_id.replace("_", " ").title(), "members": sorted(members)}

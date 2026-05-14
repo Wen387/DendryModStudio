@@ -20,8 +20,10 @@ class VariableScanner:
         self.variables: dict[str, dict[str, Any]] = {}
         self.known_arrays: dict[str, list[str]] = {}
         self.diagnostics: list[dict[str, Any]] = []
+        self.dynamic_key_evidence: list[dict[str, Any]] = []
         self.opaque_js_blocks: Counter[str] = Counter()
         self._reported_dynamic: set[tuple[str, int, str]] = set()
+        self._reported_dynamic_evidence: set[tuple[str, int, str, str]] = set()
 
     def scan(self) -> tuple[list[dict[str, Any]], list[dict[str, Any]], dict[str, Any]]:
         source = self.root / "source"
@@ -203,19 +205,95 @@ class VariableScanner:
         out = [value for value in out if re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", value)]
         return out or None
 
-    def report_dynamic_uncertainty(self, rel: str, line: int, expr: str) -> None:
+    @staticmethod
+    def binding_sources_for_expr(expr: str, bindings: dict[str, list[str]]) -> list[dict[str, Any]]:
+        out = []
+        seen: set[str] = set()
+        without_literals = re.sub(r"'[^']*'|\"[^\"]*\"", "", expr)
+        for match in re.finditer(r"\b(?:Q\.)?([A-Za-z_][A-Za-z0-9_]*)\b", without_literals):
+            name = match.group(1)
+            if name in {"Q", "true", "false", "null", "undefined"} or name in seen:
+                continue
+            seen.add(name)
+            values = bindings.get(name)
+            out.append({
+                "name": name,
+                "kind": "known_array" if values else "unresolved_identifier",
+                "valueCount": len(values) if values else 0,
+                "sampleValues": values[:8] if values else [],
+            })
+        return out
+
+    def add_dynamic_key_evidence(self, rel: str, line: int, expr: str,
+                                 bindings: dict[str, list[str]], access_kind: str,
+                                 op: str = "", expanded_keys: list[str] | None = None,
+                                 manual: bool = False) -> None:
+        key = (rel, line, expr, access_kind)
+        if key in self._reported_dynamic_evidence:
+            return
+        self._reported_dynamic_evidence.add(key)
+        safe_expansion = bool(expanded_keys) and not manual
+        evidence_id = "dynamic_q_" + hashlib.sha1(
+            f"{rel}:{line}:{access_kind}:{op}:{expr}".encode("utf-8")
+        ).hexdigest()[:12]
+        self.dynamic_key_evidence.append({
+            "id": evidence_id,
+            "expression": expr,
+            "accessKind": access_kind,
+            "operator": op,
+            "classification": self.classify_dynamic_expr(expr),
+            "source": source_ref(rel, line),
+            "safeExpansion": safe_expansion,
+            "expandedKeys": expanded_keys or [],
+            "expandedKeyCount": len(expanded_keys or []),
+            "bindingSources": self.binding_sources_for_expr(expr, bindings),
+            "affectedVariables": expanded_keys or [],
+            "reviewBoundary": "guarded_candidate" if safe_expansion else "manual_review",
+            "installSafety": "guarded_candidate" if safe_expansion else "manual_review",
+            "reason": (
+                "Dynamic Q[] key was expanded from bounded local/static bindings."
+                if safe_expansion
+                else "Dynamic Q[] key could not be proven as a bounded static expansion."
+            ),
+            "confidence": CONF_STATIC if safe_expansion else CONF_OPAQUE,
+        })
+
+    def report_dynamic_uncertainty(self, rel: str, line: int, expr: str,
+                                   bindings: dict[str, list[str]], access_kind: str,
+                                   op: str = "") -> None:
         key = (rel, line, expr)
         if key in self._reported_dynamic:
             return
         self._reported_dynamic.add(key)
+        classification = self.classify_dynamic_expr(expr)
+        evidence_id = "dynamic_q_" + hashlib.sha1(
+            f"{rel}:{line}:{access_kind}:{op}:{expr}".encode("utf-8")
+        ).hexdigest()[:12]
+        self.add_dynamic_key_evidence(rel, line, expr, bindings, access_kind, op, [], manual=True)
         self.diagnostics.append({
             "severity": "info",
             "code": "project_map.dynamic_q_opaque",
             "message": f"Dynamic Q[] key could not be statically expanded: Q[{expr}]",
             "path": rel,
             "source": source_ref(rel, line),
+            "dynamicKeyEvidenceId": evidence_id,
+            "expression": expr,
+            "classification": classification,
+            "reviewBoundary": "manual_review",
+            "safeExpansion": False,
             "confidence": CONF_OPAQUE,
         })
+
+    @staticmethod
+    def classify_dynamic_expr(expr: str) -> str:
+        text = expr.strip()
+        if re.search(r"\[[^\]]+\]", text):
+            return "indexed_binding"
+        if "+" in text:
+            return "dynamic_concatenation"
+        if re.match(r"^(?:Q\.)?[A-Za-z_][A-Za-z0-9_]*$", text):
+            return "unresolved_identifier"
+        return "opaque_expression"
 
     def iter_js_blocks(self, rel: str, lines: list[str]) -> list[list[tuple[int, str]]]:
         blocks: list[list[tuple[int, str]]] = []
@@ -314,8 +392,9 @@ class VariableScanner:
                 dynamic_write_spans.append((match.start(), match.end()))
                 names = self.expand_dynamic_key(expr, bindings)
                 if not names:
-                    self.report_dynamic_uncertainty(rel, line_num, expr)
+                    self.report_dynamic_uncertainty(rel, line_num, expr, bindings, "write", op)
                     continue
+                self.add_dynamic_key_evidence(rel, line_num, expr, bindings, "write", op, names)
                 for name in names:
                     self.record_write(name, rel, line_num)
                     if op != "=":
@@ -329,7 +408,8 @@ class VariableScanner:
                 expr = match.group(1)
                 names = self.expand_dynamic_key(expr, bindings)
                 if not names:
-                    self.report_dynamic_uncertainty(rel, line_num, expr)
+                    self.report_dynamic_uncertainty(rel, line_num, expr, bindings, "read")
                     continue
+                self.add_dynamic_key_evidence(rel, line_num, expr, bindings, "read", "", names)
                 for name in names:
                     self.record_read(name, rel, line_num)
