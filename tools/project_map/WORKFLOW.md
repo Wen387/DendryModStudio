@@ -12,6 +12,29 @@ code in this repository.
 - `tools/project_map/templates/starter-demo/` is the bundled demo project for first-time users.
 - `studio_contract/` is the IslandSunrise compatibility contract fixture used to keep Studio parsing stable.
 
+## Maintainer Flow Map
+
+Use this path when orienting on current authoring work:
+
+1. Indexer/parser:
+   `build_project_map.py`, `parse_dry_project.js`, and `indexer/` build
+   ProjectIndex rows plus semantic evidence for text, routes, effects,
+   variables, runtime surfaces, and profile/router anchors.
+2. Authoring models:
+   `authoring/` converts that evidence into visible edit actions, semantic
+   logic editors, source-slice fallback proposals, Complex Event Builder drafts,
+   and install-plan operations.
+3. Renderer/entry surfaces:
+   `viewer/` renders Explore, Event Workbench, Card Board, Object Canvas,
+   Complex Event Builder, Source Slice, Semantic Logic, and Review & Apply.
+   If a feature has a model, it should have a rendered workflow entry.
+4. Review & Apply:
+   browser mode previews plans only; desktop mode can dry-run/apply safe,
+   guarded, or explicitly advanced operations.
+5. Desktop/runtime evidence:
+   `desktop/` owns native folder access, runtime preview copies, focused Runtime
+   Lens sessions, and verified dry-run/apply evidence.
+
 ## Safe Boundaries
 
 - Browser mode is review-only.

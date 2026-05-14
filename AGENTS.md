@@ -51,6 +51,15 @@ GitHub Actions builds Windows and Linux release artifacts through
 - Manual-review and refused operations must not be applied automatically.
 - Runtime Preview must use temporary baseline and modified copies, not the real
   project folder.
+- Review & Apply Runtime Preview needs baseline and modified builds for compare
+  mode; focused Runtime Lens full builds are modified-only because the lens page
+  never displays the baseline lane.
+- Runtime Lens evidence messages are meant to update the existing lens panel
+  without forcing a full Object Canvas rerender; rebuilding the iframe can
+  retrigger auto-focus and create preview focus loops.
+- Quick Runtime Lens reuses `out/html` only when the generated runtime is
+  complete. If referenced runtime scripts/styles are missing, it may fall back
+  to a temporary full build rather than loading an incomplete runtime.
 - Generated runtime output such as `out/html`, `out/game.json`, and `.git`
   stays protected from automatic edits.
 
@@ -59,6 +68,12 @@ GitHub Actions builds Windows and Linux release artifacts through
 - Do not commit `node_modules/`, `dist/`, `dist-builder/`, `.env*`, logs,
   private notes, SSH keys, access tokens, copied game projects, or local package
   artifacts.
+- Keep canvas and inspector controls covered by the lightweight interaction
+  contracts. Run `node tools/project_map/check_canvas_interaction_contracts.js`
+  after changing Design, Object Canvas, Content Storyboard, Runtime Lens, or
+  Review & Apply controls. This check guards against regressions where a button
+  exists but clicks are swallowed by canvas drag/pan handlers, details/summary
+  state is reset by rerendering, or zoom/collapse labels stop reflecting state.
 - Keep user-facing UI changes bilingual. Run
   `node tools/project_map/check_localization_surface.js` after changing visible
   Studio text.

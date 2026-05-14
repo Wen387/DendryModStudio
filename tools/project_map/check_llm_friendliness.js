@@ -37,6 +37,8 @@ const SPECIAL_THRESHOLDS = [
 const KNOWN_SPLIT_HINTS = new Map([
   ['tools/project_map/viewer/app.js', 'Split Explore model/list/inspector/edit-actions/assets into focused modules.'],
   ['tools/project_map/viewer/design_ui.js', 'Split graph rendering, inspector, filters, and pointer interactions.'],
+  ['tools/project_map/viewer/object_authoring_canvas_ui.js', 'Keep state/routing orchestration here; move editor UI into focused workspace modules.'],
+  ['tools/project_map/viewer/preview_object_editor.js', 'Keep reusable preview field rendering here; move Complex Event Builder and other domain sub-renderers into sibling modules.'],
   ['tools/project_map/viewer/wizard_ui.js', 'Avoid adding new wizard domains here; route new templates to dedicated UI modules.'],
   ['tools/project_map/viewer/styles.css', 'Keep as an import manifest; add new selectors to domain CSS files.'],
   ['tools/project_map/viewer/i18n.js', 'Keep as runtime only; add strings to language catalogs.'],
