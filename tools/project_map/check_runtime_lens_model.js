@@ -8,6 +8,7 @@ const path = require('path');
 const lensModel = require('./authoring/runtime_lens_model.js');
 const runtimeLens = require('./desktop/runtime_lens.js');
 const runtimePreview = require('./desktop/runtime_preview.js');
+const runtimeLensWorkspaceState = require('./viewer/runtime_lens_workspace_state.js');
 
 function fail(message) {
   process.stderr.write('FAIL: ' + message + '\n');
@@ -209,6 +210,42 @@ fs.mkdirSync(path.join(blockedRoot, 'source'), {recursive: true});
 fs.mkdirSync(path.join(blockedRoot, 'out', 'html'), {recursive: true});
 fs.writeFileSync(path.join(blockedRoot, 'source', 'info.dry'), 'title: Blocked Fixture\n', 'utf8');
 fs.writeFileSync(path.join(blockedRoot, 'out', 'html', 'index.html'), '<!doctype html><script src="core.js"></script>\n', 'utf8');
+const blockedQuickPreview = runtimePreview.createQuickRuntimePreview({
+  projectRoot: blockedRoot,
+  sessionsRoot,
+  serverFactory: runtimePreview.fakeServerFactory(48114),
+  now: () => new Date('2026-05-06T12:29:45.000Z')
+});
+assert(!blockedQuickPreview.ok, 'quick runtime reuse should fail when generated runtime dependencies are missing');
+assert(blockedQuickPreview.diagnostics.some((diag) => diag.code === 'runtime_surface.missing_script'), 'quick runtime reuse should report the missing generated dependency');
+const fallbackLens = runtimeLens.createRuntimeLens({
+  projectRoot: blockedRoot,
+  sessionsRoot,
+  projectIndex: {
+    scenes: [{id: 'root', title: 'Root'}],
+    semantic: {
+      runtimeSurface: {
+        readiness: {status: 'partial', quickPreviewReady: false, missingDependencyCount: 1},
+        diagnostics: [
+          {severity: 'error', code: 'runtime_surface.missing_script', message: 'Missing out/html/core.js', missingPath: 'out/html/core.js'}
+        ],
+        regions: []
+      }
+    }
+  },
+  focus: {kind: 'event', id: 'root'},
+  previewMode: 'quick',
+  buildRunner: htmlBuildRunner('runtime lens quick fallback build'),
+  serverFactory: runtimePreview.fakeServerFactory(48114),
+  now: () => new Date('2026-05-06T12:29:45.000Z')
+});
+assert(fallbackLens.ok, 'quick Runtime Lens should fall back to a temporary full build when generated runtime dependencies are missing: ' + JSON.stringify(fallbackLens));
+assert(fallbackLens.quickFallback && fallbackLens.quickFallback.from === 'quick', 'quick Runtime Lens fallback should preserve the blocked quick diagnostics');
+assert(fallbackLens.requestedPreviewMode === 'quick', 'quick Runtime Lens fallback should record the requested preview mode');
+assert(fallbackLens.previewMode === 'full', 'quick Runtime Lens fallback should return the full build preview mode');
+assert(!fallbackLens.baselineBuild, 'quick Runtime Lens fallback should use a modified-only full build');
+assert(fallbackLens.modifiedBuild && fallbackLens.modifiedBuild.command === 'runtime lens quick fallback build', 'quick Runtime Lens fallback should use the full build runner');
+assert(fallbackLens.diagnostics.some((diag) => diag.code === 'runtime_lens.quick_fallback_full_build'), 'quick Runtime Lens fallback should explain that it used a full build');
 const blockedLens = runtimeLens.createRuntimeLens({
   projectRoot: blockedRoot,
   sessionsRoot,
@@ -226,10 +263,11 @@ const blockedLens = runtimeLens.createRuntimeLens({
   },
   focus: {kind: 'event', id: 'root'},
   previewMode: 'quick',
-  serverFactory: runtimePreview.fakeServerFactory(48114),
-  now: () => new Date('2026-05-06T12:29:45.000Z')
+  allowQuickFallback: false,
+  serverFactory: runtimePreview.fakeServerFactory(48115),
+  now: () => new Date('2026-05-06T12:29:46.000Z')
 });
-assert(!blockedLens.ok, 'quick Runtime Lens should fail when generated runtime dependencies are missing');
+assert(!blockedLens.ok, 'quick Runtime Lens should still expose blocked status when fallback is disabled');
 assert(blockedLens.status === 'blocked', 'quick Runtime Lens should surface blocked runtime health status: ' + JSON.stringify(blockedLens));
 assert(blockedLens.runtimeSnapshot && blockedLens.runtimeSnapshot.status === 'blocked', 'blocked Runtime Lens should carry a runtimeSnapshot');
 assert(blockedLens.runtimeDomMap && blockedLens.runtimeDomMap.status === 'blocked', 'blocked Runtime Lens should carry a blocked runtimeDomMap');
@@ -237,6 +275,57 @@ assert(blockedLens.runtimeVisualSurface && blockedLens.runtimeVisualSurface.stat
 assert(blockedLens.lensModel.session.runtimeHealthStatus === 'blocked', 'blocked Runtime Lens model should expose blocked health');
 assert(blockedLens.lensModel.session.runtimeDomMapStatus === 'blocked', 'blocked Runtime Lens model should expose blocked DOM map status');
 assert(blockedLens.lensModel.session.runtimeVisualSurfaceStatus === 'blocked', 'blocked Runtime Lens model should expose blocked visual surface status');
+
+const evidenceState = {
+  runtimeLensSession: {ok: true, sessionId: 'evidence-session', status: 'ready'},
+  runtimeLensStatus: 'ready',
+  projectIndex: {semantic: {runtimeSurface: {regions: []}}}
+};
+let evidenceRenderCount = 0;
+let evidencePatchCount = 0;
+const evidenceHandled = runtimeLensWorkspaceState.handleEvidenceMessage(evidenceState, {
+  kind: 'dms-runtime-lens-session-evidence',
+  sessionId: 'evidence-session',
+  runtimeSnapshot: {
+    status: 'ready',
+    document: {bodyPresent: true},
+    summary: {indexedRegionCount: 1, visibleRegionCount: 1, choiceCount: 0},
+    regions: []
+  }
+}, {
+  render: () => {
+    evidenceRenderCount += 1;
+  },
+  renderRuntimeLensEvidence: () => {
+    evidencePatchCount += 1;
+    return true;
+  }
+});
+assert(evidenceHandled, 'Runtime Lens evidence message should be handled for the active session');
+assert(evidencePatchCount === 1, 'Runtime Lens evidence should use the targeted panel updater when available');
+assert(evidenceRenderCount === 0, 'Runtime Lens evidence should not force a full Object Canvas render when the targeted updater succeeds');
+
+const fallbackEvidenceState = {
+  runtimeLensSession: {ok: true, sessionId: 'fallback-evidence-session', status: 'ready'},
+  runtimeLensStatus: 'ready',
+  projectIndex: {semantic: {runtimeSurface: {regions: []}}}
+};
+let fallbackEvidenceRenderCount = 0;
+runtimeLensWorkspaceState.handleEvidenceMessage(fallbackEvidenceState, {
+  kind: 'dms-runtime-lens-session-evidence',
+  sessionId: 'fallback-evidence-session',
+  runtimeSnapshot: {
+    status: 'ready',
+    document: {bodyPresent: true},
+    summary: {indexedRegionCount: 1, visibleRegionCount: 1, choiceCount: 0},
+    regions: []
+  }
+}, {
+  render: () => {
+    fallbackEvidenceRenderCount += 1;
+  }
+});
+assert(fallbackEvidenceRenderCount === 1, 'Runtime Lens evidence should fall back to a full render when no targeted updater exists');
 
 const eventLens = runtimeLens.createRuntimeLens({
   projectRoot: sourceRoot,
@@ -253,6 +342,8 @@ assert(eventLens.kind === 'runtime_lens_session', 'Runtime Lens should return a 
 assert(eventLens.status === 'ready', 'Runtime Lens should report ready status');
 assert(eventLens.lensUrl.includes('/lens/'), 'Runtime Lens primary URL should point at the focused wrapper page');
 assert(eventLens.modifiedUrl.includes('/modified/out/html/'), 'Runtime Lens should retain the modified runtime URL');
+assert(!eventLens.baselineBuild, 'Runtime Lens full build should skip the unused baseline lane');
+assert(!eventLens.baselineUrl, 'Runtime Lens full build should not expose an unused baseline URL');
 assert(eventLens.externalUrl === eventLens.lensUrl, 'Runtime Lens external URL should default to the focused wrapper page');
 assert(fs.existsSync(eventLens.lensPagePath), 'Runtime Lens should write a focused wrapper page');
 const lensPageHtml = fs.readFileSync(eventLens.lensPagePath, 'utf8');

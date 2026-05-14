@@ -220,6 +220,7 @@
       '</div>',
       previewText ? '<div class="draft-workspace-item-preview">' + escapeHtml(previewText) + '</div>' : '',
       renderInstallSummary(item.installSummary),
+      renderInstallCue(item),
       renderWarnings(item.warnings),
       '</div>',
       '<div class="draft-workspace-item-actions">',
@@ -258,6 +259,13 @@
       rows.map((row) => '<span>' + escapeHtml(t(row[0], row[1])) + ' ' + numberLabel(row[2]) + '</span>').join(''),
       '</div>'
     ].join('');
+  }
+
+  function renderInstallCue(item) {
+    const text = item && item.installPlan
+      ? t('draftWorkspace.needsReviewCheck', 'Needs check in Review & Apply')
+      : t('draftWorkspace.noInstallPlanShort', 'No install plan');
+    return '<div class="draft-workspace-item-cue">' + escapeHtml(text) + '</div>';
   }
 
   function renderWarnings(warnings) {

@@ -70,6 +70,11 @@ const postEvent = read(path.join(QA_FIXTURE, 'source', 'scenes', 'post_event.sce
   'justice_party_template_mod',
   'runtime_preview_entry_flow',
   'dynamic_mod_smoke',
+  'complex_event_authoring_flow',
+  'event_graph_click_edit_flow',
+  'asset_picker_copy_review_flow',
+  'variable_create_from_event_flow',
+  'unknown_profile_router_rule_flow',
   'Runtime preview support is visible',
   'waitForGameText',
   'demo_support',
@@ -229,6 +234,6 @@ assert(
 
 process.stdout.write(JSON.stringify({
   ok: true,
-  scenarioCount: 8,
+  scenarioCount: 13,
   runner: path.relative(REPO, RUNNER)
 }, null, 2) + '\n');

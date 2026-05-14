@@ -217,6 +217,23 @@ assert(fs.readFileSync(path.join(applySession.paths.modifiedRoot, 'source', 'sce
 assert(fs.readFileSync(path.join(sourceRoot, 'source', 'scenes', 'status.scene.dry'), 'utf8') === 'Original label\n', 'real source project must remain unchanged after sandbox apply');
 assert(applySession.compareUrl.includes('127.0.0.1'), 'compareUrl should use localhost');
 
+const modifiedOnlySession = runtimePreview.createModifiedRuntimePreview({
+  projectRoot: sourceRoot,
+  sessionsRoot: sessionRoot,
+  plan: replacePlan,
+  dryRun: false,
+  buildRunner: htmlBuildRunner('modified-only html build runner'),
+  serverFactory: runtimePreview.fakeServerFactory(48003),
+  now: () => new Date('2026-04-29T12:06:00.000Z')
+});
+assert(modifiedOnlySession.ok, 'createModifiedRuntimePreview should succeed with only the modified lane: ' + JSON.stringify(modifiedOnlySession));
+assert(modifiedOnlySession.modifiedBuild && modifiedOnlySession.modifiedBuild.command === 'modified-only html build runner', 'modified-only preview should build the modified lane');
+assert(!modifiedOnlySession.baselineBuild, 'modified-only preview should not build a baseline lane');
+assert(!modifiedOnlySession.paths.baselineRoot, 'modified-only preview should not create a baseline project copy');
+assert(!modifiedOnlySession.compareUrl, 'modified-only preview should not expose a compare URL');
+assert(modifiedOnlySession.modifiedUrl.includes('/modified/out/html/'), 'modified-only preview should expose the modified runtime URL');
+assert(!modifiedOnlySession.timings.stages.some((item) => item.stage === 'build_baseline'), 'modified-only preview timings should omit baseline build work');
+
 const mismatchPreview = runtimePreview.createRuntimePreview({
   projectRoot: sourceRoot,
   sessionsRoot: sessionRoot,

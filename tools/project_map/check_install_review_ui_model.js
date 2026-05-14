@@ -82,7 +82,20 @@ const reviewHtml = reviewUi.renderPlanReview({
     ok: true,
     dryRun: true,
     results: [
-      {id: 'replace_intro', status: 'would_apply', path: 'source/scenes/events/opening.scene.dry'},
+      {
+        id: 'replace_intro',
+        status: 'would_apply',
+        path: 'source/scenes/events/opening.scene.dry',
+        evidence: {
+          status: 'would_apply',
+          match: 'matched_current_file',
+          line: 12,
+          beforeSnippet: 'Old player-facing sentence.',
+          afterSnippet: 'New player-facing sentence.',
+          beforeHash: '1234567890abcdef1234567890abcdef',
+          afterHash: 'abcdef1234567890abcdef1234567890'
+        }
+      },
       {id: 'create_scene', status: 'would_apply', path: 'source/scenes/events/new_event.scene.dry'},
       {id: 'manual_route', status: 'manual_review', path: 'source/scenes/main.scene.dry'}
     ],
@@ -98,6 +111,9 @@ assert(reviewHtml.includes('New player-facing sentence.'), 'review cards should 
 assert(reviewHtml.includes('line 12'), 'review cards should show source line context');
 assert(reviewHtml.includes('Check passed, not applied yet'), 'review cards should show dry-run status badges');
 assert(reviewHtml.includes('Manual snippet'), 'review cards should show manual snippets');
+assert(reviewHtml.includes('Current-file evidence'), 'review cards should render current-file evidence after dry-run');
+assert(reviewHtml.includes('matched_current_file'), 'review cards should show the evidence match status');
+assert(reviewHtml.includes('1234567890ab...'), 'review cards should shorten evidence hashes');
 
 const assistant = loadAssistant();
 const runtimeHtml = assistant.renderRuntimePreviewResult({

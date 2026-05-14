@@ -576,9 +576,72 @@
   overflow-wrap: anywhere;
 }
 
+.install-op-evidence {
+  display: grid;
+  gap: 6px;
+  padding: 7px;
+  border: 1px solid #c7d7c9;
+  border-radius: 5px;
+  background: #f4fbf5;
+}
+
+.install-op-evidence-title {
+  color: #2d6843;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.install-op-evidence dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 5px;
+  margin: 0;
+}
+
+.install-op-evidence dl div {
+  min-width: 0;
+}
+
+.install-op-evidence dt {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.install-op-evidence dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font: 11px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.install-op-evidence-snippets {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
 .install-human-none {
   color: var(--muted);
   font-size: 13px;
+}
+
+.install-diff-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 10px;
+}
+
+.install-diff-pane {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+}
+
+.install-diff-heading {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 .runtime-preview-report {

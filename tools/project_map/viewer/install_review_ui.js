@@ -65,6 +65,7 @@
     const where = operationWhere(operation, t);
     const result = renderResultBadge(item.result, t);
     const preview = renderOperationPreview(operation, t);
+    const evidence = renderEvidence(item.result, t);
     return [
       '<article class="install-human-op" data-install-operation-id="' + escapeAttr(operation.id || 'operation-' + item.index) + '">',
       '<div class="install-human-op-head">',
@@ -74,12 +75,57 @@
       where ? '<div class="install-human-where">' + escapeHtml(where) + '</div>' : '',
       reason ? '<p>' + escapeHtml(reason) + '</p>' : '',
       preview,
+      evidence,
       '<details>',
       '<summary>' + escapeHtml(t('install.human.advancedDetails', 'Advanced details')) + '</summary>',
       '<code>' + escapeHtml([operation.type || t('install.action.operation', 'operation'), operation.path || t('install.unknownPath', '(unknown path)')].join(' · ')) + '</code>',
       '</details>',
       '</article>'
     ].join('');
+  }
+
+  function renderEvidence(result, t) {
+    const evidence = result && result.evidence || null;
+    if (!evidence) {
+      return '';
+    }
+    const rows = [
+      [t('install.evidence.match', 'Match'), evidence.match || evidence.status || ''],
+      [t('install.evidence.line', 'Line'), evidenceLineLabel(evidence)],
+      [t('install.evidence.beforeHash', 'Before hash'), shortHash(evidence.beforeHash)],
+      [t('install.evidence.afterHash', 'After hash'), shortHash(evidence.afterHash)],
+      [t('install.evidence.sourceHash', 'Source hash'), shortHash(evidence.sourceHash)],
+      [t('install.evidence.targetHash', 'Target hash'), shortHash(evidence.targetHash)]
+    ].filter((row) => row[1]);
+    const snippets = [
+      evidence.beforeSnippet ? {label: t('install.evidence.current', 'Current file'), text: evidence.beforeSnippet} : null,
+      evidence.afterSnippet ? {label: t('install.evidence.proposed', 'Verified result'), text: evidence.afterSnippet} : null
+    ].filter(Boolean);
+    return [
+      '<div class="install-op-evidence">',
+      '<div class="install-op-evidence-title">' + escapeHtml(t('install.evidence.title', 'Current-file evidence')) + '</div>',
+      evidence.message ? '<p>' + escapeHtml(evidence.message) + '</p>' : '',
+      rows.length ? '<dl>' + rows.map((row) => '<div><dt>' + escapeHtml(row[0]) + '</dt><dd>' + escapeHtml(row[1]) + '</dd></div>').join('') + '</dl>' : '',
+      snippets.length ? '<div class="install-op-preview install-op-evidence-snippets">' + snippets.map((block) => [
+        '<div class="install-op-snippet">',
+        '<span>' + escapeHtml(block.label) + '</span>',
+        '<pre>' + escapeHtml(shortSnippet(block.text)) + '</pre>',
+        '</div>'
+      ].join('')).join('') + '</div>' : '',
+      '</div>'
+    ].join('');
+  }
+
+  function evidenceLineLabel(evidence) {
+    if (evidence.startLine && evidence.endLine && evidence.endLine !== evidence.startLine) {
+      return evidence.startLine + '-' + evidence.endLine;
+    }
+    return evidence.line || evidence.startLine || '';
+  }
+
+  function shortHash(value) {
+    const text = String(value || '');
+    return text.length > 16 ? text.slice(0, 12) + '...' : text;
   }
 
   function renderResultBadge(result, t) {

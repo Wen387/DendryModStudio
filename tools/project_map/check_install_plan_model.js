@@ -660,7 +660,8 @@ const protectedExistingSceneEditPlan = installPlan.existingSceneEditInstallPlan(
     after: 'POST_EVENT_CHANGED'
   }]
 });
-assert(protectedExistingSceneEditPlan.operations[0].safety === 'manual_review', 'existing scene edits should not guarded-replace protected routers');
+assert(protectedExistingSceneEditPlan.operations[0].safety === 'advanced_apply', 'existing scene edits should advanced-apply protected routers instead of manual snippets');
+assert(protectedExistingSceneEditPlan.operations[0].type === 'replace_text', 'protected existing scene edits should still generate an installable source operation');
 
 const advancedPlan = installPlan.buildInstallPlan({
   id: 'advanced_router_line',
@@ -853,6 +854,16 @@ assert(dryRun.operationSummary.manualReview === 0, 'surface dry-run summary shou
 assert(dryRun.results.some((result) => result.status === 'would_apply'), 'surface dry-run should report would_apply');
 assert(fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'status.scene.dry'), 'utf8').includes('資源'), 'dry-run must not mutate source');
 
+const evidenceDryRun = installPlan.applyInstallPlan(surfaceBundle.installPlan, {projectRoot: tmpRoot, dryRun: true, includeEvidence: true});
+assert(evidenceDryRun.ok, 'surface evidence dry-run should succeed: ' + JSON.stringify(evidenceDryRun));
+assert(evidenceDryRun.verifiedDiff && evidenceDryRun.verifiedDiff.includes('diff --git'), 'evidence dry-run should include a verified diff');
+assert(evidenceDryRun.changedFiles && evidenceDryRun.changedFiles[0].path === 'source/scenes/status.scene.dry', 'evidence dry-run should list changed files');
+assert(evidenceDryRun.results[0].evidence && evidenceDryRun.results[0].evidence.match === 'matched_current_file', 'dry-run result should include current-file match evidence');
+assert(evidenceDryRun.results[0].evidence.beforeHash && evidenceDryRun.results[0].evidence.afterHash, 'dry-run evidence should include before/after hashes');
+
+const compatibilityDryRun = installPlan.applyInstallPlan(surfaceBundle.installPlan, {projectRoot: tmpRoot, dryRun: true});
+assert(!Object.prototype.hasOwnProperty.call(compatibilityDryRun, 'verifiedDiff'), 'verified diff should remain optional unless includeEvidence is requested');
+
 const wrongRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dendry_install_plan_wrong_project_'));
 fs.mkdirSync(path.join(wrongRoot, 'source'), {recursive: true});
 fs.writeFileSync(path.join(wrongRoot, 'source', 'info.dry'), 'title: Wrong Fixture\n', 'utf8');
@@ -893,6 +904,11 @@ assert(humanStdout.includes('manual review: 0'), 'human CLI summary should count
 const applied = installPlan.applyInstallPlan(surfaceBundle.installPlan, {projectRoot: tmpRoot, dryRun: false});
 assert(applied.ok, 'surface apply should succeed: ' + JSON.stringify(applied));
 assert(fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'status.scene.dry'), 'utf8').includes('資金'), 'apply should replace source-backed label');
+
+const postApplyEvidence = installPlan.applyInstallPlan(surfaceBundle.installPlan, {projectRoot: tmpRoot, dryRun: true, includeEvidence: true});
+assert(postApplyEvidence.ok, 'post-apply verification should succeed: ' + JSON.stringify(postApplyEvidence));
+assert(postApplyEvidence.results[0].status === 'already_applied', 'post-apply verification should report already_applied');
+assert(postApplyEvidence.results[0].evidence && postApplyEvidence.results[0].evidence.match === 'replacement_already_present', 'post-apply verification should explain the replacement evidence');
 
 fs.rmSync(tmpRoot, {recursive: true, force: true});
 

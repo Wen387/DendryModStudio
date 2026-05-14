@@ -98,6 +98,46 @@ function createSession(options) {
   };
 }
 
+function createModifiedSession(options) {
+  const opts = isObject(options) ? options : {};
+  const timing = opts.timing || null;
+  const project = validateProjectRoot(opts.projectRoot);
+  if (!project.ok) {
+    return {ok: false, diagnostics: [diagnostic('error', 'runtime_preview.project_root', project.message)]};
+  }
+  const plan = isObject(opts.plan) ? opts.plan : {};
+  const now = typeof opts.now === 'function' ? opts.now() : new Date();
+  const stamp = now.toISOString().replace(/[-:.TZ]/g, '').slice(0, 14);
+  const sessionId = stamp + '-' + safeId(plan.id || plan.title || 'runtime-preview', 'runtime-preview');
+  const root = path.join(defaultSessionsRoot(opts), sessionId);
+  const modifiedRoot = path.join(root, 'modified');
+  fs.mkdirSync(root, {recursive: true});
+  const modifiedStarted = Date.now();
+  copyProject(project.root, modifiedRoot);
+  markTiming(timing, 'copy_modified_project', modifiedStarted);
+  const metadata = {
+    schemaVersion: '0.1',
+    kind: 'dendry_mod_studio_runtime_preview',
+    mode: 'full',
+    sessionId,
+    createdAt: now.toISOString(),
+    projectRoot: project.root,
+    planId: String(plan.id || ''),
+    title: String(plan.title || plan.id || 'Runtime Preview')
+  };
+  const metadataPath = path.join(root, 'metadata.json');
+  fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2) + '\n', 'utf8');
+  markTiming(timing, 'write_metadata');
+  return {
+    ok: true,
+    sessionId,
+    mode: 'full',
+    metadata,
+    paths: {root, modifiedRoot, metadataPath},
+    diagnostics: []
+  };
+}
+
 function createRuntimePreview(options) {
   const opts = isObject(options) ? options : {};
   const timing = createTiming();
@@ -155,6 +195,65 @@ function createRuntimePreview(options) {
     session,
     installResult,
     baselineBuild,
+    modifiedBuild,
+    server: serverResult,
+    opts,
+    timing
+  });
+}
+
+function createModifiedRuntimePreview(options) {
+  const opts = isObject(options) ? options : {};
+  const timing = createTiming();
+  const session = createModifiedSession(Object.assign({}, opts, {timing}));
+  if (!session.ok) {
+    return Object.assign({}, session, {timings: finishTiming(timing)});
+  }
+  const plan = isObject(opts.plan) ? opts.plan : {};
+  const provenance = installPlan.validateProjectProvenance
+    ? installPlan.validateProjectProvenance(plan.project, opts.projectRoot, path)
+    : {ok: true};
+  if (!provenance.ok) {
+    return Object.assign({}, session, {
+      ok: false,
+      diagnostics: session.diagnostics.concat(diagnostic('error', 'runtime_preview.project_mismatch', provenance.message)),
+      timings: finishTiming(timing)
+    });
+  }
+  const sandboxPlan = rewritePlanProjectRoot(plan, session.paths.modifiedRoot);
+  const applyStarted = Date.now();
+  const installResult = installPlan.applyInstallPlan(sandboxPlan, {
+    projectRoot: session.paths.modifiedRoot,
+    dryRun: opts.dryRun === true,
+    allowAdvanced: opts.allowAdvanced === true
+  });
+  markTiming(timing, 'apply_install_plan', applyStarted);
+  const buildRunner = typeof opts.buildRunner === 'function' ? opts.buildRunner : runBuild;
+  const buildMeta = {allowProjectBuildWrapper: opts.allowProjectBuildWrapper === true};
+  const modifiedBuildStarted = Date.now();
+  const modifiedBuild = buildRunner(session.paths.modifiedRoot, Object.assign({lane: 'modified'}, buildMeta));
+  markTiming(timing, 'build_modified', modifiedBuildStarted);
+  const serverFactory = typeof opts.serverFactory === 'function' ? opts.serverFactory : ensurePreviewServer;
+  const serverRoot = path.dirname(session.paths.root);
+  const serverStarted = Date.now();
+  const serverResult = serverFactory(serverRoot);
+  if (serverResult && typeof serverResult.then === 'function') {
+    return serverResult.then((server) => {
+      markTiming(timing, 'start_preview_server', serverStarted);
+      return finalizeModifiedRuntimePreview({
+        session,
+        installResult,
+        modifiedBuild,
+        server,
+        opts,
+        timing
+      });
+    });
+  }
+  markTiming(timing, 'start_preview_server', serverStarted);
+  return finalizeModifiedRuntimePreview({
+    session,
+    installResult,
     modifiedBuild,
     server: serverResult,
     opts,
@@ -288,6 +387,49 @@ function finalizeRuntimePreview(context) {
     server,
     compareUrl: baseUrl ? baseUrl + '/compare/' : '',
     baselineUrl: baseUrl ? baseUrl + '/baseline/out/html/' : '',
+    modifiedUrl: baseUrl ? baseUrl + '/modified/out/html/' : '',
+    diagnostics,
+    timings: finishTiming(context.timing)
+  });
+}
+
+function finalizeModifiedRuntimePreview(context) {
+  const session = context.session;
+  const installResult = context.installResult;
+  const modifiedBuild = context.modifiedBuild;
+  const opts = context.opts || {};
+  const server = isObject(context.server)
+    ? context.server
+    : {ok: false, diagnostics: [diagnostic('error', 'runtime_preview.server', 'Runtime preview server did not return a usable listener.')]};
+  const port = Number(server.port || 0);
+  const hasPort = Number.isFinite(port) && port > 0;
+  const baseUrl = hasPort
+    ? 'http://127.0.0.1:' + port + '/' + encodeURIComponent(session.sessionId)
+    : '';
+  const serverOrigin = hasPort ? 'http://127.0.0.1:' + port : '';
+  const debug = createDebugSession(session, {
+    projectIndex: opts.projectIndex,
+    modifiedBuild,
+    serverOrigin: opts.serverOrigin || serverOrigin
+  });
+  const diagnostics = session.diagnostics
+    .concat(installResult.diagnostics || [])
+    .concat(modifiedBuild.diagnostics || [])
+    .concat(debug.diagnostics || [])
+    .concat(server.diagnostics || []);
+  const previewOk = Boolean(modifiedBuild.ok && server.ok && hasPort);
+  return Object.assign({}, session, {
+    ok: previewOk,
+    mode: 'full',
+    previewMode: 'full',
+    installResult,
+    baselineBuild: null,
+    modifiedBuild,
+    debug,
+    comparePage: null,
+    server,
+    compareUrl: '',
+    baselineUrl: '',
     modifiedUrl: baseUrl ? baseUrl + '/modified/out/html/' : '',
     diagnostics,
     timings: finishTiming(context.timing)
@@ -1118,7 +1260,9 @@ function recordRuntimeSnapshot(sessionRoot, snapshot, options, now) {
 
 module.exports = {
   createSession,
+  createModifiedSession,
   createRuntimePreview,
+  createModifiedRuntimePreview,
   createQuickSession,
   createQuickRuntimePreview,
   copyProject,

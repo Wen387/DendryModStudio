@@ -804,6 +804,7 @@ function applyInstallPlan(options) {
   const projectRoot = options && options.projectRoot;
   const dryRun = !options || options.dryRun !== false;
   const allowAdvanced = options && options.allowAdvanced === true;
+  const includeEvidence = options && options.includeEvidence === true;
   if (!plan || typeof plan !== 'object') {
     return {
       ok: false,
@@ -818,7 +819,7 @@ function applyInstallPlan(options) {
       }]
     };
   }
-  const result = installPlan.applyInstallPlan(plan, {projectRoot, dryRun, allowAdvanced});
+  const result = installPlan.applyInstallPlan(plan, {projectRoot, dryRun, allowAdvanced, includeEvidence});
   return Object.assign({}, result, {
     operationChecklist: installPlan.renderOperationChecklist(plan)
   });

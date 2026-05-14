@@ -381,6 +381,7 @@ function runDraftWorkspaceUiSmoke(items) {
       t(key, fallback) {
         return {
           'draftWorkspace.noInstallPlanShort': 'No install plan',
+          'draftWorkspace.needsReviewCheck': 'Needs check in Review & Apply',
           'draftWorkspace.safeApply': 'Safe to apply',
           'draftWorkspace.guardedApply': 'Check then apply',
           'draftWorkspace.advancedApply': 'Advanced opt-in',
@@ -442,6 +443,7 @@ assert(uiSmoke.elements['draft-workspace-list'].children.length === 2, 'draft wo
 const noPlanCard = uiSmoke.elements['draft-workspace-list'].children[0];
 assert(noPlanCard.innerHTML.includes('draft-workspace-item-preview'), 'saved change card should render preview excerpt');
 assert(noPlanCard.innerHTML.includes('Needs manual router review'), 'saved change card should render warnings');
+assert(noPlanCard.innerHTML.includes('No install plan'), 'saved change without plan should explain that no install plan is available');
 const noPlanReview = noPlanCard.querySelector('[data-draft-action="review"]');
 assert(noPlanReview.disabled === true, 'saved change without install plan should disable Review');
 noPlanReview.click();
@@ -449,6 +451,7 @@ assert(uiSmoke.loadedPlan === null, 'disabled Review should not load an install 
 assert(uiSmoke.installClicks === 0, 'disabled Review should not switch to Install');
 
 const reviewableCard = uiSmoke.elements['draft-workspace-list'].children[1];
+assert(reviewableCard.innerHTML.includes('Needs check in Review'), 'saved change with install plan should explain that Review & Apply still needs a check');
 const reviewableReview = reviewableCard.querySelector('[data-draft-action="review"]');
 assert(reviewableReview.disabled === false, 'saved change with install plan should keep Review enabled');
 reviewableReview.click();

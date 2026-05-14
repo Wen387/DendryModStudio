@@ -204,6 +204,9 @@
     } else if (session.ok && state.runtimeLensStatus !== 'stale' && state.runtimeLensStatus !== 'building') {
       state.runtimeLensStatus = session.status || 'ready';
     }
+    if (deps && typeof deps.renderRuntimeLensEvidence === 'function' && deps.renderRuntimeLensEvidence(state) === true) {
+      return true;
+    }
     deps && deps.render && deps.render();
     return true;
   }

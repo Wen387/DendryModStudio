@@ -356,7 +356,8 @@ ipcMain.handle('dendry:install-plan-apply', async (_event, options) => {
     plan: options && options.plan,
     projectRoot,
     dryRun: !(options && options.dryRun === false),
-    allowAdvanced: options && options.allowAdvanced === true
+    allowAdvanced: options && options.allowAdvanced === true,
+    includeEvidence: options && options.includeEvidence === true
   });
 });
 

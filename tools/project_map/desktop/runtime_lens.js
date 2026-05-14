@@ -57,10 +57,7 @@ function createRuntimeLens(options) {
     projectIndex
   });
   const previewMode = normalizePreviewMode(opts.previewMode || opts.mode);
-  const previewFactory = previewMode === 'quick'
-    ? runtimePreview.createQuickRuntimePreview
-    : runtimePreview.createRuntimePreview;
-  const preview = previewFactory({
+  const previewOptions = {
     projectRoot: project.root,
     sessionsRoot: opts.sessionsRoot,
     plan,
@@ -71,16 +68,80 @@ function createRuntimeLens(options) {
     buildRunner: opts.buildRunner,
     serverFactory: opts.serverFactory,
     now: opts.now
-  });
+  };
+  const previewFactory = previewMode === 'quick'
+    ? runtimePreview.createQuickRuntimePreview
+    : runtimePreview.createModifiedRuntimePreview;
+  const preview = previewFactory(previewOptions);
 
   if (preview && typeof preview.then === 'function') {
-    return preview.then((result) => finalizeLens(result, {focus, projectIndex}));
+    return preview.then((result) => finalizePreviewResult(result, {
+      focus,
+      projectIndex,
+      previewMode,
+      previewOptions,
+      allowQuickFallback: opts.allowQuickFallback !== false
+    }));
   }
-  return finalizeLens(preview, {focus, projectIndex});
+  return finalizePreviewResult(preview, {
+    focus,
+    projectIndex,
+    previewMode,
+    previewOptions,
+    allowQuickFallback: opts.allowQuickFallback !== false
+  });
 }
 
 function normalizePreviewMode(value) {
   return String(value || '').toLowerCase() === 'quick' ? 'quick' : 'full';
+}
+
+function finalizePreviewResult(preview, context) {
+  const ctx = context || {};
+  if (ctx.previewMode === 'quick' && ctx.allowQuickFallback && shouldFallbackQuickPreview(preview)) {
+    const fallback = runtimePreview.createModifiedRuntimePreview(ctx.previewOptions || {});
+    if (fallback && typeof fallback.then === 'function') {
+      return fallback.then((result) => finalizeLens(annotateQuickFallback(result, preview), ctx));
+    }
+    return finalizeLens(annotateQuickFallback(fallback, preview), ctx);
+  }
+  return finalizeLens(preview, ctx);
+}
+
+function shouldFallbackQuickPreview(preview) {
+  const result = preview || {};
+  if (result.ok) {
+    return false;
+  }
+  return ensureArray(result.diagnostics).some((diag) => {
+    const code = String(diag && diag.code || '');
+    return code === 'runtime_preview.quick_html_missing' ||
+      code === 'runtime_surface.missing_script' ||
+      code === 'runtime_surface.missing_stylesheet' ||
+      code === 'runtime_surface.partial_runtime';
+  });
+}
+
+function annotateQuickFallback(fallback, quickPreview) {
+  const result = Object.assign({}, fallback || {});
+  const quickDiagnostics = ensureArray(quickPreview && quickPreview.diagnostics);
+  result.requestedPreviewMode = 'quick';
+  result.quickFallback = {
+    from: 'quick',
+    to: 'full',
+    diagnostics: quickDiagnostics
+  };
+  result.diagnostics = ensureArray(result.diagnostics);
+  if (result.ok) {
+    result.diagnostics = [diagnostic(
+      'info',
+      'runtime_lens.quick_fallback_full_build',
+      'Quick Runtime Lens found incomplete generated HTML and used a temporary full build instead.'
+    )].concat(result.diagnostics);
+  } else {
+    result.diagnostics = quickDiagnostics.concat(result.diagnostics);
+  }
+  return result;
 }
 
 function finalizeLens(preview, context) {
@@ -372,6 +433,10 @@ function safeId(value) {
 
 function diagnostic(severity, code, message) {
   return {severity, code, message, confidence: 'exact'};
+}
+
+function ensureArray(value) {
+  return Array.isArray(value) ? value : [];
 }
 
 function escapeHtml(value) {

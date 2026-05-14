@@ -477,7 +477,8 @@
     const after = String(value.after === undefined || value.after === null ? '' : value.after);
     const id = 'replace_existing_' + (index + 1);
     const label = String(value.label || value.role || 'field').trim();
-    if (value.operationType === 'insert_text' && existingSceneInsertCanGuard(value, path, line, after)) {
+    const advancedRequested = existingSceneAdvancedRequested(value);
+    if (!advancedRequested && value.operationType === 'insert_text' && existingSceneInsertCanGuard(value, path, line, after)) {
       return {
         id: 'insert_existing_' + (index + 1),
         type: 'insert_text',
@@ -492,7 +493,22 @@
         description: 'Insert existing ' + label + ' after confirming the source anchor and dedupe evidence still match.'
       };
     }
-    if (value.operationType !== 'manual_snippet' && existingSceneSectionCanGuard(value, path, line, endLine, after)) {
+    if (value.operationType === 'insert_text' && existingSceneInsertCanAdvanced(value, path, line, after)) {
+      return {
+        id: 'insert_existing_' + (index + 1),
+        type: 'insert_text',
+        path,
+        line,
+        anchorText: value.anchorText || source.anchorText,
+        content: after.endsWith('\n') ? after : after + '\n',
+        position: value.position === 'before' ? 'before' : 'after',
+        dedupeSearch: value.dedupeSearch || after.trim(),
+        safety: 'advanced_apply',
+        role: 'existing_scene.structure_insert',
+        description: 'Insert existing ' + label + ' through an advanced source-backed operation.'
+      };
+    }
+    if (!advancedRequested && value.operationType !== 'manual_snippet' && existingSceneSectionCanGuard(value, path, line, endLine, after)) {
       return {
         id,
         type: 'replace_section',
@@ -508,7 +524,23 @@
         description: 'Replace existing ' + label + ' section text after confirming exact source anchors still match.'
       };
     }
-    if (value.operationType !== 'manual_snippet' && existingSceneChangeCanGuard(path, line, source.endLine || source.line || source.startLine, before, after)) {
+    if (value.operationType !== 'manual_snippet' && existingSceneSectionCanAdvanced(value, path, line, endLine, after)) {
+      return {
+        id,
+        type: 'replace_section',
+        path,
+        anchorText: value.anchorText || source.anchorText,
+        endAnchorText: value.endAnchorText || source.endAnchorText,
+        content: after.endsWith('\n') ? after : after + '\n',
+        dedupeSearch: value.dedupeSearch || after.trim(),
+        startLine: value.startLine || line,
+        endLine: value.endLine || endLine,
+        safety: 'advanced_apply',
+        role: 'existing_scene.section_text',
+        description: 'Replace existing ' + label + ' section text through an advanced source-backed operation.'
+      };
+    }
+    if (!advancedRequested && value.operationType !== 'manual_snippet' && existingSceneChangeCanGuard(path, line, source.endLine || source.line || source.startLine, before, after)) {
       return {
         id,
         type: 'replace_text',
@@ -518,6 +550,18 @@
         replace: after,
         safety: 'guarded_apply',
         description: 'Replace existing ' + label + ' in the source scene after confirming the original line still matches.'
+      };
+    }
+    if (value.operationType !== 'manual_snippet' && existingSceneChangeCanAdvanced(path, line, source.endLine || source.line || source.startLine, before, after)) {
+      return {
+        id,
+        type: 'replace_text',
+        path,
+        line,
+        search: before,
+        replace: after,
+        safety: 'advanced_apply',
+        description: 'Replace existing ' + label + ' through an advanced source-backed operation.'
       };
     }
     return {
@@ -541,6 +585,12 @@
     };
   }
 
+  function existingSceneAdvancedRequested(change) {
+    const value = isObject(change) ? change : {};
+    const editability = String(value.editability || '');
+    return editability === 'advanced_source_patch' || editability === 'advanced_apply';
+  }
+
   function existingSceneChangeCanGuard(path, line, endLine, before, after) {
     const rel = String(path || '').replace(/\\/g, '/');
     const sourceLine = Number(line || 0);
@@ -549,6 +599,21 @@
       rel.startsWith('source/scenes/') &&
       rel.endsWith('.scene.dry') &&
       !isProtectedRouterPath(rel) &&
+      Number.isInteger(sourceLine) &&
+      sourceLine > 0 &&
+      (!Number.isInteger(sourceEndLine) || sourceEndLine <= 0 || sourceEndLine === sourceLine) &&
+      String(before || '').trim() &&
+      String(after || '').trim()
+    );
+  }
+
+  function existingSceneChangeCanAdvanced(path, line, endLine, before, after) {
+    const rel = String(path || '').replace(/\\/g, '/');
+    const sourceLine = Number(line || 0);
+    const sourceEndLine = Number(endLine || sourceLine || 0);
+    return Boolean(
+      rel.startsWith('source/scenes/') &&
+      rel.endsWith('.scene.dry') &&
       Number.isInteger(sourceLine) &&
       sourceLine > 0 &&
       (!Number.isInteger(sourceEndLine) || sourceEndLine <= 0 || sourceEndLine === sourceLine) &&
@@ -575,6 +640,23 @@
     );
   }
 
+  function existingSceneInsertCanAdvanced(change, path, line, after) {
+    const value = isObject(change) ? change : {};
+    const rel = String(path || '').replace(/\\/g, '/');
+    const sourceLine = Number(line || 0);
+    const anchor = String(value.anchorText || (value.source && value.source.anchorText) || '').trim();
+    const dedupe = String(value.dedupeSearch || after || '').trim();
+    return Boolean(
+      rel.startsWith('source/scenes/') &&
+      rel.endsWith('.scene.dry') &&
+      Number.isInteger(sourceLine) &&
+      sourceLine > 0 &&
+      anchor &&
+      dedupe &&
+      String(after || '').trim()
+    );
+  }
+
   function existingSceneSectionCanGuard(change, path, line, endLine, after) {
     const value = isObject(change) ? change : {};
     const rel = String(path || '').replace(/\\/g, '/');
@@ -591,6 +673,25 @@
       sourceEndLine >= sourceLine &&
       String(value.anchorText || '').trim() &&
       String(value.endAnchorText || '').trim() &&
+      String(after || '').trim()
+    );
+  }
+
+  function existingSceneSectionCanAdvanced(change, path, line, endLine, after) {
+    const value = isObject(change) ? change : {};
+    const rel = String(path || '').replace(/\\/g, '/');
+    const sourceLine = Number(line || 0);
+    const sourceEndLine = Number(endLine || 0);
+    return Boolean(
+      value.operationType === 'replace_section' &&
+      rel.startsWith('source/scenes/') &&
+      rel.endsWith('.scene.dry') &&
+      Number.isInteger(sourceLine) &&
+      sourceLine > 0 &&
+      Number.isInteger(sourceEndLine) &&
+      sourceEndLine >= sourceLine &&
+      String(value.anchorText || (value.source && value.source.anchorText) || '').trim() &&
+      String(value.endAnchorText || (value.source && value.source.endAnchorText) || '').trim() &&
       String(after || '').trim()
     );
   }
@@ -906,17 +1007,18 @@
 
   function applyInstallPlan(plan, options) {
     const node = nodeModules();
+    const opts = isObject(options) ? options : {};
+    const includeEvidence = opts.includeEvidence === true;
     if (!node) {
-      return {
+      return finalizeApplyResult({
         ok: false,
         dryRun: Boolean(options && options.dryRun !== false),
         results: [],
         diagnostics: [diagnostic('error', 'install_plan.node_only', 'Applying install plans requires Node.js filesystem access.')]
-      };
+      }, includeEvidence);
     }
     const fs = node.fs;
     const path = node.path;
-    const opts = isObject(options) ? options : {};
     const dryRun = opts.dryRun !== false;
     const allowAdvanced = opts.allowAdvanced === true;
     const projectRoot = opts.projectRoot ? path.resolve(String(opts.projectRoot)) : '';
@@ -927,70 +1029,142 @@
 
     if (!projectRoot) {
       diagnostics.push(diagnostic('error', 'install_plan.project_root', 'projectRoot is required.'));
-      return {ok: false, dryRun, operationSummary: summary, results, diagnostics};
+      return finalizeApplyResult({ok: false, dryRun, operationSummary: summary, results, diagnostics}, includeEvidence);
     }
     if (!fs.existsSync(path.join(projectRoot, 'source', 'info.dry'))) {
       diagnostics.push(diagnostic('error', 'install_plan.project_root', 'source/info.dry was not found under projectRoot.'));
-      return {ok: false, dryRun, operationSummary: summary, results, diagnostics};
+      return finalizeApplyResult({ok: false, dryRun, operationSummary: summary, results, diagnostics}, includeEvidence);
     }
     const provenanceCheck = validateProjectProvenance(plan && plan.project, projectRoot, path);
     if (!provenanceCheck.ok) {
       diagnostics.push(diagnostic('error', 'install_plan.project_mismatch', provenanceCheck.message));
-      return {ok: false, dryRun, operationSummary: summary, results, diagnostics};
+      return finalizeApplyResult({ok: false, dryRun, operationSummary: summary, results, diagnostics}, includeEvidence);
     }
 
     operations.forEach((operation) => {
       if (!APPLY_STATUSES.has(operation.safety)) {
-        results.push({id: operation.id, type: operation.type, path: operation.path, status: 'manual_review'});
+        results.push(withOperationEvidence(
+          {id: operation.id, type: operation.type, path: operation.path, status: 'manual_review'},
+          includeEvidence,
+          operation,
+          manualOperationEvidence(operation, 'manual_review', 'This operation requires manual review before source changes.')
+        ));
         return;
       }
       if (operation.safety === 'advanced_apply' && !allowAdvanced) {
-        results.push({id: operation.id, type: operation.type, path: operation.path, status: 'advanced_review'});
+        results.push(withOperationEvidence(
+          {id: operation.id, type: operation.type, path: operation.path, status: 'advanced_review'},
+          includeEvidence,
+          operation,
+          manualOperationEvidence(operation, 'advanced_review', 'This operation needs explicit advanced opt-in.')
+        ));
         return;
       }
       const target = resolveSafeTarget(projectRoot, operation.path, path);
       if (!target.ok) {
         diagnostics.push(diagnostic('error', 'install_plan.unsafe_path', target.message, operation));
-        results.push({id: operation.id, type: operation.type, path: operation.path, status: 'failed'});
+        results.push(withOperationEvidence(
+          {id: operation.id, type: operation.type, path: operation.path, status: 'failed'},
+          includeEvidence,
+          operation,
+          failedOperationEvidence(operation, 'unsafe_path', target.message)
+        ));
         return;
       }
       const permission = operationPermission(operation, target.relative, operation.safety);
       if (!permission.ok) {
         diagnostics.push(diagnostic('error', 'install_plan.unsafe_path', permission.message, operation));
-        results.push({id: operation.id, type: operation.type, path: operation.path, status: 'failed'});
+        results.push(withOperationEvidence(
+          {id: operation.id, type: operation.type, path: operation.path, status: 'failed'},
+          includeEvidence,
+          operation,
+          failedOperationEvidence(operation, 'refused', permission.message)
+        ));
         return;
       }
       if (operation.type === 'create_file') {
-        results.push(applyCreateFile(fs, path, target.path, operation, dryRun, diagnostics));
+        results.push(applyCreateFile(fs, path, node.crypto, target.path, operation, dryRun, diagnostics, includeEvidence));
         return;
       }
       if (operation.type === 'replace_text') {
-        results.push(applyReplaceText(fs, target.path, operation, dryRun, diagnostics));
+        results.push(applyReplaceText(fs, node.crypto, target.path, operation, dryRun, diagnostics, includeEvidence));
         return;
       }
       if (operation.type === 'insert_text') {
-        results.push(applyInsertText(fs, target.path, operation, dryRun, diagnostics));
+        results.push(applyInsertText(fs, node.crypto, target.path, operation, dryRun, diagnostics, includeEvidence));
         return;
       }
       if (operation.type === 'replace_section') {
-        results.push(applyReplaceSection(fs, target.path, operation, dryRun, diagnostics));
+        results.push(applyReplaceSection(fs, node.crypto, target.path, operation, dryRun, diagnostics, includeEvidence));
         return;
       }
       if (operation.type === 'copy_asset_file') {
-        results.push(applyCopyAssetFile(fs, path, node.crypto, target.path, operation, dryRun, diagnostics));
+        results.push(applyCopyAssetFile(fs, path, node.crypto, target.path, operation, dryRun, diagnostics, includeEvidence));
         return;
       }
       diagnostics.push(diagnostic('error', 'install_plan.unsupported_operation', 'Unsupported safe operation: ' + operation.type, operation));
-      results.push({id: operation.id, type: operation.type, path: operation.path, status: 'failed'});
+      results.push(withOperationEvidence(
+        {id: operation.id, type: operation.type, path: operation.path, status: 'failed'},
+        includeEvidence,
+        operation,
+        failedOperationEvidence(operation, 'unsupported_operation', 'Unsupported safe operation: ' + operation.type)
+      ));
     });
 
-    return {
+    return finalizeApplyResult({
       ok: diagnostics.every((item) => item.severity !== 'error'),
       dryRun,
+      allowAdvanced,
       operationSummary: summary,
       results,
       diagnostics
+    }, includeEvidence);
+  }
+
+  function finalizeApplyResult(result, includeEvidence) {
+    if (!includeEvidence) {
+      return result;
+    }
+    const rows = ensureArray(result.results);
+    const verifiedDiff = rows
+      .map((row) => row && row.evidence && row.evidence.diff ? row.evidence.diff : '')
+      .filter(Boolean)
+      .join('\n');
+    return Object.assign({}, result, {
+      verifiedDiff,
+      changedFiles: rows.map(changedFileForResult).filter(Boolean)
+    });
+  }
+
+  function changedFileForResult(result) {
+    if (!result || !result.path) {
+      return null;
+    }
+    const evidence = result.evidence || {};
+    return {
+      operationId: result.id || '',
+      type: result.type || '',
+      path: result.path || '',
+      status: result.status || '',
+      evidenceStatus: evidence.status || '',
+      match: evidence.match || '',
+      line: evidence.line || null,
+      startLine: evidence.startLine || null,
+      endLine: evidence.endLine || null
     };
+  }
+
+  function withOperationEvidence(result, includeEvidence, operation, evidence) {
+    if (!includeEvidence) {
+      return result;
+    }
+    return Object.assign({}, result, {
+      evidence: normalizeEvidence(Object.assign({
+        operationId: operation && operation.id || '',
+        type: operation && operation.type || '',
+        path: operation && operation.path || ''
+      }, evidence || {}))
+    });
   }
 
   function nodeModules() {
@@ -1119,6 +1293,19 @@
       return {ok: false, message: 'Operation path is manual-review only: ' + rel};
     }
     if (rel === 'source/info.dry') {
+      if (safety === 'advanced_apply' && operation.type === 'replace_text' && operation.line) {
+        return {ok: true, message: 'Advanced project metadata replacement is allowed with exact line evidence.'};
+      }
+      if (
+        safety === 'advanced_apply' &&
+        operation.type === 'replace_section' &&
+        operation.anchorText &&
+        operation.endAnchorText &&
+        operation.content &&
+        operation.dedupeSearch
+      ) {
+        return {ok: true, message: 'Advanced project metadata section replacement is allowed with exact anchors.'};
+      }
       if (operation.type === 'replace_text' && safety === 'guarded_apply' && isProjectMetadataReplace(operation)) {
         return {ok: true, message: 'Guarded project metadata replacement is allowed with exact info.dry line evidence.'};
       }
@@ -1150,10 +1337,13 @@
     }
     if (operation.type === 'replace_text') {
       if (safety === 'advanced_apply') {
-        if (isProtectedRouterPath(rel) && operation.line) {
-          return {ok: true, message: 'Advanced replace_text is allowed only with exact line evidence.'};
+        if (rel.startsWith('source/scenes/') && rel.endsWith('.scene.dry') && operation.line) {
+          return {ok: true, message: 'Advanced scene replace_text is allowed with exact line evidence.'};
         }
-        return {ok: false, message: 'advanced replace_text requires a protected known file and exact line evidence: ' + rel};
+        if (rel.startsWith('source/qdisplays/') && rel.endsWith('.qdisplay.dry') && operation.line) {
+          return {ok: true, message: 'Advanced qdisplay replace_text is allowed with exact line evidence.'};
+        }
+        return {ok: false, message: 'advanced replace_text requires source-backed exact line evidence: ' + rel};
       }
       if (safety === 'guarded_apply') {
         if (rel.startsWith('source/scenes/') && rel.endsWith('.scene.dry') && !isProtectedRouterPath(rel)) {
@@ -1173,12 +1363,33 @@
       return {ok: false, message: 'replace_text safe apply is limited to source-backed surface text files: ' + rel};
     }
     if (operation.type === 'insert_text') {
+      if (
+        safety === 'advanced_apply' &&
+        rel.startsWith('source/scenes/') &&
+        rel.endsWith('.scene.dry') &&
+        operation.anchorText &&
+        operation.content &&
+        operation.dedupeSearch
+      ) {
+        return {ok: true, message: 'Advanced source insert is allowed with an exact anchor and dedupe evidence.'};
+      }
       if (safety === 'guarded_apply' && rel.startsWith('source/scenes/') && rel.endsWith('.scene.dry') && operation.anchorText && operation.dedupeSearch) {
         return {ok: true, message: 'Guarded source insert with anchor and dedupe evidence.'};
       }
       return {ok: false, message: 'insert_text requires guarded source scene evidence: ' + rel};
     }
     if (operation.type === 'replace_section') {
+      if (
+        safety === 'advanced_apply' &&
+        rel.startsWith('source/scenes/') &&
+        rel.endsWith('.scene.dry') &&
+        operation.anchorText &&
+        operation.endAnchorText &&
+        operation.content &&
+        operation.dedupeSearch
+      ) {
+        return {ok: true, message: 'Advanced source section replacement with exact start/end anchors and dedupe evidence.'};
+      }
       if (
         safety === 'guarded_apply' &&
         rel.startsWith('source/scenes/') &&
@@ -1247,118 +1458,471 @@
     return !isProtectedRouterPath(rel);
   }
 
-  function applyCreateFile(fs, path, target, operation, dryRun, diagnostics) {
+  function normalizeEvidence(evidence) {
+    const value = isObject(evidence) ? evidence : {};
+    const normalized = {
+      operationId: String(value.operationId || ''),
+      type: String(value.type || ''),
+      path: String(value.path || ''),
+      status: String(value.status || ''),
+      match: String(value.match || ''),
+      message: String(value.message || ''),
+      line: numberOrNull(value.line),
+      startLine: numberOrNull(value.startLine),
+      endLine: numberOrNull(value.endLine),
+      beforeSnippet: truncateEvidence(value.beforeSnippet),
+      afterSnippet: truncateEvidence(value.afterSnippet),
+      beforeHash: String(value.beforeHash || ''),
+      afterHash: String(value.afterHash || ''),
+      sourceHash: String(value.sourceHash || ''),
+      targetHash: String(value.targetHash || ''),
+      diff: String(value.diff || '')
+    };
+    Object.keys(normalized).forEach((key) => {
+      if (normalized[key] === '' || normalized[key] === null) {
+        delete normalized[key];
+      }
+    });
+    return normalized;
+  }
+
+  function textOperationEvidence(operation, status, beforeText, afterText, details) {
+    const info = isObject(details) ? details : {};
+    return {
+      status,
+      match: info.match || status,
+      message: info.message || evidenceMessage(status),
+      line: info.line || operation.line || null,
+      startLine: info.startLine || operation.startLine || null,
+      endLine: info.endLine || operation.endLine || null,
+      beforeSnippet: info.beforeSnippet !== undefined ? info.beforeSnippet : '',
+      afterSnippet: info.afterSnippet !== undefined ? info.afterSnippet : '',
+      beforeHash: info.beforeHash || '',
+      afterHash: info.afterHash || '',
+      diff: info.diff || ''
+    };
+  }
+
+  function manualOperationEvidence(operation, status, message) {
+    return {
+      status,
+      match: status,
+      message,
+      beforeSnippet: operation.search || operation.anchorText || '',
+      afterSnippet: operation.replace || operation.content || ''
+    };
+  }
+
+  function failedOperationEvidence(operation, match, message) {
+    return {
+      status: 'failed',
+      match,
+      message,
+      beforeSnippet: operation.search || operation.anchorText || '',
+      afterSnippet: operation.replace || operation.content || ''
+    };
+  }
+
+  function assetOperationEvidence(operation, status, details) {
+    const info = isObject(details) ? details : {};
+    return {
+      status,
+      match: info.match || status,
+      message: info.message || evidenceMessage(status),
+      sourceHash: info.sourceHash || '',
+      targetHash: info.targetHash || '',
+      beforeSnippet: operation.sourceName || '',
+      afterSnippet: operation.path || '',
+      diff: info.diff || ''
+    };
+  }
+
+  function evidenceMessage(status) {
+    if (status === 'would_apply') {
+      return 'Dry-run verified this operation against the current file.';
+    }
+    if (status === 'applied') {
+      return 'Applied this operation after verifying the current file.';
+    }
+    if (status === 'already_applied') {
+      return 'The current file already contains this proposed result.';
+    }
+    if (status === 'manual_review') {
+      return 'This operation remains manual review only.';
+    }
+    if (status === 'advanced_review') {
+      return 'This operation needs advanced opt-in before apply.';
+    }
+    if (status === 'failed') {
+      return 'This operation could not be verified against the current file.';
+    }
+    return status || '';
+  }
+
+  function renderVerifiedDiff(operation, beforeSnippet, afterSnippet, options) {
+    const opts = isObject(options) ? options : {};
+    const pathLabel = operation.path || '(unknown-path)';
+    const header = [
+      'diff --git a/' + pathLabel + ' b/' + pathLabel
+    ];
+    if (opts.newFile || opts.asset) {
+      header.push('--- /dev/null');
+    } else {
+      header.push('--- a/' + pathLabel);
+    }
+    header.push('+++ b/' + pathLabel);
+    header.push('@@ current file evidence' + evidenceLineLabel(opts, operation));
+    if (opts.asset) {
+      return header.concat([
+        '+# source: ' + (operation.sourceName || '(selected local asset)'),
+        '+# target: ' + pathLabel,
+        '+# ' + (operation.description || 'Copy asset file into the project.')
+      ]).join('\n') + '\n';
+    }
+    const before = String(beforeSnippet || '');
+    const after = String(afterSnippet || '');
+    const body = [];
+    if (before) {
+      body.push(prefixLines('-', before));
+    }
+    if (after) {
+      body.push(prefixLines('+', after));
+    }
+    return header.concat(body.length ? body : [' # no text diff']).join('\n') + '\n';
+  }
+
+  function evidenceLineLabel(details, operation) {
+    const start = details.startLine || details.line || operation.startLine || operation.line || null;
+    const end = details.endLine || operation.endLine || null;
+    if (start && end && end !== start) {
+      return ' lines ' + start + '-' + end;
+    }
+    if (start) {
+      return ' line ' + start;
+    }
+    return '';
+  }
+
+  function firstLines(text, limit) {
+    return contentLines(text).slice(0, limit || 8).join('\n');
+  }
+
+  function truncateEvidence(value) {
+    const text = String(value || '');
+    if (text.length <= 4000) {
+      return text;
+    }
+    return text.slice(0, 3980).trimEnd() + '\n...';
+  }
+
+  function applyCreateFile(fs, path, crypto, target, operation, dryRun, diagnostics, includeEvidence) {
     if (fs.existsSync(target)) {
       const existing = fs.readFileSync(target, 'utf8');
       if (existing === (operation.content || '')) {
-        return {id: operation.id, type: operation.type, path: operation.path, status: 'already_applied'};
+        return withOperationEvidence(
+          {id: operation.id, type: operation.type, path: operation.path, status: 'already_applied'},
+          includeEvidence,
+          operation,
+          textOperationEvidence(operation, 'already_applied', existing, existing, {
+            match: 'target_file_already_matches',
+            afterSnippet: operation.content || '',
+            afterHash: hashText(crypto, existing)
+          })
+        );
       }
       diagnostics.push(diagnostic('error', 'install_plan.create_exists', 'Target file already exists with different content: ' + operation.path, operation));
-      return {id: operation.id, type: operation.type, path: operation.path, status: 'failed'};
+      return withOperationEvidence(
+        {id: operation.id, type: operation.type, path: operation.path, status: 'failed'},
+        includeEvidence,
+        operation,
+        textOperationEvidence(operation, 'failed', existing, operation.content || '', {
+          match: 'target_exists_with_different_content',
+          message: 'Target file already exists with different content.',
+          beforeSnippet: firstLines(existing, 8),
+          afterSnippet: operation.content || '',
+          beforeHash: hashText(crypto, existing),
+          afterHash: hashText(crypto, operation.content || '')
+        })
+      );
     }
     if (!dryRun) {
       fs.mkdirSync(path.dirname(target), {recursive: true});
       fs.writeFileSync(target, operation.content || '', 'utf8');
     }
-    return {id: operation.id, type: operation.type, path: operation.path, status: dryRun ? 'would_apply' : 'applied'};
+    const status = dryRun ? 'would_apply' : 'applied';
+    return withOperationEvidence(
+      {id: operation.id, type: operation.type, path: operation.path, status},
+      includeEvidence,
+      operation,
+      textOperationEvidence(operation, status, '', operation.content || '', {
+        match: 'target_file_missing',
+        message: dryRun ? 'Dry-run verified that this new file can be created.' : 'Created this new source file.',
+        afterSnippet: operation.content || '',
+        afterHash: hashText(crypto, operation.content || ''),
+        diff: renderVerifiedDiff(operation, '', operation.content || '', {newFile: true})
+      })
+    );
   }
 
-  function applyReplaceText(fs, target, operation, dryRun, diagnostics) {
+  function applyReplaceText(fs, crypto, target, operation, dryRun, diagnostics, includeEvidence) {
     if (!fs.existsSync(target)) {
       diagnostics.push(diagnostic('error', 'install_plan.replace_missing_file', 'Target file does not exist: ' + operation.path, operation));
-      return {id: operation.id, type: operation.type, path: operation.path, status: 'failed'};
+      return withOperationEvidence(
+        {id: operation.id, type: operation.type, path: operation.path, status: 'failed'},
+        includeEvidence,
+        operation,
+        failedOperationEvidence(operation, 'target_missing', 'Target file does not exist: ' + operation.path)
+      );
     }
     const before = fs.readFileSync(target, 'utf8');
     const after = replaceOnce(before, operation);
     if (!after.ok) {
       diagnostics.push(diagnostic('error', after.code, after.message, operation));
-      return {id: operation.id, type: operation.type, path: operation.path, status: 'failed'};
+      return withOperationEvidence(
+        {id: operation.id, type: operation.type, path: operation.path, status: 'failed'},
+        includeEvidence,
+        operation,
+        textOperationEvidence(operation, 'failed', before, before, Object.assign({}, after, {
+          match: after.code || 'match_failed',
+          beforeHash: hashText(crypto, before),
+          afterHash: hashText(crypto, before)
+        }))
+      );
     }
     if (after.alreadyApplied) {
-      return {id: operation.id, type: operation.type, path: operation.path, status: 'already_applied'};
+      return withOperationEvidence(
+        {id: operation.id, type: operation.type, path: operation.path, status: 'already_applied'},
+        includeEvidence,
+        operation,
+        textOperationEvidence(operation, 'already_applied', before, after.text || before, Object.assign({}, after, {
+          match: 'replacement_already_present',
+          beforeHash: hashText(crypto, before),
+          afterHash: hashText(crypto, after.text || before)
+        }))
+      );
     }
     if (!dryRun) {
       fs.writeFileSync(target, after.text, 'utf8');
     }
-    return {id: operation.id, type: operation.type, path: operation.path, status: dryRun ? 'would_apply' : 'applied'};
+    const status = dryRun ? 'would_apply' : 'applied';
+    return withOperationEvidence(
+      {id: operation.id, type: operation.type, path: operation.path, status},
+      includeEvidence,
+      operation,
+      textOperationEvidence(operation, status, before, after.text, Object.assign({}, after, {
+        match: 'matched_current_file',
+        beforeHash: hashText(crypto, before),
+        afterHash: hashText(crypto, after.text),
+        diff: renderVerifiedDiff(operation, after.beforeSnippet || operation.search || '', after.afterSnippet || operation.replace || '', after)
+      }))
+    );
   }
 
-  function applyInsertText(fs, target, operation, dryRun, diagnostics) {
+  function applyInsertText(fs, crypto, target, operation, dryRun, diagnostics, includeEvidence) {
     if (!fs.existsSync(target)) {
       diagnostics.push(diagnostic('error', 'install_plan.insert_missing_file', 'Target file does not exist: ' + operation.path, operation));
-      return {id: operation.id, type: operation.type, path: operation.path, status: 'failed'};
+      return withOperationEvidence(
+        {id: operation.id, type: operation.type, path: operation.path, status: 'failed'},
+        includeEvidence,
+        operation,
+        failedOperationEvidence(operation, 'target_missing', 'Target file does not exist: ' + operation.path)
+      );
     }
     const before = fs.readFileSync(target, 'utf8');
     const inserted = insertAtAnchor(before, operation);
     if (!inserted.ok) {
       diagnostics.push(diagnostic('error', inserted.code, inserted.message, operation));
-      return {id: operation.id, type: operation.type, path: operation.path, status: 'failed'};
+      return withOperationEvidence(
+        {id: operation.id, type: operation.type, path: operation.path, status: 'failed'},
+        includeEvidence,
+        operation,
+        textOperationEvidence(operation, 'failed', before, before, Object.assign({}, inserted, {
+          match: inserted.code || 'anchor_failed',
+          beforeHash: hashText(crypto, before),
+          afterHash: hashText(crypto, before)
+        }))
+      );
     }
     if (inserted.alreadyApplied) {
-      return {id: operation.id, type: operation.type, path: operation.path, status: 'already_applied'};
+      return withOperationEvidence(
+        {id: operation.id, type: operation.type, path: operation.path, status: 'already_applied'},
+        includeEvidence,
+        operation,
+        textOperationEvidence(operation, 'already_applied', before, inserted.text || before, Object.assign({}, inserted, {
+          match: 'dedupe_already_present',
+          beforeHash: hashText(crypto, before),
+          afterHash: hashText(crypto, inserted.text || before)
+        }))
+      );
     }
     if (!dryRun) {
       fs.writeFileSync(target, inserted.text, 'utf8');
     }
-    return {id: operation.id, type: operation.type, path: operation.path, status: dryRun ? 'would_apply' : 'applied'};
+    const status = dryRun ? 'would_apply' : 'applied';
+    return withOperationEvidence(
+      {id: operation.id, type: operation.type, path: operation.path, status},
+      includeEvidence,
+      operation,
+      textOperationEvidence(operation, status, before, inserted.text, Object.assign({}, inserted, {
+        match: 'matched_current_anchor',
+        beforeHash: hashText(crypto, before),
+        afterHash: hashText(crypto, inserted.text),
+        diff: renderVerifiedDiff(operation, inserted.beforeSnippet || operation.anchorText || '', inserted.afterSnippet || operation.content || '', inserted)
+      }))
+    );
   }
 
-  function applyReplaceSection(fs, target, operation, dryRun, diagnostics) {
+  function applyReplaceSection(fs, crypto, target, operation, dryRun, diagnostics, includeEvidence) {
     if (!fs.existsSync(target)) {
       diagnostics.push(diagnostic('error', 'install_plan.section_missing_file', 'Target file does not exist: ' + operation.path, operation));
-      return {id: operation.id, type: operation.type, path: operation.path, status: 'failed'};
+      return withOperationEvidence(
+        {id: operation.id, type: operation.type, path: operation.path, status: 'failed'},
+        includeEvidence,
+        operation,
+        failedOperationEvidence(operation, 'target_missing', 'Target file does not exist: ' + operation.path)
+      );
     }
     const before = fs.readFileSync(target, 'utf8');
     const section = replaceSection(before, operation);
     if (!section.ok) {
       diagnostics.push(diagnostic('error', section.code, section.message, operation));
-      return {id: operation.id, type: operation.type, path: operation.path, status: 'failed'};
+      return withOperationEvidence(
+        {id: operation.id, type: operation.type, path: operation.path, status: 'failed'},
+        includeEvidence,
+        operation,
+        textOperationEvidence(operation, 'failed', before, before, Object.assign({}, section, {
+          match: section.code || 'section_failed',
+          beforeHash: hashText(crypto, before),
+          afterHash: hashText(crypto, before)
+        }))
+      );
     }
     if (section.alreadyApplied) {
-      return {id: operation.id, type: operation.type, path: operation.path, status: 'already_applied'};
+      return withOperationEvidence(
+        {id: operation.id, type: operation.type, path: operation.path, status: 'already_applied'},
+        includeEvidence,
+        operation,
+        textOperationEvidence(operation, 'already_applied', before, section.text || before, Object.assign({}, section, {
+          match: 'replacement_section_already_present',
+          beforeHash: hashText(crypto, before),
+          afterHash: hashText(crypto, section.text || before)
+        }))
+      );
     }
     if (!dryRun) {
       fs.writeFileSync(target, section.text, 'utf8');
     }
-    return {id: operation.id, type: operation.type, path: operation.path, status: dryRun ? 'would_apply' : 'applied'};
+    const status = dryRun ? 'would_apply' : 'applied';
+    return withOperationEvidence(
+      {id: operation.id, type: operation.type, path: operation.path, status},
+      includeEvidence,
+      operation,
+      textOperationEvidence(operation, status, before, section.text, Object.assign({}, section, {
+        match: 'matched_current_section',
+        beforeHash: hashText(crypto, before),
+        afterHash: hashText(crypto, section.text),
+        diff: renderVerifiedDiff(operation, section.beforeSnippet || operation.anchorText || '', section.afterSnippet || operation.content || '', section)
+      }))
+    );
   }
 
-  function applyCopyAssetFile(fs, path, crypto, target, operation, dryRun, diagnostics) {
+  function applyCopyAssetFile(fs, path, crypto, target, operation, dryRun, diagnostics, includeEvidence) {
     const sourcePath = String(operation.sourcePath || '').trim();
     if (!sourcePath) {
       diagnostics.push(diagnostic('error', 'install_plan.copy_source_missing', 'Asset copy sourcePath is required for guarded apply.', operation));
-      return {id: operation.id, type: operation.type, path: operation.path, status: 'failed'};
+      return withOperationEvidence(
+        {id: operation.id, type: operation.type, path: operation.path, status: 'failed'},
+        includeEvidence,
+        operation,
+        failedOperationEvidence(operation, 'copy_source_missing', 'Asset copy sourcePath is required for guarded apply.')
+      );
     }
     if (!path.isAbsolute(sourcePath)) {
       diagnostics.push(diagnostic('error', 'install_plan.copy_source_path', 'Asset copy sourcePath must be an absolute desktop file path.', operation));
-      return {id: operation.id, type: operation.type, path: operation.path, status: 'failed'};
+      return withOperationEvidence(
+        {id: operation.id, type: operation.type, path: operation.path, status: 'failed'},
+        includeEvidence,
+        operation,
+        failedOperationEvidence(operation, 'copy_source_path', 'Asset copy sourcePath must be an absolute desktop file path.')
+      );
     }
     if (!fs.existsSync(sourcePath) || !fs.statSync(sourcePath).isFile()) {
       diagnostics.push(diagnostic('error', 'install_plan.copy_source_missing', 'Asset copy source file does not exist: ' + sourcePath, operation));
-      return {id: operation.id, type: operation.type, path: operation.path, status: 'failed'};
+      return withOperationEvidence(
+        {id: operation.id, type: operation.type, path: operation.path, status: 'failed'},
+        includeEvidence,
+        operation,
+        failedOperationEvidence(operation, 'copy_source_missing', 'Asset copy source file does not exist.')
+      );
     }
     const sourceHash = hashFile(fs, crypto, sourcePath);
     if (fs.existsSync(target)) {
       if (!fs.statSync(target).isFile()) {
         diagnostics.push(diagnostic('error', 'install_plan.copy_conflict', 'Asset copy target exists and is not a file: ' + operation.path, operation));
-        return {id: operation.id, type: operation.type, path: operation.path, status: 'failed', sourceHash};
+        return withOperationEvidence(
+          {id: operation.id, type: operation.type, path: operation.path, status: 'failed', sourceHash},
+          includeEvidence,
+          operation,
+          assetOperationEvidence(operation, 'failed', {
+            match: 'target_exists_not_file',
+            message: 'Asset copy target exists and is not a file.',
+            sourceHash
+          })
+        );
       }
       const targetHash = hashFile(fs, crypto, target);
       if (sourceHash === targetHash) {
-        return {id: operation.id, type: operation.type, path: operation.path, status: 'already_applied', sourceHash, targetHash};
+        return withOperationEvidence(
+          {id: operation.id, type: operation.type, path: operation.path, status: 'already_applied', sourceHash, targetHash},
+          includeEvidence,
+          operation,
+          assetOperationEvidence(operation, 'already_applied', {
+            match: 'asset_bytes_already_match',
+            sourceHash,
+            targetHash
+          })
+        );
       }
       diagnostics.push(diagnostic('error', 'install_plan.copy_conflict', 'Asset copy target already exists with different bytes: ' + operation.path, operation));
-      return {id: operation.id, type: operation.type, path: operation.path, status: 'failed', sourceHash, targetHash};
+      return withOperationEvidence(
+        {id: operation.id, type: operation.type, path: operation.path, status: 'failed', sourceHash, targetHash},
+        includeEvidence,
+        operation,
+        assetOperationEvidence(operation, 'failed', {
+          match: 'target_exists_with_different_bytes',
+          message: 'Asset copy target already exists with different bytes.',
+          sourceHash,
+          targetHash
+        })
+      );
     }
     if (!dryRun) {
       fs.mkdirSync(path.dirname(target), {recursive: true});
       fs.copyFileSync(sourcePath, target);
     }
-    return {id: operation.id, type: operation.type, path: operation.path, status: dryRun ? 'would_apply' : 'applied', sourceHash};
+    const status = dryRun ? 'would_apply' : 'applied';
+    return withOperationEvidence(
+      {id: operation.id, type: operation.type, path: operation.path, status, sourceHash},
+      includeEvidence,
+      operation,
+      assetOperationEvidence(operation, status, {
+        match: 'source_file_available',
+        message: dryRun ? 'Dry-run verified that this asset can be copied.' : 'Copied this asset into the project.',
+        sourceHash,
+        diff: renderVerifiedDiff(operation, '', operation.content || ('source: ' + (operation.sourceName || 'asset')), {asset: true})
+      })
+    );
   }
 
   function hashFile(fs, crypto, filePath) {
     return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+  }
+
+  function hashText(crypto, text) {
+    if (!crypto || typeof crypto.createHash !== 'function') {
+      return '';
+    }
+    return crypto.createHash('sha256').update(String(text || ''), 'utf8').digest('hex');
   }
 
   function preferredEol(text) {
@@ -1417,11 +1981,18 @@
       const lines = parts.lines;
       const index = operation.line - 1;
       if (index >= 0 && index < lines.length && lines[index].includes(search)) {
+        const beforeLine = lines[index];
         lines[index] = lines[index].replace(search, replacement);
-        return {ok: true, text: joinLogicalLines(parts)};
+        return {
+          ok: true,
+          text: joinLogicalLines(parts),
+          line: operation.line,
+          beforeSnippet: beforeLine,
+          afterSnippet: lines[index]
+        };
       }
       if (replacement && index >= 0 && index < lines.length && lines[index].includes(replacement)) {
-        return {ok: true, alreadyApplied: true, text};
+        return {ok: true, alreadyApplied: true, text, line: operation.line, beforeSnippet: lines[index], afterSnippet: lines[index]};
       }
       return {
         ok: false,
@@ -1431,13 +2002,17 @@
     }
     const matches = text.split(search).length - 1;
     if (matches !== 1) {
+      const alreadyMatches = replacement ? text.split(replacement).length - 1 : 0;
+      if (matches === 0 && alreadyMatches >= 1) {
+        return {ok: true, alreadyApplied: true, text, beforeSnippet: replacement, afterSnippet: replacement};
+      }
       return {
         ok: false,
         code: 'install_plan.replace_ambiguous',
         message: 'Expected exactly one match for replacement text, found ' + matches + '.'
       };
     }
-    return {ok: true, text: text.replace(search, replacement)};
+    return {ok: true, text: text.replace(search, replacement), beforeSnippet: search, afterSnippet: replacement};
   }
 
   function insertAtAnchor(text, operation) {
@@ -1468,10 +2043,23 @@
     const insertLines = contentLines(content);
     const insertAt = operation.position === 'before' ? matches[0] : matches[0] + 1;
     if (hasDedupeNearInsert(lines, insertAt, insertLines.length, dedupe, operation.position)) {
-      return {ok: true, alreadyApplied: true, text};
+      return {
+        ok: true,
+        alreadyApplied: true,
+        text,
+        line: matches[0] + 1,
+        beforeSnippet: lines[matches[0]] || anchor,
+        afterSnippet: content
+      };
     }
     const nextLines = lines.slice(0, insertAt).concat(insertLines, lines.slice(insertAt));
-    return {ok: true, text: joinLogicalLines(Object.assign({}, parts, {lines: nextLines}))};
+    return {
+      ok: true,
+      text: joinLogicalLines(Object.assign({}, parts, {lines: nextLines})),
+      line: matches[0] + 1,
+      beforeSnippet: lines[matches[0]] || anchor,
+      afterSnippet: content
+    };
   }
 
   function replaceSection(text, operation) {
@@ -1501,7 +2089,7 @@
     });
     if (starts.length !== 1) {
       if (starts.length === 0 && containsNormalizedBlock(text, content)) {
-        return {ok: true, alreadyApplied: true, text};
+        return {ok: true, alreadyApplied: true, text, beforeSnippet: content, afterSnippet: content};
       }
       return {
         ok: false,
@@ -1534,8 +2122,16 @@
       };
     }
     const replacementLines = contentLines(content);
+    const beforeSnippet = lines.slice(start, end + 1).join(parts.eol);
     const nextLines = lines.slice(0, start).concat(replacementLines, lines.slice(end + 1));
-    return {ok: true, text: joinLogicalLines(Object.assign({}, parts, {lines: nextLines}))};
+    return {
+      ok: true,
+      text: joinLogicalLines(Object.assign({}, parts, {lines: nextLines})),
+      startLine: start + 1,
+      endLine: end + 1,
+      beforeSnippet,
+      afterSnippet: content
+    };
   }
 
   function isEntrySidebarProtectedReplace(operation) {

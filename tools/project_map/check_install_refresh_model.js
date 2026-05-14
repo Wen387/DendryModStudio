@@ -150,11 +150,13 @@ async function main() {
   calls = harness.calls();
   assert(dryRun && dryRun.dryRun === true, 'dry-run should return the desktop result');
   assert(calls.lastApplyOptions.projectRoot === '/tmp/dms-refresh-project', 'desktop apply should receive the install plan project root');
+  assert(calls.lastApplyOptions.includeEvidence === true, 'desktop dry-run should request install evidence');
   assert(calls.scanCalls === 0, 'dry-run must not refresh ProjectIndex');
 
   const applied = await assistant.applyLoadedPlan({dryRun: false});
   calls = harness.calls();
   assert(applied && applied.dryRun === false, 'apply should return the desktop result');
+  assert(applied.postApplyVerification && applied.postApplyVerification.dryRun === true, 'apply should run a post-apply verification dry-run');
   assert(calls.lastApplyOptions.projectRoot === '/tmp/dms-refresh-project', 'desktop apply should keep receiving the active project root');
   assert(calls.scanCalls === 1, 'successful apply should refresh ProjectIndex once');
   assert(calls.lastScanOptions.root === '/tmp/dms-refresh-project', 'refresh should scan the install plan project root');
@@ -173,7 +175,8 @@ async function main() {
   advancedCalls = advancedHarness.calls();
   assert(advancedCheck && advancedCheck.dryRun === true, 'advanced check should run');
   assert(advancedApplied && advancedApplied.dryRun === false, 'advanced apply should work after a matching check');
-  assert(advancedCalls.applyCalls === 3, 'advanced checked apply should call desktop after the matching dry-run');
+  assert(advancedApplied.postApplyVerification && advancedApplied.postApplyVerification.dryRun === true, 'advanced checked apply should run post-apply verification');
+  assert(advancedCalls.applyCalls === 4, 'advanced checked apply should call desktop and then verify after the matching dry-run');
 
   const failingHarness = desktopHarness({failDryRun: true});
   const failingAssistant = loadInstallAssistant(failingHarness.desktop);

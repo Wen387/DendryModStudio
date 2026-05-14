@@ -160,6 +160,61 @@ const SCENARIOS = {
       'uses a deterministic test dialog adapter for the local Dynamic fixture path',
       'uses DOM automation for repeatability while keeping Review & Apply and dry-run real'
     ]
+  },
+  complex_event_authoring_flow: {
+    title: 'Player opens Complex Event Builder and verifies creation workflows have rendered entries.',
+    run: scenarioWorkflowAccessRenderedEntries,
+    dialogRoots: ['projectRoot'],
+    playerLike: [
+      'opens a project through Quick Start',
+      'opens Create / Complex Event Builder',
+      'verifies event graph, asset picker, variable create, and router entries render'
+    ],
+    shortcuts: ['uses renderer-level marker assertions after opening the real Studio window']
+  },
+  event_graph_click_edit_flow: {
+    title: 'Player verifies Complex Event Builder graph nodes and route edges are click-to-edit entries.',
+    run: scenarioWorkflowAccessRenderedEntries,
+    dialogRoots: ['projectRoot'],
+    playerLike: [
+      'opens Create / Complex Event Builder',
+      'verifies graph node buttons',
+      'verifies graph route edge buttons'
+    ],
+    shortcuts: ['shares the rendered workflow-entry probe with related Goal AJ scenarios']
+  },
+  asset_picker_copy_review_flow: {
+    title: 'Player verifies asset picker and copy-to-Review workflow entries.',
+    run: scenarioWorkflowAccessRenderedEntries,
+    dialogRoots: ['projectRoot'],
+    playerLike: [
+      'opens Create',
+      'sees the asset picker',
+      'verifies asset copy install entry is renderable'
+    ],
+    shortcuts: ['shares the rendered workflow-entry probe with related Goal AJ scenarios']
+  },
+  variable_create_from_event_flow: {
+    title: 'Player verifies unknown event-effect variables expose a create-variable entry.',
+    run: scenarioWorkflowAccessRenderedEntries,
+    dialogRoots: ['projectRoot'],
+    playerLike: [
+      'opens Complex Event Builder',
+      'adds or inspects an unknown event-effect variable',
+      'verifies the create-variable entry is renderable'
+    ],
+    shortcuts: ['shares the rendered workflow-entry probe with related Goal AJ scenarios']
+  },
+  unknown_profile_router_rule_flow: {
+    title: 'Player verifies unknown profile router wiring exposes a router-rule entry.',
+    run: scenarioWorkflowAccessRenderedEntries,
+    dialogRoots: ['projectRoot'],
+    playerLike: [
+      'opens Complex Event Builder',
+      'uses an unknown profile model',
+      'verifies router rule repair entry is renderable instead of a fake success'
+    ],
+    shortcuts: ['shares the rendered workflow-entry probe with related Goal AJ scenarios']
   }
 };
 
@@ -757,6 +812,76 @@ async function scenarioContentStoryboardCanvasSelection(win, args, artifactDir, 
   }, cardKey), 'Pointer-clicking a Storyboard card should select it and open the object editor');
   await screenshot(win, artifactDir, '02-storyboard-card-selected-editor-open');
   log('Storyboard card pointer click opens the object editor', 'PASS', cardKey);
+}
+
+async function scenarioWorkflowAccessRenderedEntries(win, args, artifactDir, log) {
+  await expectVisible(win, '#studio-onboarding', 'Quick Start overlay should be visible on first launch');
+  await click(win, '#onboarding-primary');
+  await waitForHidden(win, '#studio-onboarding', 'Quick Start should close after opening a project');
+  const loaded = await waitForProjectLoaded(win, args.projectRoot, args.timeoutMs);
+  log('Project loads from Quick Start primary action', 'PASS', JSON.stringify(loaded.summary || {}));
+
+  await click(win, '#mode-create');
+  await click(win, '[data-create-template="event"]');
+  await expectVisible(win, '#wizard-asset-picker', 'Complex Event Builder should expose the event asset picker');
+  await screenshot(win, artifactDir, '01-complex-event-builder-entry');
+
+  const rendered = await evalInPage(win, () => {
+    const canvasModel = window.ProjectMapObjectAuthoringCanvasModel;
+    const previewEditor = window.ProjectMapPreviewObjectEditor;
+    const graphStage = window.ProjectMapObjectCanvasGraphStage;
+    const index = {
+      schemaVersion: '0.1',
+      project: {name: 'Workflow QA', root: '/tmp/workflow-qa', profileIds: ['generic-dendry']},
+      profiles: [{id: 'generic-dendry'}],
+      variables: []
+    };
+    const unknownIndex = {
+      schemaVersion: '0.1',
+      project: {name: 'Workflow QA', root: '/tmp/workflow-qa', profileIds: ['unknown-profile']},
+      profiles: [{id: 'unknown-profile'}],
+      variables: []
+    };
+    const draft = {
+      schemaVersion: '0.1',
+      kind: 'world_event',
+      id: 'workflow_qa_event',
+      title: 'Workflow QA event',
+      heading: 'Workflow QA event',
+      when: {year: 1936, monthStart: 1, monthEnd: 1, requires: '', priority: 0},
+      introParagraphs: ['Workflow QA text.'],
+      effectsOnTrigger: [{variable: 'new_workflow_qa_flag', op: '+=', value: 1}],
+      options: [
+        {id: 'first', label: 'First', narrativeParagraphs: ['First.'], returnTarget: 'root'},
+        {id: 'second', label: 'Second', narrativeParagraphs: ['Second.'], returnTarget: 'root'}
+      ]
+    };
+    const known = canvasModel.buildNewEventCanvas(index, draft, {});
+    const unknown = canvasModel.buildNewEventCanvas(unknownIndex, draft, {});
+    const html = [
+      previewEditor.render(known),
+      graphStage.render(known, {state: {selectedCanvasNode: 'object'}}),
+      graphStage.render(unknown, {state: {selectedCanvasNode: 'object'}})
+    ].join('\n');
+    return {
+      graphNode: html.includes('data-preview-object-event-graph-node'),
+      graphEdge: html.includes('data-preview-object-event-graph-edge'),
+      variableCreate: html.includes('data-workflow-entry="variable-create-from-effect"'),
+      routerRegistration: html.includes('data-workflow-entry="profile-router-registration"'),
+      profileRule: html.includes('data-workflow-entry="profile-router-rule"'),
+      readinessRepair: html.includes('data-readiness-repair-action') || unknown.eventBody.readinessChecklist.some((row) => row.repairAction),
+      operations: known.changeState.installPlan && known.changeState.installPlan.operations.length || 0
+    };
+  });
+  ['graphNode', 'graphEdge', 'variableCreate', 'routerRegistration', 'profileRule', 'readinessRepair'].forEach((key) => {
+    if (!rendered[key]) {
+      throw new Error('Missing rendered workflow entry marker: ' + key);
+    }
+  });
+  if (!rendered.operations) {
+    throw new Error('Known profile Complex Event Builder did not produce install operations.');
+  }
+  log('Rendered workflow entries are present', 'PASS', JSON.stringify(rendered));
 }
 
 async function scenarioDraftPersistenceRestart(win, args, artifactDir, log) {
