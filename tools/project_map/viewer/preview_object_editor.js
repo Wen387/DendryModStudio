@@ -151,6 +151,7 @@
 
   function renderCardPreview(body, model) {
     const sections = ensureArray(body.sections);
+    const branchSections = ensureArray(body.branchSections);
     const subtitle = firstField(sections, /subtitle/i);
     const mainSections = sections.filter((field) => field !== subtitle);
     return [
@@ -160,6 +161,7 @@
       subtitle ? '<em>' + renderTextInline(fieldValue(subtitle)) + '</em>' : '',
       mainSections.length ? '<div class="object-editing-preview-copy">' + mainSections.map((field) => renderTextBlocks(fieldValue(field), {empty: false})).join('') + '</div>' : renderEmpty(t('objectPreview.empty', 'No player-facing text is available yet.')),
       renderPreviewChoices(ensureArray(body.options), 'card', body, model),
+      renderPreviewBranches(branchSections, previewTextOptions(body, model)),
       renderPreviewEffects(body, model),
       '</article>'
     ].join('');
@@ -1030,9 +1032,11 @@
 
   function renderCardEditor(body, model) {
     const sections = ensureArray(body.sections);
+    const branchSections = ensureArray(body.branchSections);
     const subtitle = firstField(sections, /subtitle/i);
     const mainSections = sections.filter((field) => field !== subtitle);
     const options = ensureArray(body.options);
+    const textOptions = previewTextOptions(body, model);
     return [
       '<article class="preview-object-frame preview-object-card-frame" data-preview-object-card="true" data-card-face-preview="true">',
       '<div class="preview-object-card-shell">',
@@ -1057,6 +1061,7 @@
         })).join('') + '</div>'
         : renderEmpty(t('objectPreview.empty', 'No player-facing text is available yet.')),
       renderChoiceEditor(options, 'card', body),
+      renderBranchSectionEditor(branchSections, textOptions, body),
       renderLogicEditor(body, 'card'),
       '</div>',
       '</article>'

@@ -142,7 +142,7 @@
       lines.push(
         '- IDE escape hatch: open the evidence path above and review the owning source manually.',
         '- This item is an IDE escape hatch because Studio cannot safely rewrite generated/custom JS/HTML from a read-only index.',
-        '- why Studio will not auto-edit: this source is generated, runtime-owned, or too ambiguous for an export-only replacement.'
+        '- why Studio will not auto-edit: this source is generated, runtime-owned, or too ambiguous for a guarded replacement.'
       );
     } else if (textProposal) {
       lines.push(

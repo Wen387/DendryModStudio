@@ -789,7 +789,7 @@
   }
 
   function normalizeEventOptions(options) {
-    return ensureArray(options).slice(0, 4).map((option, index) => {
+    return ensureArray(options).map((option, index) => {
       const value = isObject(option) ? option : {};
       const id = safeId(value.id || value.rawId || 'option_' + (index + 1));
       return {

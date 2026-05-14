@@ -219,7 +219,7 @@
           (existingSupported ? '' : ' disabled') + '>' + escapeHtml(t('existingScene.editExisting', 'Edit existing')) + '</button>'
         : '',
       '<button class="draft-action-button" type="button" data-edit-as-draft="true"' +
-        (disabled ? ' disabled' : '') + '>' + escapeHtml(t('existingScene.copyAsNew', 'Copy as new proposal')) + '</button>',
+        (disabled ? ' disabled' : '') + '>' + escapeHtml(t('existingScene.copyAsNew', 'Copy as new draft')) + '</button>',
       '<div class="draft-action-status" data-text-action-status="true">' + escapeHtml(status) + '</div>',
       renderExtractionScope(result),
       diagnostics.length ? renderMiniSection('Draft notes', diagnostics) : '',
@@ -362,9 +362,9 @@
       return t('draftAction.summary.ide', 'Creates an IDE guidance draft; Studio will not pretend this is safely editable.');
     }
     if (result.status === 'partial') {
-      return t('draftAction.summary.partial', 'Creates a best-effort draft seed. Review source notes before exporting.');
+      return t('draftAction.summary.partial', 'Captures the parsed structure as a draft preview; unsupported parts block Review & Apply.');
     }
-    return t('draftAction.summary.ok', 'Creates a draft proposal in Create mode. Nothing is installed automatically.');
+    return t('draftAction.summary.ok', 'Creates a draft in Create mode so you can preview the install plan.');
   }
 
   function textProposalSummary(result) {
@@ -392,7 +392,7 @@
     }
     const opened = openDraftInCreate(result.template, result.draft, result);
     state.draftActionMessage = opened
-      ? t('draftAction.status.loaded', 'Draft loaded in Create mode as {template}. Export remains proposal-only.').replace('{template}', result.template || 'draft')
+      ? t('draftAction.status.loaded', 'Draft loaded in Create mode as {template}. Review & Apply can preview supported operations.').replace('{template}', result.template || 'draft')
       : t('draftAction.status.openFailed', 'Could not open Create template for this draft.');
     state.textActionMessage = '';
     ctx.render(state, elements);
@@ -758,7 +758,7 @@
     return ui.renderEventWorkbench(workbench, {locale: currentLocale(), eyebrow: t('eventWorkbench.eyebrow', 'Event Workbench')}) +
       '<div class="inspector-actions existing-scene-workbench-actions">' +
       '<button class="draft-action-button" type="button" data-edit-existing="true">' + escapeHtml(t('existingScene.editExisting', 'Edit existing')) + '</button>' +
-      '<button class="draft-action-button" type="button" data-edit-as-draft="true">' + escapeHtml(t('existingScene.copyAsNew', 'Copy as new proposal')) + '</button>' +
+      '<button class="draft-action-button" type="button" data-edit-as-draft="true">' + escapeHtml(t('existingScene.copyAsNew', 'Copy as new draft')) + '</button>' +
       '</div>';
   }
 

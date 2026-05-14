@@ -62,10 +62,19 @@
   }
 
   function cardBody(draft) {
+    const sections = ensureArray(draft.sections);
+    const sectionOptions = sections.reduce((rows, section, sectionIndex) => rows.concat(ensureArray(section.options).map((option, optionIndex) => ({
+      section,
+      sectionIndex,
+      option,
+      optionIndex
+    }))), []);
     return {
       mode: 'card',
+      cardShape: draft.cardShape || 'choice_card',
+      archetypeHint: draft.cardShape || '',
       bodyEyebrow: 'Card body',
-      optionsLabel: 'Card choices',
+      optionsLabel: draft.cardShape === 'menu_card' ? 'Menu choices' : 'Card choices',
       metaLabel: 'Card routing and limits',
       title: field('card.title', 'Title', draft.title, 'guarded'),
       heading: field('card.heading', 'Heading', draft.heading || draft.title, 'guarded'),
@@ -82,13 +91,28 @@
         field('card.option.' + index + '.unavailableText', 'Unavailable text', option.unavailableText, 'guarded'),
         field('card.option.' + index + '.gotoAfter', 'Return target', option.gotoAfter, 'guarded')
       ])),
+      branchSections: sections.reduce((rows, section, index) => rows.concat(cardBranchFields(section, index)), []),
+      backgroundEffects: sections.reduce((rows, section) => rows.concat(ensureArray(section.effects).map((effect) => Object.assign({}, effect, {
+        sectionId: section.id || '',
+        source: {}
+      }))), []),
       optionEffects: ensureArray(draft.options).map((option, index) => ({
         id: option.id || 'option_' + (index + 1),
         label: option.label || option.id || ('Choice ' + (index + 1)),
         fields: effectFields('card.option.' + index + '.effect', option.effects)
-      })),
+      })).concat(sectionOptions.map((row) => ({
+        id: row.option.id || 'section_option_' + (row.optionIndex + 1),
+        label: (row.section.title || row.section.id || 'Section') + ': ' + (row.option.label || row.option.id || ('Choice ' + (row.optionIndex + 1))),
+        sectionId: row.section.id || '',
+        fields: effectFields('card.section.' + row.sectionIndex + '.option.' + row.optionIndex + '.effect', row.option.effects)
+      }))),
       metaFields: [
         field('card.id', 'Card id', draft.id, 'guarded'),
+        field('card.cardShape', 'Card shape', draft.cardShape || 'choice_card', 'guarded', {inputType: 'select', options: [
+          {value: 'choice_card', label: 'Choice card'},
+          {value: 'menu_card', label: 'Menu card'},
+          {value: 'pinned_text_card', label: 'Pinned text card'}
+        ]}),
         field('card.cardKind', 'Card kind', draft.cardKind, 'guarded'),
         field('card.tags', 'Tags', ensureArray(draft.tags).join(', '), 'guarded'),
         field('card.viewIf', 'View condition', draft.viewIf, 'guarded'),
@@ -97,6 +121,29 @@
         field('card.maxVisits', 'Max visits', draft.maxVisits, 'guarded')
       ]
     };
+  }
+
+  function cardBranchFields(section, index) {
+    const label = section.title || section.id || 'Menu section';
+    const meta = {
+      sectionId: section.id || '',
+      sectionLabel: label,
+      semanticRole: section.condition ? 'conditional_text' : 'section_text',
+      branchKind: section.condition ? 'conditional' : 'section',
+      conditions: section.condition ? [section.condition] : []
+    };
+    const optionFields = ensureArray(section.options).reduce((rows, option, optionIndex) => rows.concat([
+      field('card.section.' + index + '.option.' + optionIndex + '.label', label + ' choice label', option.label, 'guarded', Object.assign({}, meta, {optionId: option.id || '', semanticRole: 'section_option_label'})),
+      field('card.section.' + index + '.option.' + optionIndex + '.body', label + ' choice result', joinParagraphs(option.narrativeParagraphs), 'guarded', Object.assign({}, meta, {optionId: option.id || '', semanticRole: 'section_option_text'})),
+      field('card.section.' + index + '.option.' + optionIndex + '.chooseIf', label + ' choice condition', option.chooseIf, 'guarded', Object.assign({}, meta, {optionId: option.id || '', role: 'condition', semanticRole: 'section_option_condition'})),
+      field('card.section.' + index + '.option.' + optionIndex + '.gotoAfter', label + ' choice route', option.gotoAfter || 'root', 'guarded', Object.assign({}, meta, {optionId: option.id || '', role: 'route', semanticRole: 'section_option_route'}))
+    ]), []);
+    return [
+      field('card.section.' + index + '.title', label + ' title', section.title || '', 'guarded', Object.assign({}, meta, {semanticRole: 'section_title'})),
+      field('card.section.' + index + '.condition', label + ' condition', section.condition || '', 'guarded', Object.assign({}, meta, {role: 'condition', semanticRole: 'section_condition'})),
+      field('card.section.' + index + '.body', label, joinParagraphs(section.paragraphs), 'guarded', meta),
+      field('card.section.' + index + '.exitTarget', label + ' exit route', section.exitTarget || 'root', 'guarded', Object.assign({}, meta, {role: 'route', semanticRole: 'section_exit_route'}))
+    ].concat(optionFields);
   }
 
   function surfaceBody(draft) {

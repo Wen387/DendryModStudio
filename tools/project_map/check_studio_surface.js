@@ -520,7 +520,7 @@ assert(i18nUi.includes("'draftWorkspace.template.project'"), 'saved changes shou
 assert(i18nUi.includes("'draftWorkspace.template.variables'"), 'saved changes should label Variable Editor drafts');
 assert(i18nUi.includes("'install.runtimePreview'"), 'Runtime Preview action should be localized');
 assert(i18nUi.includes("'existingScene.editExisting'"), 'Edit existing action should be localized');
-assert(i18nUi.includes("'existingScene.copyAsNew'"), 'Copy as new proposal action should be localized');
+assert(i18nUi.includes("'existingScene.copyAsNew'"), 'Copy as new draft action should be localized');
 assert(i18nUi.includes("'objectCanvas.eyebrow'"), 'Object Authoring Canvas title should be localized');
 assert(i18nUi.includes("'objectCanvas.stageEyebrow'"), 'Object Authoring Canvas stage should be localized');
 assert(i18nUi.includes("'objectCanvas.eventEyebrow'"), 'Object Authoring Canvas event body should be localized');
@@ -686,10 +686,10 @@ assert(css.includes('.system-ui-region-context .system-ui-evidence-row'), 'Syste
 assert(css.includes('.system-ui-evidence-row code') && css.includes('overflow-wrap: break-word'), 'System UI source evidence paths should wrap without vertical single-character columns');
 assert(html.includes('studio_contracts.js'), 'viewer should load shared Studio contracts before UI modules');
 assert(appUi.includes('data-edit-existing'), 'Explore inspector should expose Edit existing');
-assert(appUi.includes('Copy as new proposal'), 'Explore inspector should keep copy-as-new proposal wording');
+assert(appUi.includes('Copy as new draft'), 'Explore inspector should keep copy-as-new draft wording');
 assert(appUi.includes('ProjectMapExistingSceneEditor'), 'Explore should call Existing Scene Editor when editing existing Events/Cards');
 assert(designUi.includes('data-design-edit-existing'), 'Design inspector should expose Edit existing');
-assert(designUi.includes('Copy as new proposal'), 'Design inspector should keep copy-as-new proposal wording');
+assert(designUi.includes('Copy as new draft'), 'Design inspector should keep copy-as-new draft wording');
 assert(designUi.includes('designModelStale') && designUi.includes('designModeIsActive'), 'Design should defer heavy graph rebuilds until the Design page is visible');
 assert(appUi.includes("t('textRevision.actionButton'"), 'Text Corpus revision panel should own a localized Edit Text action');
 assert(appUi.includes("t('textProposal.notesTitle'"), 'Text proposal diagnostics should use localized section labels');

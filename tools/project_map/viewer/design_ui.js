@@ -930,14 +930,14 @@
       ? [
           '<div class="inspector-actions">',
           '<button class="draft-action-button" type="button" data-design-edit-existing="true"' + (support.supported && canEditExistingSupport(support.view) ? '' : ' disabled') + '>' + escapeHtml(t('existingScene.editExisting', 'Edit existing')) + '<small>' + escapeHtml(t('design.outputProposal', 'Output: proposal')) + '</small></button>',
-          '<button class="draft-action-button" type="button" data-design-edit-draft="true"' + (support.supported ? '' : ' disabled') + '>' + escapeHtml(t('existingScene.copyAsNew', 'Copy as new proposal')) + '<small>' + escapeHtml(t('design.outputDraft', 'Output: draft')) + '</small></button>',
+          '<button class="draft-action-button" type="button" data-design-edit-draft="true"' + (support.supported ? '' : ' disabled') + '>' + escapeHtml(t('existingScene.copyAsNew', 'Copy as new draft')) + '<small>' + escapeHtml(t('design.outputDraft', 'Output: draft')) + '</small></button>',
           '<button type="button" data-design-open-explore="true"' + (canOpenExplore ? '' : ' disabled') + '>' + escapeHtml(t('design.openExplore', 'Open in Explore')) + '<small>' + escapeHtml(t('design.outputInspect', 'Output: inspect')) + '</small></button>',
           '</div>'
         ].join('')
       : [
           '<div class="inspector-actions">',
           '<button class="draft-action-button" type="button" data-design-edit-existing="true"' + (support.supported && canEditExistingSupport(support.view) ? '' : ' disabled') + '>' + escapeHtml(t('existingScene.editExisting', 'Edit existing')) + '<small>' + escapeHtml(t('design.outputProposal', 'Output: proposal')) + '</small></button>',
-          '<button class="draft-action-button" type="button" data-design-edit-draft="true"' + (support.supported ? '' : ' disabled') + '>' + escapeHtml(t('existingScene.copyAsNew', 'Copy as new proposal')) + '<small>' + escapeHtml(t('design.outputDraft', 'Output: draft')) + '</small></button>',
+          '<button class="draft-action-button" type="button" data-design-edit-draft="true"' + (support.supported ? '' : ' disabled') + '>' + escapeHtml(t('existingScene.copyAsNew', 'Copy as new draft')) + '<small>' + escapeHtml(t('design.outputDraft', 'Output: draft')) + '</small></button>',
           '<button class="draft-action-button" type="button" data-design-edit-text="true"' + (support.supported ? '' : ' disabled') + '>' + escapeHtml(t('design.editText', 'Edit Text Proposal')) + '<small>' + escapeHtml(t('design.outputProposal', 'Output: proposal')) + '</small></button>',
           '<button type="button" data-design-open-explore="true"' + (canOpenExplore ? '' : ' disabled') + '>' + escapeHtml(t('design.openExplore', 'Open in Explore')) + '<small>' + escapeHtml(t('design.outputInspect', 'Output: inspect')) + '</small></button>',
           '</div>'
@@ -951,7 +951,7 @@
       badge(selected.confidence || 'opaque', selected.confidence || 'opaque'),
       '</div>',
       '<dl class="kv">',
-      '<dt>' + escapeHtml(t('design.authoringLabel', 'Authoring')) + '</dt><dd>' + escapeHtml(support.supported ? (t('existingScene.copyAsNew', 'Copy as new proposal') + ' -> ' + support.template) : t('design.authoring.manual', 'Manual review')) + '</dd>',
+      '<dt>' + escapeHtml(t('design.authoringLabel', 'Authoring')) + '</dt><dd>' + escapeHtml(support.supported ? (t('existingScene.copyAsNew', 'Copy as new draft') + ' -> ' + support.template) : t('design.authoring.manual', 'Manual review')) + '</dd>',
       '<dt>' + escapeHtml(t('design.compareLabel', 'Compare')) + '</dt><dd>' + escapeHtml(compareLabel(selected.compareStatus)) + '</dd>',
       '<dt>' + escapeHtml(t('design.source', 'Source')) + '</dt><dd>' + escapeHtml(source.path ? source.path + (sourceLine(source) ? ':' + sourceLine(source) : '') : '(no source ref)') + '</dd>',
       '<dt>' + escapeHtml(t('design.detail', 'Detail')) + '</dt><dd>' + escapeHtml(selected.detail || selected.subtitle || '') + '</dd>',
@@ -1141,7 +1141,7 @@
       return;
     }
     openDraftInCreate(result.template, result.draft, result);
-    setDesignStatus(t('design.draftLoaded', 'Draft loaded in Create mode. Export remains proposal-only.'));
+    setDesignStatus(t('design.draftLoaded', 'Draft loaded in Create mode. Review & Apply can preview supported operations.'));
   }
 
   function editSelectedExisting() {

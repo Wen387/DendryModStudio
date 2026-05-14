@@ -25,6 +25,20 @@
     return null;
   }
 
+  function parsedToDraftApi() {
+    if (global && global.ProjectMapParsedToDraft) {
+      return global.ProjectMapParsedToDraft;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./parsed_to_draft.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   function extractDraftFromItem(projectIndex, view, itemOrId, options) {
     const index = isObject(projectIndex) ? projectIndex : {};
     const opts = isObject(options) ? options : {};
@@ -35,6 +49,20 @@
     }
     if (view === 'surfaceText') {
       return surfaceTextDraftFromItem(item, opts);
+    }
+    const canonical = parsedToDraftApi();
+    if (canonical && typeof canonical.buildDraftFromParsed === 'function' && ['news', 'events', 'cards'].includes(String(view || ''))) {
+      try {
+        return canonical.buildDraftFromParsed(index, {
+          view,
+          item,
+          itemId: typeof itemOrId === 'string' ? itemOrId : item && item.id,
+          newId: opts.newId || opts.id,
+          sourceEntry: 'draft_extract.extractDraftFromItem'
+        });
+      } catch (_err) {
+        // Fall through to the legacy extraction bridge if the canonical helper is unavailable.
+      }
     }
     if (view === 'news') {
       if (item.delivery === 'legacy_event_popup' && item.linkedSceneId) {
@@ -237,7 +265,7 @@
     if (routeClass === 'direct_field_replace') {
       return 'text_proposal';
     }
-    if (routeClass === 'direct_section_replace' || routeClass === 'object_workspace') {
+    if (routeClass === 'direct_section_replace' || routeClass === 'object_workspace' || routeClass === 'source_slice_editor' || routeClass === 'advanced_source_patch') {
       return 'text_proposal';
     }
     return 'ide_escape_hatch';
@@ -325,11 +353,19 @@
   }
 
   function eventDraftFromScene(scene, model) {
+    const canonical = parsedToDraftApi();
+    if (canonical && typeof canonical.eventDraftFromScene === 'function' && model && model.index) {
+      try {
+        return canonical.eventDraftFromScene(model.index, scene, {sourceEntry: 'draft_extract.eventDraftFromScene'}, model);
+      } catch (_err) {
+        // Fall through to the legacy extraction bridge.
+      }
+    }
     if (!scene || !scene.id) {
       return unsupported('events', 'draft_extract.scene_missing', 'Event scene data was not available.');
     }
     const diagnostics = [
-      diagnostic('warning', 'draft_extract.partial_scene_body', 'Existing scene body/effects are not fully reconstructed; review source before export.')
+      diagnostic('warning', 'draft_extract.partial_scene_body', 'Existing scene body/effects are only reconstructed through the legacy fallback; review source before Review & Apply.')
     ];
     const windowInfo = parseEventWindow(scene.viewIf);
     const options = optionDrafts(scene.options, 'continue');
@@ -351,7 +387,7 @@
       effectsOnTrigger: [],
       introParagraphs: introParagraphs.length
         ? introParagraphs
-        : ['Draft seeded from existing scene ' + sourceLabel(scene.sourceSpan) + '. Review original body text and effects before export.'],
+        : ['Draft seeded from existing scene ' + sourceLabel(scene.sourceSpan) + '. Review original body text and effects before Review & Apply.'],
       options,
       assetRefs: ensureArray(scene.assetRefs),
       sourceSceneId: scene.id,
@@ -376,17 +412,22 @@
   }
 
   function cardDraftFromScene(scene, model) {
+    const canonical = parsedToDraftApi();
+    if (canonical && typeof canonical.cardDraftFromScene === 'function' && model && model.index) {
+      try {
+        return canonical.cardDraftFromScene(model.index, scene, {sourceEntry: 'draft_extract.cardDraftFromScene'}, model);
+      } catch (_err) {
+        // Fall through to the legacy extraction bridge.
+      }
+    }
     if (!scene || !scene.id) {
       return unsupported('cards', 'draft_extract.scene_missing', 'Card scene data was not available.');
     }
     const diagnostics = [
-      diagnostic('warning', 'draft_extract.partial_scene_body', 'Existing scene body/effects are not fully reconstructed; review source before export.')
+      diagnostic('warning', 'draft_extract.partial_scene_body', 'Existing scene body/effects are only reconstructed through the legacy fallback; review source before Review & Apply.')
     ];
     const allOptions = optionDrafts(scene.options, 'root');
-    const options = allOptions.slice(0, 4);
-    if (allOptions.length > 4) {
-      diagnostics.push(diagnostic('warning', 'draft_extract.option_limit', 'Only the first 4 options can be seeded into CardDraft v0.1.'));
-    }
+    const options = allOptions;
     const introParagraphs = introParagraphsFromScene(scene, model);
     const draft = {
       schemaVersion: '0.1',
@@ -403,7 +444,7 @@
       subtitle: String(scene.subtitle || ''),
       introParagraphs: introParagraphs.length
         ? introParagraphs
-        : ['Draft seeded from existing scene ' + sourceLabel(scene.sourceSpan) + '. Review original body text and effects before export.'],
+        : ['Draft seeded from existing scene ' + sourceLabel(scene.sourceSpan) + '. Review original body text and effects before Review & Apply.'],
       options,
       assetRefs: ensureArray(scene.assetRefs),
       sourceSceneId: scene.id,

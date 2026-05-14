@@ -207,27 +207,27 @@ assert(!emptyNews.ok, 'empty news reset assignments should not be offered as edi
 assert(emptyNews.status === 'unsupported', 'empty news should report unsupported');
 
 const event = draftExtract.extractDraftFromItem(index, 'events', 'anti_curriculum', {});
-assert(event.ok, 'event should extract partial draft: ' + JSON.stringify(event.diagnostics));
+assert(event.ok, 'event should extract canonical draft: ' + JSON.stringify(event.diagnostics));
 assert(event.template === 'event', 'event extraction should target World Event template');
-assert(event.status === 'partial', 'event extraction should be explicitly partial');
-assert(event.draft.id === 'anti_curriculum_edit', 'event edit draft should avoid duplicate scene id');
-assert(event.draft.when.year === 2015 && event.draft.when.monthStart === 7 && event.draft.when.monthEnd === 8, 'event window should be inferred from view-if');
-assert(event.draft.seenFlag === 'anti_curriculum_seen', 'event seen flag should be inferred from view-if');
+assert(event.status === 'draft', 'ordinary 2-4 option event extraction should be a full draft');
+assert(event.draft.id === 'anti_curriculum_copy', 'event copy-as-new draft should use the canonical copy id');
+assert(event.draft.rawViewIf.includes('founding_phase = 0'), 'event raw view-if should be preserved for parity');
+assert(event.draft.seenFlag === 'anti_curriculum_copy_seen', 'event copy-as-new should use a new seen flag');
 assert(event.draft.options.length === 3, 'event options should be seeded from parser options');
 assert(event.draft.introParagraphs[0].includes('Students gather'), 'event draft extraction should preserve parser-backed source body prose');
-assert(event.captured.includes('source-backed body paragraphs'), 'event draft extraction should report captured source body prose');
+assert(event.parity.parsed.options === 3 && event.parity.draft.options === 3, 'event parsed-to-draft parity should preserve options');
 assert(eventDraft.validateDraft(event.draft, index).ok, 'event extracted draft should validate as a new proposal seed');
 
 const card = draftExtract.extractDraftFromItem(index, 'cards', 'fundraising', {});
-assert(card.ok, 'card should extract partial draft: ' + JSON.stringify(card.diagnostics));
+assert(card.ok, 'card should extract draft: ' + JSON.stringify(card.diagnostics));
 assert(card.template === 'card', 'card extraction should target Card template');
-assert(card.status === 'partial', 'card extraction should be explicitly partial');
-assert(card.draft.id === 'fundraising_edit', 'card edit draft should avoid duplicate scene id');
+assert(card.status === 'draft', 'large card extraction should be installable');
+assert(card.draft.id === 'fundraising_copy', 'card copy-as-new draft should use the canonical copy id');
 assert(card.draft.frequency === 250, 'card frequency should be copied');
 assert(card.draft.introParagraphs[0].includes('treasurer lays out'), 'card draft extraction should preserve parser-backed source body prose');
-assert(card.draft.options.length === 4, 'card extraction should cap options at current wizard limit');
-assert(card.diagnostics.some((diag) => diag.code === 'draft_extract.option_limit'), 'card option truncation should be diagnosed');
-assert(cardDraft.validateDraft(card.draft, index).ok, 'card extracted draft should validate as a new proposal seed');
+assert(card.draft.options.length === 5, 'card extraction should preserve every parsed option in the draft preview');
+assert(!card.diagnostics.some((diag) => diag.code === 'parsed_to_draft.card_option_shape_partial'), 'large-card support should not be diagnosed as partial');
+assert(cardDraft.validateDraft(card.draft, index).ok, 'large-card draft should validate as an installable CardDraft');
 
 const existingCardEdit = existingSceneEdit.buildEditModel(index, 'cards', 'fundraising');
 assert(existingCardEdit.ok, 'existing card edit model should build beside copy-as-new proposal extraction');
@@ -239,10 +239,11 @@ assert(!missing.ok && missing.status === 'unsupported', 'missing row should be a
 const viewerHtml = fs.readFileSync(path.join(__dirname, 'viewer', 'index.html'), 'utf8');
 const viewerApp = readExploreBundle(path.join(__dirname, 'viewer'));
 assert(viewerHtml.includes('../authoring/draft_extract.js'), 'viewer should load draft extraction bridge');
+assert(viewerHtml.includes('../authoring/parsed_to_draft.js'), 'viewer should load canonical parsed-to-draft bridge');
 assert(viewerHtml.includes('../authoring/existing_scene_edit_model.js'), 'viewer should load existing scene edit model');
 assert(viewerHtml.includes('existing_scene_edit_ui.js'), 'viewer should load existing scene editor UI');
 assert(viewerApp.includes('data-edit-existing'), 'viewer should expose Edit existing inspector action');
-assert(viewerApp.includes('Copy as new proposal'), 'viewer should keep Copy as new proposal inspector action');
+assert(viewerApp.includes('Copy as new draft'), 'viewer should keep Copy as new draft inspector action');
 assert(viewerApp.includes('data-edit-as-draft'), 'viewer should expose Edit as Draft inspector action');
 assert(viewerApp.includes('ProjectMapDraftExtract'), 'viewer should call ProjectMapDraftExtract');
 assert(viewerApp.includes('ProjectMapExistingSceneEditor'), 'viewer should call Existing Scene Editor for source-backed edits');

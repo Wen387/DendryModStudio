@@ -253,6 +253,14 @@
     const bundle = buildBundle(def, api, draft, projectIndex, opts);
     const output = normalizeOutput(bundle, draft, def);
     const diagnostics = normalizeDiagnostics(bundle && bundle.diagnostics);
+    if (isPartialAuthoringDraft(draft)) {
+      diagnostics.push(diagnostic('error', 'parsed_to_draft.partial_blocked', partialDraftMessage(draft)));
+      output.ok = false;
+      output.installPlan = null;
+      output.installPlanJson = '';
+      output.patchPreview = '';
+      output.installChecklist = '';
+    }
     const installPlan = output.installPlan || null;
     return {
       schemaVersion: '0.1',
@@ -281,6 +289,17 @@
       legacy: {template: key},
       rawContext: null
     };
+  }
+
+  function isPartialAuthoringDraft(draft) {
+    return String(draft && draft.authoringStatus || '').trim() === 'partial';
+  }
+
+  function partialDraftMessage(draft) {
+    const blockers = ensureArray(draft && draft.authoringBlockers).map((item) => String(item || '').trim()).filter(Boolean);
+    return blockers.length
+      ? blockers.join(' ')
+      : 'This parsed structure is captured for preview, but structured create-as-new support is not complete yet.';
   }
 
   function normalizeTemplate(value) {
@@ -497,7 +516,7 @@
   }
 
   function normalizeEventOptions(options) {
-    return ensureArray(options).slice(0, 4).map((option, index) => {
+    return ensureArray(options).map((option, index) => {
       const value = isObject(option) ? option : {};
       const id = safeId(value.id || value.rawId || 'option_' + (index + 1));
       return {
@@ -534,6 +553,7 @@
       kind: 'card',
       id: 'new_action_card',
       title: 'New Action Card',
+      cardShape: 'choice_card',
       cardKind: 'action_card',
       tags: ['cards'],
       viewIf: '',
@@ -867,6 +887,7 @@
     setString(data, draft, 'card.title', 'title');
     setString(data, draft, 'card.heading', 'heading');
     setString(data, draft, 'card.subtitle', 'subtitle');
+    setString(data, draft, 'card.cardShape', 'cardShape');
     setString(data, draft, 'card.cardKind', 'cardKind');
     setString(data, draft, 'card.viewIf', 'viewIf');
     setNumber(data, draft, 'card.priority', 'priority');
@@ -892,6 +913,34 @@
       next.effects = applyEffectValues(data, 'card.option.' + index + '.effect', next.effects);
       return next;
     });
+    const sections = ensureArray(draft.sections).map((section, index) => {
+      const next = clone(section);
+      setString(data, next, 'card.section.' + index + '.title', 'title');
+      setString(data, next, 'card.section.' + index + '.condition', 'condition');
+      setString(data, next, 'card.section.' + index + '.exitTarget', 'exitTarget', safeId);
+      if (has(data, 'card.section.' + index + '.body')) {
+        next.paragraphs = paragraphs(data['card.section.' + index + '.body']);
+      }
+      next.effects = applyEffectValues(data, 'card.section.' + index + '.effect', next.effects);
+      next.options = ensureArray(next.options).map((option, optionIndex) => {
+        const optionNext = clone(option);
+        setString(data, optionNext, 'card.section.' + index + '.option.' + optionIndex + '.label', 'label');
+        setString(data, optionNext, 'card.section.' + index + '.option.' + optionIndex + '.title', 'title');
+        setString(data, optionNext, 'card.section.' + index + '.option.' + optionIndex + '.subtitle', 'subtitle');
+        setString(data, optionNext, 'card.section.' + index + '.option.' + optionIndex + '.chooseIf', 'chooseIf');
+        setString(data, optionNext, 'card.section.' + index + '.option.' + optionIndex + '.unavailableText', 'unavailableText');
+        setString(data, optionNext, 'card.section.' + index + '.option.' + optionIndex + '.gotoAfter', 'gotoAfter', safeId);
+        if (has(data, 'card.section.' + index + '.option.' + optionIndex + '.body')) {
+          optionNext.narrativeParagraphs = paragraphs(data['card.section.' + index + '.option.' + optionIndex + '.body']);
+        }
+        optionNext.effects = applyEffectValues(data, 'card.section.' + index + '.option.' + optionIndex + '.effect', optionNext.effects);
+        return optionNext;
+      });
+      return next;
+    });
+    if (sections.length) {
+      draft.sections = sections;
+    }
     if (titleChanged && !headingChanged) {
       draft.heading = draft.title;
     } else if (!draft.heading) {

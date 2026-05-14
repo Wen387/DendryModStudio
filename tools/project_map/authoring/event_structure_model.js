@@ -447,7 +447,7 @@
       })
     ];
     if (eventShape === 'choice_event') {
-      rows.splice(1, 0, readinessItem('root_options', ensureArray(rootOptions).length >= 2 && ensureArray(rootOptions).length <= 4, 'Choice event has 2 to 4 root options.', editAction('open_object_field', 'option.0.label', 'option_1')));
+      rows.splice(1, 0, readinessItem('root_options', ensureArray(rootOptions).length >= 2, 'Choice event has at least 2 root options.', editAction('open_object_field', 'option.0.label', 'option_1')));
     } else {
       rows.splice(1, 0, readinessItem('event_shape', ensureArray(rootOptions).length === 0, 'Text event has no player choices.', editAction('open_object_field', 'event.eventShape', structure.id || 'event')));
     }

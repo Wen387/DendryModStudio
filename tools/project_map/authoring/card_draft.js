@@ -4,6 +4,7 @@
   const CARD_DRAFT_VERSION = '0.1';
   const CARD_KIND = 'card';
   const CARD_KINDS = new Set(['action_card', 'advisor_like']);
+  const CARD_SHAPES = new Set(['choice_card', 'menu_card', 'pinned_text_card']);
   const ID_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
   const EFFECT_OPS = new Set(['=', '+=', '-=']);
 
@@ -22,6 +23,7 @@
     draft.id = String(draft.id || '').trim();
     draft.title = String(draft.title || '').trim();
     draft.cardKind = String(draft.cardKind || 'action_card').trim();
+    draft.cardShape = normalizeCardShape(draft.cardShape || draft.shape, draft);
     draft.tags = normalizeStringList(draft.tags);
     draft.viewIf = String(draft.viewIf || '').trim();
     draft.priority = numberOrNull(draft.priority);
@@ -33,7 +35,27 @@
     draft.assetRefs = ensureArray(draft.assetRefs).map(normalizeAssetRef);
     draft.assetInstallRequests = ensureArray(draft.assetInstallRequests).map(normalizeAssetInstallRequest);
     draft.options = ensureArray(draft.options).map(normalizeOption);
+    const sections = ensureArray(draft.sections).map(normalizeSection).filter((section) => section.id);
+    if (sections.length) {
+      draft.sections = sections;
+    } else {
+      delete draft.sections;
+    }
     return draft;
+  }
+
+  function normalizeCardShape(value, draft) {
+    const text = String(value || '').trim();
+    if (CARD_SHAPES.has(text)) {
+      return text;
+    }
+    if (ensureArray(draft && draft.sections).length) {
+      return 'menu_card';
+    }
+    if (!ensureArray(draft && draft.options).length) {
+      return 'pinned_text_card';
+    }
+    return 'choice_card';
   }
 
   function normalizeOption(option, index) {
@@ -51,12 +73,26 @@
     };
   }
 
+  function normalizeSection(section, index) {
+    const value = isObject(section) ? section : {};
+    return {
+      id: String(value.id || ('section_' + (index + 1))).trim(),
+      title: String(value.title || '').trim(),
+      condition: String(value.condition || '').trim(),
+      paragraphs: normalizeTextList(value.paragraphs || value.body || value.text),
+      effects: ensureArray(value.effects).map(normalizeEffect),
+      options: ensureArray(value.options).map(normalizeOption),
+      exitTarget: String(value.exitTarget || 'root').trim()
+    };
+  }
+
   function normalizeEffect(effect) {
     const value = isObject(effect) ? effect : {};
     return {
       variable: String(value.variable || '').trim(),
       op: String(value.op || '').trim(),
-      value: value.value
+      value: value.value,
+      condition: String(value.condition || value.if || '').trim()
     };
   }
 
@@ -166,6 +202,9 @@
     if (!CARD_KINDS.has(draft.cardKind)) {
       diag(diagnostics, 'error', 'card_draft.card_kind', 'cardKind must be "action_card" or "advisor_like".');
     }
+    if (!CARD_SHAPES.has(draft.cardShape)) {
+      diag(diagnostics, 'error', 'card_draft.card_shape', 'cardShape must be "choice_card", "menu_card", or "pinned_text_card".');
+    }
     if (draft.priority !== null && !Number.isInteger(draft.priority)) {
       diag(diagnostics, 'error', 'card_draft.priority', 'Priority must be an integer.');
     }
@@ -178,33 +217,61 @@
     checkConditionText(draft.viewIf, diagnostics, 'card_draft.view_if');
 
     const optionIds = new Set();
-    if (draft.options.length < 2 || draft.options.length > 4) {
-      diag(diagnostics, 'error', 'card_draft.choice_count', 'Card drafts must contain 2 to 4 choices.');
+    if (draft.cardShape === 'choice_card' && draft.options.length < 2) {
+      diag(diagnostics, 'error', 'card_draft.choice_count', 'Choice card drafts must contain at least 2 choices.');
+    }
+    if (draft.cardShape === 'pinned_text_card' && draft.options.length) {
+      diag(diagnostics, 'error', 'card_draft.pinned_text_options', 'Pinned text cards must not contain standard choices.');
+    }
+    if (draft.cardShape === 'menu_card' && !ensureArray(draft.sections).length) {
+      diag(diagnostics, 'error', 'card_draft.menu_sections', 'Menu card drafts must contain at least one section.');
     }
     draft.options.forEach((option, index) => {
-      if (!ID_RE.test(option.id)) {
-        diag(diagnostics, 'error', 'card_draft.option_id', 'Option ' + (index + 1) + ' id must be a valid anchor id.');
-      }
-      if (optionIds.has(option.id)) {
-        diag(diagnostics, 'error', 'card_draft.duplicate_option_id', 'Duplicate option id: ' + option.id);
-      }
-      optionIds.add(option.id);
-      if (!option.label) {
-        diag(diagnostics, 'error', 'card_draft.option_label', 'Option ' + option.id + ' needs a label.');
-      }
-      checkConditionText(option.chooseIf, diagnostics, 'card_draft.choose_if');
-      if (option.unavailableText && !option.chooseIf) {
-        diag(diagnostics, 'warning', 'card_draft.unavailable_without_choose_if', 'unavailableText only matters when chooseIf is set: ' + option.id);
-      }
-      if (option.gotoAfter && !ID_RE.test(option.gotoAfter)) {
-        diag(diagnostics, 'error', 'card_draft.goto_after', 'Option gotoAfter must be a plain scene or anchor id.');
-      }
-      option.effects.forEach((effect) => validateEffect(effect, variables, diagnostics));
-      option.narrativeParagraphs.forEach((paragraph) => checkFakeInlineOption(paragraph, diagnostics));
+      validateOption(option, index, variables, optionIds, diagnostics, 'Option');
     });
+    ensureArray(draft.sections).forEach((section, index) => validateSection(section, index, variables, optionIds, diagnostics));
     draft.introParagraphs.forEach((paragraph) => checkFakeInlineOption(paragraph, diagnostics));
 
     return {draft, diagnostics, ok: diagnostics.every((item) => item.severity !== 'error')};
+  }
+
+  function validateSection(section, index, variables, anchors, diagnostics) {
+    if (!ID_RE.test(section.id)) {
+      diag(diagnostics, 'error', 'card_draft.section_id', 'Section ' + (index + 1) + ' id must be a valid anchor id.');
+    }
+    if (anchors.has(section.id)) {
+      diag(diagnostics, 'error', 'card_draft.duplicate_option_id', 'Duplicate card anchor id: ' + section.id);
+    }
+    anchors.add(section.id);
+    checkConditionText(section.condition, diagnostics, 'card_draft.section_condition');
+    if (section.exitTarget && !ID_RE.test(section.exitTarget)) {
+      diag(diagnostics, 'error', 'card_draft.section_exit_target', 'Section exit target must be a plain scene or anchor id.');
+    }
+    section.effects.forEach((effect) => validateEffect(effect, variables, diagnostics));
+    section.paragraphs.forEach((paragraph) => checkFakeInlineOption(paragraph, diagnostics));
+    section.options.forEach((option, optionIndex) => validateOption(option, optionIndex, variables, anchors, diagnostics, 'Section option'));
+  }
+
+  function validateOption(option, index, variables, anchors, diagnostics, label) {
+    if (!ID_RE.test(option.id)) {
+      diag(diagnostics, 'error', 'card_draft.option_id', label + ' ' + (index + 1) + ' id must be a valid anchor id.');
+    }
+    if (anchors.has(option.id)) {
+      diag(diagnostics, 'error', 'card_draft.duplicate_option_id', 'Duplicate card anchor id: ' + option.id);
+    }
+    anchors.add(option.id);
+    if (!option.label) {
+      diag(diagnostics, 'error', 'card_draft.option_label', label + ' ' + option.id + ' needs a label.');
+    }
+    checkConditionText(option.chooseIf, diagnostics, 'card_draft.choose_if');
+    if (option.unavailableText && !option.chooseIf) {
+      diag(diagnostics, 'warning', 'card_draft.unavailable_without_choose_if', 'unavailableText only matters when chooseIf is set: ' + option.id);
+    }
+    if (option.gotoAfter && !ID_RE.test(option.gotoAfter)) {
+      diag(diagnostics, 'error', 'card_draft.goto_after', 'Option gotoAfter must be a plain scene or anchor id.');
+    }
+    option.effects.forEach((effect) => validateEffect(effect, variables, diagnostics));
+    option.narrativeParagraphs.forEach((paragraph) => checkFakeInlineOption(paragraph, diagnostics));
   }
 
   function validateEffect(effect, variables, diagnostics) {
@@ -288,16 +355,19 @@
     lines.push('= ' + draft.heading);
     lines.push('');
     appendParagraphs(lines, draft.introParagraphs);
-    draft.options.forEach((option) => {
-      lines.push('- @' + option.id + ': ' + option.label);
-    });
-    lines.push('');
-    draft.options.forEach((option, index) => {
-      if (index > 0) {
-        lines.push('');
-      }
-      appendOption(lines, option);
-    });
+    if (draft.options.length) {
+      draft.options.forEach((option) => {
+        lines.push('- @' + option.id + ': ' + option.label);
+      });
+      lines.push('');
+      draft.options.forEach((option, index) => {
+        if (index > 0) {
+          lines.push('');
+        }
+        appendOption(lines, option);
+      });
+    }
+    ensureArray(draft.sections).forEach((section) => appendSection(lines, section));
     return lines.join('\n') + '\n';
   }
 
@@ -325,6 +395,42 @@
     appendParagraphs(lines, option.narrativeParagraphs);
   }
 
+  function appendSection(lines, section) {
+    lines.push('');
+    lines.push('@' + section.id);
+    if (section.title) {
+      lines.push('= ' + section.title);
+      lines.push('');
+    }
+    if (section.effects.length) {
+      lines.push('on-arrival: {!');
+      section.effects.forEach((effect) => lines.push(renderEffect(effect)));
+      lines.push('!}');
+      lines.push('');
+    }
+    if (section.condition) {
+      lines.push('[? if ' + section.condition + ' : ' + section.paragraphs.join('\n\n') + ' ?]');
+      lines.push('');
+    } else {
+      appendParagraphs(lines, section.paragraphs);
+    }
+    section.options.forEach((option) => {
+      lines.push('- @' + option.id + ': ' + option.label);
+    });
+    if (section.options.length) {
+      lines.push('');
+    }
+    section.options.forEach((option, index) => {
+      if (index > 0) {
+        lines.push('');
+      }
+      appendOption(lines, option);
+    });
+    if (!section.options.length && section.exitTarget) {
+      lines.push('go-to: ' + section.exitTarget);
+    }
+  }
+
   function appendParagraphs(lines, paragraphs) {
     ensureArray(paragraphs).forEach((paragraph) => {
       lines.push(paragraph);
@@ -333,7 +439,7 @@
   }
 
   function renderEffect(effect) {
-    return 'Q.' + effect.variable + ' ' + effect.op + ' ' + renderEffectValue(effect.value) + ';';
+    return 'Q.' + effect.variable + ' ' + effect.op + ' ' + renderEffectValue(effect.value) + (effect.condition ? ' if ' + effect.condition : '') + ';';
   }
 
   function renderEffectValue(value) {

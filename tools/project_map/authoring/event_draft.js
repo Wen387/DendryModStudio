@@ -266,8 +266,8 @@
 
     const optionIds = new Set();
     const renderedAnchors = new Set();
-    if (draft.eventShape === 'choice_event' && (draft.options.length < 2 || draft.options.length > 4)) {
-      diag(diagnostics, 'error', 'event_draft.choice_count', 'World event drafts must contain 2 to 4 choices.');
+    if (draft.eventShape === 'choice_event' && draft.options.length < 2) {
+      diag(diagnostics, 'error', 'event_draft.choice_count', 'World event drafts must contain at least 2 choices.');
     }
     if (draft.eventShape === 'pure_event' && draft.options.length) {
       diag(diagnostics, 'error', 'event_draft.pure_event_options', 'Pure text event drafts must not contain root player choices; switch to choice_event first.');
@@ -874,8 +874,38 @@
     return effects;
   }
 
+  function parsedToDraftApi() {
+    if (global && global.ProjectMapParsedToDraft) {
+      return global.ProjectMapParsedToDraft;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./parsed_to_draft.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   function fromExistingScene(projectIndex, sceneId, options) {
     const opts = isObject(options) ? options : {};
+    const parsedToDraft = parsedToDraftApi();
+    if (parsedToDraft && typeof parsedToDraft.buildDraftFromParsed === 'function') {
+      try {
+        const result = parsedToDraft.buildDraftFromParsed(projectIndex, {
+          view: 'events',
+          itemId: sceneId,
+          newId: opts.newId || opts.id,
+          sourceEntry: 'event_draft.fromExistingScene'
+        });
+        if (result && result.draft) {
+          return normalizeDraft(result.draft);
+        }
+      } catch (_err) {
+        // Keep the legacy extraction path available if the canonical bridge is not loaded.
+      }
+    }
     const scene = findScene(projectIndex, sceneId);
     if (!scene) {
       return normalizeDraft({eventShape: 'pure_event', id: safeDraftId(sceneId || 'new_text_event'), title: String(sceneId || 'New text event'), options: []});
