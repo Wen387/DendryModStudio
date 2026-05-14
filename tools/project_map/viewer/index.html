@@ -435,15 +435,26 @@
           <div id="install-checklist" class="install-human-checklist"></div>
         </section>
 
-        <section class="preview-drawer" aria-label="Install patch preview" data-i18n-aria-label="install.patchPreviewAria">
-          <div class="preview-heading output-heading" data-i18n="install.patchPreview">Patch preview</div>
-          <pre id="install-patch-preview" class="code-preview"></pre>
+        <section class="preview-drawer" aria-label="Install diff preview" data-i18n-aria-label="install.diffPreviewAria">
+          <div class="preview-heading output-heading" data-i18n="install.diffPreview">Plan preview / verified diff</div>
+          <div class="install-diff-grid">
+            <div class="install-diff-pane">
+              <div class="install-diff-heading" data-i18n="install.planPreview">Plan preview</div>
+              <pre id="install-patch-preview" class="code-preview"></pre>
+            </div>
+            <div class="install-diff-pane">
+              <div class="install-diff-heading" data-i18n="install.verifiedDiff">Verified diff</div>
+              <pre id="install-verified-diff" class="code-preview"></pre>
+            </div>
+          </div>
         </section>
 
         <div class="wizard-actions">
           <button id="install-dry-run" class="primary-action" type="button" data-i18n="install.dryRunInstallable">Dry run installable operations</button>
           <button id="install-apply" type="button" data-i18n="install.applyReviewed">Apply safe + guarded</button>
           <button id="install-runtime-preview" type="button" data-i18n="install.runtimePreview">Runtime Preview</button>
+          <button id="install-download-evidence" type="button" data-i18n="install.downloadEvidence">Download evidence</button>
+          <button id="install-download-verified-diff" type="button" data-i18n="install.downloadVerifiedDiff">Download verified diff</button>
           <label class="install-advanced-toggle">
             <input id="install-allow-advanced" type="checkbox">
             <span data-i18n="install.includeAdvanced">Include advanced risky operations</span>
@@ -673,7 +684,7 @@
                   <option value="add_new" data-i18n="create.option.addNew">Add new</option>
                   <option value="delete_existing" data-i18n="create.option.deleteExisting">Delete existing</option>
                 </select>
-                <small class="wizard-field-help" data-i18n="create.help.variableMode">Existing variables stay manual-review; new variables can generate guarded root initialization; deletion prepares a review checklist.</small>
+                <small class="wizard-field-help" data-i18n="create.help.variableMode">Source-backed existing variables can generate guarded or advanced initialization edits; new variables can generate guarded root initialization; deletion prepares a review checklist.</small>
               </label>
               <label>
                 <span data-i18n="create.field.variableName">variable name</span>
@@ -798,7 +809,7 @@
       <section class="wizard-form-panel" aria-labelledby="wizard-heading-label" data-create-template-panel="event">
         <div class="wizard-title-row">
           <div>
-            <h1 id="wizard-heading-label" class="wizard-title" data-i18n="create.eventWizard">World Event Wizard</h1>
+            <h1 id="wizard-heading-label" class="wizard-title" data-i18n="create.eventWizard">Complex Event Builder</h1>
             <div id="wizard-core-status" class="wizard-status" data-i18n="create.status.eventCorePending">EventDraft core pending.</div>
           </div>
           <div class="wizard-status-stack">
@@ -918,7 +929,7 @@
               <label class="wide-field asset-ref-editor">
                 <span data-i18n="assets.installRequests">Asset install proposals</span>
                 <textarea id="wizard-asset-install-requests" name="assetInstallRequests" rows="3" placeholder="Portrait Hero.PNG | assets/studio/events/new_world_event/portrait-hero.png | image | Portrait Hero | event_illustration" data-i18n-placeholder="create.sample.eventAssetInstallRequest"></textarea>
-                <small class="wizard-field-help" data-i18n="create.help.assetInstallRequests">Review selected local files and their project-relative targets. This slice still does not copy files automatically.</small>
+                <small class="wizard-field-help" data-i18n="create.help.assetInstallRequests">Selected local files become guarded asset copy operations in Review &amp; Apply when Studio has a desktop source path.</small>
               </label>
             </details>
             <details id="wizard-event-advanced" class="advanced-panel">
@@ -1250,7 +1261,7 @@ civil_society_trust += 1</textarea>
 
         <form id="news-wizard-form" class="wizard-form">
           <div class="wizard-guidance" data-i18n="news.createGuidance">
-            Use News Wizard for Island-style ticker or pool news. For original SDAAH monthly popups, use World Event Wizard and put event in the tags field.
+            Use News Wizard for Island-style ticker or pool news. For original SDAAH monthly popups, use Complex Event Builder and put event in the tags field.
           </div>
           <div class="wizard-guidance-actions">
             <button class="wizard-inline-help" type="button" data-tutorial-open="tags-event" data-i18n="news.explainTagsEvent">What does tags: event mean?</button>
@@ -1516,7 +1527,7 @@ civil_society_trust += 1</textarea>
               <label class="wide-field asset-ref-editor">
                 <span data-i18n="assets.installRequests">Asset install proposals</span>
                 <textarea id="card-asset-install-requests" name="assetInstallRequests" rows="3" placeholder="Card Art.PNG | assets/studio/cards/new_action_card/card-art.png | image | Card Art | card_image" data-i18n-placeholder="create.sample.cardAssetInstallRequest"></textarea>
-                <small class="wizard-field-help" data-i18n="create.help.assetInstallRequests">Review selected local files and their project-relative targets. This slice still does not copy files automatically.</small>
+                <small class="wizard-field-help" data-i18n="create.help.assetInstallRequests">Selected local files become guarded asset copy operations in Review &amp; Apply when Studio has a desktop source path.</small>
               </label>
             </details>
           </fieldset>
@@ -2729,6 +2740,9 @@ media_reach += 1</textarea>
   <script src="../authoring/existing_scene_edit_model.js"></script>
   <script src="../authoring/edit_capability_model.js"></script>
   <script src="../authoring/visible_object_coverage_model.js"></script>
+  <script src="../authoring/source_slice_editor_model.js"></script>
+  <script src="../authoring/semantic_logic_editor_model.js"></script>
+  <script src="../authoring/parser_renderer_confidence_model.js"></script>
   <script src="../authoring/editing_context_model.js"></script>
   <script src="../authoring/object_canvas_content_bodies.js"></script>
   <script src="../authoring/object_canvas_content_adapters.js"></script>
@@ -2752,6 +2766,8 @@ media_reach += 1</textarea>
   <script src="../authoring/preview_model.js"></script>
   <script src="../authoring/meaning_layer.js"></script>
   <script src="../authoring/event_workbench_model.js"></script>
+  <script src="../authoring/semantic_ownership_graph_model.js"></script>
+  <script src="../authoring/dynamic_semantic_workbench_model.js"></script>
   <script src="../authoring/draft_workspace.js"></script>
   <script src="../authoring/studio_contracts.js"></script>
   <script src="i18n/en.js"></script>
@@ -2768,8 +2784,10 @@ media_reach += 1</textarea>
   <script src="storyboard_palette_sidebar.js"></script>
   <script src="runtime_lens_ui.js"></script>
   <script src="runtime_lens_workspace_state.js"></script>
+  <script src="visible_edit_action_ui.js"></script>
   <script src="visible_text_renderer.js"></script>
   <script src="lightweight_object_preview.js"></script>
+  <script src="preview_object_event_builder_ui.js"></script>
   <script src="preview_object_editor.js"></script>
   <script src="storyboard_workspace_state.js"></script>
   <script src="content_storyboard_surface.js"></script>
@@ -2793,6 +2811,8 @@ media_reach += 1</textarea>
   <script src="object_canvas_viewport.js"></script>
   <script src="object_canvas_graph_stage.js"></script>
   <script src="object_canvas_shell_ui.js"></script>
+  <script src="source_slice_workspace_ui.js"></script>
+  <script src="semantic_logic_workspace_ui.js"></script>
   <script src="authoring_workspace_ui.js"></script>
   <script src="editing_workspace_ui.js"></script>
   <script src="object_authoring_canvas_ui.js"></script>

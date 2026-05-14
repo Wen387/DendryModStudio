@@ -559,6 +559,21 @@
     });
 
     elements.inspector.addEventListener('click', (event) => {
+      const visibleEditAction = event.target.closest('[data-visible-edit-action]');
+      if (visibleEditAction) {
+        const ui = global.ProjectMapVisibleEditActionUi;
+        if (ui && typeof ui.bind === 'function') {
+          ui.bind(elements.inspector, {projectIndex: state.model && state.model.index});
+        }
+        if (ui && typeof ui.open === 'function') {
+          try {
+            ui.open(JSON.parse(visibleEditAction.dataset.visibleEditAction || '{}'), state.model && state.model.index);
+          } catch (_err) {
+            ui.open({}, state.model && state.model.index);
+          }
+        }
+        return;
+      }
       const eventWorkbenchAction = event.target.closest('[data-event-workbench-action]');
       if (eventWorkbenchAction) {
         handleEventWorkbenchAction(state, elements, eventWorkbenchAction.dataset.eventWorkbenchAction || '');

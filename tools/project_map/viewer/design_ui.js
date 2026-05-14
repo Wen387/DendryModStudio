@@ -40,6 +40,7 @@
     designModelStale: false,
     designRevision: 0,
     inspectorCollapsed: false,
+    inspectorSections: Object.create(null),
     inspectorCache: {key: '', html: ''}
   };
 
@@ -186,6 +187,7 @@
       inspectorResizer: document.getElementById('design-inspector-resizer'),
       inspector: document.getElementById('design-inspector'),
       inspectorToggle: document.getElementById('design-inspector-toggle'),
+      zoomControls: document.querySelector('.design-zoom-controls'),
       search: document.getElementById('design-search'),
       scopeFilter: document.getElementById('design-scope-filter'),
       scopeOptions: Array.from(document.querySelectorAll('[data-design-scope]')),
@@ -388,14 +390,21 @@
         if (!zoom) {
           return;
         }
-        const action = zoom.dataset.designZoom;
-        if (action === 'in') {
-          zoomCanvas(1.12);
-        } else if (action === 'out') {
-          zoomCanvas(1 / 1.12);
-        } else {
-          fitCanvas();
+        handleDesignZoom(zoom.dataset.designZoom || '');
+      });
+    }
+    if (elements.zoomControls) {
+      elements.zoomControls.addEventListener('pointerdown', (event) => {
+        event.stopPropagation();
+      });
+      elements.zoomControls.addEventListener('click', (event) => {
+        const zoom = event.target.closest && event.target.closest('[data-design-zoom]');
+        if (!zoom) {
+          return;
         }
+        event.preventDefault();
+        event.stopPropagation();
+        handleDesignZoom(zoom.dataset.designZoom || '');
       });
     }
     if (elements.graphEdges) {
@@ -409,6 +418,13 @@
     }
     if (elements.inspector) {
       elements.inspector.addEventListener('click', (event) => {
+        const collapsibleSummary = event.target.closest && event.target.closest('details.event-workbench-collapsible > summary, details.mini-section > summary');
+        if (collapsibleSummary && elements.inspector.contains(collapsibleSummary)) {
+          event.preventDefault();
+          event.stopPropagation();
+          toggleInspectorDetails(collapsibleSummary.parentElement);
+          return;
+        }
         const eventWorkbenchAction = event.target.closest('[data-event-workbench-action]');
         if (eventWorkbenchAction) {
           handleEventWorkbenchAction(eventWorkbenchAction.dataset.eventWorkbenchAction || '');
@@ -449,10 +465,13 @@
       elements.inspectorResizer.addEventListener('pointerdown', beginInspectorResize);
     }
     if (elements.inspectorToggle) {
-      elements.inspectorToggle.addEventListener('click', () => {
-        state.inspectorCollapsed = !state.inspectorCollapsed;
-        storeInspectorCollapsed(state.inspectorCollapsed);
-        syncInspectorCollapse();
+      elements.inspectorToggle.addEventListener('pointerdown', (event) => {
+        event.stopPropagation();
+      });
+      elements.inspectorToggle.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        toggleInspectorCollapse();
       });
     }
     document.addEventListener('pointermove', moveNodeDrag);
@@ -588,6 +607,16 @@
     setDesignStatus(t('design.showAll', 'Showing all matching Design nodes. Select a node to focus again.'));
     render();
     scheduleFitCanvas();
+  }
+
+  function handleDesignZoom(action) {
+    if (action === 'in') {
+      zoomCanvas(1.12);
+    } else if (action === 'out') {
+      zoomCanvas(1 / 1.12);
+    } else if (action === 'fit') {
+      fitCanvas();
+    }
   }
 
   function render() {
@@ -832,11 +861,13 @@
     const cacheKey = inspectorCacheKey(model, selected);
     if (state.inspectorCache && state.inspectorCache.key === cacheKey) {
       elements.inspector.innerHTML = state.inspectorCache.html;
+      restoreInspectorSectionState(selected);
       return;
     }
     const html = renderInspectorContent(model, selected);
     state.inspectorCache = {key: cacheKey, html};
     elements.inspector.innerHTML = html;
+    restoreInspectorSectionState(selected);
   }
 
   function inspectorCacheKey(model, selected) {
@@ -931,10 +962,10 @@
       support.status === 'ide_escape_hatch'
         ? '<div class="edge-item">' + escapeHtml(t('design.ideEscapeHatch', 'IDE escape hatch: Studio can draft guidance, but it will not pretend this is a safe automatic edit.')) + '</div>'
         : '',
-      miniSection(t('design.variablesTouched', 'Variables touched'), variables),
-      miniSection(t('design.flowEdges', 'Flow edges'), graphRows),
-      miniSection(t('design.relatedContent', 'Related content'), relatedRows),
-      miniSection(t('design.diagnostics', 'Diagnostics'), diagnostics)
+      miniSection('variables', t('design.variablesTouched', 'Variables touched'), variables),
+      miniSection('flow_edges', t('design.flowEdges', 'Flow edges'), graphRows),
+      miniSection('related_content', t('design.relatedContent', 'Related content'), relatedRows),
+      miniSection('diagnostics', t('design.diagnostics', 'Diagnostics'), diagnostics)
     ].join('');
   }
 
@@ -1568,11 +1599,60 @@
     elements.status.classList.toggle('is-error', Boolean(isError));
   }
 
-  function miniSection(title, rows) {
+  function miniSection(id, title, rows) {
     if (!rows || !rows.length) {
       return '';
     }
-    return '<details class="mini-section" open><summary><span>' + escapeHtml(title) + '</span><b>' + escapeHtml(String(rows.length)) + '</b></summary>' + rows.join('') + '</details>';
+    return '<details class="mini-section" open data-design-mini-section="' + escapeAttr(id || '') + '"><summary aria-expanded="true"><span>' + escapeHtml(title) + '</span><b>' + escapeHtml(String(rows.length)) + '</b></summary>' + rows.join('') + '</details>';
+  }
+
+  function toggleInspectorDetails(details) {
+    if (!details) {
+      return;
+    }
+    const nextOpen = !details.open;
+    details.open = nextOpen;
+    const key = inspectorDetailsStateKey(details);
+    if (key) {
+      state.inspectorSections[key] = nextOpen;
+    }
+    syncDetailsAria(details);
+  }
+
+  function restoreInspectorSectionState(selected) {
+    if (!elements || !elements.inspector) {
+      return;
+    }
+    const detailsList = Array.from(elements.inspector.querySelectorAll('details.event-workbench-collapsible[data-event-workbench-section], details.mini-section[data-design-mini-section]'));
+    detailsList.forEach((details) => {
+      const key = inspectorDetailsStateKey(details, selected && selected.key);
+      if (key && Object.prototype.hasOwnProperty.call(state.inspectorSections, key)) {
+        details.open = Boolean(state.inspectorSections[key]);
+      }
+      syncDetailsAria(details);
+    });
+  }
+
+  function inspectorDetailsStateKey(details, selectedKey) {
+    if (!details) {
+      return '';
+    }
+    const sectionId = details.dataset.eventWorkbenchSection || details.dataset.designMiniSection || '';
+    if (!sectionId) {
+      return '';
+    }
+    const prefix = details.classList.contains('event-workbench-collapsible') ? 'event_workbench' : 'design';
+    return [selectedKey || state.selectedKey || '', prefix, sectionId].join('::');
+  }
+
+  function syncDetailsAria(details) {
+    if (!details) {
+      return;
+    }
+    const summary = details.querySelector('summary');
+    if (summary) {
+      summary.setAttribute('aria-expanded', details.open ? 'true' : 'false');
+    }
   }
 
   function readInspectorCollapsed() {
@@ -1608,6 +1688,17 @@
       elements.inspectorToggle.setAttribute('title', label);
       elements.inspectorToggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
     }
+  }
+
+  function toggleInspectorCollapse() {
+    state.inspectorCollapsed = !state.inspectorCollapsed;
+    storeInspectorCollapsed(state.inspectorCollapsed);
+    syncInspectorCollapse();
+    schedule(() => {
+      if (state.view === 'graph') {
+        fitCanvas();
+      }
+    });
   }
 
   function badge(text, className) {

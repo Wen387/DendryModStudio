@@ -51,6 +51,7 @@
       },
       selectedKey: displaySelectedKey,
       currentKey: current.key,
+      projectIndex,
       cards: allCards,
       timeline: paletteTimeline,
       chain: paletteChain,

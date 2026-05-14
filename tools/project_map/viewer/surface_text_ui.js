@@ -301,7 +301,7 @@
       '',
       draft.editability === 'draft_exportable'
         ? 'Install: guarded source-backed replacement if the original text still matches.'
-        : 'Install: IDE guidance only; Studio will not auto-edit this source.'
+        : 'Install: use a source-backed edit route or advanced apply when the owner is protected.'
     ].join('\n') + '\n';
   }
 
