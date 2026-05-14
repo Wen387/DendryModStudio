@@ -54,6 +54,19 @@ const knownCanvas = canvasModel.buildNewEventCanvas(knownIndex, draft, {});
 assert(knownCanvas.contextBoard.manualBoundaries.some((row) => row.status === 'advanced_apply'), 'Object Canvas should describe known profile router apply as advanced, not manual', knownCanvas.contextBoard.manualBoundaries);
 assert(knownCanvas.eventBody.readinessChecklist.some((item) => item.id === 'router_registration' && item.ok), 'readiness should mark known profile router registration ready', knownCanvas.eventBody.readinessChecklist);
 
+const missingAnchorIndex = {
+  schemaVersion: '0.1',
+  project: {name: 'Known Profile Missing Anchor', root: '/tmp/dms-known-profile-no-anchor', profileIds: ['generic-dendry']},
+  profiles: [{id: 'generic-dendry'}],
+  scenes: [],
+  variables: [{name: 'year'}, {name: 'month'}],
+  semantic: {}
+};
+const missingAnchorBundle = eventDraft.buildExportBundle(Object.assign({}, draft, {id: 'known_profile_missing_anchor', seenFlag: 'known_profile_missing_anchor_seen'}), missingAnchorIndex);
+assert(!missingAnchorBundle.installPlan.operations.some((op) => op.id === 'event_router_registration'), 'known profile without a router anchor should not invent a router operation', missingAnchorBundle.installPlan.operations);
+const missingAnchorCanvas = canvasModel.buildNewEventCanvas(missingAnchorIndex, draft, {});
+assert(missingAnchorCanvas.eventBody.readinessChecklist.some((item) => item.id === 'router_registration' && !item.ok), 'known profile without router anchor should keep readiness blocked', missingAnchorCanvas.eventBody.readinessChecklist);
+
 const unknownIndex = {
   schemaVersion: '0.1',
   project: {name: 'Unknown Profile', root: '/tmp/dms-unknown-profile', profileIds: ['custom-router']},

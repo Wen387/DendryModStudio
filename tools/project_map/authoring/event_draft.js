@@ -712,7 +712,7 @@
     if (postEvent && postEvent.title) {
       return '= ' + String(postEvent.title).trim();
     }
-    return anchors && anchors.migrationAnchorText || '// Save compatibility: post_event split (post_event_news)';
+    return '';
   }
 
   function projectProfileIds(projectIndex) {

@@ -1344,12 +1344,13 @@
 
   function boundaryRows(projectIndex, def, draft) {
     if (def.objectKind === 'event') {
-      if (hasKnownEventRouterProfile(projectIndex)) {
+      const routerRegistration = eventRouterRegistrationHint(projectIndex, draft);
+      if (routerRegistration) {
         return [{
           label: 'Profile-aware router registration',
           reason: 'Known Dendry-style profiles can register the monthly #event lane through Review & Apply.',
           status: 'advanced_apply',
-          source: {path: 'source/scenes/post_event.scene.dry'},
+          source: {path: routerRegistration.path || 'source/scenes/post_event.scene.dry'},
           action: {
             actionKind: 'open_advanced_source_patch',
             routeClass: 'news_router_workflow',
@@ -1385,18 +1386,16 @@
     }];
   }
 
-  function hasKnownEventRouterProfile(projectIndex) {
-    const ids = new Set();
-    const projectProfiles = projectIndex && projectIndex.project && Array.isArray(projectIndex.project.profileIds)
-      ? projectIndex.project.profileIds
-      : [];
-    projectProfiles.forEach((profile) => ids.add(String(profile || '').trim()));
-    ensureArray(projectIndex && projectIndex.profiles).forEach((profile) => {
-      if (profile && profile.id) {
-        ids.add(String(profile.id));
-      }
-    });
-    return ids.has('generic-dendry') || ids.has('sdaah-style');
+  function eventRouterRegistrationHint(projectIndex, draft) {
+    const api = draftApi(DEFINITIONS.event);
+    if (!api || typeof api.routerInstallHint !== 'function') {
+      return null;
+    }
+    try {
+      return api.routerInstallHint(draft || {}, projectIndex || null, null);
+    } catch (_err) {
+      return null;
+    }
   }
 
   function objectId(draft) {

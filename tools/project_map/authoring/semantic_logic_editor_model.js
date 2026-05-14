@@ -5,6 +5,7 @@
   const MODEL_KIND = 'semantic_logic_editor_model';
   const PROPOSAL_KIND = 'semantic_logic_editor_proposal';
   const APPLY_INSTALL = new Set(['safe_apply', 'guarded_apply', 'advanced_apply']);
+  const GUIDED_EFFECT_OPS = new Set(['=', '+=', '-=']);
 
   function ensureArray(value) {
     return Array.isArray(value) ? value : [];
@@ -176,6 +177,7 @@
       pattern: optionLine ? 'option_line' : 'route_clause',
       originalText: String(currentText || ''),
       originalSegment: optionLine && optionLine.segment || clause && clause.segment || String(currentText || ''),
+      linePrefix: clause && clause.linePrefix || '',
       prefix: optionLine && optionLine.prefix || '@',
       target,
       predicate,
@@ -197,6 +199,9 @@
     const parsed = parseEffectExpression(row.sourceExpression || currentText);
     const variable = String(row.variable || parsed && parsed.variable || '').replace(/^Q\./, '');
     const op = String(row.op || parsed && parsed.op || '');
+    if (op && !GUIDED_EFFECT_OPS.has(op)) {
+      return null;
+    }
     const value = String(row.value === undefined || row.value === null ? parsed && parsed.value || '' : row.value);
     const condition = String(row.condition || parsed && parsed.condition || '');
     const sourceExpression = String(row.sourceExpression || parsed && parsed.segment || [variable ? 'Q.' + variable : '', op, value].filter(Boolean).join(' '));
@@ -235,6 +240,9 @@
       const prefix = /^[#@]$/.test(String(controls.prefix || '')) ? controls.prefix : '@';
       const routeText = '- ' + prefix + target + ': ' + label;
       return routeText.trimEnd();
+    }
+    if (controls.linePrefix) {
+      return String(controls.linePrefix || '') + target + (predicate ? ' if ' + predicate : '');
     }
     return target + (predicate ? ' if ' + predicate : '');
   }
@@ -295,6 +303,15 @@
 
   function parseRouteClause(value) {
     const text = String(value || '').trim().replace(/^[@#]/, '');
+    const goToMatch = text.match(/^(go-to\s*:\s*)([A-Za-z_][A-Za-z0-9_.-]*)(?:\s+if\s+(.+))?$/i);
+    if (goToMatch) {
+      return {
+        target: goToMatch[2] || '',
+        predicate: goToMatch[3] || '',
+        segment: text,
+        linePrefix: goToMatch[1] || 'go-to: '
+      };
+    }
     const match = text.match(/^([A-Za-z_][A-Za-z0-9_.-]*)(?:\s+if\s+(.+))?$/);
     if (!match) {
       return {target: text, predicate: '', segment: text};
@@ -337,7 +354,7 @@
 
   function cleanOperator(value) {
     const op = String(value || '').trim();
-    return /^(?:=|\+=|-=|\*=|\/=)$/.test(op) ? op : '=';
+    return GUIDED_EFFECT_OPS.has(op) ? op : '=';
   }
 
   function normalizeInput(input) {
@@ -388,13 +405,13 @@
     const lookup = parserEvidenceLookup(index);
     const sceneId = String(semanticEditor.sceneId || normalized.sceneId || '');
     const routeEvidence = semanticEditor.kind === 'route_order'
-      ? lookup.routeOrderGroups.filter((row) => evidenceMatches(row, sceneId, source)).slice(0, 4)
+      ? selectEvidenceRows(lookup.routeOrderGroups, sceneId, source, true).slice(0, 4)
       : [];
     const effectEvidence = semanticEditor.kind === 'effect_clause'
-      ? lookup.effectClauses.filter((row) => evidenceMatches(row, sceneId, source)).slice(0, 6)
+      ? selectEvidenceRows(lookup.effectClauses, sceneId, source, false).slice(0, 6)
       : [];
     const dynamicKeyEvidence = semanticEditor.kind === 'effect_clause'
-      ? lookup.dynamicKeyEvidence.filter((row) => evidenceMatches(row, sceneId, source)).slice(0, 6)
+      ? selectEvidenceRows(lookup.dynamicKeyEvidence, sceneId, source, false).slice(0, 6)
       : [];
     const routerEvidence = semanticEditor.kind === 'route_order'
       ? lookup.routerRows.filter((row) => routerMatches(row, sceneId, source)).slice(0, 4)
@@ -432,23 +449,38 @@
     return rows.length ? rows : ensureArray(evidence && evidence[key]);
   }
 
-  function evidenceMatches(row, sceneId, source) {
-    const ref = sourceRef(row && row.source || {});
+  function selectEvidenceRows(rows, sceneId, source, allowSceneFallback) {
+    const list = ensureArray(rows);
+    const requested = sourceRef(source || {});
+    if (requested.path) {
+      const exact = list.filter((row) => sourceMatches(sourceRef(row && row.source || {}), requested));
+      if (exact.length || !allowSceneFallback) {
+        return exact;
+      }
+    }
+    return list.filter((row) => evidenceSceneMatches(row, sceneId));
+  }
+
+  function evidenceSceneMatches(row, sceneId) {
     const owner = String(row && (row.sceneId || row.ownerId || row.linkedSceneId) || '');
     if (sceneId && owner && owner === sceneId) {
       return true;
     }
-    return sourceMatches(ref, source);
+    return false;
   }
 
   function routerMatches(row, sceneId, source) {
     const router = isObject(row && row.router) ? row.router : {};
     const routerSource = sourceRef(router.source || router || {});
     const contentSource = sourceRef(row && row.contentSource || {});
+    const requested = sourceRef(source || {});
+    if (requested.path && (routerSource.path || contentSource.path)) {
+      return sourceMatches(routerSource, requested) || sourceMatches(contentSource, requested);
+    }
     if (sceneId && String(row && row.linkedSceneId || '') === sceneId) {
       return true;
     }
-    return sourceMatches(routerSource, source) || sourceMatches(contentSource, source);
+    return sourceMatches(routerSource, requested) || sourceMatches(contentSource, requested);
   }
 
   function sourceMatches(left, right) {

@@ -16,12 +16,16 @@ function assert(condition, message, detail) {
 }
 
 function indexWithProfile(id) {
-  return {
+  const index = {
     schemaVersion: '0.1',
     project: {name: 'Router Fixture', root: '/tmp/router-fixture', profileIds: [id]},
     profiles: [{id}],
     variables: []
   };
+  if (id === 'generic-dendry') {
+    index.scenes = [{id: 'post_event', title: 'Post Event', path: 'source/scenes/post_event.scene.dry'}];
+  }
+  return index;
 }
 
 const draft = {

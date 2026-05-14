@@ -125,6 +125,22 @@ const advancedEdit = semanticEdit(advancedEffect, 'Q.dynamic_pressure += 2; Q.pu
 assert(advancedEdit.operation.safety === 'advanced_apply', 'shared/protected effect clause editor operation should stay advanced_apply', advancedEdit.operation);
 assert(advancedEdit.model.dynamicKeyEvidence.length >= 1, 'dynamic effect editor should expose dynamic Q evidence', advancedEdit.model.dynamicKeyEvidence);
 
+const unsupportedOperator = semanticLogic.buildSemanticLogicEditor(index, {
+  id: 'multiply_effect',
+  label: 'Q.public_order *= 2',
+  role: 'effect',
+  sceneId: 'effect_guarded',
+  editAction: {
+    actionKind: 'open_source_slice',
+    semanticEditor: {kind: 'effect_clause', role: 'effect', sceneId: 'effect_guarded'},
+    source: src(guardedPath, 22, 'Q.public_order *= 2'),
+    installSafety: 'guarded_apply',
+    operationType: 'replace_text'
+  }
+});
+assert(unsupportedOperator.ok, 'unsupported operator should still have a source-backed edit path', unsupportedOperator);
+assert(!unsupportedOperator.fieldControls, 'unsupported effect operators should not be shown in the guided operator dropdown', unsupportedOperator.fieldControls);
+
 process.stdout.write(JSON.stringify({
   ok: true,
   guardedEffect: guardedEdit.operation.type + ':' + guardedEdit.operation.safety,

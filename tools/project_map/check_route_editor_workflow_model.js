@@ -138,6 +138,23 @@ const routerEdit = semanticEdit(routerEntry, '- @monthly_link: Updated Monthly L
 assert(routerEdit.operation.safety === 'advanced_apply', 'monthly router route editor operation should stay advanced_apply', routerEdit.operation);
 assert(routerEdit.model.routerEvidence.length >= 1, 'monthly router route editor should expose router table evidence', routerEdit.model.routerEvidence);
 
+const goToModel = semanticLogic.buildSemanticLogicEditor(index, {
+  id: 'go_to_route_line',
+  label: 'go-to: old_target',
+  role: 'route',
+  sceneId: 'go_to_event',
+  editAction: {
+    actionKind: 'open_source_slice',
+    semanticEditor: {kind: 'route_order', role: 'route', sceneId: 'go_to_event'},
+    source: src('source/scenes/events/go_to.scene.dry', 9, 'go-to: old_target'),
+    installSafety: 'guarded_apply',
+    operationType: 'replace_text'
+  }
+});
+assert(goToModel.ok, 'go-to route line should open the route editor', goToModel);
+const goToReplacement = semanticLogic.composeFieldReplacement(goToModel, {'semantic_logic.routeTarget': 'new_target'});
+assert(goToReplacement === 'go-to: new_target', 'guided route editor should preserve go-to syntax', {goToReplacement, controls: goToModel.fieldControls});
+
 process.stdout.write(JSON.stringify({
   ok: true,
   protectedRoute: protectedEdit.operation.type + ':' + protectedEdit.operation.safety,

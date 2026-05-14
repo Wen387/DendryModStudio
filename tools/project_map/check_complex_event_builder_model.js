@@ -19,7 +19,10 @@ const index = {
   schemaVersion: '0.1',
   project: {name: 'Complex Event Builder Fixture', root: '/tmp/dms-complex-event', profileIds: ['generic-dendry']},
   profiles: [{id: 'generic-dendry'}],
-  scenes: [{id: 'root', path: 'source/scenes/root.scene.dry'}],
+  scenes: [
+    {id: 'root', path: 'source/scenes/root.scene.dry'},
+    {id: 'post_event', title: 'Post Event', path: 'source/scenes/post_event.scene.dry'}
+  ],
   variables: [
     {name: 'public_order', reads: [], writes: [], tags: ['state']},
     {name: 'civil_society_trust', reads: [], writes: [], tags: ['state']},

@@ -384,7 +384,8 @@
     const effectProblems = invalidEffects(structure);
     const visibleTextOk = Boolean(stringValue(structure.openingText).trim()) &&
       ensureArray(rootOptions).every((option) => stringValue(option.label).trim() && stringValue(option.body).trim());
-    const routerReady = hasKnownEventRouterProfile(structure.projectIndex);
+    const routerRegistration = eventRouterRegistrationHint(structure);
+    const routerReady = Boolean(routerRegistration);
     return [
       readinessItem('event_id', Boolean(safeId(structure.id || '')), 'Event id is valid.', editAction('open_object_field', 'event.id', structure.id || 'event')),
       readinessItem('root_options', ensureArray(rootOptions).length >= 2 && ensureArray(rootOptions).length <= 4, 'Event has 2 to 4 root options.', editAction('open_object_field', 'option.0.label', 'option_1')),
@@ -512,18 +513,30 @@
     return rows.filter((effect) => !['=', '+=', '-='].includes(stringValue(effect && effect.op))).map(effectLabel);
   }
 
-  function hasKnownEventRouterProfile(projectIndex) {
-    const ids = new Set();
-    const projectProfiles = projectIndex && projectIndex.project && Array.isArray(projectIndex.project.profileIds)
-      ? projectIndex.project.profileIds
-      : [];
-    projectProfiles.forEach((profile) => ids.add(stringValue(profile)));
-    ensureArray(projectIndex && projectIndex.profiles).forEach((profile) => {
-      if (profile && profile.id) {
-        ids.add(stringValue(profile.id));
+  function eventRouterRegistrationHint(structure) {
+    const api = eventDraftApi();
+    if (!api || typeof api.routerInstallHint !== 'function') {
+      return null;
+    }
+    try {
+      return api.routerInstallHint(toDraft(structure), structure && structure.projectIndex || null, null);
+    } catch (_err) {
+      return null;
+    }
+  }
+
+  function eventDraftApi() {
+    if (global && global.ProjectMapEventDraft) {
+      return global.ProjectMapEventDraft;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./event_draft.js');
+      } catch (_err) {
+        return null;
       }
-    });
-    return ids.has('generic-dendry') || ids.has('sdaah-style');
+    }
+    return null;
   }
 
   function draftStructureActions(structure, rootOptions, allOptions) {
