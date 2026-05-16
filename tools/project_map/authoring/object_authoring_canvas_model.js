@@ -580,9 +580,7 @@
     const options = ensureArray(context.relationships && context.relationships.options);
     if (options.length) {
       return options.map((option, index) => {
-        const fields = optionEditors.filter((editor) => {
-          return editor.optionId && option.id && String(editor.optionId) === String(option.id);
-        });
+        const fields = optionEditors.filter((editor) => optionTextFieldMatchesOption(editor, option));
         if (!fields.length) {
           fields.push.apply(fields, optionEditors.filter((editor) => {
             return !editor.optionId && String(editor.original || '') === String(option.label || '');
@@ -615,6 +613,32 @@
       fields: [editor],
       resultFields: []
     }));
+  }
+
+  function optionTextFieldMatchesOption(editor, option) {
+    if (!editor || !option) {
+      return false;
+    }
+    const editorOptionId = String(editor.optionId || '').trim();
+    if (!editorOptionId) {
+      return false;
+    }
+    const optionIds = [
+      option.id,
+      option.rawTargetId,
+      option.targetId
+    ].map((value) => String(value || '').trim()).filter(Boolean);
+    const api = ownershipMatchingApi();
+    if (api && typeof api.endpointMatches === 'function') {
+      return optionIds.some((optionId) => api.endpointMatches(editorOptionId, optionId));
+    }
+    return optionIds.some((optionId) => normalizeEndpointId(editorOptionId) === normalizeEndpointId(optionId));
+  }
+
+  function normalizeEndpointId(value) {
+    const text = String(value || '').trim().replace(/^[@#]/, '');
+    const parts = text.split('.');
+    return parts[parts.length - 1] || text;
   }
 
   function sectionEditorMatchesOption(editor, option) {

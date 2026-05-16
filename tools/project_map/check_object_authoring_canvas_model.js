@@ -331,6 +331,8 @@ const menuBranch = menuFlowCanvas.eventBody.branchSections.find((field) => field
 assert(menuBranch && menuBranch.semanticRole === 'menu_section_text', 'follow-up menus should stay in branch sections instead of choice result fields');
 assert(menuBranch.ownedOptionIds.length === 2, 'follow-up menu branch sections should expose their owned choices');
 assert(menuFlowCanvas.eventBody.options.length === 2, 'follow-up menu choices should still be editable option rows');
+const menuFlowFirstOption = menuFlowCanvas.eventBody.options.find((option) => option.rawTargetId === 'first');
+assert(menuFlowFirstOption && menuFlowFirstOption.fields.some((field) => field.role === 'option_label' && field.original === 'First path.' && field.editability !== 'read_only' && !field.readOnly), 'section-owned source-line option labels should stay editable instead of falling back to read-only');
 assert(menuFlowCanvas.eventBody.options.every((option) => !option.resultFields.some((field) => field.sectionId === 'menu_flow.menu')), 'owned menu text must not be duplicated under every owned option');
 assert(menuFlowCanvas.eventBody.structureActions.some((field) => field.structureAction === 'add_option' && field.sectionId === 'menu_flow.menu'), 'follow-up menu sections should expose add-option-in-section controls');
 const menuPreviewHtml = previewEditor.renderPreviewPane(menuFlowCanvas);
