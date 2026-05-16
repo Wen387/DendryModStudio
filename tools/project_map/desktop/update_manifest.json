@@ -5,20 +5,20 @@
   "minimumRecommendedVersion": "0.97.0",
   "severity": "info",
   "noticeId": "v0.97-preview-announcement-2026-05-16",
-  "title": "Dendry Mod Studio v0.97 is available",
+  "title": "Dendry Mod Studio v0.97 preview update is ready",
   "titleLocalized": {
-    "en": "Dendry Mod Studio v0.97 is available",
-    "zh-Hant": "Dendry Mod Studio v0.97 已可下載"
+    "en": "Dendry Mod Studio v0.97 preview update is ready",
+    "zh-Hant": "Dendry Mod Studio v0.97 預覽更新已可使用"
   },
-  "body": "v0.97 is a development-preview update for real mod-authoring workflows, with broader Object Canvas authoring, stronger Review & Apply evidence, Runtime Preview/Lens hardening, and the faster Windows install layout.",
+  "body": "v0.97 focuses on a smoother Studio experience: cleaner UI presentation, quality-of-life improvements, and a much more tested Object Editor workflow.",
   "bodyLocalized": {
-    "en": "v0.97 is a development-preview update for real mod-authoring workflows, with broader Object Canvas authoring, stronger Review & Apply evidence, Runtime Preview/Lens hardening, and the faster Windows install layout.",
-    "zh-Hant": "v0.97 是面向真實 Mod 創作流程的開發預覽更新，擴展 Object Canvas 創作、強化審查與套用證據、打磨 Runtime Preview/Lens，並保留快速 Windows 安裝配置。"
+    "en": "v0.97 focuses on a smoother Studio experience: cleaner UI presentation, quality-of-life improvements, and a much more tested Object Editor workflow.",
+    "zh-Hant": "v0.97 聚焦於更順手的 Studio 體驗：改善 UI 表現、加入多項生活品質更新，並大幅測試與完善物件編輯器流程。"
   },
-  "details": "This is still a preview build, not a finished editor. Please keep backups of real projects and review every install plan before applying changes.\n\nThe update notice system is informational only: Studio will open download, release-note, or feedback links only after you choose them.",
+  "details": "This release puts most of its work into making everyday editing feel less rough. The interface should be clearer in more places, common workflows should require fewer awkward steps, and the Object Editor has received a broad testing and polish pass.\n\nThis is still a preview build. Please keep backups of real projects, review install plans before applying changes, and report any confusing editor behavior or broken preview output.",
   "detailsLocalized": {
-    "en": "This is still a preview build, not a finished editor. Please keep backups of real projects and review every install plan before applying changes.\n\nThe update notice system is informational only: Studio will open download, release-note, or feedback links only after you choose them.",
-    "zh-Hant": "這仍然是預覽版，不是已完成的編輯器。請保留真實專案備份，並在套用修改前仔細檢查每一份安裝計畫。\n\n更新公告系統只提供資訊：Studio 只會在你主動選擇後開啟下載、版本說明或回饋連結。"
+    "en": "This release puts most of its work into making everyday editing feel less rough. The interface should be clearer in more places, common workflows should require fewer awkward steps, and the Object Editor has received a broad testing and polish pass.\n\nThis is still a preview build. Please keep backups of real projects, review install plans before applying changes, and report any confusing editor behavior or broken preview output.",
+    "zh-Hant": "這個版本主要把精力放在讓日常編輯少一點粗糙感：更多介面狀態會更清楚，常用流程減少了一些卡手步驟，物件編輯器也經過更大範圍的測試與打磨。\n\n這仍然是預覽版。請保留真實專案備份，在套用修改前檢查 install plan；如果遇到令人困惑的編輯行為或破損預覽，也歡迎回報。"
   },
   "announcementOnly": true,
   "notices": [
@@ -26,20 +26,20 @@
       "noticeId": "v0.97-release-2026-05-16",
       "kind": "release",
       "severity": "info",
-      "title": "v0.97 preview release is ready",
+      "title": "v0.97 preview update is ready",
       "titleLocalized": {
-        "en": "v0.97 preview release is ready",
-        "zh-Hant": "v0.97 預覽版已發布"
+        "en": "v0.97 preview update is ready",
+        "zh-Hant": "v0.97 預覽更新已可使用"
       },
-      "body": "This update focuses on making the Studio more useful for real SDAAH-style mod work: Object Canvas authoring, complex events, safer existing-content proposals, Runtime Preview evidence, D3 parliament result previews, and cleaner browsing.",
+      "body": "v0.97 focuses on a smoother Studio experience: cleaner UI presentation, quality-of-life improvements, and a much more tested Object Editor workflow.",
       "bodyLocalized": {
-        "en": "This update focuses on making the Studio more useful for real SDAAH-style mod work: Object Canvas authoring, complex events, safer existing-content proposals, Runtime Preview evidence, D3 parliament result previews, and cleaner browsing.",
-        "zh-Hant": "這次更新重點是讓 Studio 更能處理真實 SDAAH 風格 Mod 工作：Object Canvas 創作、複合事件、更安全的既有內容提案、Runtime Preview 證據、D3 議會結果預覽，以及更清楚的瀏覽體驗。"
+        "en": "v0.97 focuses on a smoother Studio experience: cleaner UI presentation, quality-of-life improvements, and a much more tested Object Editor workflow.",
+        "zh-Hant": "v0.97 聚焦於更順手的 Studio 體驗：改善 UI 表現、加入多項生活品質更新，並大幅測試與完善物件編輯器流程。"
       },
-      "details": "v0.97 improves the shared Object Canvas authoring path, Story Palette/Storyboard workflows, complex event creation, existing-content editing, Review & Apply evidence, Runtime Preview, and Runtime Lens readiness. Some simple source-backed edits can become guarded proposals, while broad structural edits still stay manual review.\n\nElection-result authoring remains focused on D3 parliament screens. Narrative election events and presidential elections are still better handled as regular events.\n\nThis version keeps the faster Windows installer layout.\n\nThis is an unsigned preview release. If you are maintaining a real mod, keep using an IDE alongside Studio and keep project backups.",
+      "details": "This release puts most of its work into making everyday editing feel less rough. The interface should be clearer in more places, common workflows should require fewer awkward steps, and the Object Editor has received a broad testing and polish pass.\n\nThis is still a preview build. Please keep backups of real projects, review install plans before applying changes, and report any confusing editor behavior or broken preview output.",
       "detailsLocalized": {
-        "en": "v0.97 improves the shared Object Canvas authoring path, Story Palette/Storyboard workflows, complex event creation, existing-content editing, Review & Apply evidence, Runtime Preview, and Runtime Lens readiness. Some simple source-backed edits can become guarded proposals, while broad structural edits still stay manual review.\n\nElection-result authoring remains focused on D3 parliament screens. Narrative election events and presidential elections are still better handled as regular events.\n\nThis version keeps the faster Windows installer layout.\n\nThis is an unsigned preview release. If you are maintaining a real mod, keep using an IDE alongside Studio and keep project backups.",
-        "zh-Hant": "v0.97 改善共用的 Object Canvas 創作路徑、Story Palette/Storyboard 流程、複合事件建立、既有內容編輯、審查與套用證據、Runtime Preview，以及 Runtime Lens 就緒度。部分簡單且有 source-backed 證據的編輯可以生成受保護提案；較大的結構編輯仍然維持人工審閱。\n\n選舉結果創作仍聚焦於 D3 議會結果頁。敘事型選舉事件與總統選舉目前仍更適合當作一般事件處理。\n\n這個版本保留快速 Windows 安裝配置。\n\n這是未簽署的預覽版。如果你正在維護真實 Mod，請繼續搭配 IDE 使用 Studio，並保留專案備份。"
+        "en": "This release puts most of its work into making everyday editing feel less rough. The interface should be clearer in more places, common workflows should require fewer awkward steps, and the Object Editor has received a broad testing and polish pass.\n\nThis is still a preview build. Please keep backups of real projects, review install plans before applying changes, and report any confusing editor behavior or broken preview output.",
+        "zh-Hant": "這個版本主要把精力放在讓日常編輯少一點粗糙感：更多介面狀態會更清楚，常用流程減少了一些卡手步驟，物件編輯器也經過更大範圍的測試與打磨。\n\n這仍然是預覽版。請保留真實專案備份，在套用修改前檢查 install plan；如果遇到令人困惑的編輯行為或破損預覽，也歡迎回報。"
       },
       "downloadUrl": "https://github.com/Wen387/DendryModStudio/releases",
       "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.97.md",
