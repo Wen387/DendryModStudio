@@ -554,11 +554,9 @@ node --check tools/project_map/desktop/scripts/package_portable.js
 node --check tools/project_map/desktop/scripts/package_deb.js
 node --check tools/project_map/check_desktop_packaging.js
 node --check tools/project_map/check_desktop_deb.js
-node --check tools/check_studio_contract.js
 python3 tools/project_map/check_launch_studio.py
 node tools/project_map/check_project_map_fixture.js --generic-mini
 node tools/project_map/check_project_map_fixture.js --sdaah-mini
-node tools/check_studio_contract.js
 node tools/project_map/check_studio_surface.js
 node tools/project_map/check_viewer_model.js /tmp/dendry_project_map/project-index.json --fixture-islands
 node tools/project_map/check_viewer_model.js /tmp/dendry_project_map/project-index-excerpts.json --fixture-islands --expect-excerpts
@@ -590,20 +588,7 @@ For an original SDAAH checkout, use:
 python3 tools/project_map/build_project_map.py --root /path/to/SDAAH --out /tmp/dendry_project_map/sdaah-project-index.json --summary
 ```
 
-Expected profile behavior: `generic-dendry` plus `sdaah-style`. Island's
-Sunrise additionally enables `islands-sunrise`.
-
-IslandSunrise / Studio split coordination lives in `studio_contract/`. Before
-changing IslandSunrise profile detection, parser assumptions, router handling,
-or protected-boundary behavior, run:
-
-```bash
-node tools/check_studio_contract.js
-```
-
-This contract fixture is intentionally smaller than the full game. It keeps the
-profile chain and stable parser expectations testable after Studio moves to its
-own repository.
+Expected profile behavior: `generic-dendry` plus `sdaah-style`.
 
 Optional external SDAAH smoke:
 

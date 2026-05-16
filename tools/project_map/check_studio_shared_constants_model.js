@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-const contracts = require('./authoring/studio_contracts.js');
+const contracts = require('./authoring/studio_shared_constants.js');
 const viewer = require('./viewer/app.js');
 
 function fail(message) {

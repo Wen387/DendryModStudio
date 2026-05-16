@@ -26,9 +26,14 @@ SDAAH/
 SDAAHdynamic/
 SDAAHDynamic/
 social_democracy_alternate_history-main/
+studio_contract/
+tools/check_studio_contract.js
+docs/goals/
 
-# Local agent/session notes
+# Local private development notes
 .studio-local/
+AGENTS.md
+.agents/
 .codex
 .claude
 LLM

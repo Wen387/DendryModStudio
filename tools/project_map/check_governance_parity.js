@@ -6,7 +6,7 @@ const path = require('path');
 const {spawnSync} = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..');
-const BUDGET_PATH = 'tools/project_map/llm_friendliness_budget.json';
+const BUDGET_PATH = 'tools/project_map/source_complexity_budget.json';
 
 function repoPath(relativePath, root) {
   return path.join(root || ROOT, relativePath);

@@ -1182,7 +1182,7 @@
   }
 
   function studioContracts() {
-    return global.ProjectMapStudioContracts || null;
+    return global.ProjectMapStudioSharedConstants || null;
   }
 
   function browserReviewOnlyMessage() {

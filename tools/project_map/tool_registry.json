@@ -494,8 +494,8 @@
       "when": "ProjectIndex fixture assumptions changed."
     },
     "studio-contract": {
-      "path": "tools/project_map/check_studio_contracts_model.js",
-      "command": "node tools/project_map/check_studio_contracts_model.js",
+      "path": "tools/project_map/check_studio_shared_constants_model.js",
+      "command": "node tools/project_map/check_studio_shared_constants_model.js",
       "kind": "contract",
       "domain": ["studio-contract"],
       "fixture": "synthetic",
@@ -896,7 +896,7 @@
     "tools/project_map/check_install_review_ui_model.js",
     "tools/project_map/check_large_event_pressure_model.js",
     "tools/project_map/check_large_choice_event_builder_model.js",
-    "tools/project_map/check_llm_friendliness.js",
+    "tools/project_map/check_source_complexity.js",
     "tools/project_map/check_localization_surface.js",
     "tools/project_map/check_meaning_layer_model.js",
     "tools/project_map/check_menu_card_builder_model.js",
@@ -949,7 +949,7 @@
     "tools/project_map/check_source_structure_graph_model.js",
     "tools/project_map/check_starter_demo_complex_event_create_model.js",
     "tools/project_map/check_starter_demo_model.js",
-    "tools/project_map/check_studio_contracts_model.js",
+    "tools/project_map/check_studio_shared_constants_model.js",
     "tools/project_map/check_studio_performance_model.js",
     "tools/project_map/check_studio_surface.js",
     "tools/project_map/check_surface_text_model.js",

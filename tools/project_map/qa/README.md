@@ -144,15 +144,16 @@ shortcut only replaces manual hand movement.
 copy path directly. It proves the first-run Demo button can produce a writable
 project, but it is still not a fresh package relaunch test.
 
-`justice_party_template_mod` also writes its default artifacts under
-`.studio-local/playtests/justice-party-template-mod/` so the temporary project
-copy, screenshots, and ledger can be inspected locally without entering git.
+`justice_party_template_mod` also writes its default artifacts under the system
+temp directory, in `dms-playtests/justice-party-template-mod/`, so the temporary
+project copy, screenshots, and ledger can be inspected without entering git.
 
-`runtime_preview_entry_flow` writes under
-`.studio-local/playtests/runtime-preview-entry-flow/` and uses the packaged
-Starter Demo plus Electron DOM automation to check the real generated game UI.
+`runtime_preview_entry_flow` writes under the system temp directory, in
+`dms-playtests/runtime-preview-entry-flow/`, and uses the packaged Starter Demo
+plus Electron DOM automation to check the real generated game UI.
 
-`dynamic_mod_smoke` writes under `.studio-local/playtests/dynamic-mod-smoke/`.
+`dynamic_mod_smoke` writes under the system temp directory, in
+`dms-playtests/dynamic-mod-smoke/`.
 It expects a local Dynamic checkout, passed with `--dynamic-project-root` or
 `DMS_DYNAMIC_FIXTURE_ROOT`. The scenario can take longer than mini-fixture runs
 because Dynamic has hundreds of scenes and thousands of variables.

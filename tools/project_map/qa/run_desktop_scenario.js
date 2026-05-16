@@ -13,6 +13,7 @@ const DESKTOP_DIR = path.join(PROJECT_MAP_DIR, 'desktop');
 const DEFAULT_PROJECT_ROOT = path.join(PROJECT_MAP_DIR, 'fixtures', 'qa-mini');
 const DEFAULT_WRONG_PROJECT_ROOT = path.join(PROJECT_MAP_DIR, 'fixtures', 'generic-mini');
 const DEFAULT_DYNAMIC_PROJECT_ROOT = path.join(REPO_ROOT, 'SDAAHdynamic', 'dynamic_social_democracy-main');
+const DEFAULT_ARTIFACT_ROOT = path.join(os.tmpdir(), 'dms-playtests');
 
 const SCENARIOS = {
   first_time_user: {
@@ -103,7 +104,7 @@ const SCENARIOS = {
   justice_party_template_mod: {
     title: 'Player starts from the template and drafts a Justice Party mod with variables and both news paths.',
     run: scenarioJusticePartyTemplateMod,
-    artifactBase: path.join(REPO_ROOT, '.studio-local', 'playtests', 'justice-party-template-mod'),
+    artifactBase: path.join(DEFAULT_ARTIFACT_ROOT, 'justice-party-template-mod'),
     dialogRoots: [],
     playerLike: [
       'loads the bundled demo template',
@@ -128,7 +129,7 @@ const SCENARIOS = {
   runtime_preview_entry_flow: {
     title: 'Runtime Preview opens the starter workspace, clicks an advisor card, and verifies sidebar state changes.',
     run: scenarioRuntimePreviewEntryFlow,
-    artifactBase: path.join(REPO_ROOT, '.studio-local', 'playtests', 'runtime-preview-entry-flow'),
+    artifactBase: path.join(DEFAULT_ARTIFACT_ROOT, 'runtime-preview-entry-flow'),
     dialogRoots: [],
     playerLike: [
       'starts from the bundled demo template',
@@ -145,7 +146,7 @@ const SCENARIOS = {
   dynamic_mod_smoke: {
     title: 'Player opens SDAAH Dynamic, audits existing editing, drafts new content, and dry-runs Dynamic-aware paths.',
     run: scenarioDynamicModSmoke,
-    artifactBase: path.join(REPO_ROOT, '.studio-local', 'playtests', 'dynamic-mod-smoke'),
+    artifactBase: path.join(DEFAULT_ARTIFACT_ROOT, 'dynamic-mod-smoke'),
     dialogRoots: ['dynamicProjectRoot'],
     playerLike: [
       'opens a real SDAAH Dynamic checkout through Quick Start',

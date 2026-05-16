@@ -108,12 +108,12 @@
   }
 
   function studioContracts() {
-    if (global && global.ProjectMapStudioContracts) {
-      return global.ProjectMapStudioContracts;
+    if (global && global.ProjectMapStudioSharedConstants) {
+      return global.ProjectMapStudioSharedConstants;
     }
     if (typeof module !== 'undefined' && module.exports && typeof require === 'function') {
       try {
-        return require('../authoring/studio_contracts.js');
+        return require('../authoring/studio_shared_constants.js');
       } catch (_err) {
         return null;
       }

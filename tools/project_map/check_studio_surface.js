@@ -806,7 +806,7 @@ assert(css.includes('min-width: min(18rem, 100%)'), 'Preview Object Editor logic
 assert(css.includes('.system-screen-copy'), 'System UI preview should style a bounded player-text copy region');
 assert(css.includes('.system-ui-region-context .system-ui-evidence-row'), 'System UI source evidence should override storyboard detail columns');
 assert(css.includes('.system-ui-evidence-row code') && css.includes('overflow-wrap: break-word'), 'System UI source evidence paths should wrap without vertical single-character columns');
-assert(html.includes('studio_contracts.js'), 'viewer should load shared Studio contracts before UI modules');
+assert(html.includes('studio_shared_constants.js'), 'viewer should load shared Studio constants before UI modules');
 assert(appUi.includes('data-edit-existing'), 'Explore inspector should expose Edit existing');
 assert(appUi.includes('Copy as new draft'), 'Explore inspector should keep copy-as-new draft wording');
 assert(appUi.includes('ProjectMapExistingSceneEditor'), 'Explore should call Existing Scene Editor when editing existing Events/Cards');

@@ -14,7 +14,7 @@
     ],
     "info": {
       "title": "Dendry Mod Studio Starter Demo",
-      "author": "Dendry Mod Studio",
+      "author": "Awen",
       "ifid": "00000000-0000-4000-8000-000000000004"
     },
     "infoSource": {
@@ -22,19 +22,19 @@
         "path": "source/info.dry",
         "line": 1,
         "anchorText": "title: Dendry Mod Studio Starter Demo",
-        "excerpt": "1: title: Dendry Mod Studio Starter Demo\n2: author: Dendry Mod Studio"
+        "excerpt": "1: title: Dendry Mod Studio Starter Demo\n2: author: Awen"
       },
       "author": {
         "path": "source/info.dry",
         "line": 2,
-        "anchorText": "author: Dendry Mod Studio",
-        "excerpt": "1: title: Dendry Mod Studio Starter Demo\n2: author: Dendry Mod Studio\n3: ifid: 00000000-0000-4000-8000-000000000004"
+        "anchorText": "author: Awen",
+        "excerpt": "1: title: Dendry Mod Studio Starter Demo\n2: author: Awen\n3: ifid: 00000000-0000-4000-8000-000000000004"
       },
       "ifid": {
         "path": "source/info.dry",
         "line": 3,
         "anchorText": "ifid: 00000000-0000-4000-8000-000000000004",
-        "excerpt": "2: author: Dendry Mod Studio\n3: ifid: 00000000-0000-4000-8000-000000000004"
+        "excerpt": "2: author: Awen\n3: ifid: 00000000-0000-4000-8000-000000000004"
       }
     },
     "detection": {

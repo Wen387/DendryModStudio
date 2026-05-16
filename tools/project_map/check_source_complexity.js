@@ -6,7 +6,7 @@ const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const PROJECT_MAP_ROOT = path.join(ROOT, 'tools', 'project_map');
-const DEFAULT_BUDGET_FILE = path.join(PROJECT_MAP_ROOT, 'llm_friendliness_budget.json');
+const DEFAULT_BUDGET_FILE = path.join(PROJECT_MAP_ROOT, 'source_complexity_budget.json');
 
 const EXCLUDED_DIR_PARTS = new Set([
   'node_modules',
@@ -191,7 +191,7 @@ function formatReport(rows) {
   const summary = summarize(rows);
   const flagged = rows.filter((row) => row.status !== 'ok');
   const lines = [
-    'LLM friendliness report for tools/project_map',
+    'Source complexity report for tools/project_map',
     'Files: ' + summary.files + '  Lines: ' + summary.lines,
     'OK: ' + summary.ok + '  Warn: ' + summary.warn + '  Exception-sized: ' + summary.exception,
     ''
