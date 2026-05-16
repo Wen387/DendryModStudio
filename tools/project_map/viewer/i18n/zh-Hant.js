@@ -4,7 +4,7 @@
   const CATALOG = {
     'zh-Hant': {
       'topbar.subtitle.default': '分支型 Dendry 專案的 Mod 編輯工作區',
-      'topbar.version': 'Dendry Mod Studio v0.9.66 dev preview',
+      'topbar.version': 'Dendry Mod Studio v0.97 dev preview',
       'topbar.author': '作者 Wenmo',
       'topbar.language': '語言',
       'topbar.language.auto': '跟隨系統',

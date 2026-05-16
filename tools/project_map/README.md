@@ -81,7 +81,7 @@ for safe operations; v0.66.1 adds operation checklist previews and human CLI
 breakdowns; v0.67 adds Explore -> Edit as Draft for existing indexed content,
 an Install mode, Coverage Map, and card wiring proposals; v0.7 adds the
 Direction C graph-first Design tab with optional baseline compare.
-The desktop package version is now `0.9.66` to match the current dev preview
+The desktop package version is now `0.97` to match the current dev preview
 surface. This is still preparation for the future beginner-facing app, not a
 signed public installer yet. The root game package stays untouched.
 
@@ -124,7 +124,7 @@ The desktop shell:
   temporary copies are built separately, the install plan is applied only to the
   modified copy, and a `127.0.0.1` compare page shows original versus modified.
 
-Current v0.9.66 limits:
+Current v0.97 limits:
 
 - release builds include the Python runtime used by the desktop indexer;
 - public release installers are unsigned and still need clean-machine QA,
@@ -185,13 +185,12 @@ Current v0.9.66 limits:
   asset files. Preview readiness is exposed by
   `ProjectMapPreviewModel` as `ready_to_review`, `needs_review`, or
   `manual_review`; it is an authoring confidence signal, not runtime proof.
-- v0.9.66 keeps the v0.9.65 authoring surface and improves Windows installer
-  performance by packing Electron-readable JavaScript dependencies into
-  `app.asar`. The parser remains available from the packaged app, while Python
-  runtime resources, profiles, templates, and the Python indexer stay as loose
-  files. The authoring model remains heuristic: unusual source layouts, opaque
-  JS, and structural edits without reliable source spans must stay manual
-  review.
+- v0.97 keeps the faster Windows installer layout from the previous preview and
+  carries the newer authoring surface: Object Canvas / Story Palette draft paths,
+  safer existing-content proposals, Runtime Preview evidence, Runtime Lens
+  wiring, and stronger governance checks. The authoring model remains heuristic:
+  unusual source layouts, opaque JS, and structural edits without reliable
+  source spans must stay manual review.
 - First-run Quick Start can load the bundled Starter Demo template. Desktop
   copies `tools/project_map/templates/starter-demo/` into Electron app data
   before scanning it, so the demo is a writable teaching project rather than
@@ -228,8 +227,8 @@ cover the bundled Demo Template path from Quick Start into a writable starter
 project. They write screenshots and a `QA_LEDGER.md` under `/tmp/dendry_mod_studio_qa/`. See
 `tools/project_map/qa/README.md`.
 
-See `tools/project_map/desktop/PACKAGING_NOTES.md` for the v0.9.66 packaging
-boundary and `tools/project_map/RELEASE_NOTES_v0.9.66.md` for the tester-facing
+See `tools/project_map/desktop/PACKAGING_NOTES.md` for the v0.97 packaging
+boundary and `tools/project_map/RELEASE_NOTES_v0.97.md` for the tester-facing
 dev preview notes and known limits. Do not commit `tools/project_map/desktop/dist/`
 or `node_modules/`. Before any public release claim, run `npm run check:ci`,
 attach the release notes, and record the exact package artifact tested.

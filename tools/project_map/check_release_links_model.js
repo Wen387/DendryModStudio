@@ -29,12 +29,17 @@ function assertIncludes(text, needle, label) {
   assert(text.includes(needle), label + ' should include ' + needle);
 }
 
+function releaseLabelVersion(version) {
+  return version.endsWith('.0') ? version.slice(0, -2) : version;
+}
+
 function main() {
   const desktopPackage = readJson('tools/project_map/desktop/package.json');
   const releaseVersion = desktopPackage.version;
-  const releaseTag = 'v' + releaseVersion + '-preview.1';
-  const releasePrepPath = 'docs/releases/v' + releaseVersion + '-dev-preview.md';
-  const releaseNotesPath = 'tools/project_map/RELEASE_NOTES_v' + releaseVersion + '.md';
+  const releaseLabel = releaseLabelVersion(releaseVersion);
+  const releaseTag = 'v' + releaseLabel + '-preview.1';
+  const releasePrepPath = 'docs/releases/v' + releaseLabel + '-dev-preview.md';
+  const releaseNotesPath = 'tools/project_map/RELEASE_NOTES_v' + releaseLabel + '.md';
   const readmeEn = read('README.md');
   const readmeZh = read('README.zh-Hant.md');
   const releaseWorkflow = read('.github/workflows/release.yml');
@@ -83,6 +88,7 @@ function main() {
   assertIncludes(releaseWorkflow, releaseTag, 'release workflow');
 
   assert(updateManifest.downloadUrl === releaseUrl, 'update manifest downloadUrl should point to GitHub Releases');
+  assert(updateManifest.latestVersion === releaseVersion, 'update manifest latestVersion should match desktop package version');
   assert(
     updateManifest.releaseNotesUrl === 'https://raw.githubusercontent.com/Wen387/DendryModStudio/main/' + releaseNotesPath,
     'update manifest releaseNotesUrl should point to tracked release notes'

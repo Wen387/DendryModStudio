@@ -621,28 +621,24 @@ async function scenarioFirstTimeUser(win, args, artifactDir, log) {
   log('Project loads', 'PASS', JSON.stringify(loaded.summary || {}));
 
   await click(win, '#mode-create');
-  await fill(win, '#wizard-id', 'qa_first_time_event');
-  await fill(win, '#wizard-title', 'QA first time event');
-  await fill(win, '#wizard-heading', 'A test proposal reaches review');
-  await fill(win, '#wizard-year', '2021');
-  await fill(win, '#wizard-month-start', '5');
-  await fill(win, '#wizard-month-end', '7');
-  await fill(win, '#wizard-requires', '');
-  await fill(win, '#wizard-trigger-effects', '');
-  await fill(win, '#wizard-intro', 'A tester opens Studio and writes a small event the way a first-time mod author would.');
-  await fill(win, '#wizard-option-0-id', 'define_issue');
-  await fill(win, '#wizard-option-0-title', 'Define the issue');
-  await fill(win, '#wizard-option-0-subtitle', 'Make the proposal visible.');
-  await fill(win, '#wizard-option-0-effects', 'generic_score += 1');
-  await fill(win, '#wizard-option-0-body', 'The test proposal becomes a concrete change plan. The UI should show readable output before anything touches source files.');
-  await fill(win, '#wizard-option-1-id', 'wait_and_listen');
-  await fill(win, '#wizard-option-1-title', 'Wait and listen');
-  await fill(win, '#wizard-option-1-subtitle', 'Keep the first edit modest.');
-  await fill(win, '#wizard-option-1-effects', 'generic_score -= 1');
-  await fill(win, '#wizard-option-1-body', 'The tester leaves a quieter path in place, then checks that Review and Apply explains the consequences clearly.');
+  await openObjectCanvasDraft(win, 'event', {
+    id: 'qa_first_time_event',
+    title: 'QA first time event',
+    heading: 'A test proposal reaches review',
+    year: 2021,
+    monthStart: 5,
+    monthEnd: 7,
+    requires: '',
+    intro: 'A tester opens Studio and writes a small event the way a first-time mod author would.',
+    options: [
+      {id: 'define_issue', label: 'Define the issue', subtitle: 'Make the proposal visible.', effects: [{variable: 'generic_score', op: '+=', value: 1}], body: 'The test proposal becomes a concrete change plan. The UI should show readable output before anything touches source files.'},
+      {id: 'wait_and_listen', label: 'Wait and listen', subtitle: 'Keep the first edit modest.', effects: [{variable: 'generic_score', op: '-=', value: 1}], body: 'The tester leaves a quieter path in place, then checks that Review and Apply explains the consequences clearly.'}
+    ]
+  });
+  await expectText(win, '#existing-scene-editor-host', 'QA first time event');
   await waitFor(win, async () => {
     return evalInPage(win, () => {
-      const output = window.ProjectMapWizard && window.ProjectMapWizard.getOutput && window.ProjectMapWizard.getOutput();
+      const output = window.ProjectMapObjectAuthoringCanvas && window.ProjectMapObjectAuthoringCanvas.getOutput && window.ProjectMapObjectAuthoringCanvas.getOutput();
       return Boolean(output && output.installPlanJson && output.patchPreview);
     });
   }, 'World Event output should produce install plan and patch preview');

@@ -1,9 +1,9 @@
 {
   "name": "dendry-mod-studio-desktop",
-  "version": "0.9.66",
+  "version": "0.97.0",
   "private": true,
   "author": {
-    "name": "Wen387",
+    "name": "Awen",
     "email": "127130120+Wen387@users.noreply.github.com",
     "url": "https://github.com/Wen387"
   },
@@ -145,7 +145,7 @@
         "deb"
       ],
       "category": "Development",
-      "maintainer": "Wen387 <127130120+Wen387@users.noreply.github.com>",
+      "maintainer": "Awen <127130120+Wen387@users.noreply.github.com>",
       "icon": "assets/dendry-mod-studio.svg"
     },
     "deb": {
