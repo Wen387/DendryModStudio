@@ -10,6 +10,8 @@ const DESKTOP_DIR = path.join(ROOT, 'desktop');
 const TEMPLATE_ROOT = path.join(ROOT, 'templates', 'starter-demo');
 const core = require('./desktop/studio_core.js');
 const runtimePreview = require('./desktop/runtime_preview.js');
+const objectCanvasModel = require('./authoring/object_authoring_canvas_model.js');
+const previewObjectEditor = require('./viewer/preview_object_editor.js');
 const {pythonCommand} = require('./check_python_command.js');
 
 function fail(message) {
@@ -39,8 +41,15 @@ async function main() {
     'source/scenes/cards/demo_action_card.scene.dry',
     'source/scenes/advisors/demo_advisor.scene.dry',
     'source/scenes/demo_opening.scene.dry',
+    'source/scenes/events/demo_campaign_pressure.scene.dry',
+    'source/scenes/events/demo_case_hearing.scene.dry',
+    'source/scenes/events/demo_back_room_talks.scene.dry',
+    'source/scenes/events/demo_resolution_week.scene.dry',
     'source/scenes/post_event.scene.dry',
     'source/qdisplays/qdemo_level.qdisplay.dry',
+    'source/qualities/demo_pressure.quality.dry',
+    'source/qualities/demo_case_strength.quality.dry',
+    'source/qualities/demo_reform_mandate.quality.dry',
     'source/qualities/demo_resources.quality.dry',
     'source/qualities/demo_advisor_trust.quality.dry',
     'source/qualities/demo_card_progress.quality.dry',
@@ -61,6 +70,10 @@ async function main() {
   const actionCard = read('source/scenes/cards/demo_action_card.scene.dry');
   const advisor = read('source/scenes/advisors/demo_advisor.scene.dry');
   const opening = read('source/scenes/demo_opening.scene.dry');
+  const campaignPressure = read('source/scenes/events/demo_campaign_pressure.scene.dry');
+  const caseHearing = read('source/scenes/events/demo_case_hearing.scene.dry');
+  const backRoomTalks = read('source/scenes/events/demo_back_room_talks.scene.dry');
+  const resolutionWeek = read('source/scenes/events/demo_resolution_week.scene.dry');
   const postEvent = read('source/scenes/post_event.scene.dry');
 
   assert(info.includes('Dendry Mod Studio Starter Demo'), 'starter demo should have a player-facing title');
@@ -68,26 +81,70 @@ async function main() {
   assert(packageJson.dependencies && packageJson.dependencies.dendrynexus, 'starter demo package should signal DendryNexus runtime dependency');
   assert(root.includes('demo_support') && root.includes('demo_conflict'), 'starter demo root should initialize demo variables');
   assert(root.includes('demo_resources') && root.includes('demo_advisor_trust'), 'starter demo root should initialize whiteboard card/advisor variables');
+  assert(root.includes('demo_pressure') && root.includes('demo_reform_mandate'), 'starter demo root should initialize complex event chain variables');
   assert(root.includes('// ====== U. EVENT SEEN FLAGS ======'), 'starter demo root should expose world-event install anchor');
+  assert(root.includes('@demo_campaign_pressure: Play the complex event chain'), 'starter demo root should link to the complex event chain');
   assert(root.includes('@main: Open the workspace hand'), 'starter demo root should link to the whiteboard hand');
   assert(root.includes('@demo_opening.demo_status'), 'starter demo root should link to the cross-scene status section with a qualified id');
   assert(root.includes('@demo_opening.support_followup'), 'starter demo root should link to the cross-scene follow-up section with a qualified id');
   assert(status.includes('Campaign Status'), 'starter demo should include a status sidebar scene for the default Dendry HTML shell');
   assert(status.includes('demo_support') && status.includes('demo_conflict'), 'starter demo status sidebar should reflect demo variables');
   assert(status.includes('qdemo_level') && status.includes('demo_card_progress'), 'starter demo status sidebar should show qdisplay-backed whiteboard variables');
+  assert(status.includes('demo_pressure') && status.includes('demo_resolution_seen'), 'starter demo status sidebar should show complex event chain state');
   assert(main.includes('is-hand: true') && main.includes('@demo_action_deck') && main.includes('#demo_advisor'), 'starter demo should include a hand with deck and advisor lanes');
   assert(deck.includes('is-deck: true') && deck.includes('#demo_action'), 'starter demo should include an action deck');
   assert(actionCard.includes('is-card: true') && actionCard.includes('Q.demo_card_progress'), 'starter demo should include a minimal action card');
+  assert(actionCard.includes('Prepare a case file') && actionCard.includes('Q.demo_case_strength'), 'starter demo action card should prepare the complex event chain');
   assert(advisor.includes('is-pinned-card: true') && advisor.includes('Q.demo_advisor_trust'), 'starter demo should include a minimal advisor-like pinned card');
+  assert(advisor.includes('Request private counsel') && advisor.includes('Q.demo_cabinet_balance'), 'starter demo advisor should prepare the complex event chain');
   assert(opening.includes('tags: event'), 'starter demo should include an event-like scene');
   assert(opening.includes('Option result text'), 'starter demo should demonstrate option result text');
   assert(opening.includes('view-if: demo_support > 0'), 'starter demo should demonstrate a condition');
   assert(opening.includes('Q.demo_support = (Q.demo_support || 0) + 1;'), 'starter demo should demonstrate an effect');
+  assert(campaignPressure.includes('Campaign Pressure Test') && campaignPressure.includes('go-to: demo_case_hearing'), 'starter demo should include the first playable complex-chain event');
+  assert(caseHearing.includes('Move into back-room talks') && caseHearing.includes('go-to: demo_back_room_talks'), 'starter demo hearing should route into a playable branch event');
+  assert(backRoomTalks.includes('Back-room Talks') && backRoomTalks.includes('go-to: demo_resolution_week'), 'starter demo should include the playable back-room branch event');
+  assert(resolutionWeek.includes('Resolution Week') && resolutionWeek.includes('Q.demo_resolution_result'), 'starter demo should include a state-driven complex-chain conclusion');
   assert(postEvent.includes('if (Q.demo_support === undefined)'), 'starter demo should include save migration guards');
   assert(postEvent.includes('if (Q.demo_resources === undefined)'), 'starter demo should migrate whiteboard card/advisor variables');
+  assert(postEvent.includes('if (Q.demo_pressure === undefined)'), 'starter demo should migrate complex event chain variables');
   assert(postEvent.includes('// Save compatibility: post_event split (post_event_news)'), 'starter demo should expose post_event install anchor');
   assert(bundledProjectIndex.project.root === '__STARTER_DEMO_TEMPLATE_ROOT__', 'starter demo cached ProjectIndex should not store a developer absolute path');
   assert(bundledProjectIndexExcerpts.project.root === '__STARTER_DEMO_TEMPLATE_ROOT__', 'starter demo cached excerpt ProjectIndex should not store a developer absolute path');
+  const campaignCanvas = objectCanvasModel.buildExistingCanvas(bundledProjectIndex, 'events', 'demo_campaign_pressure', {});
+  assert(campaignCanvas.ok, 'starter demo campaign pressure event should open in Object Canvas');
+  const campaignEditorHtml = previewObjectEditor.render(campaignCanvas);
+  assert(campaignEditorHtml.includes('data-preview-object-choice="quiet_briefing"') && campaignEditorHtml.includes('data-object-canvas-field="block:section_text_demo_campaign_pressure_quiet_briefing"'), 'right editor should expose complex event option result text in the owning choice card');
+  const quietResultFieldCount = (campaignEditorHtml.match(/data-object-canvas-field="block:section_text_demo_campaign_pressure_quiet_briefing"/g) || []).length;
+  assert(quietResultFieldCount === 1, 'right editor should not render duplicate controls for the same complex event option result field');
+  const quietSectionAdd = campaignCanvas.eventBody.structureActions.find((field) => field.id === 'structure_add_option_section_demo_campaign_pressure_quiet_briefing');
+  assert(quietSectionAdd && quietSectionAdd.editability === 'advanced_source_patch', 'complex event result sections without existing nested choices should still expose source-backed option insertion');
+  assert(quietSectionAdd.structureSourceBlock && quietSectionAdd.structureSourceBlock.kind === 'section_text_option_insert_anchor', 'section option insertion should use the result prose tail as an exact source anchor');
+  const campaignEdited = objectCanvasModel.buildExistingCanvas(bundledProjectIndex, 'events', 'demo_campaign_pressure', {
+    values: {
+      __structureCommands: [{
+        type: 'add_option',
+        action: 'add_option',
+        fieldId: 'structure_add_option_section_demo_campaign_pressure_quiet_briefing',
+        sectionId: 'demo_campaign_pressure.quiet_briefing',
+        value: [
+          '- @press_witness: Invite the press to witness the quiet bargain.',
+          '# press_witness',
+          'result-mode: native',
+          'choose-if: demo_public_attention >= 1',
+          'unavailable-subtitle: No reporter is close enough to trust the leak.',
+          'A trusted reporter waits in the side corridor.'
+        ].join('\n')
+      }]
+    }
+  });
+  assert(campaignEdited.changeState.installPlan.operations.some((operation) =>
+    operation.type === 'insert_text' &&
+    operation.safety === 'advanced_apply' &&
+    String(operation.content || '').includes('@press_witness') &&
+    String(operation.content || '').includes('choose-if: demo_public_attention >= 1')
+  ), 'adding a nested option to a complex event result should produce an advanced source patch');
+  assert(!campaignEdited.changeState.installPlan.operations.some((operation) => operation.type === 'manual_snippet'), 'source-backed complex event nested option insertion should not fall back to a manual snippet');
 
   const preparedRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dendry_starter_demo_model_'));
   const scratchRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dendry_starter_demo_index_'));
@@ -156,6 +213,7 @@ async function main() {
   assert(repairedRoot.includes('@demo_opening.support_followup'), 'desktop core should repair old starter demo follow-up links');
   assert(repairedRoot.includes('@main: Open the workspace hand'), 'desktop core should repair old starter demo hand route');
   assert(repairedRoot.includes('Q.demo_resources === undefined'), 'desktop core should repair old starter demo whiteboard variables');
+  assert(repairedRoot.includes('@demo_campaign_pressure: Play the complex event chain'), 'desktop core should repair old starter demo complex-chain route');
 
   const buildCommand = runtimePreview.resolveBuildCommand(prepared.root);
   assert(buildCommand.ok, 'starter demo should resolve a Runtime Preview build command: ' + JSON.stringify(buildCommand));
@@ -171,12 +229,18 @@ async function main() {
   assert(indexed.projectName === 'Dendry Mod Studio Starter Demo', 'starter demo ProjectIndex should keep the template title');
   assert(indexed.summary.sceneCount >= 3, 'starter demo should expose multiple scenes');
   assert(indexed.summary.eventCount >= 1, 'starter demo should expose one event-like scene');
+  assert(indexed.summary.eventCount >= 5, 'starter demo should expose the opening event plus the complex event chain');
   assert(indexed.summary.cardCount >= 1, 'starter demo should expose one action card');
   assert(indexed.summary.handCount >= 1, 'starter demo should expose one hand scene');
   assert(indexed.summary.deckCount >= 1, 'starter demo should expose one deck scene');
   assert(indexed.summary.pinnedCardCount >= 1, 'starter demo should expose one advisor-like pinned card');
   assert(indexed.index.variables.some((item) => item.name === 'demo_support'), 'starter demo ProjectIndex should include demo_support variable');
   assert(indexed.index.variables.some((item) => item.name === 'demo_resources'), 'starter demo ProjectIndex should include demo_resources variable');
+  assert(indexed.index.variables.some((item) => item.name === 'demo_pressure'), 'starter demo ProjectIndex should include demo_pressure variable');
+  assert(indexed.index.edges.some((edge) => String(edge.from || '').startsWith('demo_campaign_pressure.') && edge.to === 'demo_case_hearing'), 'starter demo ProjectIndex should route from the first complex event to the hearing');
+  assert(indexed.index.edges.some((edge) => String(edge.from || '').startsWith('demo_case_hearing.') && edge.to === 'demo_back_room_talks'), 'starter demo ProjectIndex should route from the hearing to the back-room branch');
+  assert(indexed.index.edges.some((edge) => String(edge.from || '').startsWith('demo_back_room_talks.') && edge.to === 'demo_resolution_week'), 'starter demo ProjectIndex should route from the back-room branch to the resolution');
+  assert(indexed.index.edges.some((edge) => String(edge.from || '').startsWith('demo_case_hearing.') && edge.to === 'demo_resolution_week'), 'starter demo ProjectIndex should route from the hearing to the resolution');
 
   fs.rmSync(preparedRoot, {recursive: true, force: true});
   fs.rmSync(scratchRoot, {recursive: true, force: true});

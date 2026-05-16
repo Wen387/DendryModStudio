@@ -23,7 +23,10 @@
     entry('semantic_logic_edit', 'Semantic logic editor', 'Object Canvas', 'open_semantic_logic', 'semantic_logic', 'selected', 'data-semantic-logic-editor="true"', 'Review & Apply', 'Build route/effect edit plan', 'Dry-run or apply guarded/advanced replacement', 'changed logic and advanced toggle when needed'),
     entry('complex_event_create', 'Complex Event Builder', 'Create', 'open_complex_event_builder', 'events', 'new_event', 'data-create-template-panel="event"', 'Review & Apply', 'Draft and preview event install plan', 'Dry-run or apply event operations', 'event readiness checklist'),
     entry('text_event_create', 'Text Event Builder', 'Create', 'open_text_event_builder', 'events', 'new_text_event', 'data-event-archetype="pure_event"', 'Review & Apply', 'Draft and preview no-choice text event install plan', 'Dry-run or apply event operations', 'text event readiness checklist'),
-    entry('create_similar_event', 'Create similar event', 'Object Canvas', 'create_similar_event', 'events', 'selected_scene', 'data-create-similar-event="true"', 'Review & Apply', 'Seed a new draft from parsed event content', 'Dry-run or apply the generated new scene operations', 'parsed-to-draft template resolves'),
+    entry('create_similar_event', 'Create similar event', 'Object Canvas', 'create_similar_event', 'events', 'selected_scene', 'data-create-similar-object="true"', 'Review & Apply', 'Seed a new draft from parsed event content', 'Dry-run or apply the generated new scene operations', 'parsed-to-draft template resolves'),
+    entry('create_similar_card', 'Create similar card', 'Object Canvas', 'create_similar_event', 'cards', 'selected_card', 'data-create-similar-kind="card"', 'Review & Apply', 'Seed a new draft from parsed card content', 'Dry-run or apply the generated new card operations', 'parsed-to-draft template resolves'),
+    entry('rendered_element_edit', 'Edit rendered preview element', 'Object Canvas preview', 'open_rendered_authoring_entry', 'visible_content', 'rendered_element', 'data-rendered-authoring-entry="true"', 'Review & Apply', 'Open the editor from the rendered preview element', 'Dry-run or apply the generated operation', 'rendered action resolves'),
+    entry('rendered_effect_edit', 'Edit rendered effect', 'Object Canvas preview', 'open_effect_editor', 'effects', 'rendered_effect', 'data-rendered-entry-kind="effect"', 'Review & Apply', 'Open effect editor from preview impact row', 'Dry-run or apply guarded/advanced effect operation', 'effect editor resolves'),
     entry('event_graph_node_edit', 'Edit event graph node', 'Complex Event Builder', 'open_event_graph_node', 'events', 'graph_node', 'data-preview-object-event-graph-node', 'Review & Apply', 'Focus matching editor field', 'Dry-run or apply generated draft operation', 'event readiness checklist'),
     entry('event_graph_edge_edit', 'Edit event graph route', 'Complex Event Builder', 'open_event_graph_edge', 'routes', 'graph_edge', 'data-preview-object-event-graph-edge', 'Review & Apply', 'Focus route editor field', 'Dry-run or apply generated route operation', 'route target resolves'),
     entry('variable_create_from_event_effect', 'Create variable from event effect', 'Object Canvas context board', 'open_variable_editor', 'variables', 'effect_variable', 'data-workflow-entry="variable-create-from-effect"', 'Review & Apply', 'Open variable draft from event context', 'Dry-run or apply variable init/definition operation', 'variable draft has source-backed init'),
@@ -56,6 +59,9 @@
     const contractComplete = entries.filter((item) => item.contractComplete).length;
     const rendered = entries.filter((item) => item.rendered).length;
     const modelOnly = entries.filter((item) => item.modelOnly).length;
+    const renderedElementEntry = hasSelector(sources, 'data-rendered-authoring-entry="true"');
+    const renderedEffectEntry = hasSelector(sources, 'data-rendered-entry-kind="effect"');
+    const copyAsNewEntry = hasSelector(sources, 'data-create-similar-object="true"');
     return {
       schemaVersion: VERSION,
       kind: 'workflow_entry_contract_report',
@@ -64,6 +70,9 @@
       summary: {
         workflowEntryCoverage: ratio(contractComplete, entries.length),
         renderedEntryCoverage: ratio(rendered, entries.length),
+        renderedElementEntryCoverage: renderedElementEntry ? 1 : 0,
+        renderedEffectEntryCoverage: renderedEffectEntry ? 1 : 0,
+        copyAsNewEntryCoverage: copyAsNewEntry ? 1 : 0,
         modelOnlyWorkflowCount: modelOnly,
         total: entries.length
       }

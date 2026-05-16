@@ -73,6 +73,7 @@
       source: sourceRef(editModel.source || {}),
       editModel,
       flow: editModel.flow || {nodes: [], edges: [], summary: {}},
+      sourceStructureGraph: editModel.sourceStructureGraph || null,
       proposal,
       output,
       operationSummary: summary,
@@ -109,6 +110,7 @@
       source: {},
       editModel: editModel || null,
       flow: editModel && editModel.flow || {nodes: [], edges: [], summary: {}},
+      sourceStructureGraph: editModel && editModel.sourceStructureGraph || null,
       proposal: null,
       output: null,
       operationSummary: operationSummary(null),
@@ -242,12 +244,19 @@
       transform: String(field.transform || ''),
       structureAction: String(field.structureAction || ''),
       structureBefore: String(field.structureBefore || ''),
+      structureSourceExpression: String(field.structureSourceExpression || ''),
       structureTargetLabel: String(field.structureTargetLabel || ''),
+      structureSourceBlock: isObject(field.structureSourceBlock) ? Object.assign({}, field.structureSourceBlock) : null,
+      structureOperationHint: isObject(field.structureOperationHint) ? clonePlain(field.structureOperationHint) : null,
+      structureExistingIds: ensureArray(field.structureExistingIds).map(String).filter(Boolean),
       effectSyntax: String(field.effectSyntax || ''),
       effectHook: String(field.effectHook || ''),
       sourceExpression: String(field.sourceExpression || ''),
       displayExpression: String(field.displayExpression || ''),
       condition: String(field.condition || ''),
+      derivedAlias: Boolean(field.derivedAlias),
+      derivedFromRole: String(field.derivedFromRole || ''),
+      derivedReason: String(field.derivedReason || ''),
       reason: String(field.reason || ''),
       operationType: 'replace_text',
       status: editorStatus(field.editability || 'manual_review')
@@ -276,7 +285,7 @@
 
   function editorStatus(editability) {
     const text = String(editability || '');
-    if (text === 'guarded_replace_text' || text === 'guarded_replace_section') {
+    if (text === 'guarded_replace_text' || text === 'guarded_replace_section' || text === 'guarded_apply') {
       return 'guarded';
     }
     if (text === 'manual_review') {
@@ -774,6 +783,10 @@
       String(rawValue === undefined || rawValue === null ? '' : rawValue)).trim();
     const condition = String(effect && effect.condition || '').trim();
     return expression + (condition ? ' if ' + condition : '');
+  }
+
+  function clonePlain(value) {
+    return JSON.parse(JSON.stringify(value === undefined ? null : value));
   }
 
   function numberOrNull(value) {

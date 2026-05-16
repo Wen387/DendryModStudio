@@ -133,9 +133,21 @@
       });
     }
     if (elements.allowAdvanced) {
-      elements.allowAdvanced.addEventListener('change', () => render());
+      elements.allowAdvanced.addEventListener('change', () => {
+        if (elements.allowAdvanced.checked && !confirmEnableAdvanced()) {
+          elements.allowAdvanced.checked = false;
+        }
+        render();
+      });
     }
     render();
+  }
+
+  function confirmEnableAdvanced() {
+    if (!global.confirm) {
+      return true;
+    }
+    return global.confirm(t('install.confirmEnableAdvanced', 'Open advanced operations? Advanced operations may touch protected routers, root setup, generated wiring, or other sensitive source areas. Learn and enable Git version control for your target repo before using this.'));
   }
 
   function bindIndexEvents() {

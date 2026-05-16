@@ -7,6 +7,16 @@ if (Q.demo_resources === undefined) { Q.demo_resources = 2; }
 if (Q.demo_advisor_trust === undefined) { Q.demo_advisor_trust = 0; }
 if (Q.demo_card_progress === undefined) { Q.demo_card_progress = 0; }
 if (Q.demo_event_seen === undefined) { Q.demo_event_seen = 0; }
+if (Q.demo_chain_seen === undefined) { Q.demo_chain_seen = 0; }
+if (Q.demo_hearing_seen === undefined) { Q.demo_hearing_seen = 0; }
+if (Q.demo_resolution_seen === undefined) { Q.demo_resolution_seen = 0; }
+if (Q.demo_pressure === undefined) { Q.demo_pressure = 0; }
+if (Q.demo_public_attention === undefined) { Q.demo_public_attention = 0; }
+if (Q.demo_case_strength === undefined) { Q.demo_case_strength = 0; }
+if (Q.demo_cabinet_balance === undefined) { Q.demo_cabinet_balance = 0; }
+if (Q.demo_reform_mandate === undefined) { Q.demo_reform_mandate = 0; }
+if (Q.demo_opposition_heat === undefined) { Q.demo_opposition_heat = 0; }
+if (Q.demo_resolution_result === undefined) { Q.demo_resolution_result = 0; }
 // ====== U. EVENT SEEN FLAGS ======
 !}
 
@@ -22,6 +32,7 @@ player-facing event. Select **Open the workspace hand** to see the minimal
 hand/deck/advisor skeleton used by card-style DendryNexus projects.
 
 - @main: Open the workspace hand
+- @demo_campaign_pressure: Play the complex event chain
 - @demo_opening: Start the demo event
 - @demo_opening.demo_status: Check demo state
 - @demo_opening.support_followup: Follow up on support

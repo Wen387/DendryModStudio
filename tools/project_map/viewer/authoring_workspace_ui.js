@@ -35,7 +35,10 @@
       {key: 'card', labelKey: 'create.card', fallback: 'Card'}
     ],
     system_ui: [
-      {key: 'entry', labelKey: 'authoring.template.systemUiScreen', fallback: 'System UI Screen'},
+      {key: 'entry', labelKey: 'create.entrySidebar', fallback: 'Entry & Sidebar'},
+      {key: 'play_surface', labelKey: 'create.playSurface', fallback: 'Playable Surface'},
+      {key: 'workspace_layout', labelKey: 'create.workspaceLayout', fallback: 'Workspace Layout'},
+      {key: 'sidebar_status', labelKey: 'create.sidebarStatus', fallback: 'Sidebar / Status'},
       {key: 'election_results', labelKey: 'create.electionResults', fallback: 'Election Results'},
       {key: 'project', labelKey: 'create.gameInfo', fallback: 'Game Info'}
     ],
@@ -43,18 +46,6 @@
       {key: 'variables', labelKey: 'create.variables', fallback: 'Variables'}
     ]
   };
-
-  const SYSTEM_UI_SCREEN_ITEM = {
-    key: 'entry',
-    labelKey: 'authoring.template.systemUiScreen',
-    fallback: 'System UI Screen'
-  };
-  const ELECTION_RESULTS_ITEM = {
-    key: 'election_results',
-    labelKey: 'create.electionResults',
-    fallback: 'Election Results'
-  };
-  const SYSTEM_UI_SCREEN_TEMPLATES = new Set(['entry', 'play_surface', 'workspace_layout', 'sidebar_status', 'project']);
 
   const state = {
     activeWorkspace: 'content',
@@ -188,10 +179,7 @@
   }
 
   function templateButtonIsActive(buttonTemplate, activeTemplate) {
-    if (buttonTemplate === activeTemplate) {
-      return true;
-    }
-    return buttonTemplate === SYSTEM_UI_SCREEN_ITEM.key && SYSTEM_UI_SCREEN_TEMPLATES.has(activeTemplate);
+    return buttonTemplate === activeTemplate;
   }
 
   function clickTemplate(template) {
@@ -283,9 +271,6 @@
   }
 
   function templateItemsForWorkspace(workspace) {
-    if (workspace === 'system_ui') {
-      return [SYSTEM_UI_SCREEN_ITEM, ELECTION_RESULTS_ITEM];
-    }
     const registry = registryApi();
     return registry && typeof registry.templatesForWorkspace === 'function'
       ? registry.templatesForWorkspace(workspace)

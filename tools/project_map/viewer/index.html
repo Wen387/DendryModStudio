@@ -71,7 +71,6 @@
         </details>
       </div>
     </header>
-
     <section id="update-notice-banner" class="update-notice-banner hidden" aria-live="polite">
       <div class="update-notice-copy">
         <div id="update-notice-kicker" class="update-notice-kicker" data-i18n="updateNotice.kicker">Update notice</div>
@@ -457,7 +456,7 @@
           <button id="install-download-verified-diff" type="button" data-i18n="install.downloadVerifiedDiff">Download verified diff</button>
           <label class="install-advanced-toggle">
             <input id="install-allow-advanced" type="checkbox">
-            <span data-i18n="install.includeAdvanced">Include advanced risky operations</span>
+            <span data-i18n="install.includeAdvanced">! Advanced risky operations !</span>
           </label>
         </div>
 
@@ -2723,11 +2722,12 @@ media_reach += 1</textarea>
       </aside>
     </main>
   </div>
-
+  <script src="../authoring/protected_path_policy.js"></script>
   <script src="../authoring/install_plan.js"></script>
   <script src="../authoring/parsed_to_draft.js"></script>
   <script src="../authoring/event_draft.js"></script>
   <script src="../authoring/ownership_matching_model.js"></script>
+  <script src="../authoring/event_structure_effect_source_helpers.js"></script>
   <script src="../authoring/event_structure_model.js"></script>
   <script src="../authoring/news_draft.js"></script>
   <script src="../authoring/card_draft.js"></script>
@@ -2741,11 +2741,18 @@ media_reach += 1</textarea>
   <script src="../authoring/variable_editor_draft.js"></script>
   <script src="../authoring/draft_extract.js"></script>
   <script src="../authoring/existing_scene_logic_fields.js"></script>
+  <script src="../authoring/existing_scene_edit_metadata_fields.js"></script>
+  <script src="../authoring/existing_scene_condition_diagnostics.js"></script>
+  <script src="../authoring/existing_scene_asset_helpers.js"></script>
+  <script src="../authoring/existing_scene_text_block_helpers.js"></script><script src="../authoring/existing_scene_text_block_builder.js"></script>
   <script src="../authoring/existing_scene_edit_model.js"></script>
   <script src="../authoring/edit_capability_model.js"></script>
   <script src="../authoring/visible_object_coverage_model.js"></script>
   <script src="../authoring/source_slice_editor_model.js"></script>
   <script src="../authoring/semantic_logic_editor_model.js"></script>
+  <script src="../authoring/authoring_context_lens_model.js"></script>
+  <script src="../authoring/partial_repair_workflow_model.js"></script>
+  <script src="../authoring/review_confidence_model.js"></script>
   <script src="../authoring/parser_renderer_confidence_model.js"></script>
   <script src="../authoring/editing_context_model.js"></script>
   <script src="../authoring/object_canvas_content_bodies.js"></script>
@@ -2764,6 +2771,7 @@ media_reach += 1</textarea>
   <script src="../authoring/runtime_visual_asset_draft_model.js"></script>
   <script src="../authoring/runtime_visual_surface_model.js"></script>
   <script src="../authoring/runtime_lens_model.js"></script>
+  <script src="../authoring/preview_message_bus.js"></script>
   <script src="../authoring/card_board_model.js"></script>
   <script src="../authoring/variable_suggestions.js"></script>
   <script src="../authoring/asset_model.js"></script>
@@ -2776,6 +2784,7 @@ media_reach += 1</textarea>
   <script src="../authoring/studio_contracts.js"></script>
   <script src="i18n/en.js"></script>
   <script src="i18n/zh-Hant.js"></script>
+  <script src="desktop_capabilities.js"></script>
   <script src="i18n.js"></script>
   <script src="explore_model.js"></script>
   <script src="editing_context_graph.js"></script>
@@ -2791,7 +2800,8 @@ media_reach += 1</textarea>
   <script src="visible_edit_action_ui.js"></script>
   <script src="visible_text_renderer.js"></script>
   <script src="lightweight_object_preview.js"></script>
-  <script src="preview_object_event_builder_ui.js"></script>
+  <script src="preview_object_structure_draft.js"></script>
+  <script src="preview_object_structure_ui.js"></script><script src="preview_object_event_builder_ui.js"></script>
   <script src="preview_object_editor.js"></script>
   <script src="storyboard_workspace_state.js"></script>
   <script src="content_storyboard_surface.js"></script>
@@ -2814,10 +2824,11 @@ media_reach += 1</textarea>
   <script src="election_results_surface.js"></script>
   <script src="object_canvas_viewport.js"></script>
   <script src="object_canvas_graph_stage.js"></script>
-  <script src="object_canvas_shell_ui.js"></script>
+  <script src="object_canvas_shell_ui.js"></script><script src="object_canvas_surface_adapter.js"></script><script src="object_canvas_model_builder.js"></script><script src="object_canvas_project_state_workspace.js"></script>
+  <script src="object_workspace_return_stack.js"></script>
   <script src="source_slice_workspace_ui.js"></script>
   <script src="semantic_logic_workspace_ui.js"></script>
-  <script src="authoring_workspace_ui.js"></script>
+  <script src="object_canvas_field_values.js"></script><script src="object_canvas_storyboard_drafts.js"></script><script src="object_canvas_preview_editor_sync.js"></script><script src="authoring_workspace_ui.js"></script>
   <script src="editing_workspace_ui.js"></script>
   <script src="object_authoring_canvas_ui.js"></script>
   <script src="explore_lists.js"></script>

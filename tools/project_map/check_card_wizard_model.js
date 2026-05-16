@@ -106,7 +106,9 @@ sceneParser.parseFromContent('studio_sample_action_card.scene.dry', actionBundle
 assert(parsedActionScene, 'action card parse callback should return a scene');
 const parsedSpendSection = parsedActionScene.sections.find((section) => section.id === 'studio_sample_action_card.spend_resources');
 assert(parsedSpendSection, 'action card parser should expose spend_resources as a section');
-assert(parsedSpendSection.goTo && parsedSpendSection.goTo[0] && parsedSpendSection.goTo[0].id === 'root', 'action card option should parse go-to as metadata');
+const parsedSpendReturnSection = parsedActionScene.sections.find((section) => section.id === 'studio_sample_action_card.return_spend_resources');
+assert(parsedSpendReturnSection, 'action card parser should expose a generated return section after result text');
+assert(parsedSpendReturnSection.goTo && parsedSpendReturnSection.goTo[0] && parsedSpendReturnSection.goTo[0].id === 'root', 'action card return section should parse go-to as metadata');
 assert(!JSON.stringify(parsedSpendSection.content || '').includes('go-to: root'), 'action card option should not expose go-to as player-facing text');
 assert(advisorBundle.scene.includes('is-pinned-card: true'), 'advisor-like card should use pinned card flag');
 assert(advisorBundle.installNotes.includes('Advisor-like'), 'advisor-like install notes should name the generic lane');

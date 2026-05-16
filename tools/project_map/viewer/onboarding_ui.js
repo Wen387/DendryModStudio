@@ -29,6 +29,20 @@
       : 'ProjectMap:open-onboarding';
   }
 
+  function desktopCapabilities() {
+    if (global && global.ProjectMapDesktopCapabilities) {
+      return global.ProjectMapDesktopCapabilities;
+    }
+    if (typeof module !== 'undefined' && module.exports && typeof require === 'function') {
+      try {
+        return require('./desktop_capabilities.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   function createController(options) {
     const opts = options || {};
     const storage = opts.storage || safeStorage();
@@ -76,13 +90,13 @@
   }
 
   function primaryActionKind(env) {
-    const value = env || global || {};
-    return value.dendryDesktop ? 'desktop' : 'browser';
+    const desktop = desktopCapabilities();
+    return desktop && desktop.isDesktop(env || global) ? 'desktop' : 'browser';
   }
 
   function canLoadBundledDemo(env) {
-    const value = env || global || {};
-    return Boolean(value.dendryDesktop && typeof value.dendryDesktop.openStarterDemo === 'function');
+    const desktop = desktopCapabilities();
+    return Boolean(desktop && desktop.canOpenStarterDemo(env || global));
   }
 
   function safeStorage() {
@@ -238,9 +252,13 @@
       return;
     }
     const includeExcerpts = Boolean(state.elements.desktopIncludeExcerpts && state.elements.desktopIncludeExcerpts.checked);
+    const desktop = desktopCapabilities();
+    if (!desktop) {
+      return;
+    }
     closeDialog(true);
     state.elements.demo.disabled = true;
-    global.dendryDesktop.openStarterDemo({includeExcerpts}).catch((err) => {
+    desktop.openStarterDemo({includeExcerpts}, global).catch((err) => {
       if (global.console && typeof global.console.warn === 'function') {
         global.console.warn('Could not open bundled demo template:', err && err.message ? err.message : err);
       }

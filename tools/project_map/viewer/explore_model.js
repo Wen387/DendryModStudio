@@ -301,7 +301,8 @@
     return diagnosticGroups(diagnostics);
   }
 
-  function coverageRows(index) {
+  function coverageRows(index, options) {
+    const opts = isObject(options) ? options : {};
     const semantic = index && index.semantic ? index.semantic : {};
     const surfaceItems = ensureArray(semantic.surfaceText && semantic.surfaceText.items);
     const assets = ensureArray(semantic.assets && semantic.assets.items)
@@ -315,7 +316,7 @@
     const hands = ensureArray(semantic.hands);
     const pinned = ensureArray(semantic.pinnedCards);
     const scenes = ensureArray(index && index.scenes);
-    const visibleCoverage = visibleObjectCoverageReport(index);
+    const visibleCoverage = opts.includeVisibleCoverage === false ? null : visibleObjectCoverageReport(index);
     return [
       {
         id: 'find_and_compare',
@@ -379,16 +380,16 @@
         label: 'Cards / Advisor-like',
         count: cards.length,
         coverageLevel: 'draft_seed',
-        coverageLabel: 'In Studio, wiring review',
+        coverageLabel: 'In Studio, anchored wiring',
         releasePriority: 'must-have',
         noCodeCompletion: 'partial',
         authoringStatus: 'Parsed-to-draft authoring for choice, menu, large, and pinned text cards',
-        installStatus: 'safe scene create; hand/sidebar wiring manual review',
+        installStatus: 'safe scene create; guarded deck/advisor wiring when source-backed',
         safeApplyCount: 1,
         manualReviewCount: 1,
         unsupportedCount: 0,
         userCanDo: 'Create action-card / advisor-like drafts, copy parsed cards as new drafts, and preview scene operations.',
-        remainingGap: 'Hand/deck/sidebar wiring is indexed and proposed, but still not automatically applied.',
+        remainingGap: 'Exact deck/advisor tag lanes can be guarded inserts; custom or ambiguous hand/sidebar wiring remains review-only.',
         nextAction: 'Use Object Canvas, Explore, or Design to keep parsed card sections/options in one draft path.',
         studioPath: 'Create -> Card, or Design -> Create related card.',
         workflowSteps: ['Pick card shape', 'Write sections/options/effects', 'Review scene and wiring operations', 'Send supported operations to Review & Apply']
@@ -450,23 +451,23 @@
         studioPath: 'Explore / Event Workbench / Object Canvas -> Edit -> Review & Apply.',
         workflowSteps: ['Select visible content', 'Click Edit', 'Change the field or source slice', 'Preview before/after', 'Send operation to Review & Apply']
       },
-      visibleObjectCoverageRow(visibleCoverage),
+      visibleObjectCoverageRow(visibleCoverage, index, opts.includeVisibleCoverage === false),
       {
         id: 'hands_sidebar',
         label: 'Hands / Sidebar Wiring',
         count: hands.length + pinned.length,
         coverageLevel: 'guided_only',
-        coverageLabel: 'Guided review only',
+        coverageLabel: 'Anchored wiring where exact',
         releasePriority: 'must-have',
         noCodeCompletion: 'guided',
         authoringStatus: 'indexed evidence only',
-        installStatus: 'manual review',
+        installStatus: 'guarded when exact; manual when ambiguous',
         safeApplyCount: 0,
         manualReviewCount: hands.length + pinned.length,
         unsupportedCount: 0,
         userCanDo: 'See evidence and install checklist guidance for hand/sidebar effects.',
-        remainingGap: 'No safe graphical editor for hand/deck/sidebar routers yet.',
-        nextAction: 'Use Studio to locate the relevant evidence, then pick a source anchor or keep the operation in review.',
+        remainingGap: 'Exact deck/advisor tag routes can be applied through Review & Apply; custom lanes still need explicit source-anchor review.',
+        nextAction: 'Use Studio to locate the relevant evidence, then apply exact anchored routes or keep ambiguous lanes in review.',
         studioPath: 'Coverage Map -> Hands / Sidebar Wiring, plus Install mode manual operations.',
         workflowSteps: ['Use card export wiring proposal', 'Review hand/deck/sidebar evidence', 'Choose a source anchor or keep review blocked', 'Run validation']
       },
@@ -545,9 +546,37 @@
     return null;
   }
 
-  function visibleObjectCoverageRow(report) {
+  function visibleObjectCoverageRow(report, index, deferred) {
     const summary = report && report.summary || {};
     const goalW = summary.goalW || {};
+    if (deferred) {
+      const semantic = index && index.semantic || {};
+      const count = ensureArray(semantic.events).length +
+        ensureArray(semantic.cards).length +
+        ensureArray(semantic.news && semantic.news.items).length +
+        ensureArray(semantic.news && semantic.news.eventPopups).length +
+        ensureArray(semantic.textCorpus && semantic.textCorpus.items).length;
+      return {
+        id: 'visible_object_editor',
+        label: 'Visible Object Editor',
+        count,
+        coverageLevel: 'deferred',
+        coverageLabel: 'Prepared on demand',
+        releasePriority: 'must-have',
+        noCodeCompletion: 'partial',
+        authoringStatus: 'full visible edit coverage is built when Coverage Map opens',
+        installStatus: 'safe/guarded/advanced gates are evaluated in the full report',
+        safeApplyCount: 0,
+        manualReviewCount: 0,
+        unsupportedCount: 0,
+        userCanDo: 'Open Coverage Map to build the full visible-edit coverage report.',
+        remainingGap: 'Deferred during project load to keep the workspace responsive.',
+        nextAction: 'Open Coverage Map when you need full visible-object coverage details.',
+        studioPath: 'Coverage Map -> Visible Object Editor.',
+        workflowSteps: ['Load project', 'Open Coverage Map', 'Build full visible coverage report', 'Inspect route/safety gaps'],
+        deferred: true
+      };
+    }
     const safeCoverage = percentLabel(goalW.safeEditCoverage);
     const routeCoverage = percentLabel(summary.routeCoverage);
     const previewCoverage = percentLabel(goalW.previewCoverage);
@@ -599,13 +628,19 @@
     }
     const id = String(row.id || '').replace(/[^A-Za-z0-9_-]/g, '');
     const fallback = row[field] || '';
+    if (id && row.deferred) {
+      return t('coverage.row.' + id + '.deferred.' + field, fallback);
+    }
     return id ? t('coverage.row.' + id + '.' + field, fallback) : fallback;
   }
 
   function coverageWorkflowSteps(row) {
     const fallback = ensureArray(row && row.workflowSteps);
     const id = row && String(row.id || '').replace(/[^A-Za-z0-9_-]/g, '');
-    const raw = id ? t('coverage.row.' + id + '.workflowSteps', fallback.join('|')) : fallback.join('|');
+    const key = id && row && row.deferred
+      ? 'coverage.row.' + id + '.deferred.workflowSteps'
+      : 'coverage.row.' + id + '.workflowSteps';
+    const raw = id ? t(key, fallback.join('|')) : fallback.join('|');
     return String(raw || '')
       .split('|')
       .map((step) => step.trim())
@@ -635,6 +670,48 @@
 
   function noCodeCompletionLabel(value) {
     return t('coverage.noCode', 'no-code') + ' ' + coverageCompletionLabel(value);
+  }
+
+  function coverageClass(level) {
+    const value = String(level || '');
+    if (value === 'draft_seed' || value === 'mixed') {
+      return 'info';
+    }
+    if (value === 'guided_only' || value === 'ide_escape_hatch') {
+      return 'warning';
+    }
+    if (value === 'not_started' || value === 'deferred') {
+      return 'opaque';
+    }
+    return '';
+  }
+
+  function priorityClass(priority) {
+    const value = String(priority || '').toLowerCase();
+    if (value.includes('must')) {
+      return 'warning';
+    }
+    if (value.includes('blocker')) {
+      return 'error';
+    }
+    if (value.includes('later')) {
+      return 'opaque';
+    }
+    return 'info';
+  }
+
+  function completionClass(value) {
+    const text = String(value || '').toLowerCase();
+    if (text === 'mostly') {
+      return 'exact';
+    }
+    if (text === 'partial' || text === 'guided') {
+      return 'warning';
+    }
+    if (text === 'no') {
+      return 'opaque';
+    }
+    return 'info';
   }
 
   function coverageCountBadge(kind, count) {
@@ -691,7 +768,7 @@
       variables,
       diagnostics,
       overview: diagnosticBreakdown(diagnostics),
-      coverage: coverageRows(index)
+      coverage: coverageRows(index, {includeVisibleCoverage: false})
     };
 
     const uiLabels = profileUiLabels(index);
@@ -716,6 +793,7 @@
       textCorpusContextIndex: buildTextCorpusContextIndex(textCorpus),
       normalizedRowsByView: new Map(),
       sortedRowsByView: new Map(),
+      coverageRowsDeferred: true,
       diagnosticsByScene,
       diagnosticsByPath,
       lists
@@ -1035,7 +1113,38 @@
     if (!model) {
       return [];
     }
+    if (view === 'coverage') {
+      return ensureCoverageRows(model);
+    }
     return ensureArray(model.lists[view]);
+  }
+
+  function ensureCoverageRows(model) {
+    if (!model) {
+      return [];
+    }
+    if (!model.lists) {
+      model.lists = {};
+    }
+    if (model.coverageRowsDeferred || !Array.isArray(model.lists.coverage)) {
+      model.lists.coverage = coverageRows(model.index);
+      model.coverageRowsDeferred = false;
+      if (model.normalizedRowsByView instanceof Map) {
+        Array.from(model.normalizedRowsByView.keys()).forEach((key) => {
+          if (String(key).includes('::coverage')) {
+            model.normalizedRowsByView.delete(key);
+          }
+        });
+      }
+      if (model.sortedRowsByView instanceof Map) {
+        Array.from(model.sortedRowsByView.keys()).forEach((key) => {
+          if (String(key).includes('::coverage::')) {
+            model.sortedRowsByView.delete(key);
+          }
+        });
+      }
+    }
+    return ensureArray(model.lists.coverage);
   }
 
   function filterAndSortItems(model, view, query, sortField, sortDir) {
@@ -1353,6 +1462,7 @@
       'Guided review only': t('coverage.guidedReviewOnly', 'Guided review only'),
       'IDE escape hatch': t('coverage.ideEscapeHatch', 'Source mapping needed'),
       'Not started': t('coverage.notStarted', 'Not started'),
+      'Prepared on demand': t('coverage.preparedOnDemand', 'Prepared on demand'),
       image: t('assets.type.image', 'image'),
       audio: t('assets.type.audio', 'audio'),
       asset: t('assets.type.asset', 'asset'),
@@ -1563,6 +1673,7 @@
     sourceLabel,
     normalizeForView,
     listForView,
+    ensureCoverageRows,
     filterAndSortItems,
     normalizedRowsForView,
     sortedRowsForView,

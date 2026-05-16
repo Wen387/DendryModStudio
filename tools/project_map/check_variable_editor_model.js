@@ -10,6 +10,7 @@ const ROOT = __dirname;
 const variableDraft = require('./authoring/variable_editor_draft.js');
 const installPlan = require('./authoring/install_plan.js');
 const projectStateSurface = require('./viewer/project_state_surface.js');
+const projectStateWorkspace = require('./viewer/object_canvas_project_state_workspace.js');
 
 function fail(message) {
   process.stderr.write('FAIL: ' + message + '\n');
@@ -78,6 +79,19 @@ assert(defaultAddDraft.mode === 'add_new', 'default variable draft should create
 assert(defaultAddDraft.variableName === 'new_variable', 'default variable draft should not target the first indexed variable');
 const uniqueDefaultDraft = variableDraft.defaultDraft(Object.assign({}, index, {variables: index.variables.concat([{name: 'new_variable'}])}));
 assert(uniqueDefaultDraft.variableName === 'new_variable_2', 'default variable draft should avoid an existing new_variable name');
+const fallbackVariableState = {
+  projectIndex: Object.assign({}, index, {
+    variables: index.variables.concat([{name: 'new_variable'}, {name: 'new_variable_2'}])
+  }),
+  selectedCanvasNode: 'variable:demo_resources'
+};
+const fallbackDeps = {global: {}, variableEditorDraft: null};
+assert(projectStateWorkspace.nextAvailableVariableName(fallbackVariableState, 'new_variable', fallbackDeps) === 'new_variable_3', 'Project State workspace fallback should suffix duplicate variable names');
+const fallbackDeleteDraft = projectStateWorkspace.deleteVariableDraft(fallbackVariableState, {name: 'demo_resources'}, fallbackDeps);
+assert(fallbackDeleteDraft.mode === 'delete_existing', 'Project State workspace fallback delete draft should use delete_existing mode');
+assert(fallbackDeleteDraft.id === 'delete_demo_resources', 'Project State workspace fallback delete draft should use a stable safe id');
+assert(projectStateWorkspace.selectedNodeForVariableDraft({variableName: 'demo_resources'}) === 'variable:demo_resources', 'Project State workspace should map variable drafts back to Canvas variable nodes');
+assert(projectStateWorkspace.safeDraftId('123 odd name') === 'variable_123_odd_name', 'Project State workspace should prefix unsafe draft ids');
 
 const editDraft = Object.assign(variableDraft.draftFromVariable(index.variables[0], index), {initialValue: '5'});
 const editBundle = variableDraft.buildExportBundle(editDraft, index, {locale: 'en'});

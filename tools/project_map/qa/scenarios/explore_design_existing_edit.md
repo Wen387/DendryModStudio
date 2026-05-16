@@ -3,9 +3,10 @@
 Persona: cautious mod author editing existing player-facing text.
 
 Goal: find an existing Event the way a player-tester would, understand it in
-Design, open the Object Authoring Canvas, inspect the context board, change a
-source-backed page section in the inline event body, save the proposal, and
-dry-run the guarded replacement.
+Design, open the Object Authoring Canvas directly into the focused object
+editor, inspect the context board, change a source-backed page section through
+the visible editor fields, confirm the live preview updates, save the proposal,
+and dry-run the guarded replacement.
 
 Required checkpoints:
 
@@ -14,9 +15,9 @@ Required checkpoints:
 - The Explore inspector exposes Edit existing for that event.
 - Design list view can find the same event as `event:generic_intro`.
 - The Design inspector exposes Edit existing.
-- Object Authoring Canvas opens in Create with a context board for the selected
-  scene.
-- The inline event body updates the proposal preview when a source-backed page
+- Object Authoring Canvas opens in Create with a context board and focused
+  object editor for the selected scene.
+- The focused object editor updates the live preview when a source-backed page
   section changes.
 - My Changes saves the existing edit.
 - Review & Apply loads an `existing_scene_edit` plan.

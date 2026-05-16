@@ -266,7 +266,7 @@
       context ? '<small class="object-inline-field-context">' + escapeHtml(context) + '</small>' : '',
       element === 'input'
         ? '<input type="text"' + common + ' value="' + escapeAttr(value) + '">'
-        : '<textarea rows="' + rowsFor(value) + '"' + common + '>' + escapeHtml(value) + '</textarea>',
+        : '<textarea rows="' + rowsFor(value) + '" wrap="soft"' + common + '>' + escapeHtml(value) + '</textarea>',
       sourceStatus ? '<small class="object-inline-field-status">' + escapeHtml(sourceStatus) + '</small>' : '',
       '</label>'
     ].join('');

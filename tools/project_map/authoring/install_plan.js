@@ -5,6 +5,7 @@
   const INSTALL_PLAN_KIND = 'dendry_mod_studio_install_plan';
   const DEFAULT_VALIDATION_COMMAND = 'bash tools/build_and_validate.sh --skip-build --errors-only';
   const APPLY_STATUSES = new Set(['safe_apply', 'guarded_apply', 'advanced_apply']);
+  const protectedPathPolicy = resolveProtectedPathPolicy(global);
   const INSTALL_LEVELS = {
     safe_apply: 1,
     guarded_apply: 2,
@@ -143,6 +144,30 @@
     return JSON.parse(JSON.stringify(value));
   }
 
+  function resolveProtectedPathPolicy(globalRef) {
+    if (globalRef && globalRef.ProjectMapProtectedPathPolicy) {
+      return globalRef.ProjectMapProtectedPathPolicy;
+    }
+    if (typeof module !== 'undefined' && module.exports && typeof require === 'function') {
+      try {
+        return require('./protected_path_policy.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function protectedPathPolicyApi() {
+    if (protectedPathPolicy) {
+      return protectedPathPolicy;
+    }
+    if (global && global.ProjectMapProtectedPathPolicy) {
+      return global.ProjectMapProtectedPathPolicy;
+    }
+    throw new Error('ProjectMapProtectedPathPolicy is required before install_plan.js');
+  }
+
   function buildInstallPlan(input) {
     const value = isObject(input) ? input : {};
     const project = projectProvenance(value.project);
@@ -210,6 +235,7 @@
     value.assetType = value.assetType === undefined || value.assetType === null ? '' : String(value.assetType);
     value.label = value.label === undefined || value.label === null ? '' : String(value.label);
     value.role = value.role === undefined || value.role === null ? '' : String(value.role);
+    value.allowEmptyReplace = Boolean(value.allowEmptyReplace);
     if (value.line !== undefined && value.line !== null && value.line !== '') {
       const line = Number(value.line);
       value.line = Number.isFinite(line) && line > 0 ? Math.floor(line) : null;
@@ -375,6 +401,7 @@
 
   function cardInstallPlan(options) {
     const id = String(options.id || '').trim();
+    const wiringOperation = isObject(options.wiringOperation) ? [options.wiringOperation] : [];
     return buildInstallPlan({
       id,
       draftKind: 'card',
@@ -390,7 +417,7 @@
           safety: 'safe_apply',
           description: 'Create the exported card scene.'
         },
-      ].concat(options.skipWiringManual ? [] : [
+      ].concat(wiringOperation.length ? wiringOperation : options.skipWiringManual ? [] : [
         {
           id: 'wire_card_flow',
           type: 'manual_snippet',
@@ -523,10 +550,11 @@
         path,
         anchorText: value.anchorText,
         endAnchorText: value.endAnchorText,
-        content: after.endsWith('\n') ? after : after + '\n',
+        content: existingSceneReplacementContent(after, value.allowEmptyReplace),
         dedupeSearch: value.dedupeSearch || after.trim(),
         startLine: value.startLine || line,
         endLine: value.endLine || endLine,
+        allowEmptyReplace: Boolean(value.allowEmptyReplace),
         safety: 'guarded_apply',
         role: 'existing_scene.section_text',
         description: 'Replace existing ' + label + ' section text after confirming exact source anchors still match.'
@@ -539,16 +567,17 @@
         path,
         anchorText: value.anchorText || source.anchorText,
         endAnchorText: value.endAnchorText || source.endAnchorText,
-        content: after.endsWith('\n') ? after : after + '\n',
+        content: existingSceneReplacementContent(after, value.allowEmptyReplace),
         dedupeSearch: value.dedupeSearch || after.trim(),
         startLine: value.startLine || line,
         endLine: value.endLine || endLine,
+        allowEmptyReplace: Boolean(value.allowEmptyReplace),
         safety: 'advanced_apply',
         role: 'existing_scene.section_text',
         description: 'Replace existing ' + label + ' section text through an advanced source-backed operation.'
       };
     }
-    if (!advancedRequested && value.operationType !== 'manual_snippet' && existingSceneChangeCanGuard(path, line, source.endLine || source.line || source.startLine, before, after)) {
+    if (!advancedRequested && value.operationType !== 'manual_snippet' && existingSceneChangeCanGuard(path, line, source.endLine || source.line || source.startLine, before, after, value)) {
       return {
         id,
         type: 'replace_text',
@@ -560,7 +589,7 @@
         description: 'Replace existing ' + label + ' in the source scene after confirming the original line still matches.'
       };
     }
-    if (value.operationType !== 'manual_snippet' && existingSceneChangeCanAdvanced(path, line, source.endLine || source.line || source.startLine, before, after)) {
+    if (value.operationType !== 'manual_snippet' && existingSceneChangeCanAdvanced(path, line, source.endLine || source.line || source.startLine, before, after, value)) {
       return {
         id,
         type: 'replace_text',
@@ -599,10 +628,19 @@
     return editability === 'advanced_source_patch' || editability === 'advanced_apply';
   }
 
-  function existingSceneChangeCanGuard(path, line, endLine, before, after) {
+  function existingSceneReplacementContent(after, allowEmptyReplace) {
+    const text = String(after === undefined || after === null ? '' : after);
+    if (!text && allowEmptyReplace) {
+      return '';
+    }
+    return text.endsWith('\n') ? text : text + '\n';
+  }
+
+  function existingSceneChangeCanGuard(path, line, endLine, before, after, change) {
     const rel = String(path || '').replace(/\\/g, '/');
     const sourceLine = Number(line || 0);
     const sourceEndLine = Number(endLine || sourceLine || 0);
+    const allowEmptyReplace = Boolean(change && change.allowEmptyReplace);
     return Boolean(
       rel.startsWith('source/scenes/') &&
       rel.endsWith('.scene.dry') &&
@@ -611,14 +649,15 @@
       sourceLine > 0 &&
       (!Number.isInteger(sourceEndLine) || sourceEndLine <= 0 || sourceEndLine === sourceLine) &&
       String(before || '').trim() &&
-      String(after || '').trim()
+      (String(after || '').trim() || allowEmptyReplace)
     );
   }
 
-  function existingSceneChangeCanAdvanced(path, line, endLine, before, after) {
+  function existingSceneChangeCanAdvanced(path, line, endLine, before, after, change) {
     const rel = String(path || '').replace(/\\/g, '/');
     const sourceLine = Number(line || 0);
     const sourceEndLine = Number(endLine || sourceLine || 0);
+    const allowEmptyReplace = Boolean(change && change.allowEmptyReplace);
     return Boolean(
       rel.startsWith('source/scenes/') &&
       rel.endsWith('.scene.dry') &&
@@ -626,7 +665,7 @@
       sourceLine > 0 &&
       (!Number.isInteger(sourceEndLine) || sourceEndLine <= 0 || sourceEndLine === sourceLine) &&
       String(before || '').trim() &&
-      String(after || '').trim()
+      (String(after || '').trim() || allowEmptyReplace)
     );
   }
 
@@ -681,7 +720,7 @@
       sourceEndLine >= sourceLine &&
       String(value.anchorText || '').trim() &&
       String(value.endAnchorText || '').trim() &&
-      String(after || '').trim()
+      (String(after || '').trim() || Boolean(value.allowEmptyReplace))
     );
   }
 
@@ -700,7 +739,7 @@
       sourceEndLine >= sourceLine &&
       String(value.anchorText || (value.source && value.source.anchorText) || '').trim() &&
       String(value.endAnchorText || (value.source && value.source.endAnchorText) || '').trim() &&
-      String(after || '').trim()
+      (String(after || '').trim() || Boolean(value.allowEmptyReplace))
     );
   }
 
@@ -1032,7 +1071,7 @@
     const projectRoot = opts.projectRoot ? path.resolve(String(opts.projectRoot)) : '';
     const diagnostics = [];
     const results = [];
-    const operations = ensureArray(plan.operations).map(normalizeOperation);
+    const operations = orderOperationsForApply(ensureArray(plan.operations).map(normalizeOperation));
     const summary = operationSummary({operations});
 
     if (!projectRoot) {
@@ -1194,16 +1233,9 @@
     if (relative === '' || relative.startsWith('..') || path.isAbsolute(relative)) {
       return {ok: false, message: 'Operation path escapes the project root: ' + relPath};
     }
-    if (relative === '.git' || relative.startsWith('.git' + path.sep)) {
-      return {ok: false, message: 'Operation path targets .git: ' + relPath};
-    }
-    const outHtml = path.join('out', 'html');
-    if (
-      relative === path.join('out', 'game.json') ||
-      relative === outHtml ||
-      relative.startsWith(outHtml + path.sep)
-    ) {
-      return {ok: false, message: 'Operation path targets generated/protected output: ' + relPath};
+    const protectedMessage = protectedGeneratedOutputMessage(relPath, relative);
+    if (protectedMessage) {
+      return {ok: false, message: protectedMessage};
     }
     return {ok: true, path: target, relative: relative.split(path.sep).join('/')};
   }
@@ -1248,7 +1280,7 @@
     if (!relPath) {
       return {ok: false, message: 'Operation path is required.'};
     }
-    const rel = String(relPath || '').replace(/\\/g, '/');
+    const rel = protectedPathPolicyApi().normalizeRelativePath(relPath);
     if (rel.startsWith('/') || /^[A-Za-z]:\//.test(rel)) {
       return {ok: false, message: 'Operation path must be relative to the project root: ' + relPath};
     }
@@ -1256,26 +1288,31 @@
     if (!parts.length || parts.includes('..')) {
       return {ok: false, message: 'Operation path escapes the project root: ' + relPath};
     }
-    if (parts[0] === '.git') {
-      return {ok: false, message: 'Operation path targets .git: ' + relPath};
-    }
-    if (rel === 'out/game.json' || rel === 'out/html' || rel.startsWith('out/html/')) {
-      return {ok: false, message: 'Operation path targets generated/protected output: ' + relPath};
+    const protectedMessage = protectedGeneratedOutputMessage(relPath, rel);
+    if (protectedMessage) {
+      return {ok: false, message: protectedMessage};
     }
     return {ok: true, relative: parts.join('/')};
   }
 
+  function protectedGeneratedOutputMessage(relPath, relative) {
+    const reason = protectedPathPolicyApi().protectedGeneratedOutputReason(relative);
+    if (reason === 'git') {
+      return 'Operation path targets .git: ' + relPath;
+    }
+    if (reason === 'generated_output') {
+      return 'Operation path targets generated/protected output: ' + relPath;
+    }
+    return '';
+  }
+
   function operationPermission(operation, relative, safety) {
-    const rel = String(relative || '').replace(/\\/g, '/');
+    const rel = protectedPathPolicyApi().normalizeRelativePath(relative);
     if (isProtectedRouterPath(rel) && safety !== 'advanced_apply') {
       if (
         operation.type === 'insert_text' &&
         safety === 'guarded_apply' &&
-        (
-          rel === 'source/scenes/root.scene.dry' ||
-          rel === 'source/scenes/post_event.scene.dry' ||
-          rel === 'source/scenes/post_event_news.scene.dry'
-        ) &&
+        isProtectedRouterPath(rel) &&
         operation.anchorText &&
         operation.content &&
         operation.dedupeSearch
@@ -1309,7 +1346,7 @@
         operation.type === 'replace_section' &&
         operation.anchorText &&
         operation.endAnchorText &&
-        operation.content &&
+        (operation.content || operation.allowEmptyReplace) &&
         operation.dedupeSearch
       ) {
         return {ok: true, message: 'Advanced project metadata section replacement is allowed with exact anchors.'};
@@ -1393,7 +1430,7 @@
         rel.endsWith('.scene.dry') &&
         operation.anchorText &&
         operation.endAnchorText &&
-        operation.content &&
+        (operation.content || operation.allowEmptyReplace) &&
         operation.dedupeSearch
       ) {
         return {ok: true, message: 'Advanced source section replacement with exact start/end anchors and dedupe evidence.'};
@@ -1404,7 +1441,7 @@
         rel.endsWith('.scene.dry') &&
         operation.anchorText &&
         operation.endAnchorText &&
-        operation.content &&
+        (operation.content || operation.allowEmptyReplace) &&
         operation.dedupeSearch &&
         (!isProtectedRouterPath(rel) || (rel === 'source/scenes/root.scene.dry' && isEntrySidebarProtectedSection(operation)))
       ) {
@@ -1445,10 +1482,7 @@
   }
 
   function isProtectedRouterPath(relPath) {
-    const rel = String(relPath || '').replace(/\\/g, '/');
-    return rel === 'source/scenes/root.scene.dry' ||
-      rel === 'source/scenes/post_event.scene.dry' ||
-      rel === 'source/scenes/post_event_news.scene.dry';
+    return protectedPathPolicyApi().isProtectedRouterSourcePath(relPath);
   }
 
   function safeOperationPermission(operation, relative) {
@@ -1621,6 +1655,21 @@
       return text;
     }
     return text.slice(0, 3980).trimEnd() + '\n...';
+  }
+
+  function orderOperationsForApply(operations) {
+    return ensureArray(operations).map((operation, index) => ({operation, index})).sort((left, right) => {
+      const a = left.operation || {};
+      const b = right.operation || {};
+      if (a.type === 'insert_text' && b.type === 'insert_text' && String(a.path || '') === String(b.path || '')) {
+        const aLine = Number(a.line || a.startLine || 0);
+        const bLine = Number(b.line || b.startLine || 0);
+        if (Number.isFinite(aLine) && Number.isFinite(bLine) && aLine > 0 && bLine > 0 && aLine !== bLine) {
+          return bLine - aLine;
+        }
+      }
+      return left.index - right.index;
+    }).map((item) => item.operation);
   }
 
   function applyCreateFile(fs, path, crypto, target, operation, dryRun, diagnostics, includeEvidence) {
@@ -2036,17 +2085,38 @@
     const parts = splitLogicalLines(text);
     const lines = parts.lines;
     const matches = [];
-    lines.forEach((line, index) => {
-      if (line.includes(anchor)) {
-        matches.push(index);
+    const lineEvidence = Number(operation.line || operation.startLine || 0);
+    if (Number.isInteger(lineEvidence) && lineEvidence > 0) {
+      const lineIndex = lineEvidence - 1;
+      const line = lines[lineIndex];
+      if (line === undefined) {
+        return {
+          ok: false,
+          code: 'install_plan.insert_line_missing',
+          message: 'Insert line evidence points outside the target file.'
+        };
       }
-    });
-    if (matches.length !== 1) {
-      return {
-        ok: false,
-        code: matches.length ? 'install_plan.insert_ambiguous_anchor' : 'install_plan.insert_anchor_missing',
-        message: 'Expected exactly one insert anchor match, found ' + matches.length + '.'
-      };
+      if (!line.includes(anchor)) {
+        return {
+          ok: false,
+          code: 'install_plan.insert_line_anchor_mismatch',
+          message: 'Insert line evidence did not match the anchor text.'
+        };
+      }
+      matches.push(lineIndex);
+    } else {
+      lines.forEach((line, index) => {
+        if (line.includes(anchor)) {
+          matches.push(index);
+        }
+      });
+      if (matches.length !== 1) {
+        return {
+          ok: false,
+          code: matches.length ? 'install_plan.insert_ambiguous_anchor' : 'install_plan.insert_anchor_missing',
+          message: 'Expected exactly one insert anchor match, found ' + matches.length + '.'
+        };
+      }
     }
     const insertLines = contentLines(content);
     const insertAt = operation.position === 'before' ? matches[0] : matches[0] + 1;
@@ -2080,7 +2150,7 @@
     if (!endAnchor) {
       return {ok: false, code: 'install_plan.section_empty_end_anchor', message: 'Section end anchor text is empty.'};
     }
-    if (!content) {
+    if (!content && !operation.allowEmptyReplace) {
       return {ok: false, code: 'install_plan.section_empty_content', message: 'Section replacement content is empty.'};
     }
     const parts = splitLogicalLines(text);

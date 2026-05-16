@@ -16,6 +16,19 @@ The repository intentionally excludes private notes, full game project source,
 generated runtime output, local fixture checkouts, package artifacts, and the old
 game repository history.
 
+## Agent Entry / Exit Hygiene
+
+- On entry, identify the owner module and any related workflow notes before
+  editing. For Studio work, start with `tools/project_map/WORKFLOW.md`.
+- Leave each touched area no harder to maintain than you found it: keep changes
+  scoped, name follow-up ownership when cleanup cannot finish, and avoid making
+  local shortcuts permanent.
+- Do not add new product behavior directly to known large files unless the owner
+  pattern requires it or the change is deliberately tiny.
+- Checks, templates, fixtures, schemas, docs, generated output, and ignored
+  noise are not core product entry points. Use them to guard or explain product
+  behavior, not as the primary implementation path.
+
 ## Required Checks
 
 From the repository root:

@@ -166,7 +166,8 @@
   function routeFieldControls(semanticEditor, evidence, currentText) {
     const text = String(currentText || '').trim();
     const routeEvidence = ensureArray(evidence && evidence.routeEvidence);
-    const clause = firstRouteClause(routeEvidence) || parseRouteClause(text);
+    const routeClauses = routeClausesFromEvidence(routeEvidence);
+    const clause = routeClauses[0] || parseRouteClause(text);
     const optionLine = parseOptionLine(text);
     const target = optionLine && optionLine.target || clause && clause.target || '';
     const predicate = optionLine ? '' : clause && clause.predicate || '';
@@ -182,12 +183,14 @@
       target,
       predicate,
       label,
+      routeClauses,
       isFallback: Boolean(clause && clause.isFallback),
       parserBacked: Boolean(clause && clause.parserBacked),
       fields: [
         {id: 'routeTarget', valueKey: 'semantic_logic.routeTarget', label: 'Target', value: target},
         {id: 'routePredicate', valueKey: 'semantic_logic.routePredicate', label: 'Predicate', value: predicate},
-        {id: 'routeLabel', valueKey: 'semantic_logic.routeLabel', label: 'Label', value: label}
+        {id: 'routeLabel', valueKey: 'semantic_logic.routeLabel', label: 'Label', value: label},
+        {id: 'routeClauses', valueKey: 'semantic_logic.routeClauses', label: 'Route clauses', value: JSON.stringify(routeClauses)}
       ],
       source: semanticEditor && semanticEditor.source || null
     };
@@ -195,11 +198,12 @@
 
   function effectFieldControls(semanticEditor, evidence, currentText) {
     const effectEvidence = ensureArray(evidence && evidence.effectEvidence);
-    const row = effectEvidence[0] || {};
-    const parsed = parseEffectExpression(row.sourceExpression || currentText);
+    const effectClauses = effectClausesFromEvidence(effectEvidence, currentText);
+    const row = effectClauses[0] || {};
+    const parsed = row.variable ? row : parseEffectExpression(row.sourceExpression || currentText);
     const variable = String(row.variable || parsed && parsed.variable || '').replace(/^Q\./, '');
     const op = String(row.op || parsed && parsed.op || '');
-    if (op && !GUIDED_EFFECT_OPS.has(op)) {
+    if (effectClauses.some((clause) => clause.op && !GUIDED_EFFECT_OPS.has(clause.op)) || op && !GUIDED_EFFECT_OPS.has(op)) {
       return null;
     }
     const value = String(row.value === undefined || row.value === null ? parsed && parsed.value || '' : row.value);
@@ -214,6 +218,7 @@
       op,
       value,
       condition,
+      effectClauses,
       sharedLine: Number(row.lineEffectCount || 0) > 1,
       dynamicKey: ensureArray(evidence && evidence.dynamicKeyEvidence).length > 0,
       parserBacked: Boolean(effectEvidence.length),
@@ -221,7 +226,8 @@
         {id: 'effectVariable', valueKey: 'semantic_logic.effectVariable', label: 'Variable', value: variable},
         {id: 'effectOperator', valueKey: 'semantic_logic.effectOperator', label: 'Operator', value: op || '='},
         {id: 'effectValue', valueKey: 'semantic_logic.effectValue', label: 'Value', value},
-        {id: 'effectCondition', valueKey: 'semantic_logic.effectCondition', label: 'Condition', value: condition}
+        {id: 'effectCondition', valueKey: 'semantic_logic.effectCondition', label: 'Condition', value: condition},
+        {id: 'effectClauses', valueKey: 'semantic_logic.effectClauses', label: 'Effect clauses', value: JSON.stringify(effectClauses)}
       ],
       source: semanticEditor && semanticEditor.source || null
     };
@@ -230,6 +236,14 @@
   function composeRouteReplacement(model, values) {
     const controls = model && model.fieldControls || {};
     const current = String(model && model.currentText || controls.originalText || '');
+    const routeClauses = normalizeRouteClausesInput(valueFor(values, 'semantic_logic.routeClauses', null));
+    if (routeClauses.length && controls.pattern !== 'option_line') {
+      const rendered = renderRouteClauseList(routeClauses);
+      if (!rendered) {
+        return current;
+      }
+      return String(controls.linePrefix || '') + rendered;
+    }
     const target = cleanRouteTarget(valueFor(values, 'semantic_logic.routeTarget', controls.target));
     const predicate = String(valueFor(values, 'semantic_logic.routePredicate', controls.predicate) || '').trim();
     const label = String(valueFor(values, 'semantic_logic.routeLabel', controls.label) || '').trim();
@@ -250,9 +264,18 @@
   function composeEffectReplacement(model, values) {
     const controls = model && model.fieldControls || {};
     const current = String(model && model.currentText || controls.originalText || '');
+    const effectClauses = normalizeEffectClausesInput(valueFor(values, 'semantic_logic.effectClauses', null));
+    if (effectClauses.length) {
+      const rendered = renderEffectClauseList(effectClauses, controls);
+      if (!rendered) {
+        return current;
+      }
+      return hookPrefixForCurrent(current) + rendered;
+    }
     const variable = cleanVariable(valueFor(values, 'semantic_logic.effectVariable', controls.variable));
     const op = cleanOperator(valueFor(values, 'semantic_logic.effectOperator', controls.op));
-    const value = String(valueFor(values, 'semantic_logic.effectValue', controls.value) || '').trim();
+    const rawValue = valueFor(values, 'semantic_logic.effectValue', controls.value);
+    const value = String(rawValue === undefined || rawValue === null ? '' : rawValue).trim();
     const condition = String(valueFor(values, 'semantic_logic.effectCondition', controls.condition) || '').trim();
     if (!variable || !op || !value) {
       return current;
@@ -270,21 +293,56 @@
     return Object.prototype.hasOwnProperty.call(input, key) ? input[key] : fallback;
   }
 
-  function firstRouteClause(groups) {
-    let found = null;
+  function routeClausesFromEvidence(groups) {
+    const clauses = [];
     ensureArray(groups).some((group) => {
-      return ensureArray(group && group.clauses).some((clause) => {
-        found = {
-          target: String(clause.rawTarget || clause.resolvedTarget || ''),
-          predicate: String(clause.predicate || ''),
+      ensureArray(group && group.clauses).forEach((clause, index) => {
+        const target = cleanRouteTarget(clause && (clause.rawTarget || clause.resolvedTarget || ''));
+        if (!target) {
+          return;
+        }
+        clauses.push({
+          order: Number(clause.order || index + 1),
+          target,
+          predicate: String(clause.predicate || '').trim(),
           isFallback: Boolean(clause.isFallback),
           parserBacked: true,
-          segment: [clause.rawTarget || clause.resolvedTarget || '', clause.predicate ? 'if ' + clause.predicate : ''].filter(Boolean).join(' ')
-        };
-        return true;
+          segment: [target, clause.predicate ? 'if ' + clause.predicate : ''].filter(Boolean).join(' ')
+        });
       });
+      return clauses.length > 0;
     });
-    return found;
+    return clauses;
+  }
+
+  function normalizeRouteClausesInput(value) {
+    const raw = parseStructuredValue(value);
+    return ensureArray(raw).map((clause, index) => {
+      const item = isObject(clause) ? clause : {};
+      const target = cleanRouteTarget(item.target || item.rawTarget || item.resolvedTarget || '');
+      if (!target) {
+        return null;
+      }
+      return {
+        order: Number(item.order || index + 1),
+        target,
+        predicate: String(item.predicate || item.condition || '').trim(),
+        isFallback: Boolean(item.isFallback)
+      };
+    }).filter(Boolean);
+  }
+
+  function renderRouteClauseList(clauses) {
+    return ensureArray(clauses).map(renderRouteClause).filter(Boolean).join('; ');
+  }
+
+  function renderRouteClause(clause) {
+    const target = cleanRouteTarget(clause && clause.target);
+    if (!target) {
+      return '';
+    }
+    const predicate = String(clause && (clause.predicate || clause.condition) || '').trim();
+    return target + (predicate ? ' if ' + predicate : '');
   }
 
   function parseOptionLine(value) {
@@ -303,15 +361,21 @@
 
   function parseRouteClause(value) {
     const text = String(value || '').trim().replace(/^[@#]/, '');
-    const goToMatch = text.match(/^(go-to\s*:\s*)([A-Za-z_][A-Za-z0-9_.-]*)(?:\s+if\s+(.+))?$/i);
+    const goToMatch = text.match(/^(go-to\s*:\s*)(.+)$/i);
     if (goToMatch) {
+      const firstClause = parseRouteClauseSegment(goToMatch[2]);
       return {
-        target: goToMatch[2] || '',
-        predicate: goToMatch[3] || '',
+        target: firstClause && firstClause.target || '',
+        predicate: firstClause && firstClause.predicate || '',
         segment: text,
         linePrefix: goToMatch[1] || 'go-to: '
       };
     }
+    return parseRouteClauseSegment(text);
+  }
+
+  function parseRouteClauseSegment(value) {
+    const text = String(value || '').trim().split(';')[0].trim();
     const match = text.match(/^([A-Za-z_][A-Za-z0-9_.-]*)(?:\s+if\s+(.+))?$/);
     if (!match) {
       return {target: text, predicate: '', segment: text};
@@ -320,7 +384,7 @@
   }
 
   function parseEffectExpression(value) {
-    const text = String(value || '').trim().replace(/;+$/, '').trim();
+    const text = stripHookPrefix(String(value || '').trim()).split(';')[0].replace(/;+$/, '').trim();
     const parts = splitTrailingIf(text);
     const match = parts.expression.match(/^(?:Q\.)?([A-Za-z_][A-Za-z0-9_]*)\s*(=|\+=|-=|\*=|\/=)\s*([^;\n]+)$/);
     if (!match) {
@@ -333,6 +397,120 @@
       condition: parts.condition,
       segment: text
     };
+  }
+
+  function effectClausesFromEvidence(rows, currentText) {
+    const clauses = ensureArray(rows).map((row, index) => {
+      const sourceExpression = String(row && row.sourceExpression || '');
+      const parsed = parseEffectExpression(sourceExpression || currentText);
+      const variable = cleanVariable(row && row.variable || parsed && parsed.variable || '');
+      const op = String(row && row.op || parsed && parsed.op || '');
+      const rowValue = row && row.value;
+      const value = String(rowValue === undefined || rowValue === null ? parsed && parsed.value || '' : rowValue).trim();
+      if (!variable || !op || !value) {
+        return null;
+      }
+      return {
+        order: Number(row && row.order || index + 1),
+        variable,
+        op,
+        value,
+        condition: String(row && row.condition || parsed && parsed.condition || '').trim(),
+        sourceExpression: sourceExpression || parsed && parsed.segment || '',
+        lineEffectCount: Number(row && row.lineEffectCount || 0),
+        prefixQ: hasQPrefix(sourceExpression || parsed && parsed.segment || currentText)
+      };
+    }).filter(Boolean);
+    if (clauses.length) {
+      return clauses;
+    }
+    const parsed = parseEffectExpression(currentText);
+    if (!parsed) {
+      return [];
+    }
+    return [{
+      order: 1,
+      variable: parsed.variable,
+      op: parsed.op,
+      value: parsed.value,
+      condition: parsed.condition,
+      sourceExpression: parsed.segment,
+      lineEffectCount: 1,
+      prefixQ: hasQPrefix(parsed.segment || currentText)
+    }];
+  }
+
+  function normalizeEffectClausesInput(value) {
+    const raw = parseStructuredValue(value);
+    return ensureArray(raw).map((clause, index) => {
+      const item = isObject(clause) ? clause : {};
+      const variable = cleanVariable(item.variable || item.name || '');
+      const op = guidedOperator(item.op || item.operator || '=');
+      const effectValue = String(item.value === undefined || item.value === null ? '' : item.value).trim();
+      if (!variable || !op || !effectValue) {
+        return null;
+      }
+      return {
+        order: Number(item.order || index + 1),
+        variable,
+        op,
+        value: effectValue,
+        condition: String(item.condition || item.predicate || '').trim(),
+        prefixQ: Object.prototype.hasOwnProperty.call(item, 'prefixQ') ? item.prefixQ !== false : undefined
+      };
+    }).filter(Boolean);
+  }
+
+  function renderEffectClauseList(clauses, controls) {
+    const fallbackPrefixQ = controls && controls.effectClauses
+      ? ensureArray(controls.effectClauses).some((clause) => clause.prefixQ !== false)
+      : true;
+    return ensureArray(clauses).map((clause) => renderEffectClause(clause, fallbackPrefixQ)).filter(Boolean).join('; ');
+  }
+
+  function renderEffectClause(clause, fallbackPrefixQ) {
+    const variable = cleanVariable(clause && clause.variable);
+    const op = guidedOperator(clause && (clause.op || clause.operator));
+    const rawValue = clause && clause.value;
+    const value = String(rawValue === undefined || rawValue === null ? '' : rawValue).trim();
+    if (!variable || !op || !value) {
+      return '';
+    }
+    const condition = String(clause && (clause.condition || clause.predicate) || '').trim();
+    const prefix = clause && clause.prefixQ === false || fallbackPrefixQ === false ? '' : 'Q.';
+    return prefix + variable + ' ' + op + ' ' + value + (condition ? ' if ' + condition : '');
+  }
+
+  function parseStructuredValue(value) {
+    if (Array.isArray(value)) {
+      return value;
+    }
+    if (typeof value !== 'string') {
+      return [];
+    }
+    const text = value.trim();
+    if (!text) {
+      return [];
+    }
+    try {
+      const parsed = JSON.parse(text);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (_err) {
+      return [];
+    }
+  }
+
+  function stripHookPrefix(value) {
+    return String(value || '').trim().replace(/^(on-arrival|on-display)\s*:\s*/i, '');
+  }
+
+  function hookPrefixForCurrent(value) {
+    const match = String(value || '').match(/^\s*((?:on-arrival|on-display)\s*:\s*)/i);
+    return match ? match[1] : '';
+  }
+
+  function hasQPrefix(value) {
+    return /(?:^|[;\s])Q\.[A-Za-z_][A-Za-z0-9_]*\s*(?:=|\+=|-=|\*=|\/=)/.test(String(value || ''));
   }
 
   function splitTrailingIf(value) {
@@ -355,6 +533,11 @@
   function cleanOperator(value) {
     const op = String(value || '').trim();
     return GUIDED_EFFECT_OPS.has(op) ? op : '=';
+  }
+
+  function guidedOperator(value) {
+    const op = String(value || '').trim();
+    return GUIDED_EFFECT_OPS.has(op) ? op : '';
   }
 
   function normalizeInput(input) {

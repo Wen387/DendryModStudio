@@ -4,6 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 const {spawnSync} = require('child_process');
+const {runGovernanceParityCheck} = require('./check_governance_parity.js');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 
@@ -75,6 +76,7 @@ function isTextFile(relativePath) {
 
 function main() {
   const files = listFiles();
+  const warnings = [];
   const disallowedPrefixes = [
     '.studio-local/',
     '.claude/',
@@ -108,6 +110,13 @@ function main() {
   });
   assert(pathViolations.length === 0, 'repository package contains disallowed private or generated paths', {pathViolations});
 
+  const governance = runGovernanceParityCheck({root: ROOT});
+  assert(governance.ok, 'governance parity check failed', {
+    failures: governance.failures,
+    warnings: governance.warnings
+  });
+  warnings.push(...governance.warnings);
+
   [
     'AGENTS.md',
     'README.md',
@@ -122,10 +131,16 @@ function main() {
     'docs/releases/v0.9.6-dev-preview.md',
     'tools/project_map/README.md',
     'tools/project_map/WORKFLOW.md',
+    'tools/project_map/check_governance_parity.js',
     'tools/project_map/check_public_export.js',
     'tools/project_map/check_canvas_interaction_contracts.js',
+    'tools/project_map/check_preview_message_bus_model.js',
     'tools/project_map/check_release_links_model.js',
     'tools/project_map/viewer/index.html',
+    'tools/project_map/authoring/protected_path_policy.js',
+    'tools/project_map/authoring/preview_message_bus.js',
+    'tools/project_map/authoring/event_structure_effect_source_helpers.js',
+    'tools/project_map/authoring/existing_scene_edit_metadata_fields.js',
     'tools/project_map/authoring/sidebar_status_draft.js',
     'tools/project_map/viewer/sidebar_status_ui.js',
     'tools/project_map/check_sidebar_status_model.js',
@@ -235,7 +250,8 @@ function main() {
   process.stdout.write(JSON.stringify({
     ok: true,
     fileCount: files.length,
-    gate: 'repository-package'
+    gate: 'repository-package',
+    warnings
   }, null, 2) + '\n');
 }
 

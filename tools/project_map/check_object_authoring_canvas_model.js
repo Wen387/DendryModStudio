@@ -8,6 +8,8 @@ const ownershipMatching = require('./authoring/ownership_matching_model.js');
 const installPlanApi = require('./authoring/install_plan.js');
 const deleteProposalModel = require('./authoring/object_delete_proposal_model.js');
 const shellUi = require('./viewer/object_canvas_shell_ui.js');
+const modelBuilder = require('./viewer/object_canvas_model_builder.js');
+const storyboardDrafts = require('./viewer/object_canvas_storyboard_drafts.js');
 const previewEditor = require('./viewer/preview_object_editor.js');
 global.ProjectMapAuthoringSurfaceGraphs = {
   buildGraph(model) {
@@ -37,6 +39,51 @@ function assert(condition, message) {
 assert(ownershipMatching.endpointMatches('deport_hitler.force_approach', 'force_approach'), 'ownership matching should bridge qualified and local section ids');
 assert(ownershipMatching.endpointMatches('@force_approach', '#force_approach'), 'ownership matching should bridge route sigils');
 assert(!ownershipMatching.endpointMatches('deport_hitler.force_approach', 'other_scene.force_approach'), 'ownership matching should not merge different qualified scene owners');
+assert(typeof modelBuilder.buildExistingModelFor === 'function', 'Object Canvas model builder should export existing model adapter');
+assert(typeof modelBuilder.diagnosticModel === 'function', 'Object Canvas model builder should export diagnostic fallback builder');
+assert(typeof storyboardDrafts.createRelatedDraft === 'function', 'Object Canvas Storyboard drafts helper should export related draft creation');
+assert(storyboardDrafts.draftStoryboardKey('card', {id: 'x'}) === 'draft:card:x', 'Storyboard draft helper should key card drafts by template and id');
+const sectionObject = storyboardDrafts.storyObjectFromKey('section:event.section');
+assert(sectionObject && sectionObject.kind === 'section' && sectionObject.parentId === 'event' && sectionObject.view === 'events', 'Storyboard draft helper should parse section keys back to event parents');
+assert(storyboardDrafts.draftBranchKeyMatches({draft: {id: 'followup'}}, 'draft:event:followup'), 'Storyboard draft helper should match event draft branch keys');
+assert(storyboardDrafts.draftBranchKeyMatches({id: 'card_branch'}, 'draft:card:card_branch'), 'Storyboard draft helper should match card draft branch keys');
+const storyboardDraftDeps = {
+  ensureArray(value) { return Array.isArray(value) ? value : []; },
+  normalizeTemplate(value) { return value === 'card' || value === 'news' ? value : 'event'; },
+  safeDefaultDraftForTemplate(template) {
+    return template === 'card'
+      ? {schemaVersion: '0.1', options: [{id: 'keep'}]}
+      : {schemaVersion: '0.1'};
+  },
+  safeDraftId(value) { return String(value || '').replace(/[^a-z0-9_]+/gi, '_').toLowerCase(); },
+  t(_key, fallback) { return fallback; }
+};
+const relatedCard = storyboardDrafts.relatedCardDraft(
+  {model: {title: 'Fixture Beat'}, draftBranches: [], projectIndex: {scenes: []}},
+  {id: 'branch card', draft: {title: 'Branch Card'}},
+  {selectedKey: 'event:fixture'},
+  'card',
+  storyboardDraftDeps
+);
+assert(relatedCard.kind === 'card' && relatedCard.id === 'branch_card', 'Storyboard draft helper should build related card drafts');
+assert(relatedCard.studioAuthoringContext.cardBoardDropContext.sourceKey === 'event:fixture', 'Related card draft should keep source selection context');
+const commandValues = modelBuilder.withStructureCommandValues({values: {title: 'Draft'}}, {
+  structureCommands: [{id: 'structure_command_1', value: 'Q.test += 1'}]
+});
+assert(commandValues.values.title === 'Draft', 'Object Canvas model builder should preserve existing values');
+assert(commandValues.values.__structureCommands.length === 1, 'Object Canvas model builder should inject structure commands into values');
+const sourceSliceFallback = modelBuilder.buildSourceSliceCanvasModel({targetId: 'scene.source'}, {}, {
+  baseDraft: {id: 'draft_source', title: 'Draft Source'},
+  t(_key, fallback) { return fallback; }
+});
+assert(!sourceSliceFallback.ok, 'Object Canvas model builder should diagnostic-fallback when Source Slice workspace is unavailable');
+assert(sourceSliceFallback.changeState.diagnostics[0].code === 'object_canvas.model_build_failed', 'Object Canvas model builder fallback should keep diagnostic code shape');
+const diagnosticFallback = modelBuilder.diagnosticModel('template', 'event', 'draft_event', new Error('Boom'), {entry: {source: 'Fixture'}}, {
+  baseDraft: {id: 'draft_event', title: 'Draft Event'},
+  t(_key, fallback) { return fallback; }
+});
+assert(diagnosticFallback.entry.source === 'Fixture', 'Object Canvas diagnostic model should preserve entry source');
+assert(diagnosticFallback.changeState.operationSummary.manualReview === 0, 'Object Canvas diagnostic model should keep operation summary shape');
 
 function textareaRows(html, fieldId) {
   const match = new RegExp('<textarea rows="(\\d+)"[^>]*data-object-canvas-field="' + fieldId + '"').exec(html);
@@ -289,6 +336,106 @@ index.semantic.textCorpus.items.push(
     role: 'body',
     owner: {kind: 'scene', sceneId: 'menu_flow', sectionId: 'menu_flow.menu'},
     source: {path: menuFlow.path, line: 22}
+  },
+  {
+    id: 'menu_flow_first_effect',
+    text: 'Q.public_order += 2;',
+    role: 'script',
+    owner: {kind: 'scene', sceneId: 'menu_flow', sectionId: 'first'},
+    source: {path: menuFlow.path, line: 26, anchorText: 'Q.public_order += 2;', endAnchorText: 'Q.public_order += 2;'}
+  },
+  {
+    id: 'menu_flow_menu_script',
+    text: 'Q.menu_seen += 1;',
+    role: 'script',
+    owner: {kind: 'scene', sceneId: 'menu_flow', sectionId: 'menu_flow.menu'},
+    source: {path: menuFlow.path, line: 27, anchorText: 'Q.menu_seen += 1;', endAnchorText: 'Q.menu_seen += 1;'}
+  }
+);
+
+const factoryResultText = 'If the capitalists are going to attack us, then we must hit them back.';
+const factoryControlsResultText = 'Enact capital controls to lessen the impact.';
+const factoryUnavailableText = 'The judiciary would never allow this.';
+const factoryCrisis = scene('factory_crisis', {
+  title: 'Factory Crisis',
+  path: 'source/scenes/events/factory_crisis.scene.dry',
+  options: [{
+    target: {id: 'seize'},
+    title: factoryResultText,
+    sourceSpan: {
+      path: 'source/scenes/events/factory_crisis.scene.dry',
+      line: 12,
+      startLine: 12,
+      endLine: 12,
+      anchorText: '- @seize: Empower workers to seize the factories!',
+      endAnchorText: '- @seize: Empower workers to seize the factories!'
+    }
+  }, {
+    target: {id: 'controls'},
+    title: 'Enact capital controls to lessen the impact.',
+    chooseIf: 'judicial_reform >= 2',
+    sourceSpan: {
+      path: 'source/scenes/events/factory_crisis.scene.dry',
+      line: 13,
+      startLine: 13,
+      endLine: 13,
+      anchorText: '- @controls: Enact capital controls to lessen the impact.',
+      endAnchorText: '- @controls: Enact capital controls to lessen the impact.'
+    }
+  }],
+  sections: [
+    {
+      id: 'factory_crisis.seize',
+      sourceSpan: {path: 'source/scenes/events/factory_crisis.scene.dry', startLine: 20, endLine: 24},
+      routes: {},
+      options: []
+    },
+    {
+      id: 'factory_crisis.controls',
+      sourceSpan: {path: 'source/scenes/events/factory_crisis.scene.dry', startLine: 25, endLine: 29},
+      routes: {},
+      options: []
+    }
+  ],
+  sourceSpan: {path: 'source/scenes/events/factory_crisis.scene.dry', startLine: 1, endLine: 40}
+});
+index.scenes.push(factoryCrisis);
+index.semantic.events.push({id: factoryCrisis.id, title: factoryCrisis.title, path: factoryCrisis.path});
+index.semantic.textCorpus.items.push(
+  {
+    id: 'factory_crisis_title',
+    text: 'Factory Crisis',
+    role: 'title',
+    owner: {kind: 'scene', sceneId: 'factory_crisis'},
+    source: {path: factoryCrisis.path, line: 1}
+  },
+  {
+    id: 'factory_crisis_body',
+    text: 'The strike committee waits for an answer.',
+    role: 'body',
+    owner: {kind: 'scene', sceneId: 'factory_crisis'},
+    source: {path: factoryCrisis.path, line: 8}
+  },
+  {
+    id: 'factory_crisis_seize_result',
+    text: factoryResultText,
+    role: 'body',
+    owner: {kind: 'scene', sceneId: 'factory_crisis', sectionId: 'factory_crisis.seize'},
+    source: {path: factoryCrisis.path, line: 21, anchorText: factoryResultText, endAnchorText: factoryResultText}
+  },
+  {
+    id: 'factory_crisis_controls_result',
+    text: factoryControlsResultText,
+    role: 'body',
+    owner: {kind: 'scene', sceneId: 'factory_crisis', sectionId: 'factory_crisis.controls'},
+    source: {path: factoryCrisis.path, line: 26, anchorText: factoryControlsResultText, endAnchorText: factoryControlsResultText}
+  },
+  {
+    id: 'factory_crisis_controls_unavailable',
+    text: factoryUnavailableText,
+    role: 'unavailable_text',
+    owner: {kind: 'scene', sceneId: 'factory_crisis', sectionId: 'factory_crisis.controls'},
+    source: {path: factoryCrisis.path, line: 27, anchorText: 'unavailable-subtitle: ' + factoryUnavailableText, endAnchorText: 'unavailable-subtitle: ' + factoryUnavailableText}
   }
 );
 
@@ -299,6 +446,12 @@ const existing = canvasModel.buildExistingCanvas(index, 'events', 'generic_intro
   },
   entry: {source: 'Design', action: 'edit_existing'}
 });
+const impossibleMonthCanvasIndex = JSON.parse(JSON.stringify(index));
+impossibleMonthCanvasIndex.scenes.find((item) => item.id === 'generic_intro').viewIf = 'year = 1936 and month >= 5 and month <= 3';
+const impossibleMonthCanvas = canvasModel.buildExistingCanvas(impossibleMonthCanvasIndex, 'events', 'generic_intro', {
+  entry: {source: 'Design', action: 'edit_existing'}
+});
+assert(impossibleMonthCanvas.changeState.diagnostics.some((diag) => diag.code === 'existing_scene_edit.impossible_month_window'), 'Object Canvas should surface impossible month-window warnings for existing events');
 
 assert(existing.ok, 'existing Event should open in Object Canvas: ' + JSON.stringify(existing.changeState.diagnostics));
 assert(existing.kind === 'object_authoring_canvas_model', 'model should expose object canvas kind');
@@ -325,6 +478,33 @@ assert(existingPreviewHtml.includes('Q.budget += 1'), 'left preview should show 
 assert(existingPreviewHtml.includes('Q.stability += 2'), 'left preview should show fully-qualified section option effects under the matching player choice');
 assert(existingPreviewHtml.includes('Follow-up page'), 'left preview should label same-scene follow-up text as a follow-up page');
 assert(existingPreviewHtml.includes('Section: Nice having you, Bruning.'), 'left preview should keep the follow-up page title as section context');
+const factoryCanvas = canvasModel.buildExistingCanvas(index, 'events', 'factory_crisis', {});
+assert(factoryCanvas.ok, 'source-line option title fallback fixture should build: ' + JSON.stringify(factoryCanvas.changeState.diagnostics));
+const factoryOption = factoryCanvas.eventBody.options.find((option) => option.id === 'seize');
+assert(factoryOption && factoryOption.label === 'Empower workers to seize the factories!', 'option title should come from the source option line instead of the target result prose');
+assert(factoryOption.fields.some((field) => field.role === 'option_label' && field.original === 'Empower workers to seize the factories!' && field.editability !== 'read_only'), 'source-line option titles should remain editable label fields even without textCorpus option_label rows');
+assert(factoryOption.resultFields.length === 1 && String(factoryOption.resultFields[0].original || '').trim() === factoryResultText, 'option result prose should remain attached as after-choice text');
+const capitalControlsOption = factoryCanvas.eventBody.options.find((option) => option.id === 'controls');
+assert(capitalControlsOption && capitalControlsOption.unavailableText === factoryUnavailableText, 'unavailable option text should be attached to the owning player choice');
+assert(capitalControlsOption.fields.some((field) => field.role === 'unavailable_text' && field.original === factoryUnavailableText), 'unavailable option text should remain editable from the option fields');
+assert(capitalControlsOption.resultFields.length === 1 && String(capitalControlsOption.resultFields[0].original || '').trim() === factoryControlsResultText, 'conditional option result text should be attached to the owning player choice');
+assert(!factoryCanvas.eventBody.sections.concat(factoryCanvas.eventBody.branchSections).some((field) => String(field.original || '').includes(factoryUnavailableText)), 'unavailable option text should not render as a standalone page section');
+assert(!factoryCanvas.eventBody.branchSections.some((field) => String(field.original || '').includes(factoryControlsResultText)), 'conditional option result text should not render as a standalone branch section when it belongs to a player choice');
+const capitalControlsRemove = factoryCanvas.eventBody.structureActions.find((field) => field.structureAction === 'remove_option' && field.optionId === 'controls');
+assert(capitalControlsRemove && capitalControlsRemove.editability === 'advanced_source_patch', 'exact source-backed option deletion with unresolved fallout should still be advanced-applyable');
+assert(capitalControlsRemove.structureSourceBlock && ['option_line_delete', 'option_bundle_delete'].includes(capitalControlsRemove.structureSourceBlock.kind), 'advanced option deletion should carry exact source-backed delete evidence');
+const capitalControlsDeleteCanvas = canvasModel.buildExistingCanvas(index, 'events', 'factory_crisis', {
+  values: {structure_remove_option_controls: 'true'}
+});
+assert(capitalControlsDeleteCanvas.changeState.installPlan.operations.some((operation) => operation.type === 'replace_text' && operation.safety === 'advanced_apply' && operation.search === '- @controls: Enact capital controls to lessen the impact.'), 'line-only advanced option deletion should become an advanced source-backed replace_text operation');
+assert(!capitalControlsDeleteCanvas.changeState.installPlan.operations.some((operation) => operation.type === 'manual_snippet'), 'line-only advanced option deletion should not fall back to manual snippets');
+const factoryPreviewHtml = previewEditor.renderPreviewPane(factoryCanvas);
+assert(/<button[^>]*>Empower workers to seize the factories!<\/button>/.test(factoryPreviewHtml), 'left preview should render the player choice label in the option button');
+assert(!/<button[^>]*>If the capitalists are going to attack us/.test(factoryPreviewHtml), 'left preview must not promote after-choice prose into the option button title');
+assert(/data-object-editing-preview-choice="controls"[\s\S]*Unavailable text[\s\S]*The judiciary would never allow this\./.test(factoryPreviewHtml), 'left preview should show unavailable text inside the owning option card');
+const factoryEditorHtml = previewEditor.render(factoryCanvas);
+assert(/data-preview-object-choice="controls"[\s\S]*data-object-canvas-field="factory_crisis_controls_unavailable"[\s\S]*data-object-canvas-field="block:section_text_factory_crisis_controls"/.test(factoryEditorHtml), 'right editor should group option label, unavailable text, and result text inside the same choice editor');
+assert(!/data-preview-object-branches="true"[\s\S]*The judiciary would never allow this\./.test(factoryEditorHtml), 'right editor must not render unavailable text as a separate branch card');
 const menuFlowCanvas = canvasModel.buildExistingCanvas(index, 'events', 'menu_flow', {});
 assert(menuFlowCanvas.ok, 'menu-flow existing Event should open in Object Canvas: ' + JSON.stringify(menuFlowCanvas.changeState.diagnostics));
 const menuBranch = menuFlowCanvas.eventBody.branchSections.find((field) => field.sectionId === 'menu_flow.menu');
@@ -334,16 +514,76 @@ assert(menuFlowCanvas.eventBody.options.length === 2, 'follow-up menu choices sh
 const menuFlowFirstOption = menuFlowCanvas.eventBody.options.find((option) => option.rawTargetId === 'first');
 assert(menuFlowFirstOption && menuFlowFirstOption.fields.some((field) => field.role === 'option_label' && field.original === 'First path.' && field.editability !== 'read_only' && !field.readOnly), 'section-owned source-line option labels should stay editable instead of falling back to read-only');
 assert(menuFlowCanvas.eventBody.options.every((option) => !option.resultFields.some((field) => field.sectionId === 'menu_flow.menu')), 'owned menu text must not be duplicated under every owned option');
-assert(menuFlowCanvas.eventBody.structureActions.some((field) => field.structureAction === 'add_option' && field.sectionId === 'menu_flow.menu'), 'follow-up menu sections should expose add-option-in-section controls');
+const menuAddOptionField = menuFlowCanvas.eventBody.structureActions.find((field) => field.structureAction === 'add_option' && field.sectionId === 'menu_flow.menu');
+assert(menuAddOptionField, 'follow-up menu sections should expose add-option-in-section controls');
+assert(menuAddOptionField.editability === 'guarded_apply', 'source-backed follow-up menu add-option controls should advertise guarded apply');
+assert(menuAddOptionField.structureSourceBlock && menuAddOptionField.structureSourceBlock.kind === 'section_option_insert_anchor', 'follow-up menu add-option controls should carry section insert evidence');
+const menuAddFirstEffectField = menuFlowCanvas.eventBody.structureActions.find((field) => field.structureAction === 'add_option_effect' && field.optionId === menuFlowFirstOption.id);
+assert(menuAddFirstEffectField && menuAddFirstEffectField.editability === 'guarded_apply', 'section-owned option effects should keep guarded source-backed insertion even when source owner uses the raw local target');
+assert(menuAddFirstEffectField.structureSourceBlock && menuAddFirstEffectField.structureSourceBlock.kind === 'effect_insert_anchor', 'section-owned option effect insertion should carry the matching source effect anchor');
+const menuRemoveOptionField = menuFlowCanvas.eventBody.structureActions.find((field) => field.structureAction === 'remove_option' && field.sectionId === 'menu_flow.menu' && field.structureTargetLabel === 'Second path.');
+assert(menuRemoveOptionField && menuRemoveOptionField.editability === 'guarded_apply', 'source-backed follow-up menu option removal should advertise guarded apply when it has no local-result fallout');
+assert(menuRemoveOptionField.structureSourceBlock && menuRemoveOptionField.structureSourceBlock.kind === 'option_line_delete', 'follow-up menu option removal should carry exact option-line evidence');
+const menuRemoveFirstOptionField = menuFlowCanvas.eventBody.structureActions.find((field) => field.structureAction === 'remove_option' && field.sectionId === 'menu_flow.menu' && field.structureTargetLabel === 'First path.');
+assert(menuRemoveFirstOptionField && menuRemoveFirstOptionField.editability === 'advanced_source_patch', 'section-owned option removal should detect source-backed effects through raw-target ownership and keep advanced apply evidence');
+assert(menuRemoveFirstOptionField.structureSourceBlock && menuRemoveFirstOptionField.structureSourceBlock.fallout && menuRemoveFirstOptionField.structureSourceBlock.fallout.effectCount === 1, 'section-owned option removal fallout should count only the matching option effect');
 const menuPreviewHtml = previewEditor.renderPreviewPane(menuFlowCanvas);
 assert(menuPreviewHtml.includes('Follow-up menu'), 'left preview should label owned-choice sections as follow-up menus');
 assert(menuPreviewHtml.includes('Contains choices'), 'left preview should explain which choices belong to a follow-up menu');
 const menuEditorHtml = previewEditor.render(menuFlowCanvas);
 assert(menuEditorHtml.includes('New option in this section'), 'right editor should place a section-owned option creator inside follow-up sections');
 assert(menuEditorHtml.includes('Add to: @menu') && menuEditorHtml.includes('title="menu_flow.menu"'), 'section-owned option creator should show the target section context');
-assert(menuEditorHtml.includes('Manual review only; Studio will not change source automatically.'), 'existing structural creators should clearly show manual-review safety');
+assert(menuEditorHtml.includes('Simple source-backed options can be applied automatically after review.'), 'guarded section-owned option creators should clearly show guarded apply safety');
+assert(menuEditorHtml.includes('This source-backed structural change can be applied automatically after review.'), 'guarded option removals should clearly show guarded apply safety');
+const menuComplexAddOption = canvasModel.buildExistingCanvas(index, 'events', 'menu_flow', {
+  values: {
+    __structureCommands: [{
+      type: 'add_option',
+      action: 'add_option',
+      fieldId: 'structure_add_option_section_menu_flow_menu',
+      sectionId: 'menu_flow.menu',
+      value: [
+        '- @third: Third path.',
+        '# third',
+        'result-mode: native',
+        'choose-if: public_order >= 1',
+        'unavailable-subtitle: Public order is too low.',
+        'Third result.'
+      ].join('\n')
+    }]
+  }
+});
+assert(menuComplexAddOption.ok, 'complex source-backed section option insertion should build');
+assert(menuComplexAddOption.changeState.installPlan.operations.some((operation) =>
+  operation.type === 'insert_text' &&
+  operation.safety === 'advanced_apply' &&
+  String(operation.content || '').includes('- @third: Third path.') &&
+  String(operation.content || '').includes('choose-if: public_order >= 1') &&
+  String(operation.content || '').includes('unavailable-subtitle: Public order is too low.') &&
+  !String(operation.content || '').includes('result-mode: native')
+), 'complex source-backed option insertion should become an advanced source patch instead of a manual snippet');
+assert(!menuComplexAddOption.changeState.installPlan.operations.some((operation) => operation.type === 'manual_snippet'), 'complex source-backed option insertion should not fall back to manual review');
+const conditionalOptionEffect = canvasModel.buildExistingCanvas(index, 'events', 'generic_intro', {
+  values: {
+    __structureCommands: [{
+      type: 'add_option_effect',
+      action: 'add_option_effect',
+      fieldId: 'structure_add_option_effect_target_scene',
+      optionId: 'target_scene',
+      value: 'Q.public_order += 2 if public_order >= 1'
+    }]
+  }
+});
+assert(conditionalOptionEffect.ok, 'conditional source-backed option effect insertion should build');
+assert(conditionalOptionEffect.changeState.installPlan.operations.some((operation) =>
+  operation.type === 'insert_text' &&
+  operation.safety === 'advanced_apply' &&
+  String(operation.content || '').includes('if (Q.public_order >= 1) { Q.public_order += 2; }')
+), 'conditional source-backed option effects should become advanced raw-effect inserts instead of manual snippets');
+assert(!conditionalOptionEffect.changeState.installPlan.operations.some((operation) => operation.type === 'manual_snippet'), 'conditional source-backed option effects should not fall back to manual review');
 const existingEditorHtml = previewEditor.render(existing);
 assert(existingEditorHtml.includes('data-preview-object-structure-builder="add_option"'), 'preview editor should show structured add-option controls');
+assert(/data-preview-object-structure-output="true"[^>]*data-object-canvas-field="structure_add_option"/.test(existingEditorHtml), 'structure builder hidden output should preserve the source-backed add-option field id');
 assert(existingEditorHtml.includes('New player option'), 'preview editor should present add-option as a creator form instead of a raw snippet');
 assert(existingEditorHtml.includes('data-preview-object-structure-builder="add_trigger_effect"'), 'preview editor should show structured trigger-effect controls');
 assert(existingEditorHtml.includes('data-preview-object-inline-add="add_option"'), 'preview editor should place structural add controls at the end of the relevant object category');
@@ -353,7 +593,7 @@ assert(expandedModalHtml.includes('is-preview-expanded'), 'preview object modal 
 assert(expandedModalHtml.includes('Collapse preview'), 'expanded preview modal should offer a collapse action');
 const pendingStructureValues = {
   structure_add_option: '- @negotiate: Negotiate settlement.\n# negotiate\nThe committee spends [+ public_order +] legitimacy.',
-  structure_add_branch: '# late_warning\n[? if Q.public_order >= 2 : Public order is under strain. ?]',
+  structure_add_branch: '# late_warning\n[? if public_order >= 2 : Public order is under strain. ?]',
   structure_add_trigger_effect: 'Q.public_order += 2',
   structure_add_option_effect_target_scene: 'Q.public_order -= 1'
 };
@@ -363,8 +603,11 @@ const pendingStructureModel = canvasModel.buildExistingCanvas(index, 'events', '
 });
 const pendingPreviewHtml = previewEditor.renderPreviewPane(pendingStructureModel);
 assert(pendingStructureModel.changeState.changedCount === 4, 'existing editor should collect add-option, add-branch, trigger-effect, and option-effect proposals');
-assert(pendingStructureModel.changeState.installPlan.operations.filter((operation) => operation.type === 'manual_snippet').length === 3, 'broad existing structural proposals should remain manual-review snippets');
+assert(pendingStructureModel.changeState.installPlan.operations.filter((operation) => operation.type === 'manual_snippet').length === 0, 'source-backed option/effect/trigger/branch changes should avoid fake manual review');
+assert(pendingStructureModel.changeState.installPlan.operations.some((operation) => operation.type === 'insert_text' && operation.safety === 'guarded_apply' && operation.content.includes('@negotiate')), 'simple root add-option commands should become guarded inserts');
+assert(pendingStructureModel.changeState.installPlan.operations.some((operation) => operation.type === 'insert_text' && operation.safety === 'advanced_apply' && operation.content.includes('@late_warning')), 'simple source-backed branch commands should become advanced inserts');
 assert(pendingStructureModel.changeState.installPlan.operations.some((operation) => operation.type === 'insert_text' && operation.safety === 'guarded_apply'), 'simple source-backed option effects should become guarded inserts');
+assert(pendingStructureModel.changeState.installPlan.operations.some((operation) => operation.type === 'replace_text' && operation.safety === 'guarded_apply' && operation.search.includes('on-arrival') && operation.replace.includes('public_order += 2')), 'simple source-backed trigger effects should become guarded on-arrival replacements');
 assert(pendingPreviewHtml.includes('Negotiate settlement.'), 'left preview should materialize a pending new player option');
 assert(pendingPreviewHtml.includes('The committee spends') && pendingPreviewHtml.includes('Q.public_order'), 'left preview should show pending option result text and consumed variables');
 assert(pendingPreviewHtml.includes('Public order is under strain.'), 'left preview should materialize pending branch/follow-up text');
@@ -381,7 +624,8 @@ const queuedStructureModel = canvasModel.buildExistingCanvas(index, 'events', 'g
   entry: {source: 'Design', action: 'edit_existing'}
 });
 assert(queuedStructureModel.changeState.changedCount === 3, 'existing editor should turn queued structure commands into independent manual-review changes');
-assert(queuedStructureModel.changeState.installPlan.operations.some((operation) => operation.type === 'manual_snippet'), 'queued existing add-option commands should stay manual-review snippets');
+assert(!queuedStructureModel.changeState.installPlan.operations.some((operation) => operation.type === 'manual_snippet'), 'queued simple add-option/effect commands should avoid manual-review snippets');
+assert(queuedStructureModel.changeState.installPlan.operations.some((operation) => operation.type === 'insert_text' && operation.safety === 'guarded_apply' && operation.content.includes('@press_line')), 'queued simple root add-option commands should become guarded inserts');
 assert(queuedStructureModel.changeState.installPlan.operations.some((operation) => operation.type === 'insert_text' && operation.safety === 'guarded_apply'), 'queued source-backed option-effect commands should become guarded inserts');
 const queuedPreviewHtml = previewEditor.renderPreviewPane(queuedStructureModel);
 const queuedEditorHtml = previewEditor.render(queuedStructureModel);
@@ -575,6 +819,71 @@ const compactGraphHtml = graphStage.render({
 assert(compactGraphHtml.includes('<span title="' + longOptionLabel), 'Object Canvas should retain the full generated label as a tooltip');
 assert(compactGraphHtml.includes('>Option result</span>'), 'Object Canvas should render a compact option-result field label');
 assert(!compactGraphHtml.includes('>Option result: Ban the demonstrations.'), 'Object Canvas should not expose long option context as a wrapping field label');
+function nestedChoiceSource(path, line, text) {
+  return {path, line, startLine: line, endLine: line, anchorText: text, endAnchorText: text};
+}
+const nestedChoicePath = 'source/scenes/events/blutmai.scene.dry';
+const nestedChoiceScene = {
+  id: 'blutmai',
+  title: 'May Day, 1929',
+  path: nestedChoicePath,
+  tags: ['event'],
+  sourceSpan: {path: nestedChoicePath, startLine: 1, endLine: 80},
+  options: [
+    {id: 'ban', title: 'Ban the demonstrations.', target: {id: 'ban'}, sourceSpan: nestedChoiceSource(nestedChoicePath, 10, '- @ban: Ban the demonstrations.')}
+  ],
+  sections: [
+    {
+      id: 'blutmai.ban',
+      title: 'Ban',
+      options: [
+        {id: 'corrupt_police', title: 'It is the fault of corrupt police.', target: {id: 'corrupt_police'}, sourceSpan: nestedChoiceSource(nestedChoicePath, 20, '- @corrupt_police: It is the fault of corrupt police.')},
+        {id: 'communist_fault', title: 'It is the fault of the Communists.', target: {id: 'communist_fault'}, sourceSpan: nestedChoiceSource(nestedChoicePath, 21, '- @communist_fault: It is the fault of the Communists.')},
+        {id: 'no_fault', title: "It is no one's fault.", target: {id: 'no_fault'}, sourceSpan: nestedChoiceSource(nestedChoicePath, 22, "- @no_fault: It is no one's fault.")}
+      ]
+    },
+    {id: 'blutmai.corrupt_police', title: 'Corrupt Police'},
+    {id: 'blutmai.communist_fault', title: 'Communist Fault'},
+    {id: 'blutmai.no_fault', title: 'No Fault'}
+  ]
+};
+const nestedChoiceTextRows = [
+  ['blutmai_title', 'May Day, 1929', 'title', '', 1],
+  ['blutmai_body', 'Opening text.', 'body', '', 5],
+  ['ban_body', 'We issued the order to ban.', 'body', 'blutmai.ban', 19],
+  ['corrupt_body', 'We blamed corrupt police.', 'body', 'blutmai.corrupt_police', 30],
+  ['communist_body', 'We blamed the Communists.', 'body', 'blutmai.communist_fault', 31],
+  ['no_fault_body', 'We treated it as no fault.', 'body', 'blutmai.no_fault', 32]
+].map(([id, text, role, sectionId, line]) => ({
+  id,
+  text,
+  role,
+  owner: {kind: 'scene', sceneId: 'blutmai', sectionId},
+  source: nestedChoiceSource(nestedChoicePath, line, text)
+}));
+const nestedChoiceCanvas = canvasModel.buildExistingCanvas({
+  scenes: [nestedChoiceScene],
+  semantic: {events: [{id: 'blutmai', title: 'May Day, 1929', path: nestedChoicePath}], cards: [], textCorpus: {items: nestedChoiceTextRows}},
+  project: {profileIds: []}
+}, 'events', 'blutmai', {});
+assert(nestedChoiceCanvas.ok, 'nested section-owned choice fixture should build');
+const nestedChoiceOptions = nestedChoiceCanvas.eventBody.options || [];
+const banOption = nestedChoiceOptions.find((option) => option.id === 'ban');
+const nestedOptions = nestedChoiceOptions.filter((option) => String(option.sectionId || '') === 'blutmai.ban');
+assert(banOption && banOption.resultFields.length === 1 && banOption.resultFields[0].sectionId === 'blutmai.ban', 'parent option should own only its result-menu text');
+assert(nestedOptions.length === 3, 'section-owned follow-up player choices should stay as three distinct options');
+nestedOptions.forEach((option) => {
+  assert(option.resultFields.length === 1, 'nested option should not inherit the parent result-menu text');
+  assert(option.resultFields[0].sectionId === option.targetId, 'nested option result text should come from its own target section');
+});
+const nestedRemoveActions = nestedChoiceCanvas.eventBody.structureActions.filter((field) => field.structureAction === 'remove_option');
+assert(nestedRemoveActions.length === nestedChoiceOptions.length, 'nested choice editor should expose one remove action per option');
+const nestedChildRemoveActions = nestedRemoveActions.filter((field) => String(field.sectionId || '') === 'blutmai.ban');
+assert(nestedChildRemoveActions.length === nestedOptions.length, 'nested follow-up choices should expose one remove action each');
+assert(nestedChildRemoveActions.every((field) => field.editability === 'advanced_source_patch'), 'source-backed nested follow-up option removals with result sections should be applyable advanced patches');
+const nestedChoiceHtml = previewEditor.render(nestedChoiceCanvas, {locale: 'en'});
+assert((nestedChoiceHtml.match(/preview-object-structure-delete/g) || []).length === nestedChoiceOptions.length, 'each nested option should render only its own delete action');
+assert(nestedChoiceHtml.includes('Source-backed deletion can be applied after advanced confirmation.'), 'source-backed nested option deletion should not be shown as manual-review only');
 const textareaSizingHtml = previewEditor.render({
   title: 'Textarea sizing fixture',
   eventBody: {
@@ -602,11 +911,23 @@ const textareaSizingHtml = previewEditor.render({
       sectionId: 'start',
       status: 'guarded'
     }],
-    options: []
+    options: [{
+      id: 'long_option',
+      label: 'A long option label',
+      fields: [{
+        id: 'long_option_label',
+        label: 'Player option',
+        value: 'The <span style="color: #3E88B3;">**DNVP**</span> replaces us in government and leaves the player with a long visible choice.',
+        original: '',
+        status: 'guarded'
+      }],
+      targetId: 'long_option_target'
+    }]
   }
 });
 assert(textareaRows(textareaSizingHtml, 'short_body') === 2, 'Preview Object Editor should keep very short textareas compact');
 assert(textareaRows(textareaSizingHtml, 'long_body') > 2 && textareaRows(textareaSizingHtml, 'long_body') <= 14, 'Preview Object Editor should let longer textareas grow within a modest cap');
+assert(textareaRows(textareaSizingHtml, 'long_option_label') >= 2, 'Preview Object Editor should render long player option labels as readable multi-line controls');
 
 const newEvent = canvasModel.buildNewEventCanvas(index, {
   id: 'generic_intro_followup',
@@ -656,6 +977,21 @@ assert(newEvent.contextBoard.manualBoundaries.some((row) => row.label === 'Route
 assert(newEvent.changeState.draft.kind === 'world_event', 'new Event draft should be a world_event draft');
 assert(newEvent.changeState.output.installPlan, 'new Event should produce an install plan');
 assert(newEvent.changeState.operationSummary.total > 0, 'new Event install plan should summarize operations');
+assert(newEvent.changeState.output.scene.includes('max-visits: 1'), 'one-shot new Event should render a runtime-valid default max-visits value');
+
+const invalidMaxVisitsEvent = canvasModel.buildNewEventCanvas(index, {
+  id: 'invalid_max_visits_event',
+  title: 'Invalid max visits event',
+  heading: 'Invalid max visits event',
+  maxVisits: 0,
+  when: {year: 1936, monthStart: 2, monthEnd: 4},
+  options: [
+    {id: 'stay', title: 'Stay', body: 'Stay here.'},
+    {id: 'leave', title: 'Leave', body: 'Leave now.'}
+  ]
+}, {});
+assert(!invalidMaxVisitsEvent.ok, 'new Event should reject max-visits values that Dendry runtime will reject');
+assert(invalidMaxVisitsEvent.changeState.diagnostics.some((item) => item.code === 'event_draft.max_visits'), 'invalid max-visits should surface a specific validation diagnostic');
 
 const structureEvent = canvasModel.buildNewEventCanvas(index, {
   id: 'structured_new_event',

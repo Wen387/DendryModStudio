@@ -19,6 +19,8 @@ module.exports = {
     ...base.files,
     fileSet('../viewer/index.html', 'project_map/viewer/index.html'),
     fileSet('../authoring', 'project_map/authoring', [
+      'protected_path_policy.js',
+      'preview_message_bus.js',
       'install_plan.js',
       'runtime_lens_model.js',
       'runtime_snapshot_model.js',

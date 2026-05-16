@@ -71,6 +71,7 @@
     valueOriginals: {},
     structureCommands: [],
     structureCommandCounter: 0,
+    transientReturnStack: [],
     preserveScrollOnNextRefresh: false,
     model: null,
     status: ''
@@ -100,6 +101,7 @@
     panCanvas,
     createRelatedDraft,
     toggleEditorOverlay,
+    returnFromTransientWorkspace,
     setProjectIndex
   };
 
@@ -662,6 +664,34 @@
     state.structureCommandCounter = 0;
   }
 
+  function shouldMaterializeNewEventDraft(values) {
+    if (state.mode !== 'new_event' || state.template !== 'event') {
+      return false;
+    }
+    if (state.structureCommands && state.structureCommands.length) {
+      return true;
+    }
+    return Object.keys(values || {}).some((key) => {
+      return /^structure_remove_/.test(String(key || '')) && truthyStructureValue(values[key]);
+    });
+  }
+
+  function materializeNewEventDraft(model) {
+    const draft = model && model.changeState && model.changeState.draft;
+    if (!draft || state.mode !== 'new_event' || state.template !== 'event') {
+      return model;
+    }
+    state.baseDraft = cloneDraft(draft);
+    state.values = {};
+    state.valueOriginals = {};
+    resetStructureCommands();
+    return buildTemplateModel({values: {}});
+  }
+
+  function truthyStructureValue(value) {
+    return /^(1|true|yes|on)$/i.test(String(value || '').trim());
+  }
+
   function resetTransientEditWorkspace(options) {
     const opts = options || {};
     state.mode = opts.mode || '';
@@ -679,7 +709,7 @@
     state.canvasPanY = 0;
     state.nodePositions = {};
     state.draftBranches = [];
-    state.editorOverlay = false;
+    state.editorOverlay = Boolean(options && options.editorOverlay);
     state.deleteProposal = null;
     if (opts.activeModel !== 'source_slice') {
       state.sourceSliceModel = null;
@@ -721,7 +751,7 @@
     state.canvasPanY = 0;
     state.nodePositions = {};
     state.draftBranches = [];
-    state.editorOverlay = false;
+    state.editorOverlay = Boolean(options && options.editorOverlay);
     state.deleteProposal = null;
     state.sourceSliceModel = null;
     state.sourceSliceAdvancedConfirmed = false;
@@ -731,6 +761,7 @@
     state.proposalOptions = options && options.proposalOptions || null;
     state.values = options && options.values || {};
     state.valueOriginals = {};
+    clearTransientReturnStack();
     resetStructureCommands();
     state.model = buildExistingModel(options || {});
     state.active = true;
@@ -748,10 +779,16 @@
     if (projectIndex) {
       state.projectIndex = projectIndex;
     }
+    if (shouldKeepSemanticLogicActionInline(editAction)) {
+      return openDraftEditAction(editAction);
+    }
+    if (shouldOpenStandaloneSemanticLogicAction(editAction) && !editAction.draftAction) {
+      return openSemanticLogicAction(editAction);
+    }
     if (kind === 'open_route_editor' || kind === 'open_effect_editor' || kind === 'open_profile_router_rule' || (editAction.draftAction && (kind === 'open_object_field' || kind === 'open_object_section' || kind === 'open_variable_editor'))) {
       return openDraftEditAction(editAction);
     }
-    if (shouldOpenSemanticLogicAction(editAction)) {
+    if (shouldOpenStandaloneSemanticLogicAction(editAction)) {
       return openSemanticLogicAction(editAction);
     }
     if (kind === 'open_object_field' || kind === 'open_object_section' || kind === 'open_linked_event') {
@@ -839,14 +876,72 @@
     return true;
   }
 
+  function captureTransientReturnContext(editAction) {
+    const stack = returnStackApi();
+    if (!stack || typeof stack.capture !== 'function') {
+      return null;
+    }
+    state.values = collectValues();
+    return stack.capture(state, {
+      label: transientReturnLabel(editAction),
+      scrollSnapshot: captureObjectCanvasScroll(),
+      focusSelector: transientFocusSelector(editAction)
+    });
+  }
+
+  function pushTransientReturnContext(context) {
+    const stack = returnStackApi();
+    if (stack && typeof stack.push === 'function' && context) {
+      stack.push(state, context);
+    }
+  }
+
+  function clearTransientReturnStack() {
+    const stack = returnStackApi();
+    if (stack && typeof stack.clear === 'function') {
+      stack.clear(state);
+    } else {
+      state.transientReturnStack = [];
+    }
+  }
+
+  function transientReturnContext() {
+    const stack = returnStackApi();
+    return stack && typeof stack.peek === 'function' ? stack.peek(state) : null;
+  }
+
+  function transientReturnLabel(editAction) {
+    const model = state.model || {};
+    return String(
+      model.title ||
+      model.objectId ||
+      editAction && (editAction.sceneTitle || editAction.targetTitle || editAction.targetId) ||
+      state.item ||
+      t('objectCanvas.titleFallback', 'Author object')
+    ).trim();
+  }
+
+  function transientFocusSelector(editAction) {
+    const key = editAction && (editAction.fieldId || editAction.valueKey);
+    return key ? '[data-object-canvas-field="' + cssEscape(key) + '"]' : '';
+  }
+
   function openSourceSliceAction(editAction) {
     const apiModel = sourceSliceApi();
     if (!apiModel || typeof apiModel.buildSourceSliceEditor !== 'function') {
       return false;
     }
     const sliceModel = apiModel.buildSourceSliceEditor(state.projectIndex, {editAction});
+    if (!sliceModel || !sliceModel.ok) {
+      state.sourceSliceModel = sliceModel || null;
+      state.status = t('sourceSlice.status.mappingBug', 'Studio could not find the source position for this visible content.');
+      updateDynamicSurfaces();
+      return false;
+    }
+    const returnContext = captureTransientReturnContext(editAction);
     state.sourceSliceModel = sliceModel;
     state.sourceSliceAdvancedConfirmed = false;
+    pushTransientReturnContext(returnContext);
     resetTransientEditWorkspace({
       mode: 'source_slice',
       item: sliceModel && sliceModel.targetId || null,
@@ -855,9 +950,7 @@
     });
     state.model = buildSourceSliceCanvasModel(sliceModel, {});
     state.active = true;
-    state.status = sliceModel && sliceModel.ok
-      ? t('sourceSlice.status.prepared', 'Precise source edit opened for this visible content.')
-      : t('sourceSlice.status.mappingBug', 'Studio could not find the source position for this visible content.');
+    state.status = t('sourceSlice.status.prepared', 'Precise source edit opened for this visible content.');
     showWorkspace('source_slice');
     render();
     return Boolean(sliceModel && sliceModel.ok);
@@ -869,14 +962,37 @@
     return kind === 'route_order' || kind === 'effect_clause';
   }
 
+  function shouldOpenStandaloneSemanticLogicAction(editAction) {
+    if (!shouldOpenSemanticLogicAction(editAction)) {
+      return false;
+    }
+    return Boolean(editAction && (editAction.forceSemanticEditor || editAction.semanticEditorOpenMode === 'standalone'));
+  }
+
+  function shouldKeepSemanticLogicActionInline(editAction) {
+    if (!shouldOpenSemanticLogicAction(editAction) || shouldOpenStandaloneSemanticLogicAction(editAction)) {
+      return false;
+    }
+    const kind = String(editAction && editAction.actionKind || '');
+    return kind === 'open_route_editor' || kind === 'open_effect_editor';
+  }
+
   function openSemanticLogicAction(editAction) {
     const apiModel = semanticLogicApi();
     if (!apiModel || typeof apiModel.buildSemanticLogicEditor !== 'function') {
       return openSourceSliceAction(editAction);
     }
     const editorModel = apiModel.buildSemanticLogicEditor(state.projectIndex, {editAction});
+    if (!editorModel || !editorModel.ok) {
+      state.semanticLogicModel = editorModel || null;
+      state.status = t('sourceSlice.status.mappingBug', 'Studio could not find the source position for this visible content.');
+      updateDynamicSurfaces();
+      return false;
+    }
+    const returnContext = captureTransientReturnContext(editAction);
     state.semanticLogicModel = editorModel;
     state.semanticLogicAdvancedConfirmed = false;
+    pushTransientReturnContext(returnContext);
     resetTransientEditWorkspace({
       mode: 'semantic_logic',
       item: editorModel && editorModel.targetId || null,
@@ -885,9 +1001,7 @@
     });
     state.model = buildSemanticLogicCanvasModel(editorModel, {});
     state.active = true;
-    state.status = editorModel && editorModel.ok
-      ? t('semanticLogic.status.prepared', 'Semantic editor opened for this visible logic.')
-      : t('sourceSlice.status.mappingBug', 'Studio could not find the source position for this visible content.');
+    state.status = t('semanticLogic.status.prepared', 'Semantic editor opened for this visible logic.');
     showWorkspace('semantic_logic');
     render();
     return Boolean(editorModel && editorModel.ok);
@@ -925,6 +1039,7 @@
     state.semanticLogicAdvancedConfirmed = false;
     state.baseDraft = draft || safeDefaultDraftForTemplate(nextTemplate);
     state.proposalOptions = null;
+    clearTransientReturnStack();
     if (nextTemplate === 'card') {
       state.cardBoardSelectedKey = 'draft:card:' + (state.baseDraft && state.baseDraft.id || 'new_action_card');
       state.selectedCanvasNode = state.cardBoardSelectedKey;
@@ -1044,6 +1159,9 @@
       : state.mode === 'semantic_logic'
       ? buildSemanticLogicCanvasModel(state.semanticLogicModel, state.values)
       : state.mode === 'existing' ? buildExistingModel({values: state.values, proposalOptions: state.proposalOptions}) : buildTemplateModel({values: state.values});
+    if (!state.deleteProposal && shouldMaterializeNewEventDraft(state.values)) {
+      state.model = materializeNewEventDraft(state.model);
+    }
     markRuntimeLensStale();
     const surface = currentSurface(state.model);
     if (surface.key === 'source_slice_editor' || surface.key === 'semantic_logic_editor' || surface.key === 'system_ui_preview' || surface.key === 'card_board' && !activeInsidePreviewObjectEditor() || shouldRenderSurfaceRefresh(surface)) {
@@ -1059,49 +1177,23 @@
   }
 
   function buildExistingModelFor(view, item, options) {
-    const apiModel = modelApi();
-    try {
-      return apiModel && typeof apiModel.buildExistingCanvas === 'function'
-        ? apiModel.buildExistingCanvas(state.projectIndex, view, item, options || {})
-        : diagnosticModel('existing', view || 'existing', item || '', new Error('Object Canvas model is unavailable.'), options);
-    } catch (err) {
-      return diagnosticModel('existing', view || 'existing', item || '', err, options);
-    }
+    return modelBuilderApi().buildExistingModelFor(view, item, options, modelBuilderDeps());
   }
 
   function buildNewEventModel(options) {
-    const apiModel = modelApi();
-    return apiModel && typeof apiModel.buildNewEventCanvas === 'function'
-      ? apiModel.buildNewEventCanvas(state.projectIndex, state.baseDraft || {}, options || {})
-      : null;
+    return modelBuilderApi().buildNewEventModel(options, modelBuilderDeps());
   }
 
   function buildTemplateModel(options) {
-    const apiModel = modelApi();
-    const template = state.template || 'event';
-    const nextOptions = withStructureCommandValues(options);
-    try {
-      if (apiModel && typeof apiModel.buildTemplateCanvas === 'function') {
-        return apiModel.buildTemplateCanvas(state.projectIndex, template, state.baseDraft || {}, nextOptions || {});
-      }
-      return buildNewEventModel(nextOptions);
-    } catch (err) {
-      return diagnosticModel('template', template, state.baseDraft && state.baseDraft.id || '', err, nextOptions);
-    }
+    return modelBuilderApi().buildTemplateModel(options, modelBuilderDeps());
   }
 
   function buildSourceSliceCanvasModel(sliceModel, values) {
-    const workspace = sourceSliceWorkspaceApi();
-    return workspace && typeof workspace.buildCanvasModel === 'function'
-      ? workspace.buildCanvasModel(sliceModel, values || {}, sourceSliceWorkspaceDeps())
-      : diagnosticModel('source_slice', 'source_slice', sliceModel && sliceModel.targetId || '', new Error('Source Slice workspace is unavailable.'), {});
+    return modelBuilderApi().buildSourceSliceCanvasModel(sliceModel, values, modelBuilderDeps());
   }
 
   function buildSemanticLogicCanvasModel(editorModel, values) {
-    const workspace = semanticLogicWorkspaceApi();
-    return workspace && typeof workspace.buildCanvasModel === 'function'
-      ? workspace.buildCanvasModel(editorModel, values || {}, semanticLogicWorkspaceDeps())
-      : diagnosticModel('semantic_logic', 'semantic_logic', editorModel && editorModel.targetId || '', new Error('Semantic Logic workspace is unavailable.'), {});
+    return modelBuilderApi().buildSemanticLogicCanvasModel(editorModel, values, modelBuilderDeps());
   }
 
   function sourceSliceReplacementText(values) {
@@ -1112,44 +1204,26 @@
   }
 
   function withStructureCommandValues(options) {
-    const opts = Object.assign({}, options || {});
-    const values = Object.assign({}, opts.values || {});
-    if (state.structureCommands && state.structureCommands.length) {
-      values.__structureCommands = state.structureCommands.slice();
-    }
-    opts.values = values;
-    return opts;
+    return modelBuilderApi().withStructureCommandValues(options, modelBuilderDeps());
   }
 
   function diagnosticModel(mode, template, objectId, err, options) {
-    const draft = state.baseDraft || {};
-    const message = err && err.message ? err.message : String(err || 'Model build failed.');
+    return modelBuilderApi().diagnosticModel(mode, template, objectId, err, options, modelBuilderDeps());
+  }
+
+  function modelBuilderDeps() {
     return {
-      schemaVersion: '0.1',
-      kind: 'object_authoring_canvas_model',
-      ok: false,
-      mode: mode === 'existing' ? 'existing' : String(template || 'event'),
-      template: mode === 'existing' ? 'existing' : String(template || 'event'),
-      templateLabel: String(template || ''),
-      objectKind: String(template || 'object'),
-      objectId: String(objectId || draft.id || ''),
-      title: String(draft.title || draft.heading || objectId || template || t('objectCanvas.titleFallback', 'Author object')),
-      source: {path: ''},
-      entry: {source: options && options.source || options && options.entry && options.entry.source || 'Create'},
-      contextBoard: {},
-      eventBody: {},
-      changeState: {
-        draft,
-        proposal: draft,
-        output: {},
-        installPlan: null,
-        operationSummary: {safeApply: 0, guardedApply: 0, manualReview: 0, refused: 0},
-        changedCount: 0,
-        diagnostics: [{severity: 'error', code: 'object_canvas.model_build_failed', message}],
-        warnings: []
-      },
-      legacy: {template: String(template || '')},
-      rawContext: null
+      modelApi,
+      projectIndex: state.projectIndex,
+      baseDraft: state.baseDraft || {},
+      template: state.template || 'event',
+      sourceSliceWorkspaceApi,
+      sourceSliceWorkspaceDeps,
+      semanticLogicWorkspaceApi,
+      semanticLogicWorkspaceDeps,
+      state,
+      structureCommands: state.structureCommands,
+      t
     };
   }
 
@@ -1338,15 +1412,30 @@
   function renderSourceSliceStage(model) {
     const workspace = sourceSliceWorkspaceApi();
     return workspace && typeof workspace.render === 'function'
-      ? workspace.render(model, state, sourceSliceWorkspaceDeps())
+      ? renderTransientReturnBar() + workspace.render(model, state, sourceSliceWorkspaceDeps())
       : '';
   }
 
   function renderSemanticLogicStage(model) {
     const workspace = semanticLogicWorkspaceApi();
     return workspace && typeof workspace.render === 'function'
-      ? workspace.render(model, state, semanticLogicWorkspaceDeps())
+      ? renderTransientReturnBar() + workspace.render(model, state, semanticLogicWorkspaceDeps())
       : '';
+  }
+
+  function renderTransientReturnBar() {
+    const context = transientReturnContext();
+    if (!context) {
+      return '';
+    }
+    const label = context.label || t('objectCanvas.titleFallback', 'Author object');
+    const button = t('objectCanvas.returnToObject', 'Back to: {label}').replace('{label}', label);
+    return [
+      '<div class="object-canvas-return-bar" data-object-canvas-return-bar="true">',
+      '<button type="button" data-object-canvas-action="return_from_transient_workspace">' + escapeHtml(button) + '</button>',
+      '<span>' + escapeHtml(t('objectCanvas.returnNotice', 'You are in an advanced source workspace; returning will restore the previous object editor.')) + '</span>',
+      '</div>'
+    ].join('');
   }
 
   function boardChromeCanCollapse(surface) {
@@ -1512,10 +1601,7 @@
     if (semanticLogicWorkspace && typeof semanticLogicWorkspace.bind === 'function') {
       semanticLogicWorkspace.bind(elements.host, state, semanticLogicWorkspaceDeps());
     }
-    const visibleEditUi = visibleEditActionUi();
-    if (visibleEditUi && typeof visibleEditUi.bind === 'function') {
-      visibleEditUi.bind(elements.host, {projectIndex: state.projectIndex});
-    }
+    bindVisibleEditUi(elements.host);
     elements.host.querySelectorAll('[data-preview-object-structure-part]').forEach((input) => {
       if (input.__dmsStructureBuilderBound) {
         return;
@@ -1714,82 +1800,19 @@
   }
 
   function fastSelectProjectStateNode(next) {
-    if (!/^variable:/.test(String(next || ''))) {
-      return false;
-    }
-    if (!state.model || currentSurface(state.model).key !== 'project_state_board') {
-      return false;
-    }
-    state.selectedCanvasNode = next;
-    if (!syncProjectStateVariableSelection()) {
-      render();
-    }
-    return true;
+    return projectStateWorkspaceApi().fastSelectNode(state, next, projectStateWorkspaceDeps());
   }
 
   function openProjectStateVariableFromCanvas(next) {
-    if (!/^variable:/.test(String(next || ''))) {
-      return false;
-    }
-    const name = String(next).slice('variable:'.length);
-    const variable = findProjectStateVariable(name);
-    if (!variable) {
-      return false;
-    }
-    state.values = {};
-    state.deleteProposal = null;
-    state.template = 'variables';
-    state.mode = 'variables';
-    state.view = 'variables';
-    state.item = null;
-    state.workspace = 'project_state';
-    state.selectedCanvasNode = 'variable:' + name;
-    state.baseDraft = editVariableDraft(variable);
-    state.proposalOptions = null;
-    state.sourceSliceModel = null;
-    state.sourceSliceAdvancedConfirmed = false;
-    state.semanticLogicModel = null;
-    state.semanticLogicAdvancedConfirmed = false;
-    resetStructureCommands();
-    resetRuntimeLens();
-    state.model = buildTemplateModel({values: {}, entry: {source: 'Canvas Asset Rail'}});
-    state.status = t('projectState.status.openedFromAssetRail', 'Selected state variable opened from the Canvas asset rail.');
-    showWorkspace('variables');
-    render();
-    return true;
+    return projectStateWorkspaceApi().openVariableFromCanvas(state, next, projectStateWorkspaceDeps());
   }
 
   function findProjectStateVariable(name) {
-    const target = String(name || '');
-    return ensureArray(state.projectIndex && state.projectIndex.variables)
-      .find((variable) => variable && String(variable.name || '') === target) || null;
+    return projectStateWorkspaceApi().findVariable(state, name, projectStateWorkspaceDeps());
   }
 
   function syncProjectStateVariableSelection() {
-    if (!elements || !elements.host || !state.model) {
-      return false;
-    }
-    const surface = global.ProjectMapProjectStateSurface;
-    if (!surface || typeof surface.renderInspectorCard !== 'function') {
-      return false;
-    }
-    const selectedName = selectedProjectStateVariableName();
-    elements.host.querySelectorAll('[data-project-state-variable-row]').forEach((row) => {
-      const active = String(row.dataset && row.dataset.projectStateVariableRow || '') === selectedName;
-      row.classList.toggle('is-selected', active);
-      row.setAttribute('aria-selected', active ? 'true' : 'false');
-    });
-    const card = elements.host.querySelector('[data-project-state-consumers], [data-project-state-metadata]');
-    if (!card) {
-      return false;
-    }
-    card.outerHTML = surface.renderInspectorCard(state.model, {
-      projectIndex: state.projectIndex,
-      selected: state.selectedCanvasNode,
-      query: state.projectStateQuery,
-      limit: state.projectStateLimit
-    });
-    return true;
+    return projectStateWorkspaceApi().syncVariableSelection(state, projectStateWorkspaceDeps());
   }
 
   function switchSystemUiTemplateForRegion(nodeKey) {
@@ -1915,6 +1938,10 @@
     } else if (action === 'toggle_preview_expanded') {
       global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
       toggleObjectEditorPreviewExpanded();
+    } else if (action === 'return_from_transient_workspace') {
+      global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
+      returnFromTransientWorkspace();
+      return;
     } else if (action === 'commit_structure_command') {
       global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
       commitStructureCommand(target);
@@ -1948,17 +1975,54 @@
   }
 
   function createSimilarEventDraft() {
-    const api = global.ProjectMapEventDraft;
     const sceneId = state.model && (state.model.objectId || state.model.sceneId);
+    const parsedApi = parsedToDraftApi();
+    const sourceView = normalizeParsedDraftView(state.model && (state.model.objectView || state.view || state.model.objectKind));
+    if (parsedApi && typeof parsedApi.buildDraftFromParsed === 'function' && sceneId) {
+      const result = parsedApi.buildDraftFromParsed(state.projectIndex, {
+        view: sourceView,
+        itemId: sceneId,
+        sourceEntry: 'object_canvas_create_similar'
+      });
+      if (result && result.ok && result.draft) {
+        openTemplate(result.template || templateForParsedView(sourceView), result.draft, {
+          source: 'Create similar object',
+          action: 'create_similar_event',
+          parsedToDraft: result
+        });
+        state.status = result.status === 'partial'
+          ? t('objectCanvas.status.createSimilarPartialOpened', 'Similar draft opened with a parity gate; Review & Apply is blocked until missing structure is handled.')
+          : t('objectCanvas.status.createSimilarOpened', 'Similar draft opened.');
+        updateDynamicSurfaces();
+        return true;
+      }
+    }
+    const api = global.ProjectMapEventDraft;
     if (!api || typeof api.fromExistingScene !== 'function' || !sceneId) {
-      state.status = t('objectCanvas.status.createSimilarUnavailable', 'Studio could not build a new draft from this event.');
+      state.status = t('objectCanvas.status.createSimilarUnavailable', 'Studio could not build a new draft from this object.');
       updateDynamicSurfaces();
       return false;
     }
     const draft = api.fromExistingScene(state.projectIndex, sceneId);
     openTemplate('event', draft, {source: 'Create similar event', action: 'create_similar_event'});
-    state.status = t('objectCanvas.status.createSimilarOpened', 'Similar event draft opened.');
+    state.status = t('objectCanvas.status.createSimilarOpened', 'Similar draft opened.');
+    updateDynamicSurfaces();
     return true;
+  }
+
+  function normalizeParsedDraftView(view) {
+    const text = String(view || '').trim();
+    if (text === 'card' || text === 'cards') {
+      return 'cards';
+    }
+    if (text === 'news') {
+      return 'news';
+    }
+    return 'events';
+  }
+
+  function templateForParsedView(view) {
+    return view === 'cards' ? 'card' : view === 'news' ? 'news' : 'event';
   }
 
   function handleDeleteCurrentObject(target) {
@@ -2024,193 +2088,71 @@
   }
 
   function handleProjectStateAction(action) {
-    if (action === 'project_state_new_variable') {
-      global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
-      openVariableDraft(newVariableDraft(), 'projectState.status.addVariable');
-      return true;
-    }
-    if (action === 'project_state_edit_selected') {
-      global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
-      const variable = selectedProjectStateVariable();
-      if (variable) {
-        openVariableDraft(editVariableDraft(variable), 'projectState.status.editSelected', 'variable:' + variable.name);
-      } else {
-        state.status = t('projectState.status.noSelectedVariable', 'Select a variable before editing it.');
-        updateDynamicSurfaces();
-      }
-      return true;
-    }
-    if (action === 'project_state_delete_selected') {
-      global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
-      const variable = selectedProjectStateVariable();
-      if (variable) {
-        openVariableDraft(deleteVariableDraft(variable), 'projectState.status.deleteSelected', 'variable:' + variable.name);
-      } else {
-        state.status = t('projectState.status.noSelectedVariable', 'Select a variable before editing it.');
-        updateDynamicSurfaces();
-      }
-      return true;
-    }
-    if (action === 'project_state_show_more') {
-      global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
-      state.projectStateLimit = Math.max(
-        PROJECT_STATE_ROW_LIMIT,
-        Number(state.projectStateLimit || PROJECT_STATE_ROW_LIMIT) + PROJECT_STATE_ROW_LIMIT
-      );
-      render();
-      return true;
-    }
-    if (action === 'project_state_clear_search') {
-      global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
-      state.projectStateQuery = '';
-      state.projectStateLimit = PROJECT_STATE_ROW_LIMIT;
-      projectStateSearchFocus = {start: 0, end: 0};
-      render();
-      return true;
-    }
-    return false;
+    return projectStateWorkspaceApi().handleAction(state, action, projectStateWorkspaceDeps());
   }
 
   function openVariableDraft(draft, statusKey, selectedNode) {
-    state.values = {};
-    state.valueOriginals = {};
-    resetStructureCommands();
-    state.baseDraft = draft || newVariableDraft();
-    state.template = 'variables';
-    state.mode = 'variables';
-    state.view = 'variables';
-    state.workspace = 'project_state';
-    state.selectedCanvasNode = selectedNode || selectedNodeForVariableDraft(state.baseDraft);
-    state.deleteProposal = null;
-    state.sourceSliceModel = null;
-    state.sourceSliceAdvancedConfirmed = false;
-    state.semanticLogicModel = null;
-    state.semanticLogicAdvancedConfirmed = false;
-    state.model = buildTemplateModel({values: {}, entry: {source: 'Project State'}});
-    state.status = t(statusKey, statusKey === 'projectState.status.deleteSelected'
-      ? 'Selected variable loaded for deletion review.'
-      : statusKey === 'projectState.status.editSelected' ? 'Selected variable loaded for editing.' : 'New variable draft ready.');
-    showWorkspace('variables');
-    render();
+    return projectStateWorkspaceApi().openVariableDraft(state, draft, statusKey, selectedNode, projectStateWorkspaceDeps());
   }
 
   function selectedProjectStateVariable() {
-    const name = selectedProjectStateVariableName();
-    const variables = Array.isArray(state.projectIndex && state.projectIndex.variables) ? state.projectIndex.variables : [];
-    if (name) {
-      const found = variables.find((item) => item && String(item.name || '') === name);
-      if (found) {
-        return found;
-      }
-      return null;
-    }
-    const draftName = state.model && state.model.changeState && state.model.changeState.draft && state.model.changeState.draft.variableName;
-    if (draftName) {
-      const draftFound = variables.find((item) => item && String(item.name || '') === String(draftName));
-      if (draftFound) {
-        return draftFound;
-      }
-    }
-    return variables[0] || null;
+    return projectStateWorkspaceApi().selectedVariable(state, projectStateWorkspaceDeps());
   }
 
   function selectedProjectStateVariableName() {
-    const selected = String(state.selectedCanvasNode || '');
-    return selected.indexOf('variable:') === 0 ? selected.slice('variable:'.length) : '';
+    return projectStateWorkspaceApi().selectedVariableName(state);
   }
 
   function newVariableDraft() {
-    const core = global.ProjectMapVariableEditorDraft;
-    if (core && typeof core.defaultDraft === 'function') {
-      return core.defaultDraft(state.projectIndex);
-    }
-    const variableName = nextAvailableVariableName('new_variable');
-    const draft = {
-      schemaVersion: '0.1',
-      kind: 'variable_editor',
-      id: variableName,
-      title: 'New Variable',
-      mode: 'add_new',
-      variableName,
-      label: labelFromVariableName(variableName),
-      initialValue: '0',
-      valueType: 'number',
-      description: '',
-      includeRootInit: true,
-      includePostEventInit: false,
-      includeQualityFile: true,
-      evidence: core && typeof core.buildVariableModel === 'function' ? core.buildVariableModel(state.projectIndex) : {}
-    };
-    return core && typeof core.normalizeDraft === 'function' ? core.normalizeDraft(draft) : draft;
+    return projectStateWorkspaceApi().newVariableDraft(state, projectStateWorkspaceDeps());
   }
 
   function selectedNodeForVariableDraft(draft) {
-    const name = draft && draft.variableName ? String(draft.variableName) : '';
-    return name ? 'variable:' + name : 'object';
+    return projectStateWorkspaceApi().selectedNodeForVariableDraft(draft);
   }
 
   function nextAvailableVariableName(baseName) {
-    const core = global.ProjectMapVariableEditorDraft;
-    if (core && typeof core.uniqueVariableName === 'function') {
-      return core.uniqueVariableName(state.projectIndex, baseName || 'new_variable');
-    }
-    const base = safeDraftId(baseName || 'new_variable');
-    const variables = Array.isArray(state.projectIndex && state.projectIndex.variables) ? state.projectIndex.variables : [];
-    const existing = new Set(variables.map((item) => String(item && item.name || '')).filter(Boolean));
-    if (!existing.has(base)) {
-      return base;
-    }
-    let index = 2;
-    let next = base + '_' + index;
-    while (existing.has(next)) {
-      index += 1;
-      next = base + '_' + index;
-    }
-    return next;
+    return projectStateWorkspaceApi().nextAvailableVariableName(state, baseName, projectStateWorkspaceDeps());
   }
 
   function labelFromVariableName(name) {
-    return String(name || 'New Variable')
-      .replace(/^q_/, '')
-      .replace(/_/g, ' ')
-      .replace(/\b[a-z]/g, (char) => char.toUpperCase());
+    return projectStateWorkspaceApi().labelFromVariableName(name);
   }
 
   function editVariableDraft(variable) {
-    const core = global.ProjectMapVariableEditorDraft;
-    return core && typeof core.draftFromVariable === 'function'
-      ? core.draftFromVariable(variable, state.projectIndex)
-      : Object.assign(newVariableDraft(), {
-        id: 'edit_' + safeDraftId(String(variable && variable.name || 'variable')),
-        title: 'Edit ' + String(variable && variable.name || 'Variable'),
-        mode: 'edit_existing',
-        variableName: String(variable && variable.name || ''),
-        includeRootInit: false,
-        includePostEventInit: false,
-        includeQualityFile: false
-      });
+    return projectStateWorkspaceApi().editVariableDraft(state, variable, projectStateWorkspaceDeps());
   }
 
   function deleteVariableDraft(variable) {
-    const core = global.ProjectMapVariableEditorDraft;
-    return core && typeof core.deleteDraftFromVariable === 'function'
-      ? core.deleteDraftFromVariable(variable, state.projectIndex)
-      : Object.assign(newVariableDraft(), {
-        id: 'delete_' + safeDraftId(String(variable && variable.name || 'variable')),
-        title: 'Delete ' + String(variable && variable.name || 'Variable'),
-        mode: 'delete_existing',
-        variableName: String(variable && variable.name || ''),
-        includeRootInit: false,
-        includePostEventInit: false,
-        includeQualityFile: false
-      });
+    return projectStateWorkspaceApi().deleteVariableDraft(state, variable, projectStateWorkspaceDeps());
   }
 
   function safeDraftId(value) {
-    const text = String(value || 'variable')
-      .replace(/[^A-Za-z0-9_]+/g, '_')
-      .replace(/^_+|_+$/g, '');
-    return /^[A-Za-z_]/.test(text) ? text : 'variable_' + (text || 'item');
+    return projectStateWorkspaceApi().safeDraftId(value);
+  }
+
+  function projectStateWorkspaceDeps() {
+    return {
+      buildTemplateModel,
+      currentSurface,
+      elements,
+      ensureArray,
+      global,
+      projectStateRowLimit: PROJECT_STATE_ROW_LIMIT,
+      render,
+      resetRuntimeLens,
+      resetStructureCommands,
+      setProjectStateSearchFocus,
+      showWorkspace,
+      t,
+      updateDynamicSurfaces,
+      variableEditorDraft: global.ProjectMapVariableEditorDraft,
+      projectStateSurface: global.ProjectMapProjectStateSurface
+    };
+  }
+
+  function setProjectStateSearchFocus(value) {
+    projectStateSearchFocus = value;
   }
 
   function resetRuntimeLens() {
@@ -2239,193 +2181,47 @@
   }
 
   function createRelatedDraft(action, target) {
-    if (action === 'event') {
-      openStandaloneEventDraft(relatedDraftContext(target));
-      return;
-    }
-    const branchApi = global.ProjectMapAuthoringReferenceIndex;
-    const context = relatedDraftContext(target);
-    const branch = branchApi && typeof branchApi.branchDraft === 'function'
-      ? branchApi.branchDraft(action, state.model || {}, context)
-      : null;
-    if (branch && String(branch.template || '') === 'event' && branch.draft) {
-      openRelatedEventDraft(branch, context, action);
-      return;
-    }
-    if (branch && branch.draft && openRelatedTemplateDraft(branch, context, action)) {
-      return;
-    }
-    const api = storyboardWorkspaceApi(); if (api && typeof api.createRelatedDraft === 'function') { api.createRelatedDraft(state, action, target, {render, t}); }
+    return storyboardDraftsApi().createRelatedDraft(state, action, target, storyboardDraftDeps());
   }
 
   function relatedDraftContext(target) {
-    const dataset = target && target.dataset || {};
-    const insertKey = String(dataset.contentStoryboardInsert || dataset.contentStoryboardLane || '');
-    return {
-      insertKey,
-      view: state.storyboardView,
-      storyCanvasCategory: state.storyCanvasCategory || 'story',
-      storySearchQuery: state.storySearchQuery || '',
-      selectedKey: state.selectedCanvasNode,
-      storyScopeMode: state.storyScopeMode,
-      storyScopeWindow: insertKey || state.storyScopeWindow,
-      storyChainDepth: state.storyChainDepth,
-      paletteDropContext: state.storyPaletteDropContext
-    };
+    return storyboardDraftsApi().relatedDraftContext(state, target);
   }
 
   function openRelatedEventDraft(branch, context, action) {
-    const previousBranches = draftBranchList().filter((item) => !draftBranchMatches(item, branch));
-    const draft = branch.draft || {};
-    const opened = openTemplate('event', draft, {source: 'Storyboard', action: 'create_' + String(action || 'followup')});
-    if (!opened) {
-      return false;
-    }
-    state.draftBranches = previousBranches;
-    restoreStoryboardContextAfterDraftOpen(context, draft, branch);
-    state.status = t('objectCanvas.status.branchOpened', 'New event draft opened on the Storyboard.');
-    showWorkspace('event');
-    render();
-    return true;
+    return storyboardDraftsApi().openRelatedEventDraft(state, branch, context, action, storyboardDraftDeps());
   }
 
   function openRelatedTemplateDraft(branch, context, action) {
-    const template = normalizeTemplate(branch && branch.template || '');
-    if (template !== 'card' && template !== 'news') {
-      return false;
-    }
-    const draft = template === 'card'
-      ? relatedCardDraft(branch, context, action)
-      : relatedNewsDraft(branch, context, action);
-    const opened = openTemplate(template, draft, {source: 'Storyboard', action: 'create_' + String(action || template), template});
-    if (!opened) {
-      return false;
-    }
-    if (template === 'card') {
-      const key = draftStoryboardKey('card', draft, branch);
-      state.cardBoardSelectedKey = key;
-      state.selectedCanvasNode = key;
-      state.cardBoardLane = 'drafts';
-      state.cardBoardDropContext = {
-        itemKey: key,
-        itemTitle: draft.title || draft.heading || branch.title || '',
-        laneKey: 'drafts',
-        laneLabel: t('cardBoard.lane.drafts', 'Drafts'),
-        laneTag: '',
-        action: 'create_related_card',
-        sourceKey: context && context.selectedKey || ''
-      };
-      state.model = buildTemplateModel({values: state.values, entry: {source: 'Storyboard', action: 'create_' + String(action || template)}});
-      state.status = t('objectCanvas.status.relatedCardOpened', 'Related card draft opened for editing.');
-      showWorkspace('card');
-      render();
-      return true;
-    }
-    restoreStoryboardContextAfterDraftOpen(context, draft, branch);
-    state.status = t('objectCanvas.status.relatedNewsOpened', 'Related news draft opened for editing.');
-    showWorkspace('news');
-    render();
-    return true;
+    return storyboardDraftsApi().openRelatedTemplateDraft(state, branch, context, action, storyboardDraftDeps());
   }
 
   function relatedCardDraft(branch, context, action) {
-    const base = cloneDraft(safeDefaultDraftForTemplate('card'));
-    const sourceTitle = relatedSourceTitle();
-    const branchDraft = cloneDraft(branch && branch.draft || {});
-    const id = uniqueDraftId(branchDraft.id || branch && branch.id || 'related_card');
-    const title = branchDraft.title || branchDraft.heading || relatedTitle(t('objectCanvas.branch.card', 'Related card'), sourceTitle);
-    return Object.assign({}, base, branchDraft, {
-      schemaVersion: String(branchDraft.schemaVersion || base.schemaVersion || '0.1'),
-      kind: 'card',
-      id,
-      title,
-      heading: branchDraft.heading || title,
-      introParagraphs: ensureArray(branchDraft.introParagraphs).length
-        ? branchDraft.introParagraphs
-        : [relatedDescription(t('objectCanvas.branch.card.detail', 'Card created from the selected beat.'), sourceTitle)],
-      options: ensureArray(branchDraft.options).length ? branchDraft.options : ensureArray(base.options),
-      studioAuthoringContext: {
-        workspace: 'content',
-        surface: 'card_board',
-        selectedCardKey: 'draft:card:' + id,
-        selectedLane: 'drafts',
-        cardBoardQuery: '',
-        cardBoardType: 'all',
-        cardBoardDropContext: {
-          itemKey: 'draft:card:' + id,
-          itemTitle: title,
-          laneKey: 'drafts',
-          laneLabel: t('cardBoard.lane.drafts', 'Drafts'),
-          laneTag: '',
-          action: 'create_' + String(action || 'card'),
-          sourceKey: context && context.selectedKey || ''
-        },
-        editorOverlay: false
-      }
-    });
+    return storyboardDraftsApi().relatedCardDraft(state, branch, context, action, storyboardDraftDeps());
   }
 
   function relatedNewsDraft(branch, context, action) {
-    const base = cloneDraft(safeDefaultDraftForTemplate('news'));
-    const sourceTitle = relatedSourceTitle();
-    const branchDraft = cloneDraft(branch && branch.draft || {});
-    const id = uniqueDraftId(branchDraft.id || branch && branch.id || 'related_news');
-    const headline = branchDraft.headline || branchDraft.title || relatedTitle(t('objectCanvas.branch.news', 'Related news'), sourceTitle);
-    return Object.assign({}, base, branchDraft, {
-      schemaVersion: String(branchDraft.schemaVersion || base.schemaVersion || '0.1'),
-      kind: 'news_item',
-      id,
-      headline,
-      description: branchDraft.description || relatedDescription(t('objectCanvas.branch.news.detail', 'News item attached to this story moment.'), sourceTitle),
-      studioAuthoringContext: Object.assign({}, context || {}, {
-        workspace: 'content',
-        surface: 'content_storyboard',
-        action: 'create_' + String(action || 'news'),
-        selectedCanvasNode: context && context.selectedKey || ''
-      })
-    });
+    return storyboardDraftsApi().relatedNewsDraft(state, branch, context, action, storyboardDraftDeps());
   }
 
   function relatedSourceTitle() {
-    return String(state.model && (state.model.title || state.model.objectId) || '').trim();
+    return storyboardDraftsApi().relatedSourceTitle(state);
   }
 
   function relatedTitle(prefix, sourceTitle) {
-    return sourceTitle ? prefix + ': ' + sourceTitle : prefix;
+    return storyboardDraftsApi().relatedTitle(prefix, sourceTitle);
   }
 
   function relatedDescription(fallback, sourceTitle) {
-    return sourceTitle ? fallback + ' ' + sourceTitle : fallback;
+    return storyboardDraftsApi().relatedDescription(fallback, sourceTitle);
   }
 
   function openStandaloneEventDraft(context) {
-    const previousBranches = draftBranchList();
-    const draft = standaloneEventDraft(context);
-    const opened = openTemplate('event', draft, {source: 'Storyboard', action: 'create_event'});
-    if (!opened) {
-      return false;
-    }
-    state.draftBranches = previousBranches;
-    restoreStoryboardContextAfterDraftOpen(context, draft, null);
-    state.status = t('objectCanvas.status.newEventOpened', 'New blank event draft opened on the Storyboard.');
-    showWorkspace('event');
-    render();
-    return true;
+    return storyboardDraftsApi().openStandaloneEventDraft(state, context, storyboardDraftDeps());
   }
 
   function openElectionEventDraft(context) {
-    const previousBranches = draftBranchList();
-    const draft = electionEventDraft(context);
-    const opened = openTemplate('event', draft, {source: 'Election Results', action: 'create_election_event'});
-    if (!opened) {
-      return false;
-    }
-    state.draftBranches = previousBranches;
-    restoreStoryboardContextAfterDraftOpen(context || {}, draft, null);
-    state.status = t('electionResults.status.newEventOpened', 'New election event draft opened on the Storyboard.');
-    showWorkspace('event');
-    render();
-    return true;
+    return storyboardDraftsApi().openElectionEventDraft(state, context, storyboardDraftDeps());
   }
 
   function openSelectedElectionEvent() {
@@ -2454,259 +2250,79 @@
   }
 
   function restoreStoryboardContextAfterDraftOpen(context, draft, branch) {
-    state.storyboardView = String(context && context.view || '') === 'chain' ? 'chain' : 'timeline';
-    state.storyCanvasCategory = normalizeStoryCanvasCategory(context && context.storyCanvasCategory);
-    state.storySearchQuery = String(context && context.storySearchQuery || '');
-    state.storyScopeMode = String(context && context.storyScopeMode || '') === 'expanded' ? 'expanded' : 'focus';
-    state.storyScopeWindow = String(context && (context.insertKey || context.storyScopeWindow) || '');
-    state.storyChainDepth = normalizeStoryDepth(context && context.storyChainDepth);
-    state.storyPaletteDropContext = context && context.paletteDropContext || null;
-    state.selectedCanvasNode = draftStoryboardKey(state.template || branch && branch.template || 'event', draft, branch);
-    state.editorOverlay = true;
-    state.values = {};
-    state.valueOriginals = {};
-    resetStructureCommands();
-    state.model = buildTemplateModel({values: state.values, source: 'Storyboard'});
+    return storyboardDraftsApi().restoreStoryboardContextAfterDraftOpen(state, context, draft, branch, storyboardDraftDeps());
   }
 
   function standaloneEventDraft(context) {
-    const base = cloneDraft(safeDefaultDraftForTemplate('event'));
-    const year = insertYearFromKey(context && (context.insertKey || context.storyScopeWindow)) || draftYear(base) || 1936;
-    const id = uniqueDraftId('new_world_event' + (year ? '_' + year : ''));
-    const title = t('create.sample.eventTitle', 'New world event');
-    const heading = t('create.sample.eventHeading', title);
-    const when = Object.assign({}, base.when || {}, {
-      year,
-      monthStart: numberOr(base.when && base.when.monthStart, 1),
-      monthEnd: numberOr(base.when && base.when.monthEnd, 3),
-      requires: String(base.when && base.when.requires || ''),
-      priority: numberOr(base.when && base.when.priority, 0)
-    });
-    return Object.assign({}, base, {
-      schemaVersion: String(base.schemaVersion || '0.1'),
-      kind: 'world_event',
-      id,
-      title,
-      heading,
-      seenFlag: id + '_seen',
-      when,
-      studioAuthoringContext: Object.assign({}, context || {}, {
-        workspace: 'content',
-        surface: 'content_storyboard',
-        action: 'create_event',
-        selectedCanvasNode: context && context.selectedKey || ''
-      })
-    });
+    return storyboardDraftsApi().standaloneEventDraft(state, context, storyboardDraftDeps());
   }
 
   function electionEventDraft(context) {
-    const base = standaloneEventDraft(context || {});
-    const year = draftYear(base) || 1936;
-    const id = uniqueDraftId('new_election_event_' + year);
-    const title = t('electionResults.sample.eventTitle', 'New election results');
-    const primaryOption = {
-      id: 'continue_after_election',
-      label: t('electionResults.sample.optionLabel', 'Continue after the election'),
-      subtitle: '',
-      chooseIf: '',
-      unavailableText: '',
-      effects: [],
-      narrativeParagraphs: [t('electionResults.sample.optionResult', 'The election result changes the political balance.')],
-      variants: [],
-      gotoAfter: 'post_election_followup'
-    };
-    const secondaryOption = {
-      id: 'review_election_balance',
-      label: t('electionResults.sample.optionLabelAlt', 'Review the coalition balance'),
-      subtitle: '',
-      chooseIf: '',
-      unavailableText: '',
-      effects: [],
-      narrativeParagraphs: [t('electionResults.sample.optionResultAlt', 'The result remains open for follow-up political choices.')],
-      variants: [],
-      gotoAfter: 'post_election_review'
-    };
-    return Object.assign({}, base, {
-      id,
-      title,
-      heading: title,
-      seenFlag: id + '_seen',
-      introParagraphs: [t('electionResults.sample.intro', 'Write the election result text here. Use the Election Results workspace to shape the chart, table, conditions, and consequences.')],
-      effectsOnTrigger: [],
-      options: [primaryOption, secondaryOption],
-      studioAuthoringContext: Object.assign({}, base.studioAuthoringContext || {}, context || {}, {
-        workspace: 'content',
-        surface: 'content_storyboard',
-        action: 'create_election_event',
-        selectedCanvasNode: context && context.selectedKey || ''
-      })
-    });
+    return storyboardDraftsApi().electionEventDraft(state, context, storyboardDraftDeps());
   }
 
   function cloneDraft(value) {
-    try {
-      return JSON.parse(JSON.stringify(value || {}));
-    } catch (_err) {
-      return Object.assign({}, value || {});
-    }
+    return storyboardDraftsApi().cloneDraft(value);
   }
 
   function insertYearFromKey(value) {
-    const match = String(value || '').match(/^time:(\d{3,4})$/);
-    return match ? Number(match[1]) : 0;
+    return storyboardDraftsApi().insertYearFromKey(value);
   }
 
   function draftYear(draft) {
-    return Number(draft && draft.when && draft.when.year || draft && draft.year || 0) || 0;
+    return storyboardDraftsApi().draftYear(draft);
   }
 
   function uniqueDraftId(baseId) {
-    const root = safeDraftId(baseId || 'new_world_event');
-    const used = new Set();
-    ensureArray(state.projectIndex && state.projectIndex.scenes).forEach((scene) => {
-      if (scene && scene.id) {
-        used.add(String(scene.id));
-      }
-    });
-    draftBranchList().forEach((branch) => {
-      const id = branchId(branch);
-      if (id) {
-        used.add(id);
-      }
-    });
-    if (state.baseDraft && state.baseDraft.id) {
-      used.add(String(state.baseDraft.id));
-    }
-    if (!used.has(root)) {
-      return root;
-    }
-    for (let index = 2; index < 1000; index += 1) {
-      const candidate = root + '_' + index;
-      if (!used.has(candidate)) {
-        return candidate;
-      }
-    }
-    return root + '_' + Date.now();
+    return storyboardDraftsApi().uniqueDraftId(state, baseId, storyboardDraftDeps());
   }
 
   function numberOr(value, fallback) {
-    const num = Number(value);
-    return Number.isFinite(num) ? num : fallback;
+    return storyboardDraftsApi().numberOr(value, fallback);
   }
 
   function discardDraftCard(target) {
-    const card = target && target.closest ? target.closest('[data-content-storyboard-card]') : null;
-    const key = String(target && target.dataset && target.dataset.storyboardDraftKey || card && card.dataset && card.dataset.contentStoryboardCard || '').trim();
-    const currentKey = currentDraftStoryboardKey();
-    state.draftBranches = draftBranchList().filter((branch) => !draftBranchKeyMatches(branch, key));
-    if (key && currentKey && key === currentKey && state.mode !== 'existing') {
-      const context = state.baseDraft && state.baseDraft.studioAuthoringContext || {};
-      const previousKey = String(context.selectedCanvasNode || '').trim();
-      if (previousKey && selectExistingStoryObject(previousKey)) {
-        state.status = t('objectCanvas.status.draftDeleted', 'Draft card discarded.');
-        render();
-        return;
-      }
-      openTemplate('event', safeDefaultDraftForTemplate('event'), {source: 'Create'});
-      state.status = t('objectCanvas.status.draftDeleted', 'Draft card discarded.');
-      render();
-      return;
-    }
-    if (state.selectedCanvasNode === key) {
-      state.selectedCanvasNode = currentKey || 'object';
-    }
-    state.status = t('objectCanvas.status.draftDeleted', 'Draft card discarded.');
-    render();
+    return storyboardDraftsApi().discardDraftCard(state, target, storyboardDraftDeps());
   }
 
   function selectExistingStoryObject(key) {
-    const parsed = storyObjectFromKey(key);
-    if (!parsed || parsed.kind === 'draft' || parsed.kind === 'route') {
-      return false;
-    }
-    const itemId = parsed.parentId || parsed.id;
-    const nextModel = buildExistingModelFor(parsed.view, itemId, {values: {}});
-    if (!nextModel || !nextModel.ok) {
-      return false;
-    }
-    state.mode = 'existing';
-    state.template = 'existing';
-    state.view = parsed.view;
-    state.item = itemId;
-    state.workspace = 'content';
-    state.selectedCanvasNode = key;
-    state.editorOverlay = true;
-    state.values = {};
-    state.valueOriginals = {};
-    resetStructureCommands();
-    state.baseDraft = null;
-    state.deleteProposal = null;
-    state.sourceSliceModel = null;
-    state.sourceSliceAdvancedConfirmed = false;
-    state.semanticLogicModel = null;
-    state.semanticLogicAdvancedConfirmed = false;
-    state.model = nextModel;
-    showWorkspace(parsed.view === 'cards' ? 'card' : 'existing');
-    render();
-    return true;
+    return storyboardDraftsApi().selectExistingStoryObject(state, key, storyboardDraftDeps());
   }
 
   function storyObjectFromKey(key) {
-    const match = String(key || '').match(/^(event|card|advisor|news|section|route|draft):(.+)$/);
-    if (!match) {
-      return null;
-    }
-    const kind = match[1];
-    const id = match[2];
-    if (kind === 'section') {
-      return {kind, id, parentId: String(id || '').split('.')[0] || '', view: 'events'};
-    }
-    return {kind, id, view: kind === 'event' ? 'events' : kind === 'card' || kind === 'advisor' ? 'cards' : kind};
+    return storyboardDraftsApi().storyObjectFromKey(key);
   }
 
   function currentDraftStoryboardKey() {
-    if (state.mode === 'existing') {
-      return '';
-    }
-    return draftStoryboardKey(state.template || 'event', state.baseDraft || {}, null);
+    return storyboardDraftsApi().currentDraftStoryboardKey(state, storyboardDraftDeps());
   }
 
   function draftStoryboardKey(template, draft, branch) {
-    const value = draft || {};
-    const id = String(value.id || branch && branch.id || 'new_event');
-    const kind = normalizeTemplate(template) === 'news' ? 'news' : normalizeTemplate(template) === 'card' ? 'card' : 'event';
-    return 'draft:' + kind + ':' + id;
+    return storyboardDraftsApi().draftStoryboardKey(template, draft, branch, storyboardDraftDeps());
   }
 
   function draftBranchList() {
-    return Array.isArray(state.draftBranches) ? state.draftBranches.slice() : [];
+    return storyboardDraftsApi().draftBranchList(state);
   }
 
   function draftBranchMatches(a, b) {
-    return branchId(a) && branchId(a) === branchId(b);
+    return storyboardDraftsApi().draftBranchMatches(a, b);
   }
 
   function draftBranchKeyMatches(branch, key) {
-    const text = String(key || '').trim();
-    if (!text) {
-      return false;
-    }
-    const id = branchId(branch);
-    return text === 'draft:' + id || text === 'draft:event:' + id || text === 'draft:card:' + id || text === 'draft:news:' + id;
+    return storyboardDraftsApi().draftBranchKeyMatches(branch, key);
   }
 
   function branchId(branch) {
-    return String(branch && (branch.id || branch.draft && branch.draft.id) || '').trim();
+    return storyboardDraftsApi().branchId(branch);
   }
 
   function normalizeStoryCanvasCategory(value) {
-    const text = String(value || 'story');
-    return text === 'cards' || text === 'all' ? text : 'story';
+    return storyboardDraftsApi().normalizeStoryCanvasCategory(value);
   }
 
   function normalizeStoryDepth(value) {
-    const text = String(value || '1');
-    return text === '2' || text === 'full' ? text : '1';
+    return storyboardDraftsApi().normalizeStoryDepth(value);
   }
 
   function toggleEditorOverlay(next) {
@@ -2726,6 +2342,39 @@
     render();
   }
 
+  function returnFromTransientWorkspace() {
+    const stack = returnStackApi();
+    const context = stack && typeof stack.pop === 'function' ? stack.pop(state) : null;
+    if (!context) {
+      state.status = t('objectCanvas.status.returnUnavailable', 'There is no previous object editor to return to.');
+      updateDynamicSurfaces();
+      return false;
+    }
+    const scrollSnapshot = stack && typeof stack.restore === 'function'
+      ? stack.restore(state, context)
+      : context.scrollSnapshot || null;
+    state.sourceSliceModel = null;
+    state.sourceSliceAdvancedConfirmed = false;
+    state.semanticLogicModel = null;
+    state.semanticLogicAdvancedConfirmed = false;
+    state.active = true;
+    state.model = rebuildRestoredObjectModel();
+    state.status = t('objectCanvas.status.returnedToObject', 'Returned to the previous object editor.');
+    showWorkspace(state.mode === 'existing' ? (state.view === 'cards' ? 'card' : 'existing') : state.template);
+    render({scrollSnapshot});
+    return true;
+  }
+
+  function rebuildRestoredObjectModel() {
+    if (state.deleteProposal) {
+      return buildDeleteProposalModel(state.deleteProposal);
+    }
+    if (state.mode === 'existing') {
+      return buildExistingModel({values: state.values, proposalOptions: state.proposalOptions});
+    }
+    return buildTemplateModel({values: state.values});
+  }
+
   function commitStructureCommand(target) {
     const builder = target && typeof target.closest === 'function'
       ? target.closest('[data-preview-object-structure-builder]')
@@ -2740,53 +2389,41 @@
       refreshTimer = null;
     }
     state.preserveScrollOnNextRefresh = false;
-    const output = builder.querySelector('[data-preview-object-structure-output]');
-    const value = output ? String(output.value || '').trim() : '';
-    if (!value) {
+    const draftCommand = structureDraftApi().readBuilderCommand(builder, {counter: state.structureCommandCounter + 1, Event: global.Event});
+    if (!draftCommand || !draftCommand.value) {
       state.status = t('objectCanvas.status.structureCommandEmpty', 'Fill in the structure fields before adding it.');
       updateDynamicSurfaces();
       return;
     }
-    const action = builder.dataset.previewObjectStructureBuilder || '';
-    const fieldId = builder.dataset.previewObjectStructureFieldId || output && output.dataset.objectCanvasField || '';
     const command = {
-      id: 'structure_command_' + (++state.structureCommandCounter),
-      type: action,
-      action,
-      fieldId,
-      optionId: builder.dataset.previewObjectStructureOptionId || '',
-      sectionId: builder.dataset.previewObjectStructureSectionId || '',
-      targetLabel: builder.dataset.previewObjectStructureTargetLabel || '',
-      value,
+      id: draftCommand.id,
+      type: draftCommand.action,
+      action: draftCommand.action,
+      fieldId: draftCommand.fieldId,
+      optionId: draftCommand.optionId,
+      sectionId: draftCommand.sectionId,
+      targetLabel: draftCommand.targetLabel,
+      value: draftCommand.value,
       mode: state.mode === 'existing' ? 'manual_review' : 'draft'
     };
+    state.structureCommandCounter += 1;
     state.structureCommands = (state.structureCommands || []).concat(command);
     state.values = collectValues();
-    if (fieldId) {
-      delete state.values[fieldId];
-      delete state.valueOriginals[fieldId];
+    if (command.fieldId) {
+      delete state.values[command.fieldId];
+      delete state.valueOriginals[command.fieldId];
     }
     clearStructureBuilder(builder);
     state.model = state.mode === 'existing' ? buildExistingModel({values: state.values}) : buildTemplateModel({values: state.values});
+    if (shouldMaterializeNewEventDraft(state.values)) {
+      state.model = materializeNewEventDraft(state.model);
+    }
     state.status = t('objectCanvas.status.structureCommandQueued', 'Structure command added to the current proposal.');
     render({scrollSnapshot});
   }
 
   function clearStructureBuilder(builder) {
-    if (!builder) {
-      return;
-    }
-    builder.querySelectorAll('[data-preview-object-structure-part]').forEach((input) => {
-      if (input.tagName === 'SELECT') {
-        input.selectedIndex = 0;
-      } else {
-        input.value = '';
-      }
-    });
-    const output = builder.querySelector('[data-preview-object-structure-output]');
-    if (output) {
-      output.value = '';
-    }
+    structureDraftApi().clearBuilder(builder);
   }
 
   function reviewCurrentPlan() {
@@ -2850,7 +2487,7 @@
     }
     const changed = {};
     const originalKeys = new Set();
-    elements.host.querySelectorAll('[data-object-canvas-field]').forEach((input) => {
+    collectCanvasFieldEntries(elements.host).forEach((input) => {
       const key = input.dataset.objectCanvasField;
       if (!key) {
         return;
@@ -2887,74 +2524,16 @@
     return values;
   }
 
-  function syncStructureBuilder(builder) {
-    if (!builder) {
-      return;
-    }
-    const output = builder.querySelector('[data-preview-object-structure-output]');
-    if (!output) {
-      return;
-    }
-    const action = builder.dataset.previewObjectStructureBuilder || '';
-    const parts = {};
-    builder.querySelectorAll('[data-preview-object-structure-part]').forEach((input) => {
-      parts[input.dataset.previewObjectStructurePart || ''] = String(input.value || '').trim();
+  function collectCanvasFieldEntries(host) {
+    const api = objectCanvasFieldValuesApi();
+    return api.collectCanvasFieldEntries(host, {
+      activeElement: global.document && global.document.activeElement || null,
+      getComputedStyle: global.getComputedStyle ? global.getComputedStyle.bind(global) : null
     });
-    const next = composeStructureValue(action, parts);
-    if (output.value === next) {
-      return;
-    }
-    output.value = next;
-    output.dispatchEvent(new global.Event('input', {bubbles: true}));
   }
 
-  function composeStructureValue(action, parts) {
-    if (action === 'add_option') {
-      const label = String(parts.option_label || '').trim();
-      const result = String(parts.result_text || '').trim();
-      const chooseIf = String(parts.choose_if || '').trim();
-      const unavailableText = String(parts.unavailable_text || '').trim();
-      const target = String(parts.target_id || '').trim() || slugForStructure(label) || 'new_option';
-      if (!label && !result && !String(parts.target_id || '').trim() && !chooseIf && !unavailableText) {
-        return '';
-      }
-      return [
-        '- @' + target + ': ' + (label || 'Player-facing option text'),
-        '# ' + target,
-        chooseIf ? 'choose-if: ' + chooseIf : '',
-        unavailableText ? 'unavailable-subtitle: ' + unavailableText : '',
-        result || 'Result prose.'
-      ].filter(Boolean).join('\n');
-    }
-    if (action === 'add_branch') {
-      const section = String(parts.section_id || '').trim() || 'follow_up';
-      const condition = String(parts.condition || '').trim();
-      const text = String(parts.branch_text || '').trim();
-      if (!String(parts.section_id || '').trim() && !condition && !text) {
-        return '';
-      }
-      return ['# ' + section, condition ? '[? if ' + condition + ' : ' + (text || 'Conditional prose.') + ' ?]' : (text || 'Follow-up prose.')].join('\n');
-    }
-    if (action === 'add_trigger_effect' || action === 'add_option_effect') {
-      const variable = String(parts.variable || '').trim().replace(/^Q\./, '');
-      const op = String(parts.operation || '+=').trim() || '+=';
-      const value = String(parts.value || '').trim();
-      const condition = String(parts.condition || '').trim();
-      if (!variable || !value) {
-        return '';
-      }
-      return 'Q.' + variable + ' ' + op + ' ' + value + (condition ? ' if ' + condition : '');
-    }
-    return '';
-  }
-
-  function slugForStructure(value) {
-    return String(value || '')
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '_')
-      .replace(/^_+|_+$/g, '')
-      .slice(0, 48);
+  function syncStructureBuilder(builder) {
+    structureDraftApi().syncBuilder(builder, {Event: global.Event});
   }
 
   function rememberFieldOriginal(key, value) {
@@ -2999,6 +2578,7 @@
     syncSemanticLogicAdvancedControls();
     syncEventReadinessControls();
     syncPreviewObjectRenderedFields();
+    bindVisibleEditUi(elements.host);
     const panel = elements.host.querySelector('[data-runtime-lens-panel]');
     if (panel && state.runtimeLensStatus === 'stale') {
       panel.dataset.runtimeLensStatus = 'stale';
@@ -3114,143 +2694,35 @@
   }
 
   function syncPreviewObjectEditorPane() {
-    if (!elements || !elements.host || !state.model) {
-      return;
-    }
-    const editor = global.ProjectMapPreviewObjectEditor;
-    if (!editor || typeof editor.renderPreviewPane !== 'function') {
-      return;
-    }
-    elements.host.querySelectorAll('[data-object-editing-modal-preview-pane]').forEach((node) => {
-      node.innerHTML = editor.renderPreviewPane(state.model, {
-        template: state.template,
-        selectedKey: state.selectedCanvasNode
-      });
-    });
+    previewEditorSyncApi().syncPreviewObjectEditorPane(previewEditorSyncDeps());
   }
 
   function syncPreviewObjectRenderedFields() {
-    if (!elements || !elements.host || !state.model) {
-      return;
-    }
-    const editor = global.ProjectMapPreviewObjectEditor;
-    if (!editor || typeof editor.renderTextBlocks !== 'function') {
-      return;
-    }
-    const fields = previewObjectFieldMap(state.model);
-    elements.host.querySelectorAll('[data-preview-object-rendered-for]').forEach((node) => {
-      const key = node.dataset && node.dataset.previewObjectRenderedFor;
-      const input = key ? elements.host.querySelector('[data-object-canvas-field="' + cssEscape(key) + '"]') : null;
-      const field = key ? fields.get(key) : null;
-      const value = input ? input.value : field && field.value !== undefined ? field.value : field && field.original || '';
-      node.innerHTML = editor.renderTextBlocks(value, {empty: false});
-    });
+    previewEditorSyncApi().syncPreviewObjectRenderedFields(previewEditorSyncDeps());
   }
 
   function previewObjectFieldMap(model) {
-    const map = new Map();
-    const body = model && model.eventBody || {};
-    [body.title, body.heading].forEach(addField);
-    ensureArray(body.sections).forEach(addField);
-    ensureArray(body.metaFields).forEach(addField);
-    ensureArray(body.structureActions).forEach(addField);
-    ensureArray(body.effects).forEach(addField);
-    ensureArray(body.options).forEach((option) => {
-      ensureArray(option && option.fields).forEach(addField);
-    });
-    ensureArray(body.optionEffects).forEach((group) => {
-      ensureArray(group && group.fields).forEach(addField);
-    });
-    return map;
-
-    function addField(field) {
-      const id = field && field.id;
-      if (id) {
-        map.set(String(id), field);
-      }
-    }
+    return previewEditorSyncApi().previewObjectFieldMap(model, previewEditorSyncDeps());
   }
 
   function syncPreviewObjectEditorChrome() {
-    if (!elements || !elements.host || !state.model) {
-      return;
-    }
-    const title = headerTitle(state.model, currentSurface(state.model));
-    [
-      '[data-preview-object-editor-title]',
-      '[data-content-storyboard-selected-title]',
-      '[data-card-face-selected-title]',
-      '.content-storyboard-card.is-selected .content-storyboard-title'
-    ].forEach((selector) => {
-      elements.host.querySelectorAll(selector).forEach((node) => {
-        if (node && !node.matches('input, textarea, select')) {
-          if (selector === '[data-preview-object-editor-title]') {
-            node.innerHTML = renderVisibleTextInline(title);
-          } else {
-            node.textContent = title;
-          }
-        }
-      });
-    });
-    const footer = elements.host.querySelector('[data-preview-object-draft-summary]');
-    if (footer) {
-      footer.innerHTML = renderPreviewObjectDraftSummary(state.model);
-    }
+    previewEditorSyncApi().syncPreviewObjectEditorChrome(previewEditorSyncDeps());
   }
 
   function renderVisibleTextInline(value) {
-    const renderer = global.ProjectMapVisibleTextRenderer;
-    return renderer && typeof renderer.renderInline === 'function'
-      ? renderer.renderInline(value)
-      : escapeHtml(value);
+    return previewEditorSyncApi().renderVisibleTextInline(value, previewEditorSyncDeps());
   }
 
   function renderPreviewObjectDraftSummary(model) {
-    const change = model && model.changeState || {};
-    const summary = change.operationSummary || {};
-    const route = previewObjectRouteLabel(model);
-    return [
-      '<div><span>' + escapeHtml(t('objectCanvas.changedFields', 'Changed')) + '</span><strong>' + escapeHtml(String(change.changedCount || 0)) + '</strong></div>',
-      '<div><span>' + escapeHtml(t('editing.summary.guarded', 'Guarded')) + '</span><strong>' + escapeHtml(String(summary.guardedApply || 0)) + '</strong></div>',
-      '<div><span>' + escapeHtml(t('editing.summary.manual', 'Manual')) + '</span><strong>' + escapeHtml(String(summary.manualReview || 0)) + '</strong></div>',
-      '<div><span>' + escapeHtml(t('previewObjectEditor.route', 'Editor route')) + '</span><strong>' + escapeHtml(route) + '</strong></div>'
-    ].join('');
+    return previewEditorSyncApi().renderPreviewObjectDraftSummary(model, previewEditorSyncDeps());
   }
 
   function previewObjectRouteLabel(model) {
-    const value = String(model && (model.template || model.objectKind || model.mode) || state.template || '').trim();
-    if (value === 'news' || value === 'news_item' || value === 'new_news') {
-      return t('objectPreview.news', 'News');
-    }
-    if (value === 'card' || value === 'new_card') {
-      return t('objectPreview.card', 'Card');
-    }
-    if (value === 'surface' || value === 'surface_text' || value === 'text') {
-      return t('objectPreview.textPatch', 'Text Patch');
-    }
-    return t('objectPreview.event', 'World Event');
+    return previewEditorSyncApi().previewObjectRouteLabel(model, previewEditorSyncDeps());
   }
 
   function syncObjectCanvasFieldValues() {
-    if (!elements || !elements.host) {
-      return;
-    }
-    const active = global.document && global.document.activeElement;
-    const values = state.values || {};
-    elements.host.querySelectorAll('[data-object-canvas-field]').forEach((input) => {
-      const key = input.dataset && input.dataset.objectCanvasField;
-      if (!key || !Object.prototype.hasOwnProperty.call(values, key) || input === active) {
-        return;
-      }
-      const next = String(values[key] === undefined || values[key] === null ? '' : values[key]);
-      if (input.type === 'checkbox') {
-        input.checked = /^(1|true|yes|on)$/i.test(next);
-        return;
-      }
-      if (input.value !== next) {
-        input.value = next;
-      }
-    });
+    previewEditorSyncApi().syncObjectCanvasFieldValues(previewEditorSyncDeps());
   }
 
   function defaultDraftForTemplate(template) {
@@ -3337,105 +2809,67 @@
   }
 
   function templateFromDraft(draft) {
-    const apiModel = modelApi();
-    if (apiModel && typeof apiModel.templateFromDraft === 'function') {
-      return apiModel.templateFromDraft(draft);
-    }
-    const value = draft || {};
-    return value.kind === 'news_item' ? 'news' : value.kind === 'card' ? 'card' : 'event';
+    return surfaceAdapterApi().templateFromDraft(draft, surfaceAdapterDeps());
   }
 
   function isCanvasTemplate(template) {
-    const registry = registryApi();
-    if (registry && typeof registry.isTemplateSupported === 'function') {
-      return registry.isTemplateSupported(template) && normalizeTemplate(template) !== 'existing';
-    }
-    return Boolean(normalizeTemplate(template));
+    return surfaceAdapterApi().isCanvasTemplate(template, surfaceAdapterDeps());
   }
 
   function normalizeTemplate(template) {
-    const registry = registryApi();
-    if (registry && typeof registry.normalizeTemplate === 'function') {
-      return registry.normalizeTemplate(template);
-    }
-    const text = String(template || '').trim();
-    const supported = {
-      event: true,
-      news: true,
-      card: true,
-      play_surface: true,
-      workspace_layout: true,
-      sidebar_status: true,
-      surface: true,
-      entry: true,
-      project: true,
-      variables: true
-    };
-    return supported[text] ? text : '';
+    return surfaceAdapterApi().normalizeTemplate(template, surfaceAdapterDeps());
   }
 
   function workspaceForTemplate(template) {
-    const registry = registryApi();
-    if (registry && typeof registry.workspaceForTemplate === 'function') {
-      return registry.workspaceForTemplate(template);
-    }
-    const key = normalizeTemplate(template) || (template === 'existing' ? 'existing' : 'event');
-    if (key === 'entry' || key === 'play_surface' || key === 'workspace_layout' || key === 'sidebar_status' || key === 'project') {
-      return 'system_ui';
-    }
-    if (key === 'variables') {
-      return 'project_state';
-    }
-    return 'content';
+    return surfaceAdapterApi().workspaceForTemplate(template, surfaceAdapterDeps());
   }
 
   function systemUiTemplateForRegion(nodeKey) {
-    const router = global.ProjectMapSystemUiRegionRouter;
-    return router && typeof router.templateForRegion === 'function' ? router.templateForRegion(nodeKey) : '';
+    return surfaceAdapterApi().systemUiTemplateForRegion(nodeKey, surfaceAdapterDeps());
   }
 
   function surfaceForTemplate(template) {
-    const registry = registryApi();
-    if (registry && typeof registry.surfaceForTemplate === 'function') {
-      return registry.surfaceForTemplate(template);
-    }
-    return {key: 'content_storyboard', workspace: workspaceForTemplate(template), fallback: 'Content Storyboard', labelKey: 'authoring.surface.contentStoryboard'};
+    return surfaceAdapterApi().surfaceForTemplate(template, surfaceAdapterDeps());
   }
 
   function currentSurface(model) {
-    if (state.mode === 'source_slice' || state.template === 'source_slice') {
-      return {
-        key: 'source_slice_editor',
-        workspace: 'content',
-        labelKey: 'sourceSlice.surface',
-        fallback: t('sourceSlice.surface', 'Precise Source Edit')
-      };
-    }
-    if (state.mode === 'semantic_logic' || state.template === 'semantic_logic') {
-      return {
-        key: 'semantic_logic_editor',
-        workspace: 'content',
-        labelKey: 'semanticLogic.surface',
-        fallback: t('semanticLogic.surface', 'Semantic Logic Editor')
-      };
-    }
-    const cardWorkspace = cardWorkspaceApi();
-    if (cardWorkspace && typeof cardWorkspace.isCardBoardState === 'function' && cardWorkspace.isCardBoardState(state)) {
-      return surfaceForTemplate('card');
-    }
-    return surfaceForTemplate(state.mode === 'existing' ? 'existing' : state.template || model && model.template || 'event');
+    return surfaceAdapterApi().currentSurface(model, surfaceAdapterDeps());
   }
 
   function surfaceLabelFor(surface) {
-    const registry = registryApi();
-    if (registry && typeof registry.surfaceLabel === 'function') {
-      return registry.surfaceLabel(surface, t);
-    }
-    return surface && surface.fallback || '';
+    return surfaceAdapterApi().surfaceLabelFor(surface, surfaceAdapterDeps());
+  }
+
+  function surfaceAdapterDeps() {
+    return {
+      cardWorkspaceApi,
+      modelApi,
+      regionRouterApi,
+      registryApi,
+      state,
+      surfaceForTemplate,
+      t
+    };
   }
 
   function registryApi() {
     return global.ProjectMapAuthoringSurfaceRegistry || null;
+  }
+
+  function regionRouterApi() {
+    return global.ProjectMapSystemUiRegionRouter || null;
+  }
+
+  function surfaceAdapterApi() {
+    return global.ProjectMapObjectCanvasSurfaceAdapter;
+  }
+
+  function modelBuilderApi() {
+    return global.ProjectMapObjectCanvasModelBuilder;
+  }
+
+  function projectStateWorkspaceApi() {
+    return global.ProjectMapObjectCanvasProjectStateWorkspace;
   }
 
   function objectCanvasShellApi() { return global.ProjectMapObjectCanvasShellUi || null; }
@@ -3452,6 +2886,34 @@
 
   function storyboardWorkspaceApi() { return global.ProjectMapStoryboardWorkspaceState || null; }
   function storyboardDeps() { return {buildExistingModel, buildExistingModelFor, buildTemplateModel, collectValues, render, selectCanvasNode, showWorkspace, t}; }
+
+  function storyboardDraftsApi() {
+    if (global.ProjectMapObjectCanvasStoryboardDrafts) {
+      return global.ProjectMapObjectCanvasStoryboardDrafts;
+    }
+    throw new Error('ProjectMapObjectCanvasStoryboardDrafts must load before Object Canvas UI.');
+  }
+
+  function storyboardDraftDeps() {
+    return {
+      branchApi: global.ProjectMapAuthoringReferenceIndex,
+      buildExistingModelFor,
+      buildTemplateModel,
+      collectValues,
+      ensureArray,
+      normalizeTemplate,
+      openFromSelection,
+      openTemplate,
+      render,
+      resetStructureCommands,
+      safeDefaultDraftForTemplate,
+      safeDraftId,
+      showWorkspace,
+      storyboardDeps,
+      storyboardWorkspaceApi,
+      t
+    };
+  }
 
   function systemUiDeps(entry) {
     return {buildExistingModel, buildTemplateModel, collectValues, defaultDraftForTemplate, entry, normalizeTemplate, render, showWorkspace, t, templateForRegion: systemUiTemplateForRegion, workspaceForTemplate};
@@ -3495,6 +2957,10 @@
     return global.ProjectMapSourceSliceWorkspace || null;
   }
 
+  function returnStackApi() {
+    return global.ProjectMapObjectWorkspaceReturnStack || null;
+  }
+
   function semanticLogicApi() {
     return global.ProjectMapSemanticLogicEditor || null;
   }
@@ -3505,6 +2971,65 @@
 
   function visibleEditActionUi() {
     return global.ProjectMapVisibleEditActionUi || null;
+  }
+
+  function structureDraftApi() {
+    if (global.ProjectMapPreviewObjectStructureDraft) {
+      return global.ProjectMapPreviewObjectStructureDraft;
+    }
+    if (typeof require === 'function') {
+      return require('./preview_object_structure_draft.js');
+    }
+    throw new Error('ProjectMapPreviewObjectStructureDraft must load before Object Canvas structure builders.');
+  }
+
+  function objectCanvasFieldValuesApi() {
+    if (global.ProjectMapObjectCanvasFieldValues) {
+      return global.ProjectMapObjectCanvasFieldValues;
+    }
+    if (typeof require === 'function') {
+      return require('./object_canvas_field_values.js');
+    }
+    throw new Error('ProjectMapObjectCanvasFieldValues must load before Object Canvas UI.');
+  }
+
+  function previewEditorSyncApi() {
+    if (global.ProjectMapObjectCanvasPreviewEditorSync) {
+      return global.ProjectMapObjectCanvasPreviewEditorSync;
+    }
+    if (typeof require === 'function') {
+      return require('./object_canvas_preview_editor_sync.js');
+    }
+    throw new Error('ProjectMapObjectCanvasPreviewEditorSync must load before Object Canvas UI.');
+  }
+
+  function previewEditorSyncDeps() {
+    return {
+      cssEscape,
+      currentSurface,
+      document: global.document,
+      elements,
+      ensureArray,
+      escapeHtml,
+      global,
+      headerTitle,
+      previewObjectEditor: global.ProjectMapPreviewObjectEditor,
+      state,
+      t,
+      visibleTextRenderer: global.ProjectMapVisibleTextRenderer
+    };
+  }
+
+  function bindVisibleEditUi(root) {
+    const visibleEditUi = visibleEditActionUi();
+    const host = root || elements && elements.host;
+    if (visibleEditUi && typeof visibleEditUi.bind === 'function' && host) {
+      visibleEditUi.bind(host, {projectIndex: state.projectIndex});
+    }
+  }
+
+  function parsedToDraftApi() {
+    return global.ProjectMapParsedToDraft || null;
   }
 
   function sourceSliceWorkspaceDeps() {

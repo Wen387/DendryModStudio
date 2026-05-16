@@ -61,6 +61,11 @@ def build_index(
 
     variable_scanner = VariableScanner(root)
     variables, variable_diagnostics, variable_summary = variable_scanner.scan()
+    opaque_blocks_by_path = variable_scanner.opaque_blocks_by_path()
+    for scene in scenes:
+        rel = scene.get("path")
+        if isinstance(rel, str) and rel in opaque_blocks_by_path:
+            scene["opaqueJsBlocks"] = opaque_blocks_by_path[rel]
     semantic = classify_semantics(
         root,
         scenes,

@@ -260,6 +260,13 @@
       diag(diagnostics, 'error', 'card_draft.duplicate_option_id', 'Duplicate card anchor id: ' + option.id);
     }
     anchors.add(option.id);
+    const returnAnchor = optionReturnAnchor(option);
+    if (option.narrativeParagraphs.length && returnAnchor) {
+      if (anchors.has(returnAnchor)) {
+        diag(diagnostics, 'error', 'card_draft.duplicate_option_id', 'Duplicate generated card return anchor: ' + returnAnchor);
+      }
+      anchors.add(returnAnchor);
+    }
     if (!option.label) {
       diag(diagnostics, 'error', 'card_draft.option_label', label + ' ' + option.id + ' needs a label.');
     }
@@ -390,9 +397,22 @@
       option.effects.forEach((effect) => lines.push(renderEffect(effect)));
       lines.push('!}');
     }
-    lines.push('go-to: ' + (option.gotoAfter || 'root'));
     lines.push('');
     appendParagraphs(lines, option.narrativeParagraphs);
+    if (option.narrativeParagraphs.length) {
+      const returnAnchor = optionReturnAnchor(option);
+      lines.push('- @' + returnAnchor + ': Continue');
+      lines.push('');
+      lines.push('@' + returnAnchor);
+      lines.push('go-to: ' + (option.gotoAfter || 'root'));
+      return;
+    }
+    lines.push('go-to: ' + (option.gotoAfter || 'root'));
+  }
+
+  function optionReturnAnchor(option) {
+    const id = String(option && option.id || '').trim();
+    return ID_RE.test(id) ? 'return_' + id : '';
   }
 
   function appendSection(lines, section) {
@@ -476,6 +496,7 @@
       scene,
       wiringPath: wiring.path,
       wiringProposal: wiring.content,
+      wiringOperation: wiring.operation,
       skipWiringManual: wiring.autoRouted,
       assetInstallRequests: draft.assetInstallRequests
     });
@@ -506,9 +527,13 @@
       '- Suggested source path: ' + suggestedPath,
       wiring.autoRouted
         ? '- Existing tag route: #' + wiring.route.tag + ' at ' + sourceLabel(wiring.route.source) + '. No hand/deck/sidebar edit is needed.'
+        : wiring.operation
+        ? '- Structured wiring operation: ' + wiring.operation.path + ' after ' + sourceLabel({path: wiring.operation.path, line: wiring.operation.line}) + '.'
         : '- Wiring review path: ' + wiring.path,
       wiring.autoRouted
         ? '- The generated scene uses an already-routed tag, so Studio can install the file without a manual wiring step.'
+        : wiring.operation
+        ? '- Studio can add a guarded source-backed tag route for this card.'
         : '- Wire the scene into the matching hand/deck/sidebar flow by hand.',
       '',
       'Variables/init/migration:',
@@ -520,6 +545,8 @@
       'Studio source review:',
       wiring.autoRouted
         ? '- No manual hand/deck/sidebar wiring step was generated because the ProjectIndex already routes this tag.'
+        : wiring.operation
+        ? '- No manual hand/deck/sidebar wiring step was generated because Studio found an exact source anchor for a guarded tag route.'
         : '- Install Assistant can dry-run safe create-file operations, but hand/deck/sidebar wiring remains manual review.',
       wiring.autoRouted ? '' : '- Wiring proposal:',
       wiring.autoRouted ? '' : indent(wiring.content.trim(), '  '),
@@ -550,6 +577,9 @@
     const label = advisorLikeLabel(projectIndex);
     const primaryTag = draft.tags[0] || (draft.cardKind === 'advisor_like' ? 'circle' : 'cards');
     const route = existingTagRoute(draft, projectIndex, primaryTag);
+    const operation = !route && draft.tags.length
+      ? cardWiringOperation(draft, projectIndex, primaryTag)
+      : null;
     const lines = [
       'Card wiring proposal',
       'New card id: ' + draft.id,
@@ -564,6 +594,17 @@
         'No manual hand/deck/sidebar wiring step is needed as long as the generated scene keeps this tag.'
       );
       return {path: route.source.path || handPath, content: lines.join('\n') + '\n', autoRouted: true, route};
+    }
+    if (operation) {
+      lines.push(
+        operation.kind === 'advisor_tag_route'
+          ? 'Lane: pinned ' + label.plural + ' / advisor-like cards.'
+          : 'Lane: action-card deck tag route.',
+        'Structured operation: insert ' + operation.content.trim() + ' into ' + operation.path + '.',
+        'Route evidence: ' + sourceLabel({path: operation.path, line: operation.line}),
+        'Studio can guarded-apply this source-backed wiring after checking the anchor and dedupe token.'
+      );
+      return {path: operation.path, content: lines.join('\n') + '\n', autoRouted: false, route: null, operation};
     }
     if (draft.cardKind === 'advisor_like') {
       lines.push(
@@ -586,6 +627,124 @@
       );
     }
     return {path: handPath, content: lines.join('\n') + '\n', autoRouted: false, route: null};
+  }
+
+  function cardWiringOperation(draft, projectIndex, primaryTag) {
+    return draft.cardKind === 'advisor_like'
+      ? advisorTagRouteOperation(draft, projectIndex, primaryTag)
+      : deckTagRouteOperation(draft, projectIndex, primaryTag);
+  }
+
+  function deckTagRouteOperation(draft, projectIndex, primaryTag) {
+    const deck = firstSourceBackedDeck(projectIndex);
+    const anchor = lastSourceBackedOption(deck) || sourceEndAnchor(deck);
+    if (!deck || !anchor || !primaryTag) {
+      return null;
+    }
+    const content = '- #' + primaryTag + '\n';
+    return {
+      id: 'card_deck_tag_route',
+      type: 'insert_text',
+      path: anchor.path,
+      line: anchor.line,
+      anchorText: anchor.anchorText,
+      position: 'after',
+      content,
+      dedupeSearch: '- #' + primaryTag,
+      safety: 'guarded_apply',
+      kind: 'deck_tag_route',
+      description: 'Wire the generated card into the source-backed deck by inserting its tag route after the detected deck anchor.'
+    };
+  }
+
+  function advisorTagRouteOperation(draft, projectIndex, primaryTag) {
+    const hand = firstSourceBackedHand(projectIndex);
+    const anchor = advisorHandAnchor(hand);
+    if (!hand || !anchor || !primaryTag) {
+      return null;
+    }
+    const content = '- #' + primaryTag + ': ' + advisorRouteLabel(draft) + '\n';
+    return {
+      id: 'card_advisor_tag_route',
+      type: 'insert_text',
+      path: anchor.path,
+      line: anchor.line,
+      anchorText: anchor.anchorText,
+      position: anchor.position,
+      content,
+      dedupeSearch: '- #' + primaryTag,
+      safety: 'guarded_apply',
+      kind: 'advisor_tag_route',
+      description: 'Wire the generated advisor-like card into the source-backed hand by inserting its tag route near the detected advisor lane.'
+    };
+  }
+
+  function firstSourceBackedDeck(projectIndex) {
+    const deckIds = ensureArray(projectIndex && projectIndex.semantic && projectIndex.semantic.decks)
+      .map((deck) => String(deck && deck.id || '').trim())
+      .filter(Boolean);
+    const scenes = ensureArray(projectIndex && projectIndex.scenes);
+    return scenes.find((scene) => scene && deckIds.includes(String(scene.id || '')) && scene.path) ||
+      scenes.find((scene) => scene && String(scene.type || '') === 'deck' && scene.path) ||
+      null;
+  }
+
+  function firstSourceBackedHand(projectIndex) {
+    const handIds = ensureArray(projectIndex && projectIndex.semantic && projectIndex.semantic.hands)
+      .map((hand) => String(hand && hand.id || '').trim())
+      .filter(Boolean);
+    const scenes = ensureArray(projectIndex && projectIndex.scenes);
+    return scenes.find((scene) => scene && handIds.includes(String(scene.id || '')) && scene.path) ||
+      scenes.find((scene) => scene && String(scene.type || '') === 'hand' && scene.path) ||
+      null;
+  }
+
+  function lastSourceBackedOption(scene) {
+    const options = ensureArray(scene && scene.options).filter((option) => optionSourceAnchor(option));
+    return options.length ? optionSourceAnchor(options[options.length - 1]) : null;
+  }
+
+  function advisorHandAnchor(hand) {
+    const tagOptions = ensureArray(hand && hand.options)
+      .filter((option) => option && option.target && option.target.kind === 'tag')
+      .map(optionSourceAnchor)
+      .filter(Boolean);
+    if (tagOptions.length) {
+      return Object.assign({}, tagOptions[tagOptions.length - 1], {position: 'after'});
+    }
+    const rootOption = ensureArray(hand && hand.options).find((option) => option && option.target && option.target.kind === 'scene' && option.target.id === 'root');
+    const rootAnchor = optionSourceAnchor(rootOption);
+    if (rootAnchor) {
+      return Object.assign({}, rootAnchor, {position: 'before'});
+    }
+    const endAnchor = sourceEndAnchor(hand);
+    return endAnchor ? Object.assign({}, endAnchor, {position: 'after'}) : null;
+  }
+
+  function optionSourceAnchor(option) {
+    const source = option && option.sourceSpan;
+    const path = String(source && source.path || '').trim();
+    const line = Number(source && (source.line || source.startLine) || 0);
+    const anchorText = String(source && source.anchorText || '').trim();
+    if (!path || !Number.isInteger(line) || line < 1 || !anchorText) {
+      return null;
+    }
+    return {path, line, anchorText, position: 'after'};
+  }
+
+  function sourceEndAnchor(scene) {
+    const source = scene && scene.sourceSpan;
+    const path = String(source && source.path || scene && scene.path || '').trim();
+    const line = Number(source && (source.endLine || source.line || source.startLine) || 0);
+    const anchorText = String(source && (source.endAnchorText || source.anchorText) || '').trim();
+    if (!path || !Number.isInteger(line) || line < 1 || !anchorText) {
+      return null;
+    }
+    return {path, line, anchorText, position: 'after'};
+  }
+
+  function advisorRouteLabel(draft) {
+    return 'Review ' + (draft.title || draft.heading || draft.id || 'advisor');
   }
 
   function suggestedCardPath(draft, projectIndex) {

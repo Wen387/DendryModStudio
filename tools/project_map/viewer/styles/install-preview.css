@@ -383,13 +383,36 @@
 .install-advanced-toggle {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #e6c36a;
+  border-left: 5px solid #c97316;
   border-radius: 6px;
-  background: var(--surface-alt);
-  color: var(--muted);
-  font-size: 13px;
+  background: #fff7d6;
+  color: #5f3b00;
+  font-size: 16px;
+  line-height: 1.25;
+  box-shadow: 0 1px 2px rgba(92, 51, 0, 0.08);
+}
+
+.install-advanced-toggle span {
+  font-weight: 650;
+}
+
+.install-advanced-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: #b45309;
+}
+
+.install-advanced-toggle:hover {
+  border-color: #d99d31;
+  background: #fff1b8;
+}
+
+.install-advanced-toggle:has(input:checked) {
+  border-color: #c97316;
+  background: #ffed9f;
 }
 
 .install-human-checklist {
@@ -618,6 +641,84 @@
 
 .install-op-evidence-snippets {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.install-dry-run-recap,
+.install-op-confidence,
+.install-runtime-recommendation {
+  display: grid;
+  gap: 6px;
+  padding: 7px;
+  border: 1px solid rgba(59, 90, 138, .18);
+  border-radius: 5px;
+  background: rgba(246, 249, 255, .72);
+}
+
+.install-dry-run-recap {
+  grid-column: 1 / -1;
+  padding: 10px;
+}
+
+.install-dry-run-recap header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+
+.install-dry-run-recap header span,
+.install-runtime-recommendation small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.install-dry-run-recap p,
+.install-runtime-recommendation p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.install-dry-run-recap dl,
+.install-op-confidence dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 5px;
+  margin: 0;
+}
+
+.install-dry-run-recap dt,
+.install-op-confidence dt {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.install-dry-run-recap dd,
+.install-op-confidence dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 12px;
+}
+
+.install-dry-run-recap ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+}
+
+.install-op-confidence-title {
+  color: #304f82;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.install-runtime-recommendation {
+  border-color: rgba(181, 106, 63, .24);
+  background: rgba(255, 248, 237, .72);
 }
 
 .install-human-none {

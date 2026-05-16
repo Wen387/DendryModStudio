@@ -2,6 +2,8 @@
   display: grid;
   gap: 12px;
   min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
   padding: 14px;
   border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--border));
   border-radius: 8px;
@@ -193,12 +195,31 @@
   padding: 8px 10px;
   font: inherit;
   line-height: 1.38;
+  overflow-x: hidden;
   overflow-wrap: anywhere;
 }
 
 textarea.preview-object-control {
   min-height: 52px;
+  overflow-x: hidden;
+  overflow-y: auto;
   resize: vertical;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+textarea.preview-object-control::-webkit-scrollbar:horizontal,
+.preview-object-field-rendered::-webkit-scrollbar:horizontal {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
+.preview-object-field-choice-label textarea.preview-object-control,
+.preview-object-field-choice-body textarea.preview-object-control,
+.preview-object-field-choice-detail textarea.preview-object-control {
+  min-height: 64px;
+  white-space: pre-wrap;
 }
 
 input.preview-object-control[type="checkbox"] {
@@ -226,7 +247,8 @@ input.preview-object-control[type="checkbox"] {
   display: grid;
   gap: 8px;
   max-height: 220px;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 10px 12px;
   border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--border-soft));
   border-radius: 8px;
@@ -900,6 +922,55 @@ input.preview-object-control[type="checkbox"] {
 
 .preview-object-inline-add summary b {
   font-weight: 820;
+}
+
+.preview-object-large-deferred {
+  border: 1px dashed color-mix(in srgb, var(--studio-accent) 28%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-alt) 72%, #ffffff);
+}
+
+.preview-object-large-deferred summary {
+  padding: 9px 11px;
+  cursor: pointer;
+  color: var(--studio-accent-strong);
+  font-size: 12px;
+  font-weight: 820;
+}
+
+.preview-object-large-deferred-list {
+  display: grid;
+  gap: 8px;
+  padding: 0 10px 10px;
+}
+
+.preview-object-large-deferred-list article {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 8px;
+  align-items: start;
+  padding: 7px 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.preview-object-large-deferred-list article > strong,
+.preview-object-large-deferred-list article > code,
+.preview-object-large-deferred-list article > small {
+  grid-column: 2;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.preview-object-large-deferred-list article > b {
+  grid-row: 1 / span 3;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.preview-object-large-deferred-list > small {
+  color: var(--muted);
 }
 
 .preview-object-inline-add summary::-webkit-details-marker {

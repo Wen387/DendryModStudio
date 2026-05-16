@@ -460,6 +460,7 @@
       when: {year: 1936, monthStart: 1, monthEnd: 3, requires: '', priority: 0},
       introParagraphs: ['Write the opening event text here.'],
       effectsOnTrigger: [],
+      rawEffectsOnTrigger: [],
       options: [
         {id: 'option_1', label: 'Take the first path', narrativeParagraphs: ['The first consequence appears.'], effects: [], gotoAfter: 'continue_option_1'},
         {id: 'option_2', label: 'Choose another path', narrativeParagraphs: ['The second consequence appears.'], effects: [], gotoAfter: 'continue_option_2'}
@@ -489,7 +490,7 @@
       rawViewIf: String(value.rawViewIf || value.viewIf || '').trim(),
       useSeenFlag: value.useSeenFlag === undefined ? eventShape === 'choice_event' : booleanValue(value.useSeenFlag),
       seenFlag: eventShape === 'choice_event' || booleanValue(value.useSeenFlag) ? safeId(value.seenFlag || value.rawSeenFlag || id + '_seen') : '',
-      maxVisits: value.maxVisits === undefined ? null : numberOr(value.maxVisits, null),
+      maxVisits: value.maxVisits === undefined || value.maxVisits === null || value.maxVisits === '' ? null : numberOr(value.maxVisits, null),
       when: {
         year: numberOr(value.year || when.year, 1936),
         monthStart: numberOr(value.monthStart || when.monthStart, 1),
@@ -498,6 +499,7 @@
         priority: numberOr(value.priority || when.priority, 0)
       },
       introParagraphs: paragraphs(value.introParagraphs || value.intro || value.body || 'Write the opening event text here.'),
+      rawEffectsOnTrigger: rawEffectLines(value.rawEffectsOnTrigger || value.rawTriggerEffects || value.advancedEffectsOnTrigger),
       options: normalizeEventOptions(explicitOptions ? value.options : defaultDraft.options)
     });
     return normalizeWithApi(api, converted);
@@ -519,6 +521,16 @@
     return ensureArray(options).map((option, index) => {
       const value = isObject(option) ? option : {};
       const id = safeId(value.id || value.rawId || 'option_' + (index + 1));
+      const hasGotoAfter = Object.prototype.hasOwnProperty.call(value, 'gotoAfter') ||
+        Object.prototype.hasOwnProperty.call(value, 'afterResultTarget');
+      const explicitGotoAfter = hasGotoAfter ? optionalSafeId(
+        Object.prototype.hasOwnProperty.call(value, 'gotoAfter')
+          ? value.gotoAfter
+          : Object.prototype.hasOwnProperty.call(value, 'afterResultTarget')
+            ? value.afterResultTarget
+            : ''
+      ) : '';
+      const resultMode = normalizeResultMode(value.resultMode || value.routeMode || value.continuationMode, hasGotoAfter ? explicitGotoAfter : 'continue_' + id);
       return {
         id,
         label: String(value.label || value.title || 'Choice ' + (index + 1)).trim(),
@@ -526,10 +538,12 @@
         chooseIf: String(value.chooseIf || '').trim(),
         unavailableText: String(value.unavailableText || '').trim(),
         effects: ensureArray(value.effects),
+        rawEffects: rawEffectLines(value.rawEffects || value.rawOptionEffects || value.advancedEffects),
         narrativeParagraphs: paragraphs(value.narrativeParagraphs || value.body || value.text || 'Describe the result of this choice.'),
         variants: ensureArray(value.variants),
-        gotoAfter: safeId(value.gotoAfter || 'continue_' + id),
-        returnTarget: safeId(value.returnTarget || value.afterResultTarget || 'root')
+        resultMode,
+        gotoAfter: resultMode === 'continue' ? (explicitGotoAfter || 'continue_' + id) : explicitGotoAfter,
+        returnTarget: optionalSafeId(value.returnTarget || value.afterReturnTarget || (resultMode === 'continue' ? 'root' : ''))
       };
     });
   }
@@ -802,18 +816,25 @@
     }
     setNumber(data, draft.when, 'event.priority', 'priority');
     draft.effectsOnTrigger = applyEffectValues(data, 'event.effect', draft.effectsOnTrigger);
+    if (has(data, 'event.rawEffects')) {
+      draft.rawEffectsOnTrigger = rawEffectLines(data['event.rawEffects']);
+    }
     draft.options = ensureArray(draft.options).map((option, index) => {
       const next = clone(option);
       setString(data, next, 'option.' + index + '.label', 'label');
       setString(data, next, 'option.' + index + '.subtitle', 'subtitle');
       setString(data, next, 'option.' + index + '.chooseIf', 'chooseIf');
       setString(data, next, 'option.' + index + '.unavailableText', 'unavailableText');
-      setString(data, next, 'option.' + index + '.gotoAfter', 'gotoAfter', safeId);
-      setString(data, next, 'option.' + index + '.returnTarget', 'returnTarget', safeId);
+      setString(data, next, 'option.' + index + '.resultMode', 'resultMode', normalizeResultMode);
+      setString(data, next, 'option.' + index + '.gotoAfter', 'gotoAfter', optionalSafeId);
+      setString(data, next, 'option.' + index + '.returnTarget', 'returnTarget', optionalSafeId);
       if (has(data, 'option.' + index + '.body')) {
         next.narrativeParagraphs = paragraphs(data['option.' + index + '.body']);
       }
       next.effects = applyEffectValues(data, 'option.' + index + '.effect', next.effects);
+      if (has(data, 'option.' + index + '.rawEffects')) {
+        next.rawEffects = rawEffectLines(data['option.' + index + '.rawEffects']);
+      }
       return next;
     });
     const sections = ensureArray(draft.sections).map((section, index) => {
@@ -1718,6 +1739,32 @@
       .replace(/[^A-Za-z0-9_]+/g, '_')
       .replace(/^_+|_+$/g, '');
     return /^[A-Za-z_]/.test(text) ? text : 'draft_' + (text || 'item');
+  }
+
+  function optionalSafeId(value) {
+    const text = String(value || '').trim();
+    return text ? safeId(text) : '';
+  }
+
+  function normalizeResultMode(value, gotoAfter) {
+    const text = String(value || '').trim();
+    if (text === 'native' || text === 'direct' || text === 'inline' || text === 'section') {
+      return 'native';
+    }
+    if (text === 'continue' || text === 'continuation' || text === 'result_section') {
+      return 'continue';
+    }
+    return String(gotoAfter || '').trim() ? 'continue' : 'native';
+  }
+
+  function rawEffectLines(value) {
+    if (Array.isArray(value)) {
+      return value.reduce((rows, item) => rows.concat(rawEffectLines(item)), []);
+    }
+    return String(value || '')
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
   }
 
   function labelFromName(name) {

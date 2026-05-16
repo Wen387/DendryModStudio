@@ -574,12 +574,18 @@
         }
       ]
     };
-    const templateButton = global.document.querySelector('[data-create-template="event"]');
-    if (templateButton) {
-      templateButton.click();
+    const authoringWorkspace = global.ProjectMapAuthoringWorkspace;
+    if (authoringWorkspace && typeof authoringWorkspace.setTemplate === 'function') {
+      authoringWorkspace.setTemplate('event', {silent: true});
     }
+    const objectCanvas = global.ProjectMapObjectAuthoringCanvas || global.ProjectMapEditingWorkspace;
+    const seededCanvas = objectCanvas && typeof objectCanvas.openTemplate === 'function'
+      ? objectCanvas.openTemplate('event', eventDraft, {source: t('create.status.seededFirstEvent', 'Seeded first event'), template: 'event'})
+      : false;
     if (eventWizard && typeof eventWizard.loadDraft === 'function') {
       eventWizard.loadDraft(eventDraft, {fileName: t('create.status.seededFirstEvent', 'Seeded first event')});
+    }
+    if (seededCanvas || eventWizard && typeof eventWizard.loadDraft === 'function') {
       setStatus(elements.draftStatus, t('create.status.seededFirstEvent', 'Seeded first event'), 'ready');
     } else {
       setStatus(elements.draftStatus, t('create.status.eventWizardMissing', 'Event wizard is not loaded.'), 'warning');

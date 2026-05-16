@@ -6,6 +6,7 @@
   const EVENT_SHAPES = new Set(['choice_event', 'pure_event']);
   const ID_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
   const EFFECT_OPS = new Set(['=', '+=', '-=']);
+  const RESULT_MODES = new Set(['continue', 'native']);
   const RESERVED_PRIORITY = 4;
   const CONDITION_KEYWORDS = new Set([
     'and', 'or', 'not', 'if', 'else', 'true', 'false', 'null', 'undefined',
@@ -39,6 +40,7 @@
     draft.seenFlag = String(draft.useSeenFlag ? (draft.seenFlag || (draft.id ? draft.id + '_seen' : '')) : (draft.seenFlag || '')).trim();
     draft.when = normalizeWhen(draft.when);
     draft.effectsOnTrigger = ensureArray(draft.effectsOnTrigger).map(normalizeEffect);
+    draft.rawEffectsOnTrigger = rawEffectLines(draft.rawEffectsOnTrigger || draft.rawTriggerEffects || draft.advancedEffectsOnTrigger);
     draft.introParagraphs = normalizeTextList(draft.introParagraphs);
     draft.assetRefs = ensureArray(draft.assetRefs).map(normalizeAssetRef);
     draft.assetInstallRequests = ensureArray(draft.assetInstallRequests).map(normalizeAssetInstallRequest);
@@ -77,6 +79,17 @@
   function normalizeOption(option, index) {
     const value = isObject(option) ? option : {};
     const id = String(value.id || ('option_' + (index + 1))).trim();
+    const hasGotoAfter = Object.prototype.hasOwnProperty.call(value, 'gotoAfter') ||
+      Object.prototype.hasOwnProperty.call(value, 'afterResultTarget');
+    const fallbackGotoAfter = 'continue_' + id;
+    const explicitGotoAfter = hasGotoAfter ? String(
+      Object.prototype.hasOwnProperty.call(value, 'gotoAfter')
+        ? value.gotoAfter
+        : Object.prototype.hasOwnProperty.call(value, 'afterResultTarget')
+          ? value.afterResultTarget
+          : ''
+    ).trim() : '';
+    const resultMode = normalizeResultMode(value.resultMode || value.routeMode || value.continuationMode, hasGotoAfter ? explicitGotoAfter : fallbackGotoAfter);
     return {
       id,
       label: String(value.label || '').trim(),
@@ -84,11 +97,27 @@
       chooseIf: String(value.chooseIf || '').trim(),
       unavailableText: String(value.unavailableText || '').trim(),
       effects: ensureArray(value.effects).map(normalizeEffect),
+      rawEffects: rawEffectLines(value.rawEffects || value.rawOptionEffects || value.advancedEffects),
       narrativeParagraphs: normalizeTextList(value.narrativeParagraphs),
       variants: ensureArray(value.variants).map(normalizeVariant),
-      gotoAfter: String(value.gotoAfter || ('continue_' + id)).trim(),
-      returnTarget: String(value.returnTarget || value.afterResultTarget || 'root').trim()
+      resultMode,
+      gotoAfter: resultMode === 'continue' ? (explicitGotoAfter || fallbackGotoAfter) : explicitGotoAfter,
+      returnTarget: String(value.returnTarget || value.afterReturnTarget || (resultMode === 'continue' ? 'root' : '')).trim()
     };
+  }
+
+  function normalizeResultMode(value, gotoAfter) {
+    const text = String(value || '').trim();
+    if (RESULT_MODES.has(text)) {
+      return text;
+    }
+    if (text === 'direct' || text === 'inline' || text === 'section') {
+      return 'native';
+    }
+    if (text === 'continuation' || text === 'result_section') {
+      return 'continue';
+    }
+    return String(gotoAfter || '').trim() ? 'continue' : 'native';
   }
 
   function normalizeEffect(effect) {
@@ -101,6 +130,16 @@
       condition: String(value.condition || '').trim(),
       hook: String(value.hook || '').trim()
     };
+  }
+
+  function rawEffectLines(value) {
+    if (Array.isArray(value)) {
+      return value.reduce((rows, item) => rows.concat(rawEffectLines(item)), []);
+    }
+    return String(value || '')
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
   }
 
   function normalizeTags(value, shape) {
@@ -254,6 +293,9 @@
     if (draft.useSeenFlag && !ID_RE.test(draft.seenFlag)) {
       diag(diagnostics, 'error', 'event_draft.seen_flag', 'seenFlag must be a valid Q variable name.');
     }
+    if (draft.maxVisits !== null && (!Number.isInteger(draft.maxVisits) || draft.maxVisits < 1)) {
+      diag(diagnostics, 'error', 'event_draft.max_visits', 'max-visits must be a positive integer.');
+    }
     if (!draft.title) {
       diag(diagnostics, 'error', 'event_draft.title', 'Title is required.');
     }
@@ -288,9 +330,13 @@
       if (option.unavailableText && !option.chooseIf) {
         diag(diagnostics, 'warning', 'event_draft.unavailable_without_choose_if', 'unavailableText only matters when chooseIf is set: ' + option.id);
       }
-      checkGotoAfter(option.gotoAfter, diagnostics);
-      recordRenderedAnchor(renderedAnchors, option.gotoAfter, diagnostics);
-      checkRouteTarget(option.returnTarget, diagnostics, 'event_draft.return_target');
+      if (option.resultMode !== 'native') {
+        checkGotoAfter(option.gotoAfter, diagnostics);
+        recordRenderedAnchor(renderedAnchors, option.gotoAfter, diagnostics);
+      }
+      if (option.returnTarget) {
+        checkRouteTarget(option.returnTarget, diagnostics, 'event_draft.return_target');
+      }
       option.effects.forEach((effect) => validateEffect(effect, variables, draft.seenFlag, diagnostics));
       option.variants.forEach((variant) => {
         checkConditionText(variant.condition, diagnostics, 'event_draft.variant_condition', variables, draft.seenFlag);
@@ -301,7 +347,7 @@
     draft.effectsOnTrigger.forEach((effect) => validateEffect(effect, variables, draft.seenFlag, diagnostics));
     draft.introParagraphs.forEach((paragraph) => checkFakeInlineOption(paragraph, diagnostics));
     ensureArray(draft.sections).forEach((section) => validateSection(section, variables, draft.seenFlag, renderedAnchors, diagnostics));
-    validateResolvedRouteTargets(draft, renderedAnchors, diagnostics);
+    validateResolvedRouteTargets(draft, renderedAnchors, scenes, diagnostics);
 
     return {draft, diagnostics, ok: diagnostics.every((item) => item.severity !== 'error')};
   }
@@ -332,9 +378,13 @@
       if (option.unavailableText && !option.chooseIf) {
         diag(diagnostics, 'warning', 'event_draft.unavailable_without_choose_if', 'unavailableText only matters when chooseIf is set: ' + option.id);
       }
-      checkGotoAfter(option.gotoAfter, diagnostics);
-      recordRenderedAnchor(renderedAnchors, option.gotoAfter, diagnostics);
-      checkRouteTarget(option.returnTarget, diagnostics, 'event_draft.return_target');
+      if (option.resultMode !== 'native') {
+        checkGotoAfter(option.gotoAfter, diagnostics);
+        recordRenderedAnchor(renderedAnchors, option.gotoAfter, diagnostics);
+      }
+      if (option.returnTarget) {
+        checkRouteTarget(option.returnTarget, diagnostics, 'event_draft.return_target');
+      }
       option.effects.forEach((effect) => validateEffect(effect, variables, '', diagnostics));
       option.variants.forEach((variant) => {
         checkConditionText(variant.condition, diagnostics, 'event_draft.variant_condition', variables, seenFlag);
@@ -448,15 +498,19 @@
     }
   }
 
-  function validateResolvedRouteTargets(draft, renderedAnchors, diagnostics) {
+  function validateResolvedRouteTargets(draft, renderedAnchors, scenes, diagnostics) {
     const targets = [];
     ensureArray(draft.options).forEach((option) => {
-      targets.push({target: option.returnTarget, owner: 'option ' + option.id});
+      if (option.returnTarget) {
+        targets.push({target: option.returnTarget, owner: 'option ' + option.id});
+      }
     });
     ensureArray(draft.sections).forEach((section) => {
       targets.push({target: section.exitTarget, owner: 'section ' + section.id});
       ensureArray(section.options).forEach((option) => {
-        targets.push({target: option.returnTarget, owner: 'section option ' + option.id});
+        if (option.returnTarget) {
+          targets.push({target: option.returnTarget, owner: 'section option ' + option.id});
+        }
       });
     });
     targets.forEach((item) => {
@@ -464,7 +518,7 @@
       if (!target || target === 'root' || !ID_RE.test(target)) {
         return;
       }
-      if (!renderedAnchors.has(target)) {
+      if (!renderedAnchors.has(target) && !(scenes && scenes.has(target))) {
         diag(diagnostics, 'error', 'event_draft.missing_route_target', 'Route target "' + target + '" from ' + item.owner + ' does not resolve to this event.');
       }
     });
@@ -530,12 +584,13 @@
     if (draft.maxVisits !== null || draft.useSeenFlag) {
       lines.push('max-visits: ' + (draft.maxVisits !== null ? draft.maxVisits : 1));
     }
-    if (draft.useSeenFlag || draft.effectsOnTrigger.length) {
+    if (draft.useSeenFlag || draft.effectsOnTrigger.length || draft.rawEffectsOnTrigger.length) {
       lines.push('on-arrival: {!');
       if (draft.useSeenFlag) {
         lines.push('Q.' + draft.seenFlag + ' = 1;');
       }
       draft.effectsOnTrigger.forEach((effect) => lines.push(renderEffect(effect)));
+      draft.rawEffectsOnTrigger.forEach((line) => lines.push(renderRawEffect(line)));
       lines.push('!}');
     }
     lines.push('');
@@ -592,7 +647,11 @@
   }
 
   function appendOption(lines, option, continueLabel) {
+    const nativeResult = option.resultMode === 'native';
     lines.push('@' + option.id);
+    if (option.label) {
+      lines.push('title: ' + option.label);
+    }
     if (option.subtitle) {
       lines.push('subtitle: ' + option.subtitle);
     }
@@ -602,15 +661,28 @@
     if (option.unavailableText) {
       lines.push('unavailable-subtitle: ' + option.unavailableText);
     }
-    lines.push('on-arrival: {!');
-    option.effects.forEach((effect) => lines.push(renderEffect(effect)));
-    lines.push('!}');
+    if (option.effects.length || option.rawEffects.length) {
+      lines.push('on-arrival: {!');
+      option.effects.forEach((effect) => lines.push(renderEffect(effect)));
+      option.rawEffects.forEach((line) => lines.push(renderRawEffect(line)));
+      lines.push('!}');
+    }
     lines.push('');
+    if (!nativeResult && option.label) {
+      lines.push('= ' + option.label);
+      lines.push('');
+    }
     appendParagraphs(lines, option.narrativeParagraphs);
     option.variants.forEach((variant) => {
       lines.push('[? if ' + variant.condition + ' : ' + variant.text + ' ?]');
       lines.push('');
     });
+    if (nativeResult) {
+      if (option.returnTarget) {
+        lines.push('go-to: ' + option.returnTarget);
+      }
+      return;
+    }
     lines.push('- @' + option.gotoAfter + ': ' + continueLabel);
     lines.push('');
     lines.push('@' + option.gotoAfter);
@@ -621,19 +693,22 @@
     lines.push('');
     lines.push('@' + section.id);
     if (section.title) {
+      lines.push('title: ' + section.title);
+    }
+    if (section.condition) {
+      lines.push('view-if: ' + section.condition);
+    }
+    if (section.effects.length) {
+      lines.push('on-arrival: {!');
+      section.effects.forEach((effect) => lines.push(renderEffect(effect)));
+      lines.push('!}');
+    }
+    lines.push('');
+    if (section.title) {
       lines.push('= ' + section.title);
       lines.push('');
     }
-    lines.push('on-arrival: {!');
-    section.effects.forEach((effect) => lines.push(renderEffect(effect)));
-    lines.push('!}');
-    lines.push('');
-    if (section.condition) {
-      lines.push('[? if ' + section.condition + ' : ' + section.paragraphs.join('\n\n') + ' ?]');
-      lines.push('');
-    } else {
-      appendParagraphs(lines, section.paragraphs);
-    }
+    appendParagraphs(lines, section.paragraphs);
     section.options.forEach((option) => {
       lines.push('- @' + option.id + ': ' + option.label);
     });
@@ -660,6 +735,10 @@
 
   function renderEffect(effect) {
     return 'Q.' + effect.variable + ' ' + effect.op + ' ' + renderEffectValue(effect.value) + (effect.condition ? ' if ' + effect.condition : '') + ';';
+  }
+
+  function renderRawEffect(line) {
+    return String(line || '').trim();
   }
 
   function renderEffectValue(value) {
@@ -773,7 +852,13 @@
 
   function installAnchorsForProject(projectIndex) {
     const profiles = projectProfileIds(projectIndex);
-    if (profiles.has('sdaah-style')) {
+    if (projectHasAnchorPreview(projectIndex, '// ====== U. EVENT SEEN FLAGS ======')) {
+      return {
+        rootAnchorText: '// ====== U. EVENT SEEN FLAGS ======',
+        migrationAnchorText: '// Save compatibility: post_event split (post_event_news)'
+      };
+    }
+    if (projectHasAnchorPreview(projectIndex, 'Q.started = 1;') || hasStrongSdaahProfile(projectIndex, profiles)) {
       return {
         rootAnchorText: 'Q.started = 1;',
         migrationAnchorText: 'Q.last_advisor_action = 0;'
@@ -785,25 +870,54 @@
     };
   }
 
+  function projectHasAnchorPreview(projectIndex, anchorText) {
+    const needle = String(anchorText || '').trim();
+    if (!needle) {
+      return false;
+    }
+    return ensureArray(projectIndex && projectIndex.scenes).some((scene) => {
+      return ensureArray(scene && scene.opaqueJsBlocks).some((block) => {
+        return String(block && block.rawPreview || '').includes(needle);
+      });
+    });
+  }
+
+  function hasStrongSdaahProfile(projectIndex, profiles) {
+    if (profiles.has('islands-sunrise')) {
+      return true;
+    }
+    const detectionProfiles = ensureArray(projectIndex && projectIndex.project && projectIndex.project.detection && projectIndex.project.detection.profiles)
+      .concat(ensureArray(projectIndex && projectIndex.profiles));
+    const sdaah = detectionProfiles.find((profile) => String(profile && profile.id || '') === 'sdaah-style');
+    if (!sdaah) {
+      return profiles.has('sdaah-style');
+    }
+    const confidence = Number(sdaah.confidence || 0);
+    const evidence = ensureArray(sdaah.evidence).map(String);
+    const hasSpecificFileEvidence = evidence.some((item) => {
+      return /election_algorithm|political_terrain|STATE_MAP|collective_graph|founding_deliberation_path_manifest/.test(item);
+    });
+    return confidence >= 0.5 || hasSpecificFileEvidence;
+  }
+
   function routerInstallHint(draft, projectIndex, anchors) {
     const profiles = projectProfileIds(projectIndex);
     const known = profiles.has('generic-dendry') || profiles.has('sdaah-style');
     if (!known) {
       return null;
     }
-    const anchorText = routerAnchorText(projectIndex, anchors);
-    if (!anchorText) {
+    const anchor = routerAnchor(projectIndex, anchors);
+    if (!anchor.anchorText) {
       return null;
     }
     return {
       path: 'source/scenes/post_event.scene.dry',
-      anchorText,
-      position: 'after',
+      anchorText: anchor.anchorText,
+      position: anchor.position,
       dedupeSearch: '- #event',
       safety: 'advanced_apply',
       content: [
         '',
-        '// EventDraft router registration: monthly event tag lane',
         '- #event: Monthly event popups',
         ''
       ].join('\n'),
@@ -811,19 +925,28 @@
     };
   }
 
-  function routerAnchorText(projectIndex, anchors) {
+  function routerAnchor(projectIndex, anchors) {
     const parserEvidence = projectIndex && projectIndex.semantic && projectIndex.semantic.parserEvidence || {};
     const table = ensureArray(parserEvidence.monthlyPopupRouterTable);
     const first = table.find((row) => row && row.router && row.router.source && row.router.source.anchorText);
     if (first) {
-      return first.router.source.anchorText;
+      return {anchorText: first.router.source.anchorText, position: 'after'};
     }
     const scenes = ensureArray(projectIndex && projectIndex.scenes);
     const postEvent = scenes.find((scene) => String(scene && scene.path || '').replace(/\\/g, '/') === 'source/scenes/post_event.scene.dry');
-    if (postEvent && postEvent.title) {
-      return '= ' + String(postEvent.title).trim();
+    if (postEvent) {
+      const rootChoice = ensureArray(postEvent.options || postEvent.choices).find((option) => {
+        const source = option && option.sourceSpan || option && option.source || {};
+        const anchorText = String(source.anchorText || source.endAnchorText || '').trim();
+        return /^-\s*@root\b/.test(anchorText);
+      });
+      const source = rootChoice && (rootChoice.sourceSpan || rootChoice.source || {});
+      const anchorText = String(source && (source.anchorText || source.endAnchorText) || '').trim();
+      if (anchorText) {
+        return {anchorText, position: 'before'};
+      }
     }
-    return '';
+    return {anchorText: '', position: 'after'};
   }
 
   function projectProfileIds(projectIndex) {

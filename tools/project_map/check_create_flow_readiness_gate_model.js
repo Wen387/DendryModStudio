@@ -46,7 +46,21 @@ const readyProfile = {
   schemaVersion: '0.1',
   project: {name: 'Readiness Fixture', root: '/tmp/readiness-fixture', profileIds: ['generic-dendry']},
   profiles: [{id: 'generic-dendry'}],
-  scenes: [{id: 'post_event', title: 'Post Event', path: 'source/scenes/post_event.scene.dry'}],
+  scenes: [{
+    id: 'post_event',
+    title: 'Post Event',
+    path: 'source/scenes/post_event.scene.dry',
+    options: [{
+      target: {id: 'root'},
+      title: 'Continue',
+      sourceSpan: {
+        path: 'source/scenes/post_event.scene.dry',
+        line: 28,
+        anchorText: '- @root: Continue',
+        endAnchorText: '- @root: Continue'
+      }
+    }]
+  }],
   variables: []
 };
 const readyDraft = {

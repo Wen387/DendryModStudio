@@ -180,15 +180,11 @@
   }
 
   function handleEvidenceMessage(state, data, deps) {
-    if (!state || !data || data.kind !== 'dms-runtime-lens-session-evidence') {
+    if (!state || !isRuntimeLensSessionEvidenceMessage(data, state.runtimeLensSession)) {
       return false;
     }
     const session = state.runtimeLensSession;
     if (!session) {
-      return false;
-    }
-    const sessionId = String(session.sessionId || '');
-    if (sessionId && String(data.sessionId || '') !== sessionId) {
       return false;
     }
     if (data.runtimeSnapshot) {
@@ -381,6 +377,33 @@
         confidence: 'exact'
       }]
     };
+  }
+
+  function previewMessageBus() {
+    if (global && global.ProjectMapPreviewMessageBus) {
+      return global.ProjectMapPreviewMessageBus;
+    }
+    if (typeof module !== 'undefined' && module.exports && typeof require === 'function') {
+      try {
+        return require('../authoring/preview_message_bus.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function isRuntimeLensSessionEvidenceMessage(message, activeSession) {
+    const bus = previewMessageBus();
+    if (bus && typeof bus.isRuntimeLensSessionEvidenceMessage === 'function') {
+      return bus.isRuntimeLensSessionEvidenceMessage(message, activeSession);
+    }
+    if (!message || message.kind !== 'dms-runtime-lens-session-evidence') {
+      return false;
+    }
+    const activeSessionId = activeSession && activeSession.sessionId;
+    const messageSessionId = message && message.sessionId;
+    return !(activeSessionId && messageSessionId && String(messageSessionId) !== String(activeSessionId));
   }
 
   function runtimeLensUi() {

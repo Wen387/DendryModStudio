@@ -47,12 +47,23 @@ const ELECTION_RESULTS_SURFACE = path.join(ROOT, 'viewer', 'election_results_sur
 const OBJECT_CANVAS_VIEWPORT = path.join(ROOT, 'viewer', 'object_canvas_viewport.js');
 const OBJECT_CANVAS_GRAPH_STAGE = path.join(ROOT, 'viewer', 'object_canvas_graph_stage.js');
 const OBJECT_CANVAS_SHELL_UI = path.join(ROOT, 'viewer', 'object_canvas_shell_ui.js');
+const OBJECT_CANVAS_SURFACE_ADAPTER = path.join(ROOT, 'viewer', 'object_canvas_surface_adapter.js');
+const OBJECT_CANVAS_MODEL_BUILDER = path.join(ROOT, 'viewer', 'object_canvas_model_builder.js');
+const OBJECT_CANVAS_PROJECT_STATE_WORKSPACE = path.join(ROOT, 'viewer', 'object_canvas_project_state_workspace.js');
+const OBJECT_CANVAS_STORYBOARD_DRAFTS = path.join(ROOT, 'viewer', 'object_canvas_storyboard_drafts.js');
+const OBJECT_CANVAS_PREVIEW_EDITOR_SYNC = path.join(ROOT, 'viewer', 'object_canvas_preview_editor_sync.js');
 const VISIBLE_EDIT_ACTION_UI = path.join(ROOT, 'viewer', 'visible_edit_action_ui.js');
+const PREVIEW_OBJECT_STRUCTURE_UI = path.join(ROOT, 'viewer', 'preview_object_structure_ui.js');
 const SOURCE_SLICE_WORKSPACE_UI = path.join(ROOT, 'viewer', 'source_slice_workspace_ui.js');
 const AUTHORING_WORKSPACE_UI = path.join(ROOT, 'viewer', 'authoring_workspace_ui.js');
 const EDITING_CONTEXT_MODEL = path.join(ROOT, 'authoring', 'editing_context_model.js');
 const OWNERSHIP_MATCHING_MODEL = path.join(ROOT, 'authoring', 'ownership_matching_model.js');
 const EXISTING_SCENE_LOGIC_FIELDS = path.join(ROOT, 'authoring', 'existing_scene_logic_fields.js');
+const EXISTING_SCENE_CONDITION_DIAGNOSTICS = path.join(ROOT, 'authoring', 'existing_scene_condition_diagnostics.js');
+const EXISTING_SCENE_ASSET_HELPERS = path.join(ROOT, 'authoring', 'existing_scene_asset_helpers.js');
+const EXISTING_SCENE_TEXT_BLOCK_HELPERS = path.join(ROOT, 'authoring', 'existing_scene_text_block_helpers.js');
+const EXISTING_SCENE_TEXT_BLOCK_BUILDER = path.join(ROOT, 'authoring', 'existing_scene_text_block_builder.js');
+const EXISTING_SCENE_EDIT_MODEL = path.join(ROOT, 'authoring', 'existing_scene_edit_model.js');
 const VISIBLE_OBJECT_COVERAGE_MODEL = path.join(ROOT, 'authoring', 'visible_object_coverage_model.js');
 const SOURCE_SLICE_EDITOR_MODEL = path.join(ROOT, 'authoring', 'source_slice_editor_model.js');
 const EVENT_STRUCTURE_MODEL = path.join(ROOT, 'authoring', 'event_structure_model.js');
@@ -93,6 +104,14 @@ function assert(condition, message) {
   if (!condition) {
     fail(message);
   }
+}
+
+function assertHtmlOrder(before, after, message) {
+  const beforeIndex = html.indexOf(before);
+  const afterIndex = html.indexOf(after);
+  assert(beforeIndex >= 0, 'viewer should load ' + before);
+  assert(afterIndex >= 0, 'viewer should load ' + after);
+  assert(beforeIndex < afterIndex, message);
 }
 
 function mediaBlock(source, marker) {
@@ -156,6 +175,11 @@ const electionResultsSurface = fs.readFileSync(ELECTION_RESULTS_SURFACE, 'utf8')
 const objectCanvasViewport = fs.readFileSync(OBJECT_CANVAS_VIEWPORT, 'utf8');
 const objectCanvasGraphStage = fs.readFileSync(OBJECT_CANVAS_GRAPH_STAGE, 'utf8');
 const objectCanvasShellUi = fs.readFileSync(OBJECT_CANVAS_SHELL_UI, 'utf8');
+const objectCanvasSurfaceAdapter = fs.readFileSync(OBJECT_CANVAS_SURFACE_ADAPTER, 'utf8');
+const objectCanvasModelBuilder = fs.readFileSync(OBJECT_CANVAS_MODEL_BUILDER, 'utf8');
+const objectCanvasProjectStateWorkspace = fs.readFileSync(OBJECT_CANVAS_PROJECT_STATE_WORKSPACE, 'utf8');
+const objectCanvasStoryboardDrafts = fs.readFileSync(OBJECT_CANVAS_STORYBOARD_DRAFTS, 'utf8');
+const objectCanvasPreviewEditorSync = fs.readFileSync(OBJECT_CANVAS_PREVIEW_EDITOR_SYNC, 'utf8');
 const visibleEditActionUi = fs.readFileSync(VISIBLE_EDIT_ACTION_UI, 'utf8');
 const sourceSliceWorkspaceUi = fs.readFileSync(SOURCE_SLICE_WORKSPACE_UI, 'utf8');
 const authoringWorkspaceUi = fs.readFileSync(AUTHORING_WORKSPACE_UI, 'utf8');
@@ -188,12 +212,18 @@ const variableEditorDraft = fs.readFileSync(VARIABLE_EDITOR_DRAFT, 'utf8');
 const editingContextModel = fs.readFileSync(EDITING_CONTEXT_MODEL, 'utf8');
 const ownershipMatchingModel = fs.readFileSync(OWNERSHIP_MATCHING_MODEL, 'utf8');
 const existingSceneLogicFields = fs.readFileSync(EXISTING_SCENE_LOGIC_FIELDS, 'utf8');
+const existingSceneConditionDiagnostics = fs.readFileSync(EXISTING_SCENE_CONDITION_DIAGNOSTICS, 'utf8');
+const existingSceneAssetHelpers = fs.readFileSync(EXISTING_SCENE_ASSET_HELPERS, 'utf8');
+const existingSceneTextBlockHelpers = fs.readFileSync(EXISTING_SCENE_TEXT_BLOCK_HELPERS, 'utf8');
+const existingSceneTextBlockBuilder = fs.readFileSync(EXISTING_SCENE_TEXT_BLOCK_BUILDER, 'utf8');
+const existingSceneEditModel = fs.readFileSync(EXISTING_SCENE_EDIT_MODEL, 'utf8');
 const visibleObjectCoverageModel = fs.readFileSync(VISIBLE_OBJECT_COVERAGE_MODEL, 'utf8');
 const sourceSliceEditorModel = fs.readFileSync(SOURCE_SLICE_EDITOR_MODEL, 'utf8');
 const eventStructureModel = fs.readFileSync(EVENT_STRUCTURE_MODEL, 'utf8');
 const objectCanvasContentBodies = fs.readFileSync(OBJECT_CANVAS_CONTENT_BODIES, 'utf8');
 const objectCanvasContentAdapters = fs.readFileSync(OBJECT_CANVAS_CONTENT_ADAPTERS, 'utf8');
 const objectAuthoringCanvasModel = fs.readFileSync(OBJECT_AUTHORING_CANVAS_MODEL, 'utf8');
+const previewObjectStructureUi = fs.readFileSync(PREVIEW_OBJECT_STRUCTURE_UI, 'utf8');
 
 assert(html.includes('data-studio-surface="direction-b"'), 'viewer should mark Direction B Studio as the active surface');
 assert(html.includes('brand-mark branch-mark'), 'viewer should expose a Branch brand mark');
@@ -214,13 +244,48 @@ assert(html.includes('../authoring/ownership_matching_model.js'), 'viewer should
 assert(ownershipMatchingModel.includes('ownerMatchesOption'), 'ownership matching helper should expose owner-to-option matching');
 assert(ownershipMatchingModel.includes('ownerMatchesSection'), 'ownership matching helper should expose owner-to-section matching');
 assert(html.includes('../authoring/existing_scene_logic_fields.js'), 'viewer should load Existing Scene logic field helpers');
+assert(html.includes('../authoring/existing_scene_edit_metadata_fields.js'), 'viewer should load Existing Scene Edit metadata field helpers');
+assert(html.includes('../authoring/existing_scene_condition_diagnostics.js'), 'viewer should load Existing Scene condition diagnostics helpers');
+assert(html.includes('../authoring/existing_scene_asset_helpers.js'), 'viewer should load Existing Scene asset helpers');
+assert(html.includes('../authoring/existing_scene_text_block_helpers.js'), 'viewer should load Existing Scene text block helpers');
+assert(html.includes('../authoring/existing_scene_text_block_builder.js'), 'viewer should load Existing Scene text block builder');
 assert(html.includes('../authoring/existing_scene_edit_model.js'), 'viewer should load Existing Scene Edit model');
+assertHtmlOrder(
+  '../authoring/existing_scene_edit_metadata_fields.js',
+  '../authoring/existing_scene_edit_model.js',
+  'viewer should load Existing Scene Edit metadata field helpers before the edit model'
+);
+assertHtmlOrder(
+  '../authoring/existing_scene_condition_diagnostics.js',
+  '../authoring/existing_scene_edit_model.js',
+  'viewer should load Existing Scene condition diagnostics helpers before the edit model'
+);
+assertHtmlOrder(
+  '../authoring/existing_scene_asset_helpers.js',
+  '../authoring/existing_scene_edit_model.js',
+  'viewer should load Existing Scene asset helpers before the edit model'
+);
+assertHtmlOrder(
+  '../authoring/existing_scene_text_block_helpers.js',
+  '../authoring/existing_scene_text_block_builder.js',
+  'viewer should load Existing Scene text block helpers before the text block builder'
+);
+assertHtmlOrder(
+  '../authoring/existing_scene_text_block_builder.js',
+  '../authoring/existing_scene_edit_model.js',
+  'viewer should load Existing Scene text block builder before the edit model'
+);
 assert(html.includes('../authoring/edit_capability_model.js'), 'viewer should load Parser-aware Edit Capability model');
 assert(html.includes('../authoring/visible_object_coverage_model.js'), 'viewer should load Visible Object Coverage model');
 assert(html.includes('../authoring/source_slice_editor_model.js'), 'viewer should load Source Slice Editor model');
 assert(html.includes('../authoring/parser_renderer_confidence_model.js'), 'viewer should load Parser / Renderer Confidence model');
 assert(html.includes('../authoring/editing_context_model.js'), 'viewer should load Contextual Editing model');
 assert(html.includes('../authoring/event_structure_model.js'), 'viewer should load shared Event Structure model before Object Canvas content bodies');
+assertHtmlOrder(
+  '../authoring/event_structure_effect_source_helpers.js',
+  '../authoring/event_structure_model.js',
+  'viewer should load Event Structure effect source helpers before Event Structure model'
+);
 assert(html.includes('../authoring/object_canvas_content_bodies.js'), 'viewer should load Object Canvas content body builders');
 assert(html.includes('../authoring/object_canvas_content_adapters.js'), 'viewer should load Object Canvas content adapters');
 assert(html.includes('../authoring/object_authoring_canvas_model.js'), 'viewer should load Object Authoring Canvas model');
@@ -272,10 +337,38 @@ assert(html.includes('election_results_surface.js'), 'viewer should load the Ele
 assert(html.includes('object_canvas_viewport.js'), 'viewer should load Object Canvas viewport controls');
 assert(html.includes('object_canvas_graph_stage.js'), 'viewer should load extracted Object Canvas graph stage');
 assert(html.includes('object_canvas_shell_ui.js'), 'viewer should load extracted Object Canvas shell UI');
+assert(html.includes('object_canvas_surface_adapter.js'), 'viewer should load extracted Object Canvas surface adapter');
+assert(html.includes('object_canvas_model_builder.js'), 'viewer should load extracted Object Canvas model builder');
+assert(html.includes('object_canvas_project_state_workspace.js'), 'viewer should load extracted Object Canvas Project State workspace helper');
+assert(html.includes('object_canvas_storyboard_drafts.js'), 'viewer should load extracted Object Canvas Storyboard drafts helper');
+assert(html.includes('object_canvas_preview_editor_sync.js'), 'viewer should load extracted Object Canvas Preview editor sync helper');
 assert(html.includes('visible_edit_action_ui.js'), 'viewer should load shared visible edit action UI');
+assert(html.includes('preview_object_structure_ui.js'), 'viewer should load extracted Preview Object structure UI helper');
+assertHtmlOrder(
+  'preview_object_structure_draft.js',
+  'preview_object_structure_ui.js',
+  'viewer should load Preview Object structure draft before structure UI'
+);
+assertHtmlOrder(
+  'preview_object_structure_ui.js',
+  'preview_object_event_builder_ui.js',
+  'viewer should load Preview Object structure UI before Complex Event Builder UI'
+);
+assertHtmlOrder(
+  'preview_object_event_builder_ui.js',
+  'preview_object_editor.js',
+  'viewer should load Complex Event Builder UI before Preview Object Editor'
+);
+assert(previewObjectStructureUi.includes('ProjectMapPreviewObjectStructureUi'), 'Preview Object structure UI helper should expose a browser API');
+assert(previewObjectStructureUi.includes('create(deps)'), 'Preview Object structure UI helper should expose a dependency-injected factory');
 assert(html.includes('source_slice_workspace_ui.js'), 'viewer should load extracted Source Slice workspace UI');
 assert(html.includes('authoring_workspace_ui.js'), 'viewer should load Authoring Workspace navigation UI');
 assert(html.includes('object_authoring_canvas_ui.js'), 'viewer should load Object Authoring Canvas UI');
+assertHtmlOrder(
+  'object_canvas_storyboard_drafts.js',
+  'object_authoring_canvas_ui.js',
+  'viewer should load Object Canvas Storyboard drafts before Object Authoring Canvas UI'
+);
 assert(authoringSurfaceRegistry.includes('ProjectMapAuthoringSurfaceRegistry'), 'Authoring Surface registry should expose a browser API');
 assert(authoringSurfaceRegistry.includes('content_storyboard'), 'Authoring Surface registry should define Content Storyboard');
 assert(authoringSurfaceRegistry.includes('card_board'), 'Authoring Surface registry should define Card Board');
@@ -284,6 +377,11 @@ assert(authoringSurfaceRegistry.includes('election_results_board'), 'Authoring S
 assert(authoringSurfaceRegistry.includes('project_state_board'), 'Authoring Surface registry should define Project State Board');
 assert(authoringSurfaceGraphs.includes('ProjectMapAuthoringSurfaceGraphs'), 'Authoring Surface graph builders should expose a browser API');
 assert(authoringReferenceIndex.includes('ProjectMapAuthoringReferenceIndex'), 'Authoring Reference Index should expose a browser API');
+assert(objectCanvasSurfaceAdapter.includes('ProjectMapObjectCanvasSurfaceAdapter'), 'Object Canvas surface adapter should expose a browser API');
+assert(objectCanvasModelBuilder.includes('ProjectMapObjectCanvasModelBuilder'), 'Object Canvas model builder should expose a browser API');
+assert(objectCanvasProjectStateWorkspace.includes('ProjectMapObjectCanvasProjectStateWorkspace'), 'Object Canvas Project State workspace helper should expose a browser API');
+assert(objectCanvasStoryboardDrafts.includes('ProjectMapObjectCanvasStoryboardDrafts'), 'Object Canvas Storyboard drafts helper should expose a browser API');
+assert(objectCanvasPreviewEditorSync.includes('ProjectMapObjectCanvasPreviewEditorSync'), 'Object Canvas Preview editor sync helper should expose a browser API');
 assert(contentStoryboardModel.includes('ProjectMapContentStoryboardModel'), 'Content Storyboard model should expose a browser API');
 assert(contentStoryboardModel.includes('buildStoryboard'), 'Content Storyboard model should build storyboard state');
 assert(cardBoardModel.includes('ProjectMapCardBoardModel'), 'Card Board model should expose a browser API');
@@ -374,6 +472,26 @@ assert(authoringWorkspaceUi.includes("project_state: 'variables'"), 'Authoring W
 assert(editingContextModel.includes('buildContextModel'), 'Contextual Editing model should expose buildContextModel');
 assert(existingSceneLogicFields.includes('ProjectMapExistingSceneLogicFields'), 'Existing Scene logic helpers should expose a browser API');
 assert(existingSceneLogicFields.includes('changeForLogicField'), 'Existing Scene logic helpers should own structured route/effect changes');
+assert(existingSceneConditionDiagnostics.includes('ProjectMapExistingSceneConditionDiagnostics'), 'Existing Scene condition diagnostics helper should expose a browser API');
+assert(existingSceneAssetHelpers.includes('ProjectMapExistingSceneAssetHelpers'), 'Existing Scene asset helpers should expose a browser API');
+assert(existingSceneAssetHelpers.includes('function create(deps)'), 'Existing Scene asset helpers should expose a dependency factory');
+assert(existingSceneTextBlockHelpers.includes('ProjectMapExistingSceneTextBlockHelpers'), 'Existing Scene text block helpers should expose a browser API');
+assert(existingSceneTextBlockHelpers.includes('function create(deps)'), 'Existing Scene text block helpers should expose a dependency factory');
+assert(existingSceneTextBlockBuilder.includes('ProjectMapExistingSceneTextBlockBuilder'), 'Existing Scene text block builder should expose a browser API');
+assert(existingSceneTextBlockBuilder.includes('function create(deps)'), 'Existing Scene text block builder should expose a dependency factory');
+assert(existingSceneEditModel.includes('conditionDiagnosticsApi'), 'Existing Scene Edit model should load condition diagnostics through a thin wrapper');
+assert(existingSceneEditModel.includes("require('./existing_scene_condition_diagnostics.js')"), 'Existing Scene Edit model should require condition diagnostics in Node');
+assert(existingSceneEditModel.includes('assetHelpersApi'), 'Existing Scene Edit model should load asset helpers through a thin wrapper');
+assert(existingSceneEditModel.includes("require('./existing_scene_asset_helpers.js')"), 'Existing Scene Edit model should require asset helpers in Node');
+assert(existingSceneEditModel.includes('ProjectMapExistingSceneAssetHelpers'), 'Existing Scene Edit model should bridge asset helpers in the browser');
+assert(existingSceneEditModel.includes('textBlockHelpersApi'), 'Existing Scene Edit model should load text block helpers through a thin wrapper');
+assert(existingSceneEditModel.includes("require('./existing_scene_text_block_helpers.js')"), 'Existing Scene Edit model should require text block helpers in Node');
+assert(existingSceneEditModel.includes('ProjectMapExistingSceneTextBlockHelpers'), 'Existing Scene Edit model should bridge text block helpers in the browser');
+assert(existingSceneEditModel.includes('textBlockBuilderApi'), 'Existing Scene Edit model should load text block builder through a thin wrapper');
+assert(existingSceneEditModel.includes("require('./existing_scene_text_block_builder.js')"), 'Existing Scene Edit model should require text block builder in Node');
+assert(existingSceneEditModel.includes('ProjectMapExistingSceneTextBlockBuilder'), 'Existing Scene Edit model should bridge text block builder in the browser');
+assert(existingSceneEditModel.includes('existingSceneTextBlockBuilder().textBlocksForScene'), 'Existing Scene Edit model should use the text block builder bridge for section text blocks');
+assert(!existingSceneEditModel.includes("['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg']"), 'Existing Scene Edit model should not re-own asset extension classification');
 assert(objectAuthoringCanvasUi.includes('ProjectMapObjectAuthoringCanvas'), 'Object Authoring Canvas should expose a browser API');
 assert(objectAuthoringCanvasUi.includes('openTemplate'), 'Object Authoring Canvas should route template authoring through Canvas');
 assert(objectAuthoringCanvasUi.includes('ProjectMapEditingWorkspace = api'), 'Object Authoring Canvas should bridge the existing editing API');
@@ -423,14 +541,18 @@ assert(authoringWorkspaceUi.includes("key: 'card'"), 'Create template switch sho
 assert(!authoringWorkspaceUi.includes("{key: 'surface'"), 'Create template switch should demote Surface Text from primary Content tabs');
 assert(authoringSurfaceRegistry.includes("key: 'surface'") && authoringSurfaceRegistry.includes('hidden: true'), 'Surface Text should remain registered as a hidden Text Patch template');
 assert(changeTrayUi.includes("openTemplate('surface'"), 'Change Tray should keep Text Patch reachable as a tool entry');
-assert(authoringWorkspaceUi.includes('SYSTEM_UI_SCREEN_ITEM'), 'Create template switch should collapse System UI to one visible screen entry');
-assert(authoringWorkspaceUi.includes('ELECTION_RESULTS_ITEM'), 'Create template switch should expose Election Results as its own System UI authoring subcategory');
-assert(authoringWorkspaceUi.includes("key: 'entry'"), 'System UI screen entry should open the default Entry draft internally');
-assert(authoringWorkspaceUi.includes('return [SYSTEM_UI_SCREEN_ITEM, ELECTION_RESULTS_ITEM]'), 'System UI workspace should show the unified screen entry plus Election Results, not four parallel low-level templates');
+assert(authoringWorkspaceUi.includes("key: 'entry'") && authoringWorkspaceUi.includes("labelKey: 'create.entrySidebar'"), 'Create template switch should expose Entry & Sidebar directly');
+assert(authoringWorkspaceUi.includes("key: 'play_surface'") && authoringWorkspaceUi.includes("labelKey: 'create.playSurface'"), 'Create template switch should expose Playable Surface directly');
+assert(authoringWorkspaceUi.includes("key: 'workspace_layout'") && authoringWorkspaceUi.includes("labelKey: 'create.workspaceLayout'"), 'Create template switch should expose Workspace Layout directly');
+assert(authoringWorkspaceUi.includes("key: 'sidebar_status'") && authoringWorkspaceUi.includes("labelKey: 'create.sidebarStatus'"), 'Create template switch should expose Sidebar / Status directly');
+assert(authoringWorkspaceUi.includes("key: 'election_results'"), 'Create template switch should expose Election Results as its own System UI authoring subcategory');
+assert(!authoringWorkspaceUi.includes('return [SYSTEM_UI_SCREEN_ITEM, ELECTION_RESULTS_ITEM]'), 'System UI workspace should keep direct tool entries instead of collapsing them behind one broad screen entry');
 assert(objectAuthoringCanvasUi.includes('systemUiTemplateForRegion'), 'Object Canvas should route preview-region clicks to internal System UI draft templates');
 assert(objectAuthoringCanvasUi.includes('renderElectionResultsStage'), 'Object Canvas should render Election Results through its dedicated surface');
 assert(objectAuthoringCanvasUi.includes("key === 'election_results_board'"), 'Election Results source selector refresh should re-render the dedicated board');
 assert(objectAuthoringCanvasUi.includes('openProjectStateVariableFromCanvas'), 'Object Canvas should route Canvas asset rail state selections into Project State');
+assert(!/function newVariableDraft\s*\([^)]*\)\s*\{[\s\S]{0,80}const core = global\.ProjectMapVariableEditorDraft/.test(objectAuthoringCanvasUi), 'Object Canvas should keep variable draft construction in the Project State workspace helper');
+assert(!/function deleteVariableDraft\s*\([^)]*\)\s*\{[\s\S]{0,80}const core = global\.ProjectMapVariableEditorDraft/.test(objectAuthoringCanvasUi), 'Object Canvas should keep variable delete draft construction in the Project State workspace helper');
 assert(authoringSurfaceRegistry.includes("key: 'project'") && authoringSurfaceRegistry.includes("surface: 'system_ui_preview'"), 'Game Info should author through the System UI Preview surface');
 assert(authoringSurfaceRegistry.includes("key: 'election_results'") && authoringSurfaceRegistry.includes("surface: 'election_results_board'"), 'Election Results should author through the dedicated Election Results surface');
 assert(systemUiRegionRouter.includes("screen_header: 'project'"), 'System UI header clicks should open the Game Info draft');

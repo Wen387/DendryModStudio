@@ -400,10 +400,11 @@
 
   function renderField(field) {
     const rows = String(field.original || '').length > 90 ? 4 : 2;
+    const status = [sourceLabel(field.source), field.editability, field.derivedAlias ? t('existingScene.derivedAlias', 'derived alias') : ''].filter(Boolean).join(' / ');
     return [
       '<label class="existing-scene-field">',
       '<span>' + escapeHtml(field.label || field.role || field.id) + '</span>',
-      '<small>' + escapeHtml(sourceLabel(field.source) + ' / ' + field.editability) + '</small>',
+      '<small>' + escapeHtml(status) + '</small>',
       '<textarea rows="' + rows + '" data-existing-field="' + escapeAttr(field.id) + '">' + escapeHtml(field.value || field.original || '') + '</textarea>',
       '</label>'
     ].join('');

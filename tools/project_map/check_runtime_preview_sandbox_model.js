@@ -6,6 +6,7 @@ const os = require('os');
 const path = require('path');
 
 const runtimePreview = require('./desktop/runtime_preview.js');
+const debugBridge = require('./desktop/runtime_preview_debug_bridge.js');
 
 function fail(message) {
   process.stderr.write('FAIL: ' + message + '\n');
@@ -42,10 +43,17 @@ assert(!runtimePreview.resolvePreviewSessionRoot('/tmp/dms-preview-root', '/api/
 
 const sourceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dms_runtime_preview_source_'));
 fs.mkdirSync(path.join(sourceRoot, 'source', 'scenes'), {recursive: true});
+fs.mkdirSync(path.join(sourceRoot, 'source', 'scenes', 'decks'), {recursive: true});
 fs.mkdirSync(path.join(sourceRoot, '.git'), {recursive: true});
 fs.mkdirSync(path.join(sourceRoot, 'node_modules'), {recursive: true});
 fs.writeFileSync(path.join(sourceRoot, 'source', 'info.dry'), 'title: Runtime Preview Fixture\n', 'utf8');
 fs.writeFileSync(path.join(sourceRoot, 'source', 'scenes', 'status.scene.dry'), 'Original label\n', 'utf8');
+fs.writeFileSync(path.join(sourceRoot, 'source', 'scenes', 'decks', 'demo_action_deck.scene.dry'), [
+  'title: Starter Deck',
+  'is-deck: true',
+  '',
+  '- #demo_action'
+].join('\n') + '\n', 'utf8');
 fs.writeFileSync(path.join(sourceRoot, '.git', 'config'), 'must not copy\n', 'utf8');
 fs.writeFileSync(path.join(sourceRoot, 'node_modules', 'large.js'), 'must not copy\n', 'utf8');
 fs.mkdirSync(path.join(sourceRoot, 'tools'), {recursive: true});
@@ -178,10 +186,14 @@ const debugProjectIndex = {
   ],
   scenes: [
     {id: 'root', title: 'Root', type: 'hand', path: 'source/scenes/root.scene.dry'},
-    {id: 'runtime_replace', title: 'Runtime Replace', type: 'event', tags: ['event'], path: 'source/scenes/status.scene.dry'}
+    {id: 'runtime_replace', title: 'Runtime Replace', type: 'event', tags: ['event'], path: 'source/scenes/status.scene.dry'},
+    {id: 'demo_action_deck', title: 'Starter Deck', type: 'deck', path: 'source/scenes/decks/demo_action_deck.scene.dry'}
   ],
   edges: [{from: 'root', to: 'runtime_replace', label: 'debug jump'}],
-  semantic: {events: [{id: 'runtime_replace', title: 'Runtime Replace'}]}
+  semantic: {
+    events: [{id: 'runtime_replace', title: 'Runtime Replace'}],
+    decks: [{id: 'demo_action_deck', title: 'Starter Deck', path: 'source/scenes/decks/demo_action_deck.scene.dry'}]
+  }
 };
 
 const quickSession = runtimePreview.createQuickRuntimePreview({
@@ -216,6 +228,129 @@ assert(applySession.installResult.results.some((item) => item.status === 'manual
 assert(fs.readFileSync(path.join(applySession.paths.modifiedRoot, 'source', 'scenes', 'status.scene.dry'), 'utf8').includes('Modified label'), 'modified sandbox should contain applied replacement');
 assert(fs.readFileSync(path.join(sourceRoot, 'source', 'scenes', 'status.scene.dry'), 'utf8') === 'Original label\n', 'real source project must remain unchanged after sandbox apply');
 assert(applySession.compareUrl.includes('127.0.0.1'), 'compareUrl should use localhost');
+
+const createScenePreview = runtimePreview.createRuntimePreview({
+  projectRoot: sourceRoot,
+  sessionsRoot: sessionRoot,
+  plan: Object.assign({}, replacePlan, {
+    id: 'runtime_created_scene_debug',
+    draftKind: 'world_event',
+    operations: [{
+      id: 'create_scene',
+      type: 'create_file',
+      path: 'source/scenes/events/runtime_created_scene.scene.dry',
+      content: [
+        'title: Runtime Created Scene',
+        'tags: event, demo',
+        'view-if: year = 1930 and demo_pressure >= 1 and dnvp_leader = "Hergt" and runtime_created_scene_seen = 0',
+        '',
+        '= Runtime Created Scene',
+        '',
+        'Preview me.',
+        '',
+        '- @press: Invite the press.',
+        '',
+        '@press',
+        'choose-if: demo_public_attention >= 1',
+        '',
+        'The press arrives.'
+      ].join('\n') + '\n',
+      safety: 'safe_apply',
+      description: 'Create a scene that only exists in the modified preview.'
+    }]
+  }),
+  projectIndex: debugProjectIndex,
+  dryRun: false,
+  buildRunner: runtimePreview.fakeBuildRunner({ok: true}),
+  serverFactory: runtimePreview.fakeServerFactory(48004),
+  now: () => new Date('2026-04-29T12:05:30.000Z')
+});
+assert(createScenePreview.ok, 'create-scene runtime preview should open: ' + JSON.stringify(createScenePreview));
+assert(createScenePreview.debug.controls.scenes.some((scene) => scene.id === 'runtime_created_scene' && scene.title === 'Runtime Created Scene'), 'debug controls should include scenes created by the install plan');
+const createdPreset = createScenePreview.debug.controls.focusPresets.find((preset) => preset.sceneId === 'runtime_created_scene');
+assert(createdPreset, 'debug controls should include a focused entry preset for install-plan-created scenes');
+assert(createdPreset.type === 'event', 'created world events should remain labelled as events even when Dendry uses is-card internally');
+assert(createdPreset.variables.some((item) => item.name === 'year' && item.value === 1930), 'focused entry preset should set the scheduled year');
+assert(createdPreset.variables.some((item) => item.name === 'demo_pressure' && item.value === 1), 'focused entry preset should set numeric condition gates');
+assert(createdPreset.variables.some((item) => item.name === 'dnvp_leader' && item.value === 'Hergt' && item.valueType === 'string'), 'focused entry preset should support string condition gates');
+assert(createdPreset.variables.some((item) => item.name === 'runtime_created_scene_seen' && item.value === 0 && item.valueType === 'booleanNumber'), 'focused entry preset should reset generated seen flags');
+assert(createScenePreview.debug.controls.variables.some((item) => item.name === 'demo_public_attention'), 'debug controls should include variables referenced only by created scene choice conditions');
+assert(fs.readFileSync(createScenePreview.comparePage.path, 'utf8').includes('data-debug-focus-preset="focus_runtime_created_scene"'), 'compare page should render focused entry buttons');
+assert(debugBridge.bridgeScript({controls: createScenePreview.debug.controls}).includes('applyFocusPreset'), 'preview bridge should expose an atomic focused-entry command');
+assert(debugBridge.bridgeScript({controls: createScenePreview.debug.controls}).includes('type==="string"'), 'preview bridge should accept string-valued condition presets');
+
+const createCardPreview = runtimePreview.createRuntimePreview({
+  projectRoot: sourceRoot,
+  sessionsRoot: sessionRoot,
+  plan: Object.assign({}, replacePlan, {
+    id: 'runtime_created_card_debug',
+    draftKind: 'card',
+    operations: [
+      {
+        id: 'create_scene',
+        type: 'create_file',
+        path: 'source/scenes/cards/runtime_created_card.scene.dry',
+        content: [
+          'title: Runtime Created Card',
+          'new-page: true',
+          'is-card: true',
+          'tags: runtime_card',
+          'view-if: demo_pressure >= 1',
+          '',
+          '= Runtime Created Card',
+          '',
+          'Preview me from the deck.',
+          '',
+          '- @advance: Advance',
+          '- @hold: Hold',
+          '',
+          '@advance',
+          'on-arrival: {!',
+          'Q.demo_public_attention += 1;',
+          '!}',
+          'go-to: main',
+          '',
+          'The card advances.',
+          '',
+          '@hold',
+          'go-to: main',
+          '',
+          'The card holds.'
+        ].join('\n') + '\n',
+        sceneKind: 'card',
+        safety: 'safe_apply',
+        description: 'Create a card that only exists in the modified preview.'
+      },
+      {
+        id: 'card_deck_tag_route',
+        type: 'insert_text',
+        path: 'source/scenes/decks/demo_action_deck.scene.dry',
+        line: 4,
+        anchorText: '- #demo_action',
+        position: 'after',
+        content: '- #runtime_card\n',
+        dedupeSearch: '- #runtime_card',
+        safety: 'guarded_apply',
+        kind: 'deck_tag_route',
+        description: 'Wire the generated card into the source-backed deck.'
+      }
+    ]
+  }),
+  projectIndex: debugProjectIndex,
+  dryRun: false,
+  buildRunner: runtimePreview.fakeBuildRunner({ok: true}),
+  serverFactory: runtimePreview.fakeServerFactory(48005),
+  now: () => new Date('2026-04-29T12:05:45.000Z')
+});
+assert(createCardPreview.ok, 'create-card runtime preview should open: ' + JSON.stringify(createCardPreview));
+const createdCardPreset = createCardPreview.debug.controls.focusPresets.find((preset) => preset.sceneId === 'runtime_created_card');
+assert(createdCardPreset && createdCardPreset.type === 'card', 'created cards should get a direct focused entry preset');
+assert(createdCardPreset.variables.some((item) => item.name === 'demo_pressure' && item.value === 1), 'card direct preset should set view-if gates');
+const cardDeckPreset = createCardPreview.debug.controls.focusPresets.find((preset) => preset.id === 'focus_runtime_created_card_via_demo_action_deck');
+assert(cardDeckPreset, 'created card previews should include the deck that received the card route');
+assert(cardDeckPreset.sceneId === 'demo_action_deck' && cardDeckPreset.type === 'deck', 'card lane preset should open the source-backed deck');
+assert(cardDeckPreset.variables.some((item) => item.name === 'demo_pressure' && item.value === 1), 'card lane preset should reuse the card view-if gates');
+assert(fs.readFileSync(createCardPreview.comparePage.path, 'utf8').includes('data-debug-focus-preset="focus_runtime_created_card_via_demo_action_deck"'), 'compare page should render deck focused-entry buttons for created cards');
 
 const modifiedOnlySession = runtimePreview.createModifiedRuntimePreview({
   projectRoot: sourceRoot,

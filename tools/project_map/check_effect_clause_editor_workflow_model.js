@@ -23,6 +23,7 @@ const guardedPath = 'source/scenes/events/effect_guarded.scene.dry';
 const protectedPath = 'source/scenes/post_event_news.scene.dry';
 const guardedLine = 'Q.public_order += 1';
 const sharedLine = 'Q.dynamic_pressure += 1; Q.public_order += 1;';
+const hookLine = 'on-arrival: public_order += 1; stability += 1';
 const index = {
   project: {name: 'Effect Clause Editor Fixture', root: '/tmp/effect-editor', profileIds: ['generic-dendry']},
   scenes: [{
@@ -54,6 +55,14 @@ const index = {
       displayExpression: 'Q.dynamic_pressure += 1',
       sourceExpression: 'Q.dynamic_pressure += 1',
       source: src(protectedPath, 130, sharedLine)
+    }, {
+      variable: 'public_order',
+      op: '+=',
+      value: '1',
+      expression: 'public_order += 1',
+      displayExpression: 'public_order += 1',
+      sourceExpression: 'public_order += 1',
+      source: src(protectedPath, 132, hookLine)
     }]
   }],
   variables: [],
@@ -67,7 +76,8 @@ const index = {
     textCorpus: {
       items: [
         {id: 'guarded_script', text: guardedLine, role: 'script', owner: {kind: 'scene', sceneId: 'effect_guarded', sectionId: 'start'}, source: src(guardedPath, 18, guardedLine)},
-        {id: 'advanced_script', text: sharedLine, role: 'script', owner: {kind: 'scene', sceneId: 'effect_advanced', sectionId: 'start'}, source: src(protectedPath, 130, sharedLine)}
+        {id: 'advanced_script', text: sharedLine, role: 'script', owner: {kind: 'scene', sceneId: 'effect_advanced', sectionId: 'start'}, source: src(protectedPath, 130, sharedLine)},
+        {id: 'hook_script', text: hookLine, role: 'script', owner: {kind: 'scene', sceneId: 'effect_advanced', sectionId: 'start'}, source: src(protectedPath, 132, hookLine)}
       ]
     },
     parserEvidence: {
@@ -86,7 +96,9 @@ const index = {
         }],
         effectClauses: [
           {id: 'effect_guarded_clause', sceneId: 'effect_guarded', ownerId: 'effect_guarded', variable: 'public_order', op: '+=', value: '1', sourceExpression: guardedLine, lineEffectCount: 1, tokenUniqueOnLine: true, source: src(guardedPath, 18, guardedLine)},
-          {id: 'effect_advanced_clause', sceneId: 'effect_advanced', ownerId: 'effect_advanced', variable: 'dynamic_pressure', op: '+=', value: '1', sourceExpression: 'Q.dynamic_pressure += 1', lineEffectCount: 2, tokenUniqueOnLine: true, source: src(protectedPath, 130, sharedLine)}
+          {id: 'effect_advanced_clause', sceneId: 'effect_advanced', ownerId: 'effect_advanced', variable: 'dynamic_pressure', op: '+=', value: '1', sourceExpression: 'Q.dynamic_pressure += 1', lineEffectCount: 2, tokenUniqueOnLine: true, source: src(protectedPath, 130, sharedLine)},
+          {id: 'effect_hook_public_order', sceneId: 'effect_advanced', ownerId: 'effect_advanced', variable: 'public_order', op: '+=', value: '1', sourceExpression: 'public_order += 1', lineEffectCount: 2, tokenUniqueOnLine: true, source: src(protectedPath, 132, hookLine)},
+          {id: 'effect_hook_stability', sceneId: 'effect_advanced', ownerId: 'effect_advanced', variable: 'stability', op: '+=', value: '1', sourceExpression: 'stability += 1', lineEffectCount: 2, tokenUniqueOnLine: true, source: src(protectedPath, 132, hookLine)}
         ]
       }
     }
@@ -124,6 +136,23 @@ const advancedEffect = rowWhere(rows, (row) => row.view === 'structuredLogic' &&
 const advancedEdit = semanticEdit(advancedEffect, 'Q.dynamic_pressure += 2; Q.public_order += 1;');
 assert(advancedEdit.operation.safety === 'advanced_apply', 'shared/protected effect clause editor operation should stay advanced_apply', advancedEdit.operation);
 assert(advancedEdit.model.dynamicKeyEvidence.length >= 1, 'dynamic effect editor should expose dynamic Q evidence', advancedEdit.model.dynamicKeyEvidence);
+const effectBundleReplacement = semanticLogic.composeFieldReplacement(advancedEdit.model, {
+  'semantic_logic.effectClauses': [
+    {variable: 'dynamic_pressure', op: '+=', value: '2'},
+    {variable: 'public_order', op: '+=', value: '1'}
+  ]
+});
+assert(effectBundleReplacement === 'Q.dynamic_pressure += 2; Q.public_order += 1', 'guided effect editor should compose multi-effect replacements', {effectBundleReplacement});
+
+const hookEffect = rowWhere(rows, (row) => row.view === 'structuredLogic' && row.role === 'effect' && row.source && row.source.line === 132, 'hook-prefixed shared effect should expose effect editor');
+const hookModel = semanticLogic.buildSemanticLogicEditor(index, hookEffect);
+const hookReplacement = semanticLogic.composeFieldReplacement(hookModel, {
+  'semantic_logic.effectClauses': [
+    {variable: 'public_order', op: '+=', value: '2', prefixQ: false},
+    {variable: 'stability', op: '+=', value: '1', prefixQ: false}
+  ]
+});
+assert(hookReplacement === 'on-arrival: public_order += 2; stability += 1', 'guided effect editor should preserve hook-prefixed bare effect syntax', {hookReplacement, controls: hookModel.fieldControls});
 
 const unsupportedOperator = semanticLogic.buildSemanticLogicEditor(index, {
   id: 'multiply_effect',
@@ -145,5 +174,7 @@ process.stdout.write(JSON.stringify({
   ok: true,
   guardedEffect: guardedEdit.operation.type + ':' + guardedEdit.operation.safety,
   advancedEffect: advancedEdit.operation.type + ':' + advancedEdit.operation.safety,
+  effectBundle: effectBundleReplacement,
+  hookBundle: hookReplacement,
   effectClauseEditorCoverage: report.summary.effectClauseEditorCoverage
 }, null, 2) + '\n');

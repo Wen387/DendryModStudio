@@ -407,7 +407,10 @@
       showError(elements, t('existingScene.unavailable', 'Existing Scene Editor is not loaded.'));
       return;
     }
-    const opened = editor.openFromSelection(state.model.index, state.selected.view, state.selected.item);
+    const opened = editor.openFromSelection(state.model.index, state.selected.view, state.selected.item, {
+      entry: {source: 'explore', actionKind: 'edit_existing'},
+      editorOverlay: true
+    });
     state.draftActionMessage = opened
       ? t('existingScene.loaded', 'Existing scene edit opened in Create. Save it to My Changes when ready.')
       : t('existingScene.openFailed', 'This scene needs more source evidence before Studio can edit it here.');

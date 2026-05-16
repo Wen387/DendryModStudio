@@ -36,6 +36,7 @@
       '<strong>' + escapeHtml(t('install.human.title', 'What this will change')) + '</strong>',
       '<span>' + escapeHtml((summary.total || operations.length || 0) + ' ' + t('install.human.changeCount', 'change(s) in this plan')) + '</span>',
       '</div>',
+      renderDryRunRecap(opts.result, opts),
       groups.map(([status, title, help]) => renderGroup(status, title, help, classified.filter((item) => item.status === status), opts)).join('')
     ].join('');
   }
@@ -64,6 +65,7 @@
     const reason = operationReason(opts.installApi, item, operation, opts);
     const where = operationWhere(operation, t);
     const result = renderResultBadge(item.result, t);
+    const confidence = buildOperationConfidence(operation, item, reason, opts);
     const preview = renderOperationPreview(operation, t);
     const evidence = renderEvidence(item.result, t);
     return [
@@ -71,16 +73,109 @@
       '<div class="install-human-op-head">',
       '<strong>' + escapeHtml(actionLabel(operation, t)) + '</strong>',
       result,
+      renderOperationContextLens(operation, item, reason, t),
       '</div>',
       where ? '<div class="install-human-where">' + escapeHtml(where) + '</div>' : '',
       reason ? '<p>' + escapeHtml(reason) + '</p>' : '',
+      renderConfidenceEvidence(confidence, t),
       preview,
       evidence,
+      renderRuntimeRecommendation(confidence && confidence.runtimeRecommendation, t),
       '<details>',
       '<summary>' + escapeHtml(t('install.human.advancedDetails', 'Advanced details')) + '</summary>',
       '<code>' + escapeHtml([operation.type || t('install.action.operation', 'operation'), operation.path || t('install.unknownPath', '(unknown path)')].join(' · ')) + '</code>',
       '</details>',
       '</article>'
+    ].join('');
+  }
+
+  function renderDryRunRecap(result, opts) {
+    const api = confidenceApi();
+    if (!api || typeof api.buildDryRunRecap !== 'function') {
+      return '';
+    }
+    const t = translator(opts.t);
+    const recap = api.buildDryRunRecap(result, {translate: t});
+    if (!recap) {
+      return '';
+    }
+    const rows = Array.isArray(recap.rows) ? recap.rows.filter((row) => row && row.label) : [];
+    return [
+      '<section class="install-dry-run-recap" data-install-dry-run-recap="true" data-install-dry-run-ok="' + escapeAttr(recap.ok ? 'true' : 'false') + '">',
+      '<header><strong>' + escapeHtml(recap.label) + '</strong><span>' + escapeHtml(recap.dryRun ? t('reviewConfidence.dryRun.mode', 'dry-run') : t('reviewConfidence.apply.mode', 'apply')) + '</span></header>',
+      recap.message ? '<p>' + escapeHtml(recap.message) + '</p>' : '',
+      rows.length ? '<dl>' + rows.map((row) => '<div><dt>' + escapeHtml(row.label) + '</dt><dd>' + escapeHtml(row.value) + '</dd></div>').join('') + '</dl>' : '',
+      recap.diagnostics && recap.diagnostics.length ? '<ul>' + recap.diagnostics.slice(0, 3).map((line) => '<li>' + escapeHtml(line) + '</li>').join('') + '</ul>' : '',
+      '</section>'
+    ].join('');
+  }
+
+  function buildOperationConfidence(operation, item, reason, opts) {
+    const api = confidenceApi();
+    if (!api || typeof api.buildOperationConfidence !== 'function') {
+      return null;
+    }
+    return api.buildOperationConfidence(operation || {}, item || {}, {
+      reason,
+      planTitle: opts && opts.plan && opts.plan.title || '',
+      runtimeReadiness: opts && opts.runtimeReadiness || opts && opts.result && opts.result.runtimeReadiness || null,
+      translate: translator(opts && opts.t)
+    });
+  }
+
+  function renderConfidenceEvidence(confidence, t) {
+    const rows = Array.isArray(confidence && confidence.rows) ? confidence.rows.filter((row) => row && row.label && row.value) : [];
+    if (!rows.length) {
+      return '';
+    }
+    return [
+      '<div class="install-op-confidence" data-install-op-confidence="true" data-install-op-confidence-status="' + escapeAttr(confidence.status || '') + '">',
+      '<div class="install-op-confidence-title">' + escapeHtml(t('reviewConfidence.title', 'Review confidence')) + '</div>',
+      '<dl>',
+      rows.map((row) => '<div data-review-confidence-field="' + escapeAttr(row.key || '') + '"><dt>' + escapeHtml(row.label) + '</dt><dd>' + escapeHtml(row.value) + '</dd></div>').join(''),
+      '</dl>',
+      '</div>'
+    ].join('');
+  }
+
+  function renderRuntimeRecommendation(recommendation, t) {
+    const value = recommendation && typeof recommendation === 'object' ? recommendation : null;
+    if (!value || !value.label) {
+      return '';
+    }
+    return [
+      '<div class="install-runtime-recommendation" data-install-runtime-recommendation="true" data-runtime-recommendation-kind="' + escapeAttr(value.kind || '') + '">',
+      '<strong>' + escapeHtml(value.label) + '</strong>',
+      value.message ? '<p>' + escapeHtml(value.message) + '</p>' : '',
+      value.fallback ? '<small>' + escapeHtml(value.fallback) + '</small>' : '',
+      '</div>'
+    ].join('');
+  }
+
+  function renderOperationContextLens(operation, item, reason, t) {
+    const api = contextLensApi();
+    if (!api || typeof api.buildForOperation !== 'function') {
+      return '';
+    }
+    const lens = api.buildForOperation(operation || {}, {
+      status: item && item.status,
+      reason,
+      translate: t
+    });
+    const rows = Array.isArray(lens && lens.rows) ? lens.rows.filter((row) => row && row.label && row.value) : [];
+    if (!rows.length) {
+      return '';
+    }
+    return [
+      '<span class="authoring-context-lens" data-authoring-context-lens="true" data-context-lens-kind="' + escapeAttr(lens.subjectKind || 'operation') + '" data-context-lens-evidence="' + escapeAttr(lens.evidenceState || 'unknown') + '" data-context-lens-pinned="false" data-context-lens-payload="' + escapeAttr(JSON.stringify(lens)) + '" role="button" tabindex="0" aria-expanded="false" aria-label="' + escapeAttr(t('contextLens.openAria', 'Show authoring context') + ': ' + (lens.meaning || lens.subjectKind || '')) + '">',
+      '<span class="authoring-context-lens-dot" aria-hidden="true">i</span>',
+      '<span class="authoring-context-lens-popover" role="tooltip">',
+      '<strong>' + escapeHtml(lens.meaning || t('contextLens.title', 'Authoring context')) + '</strong>',
+      '<dl>',
+      rows.map((row) => '<div><dt>' + escapeHtml(row.label) + '</dt><dd>' + escapeHtml(row.value) + '</dd></div>').join(''),
+      '</dl>',
+      '</span>',
+      '</span>'
     ].join('');
   }
 
@@ -255,6 +350,34 @@
 
   function translator(fn) {
     return typeof fn === 'function' ? fn : (_key, fallback) => fallback;
+  }
+
+  function contextLensApi() {
+    if (global && global.ProjectMapAuthoringContextLens) {
+      return global.ProjectMapAuthoringContextLens;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('../authoring/authoring_context_lens_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function confidenceApi() {
+    if (global && global.ProjectMapReviewConfidenceModel) {
+      return global.ProjectMapReviewConfidenceModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('../authoring/review_confidence_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
   }
 
   function escapeAttr(value) {

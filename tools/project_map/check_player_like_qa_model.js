@@ -107,9 +107,9 @@ const postEvent = read(path.join(QA_FIXTURE, 'source', 'scenes', 'post_event.sce
   'data-design-edit-existing',
   'data-editing-workspace',
   'data-object-authoring-canvas',
-  'data-object-canvas-event-body',
   'dispatchStoryboardPointerClick',
   'data-object-editing-modal',
+  'data-object-editing-modal-preview-pane',
   'reloadStudioWindow',
   'dendry:open-starter-demo',
   'dendry:update-notice-check',
@@ -172,7 +172,8 @@ assert(
     existingScenarioCard.includes('Allowed shortcut:') &&
     existingScenarioCard.includes('Object Authoring Canvas') &&
     existingScenarioCard.includes('context board') &&
-    existingScenarioCard.includes('inline event body'),
+    existingScenarioCard.includes('focused object editor') &&
+    existingScenarioCard.includes('live preview'),
   'existing edit scenario card should be written as a unified object authoring journey'
 );
 assert(

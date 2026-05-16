@@ -145,9 +145,10 @@
     }
     const parsed = parityCounts(scene, textRows);
     const drafted = draftParityCounts(draft);
-    const blockers = eventBlockers(rootOptions, sections, sectionOptionCount, eventShape);
+    const roleParity = roleKeyedParity(scene, textRows, draft);
+    const blockers = eventBlockers(rootOptions, sections, sectionOptionCount, eventShape).concat(roleParity.blockers);
     const status = blockers.length ? 'partial' : 'draft';
-    decorateDraft(draft, status, archetypeForEvent(eventShape, rootOptions, sections, sectionOptionCount), blockers, parsed, drafted);
+    decorateDraft(draft, status, archetypeForEvent(eventShape, rootOptions, sections, sectionOptionCount), blockers, parsed, drafted, roleParity);
     return resultForDraft({
       view: 'events',
       template: 'event',
@@ -155,8 +156,8 @@
       draft,
       source: draft.source,
       archetypeHint: draft.archetypeHint,
-      parity: {parsed, draft: drafted, blockers},
-      diagnostics: blockers.map((blocker) => diagnostic('warning', blocker.code, blocker.message)),
+      parity: {parsed, draft: drafted, roles: roleParity.roles, warnings: roleParity.warnings, blockers},
+      diagnostics: blockers.map((blocker) => diagnostic('warning', blocker.code, blocker.message)).concat(roleParity.warnings.map((item) => diagnostic('warning', item.code, item.message))),
       captured: capturedRows(parsed, drafted),
       notCaptured: blockers.map((blocker) => blocker.message)
     });
@@ -209,9 +210,10 @@
     }
     const parsed = parityCounts(scene, textRows);
     const drafted = draftParityCounts(draft);
-    const blockers = cardBlockers(scene, rootOptions, sectionOptions, allOptions, cardShape);
+    const roleParity = roleKeyedParity(scene, textRows, draft);
+    const blockers = cardBlockers(scene, rootOptions, sectionOptions, allOptions, cardShape).concat(roleParity.blockers);
     const status = blockers.length ? 'partial' : 'draft';
-    decorateDraft(draft, status, archetypeForCard(scene, rootOptions, sectionOptions, allOptions), blockers, parsed, drafted);
+    decorateDraft(draft, status, archetypeForCard(scene, rootOptions, sectionOptions, allOptions), blockers, parsed, drafted, roleParity);
     return resultForDraft({
       view: 'cards',
       template: 'card',
@@ -219,8 +221,8 @@
       draft,
       source: draft.source,
       archetypeHint: draft.archetypeHint,
-      parity: {parsed, draft: drafted, blockers},
-      diagnostics: blockers.map((blocker) => diagnostic('warning', blocker.code, blocker.message)),
+      parity: {parsed, draft: drafted, roles: roleParity.roles, warnings: roleParity.warnings, blockers},
+      diagnostics: blockers.map((blocker) => diagnostic('warning', blocker.code, blocker.message)).concat(roleParity.warnings.map((item) => diagnostic('warning', item.code, item.message))),
       captured: capturedRows(parsed, drafted),
       notCaptured: blockers.map((blocker) => blocker.message)
     });
@@ -450,6 +452,124 @@
     };
   }
 
+  function roleKeyedParity(scene, textRows, draft) {
+    const parsed = parsedRoleCounts(scene, textRows);
+    const drafted = draftedRoleCounts(draft);
+    const roles = {};
+    const blockers = [];
+    const warnings = [];
+    uniqueStrings(Object.keys(parsed).concat(Object.keys(drafted))).forEach((key) => {
+      const parsedCount = Number(parsed[key] || 0);
+      const draftCount = Number(drafted[key] || 0);
+      const missing = Math.max(0, parsedCount - draftCount);
+      const row = {
+        role: key,
+        parsed: parsedCount,
+        draft: draftCount,
+        missing,
+        blocking: Boolean(missing && blockingParityRole(key))
+      };
+      roles[key] = row;
+      if (!missing) {
+        return;
+      }
+      const item = blocker('parsed_to_draft.missing_' + key, 'Parsed ' + roleLabel(key) + ' count is ' + parsedCount + ', but the draft keeps ' + draftCount + '.');
+      if (row.blocking) {
+        blockers.push(item);
+      } else {
+        warnings.push(item);
+      }
+    });
+    return {parsed, draft: drafted, roles, blockers, warnings};
+  }
+
+  function parsedRoleCounts(scene, textRows) {
+    const rows = ensureArray(textRows);
+    const sections = ensureArray(scene && scene.sections);
+    const rootOptions = ensureArray(scene && (scene.options || scene.choices));
+    const sectionOptions = sections.reduce((sum, section) => sum + ensureArray(section && section.options).length, 0);
+    return {
+      title: scene && scene.title || rows.some((row) => roleOf(row) === 'title') ? 1 : 0,
+      subtitle: scene && scene.subtitle || rows.some((row) => roleOf(row) === 'subtitle') ? 1 : 0,
+      heading: scene && scene.heading || rows.some((row) => roleOf(row) === 'heading') ? 1 : 0,
+      body: parsedBodyTextCount(rows, scene),
+      metadata: parsedMetadataCount(scene, rows),
+      viewIf: scene && (scene.viewIf || scene.view_if) ? 1 : 0,
+      options: rootOptions.length,
+      sectionOptions,
+      sections: sections.length,
+      conditions: conditionCount(scene, rows),
+      effects: collectEffects(scene).length,
+      assets: assetRefsForScene(scene).length
+    };
+  }
+
+  function draftedRoleCounts(draft) {
+    const sections = ensureArray(draft && draft.sections);
+    const rootOptions = ensureArray(draft && draft.options);
+    const sectionOptions = sections.reduce((sum, section) => sum + ensureArray(section && section.options).length, 0);
+    return {
+      title: draft && draft.title ? 1 : 0,
+      subtitle: draft && draft.subtitle ? 1 : 0,
+      heading: draft && draft.heading ? 1 : 0,
+      body: ensureArray(draft && draft.introParagraphs).filter(Boolean).length +
+        sections.reduce((sum, section) => sum + ensureArray(section && section.paragraphs).filter(Boolean).length, 0),
+      metadata: ensureArray(draft && draft.tags).length + (draft && draft.newPage !== undefined ? 1 : 0),
+      viewIf: draft && (draft.rawViewIf || draft.viewIf || draft.when && draft.when.requires) ? 1 : 0,
+      options: rootOptions.length,
+      sectionOptions,
+      sections: sections.length || ensureArray(draft && draft.parsedSections).length,
+      conditions: conditionCountFromDraft(draft),
+      effects: draftParityCounts(draft).effects,
+      assets: ensureArray(draft && draft.assetRefs).length
+    };
+  }
+
+  function parsedBodyTextCount(rows, scene) {
+    const bodyRoles = new Set(['body', 'content', 'visible_text', 'monthly_popup_excerpt', 'conditional_body']);
+    const bodyRows = ensureArray(rows).filter((row) => {
+      const role = roleOf(row);
+      const text = String(row && (row.text || row.value || row.original) || '').trim();
+      return text && bodyRoles.has(role);
+    });
+    const count = textValues(bodyRows).length;
+    if (count) {
+      return count;
+    }
+    return normalizeTextList(scene && (scene.body || scene.text || scene.description) || '').length;
+  }
+
+  function parsedMetadataCount(scene, rows) {
+    let count = ensureArray(scene && scene.tags).length + (scene && scene.newPage !== undefined ? 1 : 0);
+    ensureArray(rows).forEach((row) => {
+      const role = roleOf(row);
+      if (role === 'metadata' || role === 'tags' || role === 'new_page') {
+        count += 1;
+      }
+    });
+    return count;
+  }
+
+  function blockingParityRole(role) {
+    return [
+      'title',
+      'subtitle',
+      'heading',
+      'body',
+      'viewIf',
+      'options',
+      'sectionOptions',
+      'sections',
+      'conditions',
+      'effects',
+      'assets'
+    ].includes(String(role || ''));
+  }
+
+  function roleLabel(role) {
+    return String(role || '').replace(/([A-Z])/g, ' $1').replace(/^./, (char) => char.toUpperCase());
+  }
+
   function conditionCount(scene, rows) {
     let count = scene && scene.viewIf ? 1 : 0;
     ensureArray(scene && scene.options).forEach((option) => { if (option && (option.chooseIf || option.condition)) { count += 1; } });
@@ -502,11 +622,11 @@
     }).filter((effect) => effect.variable);
   }
 
-  function decorateDraft(draft, status, archetypeHint, blockers, parsed, drafted) {
+  function decorateDraft(draft, status, archetypeHint, blockers, parsed, drafted, roleParity) {
     draft.authoringStatus = status;
     draft.archetypeHint = archetypeHint;
     draft.authoringBlockers = ensureArray(blockers).map((item) => item.message);
-    draft.parsedToDraftParity = {parsed, draft: drafted};
+    draft.parsedToDraftParity = {parsed, draft: drafted, roles: roleParity && roleParity.roles || {}, warnings: roleParity && roleParity.warnings || [], blockers};
     return draft;
   }
 
@@ -693,6 +813,20 @@
     const text = String(value || '').trim();
     const local = localId(text);
     return [text, local].filter(Boolean);
+  }
+
+  function uniqueStrings(values) {
+    const seen = new Set();
+    const out = [];
+    ensureArray(values).forEach((value) => {
+      const text = String(value || '').trim();
+      if (!text || seen.has(text)) {
+        return;
+      }
+      seen.add(text);
+      out.push(text);
+    });
+    return out;
   }
 
   function humanTitle(value) {

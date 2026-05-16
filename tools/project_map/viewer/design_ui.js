@@ -418,7 +418,7 @@
     }
     if (elements.inspector) {
       elements.inspector.addEventListener('click', (event) => {
-        const collapsibleSummary = event.target.closest && event.target.closest('details.event-workbench-collapsible > summary, details.mini-section > summary');
+        const collapsibleSummary = event.target.closest && event.target.closest('details.event-workbench-collapsible > summary, details.mini-section > summary, details.design-preview-collapsible > summary, details.meaning-collapsible > summary');
         if (collapsibleSummary && elements.inspector.contains(collapsibleSummary)) {
           event.preventDefault();
           event.stopPropagation();
@@ -1001,11 +1001,18 @@
       ? meaningUi.renderPreviewHtml(preview, {}, fallbackText)
       : '<pre class="player-preview inspector-preview-text">' + escapeHtml(fallbackText) + '</pre>';
     return [
-      '<section class="design-workbench-panel design-preview-panel" data-design-preview="true">',
-      '<h3>' + escapeHtml(t('preview.title', 'Preview')) + '</h3>',
+      '<details class="design-workbench-panel design-preview-panel design-preview-collapsible" open data-design-preview="true" data-design-preview-section="preview">',
+      '<summary aria-expanded="true"><span>' + escapeHtml(t('preview.title', 'Preview')) + '</span><b>' + escapeHtml(String(designPreviewSectionCount(previewHtml))) + '</b></summary>',
+      '<div class="design-preview-body">',
       previewHtml,
-      '</section>'
+      '</div>',
+      '</details>'
     ].join('');
+  }
+
+  function designPreviewSectionCount(html) {
+    const matches = String(html || '').match(/data-meaning-section=/g);
+    return matches && matches.length ? matches.length : 1;
   }
 
   function previewModelForDesignItem(model, item) {
@@ -1155,7 +1162,10 @@
       setDesignStatus(t('existingScene.openFailed', 'This scene needs more source evidence before Studio can edit it here.'), true);
       return;
     }
-    const opened = editor.openFromSelection(state.projectModel.index, support.view, item.raw);
+    const opened = editor.openFromSelection(state.projectModel.index, support.view, item.raw, {
+      entry: {source: 'design', actionKind: 'edit_existing'},
+      editorOverlay: true
+    });
     setDesignStatus(opened
       ? t('objectCanvas.status.designExisting', 'Object Canvas opened from Design. Save it to My Changes when ready.')
       : t('existingScene.openFailed', 'This scene needs more source evidence before Studio can edit it here.'),
@@ -1623,7 +1633,7 @@
     if (!elements || !elements.inspector) {
       return;
     }
-    const detailsList = Array.from(elements.inspector.querySelectorAll('details.event-workbench-collapsible[data-event-workbench-section], details.mini-section[data-design-mini-section]'));
+    const detailsList = Array.from(elements.inspector.querySelectorAll('details.event-workbench-collapsible[data-event-workbench-section], details.mini-section[data-design-mini-section], details.design-preview-collapsible[data-design-preview-section], details.meaning-collapsible[data-meaning-section]'));
     detailsList.forEach((details) => {
       const key = inspectorDetailsStateKey(details, selected && selected.key);
       if (key && Object.prototype.hasOwnProperty.call(state.inspectorSections, key)) {
@@ -1637,11 +1647,17 @@
     if (!details) {
       return '';
     }
-    const sectionId = details.dataset.eventWorkbenchSection || details.dataset.designMiniSection || '';
+    const sectionId = details.dataset.eventWorkbenchSection || details.dataset.designMiniSection || details.dataset.designPreviewSection || details.dataset.meaningSection || '';
     if (!sectionId) {
       return '';
     }
-    const prefix = details.classList.contains('event-workbench-collapsible') ? 'event_workbench' : 'design';
+    const prefix = details.classList.contains('event-workbench-collapsible')
+      ? 'event_workbench'
+      : details.classList.contains('design-preview-collapsible')
+        ? 'design_preview'
+        : details.classList.contains('meaning-collapsible')
+          ? 'meaning_preview'
+          : 'design';
     return [selectedKey || state.selectedKey || '', prefix, sectionId].join('::');
   }
 

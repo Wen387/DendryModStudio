@@ -1,0 +1,93 @@
+title: Demo Case Hearing
+tags: event, demo, complex
+new-page: true
+priority: 1
+on-arrival: {!
+Q.demo_hearing_seen = 1;
+Q.demo_pressure = (Q.demo_pressure || 0) + 1;
+!}
+
+= The Hearing Splits The Room
+
+The hearing begins with a procedural dispute. The public file, cabinet notes,
+and volunteer reports all point in different directions.
+
+[? if demo_case_strength >= 2 : The public case is strong enough to support an immediate vote. ?]
+[? if demo_cabinet_balance >= 1 : Cabinet allies are still close enough for a negotiated amendment. ?]
+[? if demo_public_attention >= 2 : Reporters crowd the corridor and make every delay visible. ?]
+[? if demo_opposition_heat >= 2 : Opposition pressure is high; a messy vote could harden against the office. ?]
+
+Choose how the committee handles the next layer. One option opens a separate
+back-room event before the chain reaches the resolution.
+
+- @force_vote: Force an immediate vote.
+- @trade_amendment: Trade a cabinet amendment.
+- @call_advisor: Ask the advisor to draft a compromise.
+- @back_room: Move into back-room talks.
+- @stall_committee: Stall in committee.
+
+@force_vote
+title: Force an immediate vote.
+subtitle: Requires a strong case file.
+choose-if: demo_case_strength >= 2
+unavailable-subtitle: The case is too thin for a vote.
+on-arrival: {!
+Q.demo_reform_mandate = (Q.demo_reform_mandate || 0) + 2;
+Q.demo_opposition_heat = (Q.demo_opposition_heat || 0) + 1;
+!}
+go-to: demo_resolution_week
+
+The chair forces the question onto the table. The mandate grows, but everyone
+can now see who is lining up against it.
+
+@trade_amendment
+title: Trade a cabinet amendment.
+subtitle: Requires cabinet balance.
+choose-if: demo_cabinet_balance >= 1
+unavailable-subtitle: There is no cabinet bloc to bargain with.
+on-arrival: {!
+Q.demo_cabinet_balance = (Q.demo_cabinet_balance || 0) - 1;
+Q.demo_reform_mandate = (Q.demo_reform_mandate || 0) + 1;
+Q.demo_pressure = (Q.demo_pressure || 0) - 1;
+!}
+go-to: demo_resolution_week
+
+The committee gives ground on wording and gains a quieter route to passage.
+
+@call_advisor
+title: Ask the advisor to draft a compromise.
+subtitle: Requires advisor trust.
+choose-if: demo_advisor_trust >= 1
+unavailable-subtitle: The advisor has not earned enough trust yet.
+on-arrival: {!
+Q.demo_reform_mandate = (Q.demo_reform_mandate || 0) + 1;
+Q.demo_cabinet_balance = (Q.demo_cabinet_balance || 0) + 1;
+!}
+go-to: demo_resolution_week
+
+The advisor writes a compromise that keeps the public file intact while giving
+cabinet allies a sentence they can defend.
+
+@back_room
+title: Move into back-room talks.
+subtitle: Opens a follow-up branch event.
+on-arrival: {!
+Q.demo_pressure = (Q.demo_pressure || 0) - 1;
+!}
+go-to: demo_back_room_talks
+
+The committee leaves the hearing table and moves the dispute into a quieter
+room before the final resolution.
+
+@stall_committee
+title: Stall in committee.
+subtitle: Buy time at a political cost.
+on-arrival: {!
+Q.demo_pressure = (Q.demo_pressure || 0) - 1;
+Q.demo_resources = (Q.demo_resources || 0) + 1;
+Q.demo_opposition_heat = (Q.demo_opposition_heat || 0) + 1;
+!}
+go-to: demo_resolution_week
+
+The committee buries the dispute in procedure and saves capacity for the next
+day.

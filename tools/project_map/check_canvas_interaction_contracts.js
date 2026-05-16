@@ -72,10 +72,11 @@ function checkDesignContracts() {
   contains(designUi, 'elements.zoomControls.addEventListener(\'click\'', 'Design zoom controls');
   contains(designUi, 'handleDesignZoom(zoom.dataset.designZoom || \'\')', 'Design zoom controls');
   contains(designUi, 'event.preventDefault();\n        event.stopPropagation();\n        handleDesignZoom', 'Design zoom click isolation');
-  contains(designUi, 'details.event-workbench-collapsible > summary, details.mini-section > summary', 'Design inspector details delegate');
+  contains(designUi, 'details.event-workbench-collapsible > summary, details.mini-section > summary, details.design-preview-collapsible > summary, details.meaning-collapsible > summary', 'Design inspector details delegate');
   contains(designUi, 'toggleInspectorDetails(collapsibleSummary.parentElement)', 'Design inspector details delegate');
   contains(designUi, 'restoreInspectorSectionState(selected)', 'Design inspector details state restore');
   contains(designUi, 'data-design-mini-section', 'Design mini-section marker');
+  contains(designUi, 'data-design-preview-section', 'Design preview collapsible marker');
   contains(designUi, 'elements.inspectorToggle.addEventListener(\'pointerdown\'', 'Design inspector toggle');
   contains(designUi, 'toggleInspectorCollapse()', 'Design inspector toggle');
 }
@@ -84,10 +85,14 @@ function checkObjectCanvasContracts() {
   const graphStage = read('viewer/object_canvas_graph_stage.js');
   const storyboardSurface = read('viewer/content_storyboard_surface.js');
   const objectUi = read('viewer/object_authoring_canvas_ui.js');
+  const storyboardDrafts = read('viewer/object_canvas_storyboard_drafts.js');
+  const fieldValues = read('viewer/object_canvas_field_values.js');
   const sourceSliceWorkspace = read('viewer/source_slice_workspace_ui.js');
   const semanticLogicWorkspace = read('viewer/semantic_logic_workspace_ui.js');
+  const returnStack = read('viewer/object_workspace_return_stack.js');
   const visibleEditAction = read('viewer/visible_edit_action_ui.js');
   const eventBuilder = read('viewer/preview_object_event_builder_ui.js');
+  const structureUi = read('viewer/preview_object_structure_ui.js');
   const viewport = read('viewer/object_canvas_viewport.js');
   const shell = read('viewer/object_canvas_shell_ui.js');
   const editingCss = read('viewer/styles/editing.css');
@@ -108,6 +113,17 @@ function checkObjectCanvasContracts() {
   contains(objectUi, 'openVisibleEditAction', 'Object Canvas visible click-to-edit action bridge');
   contains(objectUi, 'openSourceSliceAction(editAction)', 'Object Canvas source slice action bridge');
   contains(objectUi, 'openSemanticLogicAction(editAction)', 'Object Canvas semantic logic action bridge');
+  contains(read('viewer/index.html'), 'object_workspace_return_stack.js', 'Object Canvas transient workspace return stack include');
+  contains(returnStack, 'ProjectMapObjectWorkspaceReturnStack', 'Object Canvas transient workspace return stack module');
+  contains(returnStack, 'object_workspace_return_context', 'Object Canvas transient workspace return context marker');
+  contains(objectUi, 'captureTransientReturnContext(editAction)', 'Object Canvas should capture the source object before opening transient workspaces');
+  contains(objectUi, 'pushTransientReturnContext(returnContext)', 'Object Canvas should push a return context after source-backed editor mapping succeeds');
+  contains(objectUi, 'data-object-canvas-action="return_from_transient_workspace"', 'Object Canvas transient workspace return action');
+  contains(objectUi, 'returnFromTransientWorkspace()', 'Object Canvas transient workspace return handler');
+  contains(objectUi, 'shouldKeepSemanticLogicActionInline(editAction)', 'Object Canvas should keep ordinary route/effect clicks in the current object editor');
+  contains(objectUi, 'semanticEditorOpenMode === \'standalone\'', 'Object Canvas should require an explicit standalone semantic editor route');
+  contains(objectUi, 'if (!sliceModel || !sliceModel.ok)', 'Object Canvas should not switch to Source Slice when source mapping fails');
+  contains(objectUi, 'if (!editorModel || !editorModel.ok)', 'Object Canvas should not switch to Semantic Logic when source mapping fails');
   contains(objectUi, 'sourceSliceWorkspaceApi()', 'Object Canvas source slice UI module bridge');
   contains(objectUi, 'semanticLogicWorkspaceApi()', 'Object Canvas semantic logic UI module bridge');
   contains(sourceSliceWorkspace, 'ProjectMapSourceSliceWorkspace', 'Source Slice workspace module');
@@ -128,21 +144,41 @@ function checkObjectCanvasContracts() {
   contains(semanticLogicWorkspace, 'data-semantic-logic-diff="true"', 'Semantic Logic before/after diff marker');
   contains(objectUi, 'sourceSliceReviewAllowed()', 'Object Canvas source slice advanced apply review guard');
   contains(objectUi, 'semanticLogicReviewAllowed()', 'Object Canvas semantic logic advanced apply review guard');
+  contains(objectUi, 'objectCanvasFieldValuesApi()', 'Object Canvas field collection should use the field value helper');
+  contains(fieldValues, 'collectCanvasFieldEntries(host, options)', 'Object Canvas field collection should use de-duplicated visible field entries');
+  contains(fieldValues, 'fieldIsVisibleForCollection(input, options)', 'Object Canvas field collection should ignore hidden duplicate editor controls');
+  contains(fieldValues, 'const activeRow = rows.find((row) => row.active)', 'Object Canvas field collection should prefer the focused editor control');
+  contains(storyboardDrafts, 'ProjectMapObjectCanvasStoryboardDrafts', 'Object Canvas Storyboard draft helper should expose a browser API');
+  contains(storyboardDrafts, 'createRelatedDraft', 'Object Canvas Storyboard draft helper should own related draft creation');
+  contains(objectUi, 'storyboardDraftsApi().createRelatedDraft', 'Object Canvas should delegate Storyboard draft creation to the extracted helper');
   contains(visibleEditAction, 'data-visible-edit-action', 'Visible edit action clickable marker');
   contains(visibleEditAction, 'openVisibleEditAction', 'Visible edit action dispatch bridge');
+  contains(objectUi, 'bindVisibleEditUi(elements.host)', 'Object Canvas should bind visible edit/context lens controls after render');
+  contains(objectUi, 'syncPreviewObjectEditorPane();\n    syncObjectCanvasFieldValues();', 'Object Canvas should rerender preview pane inside dynamic surface sync');
+  contains(objectUi, 'syncPreviewObjectRenderedFields();\n    bindVisibleEditUi(elements.host);', 'Object Canvas should rebind context lens controls after preview pane rerender');
   contains(read('viewer/explore_lists.js'), 'data-visible-edit-affordance="true"', 'Explore list edit affordance marker');
   contains(read('viewer/event_workbench_ui.js'), 'renderEditAction(row, locale)', 'Event Workbench edit affordance renderer');
   contains(read('viewer/card_board_surface.js'), 'data-visible-edit-affordance="card-board"', 'Card Board edit affordance marker');
   contains(read('viewer/preview_object_editor.js'), 'data-visible-edit-affordance="object-canvas-preview"', 'Object Canvas preview edit affordance marker');
+  contains(read('viewer/preview_object_editor.js'), 'data-metadata-kind="', 'Object Canvas preview metadata layout marker');
   contains(read('viewer/index.html'), 'preview_object_event_builder_ui.js', 'Complex Event Builder renderer module include');
   contains(eventBuilder, 'ProjectMapPreviewObjectEventBuilder', 'Complex Event Builder extracted renderer module');
   contains(eventBuilder, 'data-preview-object-event-graph-node', 'Complex Event Builder graph node entry marker');
   contains(eventBuilder, 'data-preview-object-event-graph-edge', 'Complex Event Builder graph route entry marker');
   contains(eventBuilder, 'data-readiness-repair-action', 'Complex Event Builder readiness repair marker');
+  contains(read('viewer/index.html'), 'preview_object_structure_ui.js', 'Preview Object structure UI module include');
+  contains(structureUi, 'ProjectMapPreviewObjectStructureUi', 'Preview Object structure UI extracted module');
+  contains(structureUi, 'data-preview-object-structure-builder="', 'Preview Object structure builder marker');
+  contains(structureUi, 'data-preview-object-inline-add="', 'Preview Object inline structural add marker');
+  contains(structureUi, 'data-object-canvas-action="commit_structure_command"', 'Preview Object structure commit action');
+  contains(structureUi, 'data-object-canvas-field', 'Preview Object structure source-backed field marker');
   contains(read('viewer/object_canvas_graph_stage.js'), 'data-workflow-entry="', 'Object Canvas workflow entry marker');
   contains(editingCss, '.object-canvas.is-board-chrome-collapsed', 'Object Canvas collapsed chrome style');
   contains(editingCss, '.source-slice-editor', 'Source Slice Editor style');
   contains(editingCss, '.visible-edit-action-button', 'Visible edit button style');
+  contains(editingCss, '.object-editing-preview-metadata-chip[data-metadata-kind="route"]', 'Object preview route metadata chip style');
+  contains(editingCss, '.object-editing-preview-metadata-chip[data-metadata-kind="condition"]', 'Object preview condition metadata chip style');
+  contains(read('viewer/styles/design.css'), '.design-preview-collapsible > summary', 'Design preview collapsible style');
   contains(editingCss, '.preview-object-event-graph-node', 'Complex Event Builder graph node style');
 }
 
@@ -168,12 +204,27 @@ function checkStoryboardContracts() {
 function checkReviewAndLensContracts() {
   const installReview = read('viewer/install_review_ui.js');
   const installCss = read('viewer/styles/install-preview.css');
+  const editingCss = read('viewer/styles/editing.css');
   const eventWorkbench = read('viewer/event_workbench_ui.js');
   const runtimeLens = read('viewer/runtime_lens_ui.js');
+  const visibleEdit = read('viewer/visible_edit_action_ui.js');
 
   contains(installReview, '<details>', 'Review & Apply operation details');
   contains(installReview, 'install.human.advancedDetails', 'Review & Apply operation details summary');
+  contains(installReview, 'data-authoring-context-lens="true"', 'Review & Apply context lens marker');
   contains(installCss, '.install-human-op details', 'Review & Apply details style');
+  contains(read('viewer/install_assistant_ui.js'), 'confirmEnableAdvanced()', 'Install assistant should confirm before enabling advanced operations');
+  contains(read('viewer/install_assistant_ui.js'), 'install.confirmEnableAdvanced', 'Install assistant should explain advanced-operation risk');
+  contains(installCss, 'background: #fff7d6', 'Advanced operation toggle should use a visible but restrained warning block');
+  contains(installCss, 'border-left: 5px solid #c97316', 'Advanced operation toggle should use a standard warning accent stripe');
+  contains(installCss, 'font-size: 16px', 'Advanced operation toggle should be larger than normal checkbox text');
+  contains(read('viewer/i18n/zh-Hant.js'), "'install.includeAdvanced': '！進階操作！'", 'Advanced operation toggle should use warning punctuation in Traditional Chinese');
+  contains(editingCss, '.authoring-context-lens-popover', 'Authoring context lens popover style');
+  contains(editingCss, 'data-context-lens-placement="left"', 'Authoring context lens left-edge placement style');
+  contains(editingCss, '.authoring-context-lens[data-authoring-context-lens][aria-expanded="true"]', 'Authoring context lens elevated open state');
+  contains(visibleEdit, 'bindContextLens', 'Authoring context lens interaction binding');
+  contains(visibleEdit, 'data-context-lens-pinned', 'Authoring context lens pinned state');
+  contains(visibleEdit, 'updateContextLensPlacement', 'Authoring context lens boundary-aware placement binding');
   contains(eventWorkbench, 'event-workbench-collapsible', 'Event Workbench collapsible sections');
   contains(eventWorkbench, 'data-event-workbench-section="', 'Event Workbench section marker');
   contains(runtimeLens, 'data-runtime-lens-action="toggle_collapse"', 'Runtime Lens collapse action');
@@ -189,6 +240,8 @@ function checkRenderedAndPureBehavior() {
   const installReview = require('./viewer/install_review_ui.js');
   const eventWorkbench = require('./viewer/event_workbench_ui.js');
   const runtimeLens = require('./viewer/runtime_lens_ui.js');
+  const fieldValues = require('./viewer/object_canvas_field_values.js');
+  const previewEditorSync = require('./viewer/object_canvas_preview_editor_sync.js');
 
   const board = elementStub();
   const edges = elementStub();
@@ -203,6 +256,21 @@ function checkRenderedAndPureBehavior() {
   assert(state.canvasZoom > 1, 'Object Canvas viewport zoom should increase state');
   assert(label.textContent === '110%', 'Object Canvas viewport zoom should update the label');
   assert(board.style.transform.includes('scale(1.100)'), 'Object Canvas viewport zoom should update board transform');
+
+  const visibleField = fieldStub('title', 'visible', {rects: [{}]});
+  const activeField = fieldStub('title', 'active');
+  const structureField = fieldStub('body', 'structure', {
+    previewObjectStructureOutput: 'true',
+    value: 'Generated body'
+  });
+  const firstHiddenField = fieldStub('body', 'first');
+  const host = fieldHost([visibleField, activeField, firstHiddenField, structureField]);
+  const collected = fieldValues.collectCanvasFieldEntries(host, {
+    activeElement: activeField,
+    getComputedStyle: () => ({display: 'block', visibility: 'visible'})
+  });
+  assert(collected[0] === activeField, 'Object Canvas field helper should prefer the active duplicate field');
+  assert(collected[1] === structureField, 'Object Canvas field helper should prefer valued structure output before the first hidden duplicate');
 
   const planHtml = installReview.renderPlanReview({
     plan: {operations: [{id: 'probe', type: 'replace_text', path: 'source/probe.scene.dry', safety: 'guarded_apply', search: 'before', replace: 'after'}]},
@@ -234,6 +302,99 @@ function checkRenderedAndPureBehavior() {
   });
   contains(collapsedLens, 'is-collapsed', 'Runtime Lens collapsed render state');
   assert(!collapsedLens.includes('data-runtime-lens-frame="true"'), 'Runtime Lens collapsed state should hide the iframe');
+
+  const fieldMap = previewEditorSync.previewObjectFieldMap({
+    eventBody: {
+      title: {id: 'title'},
+      heading: {id: 'heading'},
+      sections: [{id: 'section'}],
+      metaFields: [{id: 'meta'}],
+      structureActions: [{id: 'structure'}],
+      effects: [{id: 'effect'}],
+      options: [{fields: [{id: 'option_field'}]}],
+      optionEffects: [{fields: [{id: 'option_effect'}]}]
+    }
+  });
+  ['title', 'heading', 'section', 'meta', 'structure', 'effect', 'option_field', 'option_effect'].forEach((id) => {
+    assert(fieldMap.has(id), 'Preview editor field map should collect ' + id);
+  });
+
+  const activeInput = syncFieldStub('title', 'typed', {tagName: 'INPUT'});
+  const textInput = syncFieldStub('body', 'old body', {tagName: 'TEXTAREA'});
+  const checkbox = syncFieldStub('flag', '', {tagName: 'INPUT', type: 'checkbox'});
+  previewEditorSync.syncObjectCanvasFieldValues({
+    host: syncHost([activeInput, textInput, checkbox]),
+    state: {values: {title: 'model title', body: 'new body', flag: 'on'}},
+    document: {activeElement: activeInput}
+  });
+  assert(activeInput.value === 'typed', 'Preview editor sync should not overwrite the focused input');
+  assert(textInput.value === 'new body', 'Preview editor sync should update non-focused text fields');
+  assert(checkbox.checked === true, 'Preview editor sync should treat on as a checked checkbox value');
+  previewEditorSync.syncObjectCanvasFieldValues({
+    host: syncHost([checkbox]),
+    state: {values: {flag: 'false'}},
+    document: {activeElement: null}
+  });
+  assert(checkbox.checked === false, 'Preview editor sync should treat false as an unchecked checkbox value');
+
+  const summaryHtml = previewEditorSync.renderPreviewObjectDraftSummary({
+    template: 'card',
+    changeState: {changedCount: 2, operationSummary: {guardedApply: 1, manualReview: 3}}
+  });
+  ['Changed', 'Guarded', 'Manual', 'Editor route'].forEach((label) => {
+    contains(summaryHtml, label, 'Preview editor draft summary');
+  });
+  assert(previewEditorSync.previewObjectRouteLabel({template: 'news'}) === 'News', 'Preview editor route label should map news');
+  assert(previewEditorSync.previewObjectRouteLabel({template: 'card'}) === 'Card', 'Preview editor route label should map card');
+  assert(previewEditorSync.previewObjectRouteLabel({template: 'surface'}) === 'Text Patch', 'Preview editor route label should map surface');
+  assert(previewEditorSync.previewObjectRouteLabel({template: 'event'}) === 'World Event', 'Preview editor route label should map event');
+}
+
+function fieldHost(fields) {
+  return {
+    querySelectorAll(selector) {
+      assert(selector === '[data-object-canvas-field]', 'Object Canvas field helper should query the field contract');
+      return fields;
+    }
+  };
+}
+
+function fieldStub(key, value, options) {
+  const opts = options || {};
+  const dataset = {objectCanvasField: key};
+  if (opts.previewObjectStructureOutput) {
+    dataset.previewObjectStructureOutput = opts.previewObjectStructureOutput;
+  }
+  return {
+    dataset,
+    disabled: false,
+    type: 'textarea',
+    value,
+    offsetWidth: opts.offsetWidth || 0,
+    offsetHeight: opts.offsetHeight || 0,
+    closest: () => null,
+    getClientRects: () => opts.rects || []
+  };
+}
+
+function syncHost(fields) {
+  return {
+    querySelectorAll(selector) {
+      assert(selector === '[data-object-canvas-field]', 'Preview editor sync should query the field contract');
+      return fields;
+    }
+  };
+}
+
+function syncFieldStub(key, value, options) {
+  const opts = options || {};
+  return {
+    checked: false,
+    dataset: {objectCanvasField: key},
+    tagName: opts.tagName || 'INPUT',
+    type: opts.type || 'text',
+    value
+  };
 }
 
 function main() {

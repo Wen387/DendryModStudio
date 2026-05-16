@@ -23,7 +23,21 @@ function indexWithProfile(id) {
     variables: []
   };
   if (id === 'generic-dendry') {
-    index.scenes = [{id: 'post_event', title: 'Post Event', path: 'source/scenes/post_event.scene.dry'}];
+    index.scenes = [{
+      id: 'post_event',
+      title: 'Post Event',
+      path: 'source/scenes/post_event.scene.dry',
+      options: [{
+        target: {id: 'root'},
+        title: 'Continue',
+        sourceSpan: {
+          path: 'source/scenes/post_event.scene.dry',
+          line: 28,
+          anchorText: '- @root: Continue',
+          endAnchorText: '- @root: Continue'
+        }
+      }]
+    }];
   }
   return index;
 }

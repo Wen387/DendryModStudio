@@ -142,7 +142,9 @@
     return sourceRef({
       path,
       line: ref.line || ref.startLine,
-      endLine: ref.endLine || ref.line || ref.startLine
+      endLine: ref.endLine || ref.line || ref.startLine,
+      anchorText: ref.anchorText || '',
+      endAnchorText: ref.endAnchorText || ref.anchorText || ''
     });
   }
 

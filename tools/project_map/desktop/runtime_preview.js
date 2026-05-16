@@ -358,6 +358,7 @@ function finalizeRuntimePreview(context) {
     : '';
   const serverOrigin = hasPort ? 'http://127.0.0.1:' + port : '';
   const debug = createDebugSession(session, {
+    plan: opts.plan,
     projectIndex: opts.projectIndex,
     modifiedBuild,
     serverOrigin: opts.serverOrigin || serverOrigin
@@ -408,6 +409,7 @@ function finalizeModifiedRuntimePreview(context) {
     : '';
   const serverOrigin = hasPort ? 'http://127.0.0.1:' + port : '';
   const debug = createDebugSession(session, {
+    plan: opts.plan,
     projectIndex: opts.projectIndex,
     modifiedBuild,
     serverOrigin: opts.serverOrigin || serverOrigin
@@ -882,7 +884,7 @@ function comparePageHtml(session, report) {
     '.runtime-debug-row input,.runtime-debug-filter{min-width:0;padding:5px;border:1px solid #cdbfa8;border-radius:4px}',
     '.runtime-debug-filter{box-sizing:border-box;width:100%;margin:2px 0 4px}',
     '.runtime-debug-count{font-size:12px;margin:4px 0 8px}',
-    '.runtime-debug-scene{display:block;width:100%;margin:5px 0;text-align:left}',
+    '.runtime-debug-scene,.runtime-debug-preset{display:block;width:100%;margin:5px 0;text-align:left}',
     '.runtime-debug-history{padding-left:20px;color:#4d4438}',
     '@media (max-width: 900px){.runtime-debug-console{position:static;width:auto;max-width:none;margin:0 8px 8px;border:1px solid #cdbfa8}.runtime-debug-resizer{display:none}main{margin-right:0!important;height:55vh}}',
     hasDebug ? 'main{margin-right:calc(var(--runtime-debug-width) + 12px)}' : '',
@@ -929,7 +931,11 @@ function debugResizeScript() {
 
 function createDebugSession(session, options) {
   const opts = options || {};
-  const controls = debugModel.buildDebugControls(opts.projectIndex || {}, {});
+  const controls = augmentDebugControlsWithPlan(
+    debugModel.buildDebugControls(opts.projectIndex || {}, {}),
+    opts.plan,
+    opts.projectIndex || {}
+  );
   const enabled = Boolean(opts.projectIndex && opts.modifiedBuild && opts.modifiedBuild.ok);
   if (!enabled) {
     return {
@@ -953,6 +959,373 @@ function createDebugSession(session, options) {
     bridgePath,
     diagnostics: []
   };
+}
+
+function augmentDebugControlsWithPlan(controls, plan, projectIndex) {
+  const next = JSON.parse(JSON.stringify(controls || {}));
+  next.scenes = Array.isArray(next.scenes) ? next.scenes : [];
+  next.variables = Array.isArray(next.variables) ? next.variables : [];
+  next.focusPresets = Array.isArray(next.focusPresets) ? next.focusPresets : [];
+  const seen = new Set(next.scenes.map((scene) => String(scene && scene.id || '')).filter(Boolean));
+  const seenVariables = new Set(next.variables.map((variable) => String(variable && variable.name || '')).filter(Boolean));
+  const seenPresets = new Set(next.focusPresets.map((preset) => String(preset && preset.id || '')).filter(Boolean));
+  const operations = Array.isArray(plan && plan.operations) ? plan.operations : [];
+  const createdEntries = [];
+  operations.forEach((operation) => {
+    planVariableControls(operation).forEach((variable) => addDebugVariableControl(next, seenVariables, variable));
+    const scene = debugSceneFromCreateOperation(operation);
+    if (!scene) {
+      return;
+    }
+    const preset = debugFocusPresetFromCreateOperation(operation, scene);
+    createdEntries.push({operation, scene, preset});
+    if (seen.has(scene.id)) {
+      return;
+    }
+    seen.add(scene.id);
+    next.scenes.push(scene);
+    addDebugFocusPreset(next, seenVariables, seenPresets, preset);
+  });
+  laneFocusPresetsFromPlan(operations, next, createdEntries, projectIndex)
+    .forEach((preset) => addDebugFocusPreset(next, seenVariables, seenPresets, preset));
+  return next;
+}
+
+function addDebugFocusPreset(controls, seenVariables, seenPresets, preset) {
+  if (!preset || !preset.id || seenPresets.has(preset.id)) {
+    return false;
+  }
+  const variables = Array.isArray(preset.variables) ? preset.variables : [];
+  variables.forEach((variable) => addDebugVariableControl(controls, seenVariables, variable));
+  seenPresets.add(preset.id);
+  controls.focusPresets.push(Object.assign({}, preset, {variables}));
+  return true;
+}
+
+function addDebugVariableControl(controls, seenVariables, variable) {
+  const name = String(variable && variable.name || '').trim();
+  if (!isSafeVariableName(name) || seenVariables.has(name)) {
+    return false;
+  }
+  seenVariables.add(name);
+  controls.variables.push({
+    name,
+    label: String(variable.label || name),
+    valueType: String(variable.valueType || inferDebugVariableType(name, variable.value)),
+    meaning: String(variable.meaning || 'preview state'),
+    reason: String(variable.reason || 'Created or referenced by the pending Runtime Preview plan.'),
+    summary: String(variable.summary || ''),
+    sourceHints: Array.isArray(variable.sourceHints) ? variable.sourceHints.slice(0, 3) : [],
+    tags: Array.isArray(variable.tags) ? variable.tags.slice(0, 6) : ['runtime-preview']
+  });
+  return true;
+}
+
+function planVariableControls(operation) {
+  if (!operation) {
+    return [];
+  }
+  const variables = [];
+  const rel = String(operation.path || '').replace(/\\/g, '/');
+  const qualityMatch = rel.match(/^source\/qualities\/([^/.]+)\.quality\.dry$/);
+  if (qualityMatch) {
+    variables.push(debugVariableControl(qualityMatch[1], 'number', {
+      reason: 'Quality created by the pending Runtime Preview plan.',
+      sourceHints: [rel]
+    }));
+  }
+  const text = [operation.content, operation.replace].map((value) => String(value || '')).join('\n');
+  qVariablesFromText(text).forEach((name) => {
+    variables.push(debugVariableControl(name, inferDebugVariableType(name), {
+      reason: 'State variable referenced by the pending Runtime Preview plan.',
+      sourceHints: rel ? [rel] : []
+    }));
+  });
+  conditionTextsFromSceneContent(text).forEach((condition) => {
+    presetAssignmentsFromCondition(condition, rel).forEach((assignment) => {
+      variables.push(debugVariableControl(assignment.name, assignment.valueType, {
+        value: assignment.value,
+        reason: assignment.reason,
+        sourceHints: assignment.sourceHints
+      }));
+    });
+  });
+  return variables;
+}
+
+function debugSceneFromCreateOperation(operation) {
+  if (!operation || operation.type !== 'create_file') {
+    return null;
+  }
+  const rel = String(operation.path || '').replace(/\\/g, '/');
+  if (!/^source\/scenes\/.+\.scene\.dry$/.test(rel)) {
+    return null;
+  }
+  const id = path.basename(rel).replace(/\.scene\.dry$/i, '');
+  if (!/^[A-Za-z_][A-Za-z0-9_.-]*$/.test(id)) {
+    return null;
+  }
+  const content = String(operation.content || '');
+  const titleMatch = content.match(/^title:\s*(.+?)\s*$/m);
+  const tagsMatch = content.match(/^tags:\s*(.+?)\s*$/m);
+  return {
+    id,
+    title: titleMatch ? titleMatch[1].trim() : id,
+    type: debugSceneTypeFromPath(rel, content),
+    sourcePath: rel,
+    tags: tagsMatch ? tagsMatch[1].split(',').map((tag) => tag.trim()).filter(Boolean).slice(0, 6) : []
+  };
+}
+
+function debugFocusPresetFromCreateOperation(operation, scene) {
+  if (!operation || !scene) {
+    return null;
+  }
+  const content = String(operation.content || '');
+  const sourcePath = String(scene.sourcePath || operation.path || '').replace(/\\/g, '/');
+  const assignments = [];
+  const seenAssignments = new Map();
+  conditionTextsFromSceneContent(content).forEach((condition) => {
+    presetAssignmentsFromCondition(condition, sourcePath).forEach((assignment) => {
+      seenAssignments.set(assignment.name, assignment);
+    });
+  });
+  seenAssignments.forEach((assignment) => assignments.push(assignment));
+  return {
+    id: 'focus_' + scene.id,
+    label: 'Open ' + (scene.title || scene.id),
+    sceneId: scene.id,
+    title: scene.title || scene.id,
+    type: scene.type || 'scene',
+    sourcePath,
+    reason: assignments.length
+      ? 'Apply matching preview state, then open this newly created scene.'
+      : 'Open this newly created scene in the modified runtime.',
+    variables: assignments
+  };
+}
+
+function laneFocusPresetsFromPlan(operations, controls, createdEntries, projectIndex) {
+  const entries = Array.isArray(createdEntries) ? createdEntries : [];
+  if (!entries.length) {
+    return [];
+  }
+  return (Array.isArray(operations) ? operations : [])
+    .filter((operation) => operation && (operation.kind === 'deck_tag_route' || operation.kind === 'advisor_tag_route'))
+    .map((operation) => {
+      const entry = createdCardEntryForWiring(operation, entries);
+      const lane = laneSceneForWiringOperation(operation, controls, projectIndex);
+      if (!entry || !lane) {
+        return null;
+      }
+      const cardTitle = entry.scene.title || entry.scene.id;
+      const laneTitle = lane.title || lane.id;
+      const laneType = lane.type || (operation.kind === 'advisor_tag_route' ? 'hand' : 'deck');
+      const verb = operation.kind === 'advisor_tag_route' ? 'hand containing ' : 'deck containing ';
+      return {
+        id: 'focus_' + entry.scene.id + '_via_' + lane.id,
+        label: 'Open ' + verb + cardTitle,
+        sceneId: lane.id,
+        title: laneTitle,
+        type: laneType,
+        sourcePath: lane.sourcePath || operation.path || '',
+        reason: 'Open the source-backed ' + laneType + ' that received this card route in the modified runtime.',
+        variables: entry.preset && Array.isArray(entry.preset.variables) ? entry.preset.variables.slice() : []
+      };
+    })
+    .filter(Boolean);
+}
+
+function createdCardEntryForWiring(operation, entries) {
+  const routeTag = routeTagFromWiringOperation(operation);
+  const cardEntries = entries.filter((entry) => entry && isCardLikeDebugType(entry.scene && entry.scene.type));
+  if (routeTag) {
+    const matched = cardEntries.find((entry) => Array.isArray(entry.scene.tags) && entry.scene.tags.includes(routeTag));
+    if (matched) {
+      return matched;
+    }
+  }
+  return cardEntries[0] || null;
+}
+
+function routeTagFromWiringOperation(operation) {
+  const text = [operation && operation.content, operation && operation.dedupeSearch].map((value) => String(value || '')).join('\n');
+  const match = text.match(/-\s*#([A-Za-z_][A-Za-z0-9_]*)/);
+  return match ? match[1] : '';
+}
+
+function laneSceneForWiringOperation(operation, controls, projectIndex) {
+  const rel = normalizeRelPath(operation && operation.path);
+  if (!rel) {
+    return null;
+  }
+  const preferredTypes = operation.kind === 'advisor_tag_route'
+    ? new Set(['hand', 'pinned_card', 'advisor'])
+    : new Set(['deck']);
+  const scenes = Array.isArray(controls && controls.scenes) ? controls.scenes : [];
+  return scenes.find((scene) => normalizeRelPath(scene && scene.sourcePath) === rel && preferredTypes.has(String(scene && scene.type || ''))) ||
+    scenes.find((scene) => normalizeRelPath(scene && scene.sourcePath) === rel) ||
+    sceneFromProjectIndexPath(projectIndex, rel, preferredTypes);
+}
+
+function sceneFromProjectIndexPath(projectIndex, rel, preferredTypes) {
+  const scene = (Array.isArray(projectIndex && projectIndex.scenes) ? projectIndex.scenes : [])
+    .find((item) => normalizeRelPath(item && (item.path || item.sourcePath)) === rel);
+  if (!scene) {
+    return null;
+  }
+  const type = String(scene.type || (preferredTypes && preferredTypes.has('deck') ? 'deck' : 'hand') || 'scene');
+  return {
+    id: String(scene.id || '').trim(),
+    title: String(scene.title || scene.id || '').trim(),
+    type,
+    sourcePath: rel,
+    tags: Array.isArray(scene.tags) ? scene.tags.slice(0, 6) : []
+  };
+}
+
+function isCardLikeDebugType(type) {
+  const text = String(type || '');
+  return text === 'card' || text === 'pinned_card' || text === 'advisor';
+}
+
+function normalizeRelPath(value) {
+  return String(value || '').replace(/\\/g, '/').replace(/^\/+/, '').trim();
+}
+
+function conditionTextsFromSceneContent(content) {
+  const text = String(content || '');
+  const rows = [];
+  const re = /^(?:view-if|choose-if):\s*(.+?)\s*$/gm;
+  let match;
+  while ((match = re.exec(text))) {
+    if (match[1]) {
+      rows.push(match[1].trim());
+    }
+  }
+  return rows;
+}
+
+function presetAssignmentsFromCondition(condition, sourcePath) {
+  const text = String(condition || '');
+  const assignments = new Map();
+  const comparisonRe = /\b(?:Q\.)?([A-Za-z_$][A-Za-z0-9_$]*)\s*(>=|<=|==|=|>|<)\s*(?:"([^"]*)"|'([^']*)'|(-?\d+(?:\.\d+)?))/g;
+  let match;
+  while ((match = comparisonRe.exec(text))) {
+    const name = match[1] || '';
+    if (!isSafeVariableName(name) || isConditionKeyword(name)) {
+      continue;
+    }
+    const quoted = match[3] !== undefined || match[4] !== undefined;
+    const rawValue = quoted ? (match[3] !== undefined ? match[3] : match[4]) : match[5];
+    const value = quoted ? String(rawValue || '') : comparisonPresetValue(match[2], Number(rawValue));
+    const valueType = inferDebugVariableType(name, value);
+    assignments.set(name, {
+      name,
+      value,
+      valueType,
+      reason: 'Suggested by condition: ' + clipCondition(text),
+      sourceHints: sourcePath ? [sourcePath] : []
+    });
+  }
+  const withoutComparisons = stripQuotedStrings(text).replace(comparisonRe, ' ');
+  const tokenRe = /\b(?:Q\.)?([A-Za-z_$][A-Za-z0-9_$]*)\b/g;
+  while ((match = tokenRe.exec(withoutComparisons))) {
+    const name = match[1] || '';
+    if (!isSafeVariableName(name) || isConditionKeyword(name) || assignments.has(name)) {
+      continue;
+    }
+    assignments.set(name, {
+      name,
+      value: 1,
+      valueType: inferDebugVariableType(name, 1),
+      reason: 'Suggested by bare condition flag: ' + clipCondition(text),
+      sourceHints: sourcePath ? [sourcePath] : []
+    });
+  }
+  return Array.from(assignments.values());
+}
+
+function comparisonPresetValue(operator, number) {
+  if (!Number.isFinite(number)) {
+    return 1;
+  }
+  if (operator === '>') {
+    return number + (Number.isInteger(number) ? 1 : 0.01);
+  }
+  if (operator === '<') {
+    return number - (Number.isInteger(number) ? 1 : 0.01);
+  }
+  return number;
+}
+
+function qVariablesFromText(text) {
+  const out = new Set();
+  const re = /\bQ\.([A-Za-z_$][A-Za-z0-9_$]*)\b/g;
+  let match;
+  while ((match = re.exec(String(text || '')))) {
+    if (isSafeVariableName(match[1])) {
+      out.add(match[1]);
+    }
+  }
+  return Array.from(out);
+}
+
+function debugVariableControl(name, valueType, options) {
+  const opts = options || {};
+  return {
+    name,
+    valueType: valueType || inferDebugVariableType(name, opts.value),
+    value: opts.value,
+    reason: opts.reason || 'Created or referenced by the pending Runtime Preview plan.',
+    meaning: opts.meaning || 'preview state',
+    sourceHints: opts.sourceHints || [],
+    tags: ['runtime-preview']
+  };
+}
+
+function inferDebugVariableType(name, value) {
+  if (typeof value === 'string') {
+    return 'string';
+  }
+  const text = String(name || '').toLowerCase();
+  if (/_seen$/.test(text) || /^has_/.test(text) || /^is_/.test(text) || /(^|_)in_/.test(text)) {
+    return 'booleanNumber';
+  }
+  return 'number';
+}
+
+function stripQuotedStrings(text) {
+  return String(text || '').replace(/"[^"]*"|'[^']*'/g, ' ');
+}
+
+function isConditionKeyword(value) {
+  return new Set(['and', 'or', 'not', 'if', 'else', 'true', 'false', 'null', 'undefined', 'in', 'is', 'Q', 'Math']).has(String(value || ''));
+}
+
+function isSafeVariableName(value) {
+  return /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(String(value || ''));
+}
+
+function clipCondition(value) {
+  const text = String(value || '').replace(/\s+/g, ' ').trim();
+  return text.length > 120 ? text.slice(0, 117) + '...' : text;
+}
+
+function debugSceneTypeFromPath(rel, content) {
+  if (/\/events\//.test(rel)) {
+    return 'event';
+  }
+  if (/\/cards\//.test(rel) || /^is-card:\s*true\s*$/m.test(content)) {
+    return 'card';
+  }
+  if (/\/decks\//.test(rel) || /^is-deck:\s*true\s*$/m.test(content)) {
+    return 'deck';
+  }
+  if (/\/advisors\//.test(rel) || /^is-pinned-card:\s*true\s*$/m.test(content)) {
+    return 'pinned_card';
+  }
+  return 'scene';
 }
 
 function injectModifiedBridge(indexPath, scriptName) {

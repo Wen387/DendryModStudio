@@ -206,7 +206,7 @@
     if (value === 'guided_only' || value === 'ide_escape_hatch') {
       return 'warning';
     }
-    if (value === 'not_started') {
+    if (value === 'not_started' || value === 'deferred') {
       return 'opaque';
     }
     return '';

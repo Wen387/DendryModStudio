@@ -105,6 +105,13 @@ const model = viewer.buildViewModel(index);
 
 assert(model.normalizedRowsByView instanceof Map, 'viewer model should expose a normalized row cache');
 assert(model.textCorpusContextIndex && model.textCorpusContextIndex.bySceneId instanceof Map, 'viewer model should pre-index Text Corpus context by owner scene');
+assert(model.coverageRowsDeferred === true, 'viewer model should defer full coverage rows during initial project load');
+const deferredCoverageRow = (model.lists.coverage || []).find((row) => row.id === 'visible_object_editor');
+assert(deferredCoverageRow && deferredCoverageRow.deferred === true, 'initial coverage list should use a deferred visible-object coverage row');
+assert(
+  /Coverage Map/.test(deferredCoverageRow.userCanDo || ''),
+  'deferred visible-object coverage row should explain that the full report is built on demand'
+);
 const firstTextContext = viewer.textCorpusContextRows(model, index.semantic.textCorpus.items[0]);
 assert(firstTextContext.length > 0 && firstTextContext.length <= 7, 'Text Corpus inspector context should use a bounded cached window');
 const firstNeedle = viewer.filterAndSortItems(model, 'textCorpus', 'needle', 'primary', 'asc');
@@ -129,6 +136,15 @@ assert(model.sortedRowsByView instanceof Map, 'viewer model should expose a sort
 assert(
   Array.from(model.sortedRowsByView.keys()).some((key) => String(key).includes('textCorpus') && String(key).includes('primary')),
   'filterAndSortItems should populate a per-view sorted row cache'
+);
+const normalizedCoverageRows = viewer.filterAndSortItems(model, 'coverage', '', 'label', 'asc');
+const fullVisibleCoverageRow = (model.lists.coverage || []).find((row) => row.id === 'visible_object_editor');
+assert(model.coverageRowsDeferred === false, 'opening Coverage Map should materialize full coverage rows');
+assert(fullVisibleCoverageRow && fullVisibleCoverageRow.deferred !== true, 'materialized visible-object coverage row should replace the deferred placeholder');
+assert((fullVisibleCoverageRow.count || 0) > 0, 'materialized visible-object coverage row should include report totals');
+assert(
+  normalizedCoverageRows.some((row) => row.raw && row.raw.id === 'visible_object_editor'),
+  'Coverage Map normalized rows should include the materialized visible-object row'
 );
 assert(typeof viewer.virtualWindowForList === 'function', 'viewer should expose virtualWindowForList for large Explore lists');
 const virtualWindow = viewer.virtualWindowForList(2400, 1160, 580);

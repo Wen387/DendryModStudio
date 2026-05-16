@@ -133,6 +133,37 @@ const protectedEdit = semanticEdit(protectedRoute, '- @new_fallback: Updated fal
 assert(protectedEdit.operation.safety === 'advanced_apply', 'protected route editor operation should stay advanced_apply', protectedEdit.operation);
 assert(protectedEdit.model.routeEvidence.length >= 1, 'conditional route editor should expose route-order evidence', protectedEdit.model.routeEvidence);
 
+const routeOrderModel = semanticLogic.buildSemanticLogicEditor(index, {
+  id: 'route_order_group',
+  label: 'alpha if Q.route_flag',
+  role: 'route',
+  sceneId: 'route_heavy',
+  editAction: {
+    actionKind: 'open_source_slice',
+    semanticEditor: {kind: 'route_order', role: 'route', sceneId: 'route_heavy'},
+    source: src(protectedPath, 122, 'alpha if Q.route_flag'),
+    installSafety: 'advanced_apply',
+    operationType: 'replace_text'
+  }
+});
+assert(routeOrderModel.ok, 'route-order group should open the route editor', routeOrderModel);
+assert(routeOrderModel.fieldControls.routeClauses.length === 2, 'conditional route editor should expose the whole route-order chain', routeOrderModel.fieldControls);
+const routeBundleReplacement = semanticLogic.composeFieldReplacement(routeOrderModel, {
+  'semantic_logic.routeClauses': [
+    {target: 'beta', predicate: 'Q.route_flag'},
+    {target: 'omega', isFallback: true}
+  ]
+});
+assert(routeBundleReplacement === 'beta if Q.route_flag; omega', 'guided route editor should compose multi-clause route-order replacements', {routeBundleReplacement});
+const routeBundleProposal = semanticLogic.buildProposal(routeOrderModel, {
+  'semantic_logic.routeClauses': [
+    {target: 'beta', predicate: 'Q.route_flag'},
+    {target: 'omega', isFallback: true}
+  ]
+});
+assert(routeBundleProposal.ok, 'guided route-order bundle should build an install proposal', routeBundleProposal);
+assert(routeBundleProposal.replacementText === 'beta if Q.route_flag; omega', 'guided route-order proposal should preserve fallback clauses', routeBundleProposal);
+
 const routerEntry = rowWhere(rows, (row) => row.id === 'news:monthly_router_entry' && row.editAction && row.editAction.semanticEditor && row.editAction.semanticEditor.kind === 'route_order', 'monthly router row should expose route editor metadata');
 const routerEdit = semanticEdit(routerEntry, '- @monthly_link: Updated Monthly Link');
 assert(routerEdit.operation.safety === 'advanced_apply', 'monthly router route editor operation should stay advanced_apply', routerEdit.operation);
@@ -154,10 +185,18 @@ const goToModel = semanticLogic.buildSemanticLogicEditor(index, {
 assert(goToModel.ok, 'go-to route line should open the route editor', goToModel);
 const goToReplacement = semanticLogic.composeFieldReplacement(goToModel, {'semantic_logic.routeTarget': 'new_target'});
 assert(goToReplacement === 'go-to: new_target', 'guided route editor should preserve go-to syntax', {goToReplacement, controls: goToModel.fieldControls});
+const goToBundleReplacement = semanticLogic.composeFieldReplacement(goToModel, {
+  'semantic_logic.routeClauses': [
+    {target: 'new_target', predicate: 'Q.ready'},
+    {target: 'fallback_target', isFallback: true}
+  ]
+});
+assert(goToBundleReplacement === 'go-to: new_target if Q.ready; fallback_target', 'guided route editor should preserve go-to syntax for route bundles', {goToBundleReplacement, controls: goToModel.fieldControls});
 
 process.stdout.write(JSON.stringify({
   ok: true,
   protectedRoute: protectedEdit.operation.type + ':' + protectedEdit.operation.safety,
   monthlyRouter: routerEdit.operation.type + ':' + routerEdit.operation.safety,
+  routeBundle: routeBundleProposal.installPlan.operations[0].type + ':' + routeBundleProposal.installPlan.operations[0].safety,
   structuredRouteEditorCoverage: report.summary.structuredRouteEditorCoverage
 }, null, 2) + '\n');

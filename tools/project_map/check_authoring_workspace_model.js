@@ -20,6 +20,8 @@ const AUTHORING_REFERENCE_INDEX = path.join(VIEWER, 'authoring_reference_index.j
 const CONTENT_STORYBOARD_SURFACE = path.join(VIEWER, 'content_storyboard_surface.js');
 const VISIBLE_TEXT_RENDERER = path.join(VIEWER, 'visible_text_renderer.js');
 const LIGHTWEIGHT_OBJECT_PREVIEW = path.join(VIEWER, 'lightweight_object_preview.js');
+const PREVIEW_OBJECT_STRUCTURE_DRAFT = path.join(VIEWER, 'preview_object_structure_draft.js');
+const PREVIEW_OBJECT_STRUCTURE_UI = path.join(VIEWER, 'preview_object_structure_ui.js');
 const PREVIEW_OBJECT_EDITOR = path.join(VIEWER, 'preview_object_editor.js');
 const STORYBOARD_SCOPE_CONTROLS = path.join(VIEWER, 'storyboard_scope_controls.js');
 const STORYBOARD_CARD_RENDERER = path.join(VIEWER, 'storyboard_card_renderer.js');
@@ -49,6 +51,11 @@ const ELECTION_RESULTS_SURFACE = path.join(VIEWER, 'election_results_surface.js'
 const OBJECT_CANVAS_VIEWPORT = path.join(VIEWER, 'object_canvas_viewport.js');
 const OBJECT_CANVAS_GRAPH_STAGE = path.join(VIEWER, 'object_canvas_graph_stage.js');
 const OBJECT_CANVAS_SHELL_UI = path.join(VIEWER, 'object_canvas_shell_ui.js');
+const OBJECT_CANVAS_SURFACE_ADAPTER = path.join(VIEWER, 'object_canvas_surface_adapter.js');
+const OBJECT_CANVAS_MODEL_BUILDER = path.join(VIEWER, 'object_canvas_model_builder.js');
+const OBJECT_CANVAS_PROJECT_STATE_WORKSPACE = path.join(VIEWER, 'object_canvas_project_state_workspace.js');
+const OBJECT_CANVAS_FIELD_VALUES = path.join(VIEWER, 'object_canvas_field_values.js');
+const OBJECT_CANVAS_PREVIEW_EDITOR_SYNC = path.join(VIEWER, 'object_canvas_preview_editor_sync.js');
 const OBJECT_DELETE_PROPOSAL_MODEL = path.join(ROOT, 'authoring', 'object_delete_proposal_model.js');
 const AUTHORING_WORKSPACE_UI = path.join(VIEWER, 'authoring_workspace_ui.js');
 const OBJECT_CANVAS_UI = path.join(VIEWER, 'object_authoring_canvas_ui.js');
@@ -57,6 +64,7 @@ const VIEWER_STYLE = path.join(VIEWER, 'styles.css');
 const CREATE_STYLE = path.join(VIEWER, 'styles', 'create.css');
 const INSTALL_PREVIEW_STYLE = path.join(VIEWER, 'styles', 'install-preview.css');
 const EDITING_STYLE = path.join(VIEWER, 'styles', 'editing.css');
+const CONTENT_STORYBOARD_STYLE = path.join(VIEWER, 'styles', 'content-storyboard.css');
 const PREVIEW_OBJECT_EDITOR_STYLE = path.join(VIEWER, 'styles', 'preview-object-editor.css');
 const CARD_BOARD_STYLE = path.join(VIEWER, 'styles', 'card-board.css');
 const HARNESS = path.join(ROOT, 'qa', 'authoring_canvas_screenshot_harness.html');
@@ -76,6 +84,14 @@ function read(filePath) {
   return fs.readFileSync(filePath, 'utf8');
 }
 
+function assertHtmlOrder(before, after, message) {
+  const beforeIndex = html.indexOf(before);
+  const afterIndex = html.indexOf(after);
+  assert(beforeIndex >= 0, 'viewer should load ' + before);
+  assert(afterIndex >= 0, 'viewer should load ' + after);
+  assert(beforeIndex < afterIndex, message);
+}
+
 const html = read(INDEX);
 const contentStoryboardModel = read(CONTENT_STORYBOARD_MODEL);
 const cardBoardModel = read(CARD_BOARD_MODEL);
@@ -90,8 +106,12 @@ const referenceIndex = read(AUTHORING_REFERENCE_INDEX);
 const contentStoryboardSurface = read(CONTENT_STORYBOARD_SURFACE);
 const visibleTextRenderer = read(VISIBLE_TEXT_RENDERER);
 const lightweightObjectPreview = read(LIGHTWEIGHT_OBJECT_PREVIEW);
+const previewObjectStructureDraft = read(PREVIEW_OBJECT_STRUCTURE_DRAFT);
+const previewObjectStructureUi = read(PREVIEW_OBJECT_STRUCTURE_UI);
 const previewObjectEditor = read(PREVIEW_OBJECT_EDITOR);
 const visibleTextApi = require(VISIBLE_TEXT_RENDERER);
+const previewObjectStructureDraftApi = require(PREVIEW_OBJECT_STRUCTURE_DRAFT);
+const previewObjectStructureUiApi = require(PREVIEW_OBJECT_STRUCTURE_UI);
 const previewObjectEditorApi = require(PREVIEW_OBJECT_EDITOR);
 const contentStoryboardInteractionsApi = require(CONTENT_STORYBOARD_INTERACTIONS);
 const storyboardCardRendererApi = require(STORYBOARD_CARD_RENDERER);
@@ -123,6 +143,16 @@ const electionResultsSurface = read(ELECTION_RESULTS_SURFACE);
 const objectCanvasViewport = read(OBJECT_CANVAS_VIEWPORT);
 const objectCanvasGraphStage = read(OBJECT_CANVAS_GRAPH_STAGE);
 const objectCanvasShellUi = read(OBJECT_CANVAS_SHELL_UI);
+const objectCanvasSurfaceAdapter = read(OBJECT_CANVAS_SURFACE_ADAPTER);
+const objectCanvasSurfaceAdapterApi = require(OBJECT_CANVAS_SURFACE_ADAPTER);
+const objectCanvasModelBuilder = read(OBJECT_CANVAS_MODEL_BUILDER);
+const objectCanvasModelBuilderApi = require(OBJECT_CANVAS_MODEL_BUILDER);
+const objectCanvasProjectStateWorkspace = read(OBJECT_CANVAS_PROJECT_STATE_WORKSPACE);
+const objectCanvasProjectStateWorkspaceApi = require(OBJECT_CANVAS_PROJECT_STATE_WORKSPACE);
+const objectCanvasFieldValues = read(OBJECT_CANVAS_FIELD_VALUES);
+const objectCanvasFieldValuesApi = require(OBJECT_CANVAS_FIELD_VALUES);
+const objectCanvasPreviewEditorSync = read(OBJECT_CANVAS_PREVIEW_EDITOR_SYNC);
+const objectCanvasPreviewEditorSyncApi = require(OBJECT_CANVAS_PREVIEW_EDITOR_SYNC);
 const objectDeleteProposalModel = read(OBJECT_DELETE_PROPOSAL_MODEL);
 const workspaceUi = read(AUTHORING_WORKSPACE_UI);
 const canvasUi = read(OBJECT_CANVAS_UI);
@@ -131,6 +161,7 @@ const viewerStyle = read(VIEWER_STYLE);
 const createStyle = read(CREATE_STYLE);
 const installPreviewStyle = read(INSTALL_PREVIEW_STYLE);
 const editingStyle = read(EDITING_STYLE);
+const contentStoryboardStyle = read(CONTENT_STORYBOARD_STYLE);
 const previewObjectEditorStyle = read(PREVIEW_OBJECT_EDITOR_STYLE);
 const cardBoardStyle = read(CARD_BOARD_STYLE);
 const harness = read(HARNESS);
@@ -138,7 +169,7 @@ const harness = read(HARNESS);
 const workspaces = ['content', 'system_ui', 'project_state'];
 const groupedTemplates = {
   content: ['event', 'news', 'card'],
-  system_ui: ['entry', 'election_results', 'project'],
+  system_ui: ['entry', 'play_surface', 'workspace_layout', 'sidebar_status', 'election_results', 'project'],
   project_state: ['variables']
 };
 const internalSystemUiTemplates = ['entry', 'play_surface', 'workspace_layout', 'sidebar_status', 'project'];
@@ -160,13 +191,122 @@ assert(html.includes('storyboard_scope_controls.js'), 'viewer should load Storyb
 assert(html.includes('storyboard_card_renderer.js'), 'viewer should load Storyboard card renderer');
 assert(html.includes('storyboard_palette_sidebar.js'), 'viewer should load Storyboard palette sidebar');
 assert(html.includes('lightweight_object_preview.js'), 'viewer should load the lightweight Studio object preview');
+assert(html.includes('preview_object_structure_ui.js'), 'viewer should load the Preview Object structure UI helpers');
 assert(html.includes('preview_object_editor.js'), 'viewer should load the visible Preview Object Editor');
+assert(previewObjectStructureDraft.includes('ProjectMapPreviewObjectStructureDraft'), 'Preview Object structure draft helpers should expose a browser global');
+assert(previewObjectStructureUi.includes('ProjectMapPreviewObjectStructureUi'), 'Preview Object structure UI helpers should expose a browser global');
+assert(typeof previewObjectStructureUiApi.create === 'function', 'Preview Object structure UI helpers should export create');
+assert(typeof previewObjectStructureDraftApi.composeStructureValue === 'function', 'Preview Object structure draft helpers should export composeStructureValue');
+assert(typeof previewObjectStructureDraftApi.syncBuilder === 'function', 'Preview Object structure draft helpers should export syncBuilder');
+assert(typeof previewObjectStructureDraftApi.clearBuilder === 'function', 'Preview Object structure draft helpers should export clearBuilder');
+assert(typeof previewObjectStructureDraftApi.readBuilderCommand === 'function', 'Preview Object structure draft helpers should export readBuilderCommand');
+assert(previewObjectStructureDraftApi.composeStructureValue('add_option', {
+  option_label: 'Take the bridge',
+  result_text: 'You cross safely.',
+  choose_if: 'Q.bridge_open',
+  unavailable_text: 'The bridge is closed.'
+}) === [
+  '- @take_the_bridge: Take the bridge',
+  '# take_the_bridge',
+  'result-mode: native',
+  'choose-if: Q.bridge_open',
+  'unavailable-subtitle: The bridge is closed.',
+  'You cross safely.'
+].join('\n'), 'Preview Object structure draft helpers should compose add-option drafts');
+assert(previewObjectStructureDraftApi.composeStructureValue('add_branch', {
+  section_id: 'rain_check',
+  condition: 'Q.weather = "rain"',
+  branch_text: 'Rain drums on the roof.'
+}) === '# rain_check\n[? if Q.weather = "rain" : Rain drums on the roof. ?]', 'Preview Object structure draft helpers should compose branch drafts');
+assert(previewObjectStructureDraftApi.composeStructureValue('add_trigger_effect', {
+  variable: 'Q.morale',
+  operation: '+=',
+  value: '2',
+  condition: 'Q.has_banner'
+}) === 'Q.morale += 2 if Q.has_banner', 'Preview Object structure draft helpers should compose effect drafts');
+const structureBuilderStub = {
+  dataset: {
+    previewObjectStructureBuilder: 'add_trigger_effect',
+    previewObjectStructureFieldId: 'effect_text',
+    previewObjectStructureOptionId: 'option_1',
+    previewObjectStructureSectionId: 'main',
+    previewObjectStructureTargetLabel: 'Trigger'
+  },
+  querySelector(selector) {
+    assert(selector === '[data-preview-object-structure-output]', 'syncBuilder should preserve the structure output selector contract');
+    return structureBuilderOutputStub;
+  },
+  querySelectorAll(selector) {
+    assert(selector === '[data-preview-object-structure-part]', 'syncBuilder should preserve the structure part selector contract');
+    return structureBuilderPartStubs;
+  }
+};
+const structureBuilderPartStubs = [
+  {dataset: {previewObjectStructurePart: 'variable'}, value: 'Q.morale'},
+  {dataset: {previewObjectStructurePart: 'operation'}, value: '+='},
+  {dataset: {previewObjectStructurePart: 'value'}, value: '2'},
+  {dataset: {previewObjectStructurePart: 'condition'}, value: 'Q.has_banner'}
+];
+let structureBuilderInputEvents = 0;
+const structureBuilderOutputStub = {
+  dataset: {objectCanvasField: 'fallback_effect_text'},
+  value: '',
+  dispatchEvent(event) {
+    if (event && event.type === 'input') {
+      structureBuilderInputEvents += 1;
+    }
+  }
+};
+function StructureBuilderEventStub(type) {
+  this.type = type;
+}
+assert(previewObjectStructureDraftApi.syncBuilder(structureBuilderStub, {Event: StructureBuilderEventStub}) === 'Q.morale += 2 if Q.has_banner', 'syncBuilder should compose structure builder output');
+assert(structureBuilderOutputStub.value === 'Q.morale += 2 if Q.has_banner', 'syncBuilder should write the structure output field');
+assert(structureBuilderInputEvents === 1, 'syncBuilder should dispatch an input event when output changes');
+const structureBuilderCommand = previewObjectStructureDraftApi.readBuilderCommand(structureBuilderStub, {id: 'structure_command_test', Event: StructureBuilderEventStub});
+assert(structureBuilderCommand && structureBuilderCommand.id === 'structure_command_test', 'readBuilderCommand should accept caller-provided ids');
+assert(structureBuilderCommand.action === 'add_trigger_effect', 'readBuilderCommand should read the builder action');
+assert(structureBuilderCommand.fieldId === 'effect_text', 'readBuilderCommand should prefer the builder field id');
+assert(structureBuilderCommand.optionId === 'option_1', 'readBuilderCommand should read option context');
+assert(structureBuilderCommand.sectionId === 'main', 'readBuilderCommand should read section context');
+assert(structureBuilderCommand.targetLabel === 'Trigger', 'readBuilderCommand should read target label context');
+assert(structureBuilderCommand.value === 'Q.morale += 2 if Q.has_banner', 'readBuilderCommand should return the synced command value');
 assert(html.includes('storyboard_workspace_state.js'), 'viewer should load Storyboard workspace state');
 assert(html.includes('content_storyboard_surface.js'), 'viewer should load Content Storyboard surface');
 assert(html.includes('content_storyboard_interactions.js'), 'viewer should load Content Storyboard interactions');
 assert(html.includes('visible_text_renderer.js'), 'viewer should load the shared visible text renderer before object previews');
+assert(html.includes('preview_object_structure_draft.js'), 'viewer should load Preview Object structure draft helpers');
+assertHtmlOrder('preview_object_structure_draft.js', 'preview_object_editor.js', 'Preview Object structure draft helpers should load before Preview Object Editor');
+assertHtmlOrder('preview_object_structure_draft.js', 'preview_object_structure_ui.js', 'Preview Object structure draft helpers should load before Preview Object structure UI');
+assertHtmlOrder('preview_object_structure_ui.js', 'preview_object_event_builder_ui.js', 'Preview Object structure UI should load before Complex Event Builder UI');
+assertHtmlOrder('preview_object_event_builder_ui.js', 'preview_object_editor.js', 'Complex Event Builder UI should load before Preview Object Editor');
+assertHtmlOrder('preview_object_structure_ui.js', 'preview_object_editor.js', 'Preview Object structure UI should load before Preview Object Editor');
+assert(html.includes('object_canvas_field_values.js'), 'viewer should load Object Canvas field value helpers');
+assertHtmlOrder('object_canvas_field_values.js', 'object_authoring_canvas_ui.js', 'Object Canvas field value helpers should load before Object Canvas UI');
+assert(objectCanvasFieldValues.includes('ProjectMapObjectCanvasFieldValues'), 'Object Canvas field value helpers should expose a browser global');
+assert(typeof objectCanvasFieldValuesApi.collectCanvasFieldEntries === 'function', 'Object Canvas field value helpers should export collectCanvasFieldEntries');
+assert(typeof objectCanvasFieldValuesApi.fieldIsVisibleForCollection === 'function', 'Object Canvas field value helpers should export fieldIsVisibleForCollection');
+assert(html.includes('object_canvas_preview_editor_sync.js'), 'viewer should load Object Canvas Preview editor sync helpers');
+assertHtmlOrder('object_canvas_preview_editor_sync.js', 'object_authoring_canvas_ui.js', 'Object Canvas Preview editor sync helpers should load before Object Canvas UI');
+assert(objectCanvasPreviewEditorSync.includes('ProjectMapObjectCanvasPreviewEditorSync'), 'Object Canvas Preview editor sync helpers should expose a browser global');
+[
+  'syncPreviewObjectEditorPane',
+  'syncPreviewObjectRenderedFields',
+  'previewObjectFieldMap',
+  'syncPreviewObjectEditorChrome',
+  'renderVisibleTextInline',
+  'renderPreviewObjectDraftSummary',
+  'previewObjectRouteLabel',
+  'syncObjectCanvasFieldValues'
+].forEach((name) => {
+  assert(typeof objectCanvasPreviewEditorSyncApi[name] === 'function', 'Object Canvas Preview editor sync should export ' + name);
+  assert(canvasUi.includes('previewEditorSyncApi().' + name), 'Object Canvas should keep ' + name + ' as a thin Preview editor sync wrapper');
+});
+assert(canvasUi.includes('function previewEditorSyncApi()'), 'Object Canvas should bridge Preview editor sync through previewEditorSyncApi');
 assert(html.includes('runtime_lens_ui.js'), 'viewer should load Runtime Lens UI');
 assert(html.includes('runtime_lens_workspace_state.js'), 'viewer should load Runtime Lens workspace state');
+assertHtmlOrder('../authoring/preview_message_bus.js', 'runtime_lens_ui.js', 'Preview Message Bus should load before Runtime Lens UI');
+assertHtmlOrder('../authoring/preview_message_bus.js', 'runtime_lens_workspace_state.js', 'Preview Message Bus should load before Runtime Lens workspace state');
 assert(html.includes('card_face_editor.js'), 'viewer should load Card Face editor');
 assert(html.includes('card_board_surface.js'), 'viewer should load Card Board surface');
 assert(html.includes('card_board_interactions.js'), 'viewer should load Card Board interactions');
@@ -187,6 +327,62 @@ assert(html.includes('../authoring/election_results_draft.js'), 'viewer should l
 assert(html.includes('object_canvas_viewport.js'), 'viewer should load Object Canvas viewport controls');
 assert(html.includes('object_canvas_graph_stage.js'), 'viewer should load the fallback Object Canvas graph stage');
 assert(html.includes('object_canvas_shell_ui.js'), 'viewer should load the Object Canvas shell helper before the main controller');
+assert(html.includes('object_canvas_surface_adapter.js'), 'viewer should load the Object Canvas surface adapter');
+assertHtmlOrder('authoring_surface_registry.js', 'object_canvas_surface_adapter.js', 'Object Canvas surface adapter should load after the Authoring Surface registry');
+assertHtmlOrder('object_canvas_surface_adapter.js', 'object_authoring_canvas_ui.js', 'Object Canvas surface adapter should load before Object Canvas UI');
+assert(objectCanvasSurfaceAdapter.includes('ProjectMapObjectCanvasSurfaceAdapter'), 'Object Canvas surface adapter should expose a browser global');
+[
+  'templateFromDraft',
+  'isCanvasTemplate',
+  'normalizeTemplate',
+  'workspaceForTemplate',
+  'systemUiTemplateForRegion',
+  'surfaceForTemplate',
+  'surfaceLabelFor',
+  'currentSurface'
+].forEach((name) => {
+  assert(typeof objectCanvasSurfaceAdapterApi[name] === 'function', 'Object Canvas surface adapter should export ' + name);
+});
+assert(html.includes('object_canvas_model_builder.js'), 'viewer should load the Object Canvas model builder');
+assertHtmlOrder('object_canvas_model_builder.js', 'object_authoring_canvas_ui.js', 'Object Canvas model builder should load before Object Canvas UI');
+assert(objectCanvasModelBuilder.includes('ProjectMapObjectCanvasModelBuilder'), 'Object Canvas model builder should expose a browser global');
+[
+  'buildExistingModelFor',
+  'buildNewEventModel',
+  'buildTemplateModel',
+  'buildSourceSliceCanvasModel',
+  'buildSemanticLogicCanvasModel',
+  'withStructureCommandValues',
+  'diagnosticModel'
+].forEach((name) => {
+  assert(typeof objectCanvasModelBuilderApi[name] === 'function', 'Object Canvas model builder should export ' + name);
+  assert(canvasUi.includes('modelBuilderApi().' + name), 'Object Canvas should keep ' + name + ' as a thin model builder wrapper');
+});
+assert(html.includes('object_canvas_project_state_workspace.js'), 'viewer should load the Object Canvas Project State workspace helper');
+assertHtmlOrder('object_canvas_project_state_workspace.js', 'object_authoring_canvas_ui.js', 'Object Canvas Project State workspace helper should load before Object Canvas UI');
+assert(objectCanvasProjectStateWorkspace.includes('ProjectMapObjectCanvasProjectStateWorkspace'), 'Object Canvas Project State workspace helper should expose a browser global');
+[
+  'fastSelectNode',
+  'openVariableFromCanvas',
+  'findVariable',
+  'syncVariableSelection',
+  'handleAction',
+  'openVariableDraft',
+  'selectedVariable',
+  'selectedVariableName',
+  'newVariableDraft',
+  'selectedNodeForVariableDraft',
+  'nextAvailableVariableName',
+  'labelFromVariableName',
+  'editVariableDraft',
+  'deleteVariableDraft',
+  'safeDraftId'
+].forEach((name) => {
+  assert(typeof objectCanvasProjectStateWorkspaceApi[name] === 'function', 'Object Canvas Project State workspace helper should export ' + name);
+});
+assert(canvasUi.includes('projectStateWorkspaceApi().handleAction'), 'Object Canvas should delegate Project State actions to the workspace helper');
+assert(canvasUi.includes('projectStateWorkspaceApi().openVariableFromCanvas'), 'Object Canvas should delegate Project State Canvas variable opens to the workspace helper');
+assert(canvasUi.includes('projectStateWorkspaceApi().fastSelectNode'), 'Object Canvas should delegate fast Project State selection to the workspace helper');
 assert(html.includes('../authoring/object_delete_proposal_model.js'), 'viewer should load the existing-object delete proposal helper');
 assert(html.includes('change_tray_ui.js'), 'viewer should load the floating Change Tray UI');
 assert(surfaceRegistry.includes('content_storyboard'), 'Surface registry should define the Content Storyboard surface');
@@ -215,9 +411,11 @@ assert(surfaceRegistry.includes("key: 'surface'"), 'Text Patch should remain reg
 assert(surfaceRegistry.includes('hidden: true'), 'Text Patch should be hidden from primary Content tabs');
 assert(surfaceRegistry.includes('!item.hidden'), 'Workspace template lists should filter hidden fallback templates');
 assert(!workspaceUi.includes("{key: 'surface', labelKey: 'create.editText'"), 'Text Patch should not be a primary Content tab');
-assert(workspaceUi.includes('SYSTEM_UI_SCREEN_ITEM'), 'System UI workspace should expose one visible screen entry');
-assert(workspaceUi.includes('ELECTION_RESULTS_ITEM'), 'System UI workspace should expose Election Results as a separate authoring subcategory');
-assert(workspaceUi.includes('return [SYSTEM_UI_SCREEN_ITEM, ELECTION_RESULTS_ITEM]'), 'System UI workspace should show System UI Screen plus Election Results, not the internal screen templates');
+assert(workspaceUi.includes("labelKey: 'create.entrySidebar'"), 'System UI workspace should expose Entry & Sidebar directly');
+assert(workspaceUi.includes("labelKey: 'create.playSurface'"), 'System UI workspace should expose Playable Surface directly');
+assert(workspaceUi.includes("labelKey: 'create.workspaceLayout'"), 'System UI workspace should expose Workspace Layout directly');
+assert(workspaceUi.includes("labelKey: 'create.sidebarStatus'"), 'System UI workspace should expose Sidebar / Status directly');
+assert(!workspaceUi.includes('return [SYSTEM_UI_SCREEN_ITEM, ELECTION_RESULTS_ITEM]'), 'System UI workspace should not collapse internal screen templates behind one broad entry');
 assert(canvasUi.includes('systemUiTemplateForRegion'), 'Object Canvas should switch internal System UI draft type from preview-region clicks');
 assert(canvasUi.includes('renderElectionResultsStage'), 'Object Canvas should render Election Results through its dedicated surface');
 assert(canvasUi.includes("key === 'election_results_board'"), 'Election Results source selector refresh should re-render the dedicated board');
@@ -388,7 +586,7 @@ assert(storyboardCardRenderer.includes('data-storyboard-card-face'), 'Storyboard
 assert(!storyboardCardRenderer.includes('data-object-canvas-field'), 'Storyboard cards should not render inline editable object fields');
 assert(storyboardCardRenderer.includes('data-storyboard-card-color-picker'), 'Storyboard card renderer should expose card edge color controls');
 assert(storyboardCardRenderer.includes('discard_draft_card'), 'Storyboard card renderer should expose safe draft discard controls');
-assert(canvasUi.includes('project_state_delete_selected'), 'Project State workflow should expose selected-variable deletion');
+assert(objectCanvasProjectStateWorkspace.includes('project_state_delete_selected'), 'Project State workflow should expose selected-variable deletion');
 assert(canvasUi.includes('existing_scene_delete'), 'Object Canvas should model existing scene delete proposals');
 assert(storyboardPaletteSidebar.includes('ProjectMapStoryboardPaletteSidebar'), 'Storyboard palette sidebar should expose a browser API');
 assert(storyboardPaletteSidebar.includes('data-storyboard-palette'), 'Storyboard palette sidebar should expose a stable QA marker');
@@ -462,8 +660,8 @@ assert(cardBoardStyle.includes('.card-board-canvas') && cardBoardStyle.includes(
 assert(editingStyle.includes('.create-workspace.is-object-authoring .project-state-layout'), 'Project State should shrink into the Create editing pane');
 assert(editingStyle.includes('.create-workspace.is-object-authoring .system-ui-layout'), 'System UI should shrink into the Create editing pane');
 assert(editingStyle.includes('.lightweight-object-preview'), 'Editing styles should include the lightweight object preview surface');
-assert(editingStyle.includes('.content-storyboard-search'), 'Editing styles should include the Storyboard search control');
-assert(editingStyle.includes('.content-storyboard-card-color-tools'), 'Editing styles should include card edge color tools');
+assert(contentStoryboardStyle.includes('.content-storyboard-search'), 'Content Storyboard styles should include the Storyboard search control');
+assert(contentStoryboardStyle.includes('.content-storyboard-card-color-tools'), 'Content Storyboard styles should include card edge color tools');
 assert(harness.includes('change-tray-open'), 'Screenshot harness should cover the floating Change Tray');
 assert(harness.includes('lightweight-preview-event'), 'Screenshot harness should cover lightweight Event preview');
 assert(harness.includes('lightweight-preview-card'), 'Screenshot harness should cover lightweight Card preview');
@@ -473,7 +671,7 @@ assert(projectStateSurface.includes('data-board-stage-toolbar'), 'Project State 
 assert(projectStateSurface.includes('data-project-state-consumers'), 'Project State surface should render variable consumers');
 assert(projectStateSurface.includes('DEFAULT_ROW_LIMIT'), 'Project State surface should avoid rendering every global variable at once');
 assert(projectStateSurface.includes('data-project-state-variable-search'), 'Project State surface should expose variable search');
-assert(canvasUi.includes('project_state_show_more'), 'Object Canvas should support incremental Project State variable loading');
+assert(objectCanvasProjectStateWorkspace.includes('project_state_show_more'), 'Object Canvas should support incremental Project State variable loading');
 assert(variableEditorUi.includes('VARIABLE_OPTION_LIMIT'), 'Variable Editor datalist should cap global variable options');
 assert(canvasUi.includes('ProjectMapProjectStateSurface'), 'Object Canvas should route Project State templates to the dedicated surface');
 assert(systemUiFixtureState.includes('fixtureList'), 'System UI fixture helper should expose fixture presets');

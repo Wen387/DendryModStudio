@@ -22,6 +22,7 @@ class VariableScanner:
         self.diagnostics: list[dict[str, Any]] = []
         self.dynamic_key_evidence: list[dict[str, Any]] = []
         self.opaque_js_blocks: Counter[str] = Counter()
+        self.opaque_js_block_items: dict[str, list[dict[str, Any]]] = defaultdict(list)
         self._reported_dynamic: set[tuple[str, int, str]] = set()
         self._reported_dynamic_evidence: set[tuple[str, int, str, str]] = set()
 
@@ -65,10 +66,16 @@ class VariableScanner:
             record["writeCount"] = len(record.get("writes", []))
             variables.append(record)
         summary = {
-            "opaqueJsBlockCount": sum(self.opaque_js_blocks.values()),
-            "opaqueJsBlocksByPath": dict(sorted(self.opaque_js_blocks.items())),
-        }
+                "opaqueJsBlockCount": sum(self.opaque_js_blocks.values()),
+                "opaqueJsBlocksByPath": dict(sorted(self.opaque_js_blocks.items())),
+            }
         return variables, self.diagnostics, summary
+
+    def opaque_blocks_by_path(self) -> dict[str, list[dict[str, Any]]]:
+        return {
+            rel: list(blocks)
+            for rel, blocks in sorted(self.opaque_js_block_items.items())
+        }
 
     def ensure_var(self, name: str) -> dict[str, Any]:
         record = self.variables.get(name)
@@ -307,17 +314,75 @@ class VariableScanner:
                     self.opaque_js_blocks[rel] += 1
                     if "!}" in line:
                         blocks.append(current)
+                        self.record_opaque_js_block(rel, current)
                         current = []
                         in_block = False
                 continue
             current.append((line_num, line))
             if "!}" in line:
                 blocks.append(current)
+                self.record_opaque_js_block(rel, current)
                 current = []
                 in_block = False
         if current:
             blocks.append(current)
+            self.record_opaque_js_block(rel, current)
         return blocks
+
+    def record_opaque_js_block(self, rel: str, block: list[tuple[int, str]]) -> None:
+        if not block:
+            return
+        start_line = block[0][0]
+        end_line = block[-1][0]
+        lines = [content for _, content in block]
+        raw = "\n".join(lines)
+        hook_match = re.search(r"\b(on-arrival|on-display)\s*:\s*\{!", lines[0], re.I)
+        hook = hook_match.group(1).lower() if hook_match else ""
+        reads, writes, dynamic_writes = self.variable_names_in_js_block(block)
+        source = source_range_ref(rel, start_line, end_line)
+        source.update({
+            "anchorText": lines[0].strip(),
+            "endAnchorText": lines[-1].strip(),
+        })
+        block_id = hashlib.sha1(f"{rel}:{start_line}:{end_line}:{raw[:120]}".encode("utf-8")).hexdigest()[:12]
+        self.opaque_js_block_items[rel].append({
+            "id": f"opaque_js_{block_id}",
+            "hook": hook,
+            "scriptKind": "opaque_js",
+            "label": f"{hook or 'script'} JS block",
+            "lineCount": max(1, end_line - start_line + 1),
+            "rawPreview": self.compact_js_preview(lines),
+            "reads": reads,
+            "writes": writes,
+            "dynamicKeyWrites": dynamic_writes,
+            "source": source,
+            "reviewBoundary": "manual_review",
+            "confidence": CONF_OPAQUE,
+        })
+
+    def variable_names_in_js_block(self, block: list[tuple[int, str]]) -> tuple[list[str], list[str], list[str]]:
+        reads: set[str] = set()
+        writes: set[str] = set()
+        dynamic_writes: set[str] = set()
+        for _line_num, raw in block:
+            line = self.strip_line_comment(raw)
+            for match in self.DOT_WRITE_RE.finditer(line):
+                writes.add(match.group(1))
+            for match in self.DOT_ACCESS_RE.finditer(line):
+                reads.add(match.group(1))
+            for match in self.DYN_WRITE_RE.finditer(line):
+                dynamic_writes.add(match.group(1).strip())
+        return sorted(reads), sorted(writes), sorted(dynamic_writes)
+
+    @staticmethod
+    def compact_js_preview(lines: list[str]) -> str:
+        body = "\n".join(line.strip() for line in lines)
+        body = re.sub(r"^\s*(?:on-arrival|on-display)\s*:\s*\{!\s*", "", body, flags=re.I)
+        body = re.sub(r"\s*!\}\s*$", "", body)
+        body = body.strip()
+        if len(body) > 1200:
+            return body[:1200].rstrip() + "\n..."
+        return body
 
     def scan_lines(self, rel: str, lines: list[str]) -> None:
         for line_num, line in enumerate(lines, 1):

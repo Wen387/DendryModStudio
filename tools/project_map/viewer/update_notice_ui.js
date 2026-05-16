@@ -10,9 +10,23 @@
     return i18n && typeof i18n.t === 'function' ? i18n.t(key, fallback) : fallback;
   }
 
+  function desktopCapabilities() {
+    if (global && global.ProjectMapDesktopCapabilities) {
+      return global.ProjectMapDesktopCapabilities;
+    }
+    if (typeof module !== 'undefined' && module.exports && typeof require === 'function') {
+      try {
+        return require('./desktop_capabilities.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   function canCheckUpdates(env) {
-    const value = env || global || {};
-    return Boolean(value.dendryDesktop && typeof value.dendryDesktop.checkUpdateNotice === 'function');
+    const desktop = desktopCapabilities();
+    return Boolean(desktop && desktop.canCheckUpdateNotice(env || global));
   }
 
   function noticeKey(notice) {
@@ -297,7 +311,11 @@
     if (state.elements && state.elements.boardRefresh) {
       state.elements.boardRefresh.disabled = true;
     }
-    return global.dendryDesktop.checkUpdateNotice({timeoutMs: manual ? 6000 : 3500}).then((notice) => {
+    const desktop = desktopCapabilities();
+    if (!desktop) {
+      return Promise.resolve(null);
+    }
+    return desktop.checkUpdateNotice({timeoutMs: manual ? 6000 : 3500}, global).then((notice) => {
       state.lastResult = notice || null;
       renderBoard();
       if (!notice || !notice.configured) {
@@ -766,9 +784,9 @@
     if (!target) {
       return;
     }
-    const desktop = global.dendryDesktop;
-    if (desktop && typeof desktop.openExternalUrl === 'function') {
-      desktop.openExternalUrl({url: target});
+    const desktop = desktopCapabilities();
+    if (desktop && desktop.canOpenExternalUrl(global)) {
+      desktop.openExternalUrl({url: target}, global);
       return;
     }
     if (typeof global.open === 'function') {

@@ -89,6 +89,14 @@ function checkResourcePaths(options) {
   };
 }
 
+function fileSize(filePath) {
+  try {
+    return fs.statSync(filePath).size;
+  } catch (_err) {
+    return 0;
+  }
+}
+
 function copyPath(src, dest) {
   fs.cpSync(src, dest, {
     recursive: true,
@@ -568,6 +576,7 @@ function loadStarterDemoIndex(options) {
       projectName: projectName(index, root),
       includeExcerpts: preferredIndexPath === paths.starterDemoIndexWithExcerpts,
       indexPath: preferredIndexPath,
+      indexSize: fileSize(preferredIndexPath),
       index,
       summary: summarizeIndex(index),
       fromCache: true
@@ -771,6 +780,7 @@ async function buildProjectIndex(options) {
     projectName: projectName(index, root),
     includeExcerpts,
     indexPath,
+    indexSize: fileSize(indexPath),
     parserIndexPath: parserOut,
     index,
     summary: summarizeIndex(index)

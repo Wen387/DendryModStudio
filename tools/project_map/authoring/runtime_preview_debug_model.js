@@ -171,10 +171,10 @@
       type,
       ok: Boolean(result && result.ok)
     };
-    if (type === 'applyVariables') {
+    if (type === 'applyVariables' || type === 'applyFocusPreset') {
       entry.variableNames = ensureArray(command.variables).map((item) => String(item && item.name || '')).filter(Boolean);
     }
-    if (type === 'jumpScene' || type === 'jumpToScene') {
+    if (type === 'jumpScene' || type === 'jumpToScene' || type === 'applyFocusPreset') {
       entry.sceneId = String(command && command.sceneId || (command.scene && command.scene.id) || '');
     }
     return entry;

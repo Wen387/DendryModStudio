@@ -118,6 +118,31 @@ fs.writeFileSync(
   'POST_EVENT_NEWS_LABEL\n// 2014 headlines + background effects\n',
   'utf8'
 );
+fs.writeFileSync(
+  path.join(tmpRoot, 'source', 'scenes', 'main.scene.dry'),
+  [
+    'title: Workspace Hand',
+    'is-hand: true',
+    '',
+    '- @starter_deck: Draw from the starter deck',
+    '- #demo_advisor: Review starter advisor',
+    '- @root: Back to start',
+    ''
+  ].join('\n'),
+  'utf8'
+);
+fs.mkdirSync(path.join(tmpRoot, 'source', 'scenes', 'decks'), {recursive: true});
+fs.writeFileSync(
+  path.join(tmpRoot, 'source', 'scenes', 'decks', 'starter_deck.scene.dry'),
+  [
+    'title: Starter Deck',
+    'is-deck: true',
+    '',
+    '- #demo_action',
+    ''
+  ].join('\n'),
+  'utf8'
+);
 fs.mkdirSync(path.join(tmpRoot, 'source', 'scenes', 'events'), {recursive: true});
 fs.writeFileSync(
   path.join(tmpRoot, 'source', 'scenes', 'events', 'event_text.scene.dry'),
@@ -142,6 +167,18 @@ fs.writeFileSync(
 fs.writeFileSync(
   path.join(tmpRoot, 'source', 'scenes', 'events', 'insert_dedupe.scene.dry'),
   'title: Insert Dedupe\r\nMention @sample_route elsewhere.\r\nANCHOR ROUTES\r\nTail stays put.\r\n',
+  'utf8'
+);
+fs.writeFileSync(
+  path.join(tmpRoot, 'source', 'scenes', 'events', 'insert_line_disambiguated.scene.dry'),
+  [
+    'title: Insert Line Disambiguated',
+    '- @repeat: First repeated anchor',
+    'Body stays put.',
+    '- @repeat: Second repeated anchor',
+    'Tail stays put.',
+    ''
+  ].join('\n'),
   'utf8'
 );
 fs.writeFileSync(
@@ -184,6 +221,76 @@ assert(noEvidenceNewsBundle.installPlan.operations.every((op) => op.safety === '
 assert(cardBundle.installPlan.operations.some((op) => op.type === 'create_file'), 'card plan should safely create scene file');
 assert(!cardBundle.installPlan.operations.some((op) => op.id === 'wire_card_flow'), 'card plan should not create a manual wiring step when a matching tag route already exists');
 assert(installPlan.operationSummary(cardBundle.installPlan).manualReview === 0, 'tag-routed card plan should have no manual wiring steps');
+const deckWiringIndex = {
+  schemaVersion: '0.1',
+  project: {name: 'deck wiring fixture', root: tmpRoot, profileIds: ['generic-dendry']},
+  profiles: [{id: 'generic-dendry'}],
+  scenes: [
+    {id: 'root'},
+    {
+      id: 'starter_deck',
+      title: 'Starter Deck',
+      type: 'deck',
+      path: 'source/scenes/decks/starter_deck.scene.dry',
+      sourceSpan: {path: 'source/scenes/decks/starter_deck.scene.dry', startLine: 1, endLine: 4, line: 1, anchorText: 'title: Starter Deck', endAnchorText: '- #demo_action'},
+      options: [
+        {id: '#demo_action', target: {kind: 'tag', id: 'demo_action'}, sourceSpan: {path: 'source/scenes/decks/starter_deck.scene.dry', startLine: 4, endLine: 4, line: 4, anchorText: '- #demo_action', endAnchorText: '- #demo_action'}}
+      ],
+      sections: []
+    }
+  ],
+  variables: [{name: 'resources'}, {name: 'media_reach'}, {name: 'civil_society_trust'}],
+  semantic: {events: [], cards: [], hands: [], decks: [{id: 'starter_deck', path: 'source/scenes/decks/starter_deck.scene.dry'}], pinnedCards: []},
+  diagnostics: [],
+  summary: {}
+};
+const deckWiredCardBundle = cardDraft.buildExportBundle(Object.assign({}, readJson(SAMPLE_CARD), {
+  id: 'deck_wired_card',
+  title: 'Deck Wired Card',
+  tags: ['cards']
+}), deckWiringIndex);
+const deckRouteOp = deckWiredCardBundle.installPlan.operations.find((op) => op.id === 'card_deck_tag_route');
+assert(deckRouteOp && deckRouteOp.type === 'insert_text' && deckRouteOp.safety === 'guarded_apply', 'card plan should guarded-insert a deck tag route when deck source anchors are exact');
+assert(deckRouteOp.path === 'source/scenes/decks/starter_deck.scene.dry', 'deck tag route should target the source-backed deck scene');
+assert(deckRouteOp.content === '- #cards\n', 'deck tag route should insert the generated card tag');
+assert(installPlan.operationSummary(deckWiredCardBundle.installPlan).manualReview === 0, 'source-backed deck wiring should not leave manual wiring');
+const deckWiringApply = installPlan.applyInstallPlan(deckWiredCardBundle.installPlan, {projectRoot: tmpRoot, dryRun: false});
+assert(deckWiringApply.ok, 'deck-wired card install should apply: ' + JSON.stringify(deckWiringApply));
+assert(fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'decks', 'starter_deck.scene.dry'), 'utf8').includes('- #cards'), 'apply should insert the new card tag into the deck');
+const advisorWiringIndex = {
+  schemaVersion: '0.1',
+  project: {name: 'advisor wiring fixture', root: tmpRoot, profileIds: ['generic-dendry']},
+  profiles: [{id: 'generic-dendry', uiLabels: {advisorLikeSingular: 'Advisor', advisorLikePlural: 'Advisors'}}],
+  scenes: [
+    {id: 'root'},
+    {
+      id: 'main',
+      title: 'Workspace Hand',
+      type: 'hand',
+      path: 'source/scenes/main.scene.dry',
+      sourceSpan: {path: 'source/scenes/main.scene.dry', startLine: 1, endLine: 6, line: 1, anchorText: 'title: Workspace Hand', endAnchorText: '- @root: Back to start'},
+      options: [
+        {id: '#demo_advisor', target: {kind: 'tag', id: 'demo_advisor'}, sourceSpan: {path: 'source/scenes/main.scene.dry', startLine: 5, endLine: 5, line: 5, anchorText: '- #demo_advisor: Review starter advisor', endAnchorText: '- #demo_advisor: Review starter advisor'}},
+        {id: '@root', target: {kind: 'scene', id: 'root'}, sourceSpan: {path: 'source/scenes/main.scene.dry', startLine: 6, endLine: 6, line: 6, anchorText: '- @root: Back to start', endAnchorText: '- @root: Back to start'}}
+      ]
+    }
+  ],
+  variables: [{name: 'resources'}, {name: 'media_reach'}, {name: 'civil_society_trust'}],
+  semantic: {events: [], cards: [], hands: [{id: 'main', path: 'source/scenes/main.scene.dry'}], decks: [], pinnedCards: []},
+  diagnostics: [],
+  summary: {}
+};
+const advisorWiredBundle = cardDraft.buildExportBundle(Object.assign({}, readJson(SAMPLE_CARD), {
+  id: 'circle_advisor',
+  title: 'Circle Advisor',
+  heading: 'Circle Advisor',
+  cardKind: 'advisor_like',
+  tags: ['circle']
+}), advisorWiringIndex);
+const advisorRouteOp = advisorWiredBundle.installPlan.operations.find((op) => op.id === 'card_advisor_tag_route');
+assert(advisorRouteOp && advisorRouteOp.type === 'insert_text' && advisorRouteOp.safety === 'guarded_apply', 'advisor-like card plan should guarded-insert a hand tag route when hand source anchors are exact');
+assert(advisorRouteOp.content.includes('- #circle: Review Circle Advisor'), 'advisor hand route should include a readable route label');
+assert(installPlan.operationSummary(advisorWiredBundle.installPlan).manualReview === 0, 'source-backed advisor wiring should not leave manual wiring');
 assert(surfaceBundle.installPlan.operations.some((op) => op.type === 'replace_text'), 'surface plan should include a safe text replacement operation');
 assert(schema.properties.schemaVersion.const === '0.1', 'install-plan schema should describe v0.1');
 assert(schema.properties.operations.items.properties.type.enum.includes('insert_text'), 'install-plan schema should allow structured insert_text operations');
@@ -377,6 +484,50 @@ const insertedScopedDedupeText = fs.readFileSync(path.join(tmpRoot, 'source', 's
 assert(insertedScopedDedupeText.includes('ANCHOR ROUTES\r\nInserted @sample_route link\r\nTail stays put.\r\n'), 'insert_text should preserve CRLF line endings for inserted content');
 const insertScopedDedupeAgain = installPlan.applyInstallPlan(insertScopedDedupePlan, {projectRoot: tmpRoot, dryRun: false});
 assert(insertScopedDedupeAgain.ok && insertScopedDedupeAgain.results[0].status === 'already_applied', 'insert_text should still be idempotent when dedupe appears near the intended anchor');
+
+const insertLineDisambiguatedPlan = installPlan.buildInstallPlan({
+  id: 'insert_line_disambiguated',
+  draftKind: 'test',
+  operations: [
+    {
+      id: 'insert_line_disambiguated',
+      type: 'insert_text',
+      path: 'source/scenes/events/insert_line_disambiguated.scene.dry',
+      line: 4,
+      anchorText: '- @repeat: Second repeated anchor',
+      content: '- @after_second: Inserted after the second anchor\n',
+      dedupeSearch: '@after_second',
+      safety: 'guarded_apply',
+      description: 'Insert after a repeated anchor using exact line evidence.'
+    }
+  ]
+});
+const insertLineDisambiguatedApply = installPlan.applyInstallPlan(insertLineDisambiguatedPlan, {projectRoot: tmpRoot, dryRun: false});
+assert(insertLineDisambiguatedApply.ok && insertLineDisambiguatedApply.results[0].status === 'applied', 'insert_text should use exact line evidence to disambiguate repeated anchors: ' + JSON.stringify(insertLineDisambiguatedApply));
+const insertedLineDisambiguatedText = fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'events', 'insert_line_disambiguated.scene.dry'), 'utf8');
+assert(insertedLineDisambiguatedText.includes('- @repeat: Second repeated anchor\n- @after_second: Inserted after the second anchor\nTail stays put.'), 'line-disambiguated insert_text should mutate the selected repeated anchor only');
+
+const staleInsertLinePlan = installPlan.buildInstallPlan({
+  id: 'insert_line_stale',
+  draftKind: 'test',
+  operations: [
+    {
+      id: 'insert_line_stale',
+      type: 'insert_text',
+      path: 'source/scenes/events/insert_line_disambiguated.scene.dry',
+      line: 3,
+      anchorText: '- @repeat: Second repeated anchor',
+      content: '- @wrong_place: Should not apply\n',
+      dedupeSearch: '@wrong_place',
+      safety: 'guarded_apply',
+      description: 'Stale insert line evidence should fail instead of falling back to a global anchor search.'
+    }
+  ]
+});
+const staleInsertLineResult = installPlan.applyInstallPlan(staleInsertLinePlan, {projectRoot: tmpRoot, dryRun: false});
+assert(!staleInsertLineResult.ok, 'insert_text should fail stale line evidence instead of falling back to global anchor search');
+assert(staleInsertLineResult.diagnostics.some((diag) => diag.code === 'install_plan.insert_line_anchor_mismatch'), 'stale insert line should report insert_line_anchor_mismatch');
+assert(!fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'events', 'insert_line_disambiguated.scene.dry'), 'utf8').includes('@wrong_place'), 'stale insert line must not mutate the file');
 
 const ambiguousSectionPlan = installPlan.buildInstallPlan({
   id: 'replace_section_ambiguous',
@@ -646,6 +797,108 @@ assert(
   fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'events', 'event_text.scene.dry'), 'utf8').includes('Rewritten existing paragraph.'),
   'existing scene edit apply should modify the existing source file'
 );
+
+fs.writeFileSync(
+  path.join(tmpRoot, 'source', 'scenes', 'events', 'menu_add_option.scene.dry'),
+  [
+    'title: Menu Add Option',
+    '',
+    '= Menu',
+    '',
+    'This menu owns choices.',
+    '- @talk: Talk.',
+    '- @walk: Walk away.',
+    ''
+  ].join('\n'),
+  'utf8'
+);
+const existingSectionAddOptionPlan = installPlan.existingSceneEditInstallPlan({
+  id: 'add_existing_section_option',
+  kind: 'existing_scene_edit',
+  sceneId: 'menu_add_option',
+  sceneKind: 'event',
+  sourcePath: 'source/scenes/events/menu_add_option.scene.dry',
+  changes: [{
+    fieldId: 'structure_add_option_section_menu',
+    role: 'structure',
+    label: 'Add option to section: Menu',
+    sectionId: 'menu_add_option.menu',
+    operationType: 'insert_text',
+    source: {path: 'source/scenes/events/menu_add_option.scene.dry', line: 7, anchorText: '- @walk: Walk away.'},
+    before: '(not present yet)',
+    after: '- @listen: Listen carefully.\n\n@listen\nThe room listens before choosing.\n',
+    anchorText: '- @walk: Walk away.',
+    position: 'after',
+    dedupeSearch: '@listen',
+    editability: 'guarded_apply'
+  }]
+});
+assert(existingSectionAddOptionPlan.operations[0].type === 'insert_text', 'section-owned add-option changes should produce insert_text operations');
+assert(existingSectionAddOptionPlan.operations[0].safety === 'guarded_apply', 'section-owned add-option inserts should be guarded installable');
+const existingSectionAddOptionDryRun = installPlan.applyInstallPlan(existingSectionAddOptionPlan, {projectRoot: tmpRoot, dryRun: true});
+assert(existingSectionAddOptionDryRun.ok && existingSectionAddOptionDryRun.results[0].status === 'would_apply', 'section-owned add-option guarded dry-run should succeed');
+const existingSectionAddOptionApply = installPlan.applyInstallPlan(existingSectionAddOptionPlan, {projectRoot: tmpRoot, dryRun: false});
+assert(existingSectionAddOptionApply.ok, 'section-owned add-option guarded apply should succeed: ' + JSON.stringify(existingSectionAddOptionApply));
+const existingSectionAddOptionSource = fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'events', 'menu_add_option.scene.dry'), 'utf8');
+assert(existingSectionAddOptionSource.includes('- @walk: Walk away.\n- @listen: Listen carefully.\n\n@listen\nThe room listens before choosing.'), 'section-owned add-option apply should insert after the section option anchor');
+const existingSectionAddOptionApplyAgain = installPlan.applyInstallPlan(existingSectionAddOptionPlan, {projectRoot: tmpRoot, dryRun: false});
+assert(existingSectionAddOptionApplyAgain.ok && existingSectionAddOptionApplyAgain.results[0].status === 'already_applied', 'section-owned add-option apply should be idempotent through dedupe evidence');
+const existingOptionRemovalPlan = installPlan.existingSceneEditInstallPlan({
+  id: 'remove_external_section_option',
+  kind: 'existing_scene_edit',
+  sceneId: 'menu_add_option',
+  sceneKind: 'event',
+  sourcePath: 'source/scenes/events/menu_add_option.scene.dry',
+  changes: [{
+    fieldId: 'structure_remove_option_talk',
+    role: 'route',
+    label: 'Remove option: Talk.',
+    sectionId: 'menu_add_option.menu',
+    operationType: 'replace_text',
+    source: {path: 'source/scenes/events/menu_add_option.scene.dry', line: 6, anchorText: '- @talk: Talk.'},
+    before: '- @talk: Talk.',
+    after: '',
+    allowEmptyReplace: true,
+    deletesSourceLine: true,
+    editability: 'guarded_apply'
+  }]
+});
+assert(existingOptionRemovalPlan.operations[0].type === 'replace_text', 'safe option removal should produce replace_text operations');
+assert(existingOptionRemovalPlan.operations[0].safety === 'guarded_apply' && existingOptionRemovalPlan.operations[0].replace === '', 'safe option removal should be a guarded empty replacement');
+const existingOptionRemovalDryRun = installPlan.applyInstallPlan(existingOptionRemovalPlan, {projectRoot: tmpRoot, dryRun: true});
+assert(existingOptionRemovalDryRun.ok && existingOptionRemovalDryRun.results[0].status === 'would_apply', 'safe option removal dry-run should succeed');
+const existingOptionRemovalApply = installPlan.applyInstallPlan(existingOptionRemovalPlan, {projectRoot: tmpRoot, dryRun: false});
+assert(existingOptionRemovalApply.ok, 'safe option removal apply should succeed: ' + JSON.stringify(existingOptionRemovalApply));
+assert(!fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'events', 'menu_add_option.scene.dry'), 'utf8').includes('- @talk: Talk.'), 'safe option removal should delete only the selected option line');
+
+fs.writeFileSync(
+  path.join(tmpRoot, 'source', 'scenes', 'events', 'effect_delete.scene.dry'),
+  ['title: Effect Delete', '', 'Q.public_order += 1;', ''].join('\n'),
+  'utf8'
+);
+const existingSceneDeleteEffectPlan = installPlan.existingSceneEditInstallPlan({
+  id: 'delete_effect_line',
+  kind: 'existing_scene_edit',
+  sceneId: 'effect_delete',
+  changes: [{
+    fieldId: 'delete_public_order_effect',
+    role: 'effect',
+    label: 'Remove effect: Q.public_order += 1',
+    operationType: 'replace_text',
+    source: {path: 'source/scenes/events/effect_delete.scene.dry', line: 3},
+    before: 'Q.public_order += 1;',
+    after: '',
+    allowEmptyReplace: true
+  }]
+});
+assert(existingSceneDeleteEffectPlan.operations[0].type === 'replace_text', 'empty source-backed existing scene replacements should still produce replace_text');
+assert(existingSceneDeleteEffectPlan.operations[0].safety === 'guarded_apply', 'empty source-backed existing scene replacements should be guarded when explicitly allowed');
+assert(existingSceneDeleteEffectPlan.operations[0].replace === '', 'empty source-backed existing scene replacements should preserve an empty replacement');
+const existingSceneDeleteEffectDryRun = installPlan.applyInstallPlan(existingSceneDeleteEffectPlan, {projectRoot: tmpRoot, dryRun: true});
+assert(existingSceneDeleteEffectDryRun.ok && existingSceneDeleteEffectDryRun.results[0].status === 'would_apply', 'empty source-backed existing scene replacement dry-run should succeed');
+const existingSceneDeleteEffectApply = installPlan.applyInstallPlan(existingSceneDeleteEffectPlan, {projectRoot: tmpRoot, dryRun: false});
+assert(existingSceneDeleteEffectApply.ok, 'empty source-backed existing scene replacement apply should succeed');
+assert(!fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'events', 'effect_delete.scene.dry'), 'utf8').includes('Q.public_order += 1;'), 'empty source-backed existing scene replacement should remove the target effect text');
 
 const protectedExistingSceneEditPlan = installPlan.existingSceneEditInstallPlan({
   id: 'edit_protected_router',

@@ -21,7 +21,21 @@ const index = {
   profiles: [{id: 'generic-dendry'}],
   scenes: [
     {id: 'root', path: 'source/scenes/root.scene.dry'},
-    {id: 'post_event', title: 'Post Event', path: 'source/scenes/post_event.scene.dry'}
+    {
+      id: 'post_event',
+      title: 'Post Event',
+      path: 'source/scenes/post_event.scene.dry',
+      options: [{
+        target: {id: 'root'},
+        title: 'Continue',
+        sourceSpan: {
+          path: 'source/scenes/post_event.scene.dry',
+          line: 28,
+          anchorText: '- @root: Continue',
+          endAnchorText: '- @root: Continue'
+        }
+      }]
+    }
   ],
   variables: [
     {name: 'public_order', reads: [], writes: [], tags: ['state']},

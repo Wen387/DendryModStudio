@@ -78,9 +78,14 @@ const reviewHtml = reviewUi.renderPlanReview({
   plan,
   summary: installPlan.operationSummary(plan),
   installApi: installPlan,
+  runtimeReadiness: {
+    generatedRuntimeComplete: false,
+    missingRuntimeDependencies: ['out/html/core.js']
+  },
   result: {
     ok: true,
     dryRun: true,
+    message: 'Dry-run verified current files.',
     results: [
       {
         id: 'replace_intro',
@@ -106,6 +111,21 @@ const reviewHtml = reviewUi.renderPlanReview({
 });
 
 assert(reviewHtml.includes('data-install-operation-id="replace_intro"'), 'review cards should expose stable operation ids');
+assert(reviewHtml.includes('data-authoring-context-lens="true"'), 'review cards should expose context lens affordances');
+assert(reviewHtml.includes('data-context-lens-kind="operation"'), 'review operation lens should identify operation context');
+assert(reviewHtml.includes('data-install-dry-run-recap="true"'), 'review panel should summarize dry-run evidence');
+assert(reviewHtml.includes('Dry-run check passed'), 'review panel should show dry-run recap status');
+assert(reviewHtml.includes('Dry-run verified current files.'), 'review panel should preserve dry-run recap message');
+assert(reviewHtml.includes('data-install-op-confidence="true"'), 'review cards should expose confidence evidence blocks');
+assert(reviewHtml.includes('data-review-confidence-field="change"'), 'confidence evidence should include change summary');
+assert(reviewHtml.includes('data-review-confidence-field="source"'), 'confidence evidence should include source summary');
+assert(reviewHtml.includes('data-review-confidence-field="safety"'), 'confidence evidence should include safety summary');
+assert(reviewHtml.includes('data-review-confidence-field="boundary"'), 'confidence evidence should include boundary summary');
+assert(reviewHtml.includes('data-review-confidence-field="provenance"'), 'confidence evidence should include provenance summary');
+assert(reviewHtml.includes('Runtime Preview + Quick Lens'), 'source-backed installable operations should recommend runtime preview plus focused lens');
+assert(reviewHtml.includes('temporary full build'), 'runtime recommendation should explain quick-lens full-build fallback when generated runtime is incomplete');
+assert(reviewHtml.includes('out/html/core.js'), 'runtime fallback should list missing generated runtime dependency');
+assert(reviewHtml.includes('Manual review first'), 'manual operations should recommend completing manual review before runtime evidence');
 assert(reviewHtml.includes('Old player-facing sentence.'), 'review cards should show replace_text before text');
 assert(reviewHtml.includes('New player-facing sentence.'), 'review cards should show replace_text after text');
 assert(reviewHtml.includes('line 12'), 'review cards should show source line context');

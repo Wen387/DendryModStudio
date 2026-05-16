@@ -51,9 +51,40 @@ const knownIndex = {
   project: {name: 'Workflow Fixture', root: '/tmp/workflow-entry', profileIds: ['generic-dendry']},
   profiles: [{id: 'generic-dendry'}],
   scenes: [
-    {id: 'post_event', title: 'Post Event', path: 'source/scenes/post_event.scene.dry'},
-    {id: 'parsed_event', title: 'Parsed event', path: 'source/scenes/events/parsed_event.scene.dry'}
+    {
+      id: 'post_event',
+      title: 'Post Event',
+      path: 'source/scenes/post_event.scene.dry',
+      options: [{
+        target: {id: 'root'},
+        title: 'Continue',
+        sourceSpan: {
+          path: 'source/scenes/post_event.scene.dry',
+          line: 28,
+          anchorText: '- @root: Continue',
+          endAnchorText: '- @root: Continue'
+        }
+      }]
+    },
+    {id: 'parsed_event', title: 'Parsed event', path: 'source/scenes/events/parsed_event.scene.dry', effects: [{
+      variable: 'parsed_effect_seen',
+      op: '+=',
+      value: 1,
+      hook: 'on-arrival',
+      source: {path: 'source/scenes/events/parsed_event.scene.dry', line: 4, startLine: 4, endLine: 4, anchorText: 'Q.parsed_effect_seen += 1;'}
+    }]},
+    {id: 'parsed_card', title: 'Parsed card', type: 'card', flags: {isCard: true}, path: 'source/scenes/cards/parsed_card.scene.dry'}
   ],
+  semantic: {
+    events: [{id: 'parsed_event', title: 'Parsed event', path: 'source/scenes/events/parsed_event.scene.dry'}],
+    cards: [{id: 'parsed_card', title: 'Parsed card', path: 'source/scenes/cards/parsed_card.scene.dry'}],
+    textCorpus: {
+      items: [
+        {id: 'parsed_event_title', text: 'Parsed event', role: 'title', owner: {sceneId: 'parsed_event'}, source: {path: 'source/scenes/events/parsed_event.scene.dry', line: 1}},
+        {id: 'parsed_card_title', text: 'Parsed card', role: 'title', owner: {sceneId: 'parsed_card'}, source: {path: 'source/scenes/cards/parsed_card.scene.dry', line: 1}}
+      ]
+    }
+  },
   variables: []
 };
 const unknownIndex = {
@@ -78,10 +109,16 @@ const existingModel = canvasModel.buildCanvasModel(knownIndex, {
   view: 'events',
   item: {id: 'parsed_event', title: 'Parsed event'}
 }, {});
+const existingCardModel = canvasModel.buildCanvasModel(knownIndex, {
+  mode: 'existing',
+  view: 'cards',
+  item: {id: 'parsed_card', title: 'Parsed card'}
+}, {});
 const renderedUi = [
   previewEditor.render(knownModel),
   previewEditor.render(textEventModel),
   previewEditor.renderModal(existingModel),
+  previewEditor.renderModal(existingCardModel),
   graphStage.render(knownModel, {state: {selectedCanvasNode: 'object'}}),
   graphStage.render(unknownModel, {state: {selectedCanvasNode: 'object'}})
 ].join('\n');
@@ -98,6 +135,9 @@ const report = workflow.buildWorkflowEntryReport({source: rendered});
 
 assert(report.summary.workflowEntryCoverage === 1, 'all workflow entries should have complete contracts', report.summary);
 assert(report.summary.renderedEntryCoverage === 1, 'all workflow entries should have rendered entry markers', report.entries.filter((entry) => !entry.rendered));
+assert(report.summary.renderedElementEntryCoverage === 1, 'Object Canvas preview should expose rendered authoring entries', report.summary);
+assert(report.summary.renderedEffectEntryCoverage === 1, 'Object Canvas preview should expose rendered effect entries', report.summary);
+assert(report.summary.copyAsNewEntryCoverage === 1, 'Object Canvas should expose Copy as New / Create similar entries', report.summary);
 assert(report.summary.modelOnlyWorkflowCount === 0, 'no workflow should remain model-only', report.entries.filter((entry) => entry.modelOnly));
 
 const visibleActions = visibleEditActions(renderedUi);

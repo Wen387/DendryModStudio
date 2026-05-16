@@ -195,6 +195,7 @@
       ok: true,
       mode: 'existing',
       objectKind: context.sceneKind === 'card' ? 'card' : 'event',
+      objectView: view,
       objectId: context.sceneId || '',
       title: context.title || context.sceneId || '',
       source: sourceRef(context.source || {}),
@@ -317,8 +318,14 @@
       .filter((editor) => !titleEditor || editor.id !== titleEditor.id);
     const optionRows = optionBodyRows(context, pageSectionEditors);
     const consumedSectionIds = new Set();
+    const consumedPlayerTextIds = new Set();
     optionRows.forEach((option) => {
       ensureArray(option.resultFields).forEach((field) => consumedSectionIds.add(String(field.id || '')));
+      ensureArray(option.fields).forEach((field) => {
+        if (String(field && field.role || '') === 'unavailable_text') {
+          consumedPlayerTextIds.add(String(field.id || ''));
+        }
+      });
     });
     const primarySectionEditors = pageSectionEditors.filter((editor) => {
       return !consumedSectionIds.has(String(editor.id || '')) && isPrimaryExistingSection(editor, sceneId);
@@ -326,8 +333,8 @@
     const branchSectionEditors = pageSectionEditors.filter((editor) => {
       return !consumedSectionIds.has(String(editor.id || '')) && !isPrimaryExistingSection(editor, sceneId);
     });
-    const primaryPlayerTextEditors = playerTextEditors.filter((editor) => isPrimaryExistingSection(editor, sceneId));
-    const branchPlayerTextEditors = playerTextEditors.filter((editor) => !isPrimaryExistingSection(editor, sceneId));
+    const primaryPlayerTextEditors = playerTextEditors.filter((editor) => !consumedPlayerTextIds.has(String(editor.id || '')) && isPrimaryExistingSection(editor, sceneId));
+    const branchPlayerTextEditors = playerTextEditors.filter((editor) => !consumedPlayerTextIds.has(String(editor.id || '')) && !isPrimaryExistingSection(editor, sceneId));
     const sectionEditors = primarySectionEditors.concat(primaryPlayerTextEditors);
     const effectEditors = ensureArray(editors.effects);
     const body = {
@@ -350,7 +357,11 @@
       backgroundEffects: backgroundEffectRowsForExisting(context),
       metaFields: metadataEditors.concat(ensureArray(editors.conditions), ensureArray(editors.routes)),
       structureActions: ensureArray(editors.structureActions),
+      scriptRows: ensureArray(context.editModel && context.editModel.scriptRows),
+      opaqueJsBlocks: ensureArray(context.editModel && context.editModel.opaqueJsBlocks),
+      projectSceneIds: ensureArray(projectIndex && projectIndex.scenes).map((scene) => String(scene && scene.id || '')).filter(Boolean),
       flow: context.flow || context.editModel && context.editModel.flow || {nodes: [], edges: [], summary: {}},
+      sourceStructureGraph: context.sourceStructureGraph || context.editModel && context.editModel.sourceStructureGraph || null,
       effects: effectEditors.filter((editor) => !editor.optionId && !editor.sectionId),
       optionEffects: optionRows.map((option) => ({
         id: option.id,
@@ -362,7 +373,44 @@
     const modeledBody = structureApi && typeof structureApi.fromEditingContext === 'function' && typeof structureApi.toEventBody === 'function'
       ? structureApi.toEventBody(structureApi.fromEditingContext(context, projectIndex, {body}))
       : body;
-    return bodyWithQueuedStructurePreviews(modeledBody, values);
+    return bodyWithQueuedStructurePreviews(regroupOptionOwnedText(modeledBody), values);
+  }
+
+  function regroupOptionOwnedText(body) {
+    const next = clone(body || {});
+    const options = ensureArray(next.options).map((option) => Object.assign({}, option, {
+      fields: ensureArray(option && option.fields).slice(),
+      resultFields: ensureArray(option && option.resultFields).slice()
+    }));
+    const consumed = new Set();
+    const candidates = ensureArray(next.sections).concat(ensureArray(next.branchSections));
+    options.forEach((option) => {
+      candidates.forEach((field) => {
+        const fieldKey = String(field && (field.id || field.fieldId) || '');
+        if (!field || (fieldKey && consumed.has(fieldKey))) {
+          return;
+        }
+        if (isUnavailableTextEditor(field) && optionUnavailableMatches(field, option)) {
+          option.fields = uniqueEditors(option.fields.concat([field]));
+          option.unavailableText = unavailableTextForOption(option, [field]);
+          if (fieldKey) {
+            consumed.add(fieldKey);
+          }
+          return;
+        }
+        if (isOptionResultEditor(field) && sectionEditorMatchesOption(field, option)) {
+          option.resultFields = uniqueEditors(option.resultFields.concat([field]));
+          option.fields = uniqueEditors(option.fields.concat([field]));
+          if (fieldKey) {
+            consumed.add(fieldKey);
+          }
+        }
+      });
+    });
+    next.options = options;
+    next.sections = ensureArray(next.sections).filter((field) => !consumed.has(String(field && (field.id || field.fieldId) || '')));
+    next.branchSections = ensureArray(next.branchSections).filter((field) => !consumed.has(String(field && (field.id || field.fieldId) || '')));
+    return next;
   }
 
   function bodyWithQueuedStructurePreviews(body, values) {
@@ -412,8 +460,8 @@
       fieldId: id,
       original: /^remove_/.test(action) ? 'false' : '',
       value: /^remove_/.test(action) ? 'true' : String(command.value || ''),
-      editability: 'manual_review',
-      status: 'manual',
+      editability: template.editability || 'manual_review',
+      status: template.status || editorStatus(template.editability || 'manual_review'),
       transform: 'structure_action',
       structureAction: action,
       optionId: String(command.optionId || template.optionId || ''),
@@ -464,6 +512,17 @@
       }
       return true;
     }) || null;
+  }
+
+  function editorStatus(editability) {
+    const text = String(editability || '');
+    if (text === 'guarded_replace_text' || text === 'guarded_replace_section' || text === 'guarded_apply') {
+      return 'guarded';
+    }
+    if (text === 'manual_review') {
+      return 'manual';
+    }
+    return text ? 'review' : 'read_only';
   }
 
   function normalizeStructureAction(value) {
@@ -573,6 +632,7 @@
   function optionBodyRows(context, sectionEditors) {
     const editors = context.editors || {};
     const optionEditors = ensureArray(editors.optionText);
+    const unavailableEditors = ensureArray(editors.all).filter((editor) => String(editor && editor.role || '') === 'unavailable_text');
     const resultEditors = ensureArray(sectionEditors).filter((editor) => {
       const role = String(editor && editor.semanticRole || '');
       return role === 'option_result_text' || role === 'conditional_option_result_text';
@@ -586,7 +646,12 @@
             return !editor.optionId && String(editor.original || '') === String(option.label || '');
           }));
         }
+        if (!fields.some(isOptionLabelEditor)) {
+          fields.unshift(optionLabelFallbackEditor(option, index));
+        }
+        const unavailableFields = unavailableEditors.filter((editor) => optionUnavailableMatches(editor, option));
         const resultFields = resultEditors.filter((editor) => sectionEditorMatchesOption(editor, option));
+        const allFields = uniqueEditors(fields.concat(unavailableFields, resultFields));
         return {
           id: option.id || 'option_' + (index + 1),
           targetId: option.targetId || '',
@@ -600,7 +665,8 @@
           labelSource: option.labelSource || '',
           label: option.label || ('Option ' + (index + 1)),
           subtitle: option.subtitle || '',
-          fields: fields.concat(resultFields),
+          unavailableText: unavailableTextForOption(option, unavailableFields),
+          fields: allFields,
           resultFields
         };
       });
@@ -610,6 +676,7 @@
       targetId: '',
       label: editor.original || editor.label || ('Option ' + (index + 1)),
       subtitle: '',
+      unavailableText: '',
       fields: [editor],
       resultFields: []
     }));
@@ -641,22 +708,93 @@
     return parts[parts.length - 1] || text;
   }
 
+  function optionUnavailableMatches(editor, option) {
+    if (!editor || !option) {
+      return false;
+    }
+    if (editor.optionId && option.id && String(editor.optionId) === String(option.id)) {
+      return true;
+    }
+    return sectionEditorMatchesOption(editor, option);
+  }
+
+  function isUnavailableTextEditor(editor) {
+    return String(editor && editor.role || '') === 'unavailable_text';
+  }
+
+  function isOptionResultEditor(editor) {
+    const role = String(editor && editor.semanticRole || '');
+    return role === 'option_result_text' || role === 'conditional_option_result_text';
+  }
+
+  function unavailableTextForOption(option, fields) {
+    const fieldValue = ensureArray(fields)
+      .map((field) => String(field && (field.value !== undefined ? field.value : field.original) || '').trim())
+      .find(Boolean);
+    return fieldValue || String(option && option.unavailableText || '').trim();
+  }
+
+  function uniqueEditors(fields) {
+    const seen = new Set();
+    const out = [];
+    ensureArray(fields).forEach((field) => {
+      const key = String(field && (field.id || field.fieldId) || '');
+      if (key && seen.has(key)) {
+        return;
+      }
+      if (key) {
+        seen.add(key);
+      }
+      out.push(field);
+    });
+    return out;
+  }
+
+  function isOptionLabelEditor(editor) {
+    return String(editor && editor.role || '') === 'option_label';
+  }
+
+  function optionLabelFallbackEditor(option, index) {
+    const label = String(option && (option.label || option.title || option.id) || ('Option ' + (index + 1)));
+    const id = 'fallback_option_label_' + safeCompareId(option && (option.id || option.rawTargetId || option.targetId) || ('option_' + (index + 1)));
+    return {
+      id,
+      fieldId: id,
+      group: 'option_text',
+      role: 'option_label',
+      label: 'Player option',
+      original: label,
+      value: label,
+      editability: 'read_only',
+      source: sourceRef(option && option.source || {}),
+      sectionId: String(option && option.sectionId || ''),
+      optionId: String(option && (option.id || option.rawTargetId || option.targetId) || ''),
+      status: 'read_only',
+      readOnly: true
+    };
+  }
+
   function sectionEditorMatchesOption(editor, option) {
     const api = ownershipMatchingApi();
     const editorIds = ensureArray(editor && editor.relatedOptionIds);
-    if (api && typeof api.endpointMatches === 'function' && api.endpointMatches(editorIds, [
+    const optionTargets = [
       option && option.id,
       option && option.rawTargetId,
       option && option.targetId
-    ])) {
+    ];
+    if (editorIds.length) {
+      return api && typeof api.endpointMatches === 'function'
+        ? api.endpointMatches(editorIds, optionTargets)
+        : editorIds.some((id) => optionTargets.some((target) => String(id || '') === String(target || '')));
+    }
+    const editorSection = String(editor && editor.sectionId || '').trim();
+    if (!editorSection) {
+      return false;
+    }
+    if (api && typeof api.endpointMatches === 'function' && api.endpointMatches(editorSection, optionTargets)) {
       return true;
     }
-    return api && typeof api.ownerMatchesOption === 'function'
-      ? api.ownerMatchesOption({sectionId: editor && editor.sectionId}, option)
-      : Boolean(editor && option && (
-        String(editor.sectionId || '') === String(option.targetId || '') ||
-        String(editor.sectionId || '') === String(option.id || '')
-      ));
+    return Boolean(editor && option && optionTargets.some((target) => String(editorSection) === String(target || '')));
   }
 
   function eventBodyForNewEvent(draft) {
