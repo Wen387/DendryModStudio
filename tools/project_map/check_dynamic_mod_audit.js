@@ -18,7 +18,6 @@ const DEFAULT_DYNAMIC_ROOT = path.join(REPO_ROOT, 'SDAAHdynamic', 'dynamic_socia
 const DYNAMIC_ROOT = path.resolve(process.env.DMS_DYNAMIC_FIXTURE_ROOT || process.env.DMS_SDAAH_FIXTURE_ROOT || DEFAULT_DYNAMIC_ROOT);
 const FIXTURES = [
   {id: 'qa-mini', root: path.join(PROJECT_MAP_ROOT, 'fixtures', 'qa-mini'), includeExcerpts: true},
-  {id: 'contract-fixture', root: path.join(REPO_ROOT, 'studio_contract', 'parser_fixture'), includeExcerpts: true},
   {id: 'dynamic-mod', root: DYNAMIC_ROOT, includeExcerpts: true}
 ];
 

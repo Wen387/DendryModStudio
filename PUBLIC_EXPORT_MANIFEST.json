@@ -4,23 +4,22 @@
   "sourceCommit": "f9350e7",
   "generatedAt": "2026-05-01T06:25:15.020Z",
   "includedRoots": [
-    "AGENTS.md",
     ".github/workflows/",
     "docs/",
     "package-lock.json",
-    "tools/project_map/",
-    "studio_contract/",
-    "tools/check_studio_contract.js"
+    "tools/project_map/"
   ],
   "excludedAreas": [
     "game project source",
     "generated runtime output",
     "local package artifacts",
     "local fixture checkouts",
-    "private development notes"
+    "private development notes",
+    "internal compatibility contracts",
+    "internal goal notes"
   ],
   "notes": [
-    "This repository contains the Studio source and compatibility fixtures needed for public development.",
+    "This repository contains the Studio source needed for public preview builds.",
     "The root package-lock.json is tracked so CI and fresh clones can use npm ci."
   ]
 }

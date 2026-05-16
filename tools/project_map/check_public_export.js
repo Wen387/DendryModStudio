@@ -79,21 +79,30 @@ function main() {
   const warnings = [];
   const disallowedPrefixes = [
     '.studio-local/',
+    '.agents/',
     '.claude/',
+    '.codex/',
     'LLM/',
+    'docs/goals/',
     'history/',
     'docs/superpowers/',
     'social_democracy_alternate_history-main/',
+    'studio_contract/',
     'out/',
     'source/'
   ];
   const disallowedExact = new Set([
+    '.codex',
+    'AGENTS.md',
     'HANDOVER.md',
     'INVARIANTS.md',
     'KNOWN_ISSUES.md',
     'SESSION_LOG.md',
+    'tools/check_studio_contract.js',
     'tools/project_map/check_studio_handoff.js',
-    'tools/project_map/check_studio_release_readiness.js'
+    'tools/project_map/check_llm_friendliness.js',
+    'tools/project_map/check_studio_release_readiness.js',
+    'tools/project_map/llm_friendliness_budget.json'
   ]);
   const disallowedPathFragments = [
     '/__pycache__/',
@@ -118,7 +127,6 @@ function main() {
   warnings.push(...governance.warnings);
 
   [
-    'AGENTS.md',
     'README.md',
     '.gitignore',
     '.github/workflows/ci.yml',
@@ -148,10 +156,7 @@ function main() {
     'tools/project_map/desktop/build/installer.nsh',
     'tools/project_map/desktop/update_manifest.json',
     'tools/project_map/RELEASE_NOTES_v0.9.6.md',
-    'tools/project_map/templates/starter-demo/source/info.dry',
-    'studio_contract/contract.json',
-    'studio_contract/parser_fixture/source/info.dry',
-    'tools/check_studio_contract.js'
+    'tools/project_map/templates/starter-demo/source/info.dry'
   ].forEach((requiredPath) => {
     assert(exists(requiredPath), 'repository package missing required file: ' + requiredPath);
   });
@@ -161,14 +166,9 @@ function main() {
   const ciWorkflow = read('.github/workflows/ci.yml');
   const releaseWorkflow = read('.github/workflows/release.yml');
   const updateManifest = JSON.parse(read('tools/project_map/desktop/update_manifest.json'));
-  const agentGuide = read('AGENTS.md');
   assert(rootPackageJson.name === 'dendry-mod-studio', 'root package.json should identify Dendry Mod Studio');
   assert(rootPackageJson.dependencies && rootPackageJson.dependencies.dendrynexus, 'root package.json should declare dendrynexus dependency');
   assert(rootPackageJson.scripts && rootPackageJson.scripts['check:ci'], 'root package.json should define check:ci');
-  assert(agentGuide.includes('source of truth for Dendry Mod Studio'), 'AGENTS.md should identify the Studio repo as source of truth');
-  assert(agentGuide.includes('npm run check:ci'), 'AGENTS.md should document the repository check');
-  assert(agentGuide.includes('npm run smoke') && agentGuide.includes('npm run doctor'), 'AGENTS.md should document desktop checks');
-  assert(agentGuide.includes('DMS_SDAAH_FIXTURE_ROOT'), 'AGENTS.md should explain optional external SDAAH fixture use');
   assert(ciWorkflow.includes('npm ci --ignore-scripts'), 'CI workflow should use npm ci with the committed lockfile');
   assert(releaseWorkflow.includes('dist:linux') && releaseWorkflow.includes('dist:win'), 'release workflow should build Linux and Windows desktop artifacts');
   assert(releaseWorkflow.includes('*.deb'), 'release workflow should upload Linux Deb artifacts');
@@ -178,7 +178,6 @@ function main() {
   assert(packageJson.devDependencies && packageJson.devDependencies['electron-builder'], 'desktop package should declare electron-builder for release builds');
   [
     'check_public_export.js',
-    'check_studio_contract.js --fixture-only',
     'check_localization_surface.js',
     'check_studio_surface.js',
     'check_canvas_interaction_contracts.js',
@@ -244,7 +243,9 @@ function main() {
 
   const manifest = JSON.parse(read('PUBLIC_EXPORT_MANIFEST.json'));
   assert(manifest && manifest.manifestKind === 'dendry-mod-studio-repository-manifest', 'PUBLIC_EXPORT_MANIFEST.json should identify repository manifest kind');
-  assert(Array.isArray(manifest.includedRoots) && manifest.includedRoots.includes('AGENTS.md'), 'PUBLIC_EXPORT_MANIFEST.json should include AGENTS.md');
+  assert(Array.isArray(manifest.includedRoots) && !manifest.includedRoots.includes('AGENTS.md'), 'PUBLIC_EXPORT_MANIFEST.json should not include local-only guidance');
+  assert(Array.isArray(manifest.includedRoots) && !manifest.includedRoots.includes('studio_contract/'), 'PUBLIC_EXPORT_MANIFEST.json should not include internal compatibility contracts');
+  assert(Array.isArray(manifest.includedRoots) && !manifest.includedRoots.includes('tools/check_studio_contract.js'), 'PUBLIC_EXPORT_MANIFEST.json should not include internal contract checks');
   assert(Array.isArray(manifest.excludedAreas), 'PUBLIC_EXPORT_MANIFEST.json should record excluded areas');
 
   process.stdout.write(JSON.stringify({

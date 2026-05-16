@@ -1,4 +1,4 @@
-(function initProjectMapStudioContracts(global) {
+(function initProjectMapStudioSharedConstants(global) {
   'use strict';
 
   const STORAGE_KEYS = {
@@ -96,6 +96,6 @@
     module.exports = api;
   }
   if (global) {
-    global.ProjectMapStudioContracts = api;
+    global.ProjectMapStudioSharedConstants = api;
   }
 })(typeof window !== 'undefined' ? window : globalThis);

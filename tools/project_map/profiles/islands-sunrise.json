@@ -11,11 +11,6 @@
   "detection": {
     "pathHints": [
       {
-        "kind": "projectContract",
-        "pattern": "studio_contract/contract.json",
-        "weight": 0.25
-      },
-      {
         "kind": "projectRules",
         "pattern": "INVARIANTS.md",
         "weight": 0.1

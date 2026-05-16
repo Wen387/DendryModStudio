@@ -164,7 +164,7 @@ assert(starterIndexResult.status === 0, 'starter demo index should build with me
 const starterIndex = JSON.parse(fs.readFileSync(starterOut, 'utf8'));
 assert(starterIndex.project.info.title === 'Dendry Mod Studio Starter Demo', 'ProjectIndex should preserve source/info.dry title');
 assert(starterIndex.project.infoSource.title.line === 1, 'ProjectIndex should expose title line evidence from source/info.dry');
-assert(starterIndex.project.infoSource.author.anchorText === 'author: Dendry Mod Studio', 'ProjectIndex should expose author anchor text from source/info.dry');
+assert(starterIndex.project.infoSource.author.anchorText === 'author: Awen', 'ProjectIndex should expose author anchor text from source/info.dry');
 fs.rmSync(starterOut, {force: true});
 
 fs.rmSync(tmpRoot, {recursive: true, force: true});

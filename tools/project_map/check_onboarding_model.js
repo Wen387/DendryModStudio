@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const {readViewerI18n} = require('./check_viewer_assets.js');
 
-const contracts = require('./authoring/studio_contracts.js');
+const contracts = require('./authoring/studio_shared_constants.js');
 const onboarding = require('./viewer/onboarding_ui.js');
 const tutorial = require('./viewer/tutorial_library_ui.js');
 

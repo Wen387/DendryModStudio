@@ -14,7 +14,7 @@
     ],
     "info": {
       "title": "Dendry Mod Studio Starter Demo",
-      "author": "Dendry Mod Studio",
+      "author": "Awen",
       "ifid": "00000000-0000-4000-8000-000000000004"
     },
     "infoSource": {
@@ -26,7 +26,7 @@
       "author": {
         "path": "source/info.dry",
         "line": 2,
-        "anchorText": "author: Dendry Mod Studio"
+        "anchorText": "author: Awen"
       },
       "ifid": {
         "path": "source/info.dry",

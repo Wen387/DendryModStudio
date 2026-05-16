@@ -103,9 +103,7 @@ function trackedFiles() {
 function includeFile(relativePath) {
   return relativePath.startsWith('docs/') ||
     relativePath.startsWith('tools/project_map/') ||
-    relativePath.startsWith('studio_contract/') ||
-    relativePath === 'package-lock.json' ||
-    relativePath === 'tools/check_studio_contract.js';
+    relativePath === 'package-lock.json';
 }
 
 function copyFile(relativePath, destRoot) {
@@ -148,21 +146,6 @@ function sanitizeExport(destRoot, commit) {
     'https://raw.githubusercontent.com/' + TARGET_REPO + '/main/tools/project_map/RELEASE_NOTES_v0.9.6.md';
   writeJson(manifestPath, updateManifest);
 
-  const profilePath = path.join(destRoot, 'tools/project_map/profiles/islands-sunrise.json');
-  const profile = readJson(profilePath);
-  profile.detection = profile.detection || {};
-  profile.detection.pathHints = [
-    {kind: 'projectContract', pattern: 'studio_contract/contract.json', weight: 0.25},
-    {kind: 'projectRules', pattern: 'INVARIANTS.md', weight: 0.1},
-    {kind: 'sceneRoot', pattern: 'source/scenes/**/*.scene.dry', weight: 0.05}
-  ];
-  profile.detection.contentHints = (profile.detection.contentHints || [])
-    .filter((hint) => !/INV-B001|INV-C002|INV-V001|INV-V002/.test(String(hint.regex || '')));
-  profile.detection.contentHints.push(
-    {regex: "islands-sunrise|Island'?s Sunrise|社民黨|太陽花|台灣", weight: 0.25}
-  );
-  writeJson(profilePath, profile);
-
   const packagingNotesPath = path.join(destRoot, 'tools/project_map/desktop/PACKAGING_NOTES.md');
   if (fs.existsSync(packagingNotesPath)) {
     const sanitized = fs.readFileSync(packagingNotesPath, 'utf8')
@@ -173,7 +156,6 @@ function sanitizeExport(destRoot, commit) {
 
   writeText(path.join(destRoot, '.gitignore'), publicGitignore());
   writeText(path.join(destRoot, 'LICENSE'), publicLicense());
-  writeText(path.join(destRoot, 'AGENTS.md'), publicAgentGuide());
   writeJson(path.join(destRoot, 'package.json'), publicPackageJson());
   writeText(path.join(destRoot, '.github/workflows/ci.yml'), publicCiWorkflow());
   writeText(path.join(destRoot, '.github/workflows/release.yml'), publicReleaseWorkflow());
@@ -186,23 +168,22 @@ function sanitizeExport(destRoot, commit) {
     sourceCommit: commit,
     generatedAt: new Date().toISOString(),
     includedRoots: [
-      'AGENTS.md',
       '.github/workflows/',
       'docs/',
       'package-lock.json',
-      'tools/project_map/',
-      'studio_contract/',
-      'tools/check_studio_contract.js'
+      'tools/project_map/'
     ],
     excludedAreas: [
       'game project source',
       'generated runtime output',
       'local package artifacts',
       'local fixture checkouts',
-      'private development notes'
+      'private development notes',
+      'internal compatibility contracts',
+      'internal goal notes'
     ],
     notes: [
-      'This repository contains the Studio source and compatibility fixtures needed for public development.',
+      'This repository contains the Studio source needed for public preview builds.',
       'The root package-lock.json is tracked so CI and fresh clones can use npm ci.'
     ]
   });
@@ -231,8 +212,19 @@ function publicGitignore() {
     '*.log',
     '.DS_Store',
     '',
-    '# Local agent/session notes',
+    '# Local fixture/project checkouts',
+    'SDAAH/',
+    'SDAAHdynamic/',
+    'SDAAHDynamic/',
+    'social_democracy_alternate_history-main/',
+    'studio_contract/',
+    'tools/check_studio_contract.js',
+    'docs/goals/',
+    '',
+    '# Local private development notes',
     '.studio-local/',
+    'AGENTS.md',
+    '.agents/',
     '.codex',
     '.claude',
     'LLM',
@@ -263,19 +255,16 @@ function publicWorkflow() {
     '- `tools/project_map/desktop/` is the Electron shell and desktop packaging setup.',
     '- `tools/project_map/authoring/` contains proposal, preview, install-plan, and meaning-layer models.',
     '- `tools/project_map/templates/starter-demo/` is the bundled demo project for first-time users.',
-    '- `studio_contract/` is the IslandSunrise compatibility contract fixture used to keep Studio parsing stable.',
     '',
     '## Core And Non-Core Map',
     '',
     '- Core product code: `build_project_map.py`, `parse_dry_project.js`,',
     '  `indexer/`, `authoring/`, `viewer/`, and `desktop/` runtime/apply paths.',
     '  These shape what users can inspect, edit, preview, or apply.',
-    '- Guardrail checks: `check_*.js`, `tools/check_studio_contract.js`,',
-    '  smoke/doctor scripts, and CI config. Treat them as alarms and contracts, not',
-    '  feature homes.',
-    '- Templates, fixtures, schema, and docs: `templates/`, `studio_contract/`,',
-    '  schema files, release notes, and workflow docs. Use them to preserve examples,',
-    '  compatibility, and expectations.',
+    '- Guardrail checks: `check_*.js`, smoke/doctor scripts, and CI config. Treat',
+    '  them as alarms and contracts, not feature homes.',
+    '- Templates, schema, and docs: public templates, schema files, release notes,',
+    '  and workflow docs. Use them to preserve examples and expectations.',
     '- Generated and ignored noise: `out/`, `dist/`, `dist-builder/`,',
     '  `node_modules/`, logs, package artifacts, local fixture checkouts, and copied',
     '  game projects. Do not read architectural intent from them or make them part of',
@@ -285,7 +274,7 @@ function publicWorkflow() {
     'Review & Apply/runtime preview code, parser/indexer/router handling, install',
     'classification, and desktop filesystem/apply bridges. Before editing them, find',
     'the smallest owner module, prefer nearby model/helper splits over growing a',
-    'large entry file, and run the related checks named in `AGENTS.md`.',
+    'large entry file, and run the related checks in `package.json` and this workflow.',
     '',
     '## Safe Boundaries',
     '',
@@ -313,78 +302,6 @@ function publicWorkflow() {
     'npm run doctor',
     'npm run smoke',
     '```',
-    ''
-  ].join('\n');
-}
-
-function publicAgentGuide() {
-  return [
-    '# Dendry Mod Studio Agent Guide',
-    '',
-    'This repository is the source of truth for Dendry Mod Studio. Work here for Studio changes; do not edit older exported copies unless the task is explicitly about comparing repository state.',
-    '',
-    '## Scope',
-    '',
-    '- Studio source lives under `tools/project_map/`.',
-    '- Desktop packaging lives under `tools/project_map/desktop/`.',
-    '- Compatibility fixtures live under `studio_contract/`.',
-    '- Public release preparation notes live under `docs/releases/`.',
-    '',
-    'The repository intentionally excludes private notes, full game project source, generated runtime output, local fixture checkouts, package artifacts, and the old game repository history.',
-    '',
-    '## Agent Entry / Exit Hygiene',
-    '',
-    '- On entry, identify the owner module and any related workflow notes before',
-    '  editing. For Studio work, start with `tools/project_map/WORKFLOW.md`.',
-    '- Leave each touched area no harder to maintain than you found it: keep changes',
-    '  scoped, name follow-up ownership when cleanup cannot finish, and avoid making',
-    '  local shortcuts permanent.',
-    '- Do not add new product behavior directly to known large files unless the owner',
-    '  pattern requires it or the change is deliberately tiny.',
-    '- Checks, templates, fixtures, schemas, docs, generated output, and ignored',
-    '  noise are not core product entry points. Use them to guard or explain product',
-    '  behavior, not as the primary implementation path.',
-    '',
-    '## Required Checks',
-    '',
-    'From the repository root:',
-    '',
-    '```bash',
-    'npm ci --ignore-scripts',
-    'npm run check:ci',
-    '```',
-    '',
-    'For desktop work, also run these from `tools/project_map/desktop/` after installing desktop dependencies:',
-    '',
-    '```bash',
-    'npm ci',
-    'npm run smoke',
-    'npm run doctor',
-    '```',
-    '',
-    'For Linux release packaging checks:',
-    '',
-    '```bash',
-    'npm run dist:linux',
-    '```',
-    '',
-    'GitHub Actions builds Windows and Linux release artifacts through `.github/workflows/release.yml`.',
-    '',
-    '## Safety Boundaries',
-    '',
-    '- Browser mode is review-only.',
-    '- Desktop mode may dry-run or apply only operations classified as safe, guarded, or explicitly advanced.',
-    '- Manual-review and refused operations must not be applied automatically.',
-    '- Runtime Preview must use temporary baseline and modified copies, not the real project folder.',
-    '- Generated runtime output such as `out/html`, `out/game.json`, and `.git` stays protected from automatic edits.',
-    '',
-    '## Contribution Hygiene',
-    '',
-    '- Do not commit `node_modules/`, `dist/`, `dist-builder/`, `.env*`, logs, private notes, SSH keys, access tokens, copied game projects, or local package artifacts.',
-    '- Keep user-facing UI changes bilingual. Run `node tools/project_map/check_localization_surface.js` after changing visible Studio text.',
-    '- Keep the bundled Demo Template runnable. Run `node tools/project_map/check_starter_demo_model.js` after changing `tools/project_map/templates/starter-demo/`.',
-    '- Keep IslandSunrise compatibility coordinated through `studio_contract/`. Run `node tools/check_studio_contract.js --fixture-only` after changing profiles, parser assumptions, router handling, or protected-boundary behavior.',
-    '- Optional full SDAAH smoke tests require an external checkout and should use `DMS_SDAAH_FIXTURE_ROOT=/path/to/SDAAH`.',
     ''
   ].join('\n');
 }

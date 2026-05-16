@@ -8,7 +8,7 @@ const path = require('path');
 const appModel = require('./viewer/app.js');
 const cardDraft = require('./authoring/card_draft.js');
 const installPlan = require('./authoring/install_plan.js');
-const contracts = require('./authoring/studio_contracts.js');
+const contracts = require('./authoring/studio_shared_constants.js');
 const desktopCore = require('./desktop/studio_core.js');
 
 const ROOT = __dirname;
@@ -88,7 +88,7 @@ assert(viewerHtml.includes('id="install-apply"'), 'viewer should expose guarded 
 assert(viewerHtml.includes('install-assistant-panel'), 'viewer should use a scoped install assistant panel class');
 assert(viewerHtml.includes('data-view="coverage"'), 'viewer should expose Coverage Map view');
 assert(viewerHtml.includes('install_assistant_ui.js'), 'viewer should load install assistant UI');
-assert(viewerHtml.includes('studio_contracts.js'), 'viewer should load shared Studio contracts before UI modules');
+assert(viewerHtml.includes('studio_shared_constants.js'), 'viewer should load shared Studio constants before UI modules');
 assert(installUi.includes('ProjectMapInstallAssistant'), 'install assistant should expose a small browser API');
 assert(installUi.includes('renderInstallAssistantPlan'), 'install assistant should keep plan rendering testable');
 assert(

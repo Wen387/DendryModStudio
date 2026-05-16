@@ -10,19 +10,16 @@ code in this repository.
 - `tools/project_map/desktop/` is the Electron shell and desktop packaging setup.
 - `tools/project_map/authoring/` contains proposal, preview, install-plan, and meaning-layer models.
 - `tools/project_map/templates/starter-demo/` is the bundled demo project for first-time users.
-- `studio_contract/` is the IslandSunrise compatibility contract fixture used to keep Studio parsing stable.
 
 ## Core And Non-Core Map
 
 - Core product code: `build_project_map.py`, `parse_dry_project.js`,
   `indexer/`, `authoring/`, `viewer/`, and `desktop/` runtime/apply paths.
   These shape what users can inspect, edit, preview, or apply.
-- Guardrail checks: `check_*.js`, `tools/check_studio_contract.js`,
-  smoke/doctor scripts, and CI config. Treat them as alarms and contracts, not
-  feature homes.
-- Templates, fixtures, schema, and docs: `templates/`, `studio_contract/`,
-  schema files, release notes, and workflow docs. Use them to preserve examples,
-  compatibility, and expectations.
+- Guardrail checks: `check_*.js`, smoke/doctor scripts, and CI config. Treat
+  them as alarms and contracts, not feature homes.
+- Templates, schema, and docs: public templates, schema files, release notes,
+  and workflow docs. Use them to preserve examples and expectations.
 - Generated and ignored noise: `out/`, `dist/`, `dist-builder/`,
   `node_modules/`, logs, package artifacts, local fixture checkouts, and copied
   game projects. Do not read architectural intent from them or make them part of
@@ -32,7 +29,7 @@ High-risk core areas are large browser entry files, canvas/inspector controls,
 Review & Apply/runtime preview code, parser/indexer/router handling, install
 classification, and desktop filesystem/apply bridges. Before editing them, find
 the smallest owner module, prefer nearby model/helper splits over growing a
-large entry file, and run the related checks named in `AGENTS.md`.
+large entry file, and run the related checks in `package.json` and this workflow.
 
 ## Maintainer Flow Map
 
@@ -81,11 +78,11 @@ For large Studio feature work or refactors, also run the advisory source-size
 report before and after the change:
 
 ```bash
-node tools/project_map/check_llm_friendliness.js
+node tools/project_map/check_source_complexity.js
 ```
 
 The default report is intentionally advisory and exits 0. It highlights files
-that are becoming hard for LLM-assisted edits and points to likely split seams.
+that are becoming harder to maintain and points to likely split points.
 
 For governance sweeps and PR review, optionally enforce the current complexity
 budget:
@@ -94,7 +91,7 @@ budget:
 npm run check:complexity
 ```
 
-Budget enforcement reads `tools/project_map/llm_friendliness_budget.json` and
+Budget enforcement reads `tools/project_map/source_complexity_budget.json` and
 fails only when a new exception-sized file appears or a baseline exception grows
 past its `maxLines`. Warn-level files remain advisory unless they cross into
 exception size. This check is not currently wired into `check:ci`.
