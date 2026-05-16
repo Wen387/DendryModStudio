@@ -17,6 +17,7 @@
     lastCheckKey: '',
     lastCheckAllowAdvanced: false,
     lastResult: null,
+    postApplyVerification: null,
     runtimePreviewResult: null,
     runtimePreviewSuspended: false
   };
@@ -38,6 +39,7 @@
       lastCheckKey: state.lastCheckKey,
       lastCheckAllowAdvanced: state.lastCheckAllowAdvanced,
       lastResult: state.lastResult,
+      postApplyVerification: state.postApplyVerification,
       runtimePreviewResult: state.runtimePreviewResult,
       runtimePreviewSuspended: state.runtimePreviewSuspended
     })
@@ -68,9 +70,12 @@
       readiness: document.getElementById('install-readiness'),
       checklist: document.getElementById('install-checklist'),
       patchPreview: document.getElementById('install-patch-preview'),
+      verifiedDiff: document.getElementById('install-verified-diff'),
       dryRun: document.getElementById('install-dry-run'),
       apply: document.getElementById('install-apply'),
       runtimePreview: document.getElementById('install-runtime-preview'),
+      downloadEvidence: document.getElementById('install-download-evidence'),
+      downloadVerifiedDiff: document.getElementById('install-download-verified-diff'),
       allowAdvanced: document.getElementById('install-allow-advanced'),
       runtimePreviewResult: document.getElementById('install-runtime-preview-result'),
       result: document.getElementById('install-result')
@@ -110,6 +115,12 @@
         });
       });
     }
+    if (elements.downloadEvidence) {
+      elements.downloadEvidence.addEventListener('click', downloadEvidenceBundle);
+    }
+    if (elements.downloadVerifiedDiff) {
+      elements.downloadVerifiedDiff.addEventListener('click', downloadVerifiedDiff);
+    }
     if (elements.runtimePreviewResult) {
       elements.runtimePreviewResult.addEventListener('click', (event) => {
         const button = event.target && event.target.closest && event.target.closest('[data-runtime-preview-action]');
@@ -122,9 +133,21 @@
       });
     }
     if (elements.allowAdvanced) {
-      elements.allowAdvanced.addEventListener('change', () => render());
+      elements.allowAdvanced.addEventListener('change', () => {
+        if (elements.allowAdvanced.checked && !confirmEnableAdvanced()) {
+          elements.allowAdvanced.checked = false;
+        }
+        render();
+      });
     }
     render();
+  }
+
+  function confirmEnableAdvanced() {
+    if (!global.confirm) {
+      return true;
+    }
+    return global.confirm(t('install.confirmEnableAdvanced', 'Open advanced operations? Advanced operations may touch protected routers, root setup, generated wiring, or other sensitive source areas. Learn and enable Git version control for your target repo before using this.'));
   }
 
   function bindIndexEvents() {
@@ -198,6 +221,7 @@
       } catch (err) {
         state.plan = null;
         state.lastResult = null;
+        state.postApplyVerification = null;
         state.runtimePreviewResult = null;
         state.runtimePreviewSuspended = false;
         setStatus(t('install.readPlanFailed', 'Could not read install plan: {message}').replace('{message}', err.message), 'error');
@@ -219,6 +243,7 @@
     state.lastCheckKey = '';
     state.lastCheckAllowAdvanced = false;
     state.lastResult = null;
+    state.postApplyVerification = null;
     state.runtimePreviewResult = null;
     state.runtimePreviewSuspended = false;
     setStatus(state.plan
@@ -276,6 +301,7 @@
       });
       return state.lastResult;
     }
+    state.postApplyVerification = null;
     setResult({
       ok: true,
       dryRun,
@@ -287,17 +313,61 @@
         plan: state.plan,
         projectRoot: activeProjectRoot(),
         dryRun,
-        allowAdvanced
+        allowAdvanced,
+        includeEvidence: true
       });
-      setResult(result);
+      let finalResult = result;
       rememberDryRunCheck(result, {dryRun, allowAdvanced});
+      if (!dryRun) {
+        const verification = await verifyPostApply(result, {allowAdvanced});
+        state.postApplyVerification = verification;
+        finalResult = Object.assign({}, result, {postApplyVerification: verification});
+      } else {
+        state.postApplyVerification = null;
+      }
+      setResult(finalResult);
       render();
-      await refreshProjectIndexAfterApply(result, {dryRun});
-      return result;
+      await refreshProjectIndexAfterApply(finalResult, {dryRun});
+      return finalResult;
     } catch (err) {
       setResult({ok: false, dryRun, message: err && err.message ? err.message : String(err)});
       return state.lastResult;
     }
+  }
+
+  async function verifyPostApply(applyResult, options) {
+    if (!shouldRunPostApplyVerification(applyResult)) {
+      return null;
+    }
+    const desktop = global.dendryDesktop;
+    if (!desktop || typeof desktop.applyInstallPlan !== 'function') {
+      return null;
+    }
+    try {
+      return await desktop.applyInstallPlan({
+        plan: state.plan,
+        projectRoot: activeProjectRoot(),
+        dryRun: true,
+        allowAdvanced: Boolean(options && options.allowAdvanced),
+        includeEvidence: true
+      });
+    } catch (err) {
+      return {
+        ok: false,
+        dryRun: true,
+        message: err && err.message ? err.message : String(err),
+        results: [],
+        diagnostics: []
+      };
+    }
+  }
+
+  function shouldRunPostApplyVerification(result) {
+    if (!result || result.dryRun || !result.ok) {
+      return false;
+    }
+    const rows = Array.isArray(result.results) ? result.results : [];
+    return rows.some((item) => item && (item.status === 'applied' || item.status === 'already_applied'));
   }
 
   async function createRuntimePreview(options) {
@@ -478,8 +548,17 @@
     }
     elements.checklist.innerHTML = renderHumanChecklist(state.plan, rendered.summary);
     elements.patchPreview.textContent = rendered.patchPreview || t('install.patchPreview.empty', '(no patch preview)');
+    if (elements.verifiedDiff) {
+      elements.verifiedDiff.textContent = verifiedDiffText();
+    }
     elements.dryRun.disabled = !state.plan || !global.dendryDesktop;
     elements.apply.disabled = !canApplyReviewed(Boolean(elements.allowAdvanced && elements.allowAdvanced.checked));
+    if (elements.downloadEvidence) {
+      elements.downloadEvidence.disabled = !hasEvidenceBundle();
+    }
+    if (elements.downloadVerifiedDiff) {
+      elements.downloadVerifiedDiff.disabled = !currentVerifiedDiff();
+    }
     if (elements.runtimePreview) {
       elements.runtimePreview.disabled = !global.dendryDesktop || Boolean(state.runtimePreviewResult && state.runtimePreviewResult.pending);
     }
@@ -508,6 +587,35 @@
     }).join('');
   }
 
+  function verifiedDiffText() {
+    if (!state.plan) {
+      return t('install.verifiedDiff.noPlan', 'Load a change plan to see a verified diff after dry-run.');
+    }
+    if (!global.dendryDesktop) {
+      return t('install.verifiedDiff.desktopOnly', 'Verified diffs need the desktop app because Studio must read the current project files.');
+    }
+    const diff = currentVerifiedDiff();
+    return diff || t('install.verifiedDiff.runCheck', 'Run dry-run to verify this plan against the current project files.');
+  }
+
+  function currentVerifiedDiff() {
+    if (state.lastResult && state.lastResult.verifiedDiff) {
+      return state.lastResult.verifiedDiff;
+    }
+    if (state.postApplyVerification && state.postApplyVerification.verifiedDiff) {
+      return state.postApplyVerification.verifiedDiff;
+    }
+    return '';
+  }
+
+  function hasEvidenceBundle() {
+    return Boolean(state.lastResult && (
+      state.lastResult.verifiedDiff ||
+      Array.isArray(state.lastResult.changedFiles) ||
+      Array.isArray(state.lastResult.results)
+    ));
+  }
+
   function renderReadiness(summary) {
     if (!state.plan) {
       return [
@@ -525,7 +633,10 @@
     const allowAdvanced = Boolean(elements && elements.allowAdvanced && elements.allowAdvanced.checked);
     const autoApplyAvailable = Boolean(safe || guarded || (allowAdvanced && advanced));
     const checked = canApplyReviewed(allowAdvanced);
-    const status = refused
+    const postApply = postApplyReadiness(summary);
+    const status = postApply
+      ? postApply.status
+      : refused
       ? t('install.readiness.blocked', 'Some changes are protected and will not be applied.')
       : advanced
         ? t('install.readiness.advanced', 'Some changes need explicit advanced opt-in.')
@@ -540,7 +651,7 @@
               ? t('install.readiness.checked', 'Check passed. Studio can apply the reviewed changes.')
               : t('install.readiness.safe', 'Ready to apply safe changes.')
             : t('install.readiness.none', 'No installable changes in this plan.');
-    const steps = [
+    const steps = (postApply ? postApply.steps : []).concat([
       autoApplyAvailable
         ? checked ? t('install.readiness.checkPassed', 'Latest check matches this plan.') : t('install.readiness.checkNeeded', 'Run check before applying.')
         : t('install.readiness.noCheckNeeded', 'No automatic apply step is available.'),
@@ -549,7 +660,7 @@
       advanced ? t('install.readiness.advancedCount', 'Advanced changes') + ': ' + advanced : t('install.readiness.noAdvanced', 'No advanced changes.'),
       manual ? t('install.readiness.manualCount', 'Manual steps') + ': ' + manual : t('install.readiness.noManual', 'No manual steps remain.'),
       refused ? t('install.readiness.refusedCount', 'Protected changes') + ': ' + refused : t('install.readiness.noRefused', 'No protected changes.')
-    ];
+    ]);
     return [
       '<div class="install-readiness-card">',
       '<strong>' + escapeHtml(t('install.finishMod', 'Finish this mod')) + '</strong>',
@@ -559,6 +670,41 @@
       '</ul>',
       '</div>'
     ].join('');
+  }
+
+  function postApplyReadiness(summary) {
+    const result = state.lastResult;
+    if (!result || result.dryRun !== false) {
+      return null;
+    }
+    const verification = result.postApplyVerification || state.postApplyVerification;
+    if (!verification) {
+      return {
+        status: t('install.readiness.appliedNeedsVerification', 'Changes were applied; post-apply verification did not run.'),
+        steps: [t('install.readiness.applyDone', 'Apply step completed.')]
+      };
+    }
+    const hasFailures = resultHasFailures(verification) || verification.ok === false;
+    const rows = Array.isArray(verification.results) ? verification.results : [];
+    const stillPending = rows.some((row) => row && row.status === 'would_apply');
+    const manual = summary && summary.manualReview || 0;
+    const refused = summary && summary.refused || 0;
+    if (hasFailures || stillPending) {
+      return {
+        status: t('install.readiness.appliedAttention', 'Applied, but verification needs attention.'),
+        steps: [t('install.readiness.postVerifyAttention', 'Post-apply verification found a mismatch or a still-pending automatic change.')]
+      };
+    }
+    if (manual || refused) {
+      return {
+        status: t('install.readiness.appliedManualRemaining', 'Applied and verified; manual steps remain.'),
+        steps: [t('install.readiness.postVerifyPassed', 'Post-apply verification found the automatic changes in place.')]
+      };
+    }
+    return {
+      status: t('install.readiness.appliedVerified', 'Applied and verified.'),
+      steps: [t('install.readiness.postVerifyPassed', 'Post-apply verification found the automatic changes in place.')]
+    };
   }
 
   function renderHumanChecklist(plan, summary) {
@@ -849,6 +995,10 @@
     if (result.message) {
       lines.push(String(result.message));
     }
+    const changedFiles = Array.isArray(result.changedFiles) ? result.changedFiles : [];
+    if (changedFiles.length) {
+      lines.push(t('install.report.verifiedDiffReady', 'Verified diff available') + ': ' + changedFiles.length + ' ' + t('install.report.fileCount', 'file(s)'));
+    }
     lines.push('');
     lines.push(t('install.report.results', 'Results'));
     const grouped = groupResults(results);
@@ -867,6 +1017,18 @@
         lines.push('- ' + (diag.severity || 'info') + ' · ' + (diag.code || 'diagnostic') + ': ' + (diag.message || ''));
       });
     }
+    if (changedFiles.length) {
+      lines.push('');
+      lines.push(t('install.report.changedFiles', 'Changed files'));
+      changedFiles.slice(0, 20).forEach((file) => {
+        lines.push('- ' + [file.path, file.status, file.match].filter(Boolean).join(' · '));
+      });
+    }
+    if (result.postApplyVerification) {
+      lines.push('');
+      lines.push(t('install.report.postApplyVerification', 'Post-apply verification'));
+      lines.push(postApplyVerificationLabel(result.postApplyVerification));
+    }
     const rollback = rollbackNotes(results);
     if (rollback.length) {
       lines.push('');
@@ -878,6 +1040,20 @@
       lines.push(t('install.report.noOperations', 'No install operations were run.'));
     }
     return lines.join('\n');
+  }
+
+  function postApplyVerificationLabel(verification) {
+    if (!verification) {
+      return t('install.report.postApplySkipped', 'Not run');
+    }
+    if (verification.ok === false || resultHasFailures(verification)) {
+      return t('install.report.postApplyAttention', 'Needs attention');
+    }
+    const rows = Array.isArray(verification.results) ? verification.results : [];
+    if (rows.some((row) => row && row.status === 'would_apply')) {
+      return t('install.report.postApplyAttention', 'Needs attention');
+    }
+    return t('install.report.postApplyVerified', 'Applied changes verified');
   }
 
   function groupResults(results) {
@@ -927,6 +1103,78 @@
         return '';
       })
       .filter(Boolean);
+  }
+
+  function downloadEvidenceBundle() {
+    if (!hasEvidenceBundle()) {
+      return;
+    }
+    const payload = {
+      schemaVersion: '0.1',
+      kind: 'dendry_mod_studio_install_evidence',
+      generatedAt: new Date().toISOString(),
+      plan: {
+        id: state.plan && state.plan.id || '',
+        title: state.plan && state.plan.title || '',
+        draftKind: state.plan && state.plan.draftKind || '',
+        operations: Array.isArray(state.plan && state.plan.operations) ? state.plan.operations.length : 0
+      },
+      result: pruneEvidenceResult(state.lastResult),
+      postApplyVerification: pruneEvidenceResult(state.postApplyVerification || state.lastResult && state.lastResult.postApplyVerification)
+    };
+    downloadText(fileStem() + '.install-evidence.json', JSON.stringify(payload, null, 2) + '\n', 'application/json');
+  }
+
+  function downloadVerifiedDiff() {
+    const diff = currentVerifiedDiff();
+    if (!diff) {
+      return;
+    }
+    downloadText(fileStem() + '.verified.diff', diff, 'text/x-diff');
+  }
+
+  function pruneEvidenceResult(result) {
+    if (!result) {
+      return null;
+    }
+    return {
+      ok: Boolean(result.ok),
+      dryRun: Boolean(result.dryRun),
+      allowAdvanced: Boolean(result.allowAdvanced),
+      message: result.message || '',
+      operationSummary: result.operationSummary || null,
+      changedFiles: Array.isArray(result.changedFiles) ? result.changedFiles : [],
+      verifiedDiff: result.verifiedDiff || '',
+      results: Array.isArray(result.results) ? result.results.map((row) => ({
+        id: row && row.id || '',
+        type: row && row.type || '',
+        path: row && row.path || '',
+        status: row && row.status || '',
+        evidence: row && row.evidence || null
+      })) : [],
+      diagnostics: Array.isArray(result.diagnostics) ? result.diagnostics : []
+    };
+  }
+
+  function fileStem() {
+    const raw = state.plan && (state.plan.id || state.plan.title) || 'dendry-install-plan';
+    return String(raw || 'dendry-install-plan').trim().replace(/[^A-Za-z0-9_.-]+/g, '_') || 'dendry-install-plan';
+  }
+
+  function downloadText(fileName, content, type) {
+    if (!global.document || typeof Blob === 'undefined' || !global.URL || typeof global.URL.createObjectURL !== 'function') {
+      return false;
+    }
+    const blob = new Blob([String(content || '')], {type: type || 'text/plain'});
+    const url = global.URL.createObjectURL(blob);
+    const link = global.document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    global.document.body.appendChild(link);
+    link.click();
+    link.remove();
+    global.URL.revokeObjectURL(url);
+    return true;
   }
 
   function installPlanApi() {

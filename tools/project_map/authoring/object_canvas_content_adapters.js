@@ -253,6 +253,14 @@
     const bundle = buildBundle(def, api, draft, projectIndex, opts);
     const output = normalizeOutput(bundle, draft, def);
     const diagnostics = normalizeDiagnostics(bundle && bundle.diagnostics);
+    if (isPartialAuthoringDraft(draft)) {
+      diagnostics.push(diagnostic('error', 'parsed_to_draft.partial_blocked', partialDraftMessage(draft)));
+      output.ok = false;
+      output.installPlan = null;
+      output.installPlanJson = '';
+      output.patchPreview = '';
+      output.installChecklist = '';
+    }
     const installPlan = output.installPlan || null;
     return {
       schemaVersion: '0.1',
@@ -281,6 +289,17 @@
       legacy: {template: key},
       rawContext: null
     };
+  }
+
+  function isPartialAuthoringDraft(draft) {
+    return String(draft && draft.authoringStatus || '').trim() === 'partial';
+  }
+
+  function partialDraftMessage(draft) {
+    const blockers = ensureArray(draft && draft.authoringBlockers).map((item) => String(item || '').trim()).filter(Boolean);
+    return blockers.length
+      ? blockers.join(' ')
+      : 'This parsed structure is captured for preview, but structured create-as-new support is not complete yet.';
   }
 
   function normalizeTemplate(value) {
@@ -429,13 +448,19 @@
     return {
       schemaVersion: '0.1',
       kind: 'world_event',
+      eventShape: 'choice_event',
       id: 'new_world_event',
       title: 'New World Event',
+      subtitle: '',
       heading: 'New World Event',
       seenFlag: 'new_world_event_seen',
+      useSeenFlag: true,
+      tags: ['event', 'world'],
+      newPage: true,
       when: {year: 1936, monthStart: 1, monthEnd: 3, requires: '', priority: 0},
       introParagraphs: ['Write the opening event text here.'],
       effectsOnTrigger: [],
+      rawEffectsOnTrigger: [],
       options: [
         {id: 'option_1', label: 'Take the first path', narrativeParagraphs: ['The first consequence appears.'], effects: [], gotoAfter: 'continue_option_1'},
         {id: 'option_2', label: 'Choose another path', narrativeParagraphs: ['The second consequence appears.'], effects: [], gotoAfter: 'continue_option_2'}
@@ -447,13 +472,25 @@
     const value = isObject(input) ? clone(input) : {};
     const when = isObject(value.when) ? value.when : value;
     const id = safeId(value.id || value.rawId || 'new_world_event');
+    const explicitOptions = Object.prototype.hasOwnProperty.call(value, 'options');
+    const eventShape = String(value.eventShape || '').trim() === 'pure_event' || (explicitOptions && ensureArray(value.options).length === 0)
+      ? 'pure_event'
+      : 'choice_event';
+    const defaultDraft = defaultEventDraft();
     const converted = Object.assign(defaultEventDraft(), value, {
       schemaVersion: String(value.schemaVersion || '0.1'),
       kind: 'world_event',
+      eventShape,
       id,
       title: String(value.title || value.heading || 'New World Event').trim(),
+      subtitle: String(value.subtitle || '').trim(),
       heading: String(value.heading || value.title || 'New World Event').trim(),
-      seenFlag: safeId(value.seenFlag || value.rawSeenFlag || id + '_seen'),
+      tags: normalizeTags(value.tags, eventShape),
+      newPage: value.newPage === undefined ? true : booleanValue(value.newPage),
+      rawViewIf: String(value.rawViewIf || value.viewIf || '').trim(),
+      useSeenFlag: value.useSeenFlag === undefined ? eventShape === 'choice_event' : booleanValue(value.useSeenFlag),
+      seenFlag: eventShape === 'choice_event' || booleanValue(value.useSeenFlag) ? safeId(value.seenFlag || value.rawSeenFlag || id + '_seen') : '',
+      maxVisits: value.maxVisits === undefined || value.maxVisits === null || value.maxVisits === '' ? null : numberOr(value.maxVisits, null),
       when: {
         year: numberOr(value.year || when.year, 1936),
         monthStart: numberOr(value.monthStart || when.monthStart, 1),
@@ -462,15 +499,38 @@
         priority: numberOr(value.priority || when.priority, 0)
       },
       introParagraphs: paragraphs(value.introParagraphs || value.intro || value.body || 'Write the opening event text here.'),
-      options: normalizeEventOptions(ensureArray(value.options).length ? value.options : defaultEventDraft().options)
+      rawEffectsOnTrigger: rawEffectLines(value.rawEffectsOnTrigger || value.rawTriggerEffects || value.advancedEffectsOnTrigger),
+      options: normalizeEventOptions(explicitOptions ? value.options : defaultDraft.options)
     });
     return normalizeWithApi(api, converted);
   }
 
+  function normalizeTags(value, eventShape) {
+    if (Array.isArray(value)) {
+      const tags = value.map((tag) => String(tag || '').trim()).filter(Boolean);
+      return tags.length ? tags : (eventShape === 'pure_event' ? ['event'] : ['event', 'world']);
+    }
+    if (typeof value === 'string' && value.trim()) {
+      const tags = value.split(',').map((tag) => tag.trim()).filter(Boolean);
+      return tags.length ? tags : (eventShape === 'pure_event' ? ['event'] : ['event', 'world']);
+    }
+    return eventShape === 'pure_event' ? ['event'] : ['event', 'world'];
+  }
+
   function normalizeEventOptions(options) {
-    return ensureArray(options).slice(0, 4).map((option, index) => {
+    return ensureArray(options).map((option, index) => {
       const value = isObject(option) ? option : {};
       const id = safeId(value.id || value.rawId || 'option_' + (index + 1));
+      const hasGotoAfter = Object.prototype.hasOwnProperty.call(value, 'gotoAfter') ||
+        Object.prototype.hasOwnProperty.call(value, 'afterResultTarget');
+      const explicitGotoAfter = hasGotoAfter ? optionalSafeId(
+        Object.prototype.hasOwnProperty.call(value, 'gotoAfter')
+          ? value.gotoAfter
+          : Object.prototype.hasOwnProperty.call(value, 'afterResultTarget')
+            ? value.afterResultTarget
+            : ''
+      ) : '';
+      const resultMode = normalizeResultMode(value.resultMode || value.routeMode || value.continuationMode, hasGotoAfter ? explicitGotoAfter : 'continue_' + id);
       return {
         id,
         label: String(value.label || value.title || 'Choice ' + (index + 1)).trim(),
@@ -478,9 +538,12 @@
         chooseIf: String(value.chooseIf || '').trim(),
         unavailableText: String(value.unavailableText || '').trim(),
         effects: ensureArray(value.effects),
+        rawEffects: rawEffectLines(value.rawEffects || value.rawOptionEffects || value.advancedEffects),
         narrativeParagraphs: paragraphs(value.narrativeParagraphs || value.body || value.text || 'Describe the result of this choice.'),
         variants: ensureArray(value.variants),
-        gotoAfter: safeId(value.gotoAfter || 'continue_' + id)
+        resultMode,
+        gotoAfter: resultMode === 'continue' ? (explicitGotoAfter || 'continue_' + id) : explicitGotoAfter,
+        returnTarget: optionalSafeId(value.returnTarget || value.afterReturnTarget || (resultMode === 'continue' ? 'root' : ''))
       };
     });
   }
@@ -504,6 +567,7 @@
       kind: 'card',
       id: 'new_action_card',
       title: 'New Action Card',
+      cardShape: 'choice_card',
       cardKind: 'action_card',
       tags: ['cards'],
       viewIf: '',
@@ -727,7 +791,18 @@
     }
     setString(data, draft, 'event.id', 'id', safeId);
     setString(data, draft, 'event.title', 'title');
+    setString(data, draft, 'event.subtitle', 'subtitle');
     setString(data, draft, 'event.heading', 'heading');
+    setString(data, draft, 'event.eventShape', 'eventShape');
+    if (has(data, 'event.tags')) {
+      draft.tags = String(data['event.tags'] || '').split(',').map((tag) => tag.trim()).filter(Boolean);
+    }
+    if (has(data, 'event.newPage')) {
+      draft.newPage = booleanValue(data['event.newPage']);
+    }
+    if (has(data, 'event.useSeenFlag')) {
+      draft.useSeenFlag = booleanValue(data['event.useSeenFlag']);
+    }
     if (has(data, 'event.intro')) {
       draft.introParagraphs = paragraphs(data['event.intro']);
     }
@@ -735,23 +810,38 @@
     setNumber(data, draft.when, 'event.monthStart', 'monthStart');
     setNumber(data, draft.when, 'event.monthEnd', 'monthEnd');
     setString(data, draft.when, 'event.requires', 'requires');
+    if (String(draft.eventShape || '') === 'pure_event' && has(data, 'event.requires')) {
+      draft.rawViewIf = String(data['event.requires'] || '').trim();
+      draft.when.requires = '';
+    }
     setNumber(data, draft.when, 'event.priority', 'priority');
     draft.effectsOnTrigger = applyEffectValues(data, 'event.effect', draft.effectsOnTrigger);
+    if (has(data, 'event.rawEffects')) {
+      draft.rawEffectsOnTrigger = rawEffectLines(data['event.rawEffects']);
+    }
     draft.options = ensureArray(draft.options).map((option, index) => {
       const next = clone(option);
       setString(data, next, 'option.' + index + '.label', 'label');
       setString(data, next, 'option.' + index + '.subtitle', 'subtitle');
       setString(data, next, 'option.' + index + '.chooseIf', 'chooseIf');
       setString(data, next, 'option.' + index + '.unavailableText', 'unavailableText');
-      setString(data, next, 'option.' + index + '.gotoAfter', 'gotoAfter', safeId);
+      setString(data, next, 'option.' + index + '.resultMode', 'resultMode', normalizeResultMode);
+      setString(data, next, 'option.' + index + '.gotoAfter', 'gotoAfter', optionalSafeId);
+      setString(data, next, 'option.' + index + '.returnTarget', 'returnTarget', optionalSafeId);
       if (has(data, 'option.' + index + '.body')) {
         next.narrativeParagraphs = paragraphs(data['option.' + index + '.body']);
       }
       next.effects = applyEffectValues(data, 'option.' + index + '.effect', next.effects);
+      if (has(data, 'option.' + index + '.rawEffects')) {
+        next.rawEffects = rawEffectLines(data['option.' + index + '.rawEffects']);
+      }
       return next;
     });
     const sections = ensureArray(draft.sections).map((section, index) => {
       const next = clone(section);
+      setString(data, next, 'event.section.' + index + '.title', 'title');
+      setString(data, next, 'event.section.' + index + '.condition', 'condition');
+      setString(data, next, 'event.section.' + index + '.exitTarget', 'exitTarget', safeId);
       if (has(data, 'event.section.' + index + '.body')) {
         next.paragraphs = paragraphs(data['event.section.' + index + '.body']);
       }
@@ -767,6 +857,9 @@
     }
     if (!draft.seenFlag || has(data, 'event.id')) {
       draft.seenFlag = safeId((draft.id || 'new_world_event') + '_seen');
+    }
+    if (!draft.useSeenFlag) {
+      draft.seenFlag = '';
     }
     draft = applyEventStructureValues(draft, data);
     return draft;
@@ -815,6 +908,7 @@
     setString(data, draft, 'card.title', 'title');
     setString(data, draft, 'card.heading', 'heading');
     setString(data, draft, 'card.subtitle', 'subtitle');
+    setString(data, draft, 'card.cardShape', 'cardShape');
     setString(data, draft, 'card.cardKind', 'cardKind');
     setString(data, draft, 'card.viewIf', 'viewIf');
     setNumber(data, draft, 'card.priority', 'priority');
@@ -840,6 +934,34 @@
       next.effects = applyEffectValues(data, 'card.option.' + index + '.effect', next.effects);
       return next;
     });
+    const sections = ensureArray(draft.sections).map((section, index) => {
+      const next = clone(section);
+      setString(data, next, 'card.section.' + index + '.title', 'title');
+      setString(data, next, 'card.section.' + index + '.condition', 'condition');
+      setString(data, next, 'card.section.' + index + '.exitTarget', 'exitTarget', safeId);
+      if (has(data, 'card.section.' + index + '.body')) {
+        next.paragraphs = paragraphs(data['card.section.' + index + '.body']);
+      }
+      next.effects = applyEffectValues(data, 'card.section.' + index + '.effect', next.effects);
+      next.options = ensureArray(next.options).map((option, optionIndex) => {
+        const optionNext = clone(option);
+        setString(data, optionNext, 'card.section.' + index + '.option.' + optionIndex + '.label', 'label');
+        setString(data, optionNext, 'card.section.' + index + '.option.' + optionIndex + '.title', 'title');
+        setString(data, optionNext, 'card.section.' + index + '.option.' + optionIndex + '.subtitle', 'subtitle');
+        setString(data, optionNext, 'card.section.' + index + '.option.' + optionIndex + '.chooseIf', 'chooseIf');
+        setString(data, optionNext, 'card.section.' + index + '.option.' + optionIndex + '.unavailableText', 'unavailableText');
+        setString(data, optionNext, 'card.section.' + index + '.option.' + optionIndex + '.gotoAfter', 'gotoAfter', safeId);
+        if (has(data, 'card.section.' + index + '.option.' + optionIndex + '.body')) {
+          optionNext.narrativeParagraphs = paragraphs(data['card.section.' + index + '.option.' + optionIndex + '.body']);
+        }
+        optionNext.effects = applyEffectValues(data, 'card.section.' + index + '.option.' + optionIndex + '.effect', optionNext.effects);
+        return optionNext;
+      });
+      return next;
+    });
+    if (sections.length) {
+      draft.sections = sections;
+    }
     if (titleChanged && !headingChanged) {
       draft.heading = draft.title;
     } else if (!draft.heading) {
@@ -1209,7 +1331,7 @@
       effects: effectRows(draft),
       assets: assetRows(draft),
       sourceEvidence: sourceRows(def, draft),
-      manualBoundaries: boundaryRows(def, draft)
+      manualBoundaries: boundaryRows(projectIndex, def, draft)
     };
   }
 
@@ -1252,7 +1374,14 @@
         readCount: Number(variable.readCount || 0),
         writeCount: Number(variable.writeCount || 0),
         tags: ensureArray(variable.tags).map(String),
-        status: existing.has(name) ? 'referenced' : 'new_or_missing'
+        status: existing.has(name) ? 'referenced' : 'new_or_missing',
+        createAction: existing.has(name) ? null : {
+          actionKind: 'open_variable_editor',
+          targetView: 'variables',
+          targetId: name,
+          variableName: name,
+          installSafety: 'guarded_apply'
+        }
       };
     });
   }
@@ -1330,12 +1459,39 @@
     return rows;
   }
 
-  function boundaryRows(def) {
+  function boundaryRows(projectIndex, def, draft) {
     if (def.objectKind === 'event') {
+      const routerRegistration = eventRouterRegistrationHint(projectIndex, draft);
+      if (routerRegistration) {
+        return [{
+          label: 'Profile-aware router registration',
+          reason: 'Known Dendry-style profiles can register the monthly #event lane through Review & Apply.',
+          status: 'advanced_apply',
+          source: {path: routerRegistration.path || 'source/scenes/post_event.scene.dry'},
+          action: {
+            actionKind: 'open_advanced_source_patch',
+            routeClass: 'news_router_workflow',
+            targetView: 'router',
+            targetId: draft && draft.id || '',
+            fieldId: 'router.registration',
+            installSafety: 'advanced_apply',
+            draftAction: true
+          }
+        }];
+      }
       return [{
         label: 'Router wiring',
-        reason: 'New events may still need project-specific router review.',
-        status: 'manual_review',
+        reason: 'No known profile router rule was found; router wiring remains a pending profile setup item.',
+        status: 'pending_profile_rule',
+        action: {
+          actionKind: 'open_profile_router_rule',
+          routeClass: 'profile_router_rule',
+          targetView: 'router',
+          targetId: draft && draft.id || '',
+          fieldId: 'router.registration',
+          installSafety: 'guarded_apply',
+          draftAction: true
+        },
         source: {}
       }];
     }
@@ -1345,6 +1501,18 @@
       status: 'manual_review',
       source: {}
     }];
+  }
+
+  function eventRouterRegistrationHint(projectIndex, draft) {
+    const api = draftApi(DEFINITIONS.event);
+    if (!api || typeof api.routerInstallHint !== 'function') {
+      return null;
+    }
+    try {
+      return api.routerInstallHint(draft || {}, projectIndex || null, null);
+    } catch (_err) {
+      return null;
+    }
   }
 
   function objectId(draft) {
@@ -1503,6 +1671,7 @@
     rows.forEach((effect, index) => {
       setString(data, effect, prefix + '.' + index + '.variable', 'variable', safeId);
       setString(data, effect, prefix + '.' + index + '.op', 'op');
+      effect.op = normalizeEffectOp(effect.op);
       if (has(data, prefix + '.' + index + '.value')) {
         effect.value = effectValue(data[prefix + '.' + index + '.value'], effect.op, effect.value);
       }
@@ -1511,7 +1680,7 @@
     });
     const addVariable = String(data && data[prefix + '.add.variable'] || '').trim();
     if (addVariable) {
-      const op = String(data[prefix + '.add.op'] || '+=').trim() || '+=';
+      const op = normalizeEffectOp(data[prefix + '.add.op'] || '+=');
       rows.push({
         variable: safeId(addVariable),
         op,
@@ -1521,6 +1690,11 @@
       });
     }
     return rows.filter((effect) => effect.variable);
+  }
+
+  function normalizeEffectOp(value) {
+    const op = String(value || '+=').trim();
+    return op === '=' || op === '+=' || op === '-=' ? op : '+=';
   }
 
   function effectValue(value, op, fallback) {
@@ -1565,6 +1739,32 @@
       .replace(/[^A-Za-z0-9_]+/g, '_')
       .replace(/^_+|_+$/g, '');
     return /^[A-Za-z_]/.test(text) ? text : 'draft_' + (text || 'item');
+  }
+
+  function optionalSafeId(value) {
+    const text = String(value || '').trim();
+    return text ? safeId(text) : '';
+  }
+
+  function normalizeResultMode(value, gotoAfter) {
+    const text = String(value || '').trim();
+    if (text === 'native' || text === 'direct' || text === 'inline' || text === 'section') {
+      return 'native';
+    }
+    if (text === 'continue' || text === 'continuation' || text === 'result_section') {
+      return 'continue';
+    }
+    return String(gotoAfter || '').trim() ? 'continue' : 'native';
+  }
+
+  function rawEffectLines(value) {
+    if (Array.isArray(value)) {
+      return value.reduce((rows, item) => rows.concat(rawEffectLines(item)), []);
+    }
+    return String(value || '')
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
   }
 
   function labelFromName(name) {

@@ -301,7 +301,8 @@
     return diagnosticGroups(diagnostics);
   }
 
-  function coverageRows(index) {
+  function coverageRows(index, options) {
+    const opts = isObject(options) ? options : {};
     const semantic = index && index.semantic ? index.semantic : {};
     const surfaceItems = ensureArray(semantic.surfaceText && semantic.surfaceText.items);
     const assets = ensureArray(semantic.assets && semantic.assets.items)
@@ -315,7 +316,7 @@
     const hands = ensureArray(semantic.hands);
     const pinned = ensureArray(semantic.pinnedCards);
     const scenes = ensureArray(index && index.scenes);
-    const visibleCoverage = visibleObjectCoverageReport(index);
+    const visibleCoverage = opts.includeVisibleCoverage === false ? null : visibleObjectCoverageReport(index);
     return [
       {
         id: 'find_and_compare',
@@ -341,19 +342,19 @@
         label: 'World Events',
         count: events.length,
         coverageLevel: 'draft_seed',
-        coverageLabel: 'In Studio, best-effort',
+        coverageLabel: 'In Studio, draftable',
         releasePriority: 'must-have',
         noCodeCompletion: 'partial',
-        authoringStatus: 'Edit as Draft partial; Create wizard export-only',
-        installStatus: 'safe scene create; root/post_event manual review',
+        authoringStatus: 'Parsed-to-draft authoring for text, choice, and large-choice events',
+        installStatus: 'scene create operations; protected router/root wiring uses review or advanced apply',
         safeApplyCount: 1,
         manualReviewCount: 2,
         unsupportedCount: 0,
-        userCanDo: 'Create new world events, seed follow-up / bridge events from Design, and export install proposals.',
-        remainingGap: 'Existing body text and effects are not fully round-tripped; monthly router / root migration still need review.',
-        nextAction: 'Use Design -> Create follow-up / Bridge event for new beats; use Explore -> Edit as Draft only as a seed.',
+        userCanDo: 'Create new world events, copy parsed events as new drafts, and preview install operations before Review & Apply.',
+        remainingGap: 'Dynamic/raw structures and protected router/root migration still need explicit review.',
+        nextAction: 'Use Object Canvas, Explore, or Design to copy parsed events into the shared authoring draft path.',
         studioPath: 'Create -> World Event, or Design -> Create follow-up / Bridge event.',
-        workflowSteps: ['Choose timing and requirements', 'Write choices/effects', 'Review diagnostics and patch preview', 'Install safe scene create; manually add root/post_event snippets']
+        workflowSteps: ['Choose event shape and requirements', 'Write text/options/effects', 'Review diagnostics and patch preview', 'Send supported operations to Review & Apply']
       },
       {
         id: 'news',
@@ -363,7 +364,7 @@
         coverageLabel: 'In Studio, guarded when anchored',
         releasePriority: 'must-have',
         noCodeCompletion: 'partial',
-        authoringStatus: 'Edit as Draft partial; News wizard exports snippets and install plans',
+        authoringStatus: 'News drafts and linked monthly-popup event drafts use Review & Apply plans',
         installStatus: 'guarded post_event_news insert when router anchor evidence exists; legacy post_event manual review',
         safeApplyCount: 0,
         manualReviewCount: eventPopups.length ? 1 : 0,
@@ -379,36 +380,36 @@
         label: 'Cards / Advisor-like',
         count: cards.length,
         coverageLevel: 'draft_seed',
-        coverageLabel: 'In Studio, wiring review',
+        coverageLabel: 'In Studio, anchored wiring',
         releasePriority: 'must-have',
         noCodeCompletion: 'partial',
-        authoringStatus: 'Edit as Draft partial; Card wizard export-only',
-        installStatus: 'safe scene create; hand/sidebar wiring manual review',
+        authoringStatus: 'Parsed-to-draft authoring for choice, menu, large, and pinned text cards',
+        installStatus: 'safe scene create; guarded deck/advisor wiring when source-backed',
         safeApplyCount: 1,
         manualReviewCount: 1,
         unsupportedCount: 0,
-        userCanDo: 'Create action-card / advisor-like scene proposals and seed related cards from Design.',
-        remainingGap: 'Hand/deck/sidebar wiring is indexed and proposed, but still not automatically applied.',
-        nextAction: 'Generate the card scene, then use Install mode to separate safe create-file from manual wiring.',
+        userCanDo: 'Create action-card / advisor-like drafts, copy parsed cards as new drafts, and preview scene operations.',
+        remainingGap: 'Exact deck/advisor tag lanes can be guarded inserts; custom or ambiguous hand/sidebar wiring remains review-only.',
+        nextAction: 'Use Object Canvas, Explore, or Design to keep parsed card sections/options in one draft path.',
         studioPath: 'Create -> Card, or Design -> Create related card.',
-        workflowSteps: ['Pick action-card or advisor-like type', 'Write options/effects', 'Export scene and wiring proposal', 'Apply safe scene create; review hand/sidebar wiring manually']
+        workflowSteps: ['Pick card shape', 'Write sections/options/effects', 'Review scene and wiring operations', 'Send supported operations to Review & Apply']
       },
       {
         id: 'surface_text',
         label: 'Surface Text',
         count: surfaceItems.length,
         coverageLevel: sourceSurface ? 'mixed' : 'ide_escape_hatch',
-        coverageLabel: sourceSurface ? 'Mixed safe / IDE' : 'IDE guidance',
+        coverageLabel: sourceSurface ? 'Mixed safe / source review' : 'Source review guidance',
         releasePriority: 'must-have',
         noCodeCompletion: sourceSurface ? 'partial' : 'guided',
-        authoringStatus: 'replacement draft or IDE escape hatch',
+        authoringStatus: 'replacement draft or source-mapping task',
         installStatus: 'source-backed replace safe; generated UI manual',
         safeApplyCount: sourceSurface,
         manualReviewCount: ideSurface,
         unsupportedCount: 0,
         userCanDo: 'Search labels like sidebar/status text and generate replacement proposals.',
         remainingGap: 'Source-backed labels can be guarded replacements; out/html evidence remains manual because it is generated/custom UI.',
-        nextAction: 'Prefer source-backed rows. Treat out/html rows as IDE guidance, not automatic edits.',
+        nextAction: 'Prefer source-backed rows. Treat out/html rows as source-mapping tasks, not automatic edits.',
         studioPath: 'Explore -> Surface Text -> Edit Text Proposal, or Create -> Edit Text.',
         workflowSteps: ['Find the visible label', 'Enter replacement text', 'Review install plan', 'Safe-apply only if source-backed and line evidence still matches']
       },
@@ -427,7 +428,7 @@
         unsupportedCount: 0,
         userCanDo: 'Use ProjectIndex variables while adding simple Q effects; review diagnostics and source refs before exporting.',
         remainingGap: 'Variables are not yet grouped by gameplay meaning/range, and advanced effect logic still requires care.',
-        nextAction: 'Use the effect helper for simple = / += / -= changes; keep complex JS in manual review.',
+        nextAction: 'Use the effect helper for simple = / += / -= changes; use Precise Source Edit or advanced apply for shared-line and complex effects.',
         studioPath: 'Create -> World Event/Card -> Effects helper; Explore -> Variables for read/write context.',
         workflowSteps: ['Pick an existing variable', 'Use simple = / += / -= operation', 'Review diagnostics', 'Avoid Chinese string comparisons and undefined variables']
       },
@@ -436,39 +437,39 @@
         label: 'Existing Event / Card / News Text',
         count: events.length + cards.length + news.length,
         coverageLevel: 'mixed',
-        coverageLabel: 'Proposal + IDE guidance',
+        coverageLabel: 'Click-to-edit',
         releasePriority: 'must-have',
         noCodeCompletion: 'guided',
-        authoringStatus: 'Edit Text Proposal from Explore / Design',
-        installStatus: 'manual IDE review for scene/news body text',
+        authoringStatus: 'Click-to-edit from Explore / Design / Object Canvas',
+        installStatus: 'safe, guarded, or advanced apply from source-backed edits',
         safeApplyCount: 0,
         manualReviewCount: events.length + cards.length + news.length,
         unsupportedCount: 0,
-        userCanDo: 'Select an event/card/news/scene and create a text replacement proposal without hunting files manually.',
-        remainingGap: 'Studio can point at source and produce proposal notes, but it cannot safely rewrite arbitrary scene body text yet.',
-        nextAction: 'Use Edit Text Proposal for wording changes; keep body/effect rewrites as manual review until source-span editing exists.',
-        studioPath: 'Explore or Design -> select item -> Edit Text Proposal.',
-        workflowSteps: ['Select existing content', 'Click Edit Text Proposal', 'Change replacement text in Create', 'Use source ref and install notes to edit manually']
+        userCanDo: 'Select visible event/card/news text, click Edit, make the change, preview before/after, then send the install operation to Review & Apply.',
+        remainingGap: 'Source-backed text falls back to Precise Source Edit when no field-level editor exists; missing source anchors are treated as Studio mapping bugs.',
+        nextAction: 'Click visible text to open the owning field, section, linked event, or Precise Source Edit.',
+        studioPath: 'Explore / Event Workbench / Object Canvas -> Edit -> Review & Apply.',
+        workflowSteps: ['Select visible content', 'Click Edit', 'Change the field or source slice', 'Preview before/after', 'Send operation to Review & Apply']
       },
-      visibleObjectCoverageRow(visibleCoverage),
+      visibleObjectCoverageRow(visibleCoverage, index, opts.includeVisibleCoverage === false),
       {
         id: 'hands_sidebar',
         label: 'Hands / Sidebar Wiring',
         count: hands.length + pinned.length,
         coverageLevel: 'guided_only',
-        coverageLabel: 'Guided review only',
+        coverageLabel: 'Anchored wiring where exact',
         releasePriority: 'must-have',
         noCodeCompletion: 'guided',
         authoringStatus: 'indexed evidence only',
-        installStatus: 'manual review',
+        installStatus: 'guarded when exact; manual when ambiguous',
         safeApplyCount: 0,
         manualReviewCount: hands.length + pinned.length,
         unsupportedCount: 0,
         userCanDo: 'See evidence and install checklist guidance for hand/sidebar effects.',
-        remainingGap: 'No safe graphical editor for hand/deck/sidebar routers yet.',
-        nextAction: 'Use Studio to locate the relevant evidence, then edit with IDE guidance.',
+        remainingGap: 'Exact deck/advisor tag routes can be applied through Review & Apply; custom lanes still need explicit source-anchor review.',
+        nextAction: 'Use Studio to locate the relevant evidence, then apply exact anchored routes or keep ambiguous lanes in review.',
         studioPath: 'Coverage Map -> Hands / Sidebar Wiring, plus Install mode manual operations.',
-        workflowSteps: ['Use card export wiring proposal', 'Review hand/deck/sidebar evidence', 'Make IDE change manually', 'Run validation outside Studio']
+        workflowSteps: ['Use card export wiring proposal', 'Review hand/deck/sidebar evidence', 'Choose a source anchor or keep review blocked', 'Run validation']
       },
       {
         id: 'install_review',
@@ -494,11 +495,11 @@
         label: 'Raw .dry / JS Routers',
         count: 0,
         coverageLevel: 'ide_escape_hatch',
-        coverageLabel: 'IDE escape hatch',
+        coverageLabel: 'Source mapping needed',
         releasePriority: 'nice-to-have',
         noCodeCompletion: 'no',
         authoringStatus: 'not a raw editor',
-        installStatus: 'manual IDE work',
+        installStatus: 'source review',
         safeApplyCount: 0,
         manualReviewCount: 1,
         unsupportedCount: 0,
@@ -545,9 +546,37 @@
     return null;
   }
 
-  function visibleObjectCoverageRow(report) {
+  function visibleObjectCoverageRow(report, index, deferred) {
     const summary = report && report.summary || {};
     const goalW = summary.goalW || {};
+    if (deferred) {
+      const semantic = index && index.semantic || {};
+      const count = ensureArray(semantic.events).length +
+        ensureArray(semantic.cards).length +
+        ensureArray(semantic.news && semantic.news.items).length +
+        ensureArray(semantic.news && semantic.news.eventPopups).length +
+        ensureArray(semantic.textCorpus && semantic.textCorpus.items).length;
+      return {
+        id: 'visible_object_editor',
+        label: 'Visible Object Editor',
+        count,
+        coverageLevel: 'deferred',
+        coverageLabel: 'Prepared on demand',
+        releasePriority: 'must-have',
+        noCodeCompletion: 'partial',
+        authoringStatus: 'full visible edit coverage is built when Coverage Map opens',
+        installStatus: 'safe/guarded/advanced gates are evaluated in the full report',
+        safeApplyCount: 0,
+        manualReviewCount: 0,
+        unsupportedCount: 0,
+        userCanDo: 'Open Coverage Map to build the full visible-edit coverage report.',
+        remainingGap: 'Deferred during project load to keep the workspace responsive.',
+        nextAction: 'Open Coverage Map when you need full visible-object coverage details.',
+        studioPath: 'Coverage Map -> Visible Object Editor.',
+        workflowSteps: ['Load project', 'Open Coverage Map', 'Build full visible coverage report', 'Inspect route/safety gaps'],
+        deferred: true
+      };
+    }
     const safeCoverage = percentLabel(goalW.safeEditCoverage);
     const routeCoverage = percentLabel(summary.routeCoverage);
     const previewCoverage = percentLabel(goalW.previewCoverage);
@@ -599,13 +628,19 @@
     }
     const id = String(row.id || '').replace(/[^A-Za-z0-9_-]/g, '');
     const fallback = row[field] || '';
+    if (id && row.deferred) {
+      return t('coverage.row.' + id + '.deferred.' + field, fallback);
+    }
     return id ? t('coverage.row.' + id + '.' + field, fallback) : fallback;
   }
 
   function coverageWorkflowSteps(row) {
     const fallback = ensureArray(row && row.workflowSteps);
     const id = row && String(row.id || '').replace(/[^A-Za-z0-9_-]/g, '');
-    const raw = id ? t('coverage.row.' + id + '.workflowSteps', fallback.join('|')) : fallback.join('|');
+    const key = id && row && row.deferred
+      ? 'coverage.row.' + id + '.deferred.workflowSteps'
+      : 'coverage.row.' + id + '.workflowSteps';
+    const raw = id ? t(key, fallback.join('|')) : fallback.join('|');
     return String(raw || '')
       .split('|')
       .map((step) => step.trim())
@@ -635,6 +670,48 @@
 
   function noCodeCompletionLabel(value) {
     return t('coverage.noCode', 'no-code') + ' ' + coverageCompletionLabel(value);
+  }
+
+  function coverageClass(level) {
+    const value = String(level || '');
+    if (value === 'draft_seed' || value === 'mixed') {
+      return 'info';
+    }
+    if (value === 'guided_only' || value === 'ide_escape_hatch') {
+      return 'warning';
+    }
+    if (value === 'not_started' || value === 'deferred') {
+      return 'opaque';
+    }
+    return '';
+  }
+
+  function priorityClass(priority) {
+    const value = String(priority || '').toLowerCase();
+    if (value.includes('must')) {
+      return 'warning';
+    }
+    if (value.includes('blocker')) {
+      return 'error';
+    }
+    if (value.includes('later')) {
+      return 'opaque';
+    }
+    return 'info';
+  }
+
+  function completionClass(value) {
+    const text = String(value || '').toLowerCase();
+    if (text === 'mostly') {
+      return 'exact';
+    }
+    if (text === 'partial' || text === 'guided') {
+      return 'warning';
+    }
+    if (text === 'no') {
+      return 'opaque';
+    }
+    return 'info';
   }
 
   function coverageCountBadge(kind, count) {
@@ -691,7 +768,7 @@
       variables,
       diagnostics,
       overview: diagnosticBreakdown(diagnostics),
-      coverage: coverageRows(index)
+      coverage: coverageRows(index, {includeVisibleCoverage: false})
     };
 
     const uiLabels = profileUiLabels(index);
@@ -716,6 +793,7 @@
       textCorpusContextIndex: buildTextCorpusContextIndex(textCorpus),
       normalizedRowsByView: new Map(),
       sortedRowsByView: new Map(),
+      coverageRowsDeferred: true,
       diagnosticsByScene,
       diagnosticsByPath,
       lists
@@ -1035,7 +1113,38 @@
     if (!model) {
       return [];
     }
+    if (view === 'coverage') {
+      return ensureCoverageRows(model);
+    }
     return ensureArray(model.lists[view]);
+  }
+
+  function ensureCoverageRows(model) {
+    if (!model) {
+      return [];
+    }
+    if (!model.lists) {
+      model.lists = {};
+    }
+    if (model.coverageRowsDeferred || !Array.isArray(model.lists.coverage)) {
+      model.lists.coverage = coverageRows(model.index);
+      model.coverageRowsDeferred = false;
+      if (model.normalizedRowsByView instanceof Map) {
+        Array.from(model.normalizedRowsByView.keys()).forEach((key) => {
+          if (String(key).includes('::coverage')) {
+            model.normalizedRowsByView.delete(key);
+          }
+        });
+      }
+      if (model.sortedRowsByView instanceof Map) {
+        Array.from(model.sortedRowsByView.keys()).forEach((key) => {
+          if (String(key).includes('::coverage::')) {
+            model.sortedRowsByView.delete(key);
+          }
+        });
+      }
+    }
+    return ensureArray(model.lists.coverage);
   }
 
   function filterAndSortItems(model, view, query, sortField, sortDir) {
@@ -1346,13 +1455,14 @@
       'In Studio, manual install': t('coverage.inStudioManualInstall', 'In Studio, manual install'),
       'In Studio, wiring review': t('coverage.inStudioWiringReview', 'In Studio, wiring review'),
       'In Studio, guarded': t('coverage.inStudioGuarded', 'In Studio, guarded'),
-      'Mixed safe / IDE': t('coverage.mixedSafeIde', 'Mixed safe / IDE'),
-      'IDE guidance': t('coverage.ideGuidance', 'IDE guidance'),
+      'Mixed safe / IDE': t('coverage.mixedSafeIde', 'Mixed safe / source review'),
+      'IDE guidance': t('coverage.ideGuidance', 'Source review guidance'),
       'Picker + warnings': t('coverage.pickerWarnings', 'Picker + warnings'),
-      'Proposal + IDE guidance': t('coverage.proposalIdeGuidance', 'Proposal + IDE guidance'),
+      'Proposal + IDE guidance': t('coverage.proposalIdeGuidance', 'Proposal + source review guidance'),
       'Guided review only': t('coverage.guidedReviewOnly', 'Guided review only'),
-      'IDE escape hatch': t('coverage.ideEscapeHatch', 'IDE escape hatch'),
+      'IDE escape hatch': t('coverage.ideEscapeHatch', 'Source mapping needed'),
       'Not started': t('coverage.notStarted', 'Not started'),
+      'Prepared on demand': t('coverage.preparedOnDemand', 'Prepared on demand'),
       image: t('assets.type.image', 'image'),
       audio: t('assets.type.audio', 'audio'),
       asset: t('assets.type.asset', 'asset'),
@@ -1563,6 +1673,7 @@
     sourceLabel,
     normalizeForView,
     listForView,
+    ensureCoverageRows,
     filterAndSortItems,
     normalizedRowsForView,
     sortedRowsForView,

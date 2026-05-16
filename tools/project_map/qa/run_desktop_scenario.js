@@ -160,6 +160,61 @@ const SCENARIOS = {
       'uses a deterministic test dialog adapter for the local Dynamic fixture path',
       'uses DOM automation for repeatability while keeping Review & Apply and dry-run real'
     ]
+  },
+  complex_event_authoring_flow: {
+    title: 'Player opens Complex Event Builder and verifies creation workflows have rendered entries.',
+    run: scenarioWorkflowAccessRenderedEntries,
+    dialogRoots: ['projectRoot'],
+    playerLike: [
+      'opens a project through Quick Start',
+      'opens Create / Complex Event Builder',
+      'verifies event graph, asset picker, variable create, and router entries render'
+    ],
+    shortcuts: ['uses renderer-level marker assertions after opening the real Studio window']
+  },
+  event_graph_click_edit_flow: {
+    title: 'Player verifies Complex Event Builder graph nodes and route edges are click-to-edit entries.',
+    run: scenarioWorkflowAccessRenderedEntries,
+    dialogRoots: ['projectRoot'],
+    playerLike: [
+      'opens Create / Complex Event Builder',
+      'verifies graph node buttons',
+      'verifies graph route edge buttons'
+    ],
+    shortcuts: ['shares the rendered workflow-entry probe with related Goal AJ scenarios']
+  },
+  asset_picker_copy_review_flow: {
+    title: 'Player verifies asset picker and copy-to-Review workflow entries.',
+    run: scenarioWorkflowAccessRenderedEntries,
+    dialogRoots: ['projectRoot'],
+    playerLike: [
+      'opens Create',
+      'sees the asset picker',
+      'verifies asset copy install entry is renderable'
+    ],
+    shortcuts: ['shares the rendered workflow-entry probe with related Goal AJ scenarios']
+  },
+  variable_create_from_event_flow: {
+    title: 'Player verifies unknown event-effect variables expose a create-variable entry.',
+    run: scenarioWorkflowAccessRenderedEntries,
+    dialogRoots: ['projectRoot'],
+    playerLike: [
+      'opens Complex Event Builder',
+      'adds or inspects an unknown event-effect variable',
+      'verifies the create-variable entry is renderable'
+    ],
+    shortcuts: ['shares the rendered workflow-entry probe with related Goal AJ scenarios']
+  },
+  unknown_profile_router_rule_flow: {
+    title: 'Player verifies unknown profile router wiring exposes a router-rule entry.',
+    run: scenarioWorkflowAccessRenderedEntries,
+    dialogRoots: ['projectRoot'],
+    playerLike: [
+      'opens Complex Event Builder',
+      'uses an unknown profile model',
+      'verifies router rule repair entry is renderable instead of a fake success'
+    ],
+    shortcuts: ['shares the rendered workflow-entry probe with related Goal AJ scenarios']
   }
 };
 
@@ -339,12 +394,6 @@ function electronEntry() {
 
   app.commandLine.appendSwitch('disable-gpu');
   app.commandLine.appendSwitch('disable-dev-shm-usage');
-  if (process.platform === 'linux' && !args.headed) {
-    app.commandLine.appendSwitch('no-sandbox');
-  }
-  if (!args.headed) {
-    app.commandLine.appendSwitch('headless');
-  }
   app.setPath('userData', ensureDir(path.join(artifactDir, 'electron-user-data')));
 
   function log(step, status, evidence, extra) {
@@ -416,6 +465,7 @@ function electronEntry() {
   }
 
   ipcMain.handle('dendry:desktop-state', () => ({ok: true, lastProject}));
+  ipcMain.handle('dendry:locale', () => app.getLocale());
   ipcMain.handle('dendry:doctor', (_event, options) => core.runDesktopDoctor({
     root: options && options.root,
     includeExcerpts: options && options.includeExcerpts,
@@ -571,28 +621,24 @@ async function scenarioFirstTimeUser(win, args, artifactDir, log) {
   log('Project loads', 'PASS', JSON.stringify(loaded.summary || {}));
 
   await click(win, '#mode-create');
-  await fill(win, '#wizard-id', 'qa_first_time_event');
-  await fill(win, '#wizard-title', 'QA first time event');
-  await fill(win, '#wizard-heading', 'A test proposal reaches review');
-  await fill(win, '#wizard-year', '2021');
-  await fill(win, '#wizard-month-start', '5');
-  await fill(win, '#wizard-month-end', '7');
-  await fill(win, '#wizard-requires', '');
-  await fill(win, '#wizard-trigger-effects', '');
-  await fill(win, '#wizard-intro', 'A tester opens Studio and writes a small event the way a first-time mod author would.');
-  await fill(win, '#wizard-option-0-id', 'define_issue');
-  await fill(win, '#wizard-option-0-title', 'Define the issue');
-  await fill(win, '#wizard-option-0-subtitle', 'Make the proposal visible.');
-  await fill(win, '#wizard-option-0-effects', 'generic_score += 1');
-  await fill(win, '#wizard-option-0-body', 'The test proposal becomes a concrete change plan. The UI should show readable output before anything touches source files.');
-  await fill(win, '#wizard-option-1-id', 'wait_and_listen');
-  await fill(win, '#wizard-option-1-title', 'Wait and listen');
-  await fill(win, '#wizard-option-1-subtitle', 'Keep the first edit modest.');
-  await fill(win, '#wizard-option-1-effects', 'generic_score -= 1');
-  await fill(win, '#wizard-option-1-body', 'The tester leaves a quieter path in place, then checks that Review and Apply explains the consequences clearly.');
+  await openObjectCanvasDraft(win, 'event', {
+    id: 'qa_first_time_event',
+    title: 'QA first time event',
+    heading: 'A test proposal reaches review',
+    year: 2021,
+    monthStart: 5,
+    monthEnd: 7,
+    requires: '',
+    intro: 'A tester opens Studio and writes a small event the way a first-time mod author would.',
+    options: [
+      {id: 'define_issue', label: 'Define the issue', subtitle: 'Make the proposal visible.', effects: [{variable: 'generic_score', op: '+=', value: 1}], body: 'The test proposal becomes a concrete change plan. The UI should show readable output before anything touches source files.'},
+      {id: 'wait_and_listen', label: 'Wait and listen', subtitle: 'Keep the first edit modest.', effects: [{variable: 'generic_score', op: '-=', value: 1}], body: 'The tester leaves a quieter path in place, then checks that Review and Apply explains the consequences clearly.'}
+    ]
+  });
+  await expectText(win, '#existing-scene-editor-host', 'QA first time event');
   await waitFor(win, async () => {
     return evalInPage(win, () => {
-      const output = window.ProjectMapWizard && window.ProjectMapWizard.getOutput && window.ProjectMapWizard.getOutput();
+      const output = window.ProjectMapObjectAuthoringCanvas && window.ProjectMapObjectAuthoringCanvas.getOutput && window.ProjectMapObjectAuthoringCanvas.getOutput();
       return Boolean(output && output.installPlanJson && output.patchPreview);
     });
   }, 'World Event output should produce install plan and patch preview');
@@ -605,7 +651,7 @@ async function scenarioFirstTimeUser(win, args, artifactDir, log) {
   log('Draft saves to My Changes', 'PASS', '05-my-changes.png');
 
   await click(win, '#draft-workspace-list [data-draft-action="review"]');
-  await expectText(win, '#install-checklist', 'Create the exported world event scene');
+  await expectInstallOperationPath(win, 'source/scenes/events/qa_first_time_event.scene.dry');
   await screenshot(win, artifactDir, '06-review-apply');
   log('Saved draft opens Review & Apply', 'PASS', '06-review-apply.png');
 
@@ -680,13 +726,14 @@ async function scenarioExploreDesignExistingEdit(win, args, artifactDir, log) {
   await click(win, '#design-inspector [data-design-edit-existing]');
   await expectVisible(win, '#existing-scene-editor-host [data-object-authoring-canvas="true"]', 'Object Authoring Canvas should open from Design');
   await expectVisible(win, '#existing-scene-editor-host [data-editing-workspace="true"]', 'Object Authoring Canvas should keep the existing editing QA marker');
-  await expectVisible(win, '#existing-scene-editor-host [data-object-canvas-event-body="true"]', 'Object Authoring Canvas should show the inline event body');
+  await expectVisible(win, '#existing-scene-editor-host [data-object-editing-modal="true"]', 'Design Edit existing should open the focused object editor');
+  await expectVisible(win, '#existing-scene-editor-host [data-preview-object-editor="true"]', 'Focused object editor should expose editable fields');
   await replaceExistingBlockByOriginal(
     win,
     '= Generic Intro\n\nThis scene has a simple variable write and no project-specific systems.\n',
     '= Generic Intro\n\nThis edited section proves Design can open a guarded existing scene section proposal.\n'
   );
-  await expectText(win, '#existing-scene-editor-host [data-editing-preview="true"]', 'This edited section proves Design can open a guarded existing scene section proposal.');
+  await waitForText(win, '#existing-scene-editor-host [data-object-editing-modal-preview-pane="true"]', 'This edited section proves Design can open a guarded existing scene section proposal.', 5000);
   await screenshot(win, artifactDir, '05-existing-edit');
   log('Existing editor updates a source-backed page section', 'PASS', '05-existing-edit.png');
 
@@ -759,6 +806,76 @@ async function scenarioContentStoryboardCanvasSelection(win, args, artifactDir, 
   log('Storyboard card pointer click opens the object editor', 'PASS', cardKey);
 }
 
+async function scenarioWorkflowAccessRenderedEntries(win, args, artifactDir, log) {
+  await expectVisible(win, '#studio-onboarding', 'Quick Start overlay should be visible on first launch');
+  await click(win, '#onboarding-primary');
+  await waitForHidden(win, '#studio-onboarding', 'Quick Start should close after opening a project');
+  const loaded = await waitForProjectLoaded(win, args.projectRoot, args.timeoutMs);
+  log('Project loads from Quick Start primary action', 'PASS', JSON.stringify(loaded.summary || {}));
+
+  await click(win, '#mode-create');
+  await click(win, '[data-create-template="event"]');
+  await expectVisible(win, '#wizard-asset-picker', 'Complex Event Builder should expose the event asset picker');
+  await screenshot(win, artifactDir, '01-complex-event-builder-entry');
+
+  const rendered = await evalInPage(win, () => {
+    const canvasModel = window.ProjectMapObjectAuthoringCanvasModel;
+    const previewEditor = window.ProjectMapPreviewObjectEditor;
+    const graphStage = window.ProjectMapObjectCanvasGraphStage;
+    const index = {
+      schemaVersion: '0.1',
+      project: {name: 'Workflow QA', root: '/tmp/workflow-qa', profileIds: ['generic-dendry']},
+      profiles: [{id: 'generic-dendry'}],
+      variables: []
+    };
+    const unknownIndex = {
+      schemaVersion: '0.1',
+      project: {name: 'Workflow QA', root: '/tmp/workflow-qa', profileIds: ['unknown-profile']},
+      profiles: [{id: 'unknown-profile'}],
+      variables: []
+    };
+    const draft = {
+      schemaVersion: '0.1',
+      kind: 'world_event',
+      id: 'workflow_qa_event',
+      title: 'Workflow QA event',
+      heading: 'Workflow QA event',
+      when: {year: 1936, monthStart: 1, monthEnd: 1, requires: '', priority: 0},
+      introParagraphs: ['Workflow QA text.'],
+      effectsOnTrigger: [{variable: 'new_workflow_qa_flag', op: '+=', value: 1}],
+      options: [
+        {id: 'first', label: 'First', narrativeParagraphs: ['First.'], returnTarget: 'root'},
+        {id: 'second', label: 'Second', narrativeParagraphs: ['Second.'], returnTarget: 'root'}
+      ]
+    };
+    const known = canvasModel.buildNewEventCanvas(index, draft, {});
+    const unknown = canvasModel.buildNewEventCanvas(unknownIndex, draft, {});
+    const html = [
+      previewEditor.render(known),
+      graphStage.render(known, {state: {selectedCanvasNode: 'object'}}),
+      graphStage.render(unknown, {state: {selectedCanvasNode: 'object'}})
+    ].join('\n');
+    return {
+      graphNode: html.includes('data-preview-object-event-graph-node'),
+      graphEdge: html.includes('data-preview-object-event-graph-edge'),
+      variableCreate: html.includes('data-workflow-entry="variable-create-from-effect"'),
+      routerRegistration: html.includes('data-workflow-entry="profile-router-registration"'),
+      profileRule: html.includes('data-workflow-entry="profile-router-rule"'),
+      readinessRepair: html.includes('data-readiness-repair-action') || unknown.eventBody.readinessChecklist.some((row) => row.repairAction),
+      operations: known.changeState.installPlan && known.changeState.installPlan.operations.length || 0
+    };
+  });
+  ['graphNode', 'graphEdge', 'variableCreate', 'routerRegistration', 'profileRule', 'readinessRepair'].forEach((key) => {
+    if (!rendered[key]) {
+      throw new Error('Missing rendered workflow entry marker: ' + key);
+    }
+  });
+  if (!rendered.operations) {
+    throw new Error('Known profile Complex Event Builder did not produce install operations.');
+  }
+  log('Rendered workflow entries are present', 'PASS', JSON.stringify(rendered));
+}
+
 async function scenarioDraftPersistenceRestart(win, args, artifactDir, log) {
   await expectVisible(win, '#studio-onboarding', 'Quick Start overlay should be visible on first launch');
   await screenshot(win, artifactDir, '01-quick-start');
@@ -806,7 +923,7 @@ async function scenarioDraftPersistenceRestart(win, args, artifactDir, log) {
   log('Saved draft reopens into Create', 'PASS', '07-draft-reopened.png');
 
   await click(win, '#draft-workspace-list [data-draft-action="review"]');
-  await expectText(win, '#install-checklist', 'Create the exported world event scene');
+  await expectInstallOperationPath(win, 'source/scenes/events/qa_persistent_event.scene.dry');
   await waitFor(win, () => evalInPage(win, () => {
     const state = window.ProjectMapInstallAssistant && window.ProjectMapInstallAssistant.getState();
     return Boolean(state && state.plan && state.plan.id === 'qa_persistent_event');
@@ -1024,13 +1141,18 @@ async function scenarioRuntimePreviewEntryFlow(_win, args, artifactDir, log) {
     await waitForGameText(gameWin, 'Runtime Preview Edited Entry', args.timeoutMs);
     await waitForGameText(gameWin, 'Enter the runtime preview workspace', args.timeoutMs);
     await screenshot(gameWin, artifactDir, '01-runtime-root');
+    log('Runtime Preview root state before click', 'INFO', JSON.stringify(await runtimeGameSnapshot(gameWin)));
     await clickGameText(gameWin, 'Enter the runtime preview workspace');
+    log('Runtime Preview root state after click', 'INFO', JSON.stringify(await runtimeGameSnapshot(gameWin)));
     await waitForGameText(gameWin, 'Workspace Hand', args.timeoutMs);
     await waitForGameText(gameWin, 'Review starter advisor', args.timeoutMs);
     await screenshot(gameWin, artifactDir, '02-runtime-first-route');
     await clickGameText(gameWin, 'Review starter advisor');
+    log('Runtime Preview hand state after advisor click', 'INFO', JSON.stringify(await runtimeGameSnapshot(gameWin)));
     await waitForGameText(gameWin, 'Starter Advisor', args.timeoutMs);
     await clickGameText(gameWin, 'Ask for organizing help');
+    await waitForGameText(gameWin, 'The advisor helps the organization turn a loose idea into a modest first step.', args.timeoutMs);
+    await clickGameText(gameWin, 'Continue');
     await waitForGameText(gameWin, 'Workspace Hand', args.timeoutMs);
     await waitForGameText(gameWin, 'Runtime preview support is visible.', args.timeoutMs);
     await screenshot(gameWin, artifactDir, '03-runtime-sidebar-changed');
@@ -1098,6 +1220,7 @@ async function scenarioJusticePartyTemplateMod(win, args, artifactDir, log) {
 
   await click(win, '[data-create-template="entry"]');
   await waitForEntryOutput(win, 'justice_party_template_mod');
+  await syncEntryDraftToObjectCanvas(win);
   await click(win, '#draft-workspace-save');
   await expectText(win, '#draft-workspace-list', 'Justice Party start menu');
   await clickDraftActionContaining(win, 'Justice Party start menu', 'review');
@@ -1115,7 +1238,7 @@ async function scenarioJusticePartyTemplateMod(win, args, artifactDir, log) {
   await observeStep(args);
 
   await click(win, '#mode-create');
-  await click(win, '[data-create-template="play_surface"]');
+  await openAuthoringTemplate(win, 'play_surface');
   await fillJusticePlaySurface(win);
   await waitForPlaySurfaceOutput(win, 'justice_party_play_surface');
   await screenshot(win, artifactDir, '08b-play-surface-edited');
@@ -1141,7 +1264,7 @@ async function scenarioJusticePartyTemplateMod(win, args, artifactDir, log) {
   await observeStep(args);
 
   await click(win, '#mode-create');
-  await click(win, '[data-create-template="workspace_layout"]');
+  await openAuthoringTemplate(win, 'workspace_layout');
   await fillJusticeWorkspaceLayout(win);
   await waitForWorkspaceLayoutOutput(win, 'justice_party_workspace_layout');
   await screenshot(win, artifactDir, '08d-workspace-layout-edited');
@@ -1168,7 +1291,7 @@ async function scenarioJusticePartyTemplateMod(win, args, artifactDir, log) {
   await observeStep(args);
 
   await click(win, '#mode-create');
-  await click(win, '[data-create-template="sidebar_status"]');
+  await openAuthoringTemplate(win, 'sidebar_status');
   await fillJusticeSidebarStatus(win);
   await waitForSidebarStatusOutput(win, 'justice_party_sidebar_status');
   await screenshot(win, artifactDir, '08f-sidebar-status-edited');
@@ -1276,7 +1399,7 @@ async function scenarioJusticePartyTemplateMod(win, args, artifactDir, log) {
   log('Traditional news-style event saves to My Changes', 'PASS', 'My Changes contains Justice Party monthly popup');
 
   await clickDraftActionContaining(win, 'Justice Party monthly popup', 'review');
-  await expectText(win, '#install-checklist', 'Create the exported world event scene');
+  await expectInstallOperationPath(win, 'source/scenes/events/justice_party_monthly_popup.scene.dry');
   await click(win, '#install-dry-run');
   const traditionalResult = await waitForInstallResult(win, (result) => {
     return Boolean(result && result.results && result.results.some((item) => item.id === 'create_scene' && item.status === 'would_apply'));
@@ -1355,6 +1478,7 @@ async function fillJusticePlaySurface(win) {
   await fill(win, '#play-surface-advisor-heading', 'Labor Organizer');
   await fill(win, '#play-surface-advisor-body', 'A workplace organizer keeps the party connected to shop-floor concerns and helps turn policy language into people the office can actually call.');
   await fill(win, '#play-surface-advisor-option0-label', 'Ask for a workplace map');
+  await syncWizardDraftToObjectCanvas(win, 'play_surface', 'ProjectMapPlaySurfaceWizard');
 }
 
 async function fillJusticeWorkspaceLayout(win) {
@@ -1383,6 +1507,7 @@ async function fillJusticeWorkspaceLayout(win) {
   await fill(win, '#workspace-layout-sidebar-anchor-id', 'politics');
   await fill(win, '#workspace-layout-sidebar-body', 'Track whether the Justice Party office can turn campaign choices into a public narrative.');
   await fill(win, '#workspace-layout-sidebar-status-lines', '[? if media_attention > 0 : Reporters are watching the Justice Party experiment. ?]');
+  await syncWizardDraftToObjectCanvas(win, 'workspace_layout', 'ProjectMapWorkspaceLayoutWizard');
 }
 
 async function fillJusticeSidebarStatus(win) {
@@ -1395,6 +1520,7 @@ async function fillJusticeSidebarStatus(win) {
   await fill(win, '#sidebar-status-section-status-lines', '[? if justice_party_support > 0 : The Justice Party office has visible local support. ?]');
   await fill(win, '#sidebar-status-condition-variable', 'coalition_trust');
   await click(win, '#sidebar-status-insert-condition');
+  await syncWizardDraftToObjectCanvas(win, 'sidebar_status', 'ProjectMapSidebarStatusWizard');
 }
 
 async function fillJusticeCampaignEvent(win, eventId) {
@@ -1417,6 +1543,7 @@ async function fillJusticeCampaignEvent(win, eventId) {
   await fill(win, '#wizard-option-1-subtitle', 'Trade street energy for a more careful parliamentary route.');
   await fill(win, '#wizard-option-1-effects', '');
   await fill(win, '#wizard-option-1-body', 'The campaign desk calls sympathetic lawmakers first. The move opens institutional doors, but volunteers worry the new party is already learning to speak too softly.');
+  await syncEventWizardDraftToObjectCanvas(win);
 }
 
 async function fillJusticePartyActionCard(win) {
@@ -1448,6 +1575,7 @@ async function fillJusticePartyActionCard(win) {
   await fill(win, '#card-option-1-choose-if', '');
   await fill(win, '#card-option-1-unavailable', '');
   await fill(win, '#card-option-1-goto-after', 'main');
+  await syncWizardDraftToObjectCanvas(win, 'card', 'ProjectMapCardWizard');
 }
 
 async function fillJusticePartyAdvisorCard(win) {
@@ -1479,6 +1607,7 @@ async function fillJusticePartyAdvisorCard(win) {
   await fill(win, '#card-option-1-choose-if', '');
   await fill(win, '#card-option-1-unavailable', '');
   await fill(win, '#card-option-1-goto-after', 'main');
+  await syncWizardDraftToObjectCanvas(win, 'card', 'ProjectMapCardWizard');
 }
 
 async function fillTraditionalJusticeNewsEvent(win) {
@@ -1502,17 +1631,28 @@ async function fillTraditionalJusticeNewsEvent(win) {
   await fill(win, '#wizard-option-1-subtitle', 'Avoid overclaiming a fragile breakthrough.');
   await fill(win, '#wizard-option-1-effects', 'grassroots_energy += 1\nmedia_attention -= 1');
   await fill(win, '#wizard-option-1-body', 'The campaign thanks supporters but refuses to declare victory. Local organizers appreciate the restraint, even as the national story moves on.');
+  await syncEventWizardDraftToObjectCanvas(win);
 }
 
 async function fillIslandStyleJusticeNews(win) {
-  await fill(win, '#news-id', 'justice_party_ticker_news');
-  await fill(win, '#news-delivery', 'dated');
-  await fill(win, '#news-headline', '[Politics] Justice Party tests a labor-green pact');
-  await fill(win, '#news-year', '2025');
-  await fill(win, '#news-month', '7');
-  await fill(win, '#news-slot', '1');
-  await fill(win, '#news-dated-requires-js', 'Q.justice_party_support >= 1');
-  await fill(win, '#news-description', 'A Justice Party local office invites labor organizers and climate groups into a joint campaign committee, testing whether a small party can turn issue overlap into durable support.');
+  await loadNewsDraft(win, {
+    schemaVersion: '0.1',
+    kind: 'news_item',
+    id: 'justice_party_ticker_news',
+    delivery: 'dated',
+    headline: '[Politics] Justice Party tests a labor-green pact',
+    description: 'A Justice Party local office invites labor organizers and climate groups into a joint campaign committee, testing whether a small party can turn issue overlap into durable support.',
+    when: {
+      year: 2025,
+      month: 7,
+      slot: 1,
+      requiresJs: 'Q.justice_party_support >= 1'
+    },
+    pool: {
+      name: 'social_pool',
+      requiresJs: ''
+    }
+  });
 }
 
 async function fillDynamicSmokeWorldEvent(win) {
@@ -1882,12 +2022,39 @@ async function waitForEventOutput(win, expectedId) {
     const wizard = window.ProjectMapWizard;
     const output = wizard && wizard.getOutput && wizard.getOutput();
     const draft = wizard && wizard.getDraft && wizard.getDraft();
-    return Boolean(
+    const wizardReady = Boolean(
       draft && draft.id === id &&
       output && output.installPlanJson && output.patchPreview &&
       String(output.scene || output.sceneDry || '').includes('tags: event, world')
     );
+    const canvas = window.ProjectMapObjectAuthoringCanvas || window.ProjectMapEditingWorkspace;
+    const canvasDraft = canvas && canvas.getDraft && canvas.getDraft();
+    const canvasOutput = canvas && canvas.getOutput && canvas.getOutput();
+    const canvasReady = Boolean(
+      canvasDraft && canvasDraft.id === id &&
+      canvasOutput && canvasOutput.installPlanJson && canvasOutput.patchPreview &&
+      String(canvasOutput.scene || canvasOutput.sceneDry || canvasOutput.preview || canvasOutput.patchPreview || '').includes('tags: event, world')
+    );
+    return wizardReady || canvasReady;
   }, expectedId), 'Event output should produce scene, install plan, and tags:event preview for ' + expectedId);
+}
+
+async function syncEventWizardDraftToObjectCanvas(win) {
+  const ok = await evalInPage(win, () => {
+    const wizard = window.ProjectMapWizard;
+    const canvas = window.ProjectMapObjectAuthoringCanvas || window.ProjectMapEditingWorkspace;
+    if (!wizard || typeof wizard.getDraft !== 'function' || !canvas || typeof canvas.openTemplate !== 'function') {
+      return false;
+    }
+    const draft = wizard.getDraft();
+    if (!draft || !draft.id) {
+      return false;
+    }
+    return Boolean(canvas.openTemplate('event', draft, {source: 'QA event wizard sync', template: 'event'}));
+  });
+  if (!ok) {
+    throw new Error('Could not sync World Event Wizard draft into Object Canvas.');
+  }
 }
 
 async function waitForNewsOutput(win, expectedId) {
@@ -1977,21 +2144,36 @@ async function waitForGameText(win, expectedText, timeoutMs) {
   }, expectedText), 'Runtime Preview game should show "' + expectedText + '"', timeoutMs);
 }
 
-async function clickGameText(win, expectedText) {
-  const ok = await evalInPage(win, (text) => {
-    const cardCaption = Array.from(document.querySelectorAll('.card-caption')).find((element) => {
-      return String(element.textContent || '').includes(text);
+async function runtimeGameSnapshot(win) {
+  return evalInPage(win, () => {
+    const engine = window.dendryUI && window.dendryUI.dendryEngine;
+    const choices = Array.from(document.querySelectorAll('ul.choices li')).map((item) => {
+      const link = item.querySelector('a');
+      return {
+        text: String(item.textContent || '').replace(/\s+/g, ' ').trim(),
+        hasLink: Boolean(link),
+        dataChoice: link && link.getAttribute('data-choice') || '',
+        className: String(item.className || '')
+      };
     });
-    if (cardCaption) {
-      const cardHost = cardCaption.closest('.card-in-hand, .pinned-card, .deck');
-      const cardLink = cardHost && cardHost.querySelector('a.card');
-      if (cardLink) {
-        cardLink.scrollIntoView({block: 'center', inline: 'center'});
-        cardLink.click();
-        return true;
-      }
-    }
-    const elements = Array.from(document.querySelectorAll([
+    return {
+      ready: Boolean(engine),
+      sceneId: engine && engine.state && engine.state.sceneId || '',
+      choiceCache: Array.isArray(engine && engine.choiceCache)
+        ? engine.choiceCache.map((choice) => ({
+            id: choice && choice.id || '',
+            title: choice && choice.title || '',
+            canChoose: choice && choice.canChoose
+          }))
+        : [],
+      choices
+    };
+  });
+}
+
+async function clickGameText(win, expectedText) {
+  const target = await evalInPage(win, (text) => {
+    const actionableSelector = [
       'a',
       'button',
       'input[type="button"]',
@@ -2000,13 +2182,9 @@ async function clickGameText(win, expectedText) {
       '[onclick]',
       '.card',
       '.deck',
-      '.choice',
-      'li',
-      'span',
-      'div',
-      'p'
-    ].join(',')));
-    const visibleCandidates = elements.filter((element) => {
+      '.choice'
+    ].join(',');
+    const isVisible = (element) => {
       if (!element || element === document.body || element === document.documentElement) {
         return false;
       }
@@ -2014,13 +2192,58 @@ async function clickGameText(win, expectedText) {
       if (tag === 'script' || tag === 'style') {
         return false;
       }
+      const rect = element.getBoundingClientRect();
+      const style = window.getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+    };
+    const describeElement = (element) => {
+      if (!element) {
+        return {ok: false, reason: 'missing'};
+      }
+      element.scrollIntoView({block: 'center', inline: 'center'});
+      const rect = element.getBoundingClientRect();
+      return {
+        ok: true,
+        x: Math.round(rect.left + rect.width / 2),
+        y: Math.round(rect.top + rect.height / 2),
+        tag: String(element.tagName || '').toLowerCase(),
+        className: String(element.className || ''),
+        text: String(element.value || element.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 200)
+      };
+    };
+    const cardCaption = Array.from(document.querySelectorAll('.card-caption')).find((element) => {
+      return String(element.textContent || '').includes(text);
+    });
+    if (cardCaption) {
+      const cardHost = cardCaption.closest('.card-in-hand, .pinned-card, .deck');
+      const cardLink = cardHost && cardHost.querySelector('a.card');
+      if (isVisible(cardLink)) {
+        return describeElement(cardLink);
+      }
+    }
+    const actionableCandidates = Array.from(document.querySelectorAll(actionableSelector)).filter((element) => {
+      const label = element.value || element.textContent || '';
+      return String(label).includes(text) && isVisible(element);
+    }).sort((left, right) => {
+      const leftText = String(left.value || left.textContent || '').length;
+      const rightText = String(right.value || right.textContent || '').length;
+      return leftText - rightText;
+    });
+    if (actionableCandidates[0]) {
+      return describeElement(actionableCandidates[0]);
+    }
+    const broadElements = Array.from(document.querySelectorAll([
+      'li',
+      'span',
+      'div',
+      'p'
+    ].join(',')));
+    const visibleCandidates = broadElements.filter((element) => {
       const label = element.value || element.textContent || '';
       if (!String(label).includes(text)) {
         return false;
       }
-      const rect = element.getBoundingClientRect();
-      const style = window.getComputedStyle(element);
-      return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+      return isVisible(element);
     }).sort((left, right) => {
       const leftText = String(left.value || left.textContent || '').length;
       const rightText = String(right.value || right.textContent || '').length;
@@ -2028,15 +2251,20 @@ async function clickGameText(win, expectedText) {
     });
     const target = visibleCandidates[0] || null;
     if (!target) {
-      return false;
+      return {ok: false, reason: 'missing'};
     }
-    target.scrollIntoView({block: 'center', inline: 'center'});
-    target.click();
-    return true;
+    const nestedAction = target.matches(actionableSelector)
+      ? target
+      : target.closest(actionableSelector) || target.querySelector(actionableSelector);
+    return describeElement(isVisible(nestedAction) ? nestedAction : target);
   }, expectedText);
-  if (!ok) {
-    throw new Error('Runtime Preview could not click player option: ' + expectedText);
+  if (!target || !target.ok) {
+    throw new Error('Runtime Preview could not find player option: ' + expectedText + (target && target.reason ? ' (' + target.reason + ')' : ''));
   }
+  win.webContents.sendInputEvent({type: 'mouseMove', x: target.x, y: target.y});
+  win.webContents.sendInputEvent({type: 'mouseDown', button: 'left', clickCount: 1, x: target.x, y: target.y});
+  win.webContents.sendInputEvent({type: 'mouseUp', button: 'left', clickCount: 1, x: target.x, y: target.y});
+  await new Promise((resolve) => setTimeout(resolve, 120));
 }
 
 async function waitForEntryOutput(win, expectedId) {
@@ -2044,13 +2272,117 @@ async function waitForEntryOutput(win, expectedId) {
     const wizard = window.ProjectMapEntrySidebarWizard;
     const output = wizard && wizard.getOutput && wizard.getOutput();
     const draft = wizard && wizard.getDraft && wizard.getDraft();
-    return Boolean(
+    const wizardReady = Boolean(
       draft && draft.id === id &&
       output && output.installPlanJson && output.patchPreview &&
       String(output.installPlanJson || '').includes('entry_sidebar') &&
       String(output.patchPreview || '').includes('replace section')
     );
+    const canvas = window.ProjectMapObjectAuthoringCanvas || window.ProjectMapEditingWorkspace;
+    const canvasDraft = canvas && canvas.getDraft && canvas.getDraft();
+    const canvasOutput = canvas && canvas.getOutput && canvas.getOutput();
+    const canvasReady = Boolean(
+      canvasDraft && canvasDraft.id === id &&
+      canvasOutput && canvasOutput.installPlanJson && canvasOutput.patchPreview &&
+      String(canvasOutput.installPlanJson || '').includes('entry_sidebar')
+    );
+    return wizardReady || canvasReady;
   }, expectedId), 'Entry & Sidebar output should produce an install plan and patch preview for ' + expectedId);
+}
+
+async function syncEntryDraftToObjectCanvas(win) {
+  const ok = await evalInPage(win, () => {
+    const wizard = window.ProjectMapEntrySidebarWizard;
+    const canvas = window.ProjectMapObjectAuthoringCanvas || window.ProjectMapEditingWorkspace;
+    if (!wizard || typeof wizard.getDraft !== 'function' || !canvas || typeof canvas.openTemplate !== 'function') {
+      return false;
+    }
+    const draft = wizard.getDraft();
+    if (!draft || !draft.id) {
+      return false;
+    }
+    return Boolean(canvas.openTemplate('entry', draft, {source: 'QA entry wizard sync', template: 'entry'}));
+  });
+  if (!ok) {
+    throw new Error('Could not sync Entry & Sidebar Wizard draft into Object Canvas.');
+  }
+}
+
+const AUTHORING_TEMPLATE_SELECTORS = {
+  play_surface: '[data-create-template="play_surface"]',
+  workspace_layout: '[data-create-template="workspace_layout"]',
+  sidebar_status: '[data-create-template="sidebar_status"]'
+};
+
+async function openAuthoringTemplate(win, template) {
+  const selector = AUTHORING_TEMPLATE_SELECTORS[template];
+  if (selector) {
+    await click(win, selector);
+  }
+  const ok = await evalInPage(win, (nextTemplate) => {
+    const workspace = window.ProjectMapAuthoringWorkspace;
+    if (workspace && typeof workspace.setTemplate === 'function') {
+      workspace.setTemplate(nextTemplate, {silent: true});
+    }
+    const canvas = window.ProjectMapObjectAuthoringCanvas || window.ProjectMapEditingWorkspace;
+    if (!canvas || typeof canvas.openTemplate !== 'function') {
+      return false;
+    }
+    return Boolean(canvas.openTemplate(nextTemplate, null, {source: 'QA template open', template: nextTemplate}));
+  }, template);
+  if (!ok) {
+    throw new Error('Could not open authoring template: ' + template);
+  }
+}
+
+async function syncWizardDraftToObjectCanvas(win, template, wizardGlobalName) {
+  const ok = await evalInPage(win, (nextTemplate, globalName) => {
+    const wizard = window[globalName];
+    const canvas = window.ProjectMapObjectAuthoringCanvas || window.ProjectMapEditingWorkspace;
+    if (!wizard || typeof wizard.getDraft !== 'function' || !canvas || typeof canvas.openTemplate !== 'function') {
+      return false;
+    }
+    const draft = wizard.getDraft();
+    if (!draft || !draft.id) {
+      return false;
+    }
+    return Boolean(canvas.openTemplate(nextTemplate, draft, {source: 'QA wizard sync', template: nextTemplate}));
+  }, template, wizardGlobalName);
+  if (!ok) {
+    throw new Error('Could not sync ' + template + ' wizard draft into Object Canvas.');
+  }
+}
+
+async function loadNewsDraft(win, draft) {
+  const loadOnce = () => evalInPage(win, (nextDraft) => {
+    const workspace = window.ProjectMapAuthoringWorkspace;
+    if (workspace && typeof workspace.setTemplate === 'function') {
+      workspace.setTemplate('news', {silent: true});
+    }
+    const canvas = window.ProjectMapObjectAuthoringCanvas || window.ProjectMapEditingWorkspace;
+    const canvasOk = canvas && typeof canvas.openTemplate === 'function'
+      ? canvas.openTemplate('news', nextDraft, {source: 'QA news draft', template: 'news'})
+      : false;
+    const wizard = window.ProjectMapNewsWizard;
+    if (!wizard || typeof wizard.loadDraft !== 'function') {
+      return Boolean(canvasOk);
+    }
+    wizard.loadDraft(nextDraft, {fileName: 'QA news draft'});
+    const canvasDraft = canvas && canvas.getDraft && canvas.getDraft();
+    if (canvasDraft && canvasDraft.id === nextDraft.id) {
+      return true;
+    }
+    if (!wizard.getDraft) {
+      return false;
+    }
+    return Boolean(wizard.getDraft && wizard.getDraft() && wizard.getDraft().id === nextDraft.id);
+  }, draft);
+  const ok = await loadOnce();
+  await new Promise((resolve) => setTimeout(resolve, 120));
+  const stableOk = await loadOnce();
+  if (!ok || !stableOk) {
+    throw new Error('Could not load News Wizard draft: ' + (draft && draft.id || 'unknown'));
+  }
 }
 
 async function waitForInstallResult(win, predicate, message) {
@@ -2230,8 +2562,22 @@ async function editFirstExistingLongTextField(win, replacement) {
 
 async function replaceExistingBlockByOriginal(win, original, replacement) {
   const ok = await evalInPage(win, (originalText, replacementText) => {
-    const field = Array.from(document.querySelectorAll('#existing-scene-editor-host [data-existing-block], #existing-scene-editor-host [data-editing-field]')).find((input) => {
-      return input.value === originalText;
+    const isVisible = (input) => {
+      if (!input || input.disabled || input.readOnly) {
+        return false;
+      }
+      const rect = input.getBoundingClientRect();
+      const style = window.getComputedStyle(input);
+      return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+    };
+    const selectors = [
+      '#existing-scene-editor-host [data-object-editing-modal] [data-object-canvas-field]',
+      '#existing-scene-editor-host [data-preview-object-editor] [data-object-canvas-field]',
+      '#existing-scene-editor-host [data-existing-block]',
+      '#existing-scene-editor-host [data-editing-field]'
+    ];
+    const field = Array.from(document.querySelectorAll(selectors.join(','))).find((input) => {
+      return isVisible(input) && input.value === originalText;
     });
     if (!field) {
       return false;

@@ -66,8 +66,48 @@
     if (elements.exportAll) {
       elements.exportAll.addEventListener('click', exportAllDrafts);
     }
+    if (elements.list) {
+      elements.list.addEventListener('click', handleDraftListClick);
+    }
     global.document.addEventListener('ProjectMap:create-template-changed', render);
     global.document.addEventListener('project-map:locale-changed', render);
+  }
+
+  function handleDraftListClick(event) {
+    if (event && event.__dmsDraftWorkspaceHandled) {
+      return;
+    }
+    const target = event && event.target;
+    const button = target && typeof target.closest === 'function'
+      ? target.closest('[data-draft-action]')
+      : null;
+    if (!button || button.disabled) {
+      return;
+    }
+    if (elements && elements.list && typeof elements.list.contains === 'function' && !elements.list.contains(button)) {
+      return;
+    }
+    const card = typeof button.closest === 'function'
+      ? button.closest('[data-draft-workspace-id]')
+      : null;
+    const itemId = card && (card.dataset && card.dataset.draftWorkspaceId || card.getAttribute && card.getAttribute('data-draft-workspace-id')) || '';
+    handleDraftAction(button.dataset && button.dataset.draftAction || button.getAttribute && button.getAttribute('data-draft-action') || '', itemId);
+  }
+
+  function markDraftActionHandled(event) {
+    if (event) {
+      event.__dmsDraftWorkspaceHandled = true;
+    }
+  }
+
+  function handleDraftAction(action, itemId) {
+    if (action === 'load') {
+      loadDraft(itemId);
+    } else if (action === 'review') {
+      reviewInstall(itemId);
+    } else if (action === 'delete') {
+      deleteDraft(itemId);
+    }
   }
 
   function load() {
@@ -209,6 +249,7 @@
   function renderItem(item) {
     const card = global.document.createElement('article');
     card.className = 'draft-workspace-item';
+    card.setAttribute('data-draft-workspace-id', item.workspaceId || '');
     const previewText = previewExcerpt(item.previewText);
     card.innerHTML = [
       '<div class="draft-workspace-item-main">',
@@ -220,6 +261,7 @@
       '</div>',
       previewText ? '<div class="draft-workspace-item-preview">' + escapeHtml(previewText) + '</div>' : '',
       renderInstallSummary(item.installSummary),
+      renderInstallCue(item),
       renderWarnings(item.warnings),
       '</div>',
       '<div class="draft-workspace-item-actions">',
@@ -231,7 +273,10 @@
     const loadButton = card.querySelector('[data-draft-action="load"]');
     const reviewButton = card.querySelector('[data-draft-action="review"]');
     const deleteButton = card.querySelector('[data-draft-action="delete"]');
-    loadButton.addEventListener('click', () => loadDraft(item.workspaceId));
+    loadButton.addEventListener('click', (event) => {
+      markDraftActionHandled(event);
+      handleDraftAction('load', item.workspaceId);
+    });
     reviewButton.disabled = !item.installPlan;
     if (!item.installPlan) {
       const noPlanText = t('draftWorkspace.noInstallPlanShort', 'No install plan');
@@ -239,8 +284,14 @@
       reviewButton.title = noPlanText;
       reviewButton.setAttribute('aria-label', noPlanText);
     }
-    reviewButton.addEventListener('click', () => reviewInstall(item.workspaceId));
-    deleteButton.addEventListener('click', () => deleteDraft(item.workspaceId));
+    reviewButton.addEventListener('click', (event) => {
+      markDraftActionHandled(event);
+      handleDraftAction('review', item.workspaceId);
+    });
+    deleteButton.addEventListener('click', (event) => {
+      markDraftActionHandled(event);
+      handleDraftAction('delete', item.workspaceId);
+    });
     return card;
   }
 
@@ -258,6 +309,13 @@
       rows.map((row) => '<span>' + escapeHtml(t(row[0], row[1])) + ' ' + numberLabel(row[2]) + '</span>').join(''),
       '</div>'
     ].join('');
+  }
+
+  function renderInstallCue(item) {
+    const text = item && item.installPlan
+      ? t('draftWorkspace.needsReviewCheck', 'Needs check in Review & Apply')
+      : t('draftWorkspace.noInstallPlanShort', 'No install plan');
+    return '<div class="draft-workspace-item-cue">' + escapeHtml(text) + '</div>';
   }
 
   function renderWarnings(warnings) {

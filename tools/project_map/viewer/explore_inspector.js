@@ -78,6 +78,7 @@
     }
     const selected = state.selected;
     const preview = renderInspectorPreview(selected, state);
+    const visibleEdit = renderVisibleEditActionPanel(selected, state);
     if (selected.view === 'variables') {
       elements.inspector.innerHTML = renderVariableInspector(selected.item);
     } else if (selected.view === 'coverage') {
@@ -90,11 +91,11 @@
         : '';
       elements.inspector.innerHTML = workbench
         ? workbench
-        : renderNewsInspector(selected.item) + preview + renderEditDraftAction(selected, state) + renderTextProposalAction(selected, state);
+        : renderNewsInspector(selected.item) + preview + visibleEdit + renderEditDraftAction(selected, state) + renderTextProposalAction(selected, state);
     } else if (selected.view === 'surfaceText') {
-      elements.inspector.innerHTML = renderSurfaceTextInspector(selected.item) + preview + renderEditDraftAction(selected, state) + renderTextProposalAction(selected, state);
+      elements.inspector.innerHTML = renderSurfaceTextInspector(selected.item) + preview + visibleEdit + renderEditDraftAction(selected, state) + renderTextProposalAction(selected, state);
     } else if (selected.view === 'textCorpus') {
-      elements.inspector.innerHTML = renderTextCorpusInspector(selected.item, state.model, state);
+      elements.inspector.innerHTML = renderTextCorpusInspector(selected.item, state.model, state, visibleEdit);
     } else if (selected.view === 'assets') {
       elements.inspector.innerHTML = renderAssetInspector(selected.item, state.model);
     } else if (selected.view === 'source') {
@@ -106,8 +107,42 @@
       const workbench = renderEventWorkbenchInspector(scene || selected.item, state.model);
       elements.inspector.innerHTML = workbench
         ? workbench
-        : renderSceneInspector(scene || selected.item, state.model) + preview + renderEditDraftAction(selected, state) + renderTextProposalAction(selected, state);
+        : renderSceneInspector(scene || selected.item, state.model) + preview + visibleEdit + renderEditDraftAction(selected, state) + renderTextProposalAction(selected, state);
     }
+  }
+
+  function renderVisibleEditActionPanel(selected, state) {
+    if (!selected || !state || !state.model || !selected.item || selected.view === 'coverage' || selected.view === 'diagnostics') {
+      return '';
+    }
+    const ui = global.ProjectMapVisibleEditActionUi;
+    if (!ui || typeof ui.actionForItem !== 'function' || typeof ui.renderButton !== 'function') {
+      return '';
+    }
+    const action = ui.actionForItem(state.model.index, selected.view, selected.item, visibleHintsForSelection(selected));
+    if (!action) {
+      return '';
+    }
+    return [
+      '<div class="inspector-actions visible-edit-action-panel" data-visible-edit-affordance="explore-inspector">',
+      ui.renderButton(action, {label: t('visibleEdit.action', 'Edit'), translate: t, escapeHtml, escapeAttr}),
+      '<div class="draft-action-status">' + escapeHtml(t('visibleEdit.panelHelp', 'Open the editor for this visible content, then send the generated operation to Review & Apply.')) + '</div>',
+      '</div>'
+    ].join('');
+  }
+
+  function visibleHintsForSelection(selected) {
+    const item = selected && selected.item || {};
+    const view = selected && selected.view || '';
+    const role = String(item.role || (view === 'variables' ? 'variable_definition' : ''));
+    return {
+      area: view === 'variables' ? 'variables' : 'story',
+      objectType: view === 'variables' ? 'variable' : (view === 'textCorpus' ? '' : view),
+      role,
+      label: String(item.title || item.headline || item.text || item.label || item.id || item.name || ''),
+      safeEligible: true,
+      previewEligible: true
+    };
   }
 
   function renderInspectorPreview(selected, state) {
@@ -184,7 +219,7 @@
           (existingSupported ? '' : ' disabled') + '>' + escapeHtml(t('existingScene.editExisting', 'Edit existing')) + '</button>'
         : '',
       '<button class="draft-action-button" type="button" data-edit-as-draft="true"' +
-        (disabled ? ' disabled' : '') + '>' + escapeHtml(t('existingScene.copyAsNew', 'Copy as new proposal')) + '</button>',
+        (disabled ? ' disabled' : '') + '>' + escapeHtml(t('existingScene.copyAsNew', 'Copy as new draft')) + '</button>',
       '<div class="draft-action-status" data-text-action-status="true">' + escapeHtml(status) + '</div>',
       renderExtractionScope(result),
       diagnostics.length ? renderMiniSection('Draft notes', diagnostics) : '',
@@ -324,12 +359,12 @@
       return t('draftAction.summary.unsupported', 'This row cannot be converted into a Studio draft yet.');
     }
     if (result.status === 'ide_escape_hatch') {
-      return t('draftAction.summary.ide', 'Creates an IDE guidance draft; Studio will not pretend this is safely editable.');
+      return t('draftAction.summary.ide', 'Creates a source-mapping draft; Studio needs an owner or anchor before Review & Apply can build an executable patch.');
     }
     if (result.status === 'partial') {
-      return t('draftAction.summary.partial', 'Creates a best-effort draft seed. Review source notes before exporting.');
+      return t('draftAction.summary.partial', 'Captures the parsed structure as a draft preview; unsupported parts block Review & Apply.');
     }
-    return t('draftAction.summary.ok', 'Creates a draft proposal in Create mode. Nothing is installed automatically.');
+    return t('draftAction.summary.ok', 'Creates a draft in Create mode so you can preview the install plan.');
   }
 
   function textProposalSummary(result) {
@@ -340,7 +375,7 @@
       return t('textProposal.summary.sourceNeeded', 'This row needs more source evidence before Studio can seed a text proposal.');
     }
     if (result.status === 'ide_escape_hatch') {
-      return t('textProposal.summary.manual', 'Creates a text replacement proposal with IDE guidance; no automatic source edit.');
+      return t('textProposal.summary.manual', 'Creates a text replacement proposal with source review guidance; no executable source edit is created until Studio has a bounded owner.');
     }
     return t('textProposal.summary.guarded', 'Creates a guarded text replacement proposal in Edit Text mode.');
   }
@@ -357,7 +392,7 @@
     }
     const opened = openDraftInCreate(result.template, result.draft, result);
     state.draftActionMessage = opened
-      ? t('draftAction.status.loaded', 'Draft loaded in Create mode as {template}. Export remains proposal-only.').replace('{template}', result.template || 'draft')
+      ? t('draftAction.status.loaded', 'Draft loaded in Create mode as {template}. Review & Apply can preview supported operations.').replace('{template}', result.template || 'draft')
       : t('draftAction.status.openFailed', 'Could not open Create template for this draft.');
     state.textActionMessage = '';
     ctx.render(state, elements);
@@ -372,7 +407,10 @@
       showError(elements, t('existingScene.unavailable', 'Existing Scene Editor is not loaded.'));
       return;
     }
-    const opened = editor.openFromSelection(state.model.index, state.selected.view, state.selected.item);
+    const opened = editor.openFromSelection(state.model.index, state.selected.view, state.selected.item, {
+      entry: {source: 'explore', actionKind: 'edit_existing'},
+      editorOverlay: true
+    });
     state.draftActionMessage = opened
       ? t('existingScene.loaded', 'Existing scene edit opened in Create. Save it to My Changes when ready.')
       : t('existingScene.openFailed', 'This scene needs more source evidence before Studio can edit it here.');
@@ -723,7 +761,7 @@
     return ui.renderEventWorkbench(workbench, {locale: currentLocale(), eyebrow: t('eventWorkbench.eyebrow', 'Event Workbench')}) +
       '<div class="inspector-actions existing-scene-workbench-actions">' +
       '<button class="draft-action-button" type="button" data-edit-existing="true">' + escapeHtml(t('existingScene.editExisting', 'Edit existing')) + '</button>' +
-      '<button class="draft-action-button" type="button" data-edit-as-draft="true">' + escapeHtml(t('existingScene.copyAsNew', 'Copy as new proposal')) + '</button>' +
+      '<button class="draft-action-button" type="button" data-edit-as-draft="true">' + escapeHtml(t('existingScene.copyAsNew', 'Copy as new draft')) + '</button>' +
       '</div>';
   }
 
@@ -861,7 +899,7 @@
     ].join('');
   }
 
-  function renderTextCorpusInspector(item, model, state) {
+  function renderTextCorpusInspector(item, model, state, visibleEdit) {
     const owner = item.owner || {};
     const replacement = textRevisionReplacementFor(state, item);
     const revisionModel = buildTextRevisionModel(item, replacement);
@@ -902,6 +940,7 @@
       capability ? '<dt>' + escapeHtml(t('editCapability.routeReason', 'Route reason')) + '</dt><dd>' + escapeHtml(capabilityReason(capability)) + '</dd>' : '',
       roleGuidance ? '<dt>' + escapeHtml(t('textCorpus.guidance', 'Guidance')) + '</dt><dd>' + escapeHtml(roleGuidance) + '</dd>' : '',
       '</dl>',
+      visibleEdit || '',
       renderTextRevisionPanel(item, replacement, state, capability),
       contextRows.length ? '<div class="detail-section"><h3>' + escapeHtml(t('textCorpus.context', 'Nearby text')) + '</h3><div class="text-context-list">' + contextRows.join('') + '</div></div>' : '',
       '<p class="inspector-note">' + escapeHtml(t('textCorpus.note', 'Text Corpus is an inspection index: use it to find player-facing prose, then create a proposal or jump to the owning source.')) + '</p>'
@@ -1019,7 +1058,7 @@
       return t('textRevision.statusUnchanged', 'No changes yet.');
     }
     if (model.editability === 'ide_escape_hatch') {
-      return t('textRevision.statusManual', 'Changed. This will export IDE guidance, not an automatic edit.');
+      return t('textRevision.statusManual', 'Changed. Studio needs a source mapping before it can build an executable patch.');
     }
     if (model.editability === 'draft_extractable') {
       return t('textRevision.statusDraft', 'Changed. This can seed a draft/proposal for review.');
@@ -1436,12 +1475,12 @@
       'In Studio, manual install': t('coverage.inStudioManualInstall', 'In Studio, manual install'),
       'In Studio, wiring review': t('coverage.inStudioWiringReview', 'In Studio, wiring review'),
       'In Studio, guarded': t('coverage.inStudioGuarded', 'In Studio, guarded'),
-      'Mixed safe / IDE': t('coverage.mixedSafeIde', 'Mixed safe / IDE'),
-      'IDE guidance': t('coverage.ideGuidance', 'IDE guidance'),
+      'Mixed safe / IDE': t('coverage.mixedSafeIde', 'Mixed safe / source review'),
+      'IDE guidance': t('coverage.ideGuidance', 'Source review guidance'),
       'Picker + warnings': t('coverage.pickerWarnings', 'Picker + warnings'),
-      'Proposal + IDE guidance': t('coverage.proposalIdeGuidance', 'Proposal + IDE guidance'),
+      'Proposal + IDE guidance': t('coverage.proposalIdeGuidance', 'Proposal + source review guidance'),
       'Guided review only': t('coverage.guidedReviewOnly', 'Guided review only'),
-      'IDE escape hatch': t('coverage.ideEscapeHatch', 'IDE escape hatch'),
+      'IDE escape hatch': t('coverage.ideEscapeHatch', 'Source mapping needed'),
       'Not started': t('coverage.notStarted', 'Not started'),
       image: t('assets.type.image', 'image'),
       audio: t('assets.type.audio', 'audio'),
@@ -1469,6 +1508,7 @@
       unknown: t('assets.referenceState.unknown', 'unknown'),
       text_proposal: t('textCorpus.editability.textProposal', 'text proposal'),
       draft_extractable: t('textCorpus.editability.draftExtractable', 'draft extractable'),
+      source_patch: t('textCorpus.editability.sourcePatch', 'Studio source patch'),
       body: t('textCorpus.role.body', 'body'),
       heading: t('textCorpus.role.heading', 'heading'),
       title: t('textCorpus.role.title', 'title'),
@@ -1480,7 +1520,7 @@
       news_description: t('textCorpus.role.newsDescription', 'news description'),
       monthly_popup_excerpt: t('textCorpus.role.monthlyPopupExcerpt', 'monthly popup excerpt'),
       surface_label: t('textCorpus.role.surfaceLabel', 'surface label'),
-      ide_escape_hatch: t('coverage.ideEscapeHatch', 'IDE escape hatch'),
+      ide_escape_hatch: t('coverage.ideEscapeHatch', 'Source mapping needed'),
       missing: t('coverage.missing', 'missing')
     };
     if (value.startsWith('no-code ')) {

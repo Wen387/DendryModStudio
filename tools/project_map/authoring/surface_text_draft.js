@@ -3,7 +3,7 @@
 
   const SURFACE_TEXT_DRAFT_VERSION = '0.1';
   const SURFACE_TEXT_KIND = 'surface_text';
-  const EDITABILITY = new Set(['draft_exportable', 'draft_extractable', 'ide_escape_hatch', 'text_proposal']);
+  const EDITABILITY = new Set(['draft_exportable', 'draft_extractable', 'source_patch', 'ide_escape_hatch', 'text_proposal']);
   const ID_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
   function isObject(value) {
@@ -32,7 +32,9 @@
     return {
       path: String(value.path || '').trim(),
       line: Number.isFinite(line) && line > 0 ? line : null,
-      endLine: Number.isFinite(endLine) && endLine > 0 ? endLine : null
+      endLine: Number.isFinite(endLine) && endLine > 0 ? endLine : null,
+      anchorText: String(value.anchorText || '').trim(),
+      endAnchorText: String(value.endAnchorText || '').trim()
     };
   }
 
@@ -69,7 +71,7 @@
       diag(diagnostics, 'warning', 'surface_text_draft.same_label', 'Replacement label is the same as the original label.');
     }
     if (!EDITABILITY.has(draft.editability)) {
-      diag(diagnostics, 'error', 'surface_text_draft.editability', 'editability must be draft_exportable, draft_extractable, ide_escape_hatch, or text_proposal.');
+      diag(diagnostics, 'error', 'surface_text_draft.editability', 'editability must be draft_exportable, draft_extractable, source_patch, ide_escape_hatch, or text_proposal.');
     }
     if (!draft.source.path) {
       diag(diagnostics, 'error', 'surface_text_draft.source_path', 'source.path is required.');
@@ -136,13 +138,13 @@
       'Validation command:',
       'bash tools/build_and_validate.sh --skip-build --errors-only',
       '',
-      'Manual IDE steps:'
+      'Studio source review:'
     ];
     if (escapeHatch) {
       lines.push(
-        '- IDE escape hatch: open the evidence path above and review the owning source manually.',
-        '- This item is an IDE escape hatch because Studio cannot safely rewrite generated/custom JS/HTML from a read-only index.',
-        '- why Studio will not auto-edit: this source is generated, runtime-owned, or too ambiguous for an export-only replacement.'
+        '- Studio needs a source owner before it can build an executable patch for this item.',
+        '- This evidence is generated, runtime-owned, or too ambiguous for a guarded replacement.',
+        '- Use a source-backed owner, source slice, or profile rule before applying this visible text change.'
       );
     } else if (textProposal) {
       lines.push(
@@ -154,8 +156,8 @@
       );
     } else {
       lines.push(
-        '- Search for the original label at the source evidence path.',
-        '- Install Assistant can dry-run and apply this source-backed text replacement if the original label still matches.',
+        '- Studio can prepare this source-backed replacement inside Review & Apply.',
+        '- Install Assistant can dry-run and apply this replacement if the original label still matches.',
         '- Use the patch preview before applying.'
       );
     }

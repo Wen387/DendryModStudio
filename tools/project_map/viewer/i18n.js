@@ -26,15 +26,16 @@
     }
 
     const fallback = detectNavigatorLocale() || DEFAULT_LOCALE;
+    const desktop = desktopCapabilities();
 
-    if (!(global && global.dendryDesktop && typeof global.dendryDesktop.getLocale === 'function')) {
+    if (!(desktop && desktop.has('getLocale', global))) {
       applyLocale(fallback, false);
       return;
     }
 
     let detected;
     try {
-      detected = global.dendryDesktop.getLocale();
+      detected = desktop.getLocale(global);
     } catch (_err) {
       applyLocale(fallback, false);
       return;
@@ -53,6 +54,20 @@
       return;
     }
     applyLocale(fallback, false);
+  }
+
+  function desktopCapabilities() {
+    if (global && global.ProjectMapDesktopCapabilities) {
+      return global.ProjectMapDesktopCapabilities;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./desktop_capabilities.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
   }
 
   function detectNavigatorLocale() {

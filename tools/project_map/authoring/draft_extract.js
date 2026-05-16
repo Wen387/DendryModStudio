@@ -25,6 +25,20 @@
     return null;
   }
 
+  function parsedToDraftApi() {
+    if (global && global.ProjectMapParsedToDraft) {
+      return global.ProjectMapParsedToDraft;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./parsed_to_draft.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   function extractDraftFromItem(projectIndex, view, itemOrId, options) {
     const index = isObject(projectIndex) ? projectIndex : {};
     const opts = isObject(options) ? options : {};
@@ -35,6 +49,20 @@
     }
     if (view === 'surfaceText') {
       return surfaceTextDraftFromItem(item, opts);
+    }
+    const canonical = parsedToDraftApi();
+    if (canonical && typeof canonical.buildDraftFromParsed === 'function' && ['news', 'events', 'cards'].includes(String(view || ''))) {
+      try {
+        return canonical.buildDraftFromParsed(index, {
+          view,
+          item,
+          itemId: typeof itemOrId === 'string' ? itemOrId : item && item.id,
+          newId: opts.newId || opts.id,
+          sourceEntry: 'draft_extract.extractDraftFromItem'
+        });
+      } catch (_err) {
+        // Fall through to the legacy extraction bridge if the canonical helper is unavailable.
+      }
     }
     if (view === 'news') {
       if (item.delivery === 'legacy_event_popup' && item.linkedSceneId) {
@@ -92,9 +120,9 @@
             area: 'event_popup_title',
             originalLabel: scene.title || item.headline || '',
             replacementLabel: replacement || scene.title || item.headline || '',
-            editability: 'ide_escape_hatch',
+            editability: 'source_patch',
             source: scene.sourceSpan || scene.topLevelSpan || item.source,
-            reason: 'Legacy monthly popups are ordinary tags:event scenes selected by post_event. Studio exports event-scene editing guidance, not a post_event_news rewrite.'
+            reason: 'Legacy monthly popups are ordinary tags:event scenes selected by post_event. Studio opens a source patch for the linked event scene.'
           });
         }
       }
@@ -104,9 +132,11 @@
         area: 'news',
         originalLabel: item.headline || '',
         replacementLabel: replacement || item.headline || '',
-        editability: 'ide_escape_hatch',
+        editability: sourceBacked(item.source) ? 'source_patch' : 'ide_escape_hatch',
         source: item.source,
-        reason: 'News text lives in post_event_news or generated JS snippets. Studio exports guidance, not an automatic rewrite.'
+        reason: sourceBacked(item.source)
+          ? 'News text is source-backed; Studio can prepare an advanced source patch.'
+          : 'News text is generated or missing source ownership; Studio needs source mapping before it can apply a patch.'
       });
     }
     if (view === 'events' || view === 'cards' || view === 'scenes') {
@@ -118,9 +148,9 @@
         area: kind + '_title',
         originalLabel: (scene && (scene.title || scene.id)) || '',
         replacementLabel: replacement || (scene && (scene.title || scene.id)) || '',
-        editability: 'ide_escape_hatch',
+        editability: sourceBacked(scene && (scene.sourceSpan || scene.topLevelSpan)) ? 'source_patch' : 'ide_escape_hatch',
         source: scene && (scene.sourceSpan || scene.topLevelSpan),
-        reason: 'Scene text replacement is exported as IDE guidance until Studio has a bounded source-span editor for scene bodies.'
+        reason: 'Scene text replacement opens Studio source patch fallback when a bounded semantic editor is not available.'
       });
     }
     return unsupported(view, 'draft_extract.text_unsupported_view', 'Text replacement is not supported for this view: ' + view);
@@ -182,7 +212,7 @@
     const capability = opts.capability || null;
     const editability = surfaceProposalEditability(item, capability);
     if (editability === 'ide_escape_hatch') {
-      diagnostics.push(diagnostic('warning', 'draft_extract.ide_escape_hatch', capability && capability.reason || 'This surface text item needs manual IDE review.'));
+      diagnostics.push(diagnostic('warning', 'draft_extract.source_mapping_needed', capability && capability.reason || 'This surface text item needs source mapping before Studio can build an executable patch.'));
     }
     const label = String(item.label || '').trim();
     const replacement = String(opts.replacementLabel || '').trim() || label;
@@ -200,7 +230,7 @@
     };
     return {
       ok: Boolean(label && draft.source.path),
-      status: editability === 'draft_exportable' ? 'draft' : 'ide_escape_hatch',
+      status: editability === 'ide_escape_hatch' ? 'ide_escape_hatch' : 'draft',
       template: 'surface',
       draft,
       source: item.source || null,
@@ -226,8 +256,11 @@
 
   function surfaceProposalEditability(item, capability) {
     const routeClass = String(capability && capability.routeClass || '');
-    if (routeClass === 'system_ui_workspace' || routeClass === 'news_router_workflow' || routeClass === 'manual_review' || routeClass === 'unsupported') {
+    if (generatedSource(item && item.source)) {
       return 'ide_escape_hatch';
+    }
+    if (routeClass === 'system_ui_workspace' || routeClass === 'news_router_workflow' || routeClass === 'source_slice_editor' || routeClass === 'advanced_source_patch' || routeClass === 'manual_review' || routeClass === 'unsupported') {
+      return sourceBacked(item && item.source) ? 'source_patch' : 'ide_escape_hatch';
     }
     return String(item && item.editability || 'ide_escape_hatch');
   }
@@ -237,10 +270,10 @@
     if (routeClass === 'direct_field_replace') {
       return 'text_proposal';
     }
-    if (routeClass === 'direct_section_replace' || routeClass === 'object_workspace') {
+    if (routeClass === 'direct_section_replace' || routeClass === 'object_workspace' || routeClass === 'source_slice_editor' || routeClass === 'advanced_source_patch') {
       return 'text_proposal';
     }
-    return 'ide_escape_hatch';
+    return sourceBacked(item && item.source) ? 'source_patch' : 'ide_escape_hatch';
   }
 
   function textReplacementDraft(input) {
@@ -260,7 +293,7 @@
     };
     const diagnostics = [];
     if (draft.editability === 'ide_escape_hatch') {
-      diagnostics.push(diagnostic('warning', 'draft_extract.text_manual_review', draft.reason || 'This text replacement needs manual IDE review.'));
+      diagnostics.push(diagnostic('warning', 'draft_extract.text_source_mapping_needed', draft.reason || 'This text replacement needs source mapping before Studio can build an executable patch.'));
     }
     if (!draft.source.path) {
       diagnostics.push(diagnostic('warning', 'draft_extract.text_source_missing', 'No source path was available for this text replacement proposal.'));
@@ -325,11 +358,19 @@
   }
 
   function eventDraftFromScene(scene, model) {
+    const canonical = parsedToDraftApi();
+    if (canonical && typeof canonical.eventDraftFromScene === 'function' && model && model.index) {
+      try {
+        return canonical.eventDraftFromScene(model.index, scene, {sourceEntry: 'draft_extract.eventDraftFromScene'}, model);
+      } catch (_err) {
+        // Fall through to the legacy extraction bridge.
+      }
+    }
     if (!scene || !scene.id) {
       return unsupported('events', 'draft_extract.scene_missing', 'Event scene data was not available.');
     }
     const diagnostics = [
-      diagnostic('warning', 'draft_extract.partial_scene_body', 'Existing scene body/effects are not fully reconstructed; review source before export.')
+      diagnostic('warning', 'draft_extract.partial_scene_body', 'Existing scene body/effects are only reconstructed through the legacy fallback; review source before Review & Apply.')
     ];
     const windowInfo = parseEventWindow(scene.viewIf);
     const options = optionDrafts(scene.options, 'continue');
@@ -351,7 +392,7 @@
       effectsOnTrigger: [],
       introParagraphs: introParagraphs.length
         ? introParagraphs
-        : ['Draft seeded from existing scene ' + sourceLabel(scene.sourceSpan) + '. Review original body text and effects before export.'],
+        : ['Draft seeded from existing scene ' + sourceLabel(scene.sourceSpan) + '. Review original body text and effects before Review & Apply.'],
       options,
       assetRefs: ensureArray(scene.assetRefs),
       sourceSceneId: scene.id,
@@ -376,17 +417,22 @@
   }
 
   function cardDraftFromScene(scene, model) {
+    const canonical = parsedToDraftApi();
+    if (canonical && typeof canonical.cardDraftFromScene === 'function' && model && model.index) {
+      try {
+        return canonical.cardDraftFromScene(model.index, scene, {sourceEntry: 'draft_extract.cardDraftFromScene'}, model);
+      } catch (_err) {
+        // Fall through to the legacy extraction bridge.
+      }
+    }
     if (!scene || !scene.id) {
       return unsupported('cards', 'draft_extract.scene_missing', 'Card scene data was not available.');
     }
     const diagnostics = [
-      diagnostic('warning', 'draft_extract.partial_scene_body', 'Existing scene body/effects are not fully reconstructed; review source before export.')
+      diagnostic('warning', 'draft_extract.partial_scene_body', 'Existing scene body/effects are only reconstructed through the legacy fallback; review source before Review & Apply.')
     ];
     const allOptions = optionDrafts(scene.options, 'root');
-    const options = allOptions.slice(0, 4);
-    if (allOptions.length > 4) {
-      diagnostics.push(diagnostic('warning', 'draft_extract.option_limit', 'Only the first 4 options can be seeded into CardDraft v0.1.'));
-    }
+    const options = allOptions;
     const introParagraphs = introParagraphsFromScene(scene, model);
     const draft = {
       schemaVersion: '0.1',
@@ -403,7 +449,7 @@
       subtitle: String(scene.subtitle || ''),
       introParagraphs: introParagraphs.length
         ? introParagraphs
-        : ['Draft seeded from existing scene ' + sourceLabel(scene.sourceSpan) + '. Review original body text and effects before export.'],
+        : ['Draft seeded from existing scene ' + sourceLabel(scene.sourceSpan) + '. Review original body text and effects before Review & Apply.'],
       options,
       assetRefs: ensureArray(scene.assetRefs),
       sourceSceneId: scene.id,
@@ -543,8 +589,20 @@
     return {
       path: String(value.path || '').trim(),
       line,
-      endLine
+      endLine,
+      anchorText: String(value.anchorText || '').trim(),
+      endAnchorText: String(value.endAnchorText || '').trim()
     };
+  }
+
+  function sourceBacked(source) {
+    const path = String(source && source.path || '').replace(/\\/g, '/');
+    return Boolean(path && path.startsWith('source/'));
+  }
+
+  function generatedSource(source) {
+    const path = String(source && source.path || '').replace(/\\/g, '/');
+    return Boolean(path && (path.startsWith('out/') || path.startsWith('dist/') || path.includes('/out/')));
   }
 
   function sourceLine(source) {

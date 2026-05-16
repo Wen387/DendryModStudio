@@ -16,10 +16,24 @@ Advisor trust: [+ demo_advisor_trust : qdemo_level +]
 
 Card progress: [+ demo_card_progress : qdemo_level +]
 
+Chain pressure: [+ demo_pressure : qdemo_level +]
+
+Public attention: [+ demo_public_attention : qdemo_level +]
+
+Case strength: [+ demo_case_strength : qdemo_level +]
+
+Cabinet balance: [+ demo_cabinet_balance : qdemo_level +]
+
+Reform mandate: [+ demo_reform_mandate : qdemo_level +]
+
+Opposition heat: [+ demo_opposition_heat : qdemo_level +]
+
 [? if demo_support > 0 : Volunteer support is active. ?]
 [? if demo_conflict > 0 : Observation pressure is active. ?]
 [? if demo_card_progress > 0 : The starter deck has changed project state. ?]
 [? if demo_advisor_trust > 0 : The advisor lane has contributed trust. ?]
+[? if demo_chain_seen > 0 : The complex event chain has started. ?]
+[? if demo_resolution_seen > 0 : The complex event chain has reached a conclusion. ?]
 
 @organization
 
@@ -46,3 +60,10 @@ Use this section for advisor-like or Circle-style persistent cards.
 
 Use this section for public support, opposition pressure, election context, or
 other map/dashboard variables.
+
+@complex_chain
+
+= Complex Event Chain
+
+Use this section for pressure, case strength, cabinet balance, reform mandate,
+opposition heat, and other variables created by the bundled complex-event demo.

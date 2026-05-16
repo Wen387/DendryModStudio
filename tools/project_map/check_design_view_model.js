@@ -280,7 +280,12 @@ assert(designUi.includes('renderGraphCanvas'), 'Design UI should render a graph 
 assert(designUi.includes('selectEdgeNeighbor'), 'Design UI should support graph edge navigation');
 assert(designUi.includes('data-design-target-key'), 'Design inspector edge rows should navigate to linked nodes');
 assert(designUi.includes('INSPECTOR_COLLAPSED_KEY'), 'Design inspector collapse state should be local and persistent');
-assert(designUi.includes('<details class="mini-section" open>'), 'Design inspector sections should be individually collapsible');
+assert(designUi.includes('<details class="mini-section" open data-design-mini-section'), 'Design inspector sections should be individually collapsible');
+assert(designUi.includes('design-preview-collapsible'), 'Design card/news previews should be individually collapsible');
+assert(designUi.includes('details.meaning-collapsible > summary'), 'Design semantic preview sections should share the explicit details click path');
+assert(designUi.includes('toggleInspectorDetails'), 'Design inspector collapsible sections should have an explicit click path');
+assert(designUi.includes('data-event-workbench-section'), 'Design inspector should preserve Event Workbench section state');
+assert(designUi.includes('handleDesignZoom'), 'Design zoom controls should have a direct click handler');
 assert(!designUi.includes('renderDesignRow'), 'Design UI should not render the old lane-row board as the primary view');
 
 let realIndexStats = null;

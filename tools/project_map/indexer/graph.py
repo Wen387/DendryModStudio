@@ -12,6 +12,7 @@ class GraphBuilder:
         self.section_ids: set[str] = set()
         self.tags: set[str] = set()
         self.diagnostics: list[dict[str, Any]] = []
+        self.route_order_groups: list[dict[str, Any]] = []
 
         for scene in scenes:
             scene_id = scene["id"]
@@ -66,7 +67,9 @@ class GraphBuilder:
             route_source = property_source(item, path, field)
             if len(routes) > 1 or any(route.get("predicate") for route in routes):
                 raw_summary = "; ".join(str(route.get("raw", route.get("id", ""))) for route in routes)
-                self.add_conditional_diagnostic(scene, item, route_source, field, raw_summary)
+                group = self.build_route_order_group(scene, item, from_id, route_source, field, route_kind, routes, raw_summary)
+                self.route_order_groups.append(group)
+                self.add_conditional_diagnostic(scene, item, route_source, field, raw_summary, group["id"])
             for route in routes:
                 raw_target = str(route.get("id", "")).strip()
                 if not raw_target:
@@ -137,8 +140,52 @@ class GraphBuilder:
             "confidence": CONF_EXACT,
         })
 
+    def build_route_order_group(self, scene: dict[str, Any], item: dict[str, Any],
+                                from_id: str, src: dict[str, Any], field: str,
+                                route_kind: str, routes: list[dict[str, Any]],
+                                raw: str) -> dict[str, Any]:
+        line = src.get("line") or src.get("startLine") or ""
+        group_id = "route_order_" + hashlib.sha1(
+            f"{scene.get('path', '')}:{from_id}:{field}:{line}:{raw}".encode("utf-8")
+        ).hexdigest()[:12]
+        clauses = []
+        for order, route in enumerate(routes, 1):
+            raw_target = str(route.get("id", "")).strip()
+            resolved, ok = self.resolve_target(raw_target, scene["id"], prefer_local_anchor=False)
+            predicate = str(route.get("predicate", "")).strip()
+            clauses.append({
+                "order": order,
+                "raw": str(route.get("raw", raw_target)).strip(),
+                "rawTarget": raw_target,
+                "resolvedTarget": resolved,
+                "targetResolved": bool(ok),
+                "predicate": predicate,
+                "isFallback": not predicate and len(routes) > 1,
+                "routeKind": "conditional_" + route_kind if predicate else route_kind,
+                "installSafety": "manual_review",
+            })
+        return {
+            "id": group_id,
+            "sceneId": scene["id"],
+            "ownerId": from_id,
+            "ownerKind": "section" if from_id != scene["id"] else str(scene.get("type", "scene")),
+            "routeField": field,
+            "routeKind": route_kind,
+            "routeCount": len(clauses),
+            "chainContext": "ordered_chain" if len(clauses) > 1 else "predicate_singleton",
+            "source": src,
+            "sourceRaw": raw,
+            "clauses": clauses,
+            "parserBacked": True,
+            "confidence": CONF_EXACT,
+            "installSafety": "manual_review",
+            "reviewBoundary": "manual_review",
+            "reason": "Conditional or chained route clauses are parser-backed, but runtime order and fallback behavior must be reviewed before rewriting.",
+        }
+
     def add_conditional_diagnostic(self, scene: dict[str, Any], item: dict[str, Any],
-                                   src: dict[str, Any], field: str, raw: str) -> None:
+                                   src: dict[str, Any], field: str, raw: str,
+                                   group_id: str | None = None) -> None:
         self.diagnostics.append({
             "severity": "info",
             "code": "project_map.conditional_goto",
@@ -146,6 +193,7 @@ class GraphBuilder:
             "path": scene["path"],
             "sceneId": scene["id"],
             "source": src,
+            "routeOrderGroupId": group_id or "",
             "confidence": CONF_EXACT,
         })
 

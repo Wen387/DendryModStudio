@@ -1,0 +1,64 @@
+title: Demo Resolution Week
+tags: event, demo, complex
+new-page: true
+priority: 1
+on-arrival: {!
+Q.demo_resolution_seen = 1;
+if ((Q.demo_reform_mandate || 0) >= 3 && (Q.demo_opposition_heat || 0) <= 2) {
+  Q.demo_resolution_result = 3;
+} else if ((Q.demo_reform_mandate || 0) >= 2) {
+  Q.demo_resolution_result = 2;
+} else if ((Q.demo_cabinet_balance || 0) >= 2) {
+  Q.demo_resolution_result = 1;
+} else {
+  Q.demo_resolution_result = -1;
+}
+!}
+
+= Resolution Week
+
+The chain resolves from the state the player built. This scene reads the
+pressure, case, cabinet, mandate, and opposition variables created by earlier
+events, cards, and advisor choices.
+
+[? if demo_resolution_result >= 3 : The reform passes with a visible mandate. The office wins a clean public result. ?]
+[? if demo_resolution_result = 2 : The reform survives, but the final text is narrower than the office wanted. ?]
+[? if demo_resolution_result = 1 : The cabinet path keeps the project alive without creating a public mandate. ?]
+[? if demo_resolution_result < 0 : The chain ends in drift. The office has notes, but no coalition strong enough to move them. ?]
+
+The status sidebar now records the path. You can return to the hand, replay the
+chain with different preparation, or reset only the chain variables.
+
+- @convert_result: Convert the result into capacity.
+- @reset_chain: Reset the chain variables.
+- @main: Return to the workspace hand.
+- @root: Back to the starter menu.
+
+@convert_result
+title: Convert the result into capacity.
+on-arrival: {!
+Q.demo_resources = (Q.demo_resources || 0) + 1;
+Q.demo_card_progress = (Q.demo_card_progress || 0) + 1;
+!}
+go-to: main
+
+The organization turns the result into one reusable point of capacity and a
+visible card-progress mark.
+
+@reset_chain
+title: Reset the chain variables.
+on-arrival: {!
+Q.demo_chain_seen = 0;
+Q.demo_hearing_seen = 0;
+Q.demo_resolution_seen = 0;
+Q.demo_pressure = 0;
+Q.demo_public_attention = 0;
+Q.demo_case_strength = 0;
+Q.demo_cabinet_balance = 0;
+Q.demo_reform_mandate = 0;
+Q.demo_opposition_heat = 0;
+Q.demo_resolution_result = 0;
+!}
+go-to: demo_campaign_pressure
+
+The office clears the whiteboard and starts the same chain again.

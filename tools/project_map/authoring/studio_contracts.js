@@ -38,7 +38,8 @@
     text_proposal: ['textCorpus.editability.textProposal', 'text proposal'],
     draft_extractable: ['textCorpus.editability.draftExtractable', 'draft extractable'],
     draft_exportable: ['textCorpus.editability.draftExportable', 'source-backed draft'],
-    ide_escape_hatch: ['coverage.ideEscapeHatch', 'IDE escape hatch']
+    source_patch: ['textCorpus.editability.sourcePatch', 'source patch'],
+    ide_escape_hatch: ['coverage.ideEscapeHatch', 'source mapping needed']
   };
 
   const INSTALL_COPY = {

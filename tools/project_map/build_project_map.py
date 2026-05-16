@@ -59,8 +59,22 @@ def build_index(
     overlay_edges, overlay_diagnostics = add_textual_goto_overlay(root, scenes, edges, graph)
     edges.extend(overlay_edges)
 
-    variables, variable_diagnostics, variable_summary = VariableScanner(root).scan()
-    semantic = classify_semantics(root, scenes, variables, selected_profiles, post_event_summary)
+    variable_scanner = VariableScanner(root)
+    variables, variable_diagnostics, variable_summary = variable_scanner.scan()
+    opaque_blocks_by_path = variable_scanner.opaque_blocks_by_path()
+    for scene in scenes:
+        rel = scene.get("path")
+        if isinstance(rel, str) and rel in opaque_blocks_by_path:
+            scene["opaqueJsBlocks"] = opaque_blocks_by_path[rel]
+    semantic = classify_semantics(
+        root,
+        scenes,
+        variables,
+        selected_profiles,
+        post_event_summary,
+        route_order_groups=graph.route_order_groups,
+        dynamic_key_evidence=variable_scanner.dynamic_key_evidence,
+    )
 
     diagnostics = (
         parser_diagnostics(parser_index, root)
@@ -128,6 +142,10 @@ def build_index(
             "runtimeSurfaceRegionCount": len(semantic.get("runtimeSurface", {}).get("regions", [])),
             "runtimeSurfaceControlCount": len(semantic.get("runtimeSurface", {}).get("controls", [])),
             "runtimeSurfaceDiagnosticCount": len(semantic.get("runtimeSurface", {}).get("diagnostics", [])),
+            "routeOrderGroupCount": len(semantic.get("parserEvidence", {}).get("routeOrderGroups", [])),
+            "dynamicKeyEvidenceCount": len(semantic.get("parserEvidence", {}).get("dynamicKeyEvidence", [])),
+            "effectClauseCount": len(semantic.get("parserEvidence", {}).get("effectClauses", [])),
+            "monthlyPopupRouterCount": len(semantic.get("parserEvidence", {}).get("monthlyPopupRouterTable", [])),
             "effectCount": sum(len(scene.get("effects", [])) for scene in scenes),
             "assetCount": len(semantic.get("assets", {}).get("items", [])),
             "imageAssetCount": len([
@@ -167,6 +185,10 @@ def render_summary(index: dict[str, Any]) -> str:
         f"Runtime surface: {summary.get('runtimeSurfaceRegionCount', 0)} regions, "
         f"{summary.get('runtimeSurfaceControlCount', 0)} controls, "
         f"{summary.get('runtimeSurfaceDiagnosticCount', 0)} diagnostics",
+        f"Parser evidence: {summary.get('routeOrderGroupCount', 0)} route groups, "
+        f"{summary.get('dynamicKeyEvidenceCount', 0)} dynamic Q rows, "
+        f"{summary.get('effectClauseCount', 0)} effect clauses, "
+        f"{summary.get('monthlyPopupRouterCount', 0)} popup routers",
         f"Assets: {summary.get('assetCount', 0)} "
         f"(images {summary.get('imageAssetCount', 0)}, audio {summary.get('audioAssetCount', 0)})",
         f"Diagnostics: {summary['diagnosticCount']}",

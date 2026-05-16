@@ -1,0 +1,137 @@
+(function initProjectMapOwnershipMatching(global) {
+  'use strict';
+
+  function ensureArray(value) {
+    return Array.isArray(value) ? value : [value];
+  }
+
+  function parseEndpointToken(value) {
+    const text = String(value || '').trim().replace(/^[@#]/, '');
+    if (!text) {
+      return null;
+    }
+    const parts = text.split('.');
+    return {
+      full: text,
+      local: parts[parts.length - 1] || text,
+      qualified: parts.length > 1
+    };
+  }
+
+  function normalizeEndpointToken(value) {
+    const parsed = parseEndpointToken(value);
+    return parsed ? parsed.local : '';
+  }
+
+  function endpointPairMatches(left, right) {
+    if (!left || !right) {
+      return false;
+    }
+    if (left.full === right.full) {
+      return true;
+    }
+    if (left.qualified && right.qualified) {
+      return false;
+    }
+    return Boolean(left.local && left.local === right.local);
+  }
+
+  function endpointTokens(values) {
+    const out = [];
+    ensureArray(values).forEach((value) => {
+      const token = normalizeEndpointToken(value);
+      if (token && !out.includes(token)) {
+        out.push(token);
+      }
+    });
+    return out;
+  }
+
+  function endpointEntries(values) {
+    const out = [];
+    ensureArray(values).forEach((value) => {
+      const parsed = parseEndpointToken(value);
+      if (parsed && !out.some((item) => item.full === parsed.full)) {
+        out.push(parsed);
+      }
+    });
+    return out;
+  }
+
+  function optionEndpointTokens(option) {
+    const value = option || {};
+    return endpointTokens([
+      value.id,
+      value.targetId,
+      value.rawTargetId,
+      value.sectionId
+    ]);
+  }
+
+  function ownerEndpointTokens(owner) {
+    const value = owner || {};
+    return endpointTokens([
+      value.optionId,
+      value.itemId,
+      value.sectionId,
+      value.targetId,
+      value.rawTargetId,
+      value.id
+    ]);
+  }
+
+  function intersects(left, right) {
+    const leftTokens = endpointEntries(left);
+    const rightTokens = endpointEntries(right);
+    return Boolean(leftTokens.length && rightTokens.length && leftTokens.some((leftToken) => rightTokens.some((rightToken) => endpointPairMatches(leftToken, rightToken))));
+  }
+
+  function endpointMatches(left, right) {
+    return intersects(left, right);
+  }
+
+  function ownerMatchesOption(owner, option) {
+    return intersects([
+      owner && owner.optionId,
+      owner && owner.itemId,
+      owner && owner.sectionId,
+      owner && owner.targetId,
+      owner && owner.rawTargetId,
+      owner && owner.id
+    ], [
+      option && option.id,
+      option && option.targetId,
+      option && option.rawTargetId,
+      option && option.sectionId
+    ]);
+  }
+
+  function ownerMatchesSection(owner, sectionId) {
+    return intersects([
+      owner && owner.optionId,
+      owner && owner.itemId,
+      owner && owner.sectionId,
+      owner && owner.targetId,
+      owner && owner.rawTargetId,
+      owner && owner.id
+    ], sectionId);
+  }
+
+  const api = {
+    parseEndpointToken,
+    normalizeEndpointToken,
+    endpointTokens,
+    optionEndpointTokens,
+    ownerEndpointTokens,
+    endpointMatches,
+    ownerMatchesOption,
+    ownerMatchesSection
+  };
+
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = api;
+  }
+  if (global) {
+    global.ProjectMapOwnershipMatching = api;
+  }
+})(typeof window !== 'undefined' ? window : globalThis);

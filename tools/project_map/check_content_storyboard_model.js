@@ -117,7 +117,11 @@ const index = {
     {from: 'civil_war.war_outcome', to: 'civil_war.defeat', kind: 'conditional_go_to', condition: 'total_defeat = 1', rawTarget: 'defeat', source: {path: civilWar.path, line: 55}}
   ],
   variables: [
-    {name: 'public_order', readCount: 1, writeCount: 1, reads: [{path: electionStart.path, line: 4}], writes: [{path: electionRally.path, line: 20}]}
+    {name: 'public_order', readCount: 1, writeCount: 1, reads: [{path: electionStart.path, line: 4}], writes: [{path: electionRally.path, line: 20}]},
+    {name: 'unused_flag', readCount: 0, writeCount: 0, reads: [], writes: []},
+    {name: 'read_only_flag', readCount: 3, writeCount: 0, reads: [{path: electionStart.path, line: 12}], writes: []},
+    {name: 'write_only_flag', readCount: 0, writeCount: 2, reads: [], writes: [{path: electionRally.path, line: 21}]},
+    {name: 'hot_flag', readCount: 24, writeCount: 4, reads: [{path: electionStart.path, line: 13}], writes: [{path: electionRally.path, line: 22}]}
   ],
   semantic: {
     events: [
@@ -182,6 +186,8 @@ assert(timeline.palette && timeline.palette.groups.some((group) => group.key ===
 assert(timeline.palette.groups.some((group) => group.key === 'drafts' && group.entries.some((entry) => entry.key === 'draft:election_start_followup')), 'timeline palette should expose draft story objects');
 assert(timeline.palette.groups.some((group) => group.entries.some((entry) => entry.key === 'card:campaign_card')), 'default Story Palette should include cards hidden from the story canvas category');
 assert(timeline.palette.groups.some((group) => group.entries.some((entry) => entry.key === 'advisor:campaign_advisor')), 'default Story Palette should include advisors hidden from the story canvas category');
+assert(timeline.palette.groups.some((group) => group.key === 'state_variables' && group.entries.some((entry) => entry.key === 'variable:public_order' && entry.kind === 'state' && entry.draggable === false)), 'Story Palette should expose Project State variables as read-only Canvas assets');
+assert(timeline.palette.typeCounts && timeline.palette.typeCounts.state === 5, 'Story Palette should count state variable assets');
 assert(timeline.palette.groups.every((group) => !group.hiddenCount), 'empty Story Palette search should not hide entries behind a group limit');
 assert(timeline.storyContext && timeline.storyContext.selected && timeline.storyContext.selected.positionLabel.includes('1929'), 'story context should explain selected global timeline position');
 assert(timeline.storyContext.timeline.lanes.some((lane) => lane.selected && lane.count >= 2), 'story context should mark the selected dense lane');
@@ -302,9 +308,39 @@ assert(!filteredPalette.groups.some((group) => group.entries.some((entry) => ent
 const cardPalette = storyboardModel.buildStoryboard(index, existing, {view: 'timeline', storyPaletteType: 'card'}).palette;
 assert(cardPalette.groups.some((group) => group.entries.some((entry) => entry.key === 'card:campaign_card')), 'card palette filter should search the full project candidate pool');
 assert(!cardPalette.groups.some((group) => group.entries.some((entry) => entry.kind === 'event')), 'card palette filter should hide non-card entries');
+const statePalette = storyboardModel.buildStoryboard(index, existing, {view: 'timeline', storyPaletteType: 'state'}).palette;
+assert(statePalette.groups.some((group) => group.key === 'state_variables' && group.entries.some((entry) => entry.key === 'variable:public_order')), 'state palette filter should show Project State variables');
+assert(!statePalette.groups.some((group) => group.entries.some((entry) => entry.kind === 'event')), 'state palette filter should hide story events');
 const advisorPalette = storyboardModel.buildStoryboard(index, existing, {view: 'timeline', storyPaletteType: 'advisor'}).palette;
 assert(advisorPalette.groups.some((group) => group.entries.some((entry) => entry.key === 'advisor:campaign_advisor')), 'advisor palette filter should search the full project candidate pool');
 assert(!advisorPalette.groups.some((group) => group.entries.some((entry) => entry.kind === 'event')), 'advisor palette filter should hide non-advisor entries');
+const paletteBoard = {
+  view: 'timeline',
+  selectedKey: 'event:election_start',
+  currentKey: 'event:election_start',
+  projectIndex: index,
+  cards: timeline.cards,
+  timeline: timeline.timeline,
+  chain: timeline.chain
+};
+const diagnosticPalette = storyPaletteModel.buildPalette(paletteBoard, {
+  storyPaletteOpen: true,
+  storyPaletteType: 'state',
+  storyPaletteSelectedKey: 'variable:unused_flag',
+  storyPalettePinnedKeys: ['variable:unused_flag', 'variable:hot_flag'],
+  storyPaletteRecentKeys: ['event:election_rally', 'variable:read_only_flag']
+});
+assert(diagnosticPalette.diagnostics.stateBadgeCounts.unused === 1, 'palette diagnostics should count unused state variables');
+assert(diagnosticPalette.diagnostics.stateBadgeCounts.read_only === 1, 'palette diagnostics should count read-only state variables');
+assert(diagnosticPalette.diagnostics.stateBadgeCounts.write_only === 1, 'palette diagnostics should count write-only state variables');
+assert(diagnosticPalette.diagnostics.stateBadgeCounts.hot === 1, 'palette diagnostics should count hot state variables');
+assert(diagnosticPalette.groups[0] && diagnosticPalette.groups[0].key === 'pinned', 'pinned assets should render before normal palette groups');
+assert(diagnosticPalette.groups[0].entries[0].key === 'variable:unused_flag', 'pinned assets should preserve local preference order');
+assert(diagnosticPalette.groups.some((group) => group.key === 'recent'), 'recent assets should render as their own palette group');
+assert(diagnosticPalette.inspector && diagnosticPalette.inspector.key === 'variable:unused_flag', 'palette should build a lightweight inspector for selected assets');
+assert(diagnosticPalette.inspector.badges.includes('unused'), 'state inspector should include diagnostic badges');
+const stateLinkedPalette = storyPaletteModel.buildPalette(paletteBoard, {storyPaletteScopeFilter: 'state_linked'});
+assert(stateLinkedPalette.groups.some((group) => group.entries.some((entry) => entry.key === 'variable:public_order')), 'state-linked scope should include variables referenced by the selected event source');
 const syntheticCards = Array.from({length: 14}, (_item, index) => ({
   key: 'event:fixture_' + index,
   id: 'fixture_' + index,
@@ -325,6 +361,11 @@ const timelineHtml = storyboardSurface.render(existing, {
   selected: 'event:election_start',
   draftBranches: timeline.cards.filter((card) => card.draftBranch),
   storyPaletteOpen: true,
+  storyPaletteSelectedKey: 'variable:public_order',
+  storyPaletteScopeFilter: 'related',
+  storyPalettePinnedKeys: ['variable:public_order'],
+  storyPaletteRecentKeys: ['event:election_rally'],
+  storyPaletteWidth: 444,
   storyCardColors: {'event:election_start': '#1a6f9f'}
 });
 assert(timelineHtml.includes('data-content-storyboard-surface="true"'), 'surface should expose storyboard QA marker');
@@ -340,7 +381,20 @@ assert(timelineHtml.includes('data-object-canvas-action="discard_draft_card"'), 
 assert(timelineHtml.includes('data-storyboard-draft-key="draft:election_start_followup"'), 'draft discard controls should target the rendered draft card key');
 assert(timelineHtml.includes('data-content-storyboard-card="event:election_start"'), 'surface should render event cards');
 assert(timelineHtml.includes('data-storyboard-palette="true"'), 'surface should render the Storyboard Palette');
+assert(timelineHtml.includes('--storyboard-palette-width: 444px'), 'palette should apply a user-sized asset rail width');
+assert(timelineHtml.includes('data-storyboard-palette-resizer="true"'), 'palette should expose a local width resizer');
+assert(timelineHtml.includes('data-object-canvas-action="toggle_story_palette_chrome"'), 'palette should expose a compact controls toggle');
 assert(timelineHtml.includes('data-storyboard-palette-item="true"'), 'palette should render draggable story object items');
+assert(timelineHtml.includes('data-storyboard-palette-scroll="true"'), 'palette should render an independently scrollable asset list');
+assert(timelineHtml.includes('data-storyboard-palette-window-enabled='), 'palette scroll region should expose virtual-window metadata');
+assert(timelineHtml.includes('data-storyboard-palette-scope-filters="true"'), 'palette should render scope-aware filters');
+assert(timelineHtml.includes('data-storyboard-palette-inspector="true"'), 'palette should render a lightweight inspector');
+assert(timelineHtml.includes('data-object-canvas-action="open_story_palette_selection"'), 'palette inspector should expose explicit open action');
+assert(timelineHtml.includes('data-storyboard-palette-pin='), 'palette should expose local pin buttons');
+assert(timelineHtml.includes('data-storyboard-palette-badge='), 'palette should render scope or diagnostic badges');
+assert(timelineHtml.includes('storyboard-palette-item-state is-reference-only'), 'palette should render state variables as reference navigation items');
+assert(timelineHtml.includes('data-storyboard-palette-kind="state"'), 'palette should expose stable state asset markers');
+assert(timelineHtml.includes('storyboard-palette-meta'), 'palette should render asset metadata rows');
 assert(timelineHtml.includes('data-storyboard-drop-target="timeline_lane"'), 'timeline lanes should expose palette drop targets');
 assert(timelineHtml.includes('data-content-storyboard-insert="time:1929"'), 'surface should render time-slot insertion');
 assert(timelineHtml.includes('data-content-storyboard-global-context="true"'), 'surface should render global story context in the canvas');
@@ -349,6 +403,15 @@ assert(timelineHtml.includes('data-content-storyboard-scope="true"'), 'surface s
 assert(timelineHtml.includes('data-storyboard-card-face="event"'), 'surface should render player-facing card face markers');
 assert(timelineHtml.includes('data-storyboard-card-state='), 'surface should render card state markers');
 assert(timelineHtml.includes('data-content-storyboard-create-menu="true"'), 'surface should render create-here event/card/news affordances');
+const collapsedPaletteHtml = storyboardSurface.render(existing, {
+  projectIndex: index,
+  view: 'timeline',
+  selected: 'event:election_start',
+  storyPaletteOpen: true,
+  storyPaletteChromeCollapsed: true
+});
+assert(collapsedPaletteHtml.includes('data-storyboard-palette-chrome-collapsed="true"'), 'palette should mark compact chrome state');
+assert(!collapsedPaletteHtml.includes('data-storyboard-palette-scope-filters="true"'), 'compact palette chrome should free vertical room by hiding filters');
 assert(timelineHtml.includes('data-object-canvas-action="create_event"'), 'timeline create-here event button should create a blank event, not a follow-up');
 assert(timelineHtml.includes('data-object-canvas-action="delete_current_object"'), 'Storyboard editor actions should expose a delete/discard object entry');
 assert(timelineHtml.includes('data-content-storyboard-story-context="true"'), 'editor should render story context outside the canvas cards');

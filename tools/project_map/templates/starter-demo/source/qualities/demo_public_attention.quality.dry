@@ -1,0 +1,5 @@
+name: Demo Public Attention
+initial: 0
+min: 0
+
+Complex-event variable used by the bundled campaign chain.

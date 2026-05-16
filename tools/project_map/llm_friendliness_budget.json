@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "exceptions": [
+    {
+      "path": "tools/project_map/authoring/event_structure_model.js",
+      "maxLines": 2808,
+      "reason": "Split event structure logic before adding more behavior."
+    },
+    {
+      "path": "tools/project_map/authoring/existing_scene_edit_model.js",
+      "maxLines": 3530,
+      "reason": "Split scene edit logic before adding more behavior."
+    },
+    {
+      "path": "tools/project_map/authoring/install_plan.js",
+      "maxLines": 2388,
+      "reason": "Split install-plan domains before adding more behavior."
+    },
+    {
+      "path": "tools/project_map/authoring/object_canvas_content_adapters.js",
+      "maxLines": 1830,
+      "reason": "Split content adapters before adding more object canvas behavior."
+    },
+    {
+      "path": "tools/project_map/qa/run_desktop_scenario.js",
+      "maxLines": 2683,
+      "reason": "Split desktop scenario runner before adding more scenarios."
+    },
+    {
+      "path": "tools/project_map/viewer/index.html",
+      "maxLines": 2863,
+      "reason": "Extract large template blocks into dedicated panels."
+    },
+    {
+      "path": "tools/project_map/viewer/object_authoring_canvas_ui.js",
+      "maxLines": 3410,
+      "reason": "Keep orchestration here; split editor UI into workspace modules."
+    },
+    {
+      "path": "tools/project_map/viewer/preview_object_editor.js",
+      "maxLines": 2927,
+      "reason": "Keep field rendering here; split domain sub-renderers into sibling modules."
+    },
+    {
+      "path": "tools/project_map/viewer/styles/editing.css",
+      "maxLines": 3375,
+      "reason": "Split new selectors into focused domain CSS files."
+    },
+    {
+      "path": "tools/project_map/viewer/wizard_ui.js",
+      "maxLines": 2211,
+      "reason": "Route new wizard domains to dedicated UI modules."
+    }
+  ]
+}

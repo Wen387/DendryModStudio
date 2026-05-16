@@ -24,10 +24,10 @@
       generatedOperations: 'Generated operations:',
       safety: 'Safety:',
       safetyRoot: '- New variable initialization can be inserted only after the root anchor still matches.',
-      safetyExisting: '- Existing variables are shown with source references; editing game logic still needs review.',
+      safetyExisting: '- Source-backed existing variable initializers create guarded or advanced install operations; reads/writes stay as impact preview.',
       safetyDelete: '- Variable deletion is manual-review only; every read, write, and definition must be checked first.',
       safetyQuality: '- Quality files are generated for manual review because project conventions vary.',
-      manualExisting: 'Review this existing variable before changing initialization or quality metadata.',
+      manualExisting: 'No source-backed initializer was found for this existing variable.',
       manualDelete: 'Review every source-backed definition and consumer before deleting this variable.',
       noop: 'No variable change was generated.'
     },
@@ -48,10 +48,10 @@
       generatedOperations: '產生的操作：',
       safety: '安全性：',
       safetyRoot: '- 新變數初始化只有在 root anchor 仍可精確比對時才會插入。',
-      safetyExisting: '- 既有變數會顯示 source 參照；修改遊戲邏輯仍需要審查。',
+      safetyExisting: '- source-backed 既有變數初始化會產生受控或進階安裝操作；讀取 / 寫入只作影響預覽。',
       safetyDelete: '- 刪除變數只會產生手動審查；必須先檢查所有讀取、寫入與定義。',
       safetyQuality: '- quality 檔因專案慣例差異，先產生為手動審查內容。',
-      manualExisting: '修改初始化或 quality metadata 前，請先審查這個既有變數。',
+      manualExisting: '這個既有變數沒有找到 source-backed 初始化位置。',
       manualDelete: '刪除這個變數前，請先審查所有 source-backed 定義與消費處。',
       noop: '沒有產生變數變更。'
     }
@@ -264,13 +264,14 @@
 
   function draftFromVariable(variable, projectIndex) {
     const item = normalizeVariable(variable || {});
+    const initial = initialValueFromVariable(item);
     return normalizeDraft({
       id: item.name ? 'edit_' + safeId(item.name) : 'edit_variable',
       title: item.name ? 'Edit ' + item.name : 'Edit Variable',
       mode: 'edit_existing',
       variableName: item.name,
       label: labelFromName(item.name),
-      initialValue: '',
+      initialValue: initial,
       valueType: 'number',
       description: '',
       includeRootInit: false,
@@ -444,14 +445,15 @@
       });
     } else {
       const existing = findVariable(projectIndex, draft.variableName);
-      operations.push({
-        id: 'variable_existing_review',
+      const operation = existingVariableEditOperation(draft, existing);
+      operations.push(operation || {
+        id: 'variable_existing_mapping_bug',
         type: 'manual_snippet',
         path: existingSourcePath(existing) || 'source/scenes/root.scene.dry',
         content: existingVariableNotes(draft, existing),
         safety: 'manual_review',
-        role: 'variable.existing_review',
-        description: 'Review the existing variable source evidence before changing initialization or gameplay logic.'
+        role: 'variable.existing_mapping_bug',
+        description: 'No source-backed variable initializer could be mapped to an installable operation.'
       });
     }
     if (!operations.length) {
@@ -556,6 +558,73 @@
       });
     }
     return rows.join('\n') + '\n';
+  }
+
+  function existingVariableEditOperation(draftInput, existing) {
+    const draft = normalizeDraft(draftInput);
+    const source = editableVariableSource(existing);
+    const before = String(source && source.text || '').trim();
+    const after = replaceVariableInitialValue(before, draft.variableName, literalValue(draft));
+    if (!source || !source.path || !source.line || !before || !after || before === after) {
+      return null;
+    }
+    return {
+      id: 'variable_existing_init',
+      type: 'replace_text',
+      path: source.path,
+      line: source.line,
+      search: before,
+      replace: after,
+      safety: safetyForVariableSource(source.path),
+      role: 'variable.existing_init',
+      description: 'Replace source-backed Q.' + draft.variableName + ' initialization after showing read/write impact.'
+    };
+  }
+
+  function editableVariableSource(variable) {
+    const refs = ensureArray(variable && variable.definedIn)
+      .concat(ensureArray(variable && variable.writes))
+      .map(normalizeSourceRef)
+      .filter((source) => source.path && source.line);
+    return refs.find((source) => source.text && /Q\.[A-Za-z_][A-Za-z0-9_]*\s*=/.test(source.text)) ||
+      refs.find((source) => source.text) ||
+      null;
+  }
+
+  function replaceVariableInitialValue(sourceText, variableName, literal) {
+    const name = String(variableName || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const text = String(sourceText || '').trim();
+    const value = String(literal || '0').trim();
+    if (!name || !text || !value) {
+      return '';
+    }
+    const pattern = new RegExp('(Q\\.' + name + '\\s*=(?!=)\\s*)([^;\\}\\n]+)');
+    if (!pattern.test(text)) {
+      return '';
+    }
+    return text.replace(pattern, '$1' + value);
+  }
+
+  function initialValueFromVariable(variable) {
+    const source = editableVariableSource(variable);
+    const text = String(source && source.text || '').trim();
+    const name = String(variable && variable.name || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (!text || !name) {
+      return '';
+    }
+    const match = new RegExp('Q\\.' + name + '\\s*=(?!=)\\s*([^;\\}\\n]+)').exec(text);
+    return match ? String(match[1] || '').trim() : '';
+  }
+
+  function safetyForVariableSource(path) {
+    const rel = normalizePath(path);
+    if (rel === 'source/scenes/root.scene.dry' ||
+      rel === 'source/scenes/post_event.scene.dry' ||
+      rel === 'source/scenes/post_event_news.scene.dry' ||
+      rel === 'source/info.dry') {
+      return 'advanced_apply';
+    }
+    return 'guarded_apply';
   }
 
   function deleteVariableNotes(draft, existing, projectIndex) {

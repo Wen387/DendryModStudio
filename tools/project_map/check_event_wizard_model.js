@@ -99,6 +99,7 @@ assert(fourChoiceBundle.installNotes.includes('Export bundle files:'), 'install 
 assert(viewerHtml.includes('id="wizard-draft-file"'), 'wizard should expose an EventDraft JSON loader');
 assert(!viewerHtml.includes('value="founding_complete = 1"'), 'wizard should not hard-code a project-specific requires default');
 assert(viewerHtml.includes('id="wizard-option-count"'), 'wizard should expose a 2-4 option count control');
+assert(viewerHtml.includes('value="0" data-i18n="create.optionCount.0"'), 'wizard should expose Text Event archetype through zero choices');
 assert(viewerHtml.includes('data-option-index="3"'), 'wizard should include a fourth option editor block');
 assert(viewerHtml.includes('id="wizard-seen-flag"'), 'wizard should expose custom seen flag');
 assert(viewerHtml.includes('id="wizard-trigger-effects"'), 'wizard should expose trigger effects');
@@ -112,6 +113,7 @@ assert(viewerHtml.includes('id="wizard-patch-preview"'), 'wizard should expose p
 assert(viewerHtml.includes('id="wizard-download-plan"'), 'wizard should expose install plan download');
 assert(viewerHtml.includes('id="wizard-download-patch-preview"'), 'wizard should expose patch preview download');
 assert(wizardUi.includes('applyEventDraftToForm'), 'wizard UI should be able to load an EventDraft into the form');
+assert(wizardUi.includes("eventShape = optionCount === 0 ? 'pure_event' : 'choice_event'"), 'wizard should map zero choices to pure_event drafts');
 assert(wizardUi.includes('installChecklist'), 'wizard UI should surface install operation checklist');
 assert(wizardUi.includes('variantsToText'), 'wizard UI should contain variantsToText helper');
 assert(wizardUi.includes('function escapeAttr'), 'wizard UI should define escapeAttr for variable datalist rendering');

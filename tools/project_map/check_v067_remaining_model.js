@@ -108,7 +108,10 @@ const index = syntheticIndex(root);
 const model = appModel.buildViewModel(index);
 assert(model.lists.coverage.length >= 5, 'coverage view should include core authoring categories');
 assert(model.lists.coverage.some((row) => row.id === 'surface_text' && row.safeApplyCount === 1), 'coverage should count source-backed surface safe apply');
-assert(model.lists.coverage.some((row) => row.id === 'cards' && /manual/i.test(row.installStatus)), 'coverage should show card wiring remains manual');
+const cardsCoverageRow = model.lists.coverage.find((row) => row.id === 'cards');
+assert(cardsCoverageRow && /guarded/i.test(cardsCoverageRow.installStatus) && /ambiguous/i.test(cardsCoverageRow.remainingGap), 'coverage should show exact card wiring is guarded while ambiguous lanes remain review-only', cardsCoverageRow);
+const handsSidebarCoverageRow = model.lists.coverage.find((row) => row.id === 'hands_sidebar');
+assert(handsSidebarCoverageRow && /guarded/i.test(handsSidebarCoverageRow.installStatus) && /ambiguous/i.test(handsSidebarCoverageRow.installStatus), 'coverage should distinguish exact hand/sidebar wiring from ambiguous lanes', handsSidebarCoverageRow);
 
 const actionCard = readJson('fixtures/card_drafts/sample_action_card.json');
 const actionBundle = cardDraft.buildExportBundle(actionCard, index);

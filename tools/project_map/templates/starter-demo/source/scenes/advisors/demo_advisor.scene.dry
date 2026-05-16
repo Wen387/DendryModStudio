@@ -11,6 +11,7 @@ surface. It stays available from the hand and can be replaced with the user's
 own persistent actor.
 
 - @ask_for_help: Ask for organizing help
+- @private_counsel: Request private counsel
 - @wait_for_now: Wait for now
 
 @ask_for_help
@@ -20,12 +21,36 @@ on-arrival: {!
 Q.demo_advisor_trust = (Q.demo_advisor_trust || 0) + 1;
 Q.demo_support = (Q.demo_support || 0) + 1;
 !}
-go-to: main
 
 The advisor helps the organization turn a loose idea into a modest first step.
 
-@wait_for_now
-title: Wait for now
+- @return_ask_for_help: Continue
+
+@return_ask_for_help
 go-to: main
 
+@private_counsel
+title: Request private counsel
+subtitle: Prepare a compromise path.
+on-arrival: {!
+Q.demo_advisor_trust = (Q.demo_advisor_trust || 0) + 1;
+Q.demo_cabinet_balance = (Q.demo_cabinet_balance || 0) + 1;
+!}
+
+The advisor drafts a compromise note that can matter during the complex event
+chain.
+
+- @return_private_counsel: Continue
+
+@return_private_counsel
+go-to: main
+
+@wait_for_now
+title: Wait for now
+
 The advisor remains available while the organization keeps listening.
+
+- @return_wait_for_now: Continue
+
+@return_wait_for_now
+go-to: main

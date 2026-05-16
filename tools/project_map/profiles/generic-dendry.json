@@ -45,6 +45,23 @@
       { "tag": "entry", "pathRegex": "(^|/)root\\.scene\\.dry$" },
       { "tag": "migration", "pathRegex": "(^|/)post_event[^/]*\\.scene\\.dry$", "contentRegex": "===\\s*undefined" },
       { "tag": "conditional", "contentRegex": "\\b(view-if|choose-if)\\s*:" }
+    ],
+    "evidencePackages": [
+      {
+        "id": "monthly_popup_router",
+        "kind": "router_table",
+        "label": "Monthly popup router package",
+        "source": "news.eventPopups",
+        "routerTableId": "monthly_popup_router_table",
+        "rowKind": "monthly_popup_router",
+        "compatAlias": "monthlyPopupRouterTable",
+        "installSafety": "manual_review",
+        "reviewBoundary": "manual_review",
+        "reason": "Popup content can be opened through linked events, but the protected post-event router boundary must be reviewed separately.",
+        "recommendedNextAction": "Edit linked event content where guarded; keep router changes as explicit review evidence.",
+        "contentRoute": "linked_event",
+        "editorRoute": "object_workspace"
+      }
     ]
   },
   "diagnosticHints": [

@@ -206,7 +206,7 @@
     if (value === 'guided_only' || value === 'ide_escape_hatch') {
       return 'warning';
     }
-    if (value === 'not_started') {
+    if (value === 'not_started' || value === 'deferred') {
       return 'opaque';
     }
     return '';
@@ -843,9 +843,20 @@
       '<span><span class="primary">' + escapeHtml(item.primary) + '</span></span>',
       '<span class="secondary">' + escapeHtml(item.secondary) + '</span>',
       '<span class="meta">' + escapeHtml(item.meta) + '</span>',
-      '<span class="badge-line">' + badges + '</span>',
+      '<span class="badge-line">' + badges + visibleEditMarker(item, state) + '</span>',
       '</button>'
     ].join('');
+  }
+
+  function visibleEditMarker(item, state) {
+    const view = state && state.view || '';
+    if (!['events', 'cards', 'news', 'surfaceText', 'textCorpus', 'variables'].includes(view)) {
+      return '';
+    }
+    const ui = global.ProjectMapVisibleEditActionUi;
+    return ui && typeof ui.renderMarker === 'function'
+      ? ui.renderMarker({label: t('visibleEdit.action', 'Edit'), translate: t, escapeHtml, escapeAttr})
+      : '<span class="visible-edit-affordance" data-visible-edit-affordance="true">' + escapeHtml(t('visibleEdit.action', 'Edit')) + '</span>';
   }
 
   function badge(text, className) {
@@ -871,12 +882,12 @@
       'In Studio, manual install': t('coverage.inStudioManualInstall', 'In Studio, manual install'),
       'In Studio, wiring review': t('coverage.inStudioWiringReview', 'In Studio, wiring review'),
       'In Studio, guarded': t('coverage.inStudioGuarded', 'In Studio, guarded'),
-      'Mixed safe / IDE': t('coverage.mixedSafeIde', 'Mixed safe / IDE'),
-      'IDE guidance': t('coverage.ideGuidance', 'IDE guidance'),
+      'Mixed safe / IDE': t('coverage.mixedSafeIde', 'Mixed safe / source review'),
+      'IDE guidance': t('coverage.ideGuidance', 'Source review guidance'),
       'Picker + warnings': t('coverage.pickerWarnings', 'Picker + warnings'),
-      'Proposal + IDE guidance': t('coverage.proposalIdeGuidance', 'Proposal + IDE guidance'),
+      'Proposal + IDE guidance': t('coverage.proposalIdeGuidance', 'Proposal + source review guidance'),
       'Guided review only': t('coverage.guidedReviewOnly', 'Guided review only'),
-      'IDE escape hatch': t('coverage.ideEscapeHatch', 'IDE escape hatch'),
+      'IDE escape hatch': t('coverage.ideEscapeHatch', 'Source mapping needed'),
       'Not started': t('coverage.notStarted', 'Not started'),
       image: t('assets.type.image', 'image'),
       audio: t('assets.type.audio', 'audio'),
@@ -904,6 +915,7 @@
       unknown: t('assets.referenceState.unknown', 'unknown'),
       text_proposal: t('textCorpus.editability.textProposal', 'text proposal'),
       draft_extractable: t('textCorpus.editability.draftExtractable', 'draft extractable'),
+      source_patch: t('textCorpus.editability.sourcePatch', 'Studio source patch'),
       body: t('textCorpus.role.body', 'body'),
       heading: t('textCorpus.role.heading', 'heading'),
       title: t('textCorpus.role.title', 'title'),
@@ -915,7 +927,7 @@
       news_description: t('textCorpus.role.newsDescription', 'news description'),
       monthly_popup_excerpt: t('textCorpus.role.monthlyPopupExcerpt', 'monthly popup excerpt'),
       surface_label: t('textCorpus.role.surfaceLabel', 'surface label'),
-      ide_escape_hatch: t('coverage.ideEscapeHatch', 'IDE escape hatch')
+      ide_escape_hatch: t('coverage.ideEscapeHatch', 'Source mapping needed')
     };
     if (value.startsWith('no-code ')) {
       return t('coverage.noCode', 'no-code') + ' ' + value.slice('no-code '.length);

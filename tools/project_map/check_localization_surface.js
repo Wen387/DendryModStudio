@@ -310,7 +310,7 @@ function tagForId(id) {
   ['design zoom controls aria', 'data-i18n-aria-label="design.zoomControls"'],
   ['design inspector aria', 'data-i18n-aria-label="design.inspectorAria"'],
   ['install operation review aria', 'data-i18n-aria-label="install.operationReviewAria"'],
-  ['install patch preview aria', 'data-i18n-aria-label="install.patchPreviewAria"'],
+  ['install diff preview aria', 'data-i18n-aria-label="install.diffPreviewAria"'],
   ['runtime preview aria', 'data-i18n-aria-label="install.runtimePreviewAria"'],
   ['install result aria', 'data-i18n-aria-label="install.resultAria"'],
   ['create template aria', 'data-i18n-aria-label="create.templateAria"'],

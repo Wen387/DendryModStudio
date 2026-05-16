@@ -44,13 +44,32 @@ function syntheticIndex() {
       optionFixture(eventPath, 18, 'ignore', 'Ignore it.'),
       optionFixture(eventPath, 20, 'debate', 'Hold a debate.')
     ],
-    assetRefs: [{path: 'img/events/all_quiet.png', type: 'image', label: 'All Quiet poster', role: 'event_illustration'}],
+    assetRefs: [
+      {path: 'img/events/all_quiet.png', type: 'image', label: 'All Quiet poster', role: 'event_illustration'},
+      {
+        path: 'img/portraits/all_quiet_speaker.png',
+        type: 'image',
+        label: 'All Quiet speaker',
+        directive: 'face-image',
+        confidence: 'exact',
+        source: {
+          path: eventPath,
+          line: 6,
+          startLine: 6,
+          endLine: 6,
+          anchorText: 'face-image: img/portraits/all_quiet_speaker.png',
+          endAnchorText: 'face-image: img/portraits/all_quiet_speaker.png'
+        }
+      },
+      {directive: 'card-image', label: 'Missing path'}
+    ],
     sourceSpan: {path: eventPath, startLine: 1, endLine: 80},
     metadata: {
       viewIf: {path: eventPath, line: 3}
     }
   };
   eventScene.options[0].chooseIf = 'public_order >= 0';
+  eventScene.options[0].metadata = {chooseIf: {path: eventPath, line: 13}};
   const cardScene = {
     id: 'agricultural_policy',
     title: 'Agricultural Policy',
@@ -125,6 +144,14 @@ function syntheticIndex() {
             editability: 'text_proposal',
             owner: {kind: 'scene', sceneId: 'all_quiet', sectionId: 'ban'},
             source: {path: eventScene.path, line: 22}
+          },
+          {
+            id: 'all_quiet_trigger_script',
+            text: 'on-arrival: all_quiet_seen = 1',
+            role: 'script',
+            editability: 'ide_escape_hatch',
+            owner: {kind: 'scene', sceneId: 'all_quiet', sectionId: ''},
+            source: {path: eventScene.path, line: 10, anchorText: 'on-arrival: all_quiet_seen = 1', endAnchorText: 'on-arrival: all_quiet_seen = 1'}
           },
           {
             id: 'all_quiet_effect_script',
@@ -541,6 +568,51 @@ assert(eventModel.kind === 'existing_scene_edit_model', 'event edit model should
 assert(eventModel.sceneId === 'all_quiet', 'event edit model should keep scene id');
 assert(eventModel.sceneKind === 'event', 'event edit model should classify events');
 assert(eventModel.source.path === 'source/scenes/events/all_quiet.scene.dry', 'event edit model should keep source path');
+const conditionField = eventModel.fields.find((field) => field.role === 'condition' && field.label === 'Appearance condition');
+assert(conditionField, 'event edit model should expose the appearance condition field');
+const impossibleMonthIndex = syntheticIndex();
+impossibleMonthIndex.scenes[0].viewIf = 'year = 1930 and month >= 5 and month <= 3 and all_quiet_seen = 0';
+const impossibleMonthModel = existingEdit.buildEditModel(impossibleMonthIndex, 'events', 'all_quiet');
+assert(impossibleMonthModel.diagnostics.some((diag) => diag.code === 'existing_scene_edit.impossible_month_window'), 'existing edit model should warn when an indexed event has an impossible month window');
+const sectionMonthIndex = syntheticIndex();
+sectionMonthIndex.scenes[0].sections = [{
+  id: 'all_quiet.autumn',
+  viewIf: 'month >= 9 and month <= 2'
+}];
+const sectionMonthModel = existingEdit.buildEditModel(sectionMonthIndex, 'events', 'all_quiet');
+assert(sectionMonthModel.diagnostics.some((diag) => (
+  diag.code === 'existing_scene_edit.impossible_month_window' &&
+  diag.message.includes('Section condition: autumn')
+)), 'existing edit model should warn when a section viewIf has an impossible month window');
+const sectionChoiceMonthIndex = syntheticIndex();
+sectionChoiceMonthIndex.scenes[0].sections = [{
+  id: 'all_quiet.vote',
+  chooseIf: 'month >= 9 and month <= 2'
+}];
+const sectionChoiceMonthModel = existingEdit.buildEditModel(sectionChoiceMonthIndex, 'events', 'all_quiet');
+assert(sectionChoiceMonthModel.diagnostics.some((diag) => (
+  diag.code === 'existing_scene_edit.impossible_month_window' &&
+  diag.message.includes('Section choice condition: vote')
+)), 'existing edit model should warn when a section chooseIf has an impossible month window');
+const optionMonthIndex = syntheticIndex();
+optionMonthIndex.scenes[0].options[0].chooseIf = 'month >= 9 and month <= 2';
+const optionMonthModel = existingEdit.buildEditModel(optionMonthIndex, 'events', 'all_quiet');
+assert(optionMonthModel.diagnostics.some((diag) => (
+  diag.code === 'existing_scene_edit.impossible_month_window' &&
+  diag.message.includes('Choice condition: Ban the film')
+)), 'existing edit model should label option chooseIf impossible month diagnostics');
+const impossibleMonthProposal = existingEdit.buildProposal(eventModel, {
+  [conditionField.id]: 'year = 1930 and month >= 5 and month <= 3 and all_quiet_seen = 0'
+});
+assert(impossibleMonthProposal.diagnostics.some((diag) => diag.code === 'existing_scene_edit.impossible_month_window'), 'existing edit proposal should warn when a condition edit creates an impossible month window');
+const exactCollisionProposal = existingEdit.buildProposal(eventModel, {
+  [conditionField.id]: 'month = 3 and month == 4'
+});
+assert(exactCollisionProposal.diagnostics.some((diag) => diag.message.includes('multiple values')), 'existing edit proposal should warn when a condition edit sets month to multiple exact values');
+const outOfRangeProposal = existingEdit.buildProposal(eventModel, {
+  [conditionField.id]: 'month <= 13'
+});
+assert(outOfRangeProposal.diagnostics.some((diag) => diag.message.includes('between 1 and 12')), 'existing edit proposal should warn when a condition edit places month outside the supported range');
 assert(eventModel.fields.some((field) => field.role === 'body' && field.original.includes('film arrives')), 'event model should expose body prose');
 assert(eventModel.fields.some((field) => field.role === 'option_label' && field.original === 'Ban the film'), 'event model should expose option label text');
 assert(eventModel.textBlocks.some((block) => block.role === 'section_text' && block.original.includes('film arrives')), 'event model should expose source-backed section text blocks');
@@ -557,7 +629,17 @@ assert(effectField, 'event model should expose simple Q effects as editable fiel
 assert(effectField.editability === 'guarded_replace_text', 'simple source-backed Q effect should be guarded');
 assert(eventModel.options.length === 4, 'event model should preserve all event options');
 assert(eventModel.effects.length >= 1, 'event model should expose read-only effect summaries');
-assert(eventModel.assets.length === 1, 'event model should preserve asset refs');
+assert(eventModel.assets.length === 2, 'event model should preserve asset refs with paths');
+assert(eventModel.assets.some((asset) => asset.path === 'img/events/all_quiet.png' && asset.role === 'event_illustration'), 'event model should preserve unsupported asset directives as model assets');
+const assetReferenceFields = eventModel.fields.filter((field) => field.role === 'asset_reference');
+const portraitAssetField = assetReferenceFields.find((field) => field.original === 'face-image: img/portraits/all_quiet_speaker.png');
+assert(portraitAssetField, 'event model should expose supported source-backed asset refs as editable fields');
+assert(portraitAssetField.label === 'Portrait image', 'asset reference field should keep the face-image label');
+assert(portraitAssetField.source.line === 6 && portraitAssetField.source.anchorText === 'face-image: img/portraits/all_quiet_speaker.png', 'asset reference field should keep source line and anchor');
+assert(portraitAssetField.sourcePath === 'source/scenes/events/all_quiet.scene.dry', 'asset reference field should keep sourcePath from source evidence');
+assert(portraitAssetField.editability === 'guarded_replace_text', 'source-backed asset reference should be guarded');
+assert(!assetReferenceFields.some((field) => field.original.includes('all_quiet.png')), 'unsupported asset directive should not produce an editable asset field');
+assert(!assetReferenceFields.some((field) => field.label === 'Missing path'), 'asset refs without a path should not produce editable asset fields');
 
 const eventProposal = existingEdit.buildProposal(eventModel, {
   all_quiet_body_1: 'The film arrives with a public silence heavier than the posters.',
@@ -584,37 +666,103 @@ assert(bundle.previewText.includes('Modify existing Event'), 'bundle preview tex
 assert(bundle.proposalText.includes('Before:'), 'bundle proposal text should include before text');
 assert(bundle.proposalText.includes('After:'), 'bundle proposal text should include after text');
 
+const sharedEffectIndex = syntheticIndex();
+const sharedEffectLine = 'Q.public_order += 1; Q.stability += 1;';
+const sharedEffectRows = sharedEffectIndex.semantic.textCorpus.items;
+const sharedPublicOrder = sharedEffectRows.find((item) => item.id === 'all_quiet_effect_script');
+sharedPublicOrder.source = Object.assign({}, sharedPublicOrder.source, {
+  anchorText: sharedEffectLine,
+  endAnchorText: sharedEffectLine
+});
+sharedEffectRows.push({
+  id: 'all_quiet_effect_script_stability',
+  text: 'Q.stability += 1;',
+  role: 'script',
+  editability: 'ide_escape_hatch',
+  owner: {kind: 'scene', sceneId: 'all_quiet', sectionId: 'ban'},
+  source: {path: eventModel.source.path, line: 31, anchorText: sharedEffectLine, endAnchorText: sharedEffectLine}
+});
+const sharedEffectModel = existingEdit.buildEditModel(sharedEffectIndex, 'events', 'all_quiet');
+const sharedEffectField = sharedEffectModel.fields.find((field) => field.role === 'effect' && field.original === 'Q.public_order += 1');
+assert(sharedEffectField, 'shared-line event model should expose the original effect field');
+assert(sharedEffectField.sharedSourceLine === true, 'co-located effects should carry shared source-line evidence');
+assert(sharedEffectField.sourceLineEffectCount === 2, 'shared effect fields should count adjacent source-line effects');
+assert(sharedEffectField.editability === 'guarded_replace_text', 'co-located effects with a unique token should keep guarded apply');
+assert(sharedEffectField.sourceLineSafety === 'shared_line_exact_token_guarded', 'co-located effect safety should name the shared-line guarded boundary');
+assert(sharedEffectField.reason.includes('shares a source line'), 'shared effect field should explain the shared-line boundary');
+
+const duplicateEffectIndex = syntheticIndex();
+const duplicateEffectLine = 'Q.public_order += 1; Q.public_order += 1;';
+const duplicatePublicOrder = duplicateEffectIndex.semantic.textCorpus.items.find((item) => item.id === 'all_quiet_effect_script');
+duplicatePublicOrder.source = Object.assign({}, duplicatePublicOrder.source, {
+  anchorText: duplicateEffectLine,
+  endAnchorText: duplicateEffectLine
+});
+const duplicateEffectModel = existingEdit.buildEditModel(duplicateEffectIndex, 'events', 'all_quiet');
+const duplicateEffectField = duplicateEffectModel.fields.find((field) => field.role === 'effect' && field.original === 'Q.public_order += 1');
+assert(duplicateEffectField, 'duplicate-token event model should expose the original effect field');
+assert(duplicateEffectField.sharedSourceLine === true, 'duplicate-token effects should carry shared source-line evidence');
+assert(duplicateEffectField.editability === 'advanced_source_patch', 'duplicate-token effects should use source slice advanced apply because the search token is ambiguous');
+assert(duplicateEffectField.sourceLineSafety === 'whole_line_advanced_source_patch', 'duplicate-token effect safety should name the whole-line advanced boundary');
+
 const addOptionField = eventModel.fields.find((field) => field.id === 'structure_add_option');
+const addBranchField = eventModel.fields.find((field) => field.id === 'structure_add_branch');
 const addTriggerEffectField = eventModel.fields.find((field) => field.id === 'structure_add_trigger_effect');
 const addOptionEffectField = eventModel.fields.find((field) => field.id === 'structure_add_option_effect_ban');
 const removeOptionField = eventModel.fields.find((field) => field.id === 'structure_remove_option_ban');
 const removePrereqField = eventModel.fields.find((field) => field.id === 'structure_remove_option_condition_ban');
 const removeEffectField = eventModel.fields.find((field) => field.id.startsWith('structure_remove_effect_') && field.label.includes('Q.public_order += 1'));
 assert(addOptionField && addOptionField.inputType === 'textarea', 'existing editor should expose an add-option structural action');
+assert(addOptionField.editability === 'guarded_apply', 'root add-option structural actions should advertise guarded apply when the insert anchor is exact');
+assert(addOptionField.structureSourceBlock && addOptionField.structureSourceBlock.kind === 'root_option_insert_anchor', 'root add-option structural actions should carry source block insert evidence');
+assert(addBranchField && addBranchField.inputType === 'textarea', 'existing editor should expose an add-branch structural action');
+assert(addBranchField.editability === 'advanced_source_patch', 'source-backed add-branch should advertise advanced source apply when a graph-backed insert anchor exists');
+assert(addBranchField.structureSourceBlock && addBranchField.structureSourceBlock.kind === 'branch_insert_anchor', 'source-backed add-branch should carry branch insert evidence');
 assert(addTriggerEffectField && addTriggerEffectField.role === 'effect', 'existing editor should expose an add trigger effect action');
+assert(addTriggerEffectField.editability === 'guarded_apply', 'source-backed trigger effects should advertise guarded apply when an on-arrival insert anchor is exact');
 assert(addOptionEffectField && addOptionEffectField.optionId === 'ban', 'existing editor should expose add option effect actions');
+assert(addOptionEffectField.editability === 'guarded_apply', 'source-backed add option effect actions should advertise guarded apply when the insert anchor is exact');
 assert(removeOptionField && removeOptionField.inputType === 'checkbox', 'existing editor should expose explicit option removal');
 assert(removePrereqField && removePrereqField.inputType === 'checkbox', 'existing editor should expose explicit prerequisite removal');
+assert(removePrereqField.editability === 'guarded_apply', 'source-backed option prerequisite removal should advertise guarded apply when the choose-if line is exact');
 assert(removeEffectField && removeEffectField.inputType === 'checkbox', 'existing editor should expose explicit effect removal');
+assert(removeEffectField.editability === 'guarded_apply', 'single-line source-backed effect removals should advertise guarded apply');
 const structureProposal = existingEdit.buildProposal(eventModel, {
-  [addOptionField.id]: '- @public_meeting: Hold a public meeting.\\n# public_meeting\\nThe public meeting reframes the controversy.',
+  [addOptionField.id]: '- @public_meeting: Hold a public meeting.\n# public_meeting\nThe public meeting reframes the controversy.',
+  [addBranchField.id]: '# late_warning\n[? if public_order >= 2 : Public order is under strain. ?]',
   [addTriggerEffectField.id]: 'Q.public_order += 2',
   [addOptionEffectField.id]: 'Q.public_order -= 1',
   [removeOptionField.id]: 'true',
   [removePrereqField.id]: 'true',
   [removeEffectField.id]: 'true'
 });
-assert(structureProposal.changes.length === 6, 'structural edits should become proposal changes');
-assert(structureProposal.changes.filter((change) => change.editability === 'manual_review').length === 5, 'broad structural edits should stay manual-review');
+assert(structureProposal.changes.length === 8, 'structural edits should become proposal changes, including source-backed bundle deletes');
+assert(structureProposal.changes.filter((change) => change.editability === 'manual_review').length === 0, 'source-backed structural inserts/effects/deletes/condition removals should become guarded or advanced instead of fake manual review');
+assert(structureProposal.changes.some((change) => change.fieldId === addOptionField.id && change.editability === 'guarded_apply' && change.operationType === 'insert_text' && change.after.includes('@public_meeting')), 'simple root add-option proposals should become guarded source inserts');
+assert(structureProposal.changes.some((change) => change.fieldId === addBranchField.id && change.editability === 'advanced_source_patch' && change.operationType === 'insert_text' && change.after.includes('@late_warning')), 'simple source-backed add-branch proposals should become advanced source inserts');
+assert(structureProposal.changes.some((change) => change.fieldId === addTriggerEffectField.id && change.editability === 'guarded_apply' && change.operationType === 'replace_text' && change.before === 'on-arrival: all_quiet_seen = 1' && change.after.includes('public_order += 2')), 'simple source-backed trigger effects should append to existing on-arrival lines');
 assert(structureProposal.changes.some((change) => change.fieldId === addOptionEffectField.id && change.editability === 'guarded_apply' && change.operationType === 'insert_text'), 'simple source-backed option effects should become guarded source inserts');
-assert(structureProposal.changes.some((change) => change.after.includes('Add option and result layer proposal')), 'add-option proposal should explain the structural insertion');
-assert(structureProposal.changes.some((change) => change.after.includes('Remove option: Ban the film')), 'remove-option proposal should explain structural deletion');
-assert(structureProposal.changes.some((change) => change.before.includes('public_order >= 0') && change.after.includes('Remove prerequisite')), 'remove-prerequisite proposal should carry the deleted condition');
-assert(structureProposal.changes.some((change) => change.before.includes('Q.public_order += 1') && change.after.includes('Remove effect')), 'remove-effect proposal should carry the deleted effect');
+assert(structureProposal.changes.some((change) => change.fieldId === removePrereqField.id && change.editability === 'guarded_apply' && change.operationType === 'replace_text' && change.before === 'choose-if: public_order >= 0' && change.after === '' && change.allowEmptyReplace), 'source-backed option prerequisite removal should become a guarded empty replace_text');
+assert(structureProposal.changes.some((change) => change.fieldId === removeEffectField.id && change.editability === 'guarded_apply' && change.operationType === 'replace_text' && change.after === '' && change.allowEmptyReplace), 'single-line source-backed effect removals should become guarded empty replacements');
+assert(structureProposal.changes.some((change) => change.fieldId === removeOptionField.id && change.editability === 'advanced_source_patch' && change.operationType === 'replace_text' && change.after === ''), 'source-backed option removal should delete the option line as an advanced patch');
+assert(structureProposal.changes.some((change) => change.fieldId === removeOptionField.id + '__section' && change.editability === 'advanced_source_patch' && change.operationType === 'replace_section' && change.after === ''), 'source-backed option removal should delete the local result section as an advanced patch');
+assert(structureProposal.changes.some((change) => change.before.includes('public_order >= 0') && change.after === ''), 'remove-prerequisite proposal should carry the deleted condition');
+assert(structureProposal.changes.some((change) => change.before.includes('Q.public_order += 1') && change.after === ''), 'remove-effect proposal should carry the deleted effect');
 const structureBundle = existingEdit.buildExportBundle(structureProposal, index);
-assert(structureBundle.installPlan.operations.filter((op) => op.type === 'manual_snippet').length === 5, 'broad structural changes should produce manual review snippets');
+assert(structureBundle.installPlan.operations.filter((op) => op.type === 'manual_snippet').length === 0, 'source-backed structural changes should avoid fake manual snippets');
+assert(structureBundle.installPlan.operations.some((op) => op.type === 'insert_text' && op.safety === 'guarded_apply' && op.content.includes('@public_meeting')), 'simple root add-option proposals should produce guarded install operations');
+assert(structureBundle.installPlan.operations.some((op) => op.type === 'insert_text' && op.safety === 'advanced_apply' && op.content.includes('@late_warning')), 'simple source-backed add-branch proposals should produce advanced install operations');
+assert(structureBundle.installPlan.operations.some((op) => op.type === 'replace_text' && op.safety === 'guarded_apply' && op.search === 'on-arrival: all_quiet_seen = 1' && op.replace.includes('public_order += 2')), 'simple trigger effect insertion should produce a guarded on-arrival replacement operation');
 assert(structureBundle.installPlan.operations.some((op) => op.type === 'insert_text' && op.safety === 'guarded_apply' && op.content.includes('Q.public_order -= 1')), 'simple source-backed option-effect insertion should produce a guarded install operation');
+assert(structureBundle.installPlan.operations.some((op) => op.type === 'replace_text' && op.safety === 'guarded_apply' && op.search === 'choose-if: public_order >= 0' && op.replace === ''), 'source-backed prerequisite removal should produce a guarded empty replace_text operation');
+assert(structureBundle.installPlan.operations.some((op) => op.type === 'replace_text' && op.safety === 'guarded_apply' && op.search === 'Q.public_order += 1;' && op.replace === ''), 'single-line source-backed effect removal should produce a guarded empty replace_text operation');
+assert(structureBundle.installPlan.operations.some((op) => op.type === 'replace_text' && op.safety === 'advanced_apply' && op.search.includes('@ban') && op.replace === ''), 'source-backed option removal should produce an advanced empty replace_text operation');
+assert(structureBundle.installPlan.operations.some((op) => op.type === 'replace_section' && op.safety === 'advanced_apply' && op.allowEmptyReplace), 'source-backed option removal should produce an advanced empty replace_section operation');
 assert(structureBundle.proposalText.includes('Add trigger effect'), 'structural proposal preview should include effect creation');
+const unsafeBranchProposal = existingEdit.buildProposal(eventModel, {
+  [addBranchField.id]: '# q_prefixed_branch\n[? if Q.public_order >= 2 : This source-invalid branch should not auto-apply. ?]'
+});
+assert(unsafeBranchProposal.changes.some((change) => change.fieldId === addBranchField.id && change.editability === 'manual_review' && change.operationType === 'manual_snippet'), 'Q-prefixed branch conditions should fall back to manual review instead of producing invalid source');
 const singleLineEffectModel = Object.assign({}, eventModel, {
   fields: [{
     id: 'structure_add_option_effect_inline',
@@ -634,6 +782,62 @@ assert(singleLineEffectProposal.changes[0].after === 'on-arrival: rfb_banned = 1
 const singleLineEffectBundle = existingEdit.buildExportBundle(singleLineEffectProposal, index);
 assert(singleLineEffectBundle.installPlan.operations[0].type === 'replace_text' && singleLineEffectBundle.installPlan.operations[0].safety === 'guarded_apply', 'single-line on-arrival option effects should become guarded replace_text operations');
 
+const removeSharedLineEffectModel = Object.assign({}, eventModel, {
+  fields: [{
+    id: 'structure_remove_effect_inline',
+    role: 'effect',
+    label: 'Remove effect: Q.public_order += 1',
+    transform: 'structure_action',
+    structureAction: 'remove_effect',
+    structureBefore: 'Q.public_order += 1',
+    structureSourceExpression: 'public_order += 1',
+    inputType: 'checkbox',
+    source: {
+      path: eventModel.source.path,
+      line: 51,
+      startLine: 51,
+      endLine: 51,
+      anchorText: 'on-arrival: public_order += 1; stability += 1',
+      endAnchorText: 'on-arrival: public_order += 1; stability += 1'
+    }
+  }]
+});
+const removeSharedLineEffectProposal = existingEdit.buildProposal(removeSharedLineEffectModel, {
+  structure_remove_effect_inline: 'true'
+});
+assert(removeSharedLineEffectProposal.changes[0].operationType === 'replace_text', 'shared-line on-arrival effect removal should use guarded line replacement');
+assert(removeSharedLineEffectProposal.changes[0].after === 'on-arrival: stability += 1', 'shared-line on-arrival effect removal should remove only the selected clause');
+const removeSharedLineEffectBundle = existingEdit.buildExportBundle(removeSharedLineEffectProposal, index);
+assert(removeSharedLineEffectBundle.installPlan.operations[0].type === 'replace_text' && removeSharedLineEffectBundle.installPlan.operations[0].safety === 'guarded_apply', 'shared-line on-arrival effect removal should become a guarded replace_text operation');
+
+const removeSingleOnArrivalEffectModel = Object.assign({}, eventModel, {
+  fields: [{
+    id: 'structure_remove_effect_single_inline',
+    role: 'effect',
+    label: 'Remove effect: Q.public_order += 1',
+    transform: 'structure_action',
+    structureAction: 'remove_effect',
+    structureBefore: 'Q.public_order += 1',
+    structureSourceExpression: 'public_order += 1',
+    inputType: 'checkbox',
+    source: {
+      path: eventModel.source.path,
+      line: 52,
+      startLine: 52,
+      endLine: 52,
+      anchorText: 'on-arrival: public_order += 1',
+      endAnchorText: 'on-arrival: public_order += 1'
+    }
+  }]
+});
+const removeSingleOnArrivalEffectProposal = existingEdit.buildProposal(removeSingleOnArrivalEffectModel, {
+  structure_remove_effect_single_inline: 'true'
+});
+assert(removeSingleOnArrivalEffectProposal.changes[0].operationType === 'replace_text', 'single-clause on-arrival effect removal should use guarded line replacement');
+assert(removeSingleOnArrivalEffectProposal.changes[0].after === '' && removeSingleOnArrivalEffectProposal.changes[0].allowEmptyReplace, 'single-clause on-arrival effect removal should allow an empty replacement');
+const removeSingleOnArrivalEffectBundle = existingEdit.buildExportBundle(removeSingleOnArrivalEffectProposal, index);
+assert(removeSingleOnArrivalEffectBundle.installPlan.operations[0].type === 'replace_text' && removeSingleOnArrivalEffectBundle.installPlan.operations[0].replace === '', 'single-clause on-arrival effect removal should become a guarded empty replace_text operation');
+
 const complexModel = existingEdit.buildEditModel(index, 'events', 'civil_war');
 assert(complexModel.ok, 'single composite event model should build: ' + JSON.stringify(complexModel.diagnostics));
 assert(complexModel.options.length === 2, 'single composite event should expose section-owned options');
@@ -644,6 +848,8 @@ assert(nakedOption && nakedOption.label === 'Ask the Army command for backing.' 
 assert(complexModel.flow && complexModel.flow.summary.sectionCount >= 4, 'single composite event should expose a source-backed internal flow summary');
 assert(complexModel.flow.summary.optionEdgeCount === 2, 'flow summary should count section-owned option edges');
 assert(complexModel.flow.summary.conditionalRouteCount >= 1, 'flow summary should count conditional section routes');
+const warOutcomeRouteEdge = complexModel.flow.edges.find((edge) => edge.from === 'civil_war.war_outcome' && edge.rawTarget === 'defeat' && edge.kind === 'conditional_route');
+assert(warOutcomeRouteEdge && warOutcomeRouteEdge.source && warOutcomeRouteEdge.source.line === 22, 'flow route edges should reuse editable route source evidence');
 assert(complexModel.fields.some((field) => field.role === 'condition' && field.sectionId === 'civil_war.war_outcome' && field.original === 'war_choices >= 2'), 'section view-if should be exposed as editable logic context');
 assert(complexModel.fields.some((field) => field.id === 'structure_add_branch'), 'single composite event should expose add-layer structure action');
 const sectionGotoField = complexModel.fields.find((field) => field.role === 'route' && field.sectionId === 'civil_war.war_outcome' && field.original === 'defeat');
@@ -653,6 +859,73 @@ const complexProposal = existingEdit.buildProposal(complexModel, {
 });
 const complexBundle = existingEdit.buildExportBundle(complexProposal, index);
 assert(complexBundle.installPlan.operations.some((op) => op.line === 22 && op.search === 'defeat if total_defeat = 1' && op.replace === 'stalemate if total_defeat = 1'), 'conditional section go-to edit should preserve the predicate in a guarded replace_text operation');
+
+const sectionPrereqPath = 'source/scenes/events/section_prereq.scene.dry';
+const sectionPrereqLine = 'choose-if: public_order >= 2';
+index.scenes.push({
+  id: 'section_prereq',
+  title: 'Section Prerequisite',
+  path: sectionPrereqPath,
+  type: 'event',
+  tags: ['event'],
+  flags: {isCard: false, isPinnedCard: false},
+  routes: {goTo: [{id: 'menu', raw: 'menu'}]},
+  options: [],
+  sections: [
+    {
+      id: 'section_prereq.menu',
+      title: 'Menu',
+      sourceSpan: {path: sectionPrereqPath, startLine: 10, endLine: 14},
+      metadata: {$file: sectionPrereqPath, $line: 10},
+      routes: {},
+      options: [{
+        target: {id: 'open_gate'},
+        title: 'Open the gated path.',
+        sourceSpan: {
+          path: sectionPrereqPath,
+          line: 12,
+          startLine: 12,
+          endLine: 12,
+          anchorText: '- @open_gate: Open the gated path.',
+          endAnchorText: '- @open_gate: Open the gated path.'
+        }
+      }]
+    },
+    {
+      id: 'section_prereq.open_gate',
+      title: 'Gated Path',
+      chooseIf: 'public_order >= 2',
+      sourceSpan: {path: sectionPrereqPath, startLine: 20, endLine: 24},
+      metadata: {
+        $file: sectionPrereqPath,
+        $line: 20,
+        chooseIf: {path: sectionPrereqPath, line: 21, anchorText: sectionPrereqLine, endAnchorText: sectionPrereqLine}
+      },
+      routes: {},
+      options: []
+    }
+  ],
+  sourceSpan: {path: sectionPrereqPath, startLine: 1, endLine: 30},
+  topLevelSpan: {path: sectionPrereqPath, startLine: 1, endLine: 9},
+  metadata: {title: {path: sectionPrereqPath, line: 1}},
+  assetRefs: []
+});
+index.semantic.events.push({id: 'section_prereq', title: 'Section Prerequisite', path: sectionPrereqPath, confidence: 'exact'});
+const sectionPrereqModel = existingEdit.buildEditModel(index, 'events', 'section_prereq');
+assert(sectionPrereqModel.ok, 'section prerequisite fixture should build: ' + JSON.stringify(sectionPrereqModel.diagnostics));
+const sectionPrereqOption = sectionPrereqModel.options.find((option) => option.rawTargetId === 'open_gate');
+assert(sectionPrereqOption && sectionPrereqOption.sectionChooseIf === 'public_order >= 2', 'target section choose-if should be attached to the owning option row');
+const sectionPrereqField = sectionPrereqModel.fields.find((field) => field.structureAction === 'remove_option_condition' && field.optionId === 'menu__open_gate');
+assert(sectionPrereqField, 'target section choose-if should expose a remove-prerequisite structure action');
+assert(sectionPrereqField.editability === 'advanced_source_patch', 'target section choose-if removal should be advanced source-backed instead of fake manual review');
+assert(sectionPrereqField.source && sectionPrereqField.source.line === 21, 'target section choose-if removal should keep exact source line evidence');
+assert(sectionPrereqField.structureSourceBlock && sectionPrereqField.structureSourceBlock.conditionScope === 'target_section_choose_if', 'target section choose-if removal should keep section-scope evidence');
+const sectionPrereqProposal = existingEdit.buildProposal(sectionPrereqModel, {
+  [sectionPrereqField.id]: 'true'
+});
+assert(sectionPrereqProposal.changes.some((change) => change.fieldId === sectionPrereqField.id && change.editability === 'advanced_source_patch' && change.operationType === 'replace_text' && change.before === sectionPrereqLine && change.after === '' && change.allowEmptyReplace), 'target section choose-if removal should become an advanced empty replace_text change');
+const sectionPrereqBundle = existingEdit.buildExportBundle(sectionPrereqProposal, index);
+assert(sectionPrereqBundle.installPlan.operations.some((op) => op.type === 'replace_text' && op.safety === 'advanced_apply' && op.search === sectionPrereqLine && op.replace === ''), 'target section choose-if removal should produce an advanced empty replace_text operation');
 
 const laborModel = existingEdit.buildEditModel(index, 'events', 'labor_unrest');
 assert(laborModel.ok, 'labor unrest model should build: ' + JSON.stringify(laborModel.diagnostics));
@@ -674,6 +947,10 @@ assert(stresemannBranch && stresemannBranch.conditions.length === 2, 'inline con
 assert(stresemannBranch.conditionVariables.includes('dvp_leader'), 'conditional branch text should expose the variable it consumes');
 assert(stresemannBranch.logicContext && stresemannBranch.logicContext.reads.includes('dvp_leader'), 'conditional branch text should carry logic context for the editor');
 assert(stresemannBranch.conditionalAlternatives && stresemannBranch.conditionalAlternatives.length === 2, 'standalone conditional alternatives should remain inspectable as separate alternatives');
+assert(stresemannBranch.conditionalAlternatives.every((item) => item.condition && item.text && item.source && item.source.path === stresemannPath && item.source.line), 'conditional alternatives should preserve condition/text/source path/source line in the edit model');
+const stresemannAssetField = stresemannModel.fields.find((field) => field.role === 'asset_reference' && field.original === 'face-image: img/portraits/Stresemann.jpg');
+assert(stresemannAssetField && stresemannAssetField.editability === 'manual_review', 'asset refs without safe source evidence should use the manual review branch');
+assert(stresemannAssetField.sourcePath === stresemannPath, 'asset refs without source path should fall back to the scene source path');
 
 const inlineModel = existingEdit.buildEditModel(index, 'events', 'inline_condition_conference');
 assert(inlineModel.ok, 'mixed inline conditional fixture should build: ' + JSON.stringify(inlineModel.diagnostics));
@@ -771,6 +1048,29 @@ assert(freeMenuBlock.ownedOptionIds.length === 2, 'menu-only sections should exp
 assert(resultMenuBlock && resultMenuBlock.semanticRole === 'option_result_text', 'a section targeted by a choice should remain an option result');
 assert(resultMenuBlock.relatedOptionIds.includes('result_menu'), 'targeted result sections should preserve incoming option ids');
 assert(resultMenuBlock.ownedOptionIds.length === 1, 'option-result sections can also expose follow-up choices without duplicating their text');
+const freeMenuAddOptionField = menuModel.fields.find((field) => field.structureAction === 'add_option' && field.sectionId === 'menu_branch_fixture.free_menu');
+assert(freeMenuAddOptionField && freeMenuAddOptionField.editability === 'guarded_apply', 'source-backed menu sections should expose guarded add-option controls');
+assert(freeMenuAddOptionField.structureSourceBlock && freeMenuAddOptionField.structureSourceBlock.kind === 'section_option_insert_anchor', 'section-owned add-option controls should carry section insert evidence');
+assert(freeMenuAddOptionField.source && freeMenuAddOptionField.source.line === 24, 'section-owned add-option controls should insert after the last option in that section');
+const freeMenuAddOptionProposal = existingEdit.buildProposal(menuModel, {
+  [freeMenuAddOptionField.id]: '- @listen: Listen carefully.\n# listen\nThe room listens before choosing.'
+});
+assert(freeMenuAddOptionProposal.changes.length === 1, 'section-owned add-option proposal should contain one change');
+assert(freeMenuAddOptionProposal.changes[0].editability === 'guarded_apply' && freeMenuAddOptionProposal.changes[0].operationType === 'insert_text', 'simple section-owned add-option proposals should become guarded inserts');
+assert(freeMenuAddOptionProposal.changes[0].sectionId === 'menu_branch_fixture.free_menu', 'section-owned add-option proposals should retain the target section id');
+const freeMenuAddOptionBundle = existingEdit.buildExportBundle(freeMenuAddOptionProposal, index);
+assert(freeMenuAddOptionBundle.installPlan.operations.some((op) => op.type === 'insert_text' && op.safety === 'guarded_apply' && op.content.includes('@listen')), 'section-owned add-option proposals should produce guarded install operations');
+const freeMenuRemoveOptionField = menuModel.fields.find((field) => field.structureAction === 'remove_option' && field.sectionId === 'menu_branch_fixture.free_menu' && field.structureTargetLabel === 'Walk away.');
+assert(freeMenuRemoveOptionField && freeMenuRemoveOptionField.editability === 'guarded_apply', 'external-target menu choices without effects should expose guarded option-line removal');
+assert(freeMenuRemoveOptionField.structureSourceBlock && freeMenuRemoveOptionField.structureSourceBlock.kind === 'option_line_delete', 'guarded option removal should carry option-line delete evidence');
+const freeMenuRemoveOptionProposal = existingEdit.buildProposal(menuModel, {
+  [freeMenuRemoveOptionField.id]: 'true'
+});
+assert(freeMenuRemoveOptionProposal.changes.length === 1, 'guarded option removal proposal should contain one change');
+assert(freeMenuRemoveOptionProposal.changes[0].editability === 'guarded_apply' && freeMenuRemoveOptionProposal.changes[0].operationType === 'replace_text', 'safe option removal should become a guarded replace_text');
+assert(freeMenuRemoveOptionProposal.changes[0].after === '' && freeMenuRemoveOptionProposal.changes[0].allowEmptyReplace && freeMenuRemoveOptionProposal.changes[0].deletesSourceLine, 'safe option removal should explicitly allow deleting the source option line');
+const freeMenuRemoveOptionBundle = existingEdit.buildExportBundle(freeMenuRemoveOptionProposal, index);
+assert(freeMenuRemoveOptionBundle.installPlan.operations.some((op) => op.type === 'replace_text' && op.safety === 'guarded_apply' && op.search === '- @walk: Walk away.' && op.replace === ''), 'safe option removal should produce a guarded empty replace_text operation');
 
 const dnvpModel = existingEdit.buildEditModel(index, 'events', 'dnvp_congress');
 assert(dnvpModel.ok, 'DNVP Congress model should build: ' + JSON.stringify(dnvpModel.diagnostics));
@@ -783,7 +1083,7 @@ const unsafeLogicProposal = existingEdit.buildProposal(eventModel, {
   [effectField.id]: 'Q.public_order += 1; alert("unsafe")'
 });
 const unsafeLogicBundle = existingEdit.buildExportBundle(unsafeLogicProposal, index);
-assert(unsafeLogicBundle.installPlan.operations.every((op) => op.type === 'manual_snippet'), 'invalid route/effect edits should fall back to manual review');
+assert(unsafeLogicBundle.installPlan.operations.every((op) => op.type === 'replace_text' && op.safety === 'advanced_apply'), 'invalid but source-backed route/effect edits should fall back to advanced source patch');
 
 const openingBlock = eventModel.textBlocks.find((block) => block.original.includes('film arrives'));
 assert(openingBlock, 'event model should expose an opening text block');
@@ -836,13 +1136,43 @@ assert(legacyNewsModel.ok, 'legacy monthly popup news should open the linked eve
 assert(legacyNewsModel.sceneId === 'all_quiet', 'legacy monthly popup should resolve to linked scene id');
 assert(legacyNewsModel.fields.some((field) => field.id === 'all_quiet_body_1'), 'legacy monthly popup editor should expose linked event text fields');
 
+const excerptIndex = syntheticIndex();
+excerptIndex.semantic.textCorpus.items.push({
+  id: 'all_quiet_monthly_excerpt',
+  text: 'The film arrives with a silence heavier than the posters.',
+  role: 'monthly_popup_excerpt',
+  editability: 'text_proposal',
+  owner: {kind: 'scene', sceneId: 'all_quiet'},
+  source: {
+    path: 'source/scenes/events/all_quiet.scene.dry',
+    line: 8,
+    anchorText: 'The film arrives with a silence heavier than the posters.',
+    endAnchorText: 'The film arrives with a silence heavier than the posters.'
+  }
+});
+const excerptModel = existingEdit.buildEditModel(excerptIndex, 'events', 'all_quiet');
+const derivedExcerptField = excerptModel.fields.find((field) => field.role === 'monthly_popup_excerpt');
+assert(derivedExcerptField && derivedExcerptField.derivedAlias === true, 'monthly popup excerpt fields should be marked as derived aliases');
+assert(derivedExcerptField.derivedFromRole === 'body', 'derived monthly popup excerpts should point users back to the body source');
+
 const cardModel = existingEdit.buildEditModel(index, 'cards', 'agricultural_policy');
 assert(cardModel.ok, 'card edit model should build: ' + JSON.stringify(cardModel.diagnostics));
 assert(cardModel.sceneKind === 'card', 'card edit model should classify cards');
 assert(cardModel.options.length === 5, 'existing card editor must not cap options at four');
 assert(cardModel.fields.some((field) => field.id === 'agri_option_5'), 'existing card editor should include the fifth option field');
+const starterDemoIndex = JSON.parse(fs.readFileSync(path.join(__dirname, 'templates/starter-demo/project-index.json'), 'utf8'));
+const starterCardModel = existingEdit.buildEditModel(starterDemoIndex, 'cards', 'demo_action_card');
+assert(starterCardModel.ok, 'starter demo card edit model should build: ' + JSON.stringify(starterCardModel.diagnostics));
+const starterRemoveEffectField = starterCardModel.fields.find((field) => field.id === 'structure_remove_effect_demo_resources_1');
+assert(starterRemoveEffectField && starterRemoveEffectField.editability === 'guarded_apply', 'starter demo card JS-block effects should expose guarded effect deletion');
+assert(starterRemoveEffectField.source && starterRemoveEffectField.source.anchorText === 'Q.demo_resources = (Q.demo_resources || 0) - 1;', 'starter demo card effect deletion should recover the exact JS line anchor');
+const starterRemoveEffectProposal = existingEdit.buildProposal(starterCardModel, {
+  [starterRemoveEffectField.id]: 'true'
+});
+const starterRemoveEffectBundle = existingEdit.buildExportBundle(starterRemoveEffectProposal, starterDemoIndex);
+assert(starterRemoveEffectBundle.installPlan.operations.some((operation) => operation.type === 'replace_text' && operation.safety === 'guarded_apply' && operation.search === 'Q.demo_resources = (Q.demo_resources || 0) - 1;' && operation.replace === ''), 'starter demo card effect deletion should export a guarded empty replace_text operation');
 
-const manualModel = existingEdit.buildEditModel({
+const advancedModel = existingEdit.buildEditModel({
   scenes: [{id: 'protected_router', title: 'Router Scene', sourceSpan: {path: 'source/scenes/post_event.scene.dry', startLine: 12, endLine: 20}}],
   semantic: {textCorpus: {items: [{
     id: 'router_text',
@@ -853,7 +1183,7 @@ const manualModel = existingEdit.buildEditModel({
     source: {path: 'source/scenes/post_event.scene.dry', line: 12}
   }]}}
 }, 'events', 'protected_router');
-assert(manualModel.fields[0].editability === 'manual_review', 'protected router-backed fields should stay manual review');
+assert(advancedModel.fields[0].editability === 'advanced_source_patch', 'protected router-backed fields should stay editable through advanced source patch');
 
 console.log(JSON.stringify({
   ok: true,
@@ -861,5 +1191,5 @@ console.log(JSON.stringify({
   textBlocks: eventModel.textBlocks.length,
   eventChanges: eventProposal.changes.length,
   cardOptions: cardModel.options.length,
-  manualEditability: manualModel.fields[0].editability
+  advancedEditability: advancedModel.fields[0].editability
 }, null, 2));

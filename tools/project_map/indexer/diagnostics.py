@@ -31,6 +31,7 @@ def scan_post_event_targeted(root: Path) -> dict[str, Any] | None:
     line_count = 0
     routes: list[dict[str, Any]] = []
     anchors: list[dict[str, Any]] = []
+    choices: list[dict[str, Any]] = []
     tag_choices: list[dict[str, Any]] = []
     current_anchor = ""
     try:
@@ -46,10 +47,30 @@ def scan_post_event_targeted(root: Path) -> dict[str, Any] | None:
                     continue
                 tag_match = re.match(r"^\s*-\s*#([A-Za-z0-9_-]+)\b", line)
                 if tag_match:
+                    title_match = re.match(r"^\s*-\s*#[A-Za-z0-9_-]+\s*:\s*(.+?)\s*$", line)
+                    choices.append({
+                        "target": f"#{tag_match.group(1)}",
+                        "title": title_match.group(1).strip() if title_match else "",
+                        "anchor": current_anchor,
+                        "line": line_num,
+                        "anchorText": line.rstrip("\n"),
+                        "kind": "tag_choice",
+                    })
                     tag_choices.append({
                         "tag": tag_match.group(1),
                         "anchor": current_anchor,
                         "line": line_num,
+                    })
+                    continue
+                choice_match = re.match(r"^\s*-\s*@([A-Za-z0-9_.-]+)\s*:\s*(.+?)\s*$", line)
+                if choice_match:
+                    choices.append({
+                        "target": choice_match.group(1),
+                        "title": choice_match.group(2).strip(),
+                        "anchor": current_anchor,
+                        "line": line_num,
+                        "anchorText": line.rstrip("\n"),
+                        "kind": "scene_choice",
                     })
                     continue
                 match = re.match(r"^\s*go-to:\s*(.+)$", line)
@@ -64,6 +85,7 @@ def scan_post_event_targeted(root: Path) -> dict[str, Any] | None:
             "lineCount": None,
             "routes": [],
             "anchors": [],
+            "choices": [],
             "tagChoices": [],
         }
 
@@ -71,6 +93,7 @@ def scan_post_event_targeted(root: Path) -> dict[str, Any] | None:
         "lineCount": line_count or None,
         "routes": routes,
         "anchors": anchors,
+        "choices": choices,
         "tagChoices": tag_choices,
     }
 
@@ -100,7 +123,22 @@ def synthetic_post_event_scene(summary: dict[str, Any] | None) -> dict[str, Any]
             "isSpecial": False,
         },
         "routes": {},
-        "options": [],
+        "options": [
+            {
+                "target": {"id": choice.get("target", "")},
+                "title": choice.get("title", ""),
+                "sourceSpan": {
+                    "path": POST_EVENT_REL,
+                    "line": choice.get("line"),
+                    "startLine": choice.get("line"),
+                    "endLine": choice.get("line"),
+                    "anchorText": choice.get("anchorText", ""),
+                    "endAnchorText": choice.get("anchorText", ""),
+                },
+                "kind": choice.get("kind", "scene_choice"),
+            }
+            for choice in summary.get("choices", [])
+        ],
         "sections": [],
         "opaque": True,
     }

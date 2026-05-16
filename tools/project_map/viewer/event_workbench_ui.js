@@ -29,6 +29,7 @@
     rawViewIf: 'Raw view-if',
     notCaptured: 'Not fully captured yet',
     diagnostics: 'Diagnostics',
+    edit: 'Edit',
     effect: 'Effect',
     writesHere: 'writes here',
     variableCondition: 'Variable condition',
@@ -91,7 +92,7 @@
   function renderPlayerText(rows, locale) {
     const content = rows.slice(0, 12).map((row) => {
       return '<article class="event-workbench-text-row">' +
-        '<span>' + escapeHtml(roleLabel(row.role, locale) || row.label || row.role || 'Text') + '</span>' +
+        '<span>' + escapeHtml(roleLabel(row.role, locale) || row.label || row.role || 'Text') + renderEditAction(row, locale) + '</span>' +
         '<p>' + escapeHtml(row.text || '') + '</p>' +
       '</article>';
     }).join('');
@@ -102,7 +103,7 @@
     const content = rows.slice(0, 6).map((row) => {
       const effects = (row.effects || []).slice(0, 4).map(effectLabel).join(' · ');
       return '<article class="event-workbench-option-row">' +
-        '<strong>' + escapeHtml(row.label || row.id || 'Option') + '</strong>' +
+        '<strong>' + escapeHtml(row.label || row.id || 'Option') + renderEditAction(row, locale) + '</strong>' +
         (row.subtitle ? '<p>' + escapeHtml(row.subtitle) + '</p>' : '') +
         (row.chooseIf ? '<small>' + escapeHtml(label(locale, 'conditions')) + ': ' + escapeHtml(row.chooseIf) + '</small>' : '') +
         (effects ? '<small>' + escapeHtml(label(locale, 'effect')) + ': ' + escapeHtml(effects) + '</small>' : '') +
@@ -125,7 +126,7 @@
     const content = rows.slice(0, 16).map((row) => {
       return '<div class="event-workbench-effect-row">' +
         '<strong>' + escapeHtml(row.variable || '') + '</strong>' +
-        '<span>' + escapeHtml(effectLabel(row, locale)) + '</span>' +
+        '<span>' + escapeHtml(effectLabel(row, locale)) + renderEditAction(row, locale) + '</span>' +
         (row.source ? '<small>' + escapeHtml(sourceLabel(row.source)) + '</small>' : '') +
       '</div>';
     }).join('');
@@ -168,6 +169,16 @@
       '</article>';
     }).join('');
     return section('actions', label(locale, 'actions'), content, sectionCount(rows), {open: true});
+  }
+
+  function renderEditAction(row, locale) {
+    if (!row || !row.editAction) {
+      return '';
+    }
+    const ui = visibleEditActionApi();
+    return ui && typeof ui.renderButton === 'function'
+      ? ui.renderButton(row.editAction, {compact: true, label: label(locale, 'edit'), translate: (key, fallback) => translate(locale, key, fallback), escapeHtml, escapeAttr})
+      : '<button type="button" class="visible-edit-action-button is-compact" data-visible-edit-action="' + escapeAttr(JSON.stringify(row.editAction)) + '">' + escapeHtml(label(locale, 'edit')) + '</button>';
   }
 
   function renderAdvanced(advanced, diagnostics, locale) {
@@ -274,6 +285,20 @@
   function sourceLabel(source) {
     if (!source || !source.path) return '';
     return source.path + (source.line || source.startLine ? ':' + (source.line || source.startLine) : '');
+  }
+
+  function visibleEditActionApi() {
+    if (global && global.ProjectMapVisibleEditActionUi) {
+      return global.ProjectMapVisibleEditActionUi;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./visible_edit_action_ui.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
   }
 
   function escapeHtml(value) {

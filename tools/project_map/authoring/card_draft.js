@@ -4,6 +4,7 @@
   const CARD_DRAFT_VERSION = '0.1';
   const CARD_KIND = 'card';
   const CARD_KINDS = new Set(['action_card', 'advisor_like']);
+  const CARD_SHAPES = new Set(['choice_card', 'menu_card', 'pinned_text_card']);
   const ID_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
   const EFFECT_OPS = new Set(['=', '+=', '-=']);
 
@@ -22,6 +23,7 @@
     draft.id = String(draft.id || '').trim();
     draft.title = String(draft.title || '').trim();
     draft.cardKind = String(draft.cardKind || 'action_card').trim();
+    draft.cardShape = normalizeCardShape(draft.cardShape || draft.shape, draft);
     draft.tags = normalizeStringList(draft.tags);
     draft.viewIf = String(draft.viewIf || '').trim();
     draft.priority = numberOrNull(draft.priority);
@@ -33,7 +35,27 @@
     draft.assetRefs = ensureArray(draft.assetRefs).map(normalizeAssetRef);
     draft.assetInstallRequests = ensureArray(draft.assetInstallRequests).map(normalizeAssetInstallRequest);
     draft.options = ensureArray(draft.options).map(normalizeOption);
+    const sections = ensureArray(draft.sections).map(normalizeSection).filter((section) => section.id);
+    if (sections.length) {
+      draft.sections = sections;
+    } else {
+      delete draft.sections;
+    }
     return draft;
+  }
+
+  function normalizeCardShape(value, draft) {
+    const text = String(value || '').trim();
+    if (CARD_SHAPES.has(text)) {
+      return text;
+    }
+    if (ensureArray(draft && draft.sections).length) {
+      return 'menu_card';
+    }
+    if (!ensureArray(draft && draft.options).length) {
+      return 'pinned_text_card';
+    }
+    return 'choice_card';
   }
 
   function normalizeOption(option, index) {
@@ -51,12 +73,26 @@
     };
   }
 
+  function normalizeSection(section, index) {
+    const value = isObject(section) ? section : {};
+    return {
+      id: String(value.id || ('section_' + (index + 1))).trim(),
+      title: String(value.title || '').trim(),
+      condition: String(value.condition || '').trim(),
+      paragraphs: normalizeTextList(value.paragraphs || value.body || value.text),
+      effects: ensureArray(value.effects).map(normalizeEffect),
+      options: ensureArray(value.options).map(normalizeOption),
+      exitTarget: String(value.exitTarget || 'root').trim()
+    };
+  }
+
   function normalizeEffect(effect) {
     const value = isObject(effect) ? effect : {};
     return {
       variable: String(value.variable || '').trim(),
       op: String(value.op || '').trim(),
-      value: value.value
+      value: value.value,
+      condition: String(value.condition || value.if || '').trim()
     };
   }
 
@@ -166,6 +202,9 @@
     if (!CARD_KINDS.has(draft.cardKind)) {
       diag(diagnostics, 'error', 'card_draft.card_kind', 'cardKind must be "action_card" or "advisor_like".');
     }
+    if (!CARD_SHAPES.has(draft.cardShape)) {
+      diag(diagnostics, 'error', 'card_draft.card_shape', 'cardShape must be "choice_card", "menu_card", or "pinned_text_card".');
+    }
     if (draft.priority !== null && !Number.isInteger(draft.priority)) {
       diag(diagnostics, 'error', 'card_draft.priority', 'Priority must be an integer.');
     }
@@ -178,33 +217,68 @@
     checkConditionText(draft.viewIf, diagnostics, 'card_draft.view_if');
 
     const optionIds = new Set();
-    if (draft.options.length < 2 || draft.options.length > 4) {
-      diag(diagnostics, 'error', 'card_draft.choice_count', 'Card drafts must contain 2 to 4 choices.');
+    if (draft.cardShape === 'choice_card' && draft.options.length < 2) {
+      diag(diagnostics, 'error', 'card_draft.choice_count', 'Choice card drafts must contain at least 2 choices.');
+    }
+    if (draft.cardShape === 'pinned_text_card' && draft.options.length) {
+      diag(diagnostics, 'error', 'card_draft.pinned_text_options', 'Pinned text cards must not contain standard choices.');
+    }
+    if (draft.cardShape === 'menu_card' && !ensureArray(draft.sections).length) {
+      diag(diagnostics, 'error', 'card_draft.menu_sections', 'Menu card drafts must contain at least one section.');
     }
     draft.options.forEach((option, index) => {
-      if (!ID_RE.test(option.id)) {
-        diag(diagnostics, 'error', 'card_draft.option_id', 'Option ' + (index + 1) + ' id must be a valid anchor id.');
-      }
-      if (optionIds.has(option.id)) {
-        diag(diagnostics, 'error', 'card_draft.duplicate_option_id', 'Duplicate option id: ' + option.id);
-      }
-      optionIds.add(option.id);
-      if (!option.label) {
-        diag(diagnostics, 'error', 'card_draft.option_label', 'Option ' + option.id + ' needs a label.');
-      }
-      checkConditionText(option.chooseIf, diagnostics, 'card_draft.choose_if');
-      if (option.unavailableText && !option.chooseIf) {
-        diag(diagnostics, 'warning', 'card_draft.unavailable_without_choose_if', 'unavailableText only matters when chooseIf is set: ' + option.id);
-      }
-      if (option.gotoAfter && !ID_RE.test(option.gotoAfter)) {
-        diag(diagnostics, 'error', 'card_draft.goto_after', 'Option gotoAfter must be a plain scene or anchor id.');
-      }
-      option.effects.forEach((effect) => validateEffect(effect, variables, diagnostics));
-      option.narrativeParagraphs.forEach((paragraph) => checkFakeInlineOption(paragraph, diagnostics));
+      validateOption(option, index, variables, optionIds, diagnostics, 'Option');
     });
+    ensureArray(draft.sections).forEach((section, index) => validateSection(section, index, variables, optionIds, diagnostics));
     draft.introParagraphs.forEach((paragraph) => checkFakeInlineOption(paragraph, diagnostics));
 
     return {draft, diagnostics, ok: diagnostics.every((item) => item.severity !== 'error')};
+  }
+
+  function validateSection(section, index, variables, anchors, diagnostics) {
+    if (!ID_RE.test(section.id)) {
+      diag(diagnostics, 'error', 'card_draft.section_id', 'Section ' + (index + 1) + ' id must be a valid anchor id.');
+    }
+    if (anchors.has(section.id)) {
+      diag(diagnostics, 'error', 'card_draft.duplicate_option_id', 'Duplicate card anchor id: ' + section.id);
+    }
+    anchors.add(section.id);
+    checkConditionText(section.condition, diagnostics, 'card_draft.section_condition');
+    if (section.exitTarget && !ID_RE.test(section.exitTarget)) {
+      diag(diagnostics, 'error', 'card_draft.section_exit_target', 'Section exit target must be a plain scene or anchor id.');
+    }
+    section.effects.forEach((effect) => validateEffect(effect, variables, diagnostics));
+    section.paragraphs.forEach((paragraph) => checkFakeInlineOption(paragraph, diagnostics));
+    section.options.forEach((option, optionIndex) => validateOption(option, optionIndex, variables, anchors, diagnostics, 'Section option'));
+  }
+
+  function validateOption(option, index, variables, anchors, diagnostics, label) {
+    if (!ID_RE.test(option.id)) {
+      diag(diagnostics, 'error', 'card_draft.option_id', label + ' ' + (index + 1) + ' id must be a valid anchor id.');
+    }
+    if (anchors.has(option.id)) {
+      diag(diagnostics, 'error', 'card_draft.duplicate_option_id', 'Duplicate card anchor id: ' + option.id);
+    }
+    anchors.add(option.id);
+    const returnAnchor = optionReturnAnchor(option);
+    if (option.narrativeParagraphs.length && returnAnchor) {
+      if (anchors.has(returnAnchor)) {
+        diag(diagnostics, 'error', 'card_draft.duplicate_option_id', 'Duplicate generated card return anchor: ' + returnAnchor);
+      }
+      anchors.add(returnAnchor);
+    }
+    if (!option.label) {
+      diag(diagnostics, 'error', 'card_draft.option_label', label + ' ' + option.id + ' needs a label.');
+    }
+    checkConditionText(option.chooseIf, diagnostics, 'card_draft.choose_if');
+    if (option.unavailableText && !option.chooseIf) {
+      diag(diagnostics, 'warning', 'card_draft.unavailable_without_choose_if', 'unavailableText only matters when chooseIf is set: ' + option.id);
+    }
+    if (option.gotoAfter && !ID_RE.test(option.gotoAfter)) {
+      diag(diagnostics, 'error', 'card_draft.goto_after', 'Option gotoAfter must be a plain scene or anchor id.');
+    }
+    option.effects.forEach((effect) => validateEffect(effect, variables, diagnostics));
+    option.narrativeParagraphs.forEach((paragraph) => checkFakeInlineOption(paragraph, diagnostics));
   }
 
   function validateEffect(effect, variables, diagnostics) {
@@ -288,16 +362,19 @@
     lines.push('= ' + draft.heading);
     lines.push('');
     appendParagraphs(lines, draft.introParagraphs);
-    draft.options.forEach((option) => {
-      lines.push('- @' + option.id + ': ' + option.label);
-    });
-    lines.push('');
-    draft.options.forEach((option, index) => {
-      if (index > 0) {
-        lines.push('');
-      }
-      appendOption(lines, option);
-    });
+    if (draft.options.length) {
+      draft.options.forEach((option) => {
+        lines.push('- @' + option.id + ': ' + option.label);
+      });
+      lines.push('');
+      draft.options.forEach((option, index) => {
+        if (index > 0) {
+          lines.push('');
+        }
+        appendOption(lines, option);
+      });
+    }
+    ensureArray(draft.sections).forEach((section) => appendSection(lines, section));
     return lines.join('\n') + '\n';
   }
 
@@ -320,9 +397,58 @@
       option.effects.forEach((effect) => lines.push(renderEffect(effect)));
       lines.push('!}');
     }
-    lines.push('go-to: ' + (option.gotoAfter || 'root'));
     lines.push('');
     appendParagraphs(lines, option.narrativeParagraphs);
+    if (option.narrativeParagraphs.length) {
+      const returnAnchor = optionReturnAnchor(option);
+      lines.push('- @' + returnAnchor + ': Continue');
+      lines.push('');
+      lines.push('@' + returnAnchor);
+      lines.push('go-to: ' + (option.gotoAfter || 'root'));
+      return;
+    }
+    lines.push('go-to: ' + (option.gotoAfter || 'root'));
+  }
+
+  function optionReturnAnchor(option) {
+    const id = String(option && option.id || '').trim();
+    return ID_RE.test(id) ? 'return_' + id : '';
+  }
+
+  function appendSection(lines, section) {
+    lines.push('');
+    lines.push('@' + section.id);
+    if (section.title) {
+      lines.push('= ' + section.title);
+      lines.push('');
+    }
+    if (section.effects.length) {
+      lines.push('on-arrival: {!');
+      section.effects.forEach((effect) => lines.push(renderEffect(effect)));
+      lines.push('!}');
+      lines.push('');
+    }
+    if (section.condition) {
+      lines.push('[? if ' + section.condition + ' : ' + section.paragraphs.join('\n\n') + ' ?]');
+      lines.push('');
+    } else {
+      appendParagraphs(lines, section.paragraphs);
+    }
+    section.options.forEach((option) => {
+      lines.push('- @' + option.id + ': ' + option.label);
+    });
+    if (section.options.length) {
+      lines.push('');
+    }
+    section.options.forEach((option, index) => {
+      if (index > 0) {
+        lines.push('');
+      }
+      appendOption(lines, option);
+    });
+    if (!section.options.length && section.exitTarget) {
+      lines.push('go-to: ' + section.exitTarget);
+    }
   }
 
   function appendParagraphs(lines, paragraphs) {
@@ -333,7 +459,7 @@
   }
 
   function renderEffect(effect) {
-    return 'Q.' + effect.variable + ' ' + effect.op + ' ' + renderEffectValue(effect.value) + ';';
+    return 'Q.' + effect.variable + ' ' + effect.op + ' ' + renderEffectValue(effect.value) + (effect.condition ? ' if ' + effect.condition : '') + ';';
   }
 
   function renderEffectValue(value) {
@@ -370,6 +496,7 @@
       scene,
       wiringPath: wiring.path,
       wiringProposal: wiring.content,
+      wiringOperation: wiring.operation,
       skipWiringManual: wiring.autoRouted,
       assetInstallRequests: draft.assetInstallRequests
     });
@@ -400,9 +527,13 @@
       '- Suggested source path: ' + suggestedPath,
       wiring.autoRouted
         ? '- Existing tag route: #' + wiring.route.tag + ' at ' + sourceLabel(wiring.route.source) + '. No hand/deck/sidebar edit is needed.'
+        : wiring.operation
+        ? '- Structured wiring operation: ' + wiring.operation.path + ' after ' + sourceLabel({path: wiring.operation.path, line: wiring.operation.line}) + '.'
         : '- Wiring review path: ' + wiring.path,
       wiring.autoRouted
         ? '- The generated scene uses an already-routed tag, so Studio can install the file without a manual wiring step.'
+        : wiring.operation
+        ? '- Studio can add a guarded source-backed tag route for this card.'
         : '- Wire the scene into the matching hand/deck/sidebar flow by hand.',
       '',
       'Variables/init/migration:',
@@ -411,9 +542,11 @@
       'Validation command:',
       'bash tools/build_and_validate.sh --skip-build --errors-only',
       '',
-      'Manual IDE steps:',
+      'Studio source review:',
       wiring.autoRouted
         ? '- No manual hand/deck/sidebar wiring step was generated because the ProjectIndex already routes this tag.'
+        : wiring.operation
+        ? '- No manual hand/deck/sidebar wiring step was generated because Studio found an exact source anchor for a guarded tag route.'
         : '- Install Assistant can dry-run safe create-file operations, but hand/deck/sidebar wiring remains manual review.',
       wiring.autoRouted ? '' : '- Wiring proposal:',
       wiring.autoRouted ? '' : indent(wiring.content.trim(), '  '),
@@ -444,6 +577,9 @@
     const label = advisorLikeLabel(projectIndex);
     const primaryTag = draft.tags[0] || (draft.cardKind === 'advisor_like' ? 'circle' : 'cards');
     const route = existingTagRoute(draft, projectIndex, primaryTag);
+    const operation = !route && draft.tags.length
+      ? cardWiringOperation(draft, projectIndex, primaryTag)
+      : null;
     const lines = [
       'Card wiring proposal',
       'New card id: ' + draft.id,
@@ -458,6 +594,17 @@
         'No manual hand/deck/sidebar wiring step is needed as long as the generated scene keeps this tag.'
       );
       return {path: route.source.path || handPath, content: lines.join('\n') + '\n', autoRouted: true, route};
+    }
+    if (operation) {
+      lines.push(
+        operation.kind === 'advisor_tag_route'
+          ? 'Lane: pinned ' + label.plural + ' / advisor-like cards.'
+          : 'Lane: action-card deck tag route.',
+        'Structured operation: insert ' + operation.content.trim() + ' into ' + operation.path + '.',
+        'Route evidence: ' + sourceLabel({path: operation.path, line: operation.line}),
+        'Studio can guarded-apply this source-backed wiring after checking the anchor and dedupe token.'
+      );
+      return {path: operation.path, content: lines.join('\n') + '\n', autoRouted: false, route: null, operation};
     }
     if (draft.cardKind === 'advisor_like') {
       lines.push(
@@ -480,6 +627,124 @@
       );
     }
     return {path: handPath, content: lines.join('\n') + '\n', autoRouted: false, route: null};
+  }
+
+  function cardWiringOperation(draft, projectIndex, primaryTag) {
+    return draft.cardKind === 'advisor_like'
+      ? advisorTagRouteOperation(draft, projectIndex, primaryTag)
+      : deckTagRouteOperation(draft, projectIndex, primaryTag);
+  }
+
+  function deckTagRouteOperation(draft, projectIndex, primaryTag) {
+    const deck = firstSourceBackedDeck(projectIndex);
+    const anchor = lastSourceBackedOption(deck) || sourceEndAnchor(deck);
+    if (!deck || !anchor || !primaryTag) {
+      return null;
+    }
+    const content = '- #' + primaryTag + '\n';
+    return {
+      id: 'card_deck_tag_route',
+      type: 'insert_text',
+      path: anchor.path,
+      line: anchor.line,
+      anchorText: anchor.anchorText,
+      position: 'after',
+      content,
+      dedupeSearch: '- #' + primaryTag,
+      safety: 'guarded_apply',
+      kind: 'deck_tag_route',
+      description: 'Wire the generated card into the source-backed deck by inserting its tag route after the detected deck anchor.'
+    };
+  }
+
+  function advisorTagRouteOperation(draft, projectIndex, primaryTag) {
+    const hand = firstSourceBackedHand(projectIndex);
+    const anchor = advisorHandAnchor(hand);
+    if (!hand || !anchor || !primaryTag) {
+      return null;
+    }
+    const content = '- #' + primaryTag + ': ' + advisorRouteLabel(draft) + '\n';
+    return {
+      id: 'card_advisor_tag_route',
+      type: 'insert_text',
+      path: anchor.path,
+      line: anchor.line,
+      anchorText: anchor.anchorText,
+      position: anchor.position,
+      content,
+      dedupeSearch: '- #' + primaryTag,
+      safety: 'guarded_apply',
+      kind: 'advisor_tag_route',
+      description: 'Wire the generated advisor-like card into the source-backed hand by inserting its tag route near the detected advisor lane.'
+    };
+  }
+
+  function firstSourceBackedDeck(projectIndex) {
+    const deckIds = ensureArray(projectIndex && projectIndex.semantic && projectIndex.semantic.decks)
+      .map((deck) => String(deck && deck.id || '').trim())
+      .filter(Boolean);
+    const scenes = ensureArray(projectIndex && projectIndex.scenes);
+    return scenes.find((scene) => scene && deckIds.includes(String(scene.id || '')) && scene.path) ||
+      scenes.find((scene) => scene && String(scene.type || '') === 'deck' && scene.path) ||
+      null;
+  }
+
+  function firstSourceBackedHand(projectIndex) {
+    const handIds = ensureArray(projectIndex && projectIndex.semantic && projectIndex.semantic.hands)
+      .map((hand) => String(hand && hand.id || '').trim())
+      .filter(Boolean);
+    const scenes = ensureArray(projectIndex && projectIndex.scenes);
+    return scenes.find((scene) => scene && handIds.includes(String(scene.id || '')) && scene.path) ||
+      scenes.find((scene) => scene && String(scene.type || '') === 'hand' && scene.path) ||
+      null;
+  }
+
+  function lastSourceBackedOption(scene) {
+    const options = ensureArray(scene && scene.options).filter((option) => optionSourceAnchor(option));
+    return options.length ? optionSourceAnchor(options[options.length - 1]) : null;
+  }
+
+  function advisorHandAnchor(hand) {
+    const tagOptions = ensureArray(hand && hand.options)
+      .filter((option) => option && option.target && option.target.kind === 'tag')
+      .map(optionSourceAnchor)
+      .filter(Boolean);
+    if (tagOptions.length) {
+      return Object.assign({}, tagOptions[tagOptions.length - 1], {position: 'after'});
+    }
+    const rootOption = ensureArray(hand && hand.options).find((option) => option && option.target && option.target.kind === 'scene' && option.target.id === 'root');
+    const rootAnchor = optionSourceAnchor(rootOption);
+    if (rootAnchor) {
+      return Object.assign({}, rootAnchor, {position: 'before'});
+    }
+    const endAnchor = sourceEndAnchor(hand);
+    return endAnchor ? Object.assign({}, endAnchor, {position: 'after'}) : null;
+  }
+
+  function optionSourceAnchor(option) {
+    const source = option && option.sourceSpan;
+    const path = String(source && source.path || '').trim();
+    const line = Number(source && (source.line || source.startLine) || 0);
+    const anchorText = String(source && source.anchorText || '').trim();
+    if (!path || !Number.isInteger(line) || line < 1 || !anchorText) {
+      return null;
+    }
+    return {path, line, anchorText, position: 'after'};
+  }
+
+  function sourceEndAnchor(scene) {
+    const source = scene && scene.sourceSpan;
+    const path = String(source && source.path || scene && scene.path || '').trim();
+    const line = Number(source && (source.endLine || source.line || source.startLine) || 0);
+    const anchorText = String(source && (source.endAnchorText || source.anchorText) || '').trim();
+    if (!path || !Number.isInteger(line) || line < 1 || !anchorText) {
+      return null;
+    }
+    return {path, line, anchorText, position: 'after'};
+  }
+
+  function advisorRouteLabel(draft) {
+    return 'Review ' + (draft.title || draft.heading || draft.id || 'advisor');
   }
 
   function suggestedCardPath(draft, projectIndex) {

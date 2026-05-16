@@ -1,6 +1,34 @@
 (function initProjectMapRuntimeLensUi(global) {
   'use strict';
 
+  function desktopCapabilities() {
+    if (global && global.ProjectMapDesktopCapabilities) {
+      return global.ProjectMapDesktopCapabilities;
+    }
+    if (typeof module !== 'undefined' && module.exports && typeof require === 'function') {
+      try {
+        return require('./desktop_capabilities.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function previewMessageBus() {
+    if (global && global.ProjectMapPreviewMessageBus) {
+      return global.ProjectMapPreviewMessageBus;
+    }
+    if (typeof module !== 'undefined' && module.exports && typeof require === 'function') {
+      try {
+        return require('../authoring/preview_message_bus.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   function focusFromCanvas(projectIndex, model, selectedKey) {
     const parsed = parseSelectedKey(selectedKey);
     const sceneId = parsed && parsed.kind !== 'draft' ? parsed.id : model && model.objectId || '';
@@ -73,7 +101,8 @@
     const draftStale = Boolean(session && session.ok && opts.sessionDraftKey && opts.currentDraftKey && opts.sessionDraftKey !== opts.currentDraftKey);
     const stale = !suspended && (focusStale || draftStale || opts.status === 'stale');
     const status = suspended ? 'suspended' : stale ? 'stale' : opts.status || session && session.status || 'idle';
-    const isDesktop = Boolean(global && global.dendryDesktop && typeof global.dendryDesktop.createRuntimeLens === 'function');
+    const desktop = desktopCapabilities();
+    const isDesktop = Boolean(desktop && desktop.canCreateRuntimeLens(global));
     const url = String(session && (session.lensUrl || session.lensPageUrl || session.externalUrl) || '');
     const canFocus = Boolean(isDesktop && focus && focus.id && focus.kind !== 'unknown');
     const classes = [
@@ -312,7 +341,14 @@
           const panel = button.closest && button.closest('[data-runtime-lens-panel]');
           const frame = panel && panel.querySelector && panel.querySelector('[data-runtime-lens-frame]');
           if (frame && frame.contentWindow) {
-            frame.contentWindow.postMessage({kind: 'dms-runtime-lens-action', action: 'reset'}, '*');
+            const bus = previewMessageBus();
+            const message = bus && typeof bus.buildRuntimeLensAction === 'function'
+              ? bus.buildRuntimeLensAction('reset')
+              : {kind: 'dms-runtime-lens-action', action: 'reset'};
+            const targetOrigin = bus && typeof bus.getPostMessageTargetOrigin === 'function'
+              ? bus.getPostMessageTargetOrigin(frame.getAttribute('src') || frame.src || '')
+              : '*';
+            frame.contentWindow.postMessage(message, targetOrigin);
           }
         }
         if (opts.onAction) {

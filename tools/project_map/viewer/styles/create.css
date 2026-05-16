@@ -199,6 +199,18 @@
   background: var(--surface-alt);
 }
 
+.draft-workspace-item-cue {
+  width: fit-content;
+  margin-top: 6px;
+  padding: 3px 7px;
+  border: 1px solid #b9c9e6;
+  border-radius: 999px;
+  background: #f1f6ff;
+  color: #37577f;
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .draft-workspace-item-actions {
   display: flex;
   flex-wrap: wrap;

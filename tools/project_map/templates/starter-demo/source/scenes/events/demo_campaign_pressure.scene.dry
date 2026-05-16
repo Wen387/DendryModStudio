@@ -1,0 +1,81 @@
+title: Demo Campaign Pressure
+tags: event, demo, complex
+new-page: true
+priority: 1
+on-arrival: {!
+Q.demo_chain_seen = 1;
+Q.demo_pressure = (Q.demo_pressure || 0) + 1;
+!}
+
+= Campaign Pressure Test
+
+The office receives three contradictory notes at once: district organizers want
+public instructions, cabinet allies want a quieter line, and the press wants a
+story before evening.
+
+[? if demo_case_strength > 0 : A prepared case file gives the committee more evidence than it had at the start. ?]
+[? if demo_advisor_trust > 0 : The advisor's earlier counsel is on the table. ?]
+[? if demo_resources < 1 : The room is short on capacity, so every public move costs more. ?]
+
+This is a playable complex-event chain in the bundled demo. The next choice
+sets up the hearing, the negotiation path, and the final resolution.
+
+- @open_hearing: Open a public hearing.
+- @quiet_briefing: Run a quiet cabinet briefing.
+- @street_canvass: Send organizers into the streets.
+- @delay: Delay until the districts report.
+
+@open_hearing
+title: Open a public hearing.
+subtitle: Spend capacity, build the public case.
+choose-if: demo_resources >= 1
+unavailable-subtitle: The office has no spare capacity.
+on-arrival: {!
+Q.demo_resources = (Q.demo_resources || 0) - 1;
+Q.demo_case_strength = (Q.demo_case_strength || 0) + 2;
+Q.demo_public_attention = (Q.demo_public_attention || 0) + 1;
+Q.demo_pressure = (Q.demo_pressure || 0) + 1;
+!}
+go-to: demo_case_hearing
+
+The committee opens the room, reads the file aloud, and lets the record grow in
+front of witnesses.
+
+@quiet_briefing
+title: Run a quiet cabinet briefing.
+subtitle: Lower the temperature, raise cabinet balance.
+on-arrival: {!
+Q.demo_cabinet_balance = (Q.demo_cabinet_balance || 0) + 2;
+Q.demo_pressure = (Q.demo_pressure || 0) + 1;
+!}
+go-to: demo_case_hearing
+
+The committee keeps the public line short and spends the afternoon counting
+which cabinet allies can still be moved.
+
+@street_canvass
+title: Send organizers into the streets.
+subtitle: Requires volunteer support.
+choose-if: demo_support >= 1
+unavailable-subtitle: Volunteer support has not been built yet.
+on-arrival: {!
+Q.demo_support = (Q.demo_support || 0) + 1;
+Q.demo_public_attention = (Q.demo_public_attention || 0) + 2;
+Q.demo_opposition_heat = (Q.demo_opposition_heat || 0) + 1;
+!}
+go-to: demo_case_hearing
+
+The organizers move fast. The public line becomes stronger, but opposition
+watchers start counting the crowd too.
+
+@delay
+title: Delay until the districts report.
+subtitle: Save resources, lose tempo.
+on-arrival: {!
+Q.demo_resources = (Q.demo_resources || 0) + 1;
+Q.demo_opposition_heat = (Q.demo_opposition_heat || 0) + 1;
+!}
+go-to: demo_case_hearing
+
+The committee waits for cleaner numbers. The delay saves capacity, but it also
+lets opponents define the morning.

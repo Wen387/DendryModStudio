@@ -8,6 +8,8 @@ const path = require('path');
 
 const coverage = require('./authoring/visible_object_coverage_model.js');
 const objectCanvasModel = require('./authoring/object_authoring_canvas_model.js');
+const parserRendererConfidence = require('./authoring/parser_renderer_confidence_model.js');
+const dynamicSemanticWorkbench = require('./authoring/dynamic_semantic_workbench_model.js');
 const previewEditor = require('./viewer/preview_object_editor.js');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
@@ -66,8 +68,18 @@ function summarizeIndex(item) {
   const index = item.index || {};
   const semantic = index.semantic || {};
   const news = semantic.news || {};
+  const parserEvidence = semantic.parserEvidence || {};
+  const parserCore = parserEvidence.core || parserEvidence;
+  const profileRouterRows = flattenProfileRouterRows(parserEvidence.profiles || []);
+  const parserEvidenceSummary = parserEvidence.summary || {};
   const diagnostics = Array.isArray(index.diagnostics) ? index.diagnostics : [];
   const report = coverage.buildCoverageReport(index, {includeVariables: true, includeStructuredLogic: true});
+  const confidence = parserRendererConfidence.buildConfidenceReport(index, {sampleLimit: 8});
+  const semanticWorkbench = dynamicSemanticWorkbench.buildDynamicSemanticWorkbench(index, {
+    coverage: report,
+    confidence,
+    sampleLimit: 8
+  });
   return {
     id: item.id,
     project: index.project && index.project.name || '',
@@ -83,6 +95,12 @@ function summarizeIndex(item) {
       surfaceText: semantic.surfaceText && (semantic.surfaceText.items || []).length || 0,
       textCorpus: semantic.textCorpus && (semantic.textCorpus.items || []).length || 0,
       electionResults: semantic.electionResults && (semantic.electionResults.items || []).length || 0,
+      routeOrderGroups: parserEvidenceSummary.routeOrderGroupCount || (parserCore.routeOrderGroups || []).length || 0,
+      dynamicKeyEvidence: parserEvidenceSummary.dynamicKeyEvidenceCount || (parserCore.dynamicKeyEvidence || []).length || 0,
+      dynamicKeyManualReview: parserEvidenceSummary.dynamicKeyManualReviewCount || 0,
+      dynamicKeySafeExpansion: parserEvidenceSummary.dynamicKeySafeExpansionCount || 0,
+      effectClauses: parserEvidenceSummary.effectClauseCount || (parserCore.effectClauses || []).length || 0,
+      monthlyPopupRouters: parserEvidenceSummary.monthlyPopupRouterCount || profileRouterRows.length || (parserEvidence.monthlyPopupRouterTable || []).length || 0,
       assets: semantic.assets && (semantic.assets.items || semantic.assets || []).length || 0,
       diagnostics: diagnostics.length
     },
@@ -91,8 +109,56 @@ function summarizeIndex(item) {
     manualSamples: sampleRows(report.rows, (row) => row.installSafety === 'manual_review' || row.routeClass === 'manual_review', 8),
     refusedSamples: sampleRows(report.rows, (row) => row.installSafety === 'refused', 8),
     weakSafeSamples: sampleRows(report.rows, (row) => row.safeEditEligible && !row.safeEditable, 8),
-    gapCandidates: gapCandidates(index, report, diagnostics)
+    gapCandidates: gapCandidates(index, report, diagnostics),
+    parserRendererConfidence: confidence,
+    dynamicSemanticWorkbench: compactSemanticWorkbench(semanticWorkbench)
   };
+}
+
+function compactSemanticWorkbench(workbench) {
+  const value = workbench || {};
+  return {
+    summary: value.summary || {},
+    workflows: (value.workflows || []).map((workflow) => ({
+      id: workflow.id,
+      workflowKind: workflow.workflowKind,
+      status: workflow.status,
+      title: workflow.title,
+      reviewApplyReadiness: workflow.sections && workflow.sections.reviewApplyReadiness || {},
+      manualBoundaries: workflow.sections && workflow.sections.manualBoundaries || {},
+      runtimeEvidence: workflow.sections && workflow.sections.runtimeEvidence || {}
+    })),
+    manualBoundaryPackages: (value.manualBoundaryPackages || []).map((item) => ({
+      id: item.id,
+      label: item.label,
+      rowCount: item.rowCount,
+      ownerCount: item.ownerCount,
+      installSafety: item.installSafety,
+      status: item.status,
+      reason: item.reason,
+      recommendedNextAction: item.recommendedNextAction
+    }))
+  };
+}
+
+function flattenProfileRouterRows(profiles) {
+  const rows = [];
+  (profiles || []).forEach((profile) => {
+    const packages = new Map((profile && profile.packages || []).map((item) => [String(item && item.id || ''), item || {}]));
+    (profile && profile.routerTables || []).forEach((table) => {
+      const packageRow = packages.get(String(table && table.packageId || '')) || {};
+      const alias = String(table && table.compatAlias || packageRow.compatAlias || '');
+      (table && table.rows || []).forEach((row) => {
+        rows.push(Object.assign({
+          profileId: String(profile && profile.profileId || ''),
+          packageId: String(table && table.packageId || ''),
+          routerTableId: String(table && table.id || ''),
+          compatAlias: alias
+        }, row || {}));
+      });
+    });
+  });
+  return rows;
 }
 
 function diagnosticSummary(diagnostics) {
@@ -121,6 +187,18 @@ function compactCoverage(summary) {
     routeCoverage: round(value.routeCoverage),
     safeEditCoverage: round(value.safeEditCoverage),
     previewCoverage: round(value.previewCoverage),
+    visibleEditableCoverage: round(value.visibleEditableCoverage),
+    visibleEditActionCoverage: round(value.visibleEditActionCoverage),
+    visibleEditActionMissingCount: value.visibleEditActionMissingCount || 0,
+    visibleEditActionUnresolvedCount: value.visibleEditActionUnresolvedCount || 0,
+    semanticEditorCoverage: round(value.semanticEditorCoverage),
+    structuredRouteEditorCoverage: round(value.structuredRouteEditorCoverage),
+    effectClauseEditorCoverage: round(value.effectClauseEditorCoverage),
+    sourceSliceFallbackCount: value.sourceSliceFallbackCount || 0,
+    visibleDisplayOnlyCount: value.visibleDisplayOnlyCount || 0,
+    visibleUnsupportedCount: value.visibleUnsupportedCount || 0,
+    visibleManualReviewCount: value.visibleManualReviewCount || 0,
+    visibleRefusedCount: value.visibleRefusedCount || 0,
     manualBoundaryCount: value.manualBoundaryCount || 0,
     unsupportedCount: value.unsupportedCount || 0,
     structuredLogicCoverage: round(value.structuredLogicCoverage),
@@ -160,16 +238,16 @@ function sampleRows(rows, predicate, limit) {
 function gapCandidates(index, report, diagnostics) {
   const rows = report.rows || [];
   const byDiag = countBy(diagnostics, (item) => item.code || 'unknown');
-  const monthlyManual = rows.filter((row) => row.objectType === 'monthly_popup' && row.installSafety === 'manual_review').length;
-  const variableManual = rows.filter((row) => row.objectType === 'variable' && row.safeEditEligible && !row.safeEditable).length;
+  const monthlyDisplayOnly = rows.filter((row) => row.objectType === 'monthly_popup' && row.visibleDisplayOnly).length;
+  const variableDisplayOnly = rows.filter((row) => row.objectType === 'variable' && row.visibleDisplayOnly).length;
   const refusedRows = rows.filter((row) => row.installSafety === 'refused');
   const protectedRefused = refusedRows.filter((row) => protectedOutputSource(row.source && row.source.path)).length;
   const unexpectedRefused = refusedRows.length - protectedRefused;
   return [
     gap('P1', 'conditional_go_to_runtime_order', byDiag.project_map && byDiag.project_map.conditional_goto || byDiag['project_map.conditional_goto'] || 0, 'Conditional/chained go-to routes are represented, but remain runtime-order-sensitive.'),
     gap('P1', 'opaque_q_dynamic', byDiag['project_map.dynamic_q_opaque'] || 0, 'Opaque Q dynamic expressions cannot be safely rewritten as structured effects.'),
-    gap('P1', 'monthly_popup_manual_review', monthlyManual, 'SDAAH-style monthly event popups route to Object Workspace but still install as manual review.'),
-    gap('P2', 'variable_edit_not_safe_apply', variableManual, 'Variables are discoverable but source-backed add/remove/write safety remains limited.'),
+    gap('P1', 'monthly_popup_display_only', monthlyDisplayOnly, 'SDAAH-style monthly event popups are visible but not editable.'),
+    gap('P2', 'variable_display_only', variableDisplayOnly, 'Variables are visible but do not generate an edit operation.'),
     gap('P0', 'unexpected_refused_visible_rows', unexpectedRefused, 'Visible rows outside protected output are refused and need routing/safety audit.'),
     gap('P3', 'protected_output_refused_boundary', protectedRefused, 'Protected generated output is visible but intentionally refused for automatic editing.')
   ].filter((item) => item.count > 0);
@@ -202,6 +280,17 @@ function assertGenericCompatibility(summaries) {
     assert(summary.counts.scenes > 0, summary.id + ' should expose at least one source scene', summary.counts);
     assert(summary.coverage.total > 0, summary.id + ' should produce visible-object coverage rows', summary.coverage);
     assert(summary.coverage.routeCoverage === 1, summary.id + ' visible objects should stay routed to a Studio surface', summary.coverage);
+    assert(summary.coverage.visibleEditableCoverage === 1, summary.id + ' visible content should be editable in Studio', summary.coverage);
+    assert(summary.coverage.visibleEditActionCoverage === 1, summary.id + ' visible content should expose click-to-edit actions', summary.coverage);
+    assert(summary.coverage.visibleEditActionMissingCount === 0, summary.id + ' should not miss visible click-to-edit actions', summary.coverage);
+    assert(summary.coverage.visibleEditActionUnresolvedCount === 0, summary.id + ' should resolve visible click-to-edit actions', summary.coverage);
+    assert(summary.coverage.semanticEditorCoverage === 1, summary.id + ' visible route/effect/variable logic should expose semantic editors', summary.coverage);
+    assert(summary.coverage.structuredRouteEditorCoverage === 1, summary.id + ' structured route rows should expose Route Editor metadata', summary.coverage);
+    assert(summary.coverage.effectClauseEditorCoverage === 1, summary.id + ' effect rows should expose Effect Clause Editor metadata', summary.coverage);
+    assert(summary.coverage.visibleDisplayOnlyCount === 0, summary.id + ' should not expose display-only visible content', summary.coverage);
+    assert(summary.coverage.visibleUnsupportedCount === 0, summary.id + ' should not expose unsupported visible content', summary.coverage);
+    assert(summary.coverage.visibleManualReviewCount === 0, summary.id + ' visible content should not fall back to manual review', summary.coverage);
+    assert(summary.coverage.visibleRefusedCount === 0, summary.id + ' visible content should not be refused', summary.coverage);
     assert(summary.coverage.previewCoverage > 0, summary.id + ' should keep at least some previewable content', summary.coverage);
     assert(summary.coverage.unsupportedCount === 0, summary.id + ' should not produce unsupported visible-object rows', summary.coverage);
   });
@@ -212,6 +301,48 @@ function assertDynamicPressureSample(dynamic) {
   assert(dynamic.counts.scenes >= 400, 'Dynamic fixture should exercise a large scene corpus', dynamic.counts);
   assert(dynamic.counts.monthlyPopups >= 100, 'Dynamic fixture should expose monthly event popups', dynamic.counts);
   assert(dynamic.counts.electionResults >= 5, 'Dynamic fixture should expose source-backed D3 election result screens', dynamic.counts);
+}
+
+function assertDynamicParserRendererConfidence(dynamic) {
+  const confidence = dynamic && dynamic.parserRendererConfidence || {};
+  assert(confidence.kind === 'parser_renderer_confidence_report', 'Dynamic audit should include parser/renderer confidence evidence', confidence);
+  assert(confidence.routeOrder && confidence.routeOrder.count >= 300, 'Dynamic confidence report should surface conditional route-order evidence', confidence.routeOrder);
+  assert(confidence.routeOrder.structuredGroupCount === confidence.routeOrder.count, 'Dynamic route-order evidence should be parser-backed structured groups', confidence.routeOrder);
+  assert(confidence.dynamicQ && confidence.dynamicQ.count >= 50, 'Dynamic confidence report should classify opaque dynamic Q boundaries', confidence.dynamicQ);
+  assert(confidence.dynamicQ.manualReviewCount === confidence.dynamicQ.count, 'Dynamic Q opaque rows should remain manual review by default', confidence.dynamicQ);
+  assert(confidence.dynamicQ.structuredEvidenceCount >= confidence.dynamicQ.count, 'Dynamic Q confidence report should expose structured parser evidence for every manual boundary', confidence.dynamicQ);
+  assert(confidence.dynamicQ.safeExpansionCount >= 1, 'Dynamic Q confidence report should expose parser-proven safe expansion evidence separately from manual boundaries', confidence.dynamicQ);
+  assert(confidence.monthlyPopups && confidence.monthlyPopups.count >= 100, 'Dynamic confidence report should expose monthly popup workflow evidence', confidence.monthlyPopups);
+  assert(confidence.monthlyPopups.routerTableCount === confidence.monthlyPopups.count, 'Dynamic monthly popup evidence should be backed by the router table', confidence.monthlyPopups);
+  assert(confidence.monthlyPopups.routerManualReviewCount === confidence.monthlyPopups.count, 'Monthly popup router behavior should stay a manual review boundary', confidence.monthlyPopups);
+  assert(confidence.sharedEffects && confidence.sharedEffects.clauseCount >= 1000, 'Dynamic confidence report should expose parser-backed effect clauses', confidence.sharedEffects);
+  assert(confidence.runtimeReadiness && confidence.runtimeReadiness.fallbackRequired, 'Dynamic confidence report should mark incomplete generated runtime as requiring fallback', confidence.runtimeReadiness);
+  assert(confidence.runtimeReadiness.missingDependencyCount >= 2, 'Dynamic runtime readiness should list missing generated dependencies', confidence.runtimeReadiness);
+}
+
+function assertDynamicSemanticWorkbenchSummary(dynamic) {
+  const workbench = dynamic && dynamic.dynamicSemanticWorkbench || {};
+  const summary = workbench.summary || {};
+  const packages = {};
+  (workbench.manualBoundaryPackages || []).forEach((item) => {
+    packages[item.id] = item;
+  });
+  assert(summary.workflowCount === 5, 'Dynamic Semantic Workbench should expose five fixed acceptance workflows', summary);
+  assert(summary.readyWorkflowCount === 5, 'Dynamic Semantic Workbench should make every fixed workflow ready', summary);
+  assert(packages.route_order && packages.route_order.rowCount === 332 && packages.route_order.installSafety === 'advanced_apply', 'Dynamic Semantic Workbench should compress route-order advanced packages', packages.route_order);
+  assert(packages.dynamic_q && packages.dynamic_q.rowCount === 77 && packages.dynamic_q.installSafety === 'advanced_apply', 'Dynamic Semantic Workbench should compress dynamic Q advanced packages', packages.dynamic_q);
+  assert(packages.monthly_popup_router && packages.monthly_popup_router.rowCount === 348 && packages.monthly_popup_router.installSafety === 'advanced_apply', 'Dynamic Semantic Workbench should compress monthly popup router advanced packages', packages.monthly_popup_router);
+  assert(packages.variable_provenance && packages.variable_provenance.rowCount === 3553 && packages.variable_provenance.installSafety === 'advanced_apply', 'Dynamic Semantic Workbench should compress variable provenance advanced packages', packages.variable_provenance);
+  assert(!packages.protected_output || packages.protected_output.rowCount === 0, 'Dynamic Semantic Workbench should not expose generated output as refused visible content', packages.protected_output);
+  const byId = {};
+  (workbench.workflows || []).forEach((item) => {
+    byId[item.id] = item;
+  });
+  assert(byId.monthly_popup_1929 && byId.monthly_popup_1929.manualBoundaries.packages.some((item) => item.id === 'monthly_popup_router'), 'Monthly popup workflow should carry router package evidence', byId.monthly_popup_1929);
+  assert(byId.route_order_presidential_1932 && byId.route_order_presidential_1932.manualBoundaries.routeOrderSensitiveCount >= 7, 'Presidential workflow should expose route-order evidence', byId.route_order_presidential_1932);
+  assert(byId.dynamic_q_hindenburg_president && byId.dynamic_q_hindenburg_president.manualBoundaries.dynamicQCount === 12, 'Hindenburg workflow should expose dynamic Q evidence', byId.dynamic_q_hindenburg_president);
+  assert(byId.election_d3_local_france && byId.election_d3_local_france.runtimeEvidence.electionResult && byId.election_d3_local_france.runtimeEvidence.electionResult.chartElementId === 'france_chamber', 'Election workflow should expose D3 runtime evidence', byId.election_d3_local_france);
+  assert(byId.variable_abortion_rights && byId.variable_abortion_rights.reviewApplyReadiness.installSafety === 'advanced_apply', 'Variable workflow should expose existing variable edits as advanced apply', byId.variable_abortion_rights);
 }
 
 const built = FIXTURES.map(buildIndex);
@@ -372,6 +503,8 @@ function assertNoDuplicatePartyNames(row, message) {
 
 assertGenericCompatibility(summaries);
 assertDynamicPressureSample(dynamic);
+assertDynamicParserRendererConfidence(dynamic);
+assertDynamicSemanticWorkbenchSummary(dynamic);
 const dynamicElectionEditing = assertDynamicElectionEditing(dynamicBuilt);
 const dynamicInlineCompositeEvent = assertDynamicInlineCompositeEvent(dynamicBuilt);
 const dynamicFollowUpMenuSemantics = assertDynamicFollowUpMenuSemantics(dynamicBuilt);
@@ -412,6 +545,13 @@ process.stdout.write(JSON.stringify({
     coverage: {
       routeCoverage: item.coverage.routeCoverage,
       safeEditCoverage: item.coverage.safeEditCoverage,
+      visibleEditableCoverage: item.coverage.visibleEditableCoverage,
+      visibleEditActionCoverage: item.coverage.visibleEditActionCoverage,
+      semanticEditorCoverage: item.coverage.semanticEditorCoverage,
+      structuredRouteEditorCoverage: item.coverage.structuredRouteEditorCoverage,
+      effectClauseEditorCoverage: item.coverage.effectClauseEditorCoverage,
+      sourceSliceFallbackCount: item.coverage.sourceSliceFallbackCount,
+      visibleDisplayOnlyCount: item.coverage.visibleDisplayOnlyCount,
       previewCoverage: item.coverage.previewCoverage,
       unsupportedCount: item.coverage.unsupportedCount,
       goalW: item.coverage.goalW,
@@ -431,6 +571,8 @@ process.stdout.write(JSON.stringify({
     inlineCompositeEvent: dynamicInlineCompositeEvent,
     followUpMenuSemantics: dynamicFollowUpMenuSemantics,
     sectionOwnedOptionEntrypoints: dynamicSectionOwnedOptionEntrypoints,
-    gapCandidates: dynamic.gapCandidates
+    gapCandidates: dynamic.gapCandidates,
+    parserRendererConfidence: dynamic.parserRendererConfidence,
+    dynamicSemanticWorkbench: dynamic.dynamicSemanticWorkbench
   }
 }, null, 2) + '\n');

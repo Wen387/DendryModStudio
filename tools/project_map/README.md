@@ -1,6 +1,7 @@
 # Dendry Project Map
 
-Read-only tooling for inspecting a Dendry/DendryNexus project.
+Dendry Mod Studio tooling for inspecting, editing, previewing, and safely
+installing Dendry/DendryNexus project changes.
 
 For development workflow, smoke tiers, packaging hygiene, and contributor
 boundaries, see `tools/project_map/WORKFLOW.md`.
@@ -11,60 +12,25 @@ This directory contains the shared Project Map scanner, browser viewer, desktop
 shell, authoring helpers, templates, compatibility fixtures, and repeatable QA
 checks used by Dendry Mod Studio.
 
-UI direction note: v0.5.5 adopts the **Direction B / Studio** surface for the
-normal Explore / Create / Install workspace, with a Branch mark, grouped
-Explore navigation, and tabbed Create output previews. v0.7 uses the
-graph-first **Direction C / Atelier** concept only inside the Design tab.
-v0.65 expands Create mode with export-only **Card / Advisor-like** and
-**Surface Text** proposals. Generic Dendry / SDAAH-style projects say
-Advisor(s), while the Island's Sunrise profile says Circle(s). Surface Text
-indexing can point at source-backed labels and IDE-only `out/html` evidence,
-but it still never auto-edits generated/custom runtime UI. v0.66 adds an
-**Install Assistant** foundation: every authoring bundle now includes an
-install-plan JSON and patch preview, and source-backed surface-label proposals
-can be dry-run or applied by a guarded CLI. v0.66.1 makes that easier to read
-by surfacing an operation checklist in the Studio and CLI summaries. v0.67 adds
-the first **Existing Content Editing Bridge**: Explore inspectors for Events,
-Cards, News, and Surface Text can seed the matching Create draft or show an
-explicit IDE escape hatch. This is best-effort draft seeding, not full
-round-trip raw `.dry` editing. The v0.67 completion pass adds an in-Studio
-Install mode, Coverage Map, and more concrete Card hand/sidebar wiring
-proposals. v0.7 adds the **Direction C Graph Design** workspace: a read-only
-dark graph canvas for cruising project content and comparing against an
-optional baseline ProjectIndex. v0.75 makes Coverage Map explicit about what
-can be done inside Studio, what is guided IDE work, and what remains out of
-scope. v0.76 adds `Edit Text Proposal` from Explore and Design inspectors, reusing
-the Text Replacement / SurfaceTextDraft proposal flow for existing titles, news
-headlines, and source-backed labels. It also turns Coverage Map into a beginner
-task router with a First Mod Roadmap, no-code completion labels, and explicit
-remaining gaps; Install mode adds a Finish this mod readiness card; Create outputs
-show a lightweight player-facing preview before code/snippet/diff. It is not a full
-runtime game preview, WYSIWYG editor, or raw `.dry` round-trip editor. v0.8.7
-adds a small Draft Workspace inside Create: drafts can be saved in Studio,
-reopened later, and sent straight to Install review; Install results now show a
-readable report with rollback notes instead of only raw JSON. v0.8.8 adds
-Meaning Layer previews and a more human Review & Apply install surface, moving
-internal terms such as `ide_escape_hatch` into advanced details. v0.8.9 adds
-the Event Workbench: selecting an event in Explore or Design shows player text,
-conditions, effects/variables, related flow, and modification entry points before
-showing source paths or raw `view-if`. Its three main actions now open real
-flows: rewrite player text becomes a Text proposal, while alternate timeline and
-follow-up actions become World Event drafts. They remain proposal-only until
-reviewed in Install. v0.9 adds first-run **Quick Start** onboarding, available
-again from topbar More, and expands zh-Hant localization coverage across the
-Studio shell, onboarding flow, Event Workbench copy, and Create wizard controls.
-Runtime Preview Sandbox adds a desktop-only Review & Apply action that builds
-temporary baseline/modified copies and opens a localhost comparison page; it
-does not build or patch the real project folder. Runtime Preview Debug Console
-is preview-only: it can adjust ProjectIndex-known variables and jump to
-ProjectIndex-known scenes inside the temporary modified preview, but it does
-not edit source files, real saves, baseline output, or execute arbitrary JS.
-v0.9.3 also adds an **Announcement Preview MVP**: the desktop app can poll a
-static `update_manifest.json` URL, show the latest unread announcement as a
-banner, and keep the full notice feed in a three-section in-app preview:
-Updates & History, Announcements, and Testing & Contact. It opens
-release/download/feedback links only when the user clicks them; it does not
-silently download, install, or identify a device.
+Current maintainer map:
+
+- Indexing produces a ProjectIndex plus parser-backed semantic evidence for
+  visible text, routes, effects, variables, runtime surfaces, and protected
+  router boundaries.
+- Rendering surfaces consume structured edit actions rather than diagnostic
+  strings. Explore, Event Workbench, Card Board, Object Canvas, and Complex
+  Event Builder all route visible content through the same click-to-edit
+  contract.
+- Object Editing Modal owns detailed edits. Storyboard, Card Board, Design, and
+  Runtime Lens are context/navigation surfaces.
+- Browser mode is review-only. Desktop mode can dry-run or apply install-plan
+  operations classified as `safe_apply`, `guarded_apply`, or explicitly
+  confirmed `advanced_apply`.
+- Source Slice and Advanced Source Patch are fallback editors for source-backed
+  visible content. They still generate install operations; they are not manual
+  copy/paste flows.
+- Generated runtime output, `.git`, and protected build artifacts remain
+  protected. Edits must map back to source-backed operations.
 
 ## One-command local launch
 
@@ -80,7 +46,8 @@ The launcher:
 - starts a local static viewer server;
 - auto-selects another port if `8765` is busy;
 - opens a URL that auto-loads the generated index;
-- stays read-only/export-only and does not edit `source/`, `out/game.json`, or `out/html/`.
+- keeps browser mode review-only; source writes require desktop Review & Apply
+  or the guarded CLI apply path.
 
 For review indexes with source excerpts:
 
@@ -114,7 +81,7 @@ for safe operations; v0.66.1 adds operation checklist previews and human CLI
 breakdowns; v0.67 adds Explore -> Edit as Draft for existing indexed content,
 an Install mode, Coverage Map, and card wiring proposals; v0.7 adds the
 Direction C graph-first Design tab with optional baseline compare.
-The desktop package version is now `0.9.66` to match the current dev preview
+The desktop package version is now `0.97` to match the current dev preview
 surface. This is still preparation for the future beginner-facing app, not a
 signed public installer yet. The root game package stays untouched.
 
@@ -148,15 +115,16 @@ The desktop shell:
 - sends the generated `ProjectIndex` to the viewer through a preload IPC bridge;
 - checks the configured announcement manifest and shows an announcement preview
   plus a manual download / release-notes banner when needed;
-- keeps Create mode / the World Event Wizard / News Wizard / Card Wizard /
-  Surface Text proposals export-only.
-- in desktop mode, can dry-run or apply only install-plan operations classified
-  as safe apply.
+- opens Complex Event Builder, visible click-to-edit, source-slice fallback,
+  asset-copy proposals, profile-aware router registration, and Review & Apply
+  from the same Studio UI;
+- in desktop mode, can dry-run or apply install-plan operations classified as
+  safe, guarded, or explicitly advanced.
 - in desktop mode, can create a Runtime Preview sandbox: baseline and modified
   temporary copies are built separately, the install plan is applied only to the
   modified copy, and a `127.0.0.1` compare page shows original versus modified.
 
-Current v0.9.66 limits:
+Current v0.97 limits:
 
 - release builds include the Python runtime used by the desktop indexer;
 - public release installers are unsigned and still need clean-machine QA,
@@ -171,20 +139,22 @@ Current v0.9.66 limits:
   `dist-builder/` when run on Windows or GitHub Actions;
 - the older `package:dir`, `package:portable`, and `package:deb` helpers remain
   useful for local packaging diagnostics under ignored `dist/`;
-- the shell does not write `source/`, `out/game.json`, or `out/html/`;
-- export bundles now include install plans and patch previews; router / wiring
-  work only becomes installable when a plan has explicit anchor and dedupe evidence.
-- news snippets target `source/scenes/post_event_news.scene.dry`; the Studio can
-  dry-run / apply guarded inserts for known post_event_news anchors, while
-  missing-anchor or ambiguous dense-router cases remain manual review.
-- card scene creation can be represented as a safe create-file operation, but
-  hand/deck/sidebar wiring remains manual review.
-- source-backed surface-text replacement can be dry-run / applied by
-  `apply_install_plan.js`; `out/html` evidence always remains an IDE escape
-  hatch and is never auto-mutated.
-- Edit as Draft seeds new proposal drafts from existing indexed rows; it does
-  not reconstruct full scene bodies/effects and does not overwrite the original
-  row.
+- the shell never writes generated output such as `out/game.json` or `out/html`;
+  source edits happen only through reviewed install-plan operations.
+- authoring bundles include install plans, patch previews, and player-facing
+  operation labels; router / wiring work becomes installable when the active
+  profile provides explicit anchor and dedupe evidence.
+- known news/monthly popup/router profiles can produce guarded or advanced
+  router registration operations. Unknown profiles show pending router-rule
+  entry points instead of pretending wiring succeeded.
+- card and event creation can produce scene-file, variable-init, asset-copy, and
+  profile-router operations when source evidence is available.
+- source-backed visible text, route, effect, variable, and surface-label edits
+  route through visible edit actions. `out/html` evidence remains protected and
+  must map back to source before it can be installed.
+- Edit actions open existing object fields, semantic logic editors, variable
+  workspaces, or source-slice fallback editors. They do not overwrite source
+  until Review & Apply creates and applies an install plan.
 - Install mode can review any Studio install-plan JSON. Browser mode is review
   only; desktop mode can dry-run/apply safe operations through the same guard as
   the CLI. New Studio-generated install plans record project provenance, and
@@ -200,14 +170,14 @@ Current v0.9.66 limits:
   variables/scenes to the modified iframe and records command summaries without
   raw variable values. It is a sandboxed preview aid, not a full WYSIWYG/runtime
   debugger and not evidence that public release QA is complete.
-- Design mode is read-only, graph-first, and compares ProjectIndex rows by
-  stable keys plus optional source fingerprints. Missing fingerprints or
-  low-confidence evidence are marked unknown, not changed.
-- Coverage Map is the current coverage truth surface: Events / News / Cards /
-  Surface Text are draft/proposal workflows; hand/sidebar/raw routers are
-  guided IDE escape hatches; image/audio assets are proposal-first. Assets view
-  now has gallery cards, inspector image/audio preview, usage refs, reference
-  helpers, missing-file repair proposals, and PreviewModel `assetRefs` display.
+- Design mode is graph-first and compares ProjectIndex rows by stable keys plus
+  optional source fingerprints. Missing fingerprints or low-confidence evidence
+  are marked unknown, not changed.
+- Coverage Map is the current coverage truth surface: visible content should
+  have an edit action and installable path; non-visible internal wiring can
+  remain manual or refused. Assets view has gallery cards, inspector image/audio
+  preview, usage refs, reference helpers, missing-file repair proposals, and
+  PreviewModel `assetRefs` display.
   PreviewModel marks assetRefs missing from the ProjectIndex asset list before
   review. Desktop `copy_asset_file` can guarded-copy a local file only when the
   plan has a sourcePath and passes hash/conflict checks; browser/no-sourcePath
@@ -215,13 +185,12 @@ Current v0.9.66 limits:
   asset files. Preview readiness is exposed by
   `ProjectMapPreviewModel` as `ready_to_review`, `needs_review`, or
   `manual_review`; it is an authoring confidence signal, not runtime proof.
-- v0.9.66 keeps the v0.9.65 authoring surface and improves Windows installer
-  performance by packing Electron-readable JavaScript dependencies into
-  `app.asar`. The parser remains available from the packaged app, while Python
-  runtime resources, profiles, templates, and the Python indexer stay as loose
-  files. The authoring model remains heuristic: unusual source layouts, opaque
-  JS, and structural edits without reliable source spans must stay manual
-  review.
+- v0.97 keeps the faster Windows installer layout from the previous preview and
+  carries the newer authoring surface: Object Canvas / Story Palette draft paths,
+  safer existing-content proposals, Runtime Preview evidence, Runtime Lens
+  wiring, and stronger governance checks. The authoring model remains heuristic:
+  unusual source layouts, opaque JS, and structural edits without reliable
+  source spans must stay manual review.
 - First-run Quick Start can load the bundled Starter Demo template. Desktop
   copies `tools/project_map/templates/starter-demo/` into Electron app data
   before scanning it, so the demo is a writable teaching project rather than
@@ -258,8 +227,8 @@ cover the bundled Demo Template path from Quick Start into a writable starter
 project. They write screenshots and a `QA_LEDGER.md` under `/tmp/dendry_mod_studio_qa/`. See
 `tools/project_map/qa/README.md`.
 
-See `tools/project_map/desktop/PACKAGING_NOTES.md` for the v0.9.66 packaging
-boundary and `tools/project_map/RELEASE_NOTES_v0.9.66.md` for the tester-facing
+See `tools/project_map/desktop/PACKAGING_NOTES.md` for the v0.97 packaging
+boundary and `tools/project_map/RELEASE_NOTES_v0.97.md` for the tester-facing
 dev preview notes and known limits. Do not commit `tools/project_map/desktop/dist/`
 or `node_modules/`. Before any public release claim, run `npm run check:ci`,
 attach the release notes, and record the exact package artifact tested.
@@ -318,12 +287,10 @@ spans, confidence, 1-hop edges, grouped diagnostics, surface-text editability,
 and related variable refs. Scene edge endpoints are clickable in the inspector.
 Project profiles can override advisor-like labels: generic Dendry and
 SDAAH-style projects show Advisors; Island's Sunrise shows Circles.
-Coverage Map summarizes which categories are safe apply, export-only,
-manual-review, or IDE-only. Events, Cards, News, and Surface Text inspectors
-also expose `Edit as Draft`.
-That action switches to Create mode and loads a best-effort draft seed; partial
-or IDE-only cases stay visibly marked rather than being treated as finished
-edits.
+Coverage Map summarizes visible editability, rendered workflow entries, install
+safety, and remaining non-visible manual boundaries. Events, Cards, News,
+Surface Text, variables, routes, effects, and source-backed runtime labels route
+through click-to-edit actions when Studio can map them to source.
 
 Design mode shows the same project through a Direction C / Atelier graph canvas.
 Timeline Events, Cards / Advisor-like, News, Surface Text / Sidebar, and Manual
@@ -334,21 +301,13 @@ are marked `same`, `changed`, `added`, `missing from current`, `unknown`, or
 fingerprints. Design Inspector actions reuse `Edit as Draft` and `Open in
 Explore`; no source file is installed from Design mode.
 
-Create mode contains the v0.4.3 World Event Wizard, v0.6 News Wizard, and v0.65
-Card / Surface Text templates, with v0.66 install-plan and patch-preview output.
-The World Event Wizard can
-load an existing
-`EventDraft v0.1` JSON, edit 2-4 choices, edit advanced fields such as
-`seenFlag`, trigger effects, `chooseIf`, variants, and custom continuation
-anchors, preview generated `.scene.dry`, draft JSON, root init snippet,
-post_event migration snippet, install notes, and patch preview. The News Wizard can load a
-`NewsDraft v0.1` JSON, generate dated `Q.news_1/2/3` snippets or background
-pool `.push({n, d})` snippets, preview snippet / draft JSON / install notes / patch preview,
-and download an export bundle. The Card Wizard can generate action-card or
-advisor-like `.scene.dry` proposals with 2-4 choices, choose-if, unavailable
-text, and simple Q effects. The Surface Text template exports replacement
-proposals or IDE escape-hatch notes for labels such as `資源 -> 資金`; source-backed
-labels can be passed through the guarded Install Assistant CLI.
+Create mode uses Complex Event Builder as the main world-event authoring flow.
+It can start from a blank event, edit 2-4 root options, branch/follow-up
+sections, conditions, route targets, effects, variable initialization, and asset
+install requests, then block Review & Apply until readiness checks pass. The
+older News, Card, Variable, Surface Text, and System UI templates remain
+available, but installability now flows through the shared install-plan and
+Review & Apply path instead of export-only success.
 
 Manual walkthrough:
 
@@ -356,7 +315,7 @@ Manual walkthrough:
 2. Select `/tmp/dendry_project_map/project-index-excerpts.json`.
 3. Confirm Overview renders, source badges open excerpts, diagnostics groups
    show examples, and scene incoming/outgoing endpoints navigate the inspector.
-4. Switch to Create, fill the World Event Wizard, adjust the choice count, and
+4. Switch to Create, fill the Complex Event Builder, adjust the choice count, and
    confirm diagnostics, previews, and download buttons update.
 5. Use `Load draft JSON` with a file such as
    `tools/project_map/fixtures/event_drafts/four_choice_world_event.json`; confirm
@@ -376,14 +335,14 @@ Manual walkthrough:
 9. Switch to Surface Text, load
    `tools/project_map/fixtures/surface_text_drafts/sample_label_replacement.json`
    and `unsupported_html_label.json`; confirm source-backed proposals and
-   IDE-only escape hatch notes are distinct.
+   protected generated-output notes are distinct.
 10. Open the Patch preview tab in any Create template; confirm it shows the
     generated install-plan proposal before downloading.
 11. Return to Explore, select an Event, Card, News item, or Surface Text row,
     click `Edit as Draft`, and confirm Create mode opens with the matching
     draft template loaded.
-12. Open Coverage Map and confirm it distinguishes safe apply from manual
-    review.
+12. Open Coverage Map and confirm visible rows have edit actions while
+    non-visible/internal manual boundaries remain explicit.
 13. Switch to Design, confirm the dark Direction C graph canvas renders, select
     an Event / Card / News / Surface Text node, and confirm `Edit as Draft`
     opens Create.
@@ -392,30 +351,35 @@ Manual walkthrough:
 15. Open Install, load a generated `*.install-plan.json`, review the operation
     checklist, and in desktop mode run dry-run before applying safe operations.
 
-## Install Assistant v0.67
+## Review & Apply / Install Plans
 
-Every Event / News / Card / Surface Text bundle now includes:
+Every authoring bundle or visible edit proposal can include:
 
 - `<id>.install-plan.json`
 - `<id>.patch-preview.diff`
 - `<id>.install-notes.txt`
 
-Studio Install mode shows an operation checklist with separate
-`Safe apply`, `Manual review`, and `Protected / refused` sections. In the
-desktop shell it can dry-run or apply only safe operations; in the raw browser
-viewer it remains a review surface and points users to the CLI.
+Studio Review & Apply shows operation names, safety classes, plan preview, and
+verified desktop diff evidence when available. In the desktop shell it can
+dry-run or apply `safe_apply`, `guarded_apply`, and explicitly confirmed
+`advanced_apply` operations; in the raw browser viewer it remains a review
+surface.
 
-The install plan separates `safe_apply` operations from `manual_review`
-operations. Current safe operations are deliberately narrow:
+The install plan separates installable operations from `manual_review` and
+`refused` operations. Current installable operations include:
 
 - `create_file` for new Event / Card scene proposals.
-- `replace_text` for source-backed Surface Text labels when the original text
-  still matches exactly.
+- `replace_text` and `replace_section` for source-backed visible content,
+  source slices, routes, effects, variables, and surface labels when guards
+  still match.
+- `copy_asset_file` for selected desktop asset sources with a project-relative
+  target and conflict/hash evidence.
+- profile-aware router registration when the active profile provides a
+  supported anchor.
 
-Manual-review operations stay manual: root init snippets, `post_event` migration
-guards, `post_event_news` snippets, hand/deck/sidebar wiring, and all `out/html`
-evidence. Card exports now include a concrete wiring proposal pointing at the
-hand/sidebar review file, but that operation is still `manual_review`.
+Manual-review operations stay manual and are not a success path for visible
+content. They are retained for deletes, broad structural rewrites, sourceless
+diagnostics, truly ambiguous profile wiring, and generated/custom internals.
 
 Dry-run an install plan:
 
@@ -426,7 +390,7 @@ node tools/project_map/apply_install_plan.js \
   --summary
 ```
 
-Apply only the safe operations after reviewing the patch preview:
+Apply reviewed safe and guarded operations after reviewing the preview:
 
 ```bash
 node tools/project_map/apply_install_plan.js \
@@ -437,7 +401,7 @@ node tools/project_map/apply_install_plan.js \
 ```
 
 The CLI refuses paths outside the project root, `.git`, `out/game.json`, and
-`out/html/`. It never applies `manual_review` operations.
+`out/html/`. It never applies `manual_review` or `refused` operations.
 
 Without `--summary`, the CLI prints a compact human breakdown:
 
@@ -473,9 +437,9 @@ The bundle contains:
 - `<id>.post-event-migration.snippet.js`
 - `<id>.install-notes.txt`
 
-The install notes now list bundle files, the suggested source path, and manual
-root/post_event installation steps. They are intentionally instructions, not an
-auto-apply patch.
+The install notes list bundle files, the suggested source path, and any
+non-installable router/root follow-up that still needs profile evidence before
+it can become a guarded or advanced operation.
 
 ## Export a news bundle
 
@@ -503,7 +467,7 @@ The bundle contains:
 `social_pool` / `intl_pool` / `gossip_pool` `.push({n, d})` snippet. When the
 loaded ProjectIndex shows `source/scenes/post_event_news.scene.dry`, the install
 plan uses a guarded `insert_text` with a known anchor and `// NewsDraft: <id>`
-dedupe token; otherwise it stays a manual proposal.
+dedupe token; otherwise it reports pending profile/router evidence.
 
 ## Export a card bundle
 
@@ -549,9 +513,9 @@ The bundle contains:
 - `<id>.surface-text-draft.json`
 - `<id>.install-notes.txt`
 
-Source-backed labels are exported as manual replacement proposals. Generated or
-custom runtime UI evidence, especially `out/html`, is exported as an IDE escape
-hatch with path, line, original label, replacement label, and rationale.
+Source-backed labels can become guarded replacement proposals when their source
+anchor is stable. Generated or custom runtime UI evidence, especially
+`out/html`, must map back to source before Studio can install it.
 
 ## Smoke checks
 
@@ -652,5 +616,5 @@ DMS_SDAAH_FIXTURE_ROOT=/path/to/SDAAH node tools/project_map/check_sdaah_install
 `/tmp/dms_sdaah_install_write_*`, builds a ProjectIndex for the copy, then
 dry-runs and applies Event / SDAAH monthly news-as-event / Card / Text Corpus /
 existing event / guarded event-chain edits there, and verifies status/sidebar
-Surface Text remains a manual System UI boundary.
+generated/custom Surface Text remains a protected System UI boundary.
 It verifies the original SDAAH checkout remains unchanged.

@@ -27,7 +27,7 @@
       renderMetrics(board),
       '</div>',
       '<div class="card-board-toolbar-actions">',
-      '<button type="button" data-object-canvas-action="toggle_overlay">' + escapeHtml(options && options.editorOverlay ? t('objectCanvas.editorDock', 'Close editor') : t('objectCanvas.editorOverlay', 'Open object editor')) + '</button>',
+      '<button type="button" data-object-canvas-action="toggle_overlay" data-visible-edit-affordance="card-board">' + escapeHtml(options && options.editorOverlay ? t('objectCanvas.editorDock', 'Close editor') : t('visibleEdit.action', 'Edit')) + '</button>',
       '</div>',
       '</header>'
     ].join('');
@@ -136,7 +136,7 @@
   function renderCard(card) {
     return [
       '<article class="card-board-card card-board-card-' + safeClass(card.kind) + (card.selected ? ' is-selected' : '') + '" tabindex="0" draggable="true" role="button" data-card-board-card="' + escapeAttr(card.key || '') + '" data-card-board-card-kind="' + escapeAttr(card.kind || '') + '" data-card-board-card-title="' + escapeAttr(card.title || '') + '">',
-      '<div class="card-board-card-kicker"><span>' + escapeHtml(typeLabel(card.kind)) + '</span><em>' + escapeHtml(ensureArray(card.tags).slice(0, 2).map((tag) => '#' + tag).join(' ')) + '</em></div>',
+      '<div class="card-board-card-kicker"><span>' + escapeHtml(typeLabel(card.kind)) + '</span><em>' + escapeHtml(ensureArray(card.tags).slice(0, 2).map((tag) => '#' + tag).join(' ')) + '</em><b class="visible-edit-affordance" data-visible-edit-affordance="card-board-card">' + escapeHtml(t('visibleEdit.action', 'Edit')) + '</b></div>',
       '<strong>' + renderTextInline(card.heading || card.title || '') + '</strong>',
       card.subtitle ? '<small>' + renderTextInline(card.subtitle) + '</small>' : '',
       card.body ? '<p>' + renderTextInline(card.body) + '</p>' : '',

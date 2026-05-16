@@ -50,6 +50,10 @@
     draftBranches: [],
     editorOverlay: false,
     deleteProposal: null,
+    sourceSliceModel: null,
+    sourceSliceAdvancedConfirmed: false,
+    semanticLogicModel: null,
+    semanticLogicAdvancedConfirmed: false,
     boardChromeCollapsed: true,
     runtimeLensSession: null,
     runtimeLensStatus: 'idle',
@@ -67,6 +71,7 @@
     valueOriginals: {},
     structureCommands: [],
     structureCommandCounter: 0,
+    transientReturnStack: [],
     preserveScrollOnNextRefresh: false,
     model: null,
     status: ''
@@ -76,12 +81,15 @@
 
   const api = {
     openFromSelection,
+    openVisibleEditAction,
     openTemplate,
     openNewEvent,
     loadDraft,
     refresh,
     getDraft: draftWithAuthoringContext,
     getOutput: () => state.model && state.model.changeState && state.model.changeState.output,
+    getSourceSliceModel: () => state.sourceSliceModel || null,
+    getSemanticLogicModel: () => state.semanticLogicModel || null,
     isActive: () => state.active,
     activeTemplate: () => state.mode === 'existing' ? 'existing' : state.template || 'event',
     activeWorkspace: () => state.workspace || workspaceForTemplate(state.template || 'event'),
@@ -93,6 +101,7 @@
     panCanvas,
     createRelatedDraft,
     toggleEditorOverlay,
+    returnFromTransientWorkspace,
     setProjectIndex
   };
 
@@ -655,6 +664,68 @@
     state.structureCommandCounter = 0;
   }
 
+  function shouldMaterializeNewEventDraft(values) {
+    if (state.mode !== 'new_event' || state.template !== 'event') {
+      return false;
+    }
+    if (state.structureCommands && state.structureCommands.length) {
+      return true;
+    }
+    return Object.keys(values || {}).some((key) => {
+      return /^structure_remove_/.test(String(key || '')) && truthyStructureValue(values[key]);
+    });
+  }
+
+  function materializeNewEventDraft(model) {
+    const draft = model && model.changeState && model.changeState.draft;
+    if (!draft || state.mode !== 'new_event' || state.template !== 'event') {
+      return model;
+    }
+    state.baseDraft = cloneDraft(draft);
+    state.values = {};
+    state.valueOriginals = {};
+    resetStructureCommands();
+    return buildTemplateModel({values: {}});
+  }
+
+  function truthyStructureValue(value) {
+    return /^(1|true|yes|on)$/i.test(String(value || '').trim());
+  }
+
+  function resetTransientEditWorkspace(options) {
+    const opts = options || {};
+    state.mode = opts.mode || '';
+    state.template = opts.template || opts.mode || '';
+    state.view = opts.view || opts.mode || '';
+    state.item = opts.item || null;
+    state.workspace = opts.workspace || 'content';
+    state.selectedCanvasNode = opts.selectedCanvasNode || opts.mode || 'object';
+    resetStoryboardState();
+    resetCardBoardState();
+    resetRuntimeLens();
+    resetProjectStateState();
+    state.systemUiFixture = 'default';
+    state.canvasPanX = 0;
+    state.canvasPanY = 0;
+    state.nodePositions = {};
+    state.draftBranches = [];
+    state.editorOverlay = Boolean(options && options.editorOverlay);
+    state.deleteProposal = null;
+    if (opts.activeModel !== 'source_slice') {
+      state.sourceSliceModel = null;
+      state.sourceSliceAdvancedConfirmed = false;
+    }
+    if (opts.activeModel !== 'semantic_logic') {
+      state.semanticLogicModel = null;
+      state.semanticLogicAdvancedConfirmed = false;
+    }
+    state.baseDraft = null;
+    state.proposalOptions = null;
+    state.values = {};
+    state.valueOriginals = {};
+    resetStructureCommands();
+  }
+
   function openFromSelection(projectIndex, view, item, options) {
     templateClickToken += 1;
     reconcileToken += 1;
@@ -680,12 +751,17 @@
     state.canvasPanY = 0;
     state.nodePositions = {};
     state.draftBranches = [];
-    state.editorOverlay = false;
+    state.editorOverlay = Boolean(options && options.editorOverlay);
     state.deleteProposal = null;
+    state.sourceSliceModel = null;
+    state.sourceSliceAdvancedConfirmed = false;
+    state.semanticLogicModel = null;
+    state.semanticLogicAdvancedConfirmed = false;
     state.baseDraft = null;
     state.proposalOptions = options && options.proposalOptions || null;
     state.values = options && options.values || {};
     state.valueOriginals = {};
+    clearTransientReturnStack();
     resetStructureCommands();
     state.model = buildExistingModel(options || {});
     state.active = true;
@@ -695,6 +771,240 @@
     showWorkspace(view === 'cards' ? 'card' : 'existing');
     render();
     return Boolean(state.model && state.model.ok);
+  }
+
+  function openVisibleEditAction(projectIndex, action) {
+    const editAction = action && action.editAction || action || {};
+    const kind = String(editAction.actionKind || '');
+    if (projectIndex) {
+      state.projectIndex = projectIndex;
+    }
+    if (shouldKeepSemanticLogicActionInline(editAction)) {
+      return openDraftEditAction(editAction);
+    }
+    if (shouldOpenStandaloneSemanticLogicAction(editAction) && !editAction.draftAction) {
+      return openSemanticLogicAction(editAction);
+    }
+    if (kind === 'open_route_editor' || kind === 'open_effect_editor' || kind === 'open_profile_router_rule' || (editAction.draftAction && (kind === 'open_object_field' || kind === 'open_object_section' || kind === 'open_variable_editor'))) {
+      return openDraftEditAction(editAction);
+    }
+    if (shouldOpenStandaloneSemanticLogicAction(editAction)) {
+      return openSemanticLogicAction(editAction);
+    }
+    if (kind === 'open_object_field' || kind === 'open_object_section' || kind === 'open_linked_event') {
+      return openFromSelection(state.projectIndex, editAction.targetView || 'events', editAction.targetId || '', {
+        entry: {source: 'visible_edit_action', actionKind: kind},
+        focus: editAction
+      });
+    }
+    if (kind === 'open_variable_editor') {
+      const draft = Object.assign({}, safeDefaultDraftForTemplate('variables'), {
+        kind: 'variable_editor',
+        mode: 'edit_existing',
+        id: 'edit_' + String(editAction.targetId || 'variable').replace(/[^A-Za-z0-9_]+/g, '_'),
+        title: 'Edit ' + String(editAction.targetId || 'variable'),
+        variableName: String(editAction.targetId || ''),
+        label: String(editAction.targetId || '')
+      });
+      return openTemplate('variables', draft, {source: 'visible_edit_action', actionKind: kind});
+    }
+    if (kind === 'open_system_ui_editor') {
+      const template = normalizeTemplate(editAction.targetView || editAction.target && editAction.target.template || 'entry') || 'entry';
+      return openTemplate(template, safeDefaultDraftForTemplate(template), {source: 'visible_edit_action', actionKind: kind});
+    }
+    if (kind === 'open_advanced_source_patch' && editAction.draftAction && !editAction.source) {
+      state.status = t('objectCanvas.status.profileRouterRule', 'Router setup needs a profile rule or an advanced source anchor.');
+      updateDynamicSurfaces();
+      return true;
+    }
+    if (kind === 'open_source_slice' || kind === 'open_advanced_source_patch') {
+      return openSourceSliceAction(editAction);
+    }
+    if (kind === 'open_profile_router_rule') {
+      state.status = t('objectCanvas.status.profileRouterRule', 'Router setup needs a profile rule or an advanced source anchor.');
+      updateDynamicSurfaces();
+      return true;
+    }
+    return false;
+  }
+
+  function openDraftEditAction(editAction) {
+    const action = editAction || {};
+    const kind = String(action.actionKind || '');
+    if (kind === 'open_variable_editor') {
+      const draft = Object.assign({}, safeDefaultDraftForTemplate('variables'), {
+        kind: 'variable_editor',
+        mode: 'create_or_edit',
+        id: 'edit_' + String(action.targetId || action.variableName || 'variable').replace(/[^A-Za-z0-9_]+/g, '_'),
+        title: 'Edit ' + String(action.targetId || action.variableName || 'variable'),
+        variableName: String(action.targetId || action.variableName || ''),
+        label: String(action.targetId || action.variableName || '')
+      });
+      return openTemplate('variables', draft, {source: 'event_graph', actionKind: kind});
+    }
+    if (kind === 'open_profile_router_rule') {
+      state.status = t('objectCanvas.status.profileRouterRule', 'Router setup needs a profile rule or an advanced source anchor.');
+      updateDynamicSurfaces();
+      return true;
+    }
+    const focused = focusDraftField(action.fieldId || action.valueKey || '');
+    state.status = focused
+      ? t('objectCanvas.status.graphEntryFocused', 'Opened the matching editor field.')
+      : t('objectCanvas.status.graphEntryMissing', 'Studio could not find that editor field in this draft.');
+    updateDynamicSurfaces();
+    return focused;
+  }
+
+  function focusDraftField(fieldId) {
+    const key = String(fieldId || '').trim();
+    if (!key || !elements || !elements.host) {
+      return false;
+    }
+    const field = elements.host.querySelector('[data-object-canvas-field="' + cssEscape(key) + '"]');
+    if (!field) {
+      return false;
+    }
+    if (typeof field.scrollIntoView === 'function') {
+      field.scrollIntoView({block: 'center', inline: 'nearest'});
+    }
+    if (typeof field.focus === 'function') {
+      field.focus();
+    }
+    if (typeof field.select === 'function' && /input|textarea/i.test(field.tagName || '')) {
+      field.select();
+    }
+    return true;
+  }
+
+  function captureTransientReturnContext(editAction) {
+    const stack = returnStackApi();
+    if (!stack || typeof stack.capture !== 'function') {
+      return null;
+    }
+    state.values = collectValues();
+    return stack.capture(state, {
+      label: transientReturnLabel(editAction),
+      scrollSnapshot: captureObjectCanvasScroll(),
+      focusSelector: transientFocusSelector(editAction)
+    });
+  }
+
+  function pushTransientReturnContext(context) {
+    const stack = returnStackApi();
+    if (stack && typeof stack.push === 'function' && context) {
+      stack.push(state, context);
+    }
+  }
+
+  function clearTransientReturnStack() {
+    const stack = returnStackApi();
+    if (stack && typeof stack.clear === 'function') {
+      stack.clear(state);
+    } else {
+      state.transientReturnStack = [];
+    }
+  }
+
+  function transientReturnContext() {
+    const stack = returnStackApi();
+    return stack && typeof stack.peek === 'function' ? stack.peek(state) : null;
+  }
+
+  function transientReturnLabel(editAction) {
+    const model = state.model || {};
+    return String(
+      model.title ||
+      model.objectId ||
+      editAction && (editAction.sceneTitle || editAction.targetTitle || editAction.targetId) ||
+      state.item ||
+      t('objectCanvas.titleFallback', 'Author object')
+    ).trim();
+  }
+
+  function transientFocusSelector(editAction) {
+    const key = editAction && (editAction.fieldId || editAction.valueKey);
+    return key ? '[data-object-canvas-field="' + cssEscape(key) + '"]' : '';
+  }
+
+  function openSourceSliceAction(editAction) {
+    const apiModel = sourceSliceApi();
+    if (!apiModel || typeof apiModel.buildSourceSliceEditor !== 'function') {
+      return false;
+    }
+    const sliceModel = apiModel.buildSourceSliceEditor(state.projectIndex, {editAction});
+    if (!sliceModel || !sliceModel.ok) {
+      state.sourceSliceModel = sliceModel || null;
+      state.status = t('sourceSlice.status.mappingBug', 'Studio could not find the source position for this visible content.');
+      updateDynamicSurfaces();
+      return false;
+    }
+    const returnContext = captureTransientReturnContext(editAction);
+    state.sourceSliceModel = sliceModel;
+    state.sourceSliceAdvancedConfirmed = false;
+    pushTransientReturnContext(returnContext);
+    resetTransientEditWorkspace({
+      mode: 'source_slice',
+      item: sliceModel && sliceModel.targetId || null,
+      selectedCanvasNode: 'source_slice',
+      activeModel: 'source_slice'
+    });
+    state.model = buildSourceSliceCanvasModel(sliceModel, {});
+    state.active = true;
+    state.status = t('sourceSlice.status.prepared', 'Precise source edit opened for this visible content.');
+    showWorkspace('source_slice');
+    render();
+    return Boolean(sliceModel && sliceModel.ok);
+  }
+
+  function shouldOpenSemanticLogicAction(editAction) {
+    const editor = editAction && editAction.semanticEditor || null;
+    const kind = String(editor && editor.kind || '');
+    return kind === 'route_order' || kind === 'effect_clause';
+  }
+
+  function shouldOpenStandaloneSemanticLogicAction(editAction) {
+    if (!shouldOpenSemanticLogicAction(editAction)) {
+      return false;
+    }
+    return Boolean(editAction && (editAction.forceSemanticEditor || editAction.semanticEditorOpenMode === 'standalone'));
+  }
+
+  function shouldKeepSemanticLogicActionInline(editAction) {
+    if (!shouldOpenSemanticLogicAction(editAction) || shouldOpenStandaloneSemanticLogicAction(editAction)) {
+      return false;
+    }
+    const kind = String(editAction && editAction.actionKind || '');
+    return kind === 'open_route_editor' || kind === 'open_effect_editor';
+  }
+
+  function openSemanticLogicAction(editAction) {
+    const apiModel = semanticLogicApi();
+    if (!apiModel || typeof apiModel.buildSemanticLogicEditor !== 'function') {
+      return openSourceSliceAction(editAction);
+    }
+    const editorModel = apiModel.buildSemanticLogicEditor(state.projectIndex, {editAction});
+    if (!editorModel || !editorModel.ok) {
+      state.semanticLogicModel = editorModel || null;
+      state.status = t('sourceSlice.status.mappingBug', 'Studio could not find the source position for this visible content.');
+      updateDynamicSurfaces();
+      return false;
+    }
+    const returnContext = captureTransientReturnContext(editAction);
+    state.semanticLogicModel = editorModel;
+    state.semanticLogicAdvancedConfirmed = false;
+    pushTransientReturnContext(returnContext);
+    resetTransientEditWorkspace({
+      mode: 'semantic_logic',
+      item: editorModel && editorModel.targetId || null,
+      selectedCanvasNode: 'semantic_logic',
+      activeModel: 'semantic_logic'
+    });
+    state.model = buildSemanticLogicCanvasModel(editorModel, {});
+    state.active = true;
+    state.status = t('semanticLogic.status.prepared', 'Semantic editor opened for this visible logic.');
+    showWorkspace('semantic_logic');
+    render();
+    return Boolean(editorModel && editorModel.ok);
   }
 
   function openNewEvent(draft, meta) {
@@ -723,8 +1033,13 @@
     state.draftBranches = [];
     state.editorOverlay = false;
     state.deleteProposal = null;
+    state.sourceSliceModel = null;
+    state.sourceSliceAdvancedConfirmed = false;
+    state.semanticLogicModel = null;
+    state.semanticLogicAdvancedConfirmed = false;
     state.baseDraft = draft || safeDefaultDraftForTemplate(nextTemplate);
     state.proposalOptions = null;
+    clearTransientReturnStack();
     if (nextTemplate === 'card') {
       state.cardBoardSelectedKey = 'draft:card:' + (state.baseDraft && state.baseDraft.id || 'new_action_card');
       state.selectedCanvasNode = state.cardBoardSelectedKey;
@@ -792,10 +1107,14 @@
 
   function loadDraft(draft, meta) {
     const value = draft || {};
+    state.sourceSliceModel = null;
+    state.sourceSliceAdvancedConfirmed = false;
+    state.semanticLogicModel = null;
+    state.semanticLogicAdvancedConfirmed = false;
     if (value.kind === 'existing_scene_delete') {
       const opened = openFromSelection(state.projectIndex, value.sceneKind === 'card' ? 'cards' : 'events', value.sceneId, {entry: meta});
       if (opened) {
-        state.deleteProposal = normalizeDeleteProposal(value, state.model);
+        state.deleteProposal = objectDeleteProposalApi().normalizeProposal(value, state.model);
         state.model = buildDeleteProposalModel(state.deleteProposal);
         state.status = t('objectCanvas.status.deletePrepared', 'Delete proposal prepared for Review & Apply.');
         render();
@@ -835,10 +1154,17 @@
     state.values = collectValues();
     state.model = state.deleteProposal
       ? buildDeleteProposalModel(state.deleteProposal)
+      : state.mode === 'source_slice'
+      ? buildSourceSliceCanvasModel(state.sourceSliceModel, state.values)
+      : state.mode === 'semantic_logic'
+      ? buildSemanticLogicCanvasModel(state.semanticLogicModel, state.values)
       : state.mode === 'existing' ? buildExistingModel({values: state.values, proposalOptions: state.proposalOptions}) : buildTemplateModel({values: state.values});
+    if (!state.deleteProposal && shouldMaterializeNewEventDraft(state.values)) {
+      state.model = materializeNewEventDraft(state.model);
+    }
     markRuntimeLensStale();
     const surface = currentSurface(state.model);
-    if (surface.key === 'system_ui_preview' || surface.key === 'card_board' && !activeInsidePreviewObjectEditor() || shouldRenderSurfaceRefresh(surface)) {
+    if (surface.key === 'source_slice_editor' || surface.key === 'semantic_logic_editor' || surface.key === 'system_ui_preview' || surface.key === 'card_board' && !activeInsidePreviewObjectEditor() || shouldRenderSurfaceRefresh(surface)) {
       render({scrollSnapshot});
       return;
     }
@@ -851,76 +1177,53 @@
   }
 
   function buildExistingModelFor(view, item, options) {
-    const apiModel = modelApi();
-    try {
-      return apiModel && typeof apiModel.buildExistingCanvas === 'function'
-        ? apiModel.buildExistingCanvas(state.projectIndex, view, item, options || {})
-        : diagnosticModel('existing', view || 'existing', item || '', new Error('Object Canvas model is unavailable.'), options);
-    } catch (err) {
-      return diagnosticModel('existing', view || 'existing', item || '', err, options);
-    }
+    return modelBuilderApi().buildExistingModelFor(view, item, options, modelBuilderDeps());
   }
 
   function buildNewEventModel(options) {
-    const apiModel = modelApi();
-    return apiModel && typeof apiModel.buildNewEventCanvas === 'function'
-      ? apiModel.buildNewEventCanvas(state.projectIndex, state.baseDraft || {}, options || {})
-      : null;
+    return modelBuilderApi().buildNewEventModel(options, modelBuilderDeps());
   }
 
   function buildTemplateModel(options) {
-    const apiModel = modelApi();
-    const template = state.template || 'event';
-    const nextOptions = withStructureCommandValues(options);
-    try {
-      if (apiModel && typeof apiModel.buildTemplateCanvas === 'function') {
-        return apiModel.buildTemplateCanvas(state.projectIndex, template, state.baseDraft || {}, nextOptions || {});
-      }
-      return buildNewEventModel(nextOptions);
-    } catch (err) {
-      return diagnosticModel('template', template, state.baseDraft && state.baseDraft.id || '', err, nextOptions);
-    }
+    return modelBuilderApi().buildTemplateModel(options, modelBuilderDeps());
+  }
+
+  function buildSourceSliceCanvasModel(sliceModel, values) {
+    return modelBuilderApi().buildSourceSliceCanvasModel(sliceModel, values, modelBuilderDeps());
+  }
+
+  function buildSemanticLogicCanvasModel(editorModel, values) {
+    return modelBuilderApi().buildSemanticLogicCanvasModel(editorModel, values, modelBuilderDeps());
+  }
+
+  function sourceSliceReplacementText(values) {
+    const workspace = sourceSliceWorkspaceApi();
+    return workspace && typeof workspace.replacementText === 'function'
+      ? workspace.replacementText(values, state.sourceSliceModel)
+      : state.sourceSliceModel && state.sourceSliceModel.currentText || '';
   }
 
   function withStructureCommandValues(options) {
-    const opts = Object.assign({}, options || {});
-    const values = Object.assign({}, opts.values || {});
-    if (state.structureCommands && state.structureCommands.length) {
-      values.__structureCommands = state.structureCommands.slice();
-    }
-    opts.values = values;
-    return opts;
+    return modelBuilderApi().withStructureCommandValues(options, modelBuilderDeps());
   }
 
   function diagnosticModel(mode, template, objectId, err, options) {
-    const draft = state.baseDraft || {};
-    const message = err && err.message ? err.message : String(err || 'Model build failed.');
+    return modelBuilderApi().diagnosticModel(mode, template, objectId, err, options, modelBuilderDeps());
+  }
+
+  function modelBuilderDeps() {
     return {
-      schemaVersion: '0.1',
-      kind: 'object_authoring_canvas_model',
-      ok: false,
-      mode: mode === 'existing' ? 'existing' : String(template || 'event'),
-      template: mode === 'existing' ? 'existing' : String(template || 'event'),
-      templateLabel: String(template || ''),
-      objectKind: String(template || 'object'),
-      objectId: String(objectId || draft.id || ''),
-      title: String(draft.title || draft.heading || objectId || template || t('objectCanvas.titleFallback', 'Author object')),
-      source: {path: ''},
-      entry: {source: options && options.source || options && options.entry && options.entry.source || 'Create'},
-      contextBoard: {},
-      eventBody: {},
-      changeState: {
-        draft,
-        proposal: draft,
-        output: {},
-        installPlan: null,
-        operationSummary: {safeApply: 0, guardedApply: 0, manualReview: 0, refused: 0},
-        changedCount: 0,
-        diagnostics: [{severity: 'error', code: 'object_canvas.model_build_failed', message}],
-        warnings: []
-      },
-      legacy: {template: String(template || '')},
-      rawContext: null
+      modelApi,
+      projectIndex: state.projectIndex,
+      baseDraft: state.baseDraft || {},
+      template: state.template || 'event',
+      sourceSliceWorkspaceApi,
+      sourceSliceWorkspaceDeps,
+      semanticLogicWorkspaceApi,
+      semanticLogicWorkspaceDeps,
+      state,
+      structureCommands: state.structureCommands,
+      t
     };
   }
 
@@ -998,63 +1301,43 @@
       '--object-canvas-sidebar-width: ' + clampAuthoringSidebarWidth(state.authoringSidebarWidth) + 'px',
       '--object-editor-preview-width: ' + clampObjectEditorPreviewWidth(state.objectEditorPreviewWidth) + 'px'
     ].join('; ');
-    elements.host.innerHTML = [
-      '<section class="object-canvas editing-workspace' + (state.editorOverlay ? ' is-editor-overlay' : '') + (previewEditorIsActive(surface) ? ' has-preview-object-editor' : '') + (boardChromeCanCollapse(surface) && state.boardChromeCollapsed ? ' is-board-chrome-collapsed' : '') + '" data-object-authoring-canvas="true" data-editing-workspace="true" data-authoring-workspace="' + escapeAttr(state.workspace || 'content') + '" data-authoring-surface="' + escapeAttr(surface.key || 'content_graph') + '" data-preview-object-editor-active="' + (previewEditorIsActive(surface) ? 'true' : 'false') + '" data-board-chrome-collapsed="' + (state.boardChromeCollapsed ? 'true' : 'false') + '" style="' + escapeAttr(layoutStyle) + '">',
-      renderHeader(model, surface),
+    const shell = objectCanvasShellApi();
+    const bodyHtml = stageError
+      ? renderDiagnostics([{message: t('objectCanvas.renderFailed', 'Canvas render failed: {error}').replace('{error}', stageError && stageError.message ? stageError.message : String(stageError || 'unknown error'))}])
+      : model.ok ? renderBody(model) : renderUnavailable(model);
+    elements.host.innerHTML = shell.renderShell({
+      model,
+      surface,
+      state,
+      layoutStyle,
       stageHtml,
-      renderObjectEditingModal(model, surface),
-      stageError ? renderDiagnostics([{message: t('objectCanvas.renderFailed', 'Canvas render failed: {error}').replace('{error}', stageError && stageError.message ? stageError.message : String(stageError || 'unknown error'))}]) : model.ok ? renderBody(model) : renderUnavailable(model),
-      '</section>'
-    ].join('');
+      modalHtml: renderObjectEditingModal(model, surface),
+      bodyHtml,
+      translate: t,
+      surfaceLabelFor
+    });
     bindCanvasEvents();
     updateDynamicSurfaces();
     restoreObjectCanvasScroll(scrollSnapshot);
   }
 
   function renderHeader(model, surface) {
-    const source = model.source || {};
-    const systemUi = surface && surface.key === 'system_ui_preview';
-    const modeLabel = model.mode === 'existing'
-      ? t('objectCanvas.mode.existing', 'Editing existing object')
-      : t('objectCanvas.mode.newObject', 'Authoring object');
-    const kindLabel = systemUi ? t('authoring.template.systemUiScreen', 'System UI Screen') : model.templateLabel || model.objectKind || state.template || 'event';
-    const surfaceLabel = surface && surfaceLabelFor(surface) || t('objectCanvas.eyebrow', 'Object Authoring Canvas');
-    const title = headerTitle(model, surface);
-    const canCollapse = boardChromeCanCollapse(surface);
-    const collapsed = canCollapse && state.boardChromeCollapsed;
-    const toggleLabel = collapsed
-      ? t('objectCanvas.expandBoardChrome', 'Expand board details')
-      : t('objectCanvas.collapseBoardChrome', 'Collapse board details');
-    return [
-      '<header class="object-canvas-header editing-workspace-header' + (canCollapse ? ' is-collapsible' : '') + (collapsed ? ' is-collapsed' : '') + '" data-object-canvas-header="true">',
-      '<div>',
-      '<div class="object-canvas-title-row">',
-      '<div>',
-      '<div class="template-eyebrow" data-authoring-surface-label="true">' + escapeHtml(surfaceLabel) + '</div>',
-      '<h2 data-object-canvas-title="true">' + escapeHtml(title) + '</h2>',
-      '</div>',
-      canCollapse ? '<button class="object-canvas-chrome-toggle" type="button" data-object-canvas-action="toggle_board_chrome" aria-expanded="' + (collapsed ? 'false' : 'true') + '">' + escapeHtml(toggleLabel) + '</button>' : '',
-      '</div>',
-      '<p>' + escapeHtml(t('objectCanvas.body', 'Design the object itself: keep context beside it, edit player-facing text directly, then review the exact change operations.')) + '</p>',
-      '<div class="editing-status-line" data-object-canvas-status="true">' + escapeHtml(state.status || '') + '</div>',
-      '</div>',
-      '<dl class="editing-meta">',
-      '<dt>' + escapeHtml(t('objectCanvas.mode', 'Mode')) + '</dt><dd>' + escapeHtml(modeLabel) + '</dd>',
-      '<dt>' + escapeHtml(t('existingScene.kind', 'Kind')) + '</dt><dd>' + escapeHtml(kindLabel) + '</dd>',
-      '<dt>' + escapeHtml(t('existingScene.sceneId', 'Scene')) + '</dt><dd>' + escapeHtml(model.objectId || '') + '</dd>',
-      '<dt>' + escapeHtml(t('existingScene.source', 'Source')) + '</dt><dd>' + escapeHtml(source.path ? source.path + (source.line ? ':' + source.line : '') : '') + '</dd>',
-      '</dl>',
-      '</header>'
-    ].join('');
+    return objectCanvasShellApi().renderHeader(model, surface, state, {translate: t, surfaceLabelFor});
   }
 
   function renderBody(model) {
-    return '<div class="object-canvas-layout object-canvas-layout-retired" hidden data-object-canvas-support-panels="true"></div>';
+    return objectCanvasShellApi().renderBody(model, {translate: t});
   }
 
   function renderCanvasStage(model) {
     return withRuntimeLensRenderStatus(() => {
       const surface = currentSurface(model);
+      if (surface.key === 'source_slice_editor') {
+        return renderSourceSliceStage(model);
+      }
+      if (surface.key === 'semantic_logic_editor') {
+        return renderSemanticLogicStage(model);
+      }
       if (surface.key === 'project_state_board') {
         return renderProjectStateStage(model);
       }
@@ -1090,8 +1373,7 @@
   }
 
   function canRenderSurfaceWithDiagnostics(surface) {
-    const key = surface && surface.key || '';
-    return key === 'card_board';
+    return objectCanvasShellApi().canRenderSurfaceWithDiagnostics(surface);
   }
 
   function renderProjectStateStage(model) {
@@ -1127,14 +1409,41 @@
     const api = cardWorkspaceApi(); return api && typeof api.renderStage === 'function' ? api.renderStage(state, model) : '';
   }
 
+  function renderSourceSliceStage(model) {
+    const workspace = sourceSliceWorkspaceApi();
+    return workspace && typeof workspace.render === 'function'
+      ? renderTransientReturnBar() + workspace.render(model, state, sourceSliceWorkspaceDeps())
+      : '';
+  }
+
+  function renderSemanticLogicStage(model) {
+    const workspace = semanticLogicWorkspaceApi();
+    return workspace && typeof workspace.render === 'function'
+      ? renderTransientReturnBar() + workspace.render(model, state, semanticLogicWorkspaceDeps())
+      : '';
+  }
+
+  function renderTransientReturnBar() {
+    const context = transientReturnContext();
+    if (!context) {
+      return '';
+    }
+    const label = context.label || t('objectCanvas.titleFallback', 'Author object');
+    const button = t('objectCanvas.returnToObject', 'Back to: {label}').replace('{label}', label);
+    return [
+      '<div class="object-canvas-return-bar" data-object-canvas-return-bar="true">',
+      '<button type="button" data-object-canvas-action="return_from_transient_workspace">' + escapeHtml(button) + '</button>',
+      '<span>' + escapeHtml(t('objectCanvas.returnNotice', 'You are in an advanced source workspace; returning will restore the previous object editor.')) + '</span>',
+      '</div>'
+    ].join('');
+  }
+
   function boardChromeCanCollapse(surface) {
-    const key = surface && surface.key || '';
-    return key === 'content_storyboard' || key === 'card_board' || key === 'system_ui_preview' || key === 'election_results_board' || key === 'project_state_board';
+    return objectCanvasShellApi().boardChromeCanCollapse(surface);
   }
 
   function previewEditorIsActive(surface) {
-    const key = surface && surface.key || '';
-    return key === 'content_storyboard' || key === 'card_board';
+    return objectCanvasShellApi().previewEditorIsActive(surface);
   }
 
   function activeInsidePreviewObjectEditor() {
@@ -1196,24 +1505,11 @@
   }
 
   function renderUnavailable(model) {
-    const diagnostics = model && model.changeState && model.changeState.diagnostics || [];
-    return [
-      '<section class="editing-panel" open>',
-      '<div class="editing-empty">' + escapeHtml(t('objectCanvas.unavailable', 'Object Canvas cannot open this selection yet.')) + '</div>',
-      diagnostics.map((diag) => '<p class="editing-readonly-line">' + escapeHtml((diag.code || 'diagnostic') + ': ' + (diag.message || '')) + '</p>').join(''),
-      '</section>'
-    ].join('');
+    return objectCanvasShellApi().renderUnavailable(model, {translate: t});
   }
 
   function renderStageError(surface, err) {
-    return [
-      '<section class="object-canvas-stage object-canvas-render-error" data-object-canvas-stage="true" data-object-canvas-render-error="true" data-authoring-surface="' + escapeAttr(surface && surface.key || '') + '">',
-      '<div class="editing-empty">',
-      '<h3>' + escapeHtml(t('objectCanvas.renderErrorTitle', 'Canvas could not render this workspace.')) + '</h3>',
-      '<p>' + escapeHtml(err && err.message ? err.message : String(err || 'Unknown render error')) + '</p>',
-      '</div>',
-      '</section>'
-    ].join('');
+    return objectCanvasShellApi().renderStageError(surface, err, {translate: t});
   }
 
   function recordRenderError(err, surface) {
@@ -1229,91 +1525,23 @@
   }
 
   function renderChangePanel(model) {
-    const change = model.changeState || {};
-    const summary = change.operationSummary || {};
-    const output = change.output || {};
-    const installPlan = change.installPlan || output.installPlan || parseJson(output.installPlanJson);
-    return [
-      '<section class="editing-summary" data-object-canvas-operation-summary="true">',
-      '<h3>' + escapeHtml(t('objectCanvas.changeTitle', 'Change and safety')) + '</h3>',
-      '<div class="editing-summary-grid">',
-      summaryBox(t('editing.summary.guarded', 'Guarded'), summary.guardedApply),
-      summaryBox(t('editing.summary.manual', 'Manual'), summary.manualReview),
-      summaryBox(t('editing.summary.refused', 'Refused'), summary.refused),
-      summaryBox(t('objectCanvas.changedFields', 'Changed'), change.changedCount),
-      '</div>',
-      '</section>',
-      '<section class="editing-preview">',
-      '<div class="preview-heading">' + escapeHtml(t('objectCanvas.preview', 'Player-facing preview')) + '</div>',
-      '<pre class="code-preview" data-object-canvas-preview="true" data-editing-preview="true">' + escapeHtml(output.playerPreview || output.proposalText || output.previewText || output.sceneDry || '') + '</pre>',
-      '</section>',
-      renderPlanPreview(installPlan),
-      renderDiagnostics(change.diagnostics || []),
-      renderActions(model)
-    ].join('');
+    return objectCanvasShellApi().renderChangePanel(model, {translate: t});
   }
 
   function renderPlanPreview(plan) {
-    const operations = Array.isArray(plan && plan.operations) ? plan.operations : [];
-    return [
-      '<section class="editing-panel object-canvas-plan" data-object-canvas-review-plan="true">',
-      '<h3>' + escapeHtml(t('objectCanvas.planTitle', 'Modification plan')) + '</h3>',
-      operations.length
-        ? operations.slice(0, 6).map(renderPlanOperation).join('')
-        : '<p class="editing-empty">' + escapeHtml(t('objectCanvas.planEmpty', 'No install operations are available for review yet.')) + '</p>',
-      operations.length > 6 ? '<p class="editing-readonly-line">' + escapeHtml(t('objectCanvas.planMore', 'More operations are available in Review & Apply.')) + '</p>' : '',
-      '</section>'
-    ].join('');
+    return objectCanvasShellApi().renderPlanPreview(plan, {translate: t});
   }
 
   function renderPlanOperation(operation) {
-    const op = operation && typeof operation === 'object' ? operation : {};
-    const title = op.description || op.id || op.type || t('objectCanvas.planOperation', 'Operation');
-    const meta = [
-      op.safety || '',
-      op.type || '',
-      op.path || op.targetPath || ''
-    ].filter(Boolean).join(' / ');
-    return [
-      '<article class="object-canvas-plan-row">',
-      '<strong>' + escapeHtml(title) + '</strong>',
-      meta ? '<span>' + escapeHtml(meta) + '</span>' : '',
-      '</article>'
-    ].join('');
+    return objectCanvasShellApi().renderPlanOperation(operation, {translate: t});
   }
 
   function renderDiagnostics(rows) {
-    const items = Array.isArray(rows) ? rows : [];
-    if (!items.length) {
-      return '';
-    }
-    return [
-      '<details class="editing-panel object-canvas-diagnostics">',
-      '<summary><span>' + escapeHtml(t('create.diagnostics', 'Diagnostics')) + '</span><b>' + items.length + '</b></summary>',
-      items.slice(0, 8).map((diag) => '<p class="editing-readonly-line">' + escapeHtml(diag.message || diag.code || '') + '</p>').join(''),
-      '</details>'
-    ].join('');
+    return objectCanvasShellApi().renderDiagnostics(rows, {translate: t});
   }
 
   function renderActions(model) {
-    return [
-      '<div class="editing-actions object-canvas-actions">',
-      '<button type="button" data-object-canvas-action="refresh">' + escapeHtml(t('existingScene.refresh', 'Refresh proposal')) + '</button>',
-      '<button type="button" data-object-canvas-action="save">' + escapeHtml(t('editing.saveToChanges', 'Save to My Changes')) + '</button>',
-      '<button class="primary-action" type="button" data-object-canvas-action="review">' + escapeHtml(t('existingScene.review', 'Review & Apply')) + '</button>',
-      '<button class="danger-action" type="button" data-object-canvas-action="delete_current_object">' + escapeHtml(t(model.mode === 'existing' ? 'objectCanvas.action.deleteExisting' : 'objectCanvas.action.discardDraft', model.mode === 'existing' ? 'Delete event' : 'Discard draft')) + '</button>',
-      model.mode !== 'existing' ? '<button type="button" data-object-canvas-action="legacy_form">' + escapeHtml(t('objectCanvas.legacyForm', 'Advanced Form')) + '</button>' : '',
-      '</div>'
-    ].join('');
-  }
-
-  function summaryBox(label, value) {
-    return [
-      '<div class="editing-summary-box">',
-      '<strong>' + escapeHtml(String(Number(value || 0))) + '</strong>',
-      '<span>' + escapeHtml(label) + '</span>',
-      '</div>'
-    ].join('');
+    return objectCanvasShellApi().renderActions(model, {translate: t});
   }
 
   function bindCanvasEvents() {
@@ -1365,6 +1593,15 @@
       input.addEventListener('input', scheduleRefresh);
       input.addEventListener('change', scheduleRefresh);
     });
+    const sourceSliceWorkspace = sourceSliceWorkspaceApi();
+    if (sourceSliceWorkspace && typeof sourceSliceWorkspace.bind === 'function') {
+      sourceSliceWorkspace.bind(elements.host, state, sourceSliceWorkspaceDeps());
+    }
+    const semanticLogicWorkspace = semanticLogicWorkspaceApi();
+    if (semanticLogicWorkspace && typeof semanticLogicWorkspace.bind === 'function') {
+      semanticLogicWorkspace.bind(elements.host, state, semanticLogicWorkspaceDeps());
+    }
+    bindVisibleEditUi(elements.host);
     elements.host.querySelectorAll('[data-preview-object-structure-part]').forEach((input) => {
       if (input.__dmsStructureBuilderBound) {
         return;
@@ -1450,6 +1687,66 @@
     }, PROJECT_STATE_SEARCH_DEBOUNCE_MS);
   }
 
+  function sourceSliceReviewAllowed() {
+    if (state.mode !== 'source_slice' || !state.sourceSliceModel) {
+      return true;
+    }
+    const workspace = sourceSliceWorkspaceApi();
+    return workspace && typeof workspace.reviewAllowed === 'function'
+      ? workspace.reviewAllowed(state)
+      : false;
+  }
+
+  function sourceSliceBlockedStatus() {
+    if (state.mode !== 'source_slice') {
+      return t('sourceSlice.status.advancedRequired', 'Enable advanced apply before reviewing this protected source edit.');
+    }
+    const changed = Number(state.model && state.model.changeState && state.model.changeState.changedCount || 0) > 0;
+    if (!changed) {
+      return t('sourceSlice.status.noChanges', 'Make a change before sending this edit to Review & Apply.');
+    }
+    return t('sourceSlice.status.advancedRequired', 'Enable advanced apply before reviewing this protected source edit.');
+  }
+
+  function semanticLogicReviewAllowed() {
+    if (state.mode !== 'semantic_logic' || !state.semanticLogicModel) {
+      return true;
+    }
+    const workspace = semanticLogicWorkspaceApi();
+    return workspace && typeof workspace.reviewAllowed === 'function'
+      ? workspace.reviewAllowed(state)
+      : false;
+  }
+
+  function semanticLogicBlockedStatus() {
+    if (state.mode !== 'semantic_logic') {
+      return t('semanticLogic.status.advancedRequired', 'Enable advanced apply before reviewing this semantic source edit.');
+    }
+    const changed = Number(state.model && state.model.changeState && state.model.changeState.changedCount || 0) > 0;
+    if (!changed) {
+      return t('semanticLogic.status.noChanges', 'Make a route or effect change before sending this edit to Review & Apply.');
+    }
+    return t('semanticLogic.status.advancedRequired', 'Enable advanced apply before reviewing this semantic source edit.');
+  }
+
+  function eventReadinessReviewAllowed() {
+    if (state.mode !== 'new_event') {
+      return true;
+    }
+    const rows = ensureArray(state.model && state.model.eventBody && state.model.eventBody.readinessChecklist);
+    return !rows.length || rows.every((row) => row && row.ok);
+  }
+
+  function eventReadinessBlockedStatus() {
+    const blocked = ensureArray(state.model && state.model.eventBody && state.model.eventBody.readinessChecklist)
+      .filter((row) => row && !row.ok)
+      .map((row) => row.label || row.id)
+      .filter(Boolean);
+    return blocked.length
+      ? t('objectCanvas.status.readinessBlocked', 'Finish blocked checklist items before Review & Apply: {items}').replace('{items}', blocked.slice(0, 3).join('; '))
+      : t('objectCanvas.status.readinessBlockedGeneric', 'Finish the event checklist before Review & Apply.');
+  }
+
   function restoreProjectStateSearchFocus() {
     if (!projectStateSearchFocus || !elements || !elements.host) {
       projectStateSearchFocus = null;
@@ -1476,8 +1773,15 @@
     if (fastSelectProjectStateNode(next)) {
       return;
     }
+    if (openProjectStateVariableFromCanvas(next)) {
+      return;
+    }
     state.values = collectValues();
     state.deleteProposal = null;
+    state.sourceSliceModel = null;
+    state.sourceSliceAdvancedConfirmed = false;
+    state.semanticLogicModel = null;
+    state.semanticLogicAdvancedConfirmed = false;
     if (switchSystemUiTemplateForRegion(next)) {
       return;
     }
@@ -1496,44 +1800,19 @@
   }
 
   function fastSelectProjectStateNode(next) {
-    if (!/^variable:/.test(String(next || ''))) {
-      return false;
-    }
-    if (!state.model || currentSurface(state.model).key !== 'project_state_board') {
-      return false;
-    }
-    state.selectedCanvasNode = next;
-    if (!syncProjectStateVariableSelection()) {
-      render();
-    }
-    return true;
+    return projectStateWorkspaceApi().fastSelectNode(state, next, projectStateWorkspaceDeps());
+  }
+
+  function openProjectStateVariableFromCanvas(next) {
+    return projectStateWorkspaceApi().openVariableFromCanvas(state, next, projectStateWorkspaceDeps());
+  }
+
+  function findProjectStateVariable(name) {
+    return projectStateWorkspaceApi().findVariable(state, name, projectStateWorkspaceDeps());
   }
 
   function syncProjectStateVariableSelection() {
-    if (!elements || !elements.host || !state.model) {
-      return false;
-    }
-    const surface = global.ProjectMapProjectStateSurface;
-    if (!surface || typeof surface.renderInspectorCard !== 'function') {
-      return false;
-    }
-    const selectedName = selectedProjectStateVariableName();
-    elements.host.querySelectorAll('[data-project-state-variable-row]').forEach((row) => {
-      const active = String(row.dataset && row.dataset.projectStateVariableRow || '') === selectedName;
-      row.classList.toggle('is-selected', active);
-      row.setAttribute('aria-selected', active ? 'true' : 'false');
-    });
-    const card = elements.host.querySelector('[data-project-state-consumers], [data-project-state-metadata]');
-    if (!card) {
-      return false;
-    }
-    card.outerHTML = surface.renderInspectorCard(state.model, {
-      projectIndex: state.projectIndex,
-      selected: state.selectedCanvasNode,
-      query: state.projectStateQuery,
-      limit: state.projectStateLimit
-    });
-    return true;
+    return projectStateWorkspaceApi().syncVariableSelection(state, projectStateWorkspaceDeps());
   }
 
   function switchSystemUiTemplateForRegion(nodeKey) {
@@ -1628,7 +1907,28 @@
       updateDynamicSurfaces();
     } else if (action === 'review') {
       global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
+      if (state.mode === 'source_slice' || state.mode === 'semantic_logic') {
+        refresh();
+      }
+      if (!sourceSliceReviewAllowed()) {
+        state.status = sourceSliceBlockedStatus();
+        updateDynamicSurfaces();
+        return;
+      }
+      if (!semanticLogicReviewAllowed()) {
+        state.status = semanticLogicBlockedStatus();
+        updateDynamicSurfaces();
+        return;
+      }
+      if (!eventReadinessReviewAllowed()) {
+        state.status = eventReadinessBlockedStatus();
+        updateDynamicSurfaces();
+        return;
+      }
       reviewCurrentPlan();
+    } else if (action === 'create_similar_event') {
+      global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
+      createSimilarEventDraft();
     } else if (action === 'legacy_form') {
       global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
       openLegacyForm();
@@ -1638,6 +1938,10 @@
     } else if (action === 'toggle_preview_expanded') {
       global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
       toggleObjectEditorPreviewExpanded();
+    } else if (action === 'return_from_transient_workspace') {
+      global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
+      returnFromTransientWorkspace();
+      return;
     } else if (action === 'commit_structure_command') {
       global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
       commitStructureCommand(target);
@@ -1668,6 +1972,57 @@
     } else if (action.indexOf('create_') === 0) {
       createRelatedDraft(action.replace('create_', ''), target);
     }
+  }
+
+  function createSimilarEventDraft() {
+    const sceneId = state.model && (state.model.objectId || state.model.sceneId);
+    const parsedApi = parsedToDraftApi();
+    const sourceView = normalizeParsedDraftView(state.model && (state.model.objectView || state.view || state.model.objectKind));
+    if (parsedApi && typeof parsedApi.buildDraftFromParsed === 'function' && sceneId) {
+      const result = parsedApi.buildDraftFromParsed(state.projectIndex, {
+        view: sourceView,
+        itemId: sceneId,
+        sourceEntry: 'object_canvas_create_similar'
+      });
+      if (result && result.ok && result.draft) {
+        openTemplate(result.template || templateForParsedView(sourceView), result.draft, {
+          source: 'Create similar object',
+          action: 'create_similar_event',
+          parsedToDraft: result
+        });
+        state.status = result.status === 'partial'
+          ? t('objectCanvas.status.createSimilarPartialOpened', 'Similar draft opened with a parity gate; Review & Apply is blocked until missing structure is handled.')
+          : t('objectCanvas.status.createSimilarOpened', 'Similar draft opened.');
+        updateDynamicSurfaces();
+        return true;
+      }
+    }
+    const api = global.ProjectMapEventDraft;
+    if (!api || typeof api.fromExistingScene !== 'function' || !sceneId) {
+      state.status = t('objectCanvas.status.createSimilarUnavailable', 'Studio could not build a new draft from this object.');
+      updateDynamicSurfaces();
+      return false;
+    }
+    const draft = api.fromExistingScene(state.projectIndex, sceneId);
+    openTemplate('event', draft, {source: 'Create similar event', action: 'create_similar_event'});
+    state.status = t('objectCanvas.status.createSimilarOpened', 'Similar draft opened.');
+    updateDynamicSurfaces();
+    return true;
+  }
+
+  function normalizeParsedDraftView(view) {
+    const text = String(view || '').trim();
+    if (text === 'card' || text === 'cards') {
+      return 'cards';
+    }
+    if (text === 'news') {
+      return 'news';
+    }
+    return 'events';
+  }
+
+  function templateForParsedView(view) {
+    return view === 'cards' ? 'card' : view === 'news' ? 'news' : 'event';
   }
 
   function handleDeleteCurrentObject(target) {
@@ -1712,440 +2067,92 @@
   }
 
   function buildDeleteProposal(model) {
-    const source = normalizeSource(model && model.source || {});
-    const sceneId = String(model && model.objectId || state.item || '').trim();
-    const sceneKind = String(model && model.objectKind || '').trim() === 'card' ? 'card' : 'event';
-    const title = String(model && model.title || sceneId || '').trim();
-    return normalizeDeleteProposal({
-      schemaVersion: '0.1',
-      kind: 'existing_scene_delete',
-      id: 'delete_' + safeDraftId(sceneId || sceneKind),
-      title: 'Delete ' + (title || sceneId || sceneKind),
-      sceneId,
-      sceneKind,
-      view: sceneKind === 'card' ? 'cards' : 'events',
-      source,
-      references: collectDeleteReferences(model, sceneId, source.path),
-      reviewNote: 'Manual deletion review for ' + sceneKind + ' ' + sceneId + '.',
-      studioAuthoringContext: {
-        workspace: 'content',
-        surface: 'content_storyboard',
-        action: 'delete_current_object',
-        selectedCanvasNode: state.selectedCanvasNode || (sceneKind + ':' + sceneId),
-        view: state.view || (sceneKind === 'card' ? 'cards' : 'events')
-      }
-    }, model);
-  }
-
-  function normalizeDeleteProposal(input, model) {
-    const value = input && typeof input === 'object' ? input : {};
-    const sceneId = String(value.sceneId || model && model.objectId || '').trim();
-    const sceneKind = String(value.sceneKind || model && model.objectKind || '').trim() === 'card' ? 'card' : 'event';
-    const title = String(value.title || 'Delete ' + (model && model.title || sceneId || sceneKind)).trim();
-    return {
-      schemaVersion: String(value.schemaVersion || '0.1'),
-      kind: 'existing_scene_delete',
-      id: safeDraftId(value.id || 'delete_' + (sceneId || sceneKind)),
-      title,
-      sceneId,
-      sceneKind,
-      view: String(value.view || (sceneKind === 'card' ? 'cards' : 'events')).trim(),
-      source: normalizeSource(value.source || model && model.source || {}),
-      references: ensureArray(value.references).map(normalizeDeleteReference),
-      reviewNote: String(value.reviewNote || '').trim(),
-      studioAuthoringContext: value.studioAuthoringContext || value.authoringContext || {}
-    };
+    return objectDeleteProposalApi().buildProposal({
+      model,
+      item: state.item,
+      selectedCanvasNode: state.selectedCanvasNode,
+      view: state.view,
+      projectIndex: state.projectIndex
+    });
   }
 
   function buildDeleteProposalModel(proposalInput) {
-    const proposal = normalizeDeleteProposal(proposalInput, state.model);
-    const plan = buildDeleteInstallPlan(proposal);
-    const installApi = installPlanApi();
-    const output = {
-      ok: true,
-      draft: proposal,
-      playerPreview: deletePreviewText(proposal),
-      previewText: deletePreviewText(proposal),
-      proposalText: deletePreviewText(proposal),
-      installPlan: plan,
-      installPlanJson: installApi && typeof installApi.renderInstallPlanJson === 'function' ? installApi.renderInstallPlanJson(plan) : JSON.stringify(plan, null, 2) + '\n',
-      patchPreview: installApi && typeof installApi.renderPatchPreview === 'function' ? installApi.renderPatchPreview(plan) : '',
-      installChecklist: installApi && typeof installApi.renderOperationChecklist === 'function' ? installApi.renderOperationChecklist(plan, {locale: currentLocale()}) : '',
-      installNotes: deletePreviewText(proposal)
-    };
-    return {
-      schemaVersion: '0.1',
-      kind: 'object_authoring_canvas_model',
-      ok: true,
-      mode: 'existing',
-      template: 'existing',
-      templateLabel: proposal.sceneKind === 'card' ? t('objectPreview.card', 'Card') : t('objectPreview.event', 'World Event'),
-      objectKind: proposal.sceneKind,
-      objectId: proposal.sceneId,
-      title: proposal.title,
-      source: proposal.source,
-      entry: {source: 'Delete', action: 'delete_current_object', label: ''},
-      contextBoard: {
-        flow: proposal.references.map((ref) => ({
-          label: ref.label || ref.kind,
-          detail: [ref.kind, ref.detail].filter(Boolean).join(' / '),
-          direction: ref.kind === 'incoming' ? 'incoming' : ref.kind === 'outgoing' ? 'outgoing' : 'manual_review',
-          source: ref.source || {}
-        })),
-        variables: [],
-        effects: [],
-        assets: [],
-        sourceEvidence: [{label: 'delete target', path: proposal.source.path || '', line: proposal.source.line || null, status: 'manual_review'}],
-        manualBoundaries: [{label: 'Delete source object', reason: 'Deletion requires reviewing all routes, references, and variable consumers before changing files.', status: 'manual_review', source: proposal.source}]
-      },
-      eventBody: {
-        mode: 'delete_existing',
-        bodyEyebrow: t('objectCanvas.deleteProposal', 'Delete proposal'),
-        title: readOnlyField('delete.title', t('objectCanvas.deleteTarget', 'Delete target'), proposal.title),
-        sections: [readOnlyField('delete.review', t('objectCanvas.deleteReview', 'Review checklist'), deletePreviewText(proposal), {inputType: 'textarea'})],
-        options: [],
-        metaFields: [
-          readOnlyField('delete.sceneId', t('existingScene.sceneId', 'Scene'), proposal.sceneId),
-          readOnlyField('delete.sceneKind', t('existingScene.kind', 'Kind'), proposal.sceneKind),
-          readOnlyField('delete.source', t('existingScene.source', 'Source'), sourceLabel(proposal.source)),
-          readOnlyField('delete.references', t('objectCanvas.deleteReferences', 'References to check'), String(proposal.references.length))
-        ]
-      },
-      changeState: {
-        draft: proposal,
-        proposal,
-        output,
-        installPlan: plan,
-        operationSummary: installApi && typeof installApi.operationSummary === 'function' ? installApi.operationSummary(plan) : {safeApply: 0, guardedApply: 0, advancedApply: 0, manualReview: 1, refused: 0, total: 1},
-        changedCount: 1,
-        diagnostics: [{severity: 'warning', level: 'warning', code: 'object_canvas.delete_manual_review', message: t('objectCanvas.deleteManualReview', 'Deletion is manual-review only; Studio will not remove source automatically.')}],
-        warnings: [t('objectCanvas.deleteManualReview', 'Deletion is manual-review only; Studio will not remove source automatically.')]
-      },
-      legacy: {template: 'existing'},
-      rawContext: null
-    };
-  }
-
-  function buildDeleteInstallPlan(proposal) {
-    const installApi = installPlanApi();
-    const rawPlan = {
-      id: proposal.id,
-      draftKind: 'existing_scene_delete',
-      title: proposal.title,
-      project: installApi && typeof installApi.projectProvenanceFromIndex === 'function' ? installApi.projectProvenanceFromIndex(state.projectIndex) : null,
-      operations: [{
-        id: 'existing_scene_delete_review',
-        type: 'manual_snippet',
-        path: proposal.source.path || ('source/scenes/events/' + (proposal.sceneId || 'scene') + '.scene.dry'),
-        content: deletePreviewText(proposal),
-        safety: 'manual_review',
-        role: 'existing_scene.delete_review',
-        description: 'Review and delete this existing event or card after checking every route and reference.'
-      }]
-    };
-    return installApi && typeof installApi.buildInstallPlan === 'function'
-      ? installApi.buildInstallPlan(rawPlan)
-      : Object.assign({schemaVersion: '0.1', kind: 'install_plan', status: 'proposal_only'}, rawPlan);
-  }
-
-  function deletePreviewText(proposal) {
-    const rows = [
-      deleteText('objectCanvas.deletePreview.header', 'Delete existing {kind}: {id}', {kind: proposal.sceneKind, id: proposal.sceneId}),
-      deleteText('objectCanvas.deletePreview.title', 'Title: {title}', {title: proposal.title.replace(/^Delete\s+/, '')}),
-      deleteText('objectCanvas.deletePreview.source', 'Source: {source}', {source: sourceLabel(proposal.source) || '(unknown)'}),
-      '',
-      t('objectCanvas.deletePreview.checklist', 'Manual review checklist:'),
-      '- ' + t('objectCanvas.deletePreview.incoming', 'Remove or archive the source scene only after every incoming route has been rewired.'),
-      '- ' + t('objectCanvas.deletePreview.outgoing', 'Check outgoing routes and scheduled triggers so follow-up content still has an owner.'),
-      '- ' + t('objectCanvas.deletePreview.state', 'Check Q variables and effects referenced by this object before removing related state.'),
-      ''
-    ];
-    if (proposal.references.length) {
-      rows.push(t('objectCanvas.deletePreview.references', 'References to inspect:'));
-      proposal.references.slice(0, 16).forEach((ref) => {
-        rows.push('- ' + [ref.kind, ref.label, ref.detail, sourceLabel(ref.source)].filter(Boolean).join(' / '));
-      });
-    } else {
-      rows.push(t('objectCanvas.deletePreview.noReferences', 'References to inspect: none found in the current ProjectIndex.'));
-    }
-    return rows.join('\n') + '\n';
-  }
-
-  function deleteText(key, fallback, replacements) {
-    let value = t(key, fallback);
-    Object.keys(replacements || {}).forEach((name) => {
-      value = value.replace('{' + name + '}', String(replacements[name] || ''));
+    return objectDeleteProposalApi().buildModel({
+      proposal: proposalInput,
+      model: state.model,
+      projectIndex: state.projectIndex,
+      installPlanApi: installPlanApi(),
+      locale: currentLocale(),
+      translate: t
     });
-    return value;
-  }
-
-  function collectDeleteReferences(model, sceneId, sourcePath) {
-    const rows = [];
-    const relationships = model && model.rawContext && model.rawContext.relationships || {};
-    ['incoming', 'internal', 'outgoing'].forEach((key) => {
-      ensureArray(relationships[key]).forEach((row) => {
-        rows.push(normalizeDeleteReference({
-          kind: key,
-          label: row.label || row.from || row.to || row.kind || '',
-          detail: row.kind || row.condition || row.to || row.from || '',
-          source: row.source || row.scene && row.scene.source || {}
-        }));
-      });
-    });
-    ensureArray(state.projectIndex && state.projectIndex.scenes).forEach((scene) => {
-      const id = String(scene && scene.id || '');
-      const path = String(scene && (scene.path || scene.sourcePath || scene.sourceSpan && scene.sourceSpan.path) || '');
-      if (!sceneId || id === sceneId || path === sourcePath) {
-        return;
-      }
-      let text = '';
-      try {
-        text = JSON.stringify(scene);
-      } catch (_err) {
-        text = '';
-      }
-      if (text && text.indexOf(sceneId) >= 0) {
-        rows.push(normalizeDeleteReference({
-          kind: 'indexed reference',
-          label: scene.title || id,
-          detail: id,
-          source: scene.sourceSpan || {path}
-        }));
-      }
-    });
-    const seen = new Set();
-    return rows.filter((row) => {
-      const key = [row.kind, row.label, sourceLabel(row.source)].join('::');
-      if (seen.has(key)) {
-        return false;
-      }
-      seen.add(key);
-      return true;
-    });
-  }
-
-  function normalizeDeleteReference(ref) {
-    const value = ref && typeof ref === 'object' ? ref : {};
-    return {
-      kind: String(value.kind || 'reference').trim(),
-      label: String(value.label || '').trim(),
-      detail: String(value.detail || '').trim(),
-      source: normalizeSource(value.source || {})
-    };
-  }
-
-  function readOnlyField(id, label, value, extra) {
-    const textValue = value === undefined || value === null ? '' : String(value);
-    return Object.assign({
-      id,
-      label,
-      original: textValue,
-      value: textValue,
-      status: 'manual_review',
-      editability: 'manual_review',
-      readOnly: true,
-      source: {}
-    }, extra || {});
-  }
-
-  function normalizeSource(source) {
-    const value = source && typeof source === 'object' ? source : {};
-    const line = Number(value.line || value.startLine || 0);
-    return {
-      path: String(value.path || value.sourcePath || '').trim(),
-      line: Number.isFinite(line) && line > 0 ? Math.floor(line) : null
-    };
-  }
-
-  function sourceLabel(source) {
-    const value = normalizeSource(source);
-    return value.path ? value.path + (value.line ? ':' + value.line : '') : '';
   }
 
   function handleProjectStateAction(action) {
-    if (action === 'project_state_new_variable') {
-      global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
-      openVariableDraft(newVariableDraft(), 'projectState.status.addVariable');
-      return true;
-    }
-    if (action === 'project_state_edit_selected') {
-      global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
-      const variable = selectedProjectStateVariable();
-      if (variable) {
-        openVariableDraft(editVariableDraft(variable), 'projectState.status.editSelected', 'variable:' + variable.name);
-      } else {
-        state.status = t('projectState.status.noSelectedVariable', 'Select a variable before editing it.');
-        updateDynamicSurfaces();
-      }
-      return true;
-    }
-    if (action === 'project_state_delete_selected') {
-      global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
-      const variable = selectedProjectStateVariable();
-      if (variable) {
-        openVariableDraft(deleteVariableDraft(variable), 'projectState.status.deleteSelected', 'variable:' + variable.name);
-      } else {
-        state.status = t('projectState.status.noSelectedVariable', 'Select a variable before editing it.');
-        updateDynamicSurfaces();
-      }
-      return true;
-    }
-    if (action === 'project_state_show_more') {
-      global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
-      state.projectStateLimit = Math.max(
-        PROJECT_STATE_ROW_LIMIT,
-        Number(state.projectStateLimit || PROJECT_STATE_ROW_LIMIT) + PROJECT_STATE_ROW_LIMIT
-      );
-      render();
-      return true;
-    }
-    if (action === 'project_state_clear_search') {
-      global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
-      state.projectStateQuery = '';
-      state.projectStateLimit = PROJECT_STATE_ROW_LIMIT;
-      projectStateSearchFocus = {start: 0, end: 0};
-      render();
-      return true;
-    }
-    return false;
+    return projectStateWorkspaceApi().handleAction(state, action, projectStateWorkspaceDeps());
   }
 
   function openVariableDraft(draft, statusKey, selectedNode) {
-    state.values = {};
-    state.valueOriginals = {};
-    resetStructureCommands();
-    state.baseDraft = draft || newVariableDraft();
-    state.template = 'variables';
-    state.mode = 'variables';
-    state.view = 'variables';
-    state.workspace = 'project_state';
-    state.selectedCanvasNode = selectedNode || selectedNodeForVariableDraft(state.baseDraft);
-    state.deleteProposal = null;
-    state.model = buildTemplateModel({values: {}, entry: {source: 'Project State'}});
-    state.status = t(statusKey, statusKey === 'projectState.status.deleteSelected'
-      ? 'Selected variable loaded for deletion review.'
-      : statusKey === 'projectState.status.editSelected' ? 'Selected variable loaded for editing.' : 'New variable draft ready.');
-    showWorkspace('variables');
-    render();
+    return projectStateWorkspaceApi().openVariableDraft(state, draft, statusKey, selectedNode, projectStateWorkspaceDeps());
   }
 
   function selectedProjectStateVariable() {
-    const name = selectedProjectStateVariableName();
-    const variables = Array.isArray(state.projectIndex && state.projectIndex.variables) ? state.projectIndex.variables : [];
-    if (name) {
-      const found = variables.find((item) => item && String(item.name || '') === name);
-      if (found) {
-        return found;
-      }
-      return null;
-    }
-    const draftName = state.model && state.model.changeState && state.model.changeState.draft && state.model.changeState.draft.variableName;
-    if (draftName) {
-      const draftFound = variables.find((item) => item && String(item.name || '') === String(draftName));
-      if (draftFound) {
-        return draftFound;
-      }
-    }
-    return variables[0] || null;
+    return projectStateWorkspaceApi().selectedVariable(state, projectStateWorkspaceDeps());
   }
 
   function selectedProjectStateVariableName() {
-    const selected = String(state.selectedCanvasNode || '');
-    return selected.indexOf('variable:') === 0 ? selected.slice('variable:'.length) : '';
+    return projectStateWorkspaceApi().selectedVariableName(state);
   }
 
   function newVariableDraft() {
-    const core = global.ProjectMapVariableEditorDraft;
-    if (core && typeof core.defaultDraft === 'function') {
-      return core.defaultDraft(state.projectIndex);
-    }
-    const variableName = nextAvailableVariableName('new_variable');
-    const draft = {
-      schemaVersion: '0.1',
-      kind: 'variable_editor',
-      id: variableName,
-      title: 'New Variable',
-      mode: 'add_new',
-      variableName,
-      label: labelFromVariableName(variableName),
-      initialValue: '0',
-      valueType: 'number',
-      description: '',
-      includeRootInit: true,
-      includePostEventInit: false,
-      includeQualityFile: true,
-      evidence: core && typeof core.buildVariableModel === 'function' ? core.buildVariableModel(state.projectIndex) : {}
-    };
-    return core && typeof core.normalizeDraft === 'function' ? core.normalizeDraft(draft) : draft;
+    return projectStateWorkspaceApi().newVariableDraft(state, projectStateWorkspaceDeps());
   }
 
   function selectedNodeForVariableDraft(draft) {
-    const name = draft && draft.variableName ? String(draft.variableName) : '';
-    return name ? 'variable:' + name : 'object';
+    return projectStateWorkspaceApi().selectedNodeForVariableDraft(draft);
   }
 
   function nextAvailableVariableName(baseName) {
-    const core = global.ProjectMapVariableEditorDraft;
-    if (core && typeof core.uniqueVariableName === 'function') {
-      return core.uniqueVariableName(state.projectIndex, baseName || 'new_variable');
-    }
-    const base = safeDraftId(baseName || 'new_variable');
-    const variables = Array.isArray(state.projectIndex && state.projectIndex.variables) ? state.projectIndex.variables : [];
-    const existing = new Set(variables.map((item) => String(item && item.name || '')).filter(Boolean));
-    if (!existing.has(base)) {
-      return base;
-    }
-    let index = 2;
-    let next = base + '_' + index;
-    while (existing.has(next)) {
-      index += 1;
-      next = base + '_' + index;
-    }
-    return next;
+    return projectStateWorkspaceApi().nextAvailableVariableName(state, baseName, projectStateWorkspaceDeps());
   }
 
   function labelFromVariableName(name) {
-    return String(name || 'New Variable')
-      .replace(/^q_/, '')
-      .replace(/_/g, ' ')
-      .replace(/\b[a-z]/g, (char) => char.toUpperCase());
+    return projectStateWorkspaceApi().labelFromVariableName(name);
   }
 
   function editVariableDraft(variable) {
-    const core = global.ProjectMapVariableEditorDraft;
-    return core && typeof core.draftFromVariable === 'function'
-      ? core.draftFromVariable(variable, state.projectIndex)
-      : Object.assign(newVariableDraft(), {
-        id: 'edit_' + safeDraftId(String(variable && variable.name || 'variable')),
-        title: 'Edit ' + String(variable && variable.name || 'Variable'),
-        mode: 'edit_existing',
-        variableName: String(variable && variable.name || ''),
-        includeRootInit: false,
-        includePostEventInit: false,
-        includeQualityFile: false
-      });
+    return projectStateWorkspaceApi().editVariableDraft(state, variable, projectStateWorkspaceDeps());
   }
 
   function deleteVariableDraft(variable) {
-    const core = global.ProjectMapVariableEditorDraft;
-    return core && typeof core.deleteDraftFromVariable === 'function'
-      ? core.deleteDraftFromVariable(variable, state.projectIndex)
-      : Object.assign(newVariableDraft(), {
-        id: 'delete_' + safeDraftId(String(variable && variable.name || 'variable')),
-        title: 'Delete ' + String(variable && variable.name || 'Variable'),
-        mode: 'delete_existing',
-        variableName: String(variable && variable.name || ''),
-        includeRootInit: false,
-        includePostEventInit: false,
-        includeQualityFile: false
-      });
+    return projectStateWorkspaceApi().deleteVariableDraft(state, variable, projectStateWorkspaceDeps());
   }
 
   function safeDraftId(value) {
-    const text = String(value || 'variable')
-      .replace(/[^A-Za-z0-9_]+/g, '_')
-      .replace(/^_+|_+$/g, '');
-    return /^[A-Za-z_]/.test(text) ? text : 'variable_' + (text || 'item');
+    return projectStateWorkspaceApi().safeDraftId(value);
+  }
+
+  function projectStateWorkspaceDeps() {
+    return {
+      buildTemplateModel,
+      currentSurface,
+      elements,
+      ensureArray,
+      global,
+      projectStateRowLimit: PROJECT_STATE_ROW_LIMIT,
+      render,
+      resetRuntimeLens,
+      resetStructureCommands,
+      setProjectStateSearchFocus,
+      showWorkspace,
+      t,
+      updateDynamicSurfaces,
+      variableEditorDraft: global.ProjectMapVariableEditorDraft,
+      projectStateSurface: global.ProjectMapProjectStateSurface
+    };
+  }
+
+  function setProjectStateSearchFocus(value) {
+    projectStateSearchFocus = value;
   }
 
   function resetRuntimeLens() {
@@ -2174,193 +2181,47 @@
   }
 
   function createRelatedDraft(action, target) {
-    if (action === 'event') {
-      openStandaloneEventDraft(relatedDraftContext(target));
-      return;
-    }
-    const branchApi = global.ProjectMapAuthoringReferenceIndex;
-    const context = relatedDraftContext(target);
-    const branch = branchApi && typeof branchApi.branchDraft === 'function'
-      ? branchApi.branchDraft(action, state.model || {}, context)
-      : null;
-    if (branch && String(branch.template || '') === 'event' && branch.draft) {
-      openRelatedEventDraft(branch, context, action);
-      return;
-    }
-    if (branch && branch.draft && openRelatedTemplateDraft(branch, context, action)) {
-      return;
-    }
-    const api = storyboardWorkspaceApi(); if (api && typeof api.createRelatedDraft === 'function') { api.createRelatedDraft(state, action, target, {render, t}); }
+    return storyboardDraftsApi().createRelatedDraft(state, action, target, storyboardDraftDeps());
   }
 
   function relatedDraftContext(target) {
-    const dataset = target && target.dataset || {};
-    const insertKey = String(dataset.contentStoryboardInsert || dataset.contentStoryboardLane || '');
-    return {
-      insertKey,
-      view: state.storyboardView,
-      storyCanvasCategory: state.storyCanvasCategory || 'story',
-      storySearchQuery: state.storySearchQuery || '',
-      selectedKey: state.selectedCanvasNode,
-      storyScopeMode: state.storyScopeMode,
-      storyScopeWindow: insertKey || state.storyScopeWindow,
-      storyChainDepth: state.storyChainDepth,
-      paletteDropContext: state.storyPaletteDropContext
-    };
+    return storyboardDraftsApi().relatedDraftContext(state, target);
   }
 
   function openRelatedEventDraft(branch, context, action) {
-    const previousBranches = draftBranchList().filter((item) => !draftBranchMatches(item, branch));
-    const draft = branch.draft || {};
-    const opened = openTemplate('event', draft, {source: 'Storyboard', action: 'create_' + String(action || 'followup')});
-    if (!opened) {
-      return false;
-    }
-    state.draftBranches = previousBranches;
-    restoreStoryboardContextAfterDraftOpen(context, draft, branch);
-    state.status = t('objectCanvas.status.branchOpened', 'New event draft opened on the Storyboard.');
-    showWorkspace('event');
-    render();
-    return true;
+    return storyboardDraftsApi().openRelatedEventDraft(state, branch, context, action, storyboardDraftDeps());
   }
 
   function openRelatedTemplateDraft(branch, context, action) {
-    const template = normalizeTemplate(branch && branch.template || '');
-    if (template !== 'card' && template !== 'news') {
-      return false;
-    }
-    const draft = template === 'card'
-      ? relatedCardDraft(branch, context, action)
-      : relatedNewsDraft(branch, context, action);
-    const opened = openTemplate(template, draft, {source: 'Storyboard', action: 'create_' + String(action || template), template});
-    if (!opened) {
-      return false;
-    }
-    if (template === 'card') {
-      const key = draftStoryboardKey('card', draft, branch);
-      state.cardBoardSelectedKey = key;
-      state.selectedCanvasNode = key;
-      state.cardBoardLane = 'drafts';
-      state.cardBoardDropContext = {
-        itemKey: key,
-        itemTitle: draft.title || draft.heading || branch.title || '',
-        laneKey: 'drafts',
-        laneLabel: t('cardBoard.lane.drafts', 'Drafts'),
-        laneTag: '',
-        action: 'create_related_card',
-        sourceKey: context && context.selectedKey || ''
-      };
-      state.model = buildTemplateModel({values: state.values, entry: {source: 'Storyboard', action: 'create_' + String(action || template)}});
-      state.status = t('objectCanvas.status.relatedCardOpened', 'Related card draft opened for editing.');
-      showWorkspace('card');
-      render();
-      return true;
-    }
-    restoreStoryboardContextAfterDraftOpen(context, draft, branch);
-    state.status = t('objectCanvas.status.relatedNewsOpened', 'Related news draft opened for editing.');
-    showWorkspace('news');
-    render();
-    return true;
+    return storyboardDraftsApi().openRelatedTemplateDraft(state, branch, context, action, storyboardDraftDeps());
   }
 
   function relatedCardDraft(branch, context, action) {
-    const base = cloneDraft(safeDefaultDraftForTemplate('card'));
-    const sourceTitle = relatedSourceTitle();
-    const branchDraft = cloneDraft(branch && branch.draft || {});
-    const id = uniqueDraftId(branchDraft.id || branch && branch.id || 'related_card');
-    const title = branchDraft.title || branchDraft.heading || relatedTitle(t('objectCanvas.branch.card', 'Related card'), sourceTitle);
-    return Object.assign({}, base, branchDraft, {
-      schemaVersion: String(branchDraft.schemaVersion || base.schemaVersion || '0.1'),
-      kind: 'card',
-      id,
-      title,
-      heading: branchDraft.heading || title,
-      introParagraphs: ensureArray(branchDraft.introParagraphs).length
-        ? branchDraft.introParagraphs
-        : [relatedDescription(t('objectCanvas.branch.card.detail', 'Card created from the selected beat.'), sourceTitle)],
-      options: ensureArray(branchDraft.options).length ? branchDraft.options : ensureArray(base.options),
-      studioAuthoringContext: {
-        workspace: 'content',
-        surface: 'card_board',
-        selectedCardKey: 'draft:card:' + id,
-        selectedLane: 'drafts',
-        cardBoardQuery: '',
-        cardBoardType: 'all',
-        cardBoardDropContext: {
-          itemKey: 'draft:card:' + id,
-          itemTitle: title,
-          laneKey: 'drafts',
-          laneLabel: t('cardBoard.lane.drafts', 'Drafts'),
-          laneTag: '',
-          action: 'create_' + String(action || 'card'),
-          sourceKey: context && context.selectedKey || ''
-        },
-        editorOverlay: false
-      }
-    });
+    return storyboardDraftsApi().relatedCardDraft(state, branch, context, action, storyboardDraftDeps());
   }
 
   function relatedNewsDraft(branch, context, action) {
-    const base = cloneDraft(safeDefaultDraftForTemplate('news'));
-    const sourceTitle = relatedSourceTitle();
-    const branchDraft = cloneDraft(branch && branch.draft || {});
-    const id = uniqueDraftId(branchDraft.id || branch && branch.id || 'related_news');
-    const headline = branchDraft.headline || branchDraft.title || relatedTitle(t('objectCanvas.branch.news', 'Related news'), sourceTitle);
-    return Object.assign({}, base, branchDraft, {
-      schemaVersion: String(branchDraft.schemaVersion || base.schemaVersion || '0.1'),
-      kind: 'news_item',
-      id,
-      headline,
-      description: branchDraft.description || relatedDescription(t('objectCanvas.branch.news.detail', 'News item attached to this story moment.'), sourceTitle),
-      studioAuthoringContext: Object.assign({}, context || {}, {
-        workspace: 'content',
-        surface: 'content_storyboard',
-        action: 'create_' + String(action || 'news'),
-        selectedCanvasNode: context && context.selectedKey || ''
-      })
-    });
+    return storyboardDraftsApi().relatedNewsDraft(state, branch, context, action, storyboardDraftDeps());
   }
 
   function relatedSourceTitle() {
-    return String(state.model && (state.model.title || state.model.objectId) || '').trim();
+    return storyboardDraftsApi().relatedSourceTitle(state);
   }
 
   function relatedTitle(prefix, sourceTitle) {
-    return sourceTitle ? prefix + ': ' + sourceTitle : prefix;
+    return storyboardDraftsApi().relatedTitle(prefix, sourceTitle);
   }
 
   function relatedDescription(fallback, sourceTitle) {
-    return sourceTitle ? fallback + ' ' + sourceTitle : fallback;
+    return storyboardDraftsApi().relatedDescription(fallback, sourceTitle);
   }
 
   function openStandaloneEventDraft(context) {
-    const previousBranches = draftBranchList();
-    const draft = standaloneEventDraft(context);
-    const opened = openTemplate('event', draft, {source: 'Storyboard', action: 'create_event'});
-    if (!opened) {
-      return false;
-    }
-    state.draftBranches = previousBranches;
-    restoreStoryboardContextAfterDraftOpen(context, draft, null);
-    state.status = t('objectCanvas.status.newEventOpened', 'New blank event draft opened on the Storyboard.');
-    showWorkspace('event');
-    render();
-    return true;
+    return storyboardDraftsApi().openStandaloneEventDraft(state, context, storyboardDraftDeps());
   }
 
   function openElectionEventDraft(context) {
-    const previousBranches = draftBranchList();
-    const draft = electionEventDraft(context);
-    const opened = openTemplate('event', draft, {source: 'Election Results', action: 'create_election_event'});
-    if (!opened) {
-      return false;
-    }
-    state.draftBranches = previousBranches;
-    restoreStoryboardContextAfterDraftOpen(context || {}, draft, null);
-    state.status = t('electionResults.status.newEventOpened', 'New election event draft opened on the Storyboard.');
-    showWorkspace('event');
-    render();
-    return true;
+    return storyboardDraftsApi().openElectionEventDraft(state, context, storyboardDraftDeps());
   }
 
   function openSelectedElectionEvent() {
@@ -2389,255 +2250,79 @@
   }
 
   function restoreStoryboardContextAfterDraftOpen(context, draft, branch) {
-    state.storyboardView = String(context && context.view || '') === 'chain' ? 'chain' : 'timeline';
-    state.storyCanvasCategory = normalizeStoryCanvasCategory(context && context.storyCanvasCategory);
-    state.storySearchQuery = String(context && context.storySearchQuery || '');
-    state.storyScopeMode = String(context && context.storyScopeMode || '') === 'expanded' ? 'expanded' : 'focus';
-    state.storyScopeWindow = String(context && (context.insertKey || context.storyScopeWindow) || '');
-    state.storyChainDepth = normalizeStoryDepth(context && context.storyChainDepth);
-    state.storyPaletteDropContext = context && context.paletteDropContext || null;
-    state.selectedCanvasNode = draftStoryboardKey(state.template || branch && branch.template || 'event', draft, branch);
-    state.editorOverlay = true;
-    state.values = {};
-    state.valueOriginals = {};
-    resetStructureCommands();
-    state.model = buildTemplateModel({values: state.values, source: 'Storyboard'});
+    return storyboardDraftsApi().restoreStoryboardContextAfterDraftOpen(state, context, draft, branch, storyboardDraftDeps());
   }
 
   function standaloneEventDraft(context) {
-    const base = cloneDraft(safeDefaultDraftForTemplate('event'));
-    const year = insertYearFromKey(context && (context.insertKey || context.storyScopeWindow)) || draftYear(base) || 1936;
-    const id = uniqueDraftId('new_world_event' + (year ? '_' + year : ''));
-    const title = t('create.sample.eventTitle', 'New world event');
-    const heading = t('create.sample.eventHeading', title);
-    const when = Object.assign({}, base.when || {}, {
-      year,
-      monthStart: numberOr(base.when && base.when.monthStart, 1),
-      monthEnd: numberOr(base.when && base.when.monthEnd, 3),
-      requires: String(base.when && base.when.requires || ''),
-      priority: numberOr(base.when && base.when.priority, 0)
-    });
-    return Object.assign({}, base, {
-      schemaVersion: String(base.schemaVersion || '0.1'),
-      kind: 'world_event',
-      id,
-      title,
-      heading,
-      seenFlag: id + '_seen',
-      when,
-      studioAuthoringContext: Object.assign({}, context || {}, {
-        workspace: 'content',
-        surface: 'content_storyboard',
-        action: 'create_event',
-        selectedCanvasNode: context && context.selectedKey || ''
-      })
-    });
+    return storyboardDraftsApi().standaloneEventDraft(state, context, storyboardDraftDeps());
   }
 
   function electionEventDraft(context) {
-    const base = standaloneEventDraft(context || {});
-    const year = draftYear(base) || 1936;
-    const id = uniqueDraftId('new_election_event_' + year);
-    const title = t('electionResults.sample.eventTitle', 'New election results');
-    const primaryOption = {
-      id: 'continue_after_election',
-      label: t('electionResults.sample.optionLabel', 'Continue after the election'),
-      subtitle: '',
-      chooseIf: '',
-      unavailableText: '',
-      effects: [],
-      narrativeParagraphs: [t('electionResults.sample.optionResult', 'The election result changes the political balance.')],
-      variants: [],
-      gotoAfter: 'post_election_followup'
-    };
-    const secondaryOption = {
-      id: 'review_election_balance',
-      label: t('electionResults.sample.optionLabelAlt', 'Review the coalition balance'),
-      subtitle: '',
-      chooseIf: '',
-      unavailableText: '',
-      effects: [],
-      narrativeParagraphs: [t('electionResults.sample.optionResultAlt', 'The result remains open for follow-up political choices.')],
-      variants: [],
-      gotoAfter: 'post_election_review'
-    };
-    return Object.assign({}, base, {
-      id,
-      title,
-      heading: title,
-      seenFlag: id + '_seen',
-      introParagraphs: [t('electionResults.sample.intro', 'Write the election result text here. Use the Election Results workspace to shape the chart, table, conditions, and consequences.')],
-      effectsOnTrigger: [],
-      options: [primaryOption, secondaryOption],
-      studioAuthoringContext: Object.assign({}, base.studioAuthoringContext || {}, context || {}, {
-        workspace: 'content',
-        surface: 'content_storyboard',
-        action: 'create_election_event',
-        selectedCanvasNode: context && context.selectedKey || ''
-      })
-    });
+    return storyboardDraftsApi().electionEventDraft(state, context, storyboardDraftDeps());
   }
 
   function cloneDraft(value) {
-    try {
-      return JSON.parse(JSON.stringify(value || {}));
-    } catch (_err) {
-      return Object.assign({}, value || {});
-    }
+    return storyboardDraftsApi().cloneDraft(value);
   }
 
   function insertYearFromKey(value) {
-    const match = String(value || '').match(/^time:(\d{3,4})$/);
-    return match ? Number(match[1]) : 0;
+    return storyboardDraftsApi().insertYearFromKey(value);
   }
 
   function draftYear(draft) {
-    return Number(draft && draft.when && draft.when.year || draft && draft.year || 0) || 0;
+    return storyboardDraftsApi().draftYear(draft);
   }
 
   function uniqueDraftId(baseId) {
-    const root = safeDraftId(baseId || 'new_world_event');
-    const used = new Set();
-    ensureArray(state.projectIndex && state.projectIndex.scenes).forEach((scene) => {
-      if (scene && scene.id) {
-        used.add(String(scene.id));
-      }
-    });
-    draftBranchList().forEach((branch) => {
-      const id = branchId(branch);
-      if (id) {
-        used.add(id);
-      }
-    });
-    if (state.baseDraft && state.baseDraft.id) {
-      used.add(String(state.baseDraft.id));
-    }
-    if (!used.has(root)) {
-      return root;
-    }
-    for (let index = 2; index < 1000; index += 1) {
-      const candidate = root + '_' + index;
-      if (!used.has(candidate)) {
-        return candidate;
-      }
-    }
-    return root + '_' + Date.now();
+    return storyboardDraftsApi().uniqueDraftId(state, baseId, storyboardDraftDeps());
   }
 
   function numberOr(value, fallback) {
-    const num = Number(value);
-    return Number.isFinite(num) ? num : fallback;
+    return storyboardDraftsApi().numberOr(value, fallback);
   }
 
   function discardDraftCard(target) {
-    const card = target && target.closest ? target.closest('[data-content-storyboard-card]') : null;
-    const key = String(target && target.dataset && target.dataset.storyboardDraftKey || card && card.dataset && card.dataset.contentStoryboardCard || '').trim();
-    const currentKey = currentDraftStoryboardKey();
-    state.draftBranches = draftBranchList().filter((branch) => !draftBranchKeyMatches(branch, key));
-    if (key && currentKey && key === currentKey && state.mode !== 'existing') {
-      const context = state.baseDraft && state.baseDraft.studioAuthoringContext || {};
-      const previousKey = String(context.selectedCanvasNode || '').trim();
-      if (previousKey && selectExistingStoryObject(previousKey)) {
-        state.status = t('objectCanvas.status.draftDeleted', 'Draft card discarded.');
-        render();
-        return;
-      }
-      openTemplate('event', safeDefaultDraftForTemplate('event'), {source: 'Create'});
-      state.status = t('objectCanvas.status.draftDeleted', 'Draft card discarded.');
-      render();
-      return;
-    }
-    if (state.selectedCanvasNode === key) {
-      state.selectedCanvasNode = currentKey || 'object';
-    }
-    state.status = t('objectCanvas.status.draftDeleted', 'Draft card discarded.');
-    render();
+    return storyboardDraftsApi().discardDraftCard(state, target, storyboardDraftDeps());
   }
 
   function selectExistingStoryObject(key) {
-    const parsed = storyObjectFromKey(key);
-    if (!parsed || parsed.kind === 'draft' || parsed.kind === 'route') {
-      return false;
-    }
-    const itemId = parsed.parentId || parsed.id;
-    const nextModel = buildExistingModelFor(parsed.view, itemId, {values: {}});
-    if (!nextModel || !nextModel.ok) {
-      return false;
-    }
-    state.mode = 'existing';
-    state.template = 'existing';
-    state.view = parsed.view;
-    state.item = itemId;
-    state.workspace = 'content';
-    state.selectedCanvasNode = key;
-    state.editorOverlay = true;
-    state.values = {};
-    state.valueOriginals = {};
-    resetStructureCommands();
-    state.baseDraft = null;
-    state.deleteProposal = null;
-    state.model = nextModel;
-    showWorkspace(parsed.view === 'cards' ? 'card' : 'existing');
-    render();
-    return true;
+    return storyboardDraftsApi().selectExistingStoryObject(state, key, storyboardDraftDeps());
   }
 
   function storyObjectFromKey(key) {
-    const match = String(key || '').match(/^(event|card|advisor|news|section|route|draft):(.+)$/);
-    if (!match) {
-      return null;
-    }
-    const kind = match[1];
-    const id = match[2];
-    if (kind === 'section') {
-      return {kind, id, parentId: String(id || '').split('.')[0] || '', view: 'events'};
-    }
-    return {kind, id, view: kind === 'event' ? 'events' : kind === 'card' || kind === 'advisor' ? 'cards' : kind};
+    return storyboardDraftsApi().storyObjectFromKey(key);
   }
 
   function currentDraftStoryboardKey() {
-    if (state.mode === 'existing') {
-      return '';
-    }
-    return draftStoryboardKey(state.template || 'event', state.baseDraft || {}, null);
+    return storyboardDraftsApi().currentDraftStoryboardKey(state, storyboardDraftDeps());
   }
 
   function draftStoryboardKey(template, draft, branch) {
-    const value = draft || {};
-    const id = String(value.id || branch && branch.id || 'new_event');
-    const kind = normalizeTemplate(template) === 'news' ? 'news' : normalizeTemplate(template) === 'card' ? 'card' : 'event';
-    return 'draft:' + kind + ':' + id;
+    return storyboardDraftsApi().draftStoryboardKey(template, draft, branch, storyboardDraftDeps());
   }
 
   function draftBranchList() {
-    return Array.isArray(state.draftBranches) ? state.draftBranches.slice() : [];
+    return storyboardDraftsApi().draftBranchList(state);
   }
 
   function draftBranchMatches(a, b) {
-    return branchId(a) && branchId(a) === branchId(b);
+    return storyboardDraftsApi().draftBranchMatches(a, b);
   }
 
   function draftBranchKeyMatches(branch, key) {
-    const text = String(key || '').trim();
-    if (!text) {
-      return false;
-    }
-    const id = branchId(branch);
-    return text === 'draft:' + id || text === 'draft:event:' + id || text === 'draft:card:' + id || text === 'draft:news:' + id;
+    return storyboardDraftsApi().draftBranchKeyMatches(branch, key);
   }
 
   function branchId(branch) {
-    return String(branch && (branch.id || branch.draft && branch.draft.id) || '').trim();
+    return storyboardDraftsApi().branchId(branch);
   }
 
   function normalizeStoryCanvasCategory(value) {
-    const text = String(value || 'story');
-    return text === 'cards' || text === 'all' ? text : 'story';
+    return storyboardDraftsApi().normalizeStoryCanvasCategory(value);
   }
 
   function normalizeStoryDepth(value) {
-    const text = String(value || '1');
-    return text === '2' || text === 'full' ? text : '1';
+    return storyboardDraftsApi().normalizeStoryDepth(value);
   }
 
   function toggleEditorOverlay(next) {
@@ -2657,6 +2342,39 @@
     render();
   }
 
+  function returnFromTransientWorkspace() {
+    const stack = returnStackApi();
+    const context = stack && typeof stack.pop === 'function' ? stack.pop(state) : null;
+    if (!context) {
+      state.status = t('objectCanvas.status.returnUnavailable', 'There is no previous object editor to return to.');
+      updateDynamicSurfaces();
+      return false;
+    }
+    const scrollSnapshot = stack && typeof stack.restore === 'function'
+      ? stack.restore(state, context)
+      : context.scrollSnapshot || null;
+    state.sourceSliceModel = null;
+    state.sourceSliceAdvancedConfirmed = false;
+    state.semanticLogicModel = null;
+    state.semanticLogicAdvancedConfirmed = false;
+    state.active = true;
+    state.model = rebuildRestoredObjectModel();
+    state.status = t('objectCanvas.status.returnedToObject', 'Returned to the previous object editor.');
+    showWorkspace(state.mode === 'existing' ? (state.view === 'cards' ? 'card' : 'existing') : state.template);
+    render({scrollSnapshot});
+    return true;
+  }
+
+  function rebuildRestoredObjectModel() {
+    if (state.deleteProposal) {
+      return buildDeleteProposalModel(state.deleteProposal);
+    }
+    if (state.mode === 'existing') {
+      return buildExistingModel({values: state.values, proposalOptions: state.proposalOptions});
+    }
+    return buildTemplateModel({values: state.values});
+  }
+
   function commitStructureCommand(target) {
     const builder = target && typeof target.closest === 'function'
       ? target.closest('[data-preview-object-structure-builder]')
@@ -2671,53 +2389,41 @@
       refreshTimer = null;
     }
     state.preserveScrollOnNextRefresh = false;
-    const output = builder.querySelector('[data-preview-object-structure-output]');
-    const value = output ? String(output.value || '').trim() : '';
-    if (!value) {
+    const draftCommand = structureDraftApi().readBuilderCommand(builder, {counter: state.structureCommandCounter + 1, Event: global.Event});
+    if (!draftCommand || !draftCommand.value) {
       state.status = t('objectCanvas.status.structureCommandEmpty', 'Fill in the structure fields before adding it.');
       updateDynamicSurfaces();
       return;
     }
-    const action = builder.dataset.previewObjectStructureBuilder || '';
-    const fieldId = builder.dataset.previewObjectStructureFieldId || output && output.dataset.objectCanvasField || '';
     const command = {
-      id: 'structure_command_' + (++state.structureCommandCounter),
-      type: action,
-      action,
-      fieldId,
-      optionId: builder.dataset.previewObjectStructureOptionId || '',
-      sectionId: builder.dataset.previewObjectStructureSectionId || '',
-      targetLabel: builder.dataset.previewObjectStructureTargetLabel || '',
-      value,
+      id: draftCommand.id,
+      type: draftCommand.action,
+      action: draftCommand.action,
+      fieldId: draftCommand.fieldId,
+      optionId: draftCommand.optionId,
+      sectionId: draftCommand.sectionId,
+      targetLabel: draftCommand.targetLabel,
+      value: draftCommand.value,
       mode: state.mode === 'existing' ? 'manual_review' : 'draft'
     };
+    state.structureCommandCounter += 1;
     state.structureCommands = (state.structureCommands || []).concat(command);
     state.values = collectValues();
-    if (fieldId) {
-      delete state.values[fieldId];
-      delete state.valueOriginals[fieldId];
+    if (command.fieldId) {
+      delete state.values[command.fieldId];
+      delete state.valueOriginals[command.fieldId];
     }
     clearStructureBuilder(builder);
     state.model = state.mode === 'existing' ? buildExistingModel({values: state.values}) : buildTemplateModel({values: state.values});
+    if (shouldMaterializeNewEventDraft(state.values)) {
+      state.model = materializeNewEventDraft(state.model);
+    }
     state.status = t('objectCanvas.status.structureCommandQueued', 'Structure command added to the current proposal.');
     render({scrollSnapshot});
   }
 
   function clearStructureBuilder(builder) {
-    if (!builder) {
-      return;
-    }
-    builder.querySelectorAll('[data-preview-object-structure-part]').forEach((input) => {
-      if (input.tagName === 'SELECT') {
-        input.selectedIndex = 0;
-      } else {
-        input.value = '';
-      }
-    });
-    const output = builder.querySelector('[data-preview-object-structure-output]');
-    if (output) {
-      output.value = '';
-    }
+    structureDraftApi().clearBuilder(builder);
   }
 
   function reviewCurrentPlan() {
@@ -2781,7 +2487,7 @@
     }
     const changed = {};
     const originalKeys = new Set();
-    elements.host.querySelectorAll('[data-object-canvas-field]').forEach((input) => {
+    collectCanvasFieldEntries(elements.host).forEach((input) => {
       const key = input.dataset.objectCanvasField;
       if (!key) {
         return;
@@ -2818,74 +2524,16 @@
     return values;
   }
 
-  function syncStructureBuilder(builder) {
-    if (!builder) {
-      return;
-    }
-    const output = builder.querySelector('[data-preview-object-structure-output]');
-    if (!output) {
-      return;
-    }
-    const action = builder.dataset.previewObjectStructureBuilder || '';
-    const parts = {};
-    builder.querySelectorAll('[data-preview-object-structure-part]').forEach((input) => {
-      parts[input.dataset.previewObjectStructurePart || ''] = String(input.value || '').trim();
+  function collectCanvasFieldEntries(host) {
+    const api = objectCanvasFieldValuesApi();
+    return api.collectCanvasFieldEntries(host, {
+      activeElement: global.document && global.document.activeElement || null,
+      getComputedStyle: global.getComputedStyle ? global.getComputedStyle.bind(global) : null
     });
-    const next = composeStructureValue(action, parts);
-    if (output.value === next) {
-      return;
-    }
-    output.value = next;
-    output.dispatchEvent(new global.Event('input', {bubbles: true}));
   }
 
-  function composeStructureValue(action, parts) {
-    if (action === 'add_option') {
-      const label = String(parts.option_label || '').trim();
-      const result = String(parts.result_text || '').trim();
-      const chooseIf = String(parts.choose_if || '').trim();
-      const unavailableText = String(parts.unavailable_text || '').trim();
-      const target = String(parts.target_id || '').trim() || slugForStructure(label) || 'new_option';
-      if (!label && !result && !String(parts.target_id || '').trim() && !chooseIf && !unavailableText) {
-        return '';
-      }
-      return [
-        '- @' + target + ': ' + (label || 'Player-facing option text'),
-        '# ' + target,
-        chooseIf ? 'choose-if: ' + chooseIf : '',
-        unavailableText ? 'unavailable-subtitle: ' + unavailableText : '',
-        result || 'Result prose.'
-      ].filter(Boolean).join('\n');
-    }
-    if (action === 'add_branch') {
-      const section = String(parts.section_id || '').trim() || 'follow_up';
-      const condition = String(parts.condition || '').trim();
-      const text = String(parts.branch_text || '').trim();
-      if (!String(parts.section_id || '').trim() && !condition && !text) {
-        return '';
-      }
-      return ['# ' + section, condition ? '[? if ' + condition + ' : ' + (text || 'Conditional prose.') + ' ?]' : (text || 'Follow-up prose.')].join('\n');
-    }
-    if (action === 'add_trigger_effect' || action === 'add_option_effect') {
-      const variable = String(parts.variable || '').trim().replace(/^Q\./, '');
-      const op = String(parts.operation || '+=').trim() || '+=';
-      const value = String(parts.value || '').trim();
-      const condition = String(parts.condition || '').trim();
-      if (!variable || !value) {
-        return '';
-      }
-      return 'Q.' + variable + ' ' + op + ' ' + value + (condition ? ' if ' + condition : '');
-    }
-    return '';
-  }
-
-  function slugForStructure(value) {
-    return String(value || '')
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '_')
-      .replace(/^_+|_+$/g, '')
-      .slice(0, 48);
+  function syncStructureBuilder(builder) {
+    structureDraftApi().syncBuilder(builder, {Event: global.Event});
   }
 
   function rememberFieldOriginal(key, value) {
@@ -2926,11 +2574,15 @@
     syncPreviewObjectEditorChrome();
     syncPreviewObjectEditorPane();
     syncObjectCanvasFieldValues();
+    syncSourceSliceAdvancedControls();
+    syncSemanticLogicAdvancedControls();
+    syncEventReadinessControls();
     syncPreviewObjectRenderedFields();
+    bindVisibleEditUi(elements.host);
     const panel = elements.host.querySelector('[data-runtime-lens-panel]');
     if (panel && state.runtimeLensStatus === 'stale') {
       panel.dataset.runtimeLensStatus = 'stale';
-      panel.classList.add('is-stale');
+      syncRuntimeLensStatusClass(panel, 'stale');
       const message = panel.querySelector('[data-runtime-lens-message]');
       if (message) {
         message.textContent = t('runtimeLens.draftStale', 'Lens is behind the current edit. Refresh or rebuild it to observe the latest draft.');
@@ -2938,144 +2590,139 @@
     }
   }
 
-  function syncPreviewObjectEditorPane() {
-    if (!elements || !elements.host || !state.model) {
+  function syncSourceSliceAdvancedControls() {
+    if (!elements || !elements.host || state.mode !== 'source_slice') {
       return;
     }
-    const editor = global.ProjectMapPreviewObjectEditor;
-    if (!editor || typeof editor.renderPreviewPane !== 'function') {
-      return;
-    }
-    elements.host.querySelectorAll('[data-object-editing-modal-preview-pane]').forEach((node) => {
-      node.innerHTML = editor.renderPreviewPane(state.model, {
-        template: state.template,
-        selectedKey: state.selectedCanvasNode
-      });
+    const allowed = sourceSliceReviewAllowed();
+    elements.host.querySelectorAll('[data-object-canvas-action="review"]').forEach((button) => {
+      button.disabled = !allowed;
+      button.setAttribute('aria-disabled', allowed ? 'false' : 'true');
     });
+  }
+
+  function syncSemanticLogicAdvancedControls() {
+    if (!elements || !elements.host || state.mode !== 'semantic_logic') {
+      return;
+    }
+    const allowed = semanticLogicReviewAllowed();
+    elements.host.querySelectorAll('[data-object-canvas-action="review"]').forEach((button) => {
+      button.disabled = !allowed;
+      button.setAttribute('aria-disabled', allowed ? 'false' : 'true');
+    });
+  }
+
+  function syncEventReadinessControls() {
+    if (!elements || !elements.host || state.mode !== 'new_event') {
+      return;
+    }
+    const allowed = eventReadinessReviewAllowed();
+    elements.host.querySelectorAll('[data-object-canvas-action="review"]').forEach((button) => {
+      button.disabled = !allowed;
+      button.setAttribute('aria-disabled', allowed ? 'false' : 'true');
+      button.dataset.reviewReadinessGate = allowed ? 'ready' : 'blocked';
+    });
+  }
+
+  function updateRuntimeLensEvidence() {
+    if (!elements || !elements.host) {
+      return false;
+    }
+    const panel = elements.host.querySelector('[data-runtime-lens-panel]');
+    if (!panel) {
+      return false;
+    }
+    const session = state.runtimeLensSession || {};
+    const status = state.runtimeLensStatus || session.status || 'ready';
+    panel.dataset.runtimeLensStatus = status;
+    syncRuntimeLensStatusClass(panel, status);
+    const message = panel.querySelector('[data-runtime-lens-message]');
+    if (message) {
+      message.textContent = runtimeLensEvidenceMessage(session, status);
+    }
+    const statusNode = elements.host.querySelector('[data-object-canvas-status]');
+    if (statusNode) {
+      statusNode.textContent = state.status || '';
+    }
+    return true;
+  }
+
+  function syncRuntimeLensStatusClass(panel, status) {
+    if (!panel || !panel.classList) {
+      return;
+    }
+    ['idle', 'building', 'ready', 'partial', 'blocked', 'stale', 'failed', 'suspended', 'unavailable'].forEach((value) => {
+      panel.classList.remove('is-' + value);
+    });
+    const safe = safeRuntimeLensStatus(status);
+    if (safe) {
+      panel.classList.add('is-' + safe);
+    }
+    panel.classList.toggle('is-stale', safe === 'stale');
+  }
+
+  function runtimeLensEvidenceMessage(session, status) {
+    const snapshot = session && session.runtimeSnapshot || null;
+    if ((snapshot && snapshot.status === 'blocked') || status === 'blocked') {
+      const diag = firstRuntimeDiagnostic(snapshot) || firstRuntimeDiagnostic(session && session.runtimeDomMap) || firstRuntimeDiagnostic(session && session.runtimeVisualSurface);
+      return diag && (diag.message || diag.code) || t('runtimeLens.blocked', 'Runtime Lens is blocked by incomplete generated runtime files.');
+    }
+    if (snapshot && snapshot.summary) {
+      const summary = snapshot.summary || {};
+      const runtimeStatus = String(snapshot.status || status || 'ready');
+      const prefix = runtimeStatus === 'partial'
+        ? 'Partial runtime snapshot: '
+        : 'Runtime loaded, ';
+      return prefix + Number(summary.visibleRegionCount || 0) + '/' + Number(summary.indexedRegionCount || 0) + ' regions visible, ' + Number(summary.choiceCount || 0) + ' choices rendered.';
+    }
+    return {
+      ready: t('runtimeLens.ready', 'Lens is ready.'),
+      partial: t('runtimeLens.partial', 'Lens loaded with runtime snapshot warnings.'),
+      failed: t('runtimeLens.failed', 'Lens could not be created.'),
+      suspended: t('runtimeLens.suspended', 'Lens is suspended while this workspace is in the background. Refresh to reload it.')
+    }[status] || t('runtimeLens.ready', 'Lens is ready.');
+  }
+
+  function firstRuntimeDiagnostic(value) {
+    return ensureArray(value && value.diagnostics).find((diag) => diag && diag.severity === 'error') ||
+      ensureArray(value && value.diagnostics).find(Boolean) ||
+      null;
+  }
+
+  function safeRuntimeLensStatus(status) {
+    return String(status || '').trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '');
+  }
+
+  function syncPreviewObjectEditorPane() {
+    previewEditorSyncApi().syncPreviewObjectEditorPane(previewEditorSyncDeps());
   }
 
   function syncPreviewObjectRenderedFields() {
-    if (!elements || !elements.host || !state.model) {
-      return;
-    }
-    const editor = global.ProjectMapPreviewObjectEditor;
-    if (!editor || typeof editor.renderTextBlocks !== 'function') {
-      return;
-    }
-    const fields = previewObjectFieldMap(state.model);
-    elements.host.querySelectorAll('[data-preview-object-rendered-for]').forEach((node) => {
-      const key = node.dataset && node.dataset.previewObjectRenderedFor;
-      const input = key ? elements.host.querySelector('[data-object-canvas-field="' + cssEscape(key) + '"]') : null;
-      const field = key ? fields.get(key) : null;
-      const value = input ? input.value : field && field.value !== undefined ? field.value : field && field.original || '';
-      node.innerHTML = editor.renderTextBlocks(value, {empty: false});
-    });
+    previewEditorSyncApi().syncPreviewObjectRenderedFields(previewEditorSyncDeps());
   }
 
   function previewObjectFieldMap(model) {
-    const map = new Map();
-    const body = model && model.eventBody || {};
-    [body.title, body.heading].forEach(addField);
-    ensureArray(body.sections).forEach(addField);
-    ensureArray(body.metaFields).forEach(addField);
-    ensureArray(body.structureActions).forEach(addField);
-    ensureArray(body.effects).forEach(addField);
-    ensureArray(body.options).forEach((option) => {
-      ensureArray(option && option.fields).forEach(addField);
-    });
-    ensureArray(body.optionEffects).forEach((group) => {
-      ensureArray(group && group.fields).forEach(addField);
-    });
-    return map;
-
-    function addField(field) {
-      const id = field && field.id;
-      if (id) {
-        map.set(String(id), field);
-      }
-    }
+    return previewEditorSyncApi().previewObjectFieldMap(model, previewEditorSyncDeps());
   }
 
   function syncPreviewObjectEditorChrome() {
-    if (!elements || !elements.host || !state.model) {
-      return;
-    }
-    const title = headerTitle(state.model, currentSurface(state.model));
-    [
-      '[data-preview-object-editor-title]',
-      '[data-content-storyboard-selected-title]',
-      '[data-card-face-selected-title]',
-      '.content-storyboard-card.is-selected .content-storyboard-title'
-    ].forEach((selector) => {
-      elements.host.querySelectorAll(selector).forEach((node) => {
-        if (node && !node.matches('input, textarea, select')) {
-          if (selector === '[data-preview-object-editor-title]') {
-            node.innerHTML = renderVisibleTextInline(title);
-          } else {
-            node.textContent = title;
-          }
-        }
-      });
-    });
-    const footer = elements.host.querySelector('[data-preview-object-draft-summary]');
-    if (footer) {
-      footer.innerHTML = renderPreviewObjectDraftSummary(state.model);
-    }
+    previewEditorSyncApi().syncPreviewObjectEditorChrome(previewEditorSyncDeps());
   }
 
   function renderVisibleTextInline(value) {
-    const renderer = global.ProjectMapVisibleTextRenderer;
-    return renderer && typeof renderer.renderInline === 'function'
-      ? renderer.renderInline(value)
-      : escapeHtml(value);
+    return previewEditorSyncApi().renderVisibleTextInline(value, previewEditorSyncDeps());
   }
 
   function renderPreviewObjectDraftSummary(model) {
-    const change = model && model.changeState || {};
-    const summary = change.operationSummary || {};
-    const route = previewObjectRouteLabel(model);
-    return [
-      '<div><span>' + escapeHtml(t('objectCanvas.changedFields', 'Changed')) + '</span><strong>' + escapeHtml(String(change.changedCount || 0)) + '</strong></div>',
-      '<div><span>' + escapeHtml(t('editing.summary.guarded', 'Guarded')) + '</span><strong>' + escapeHtml(String(summary.guardedApply || 0)) + '</strong></div>',
-      '<div><span>' + escapeHtml(t('editing.summary.manual', 'Manual')) + '</span><strong>' + escapeHtml(String(summary.manualReview || 0)) + '</strong></div>',
-      '<div><span>' + escapeHtml(t('previewObjectEditor.route', 'Editor route')) + '</span><strong>' + escapeHtml(route) + '</strong></div>'
-    ].join('');
+    return previewEditorSyncApi().renderPreviewObjectDraftSummary(model, previewEditorSyncDeps());
   }
 
   function previewObjectRouteLabel(model) {
-    const value = String(model && (model.template || model.objectKind || model.mode) || state.template || '').trim();
-    if (value === 'news' || value === 'news_item' || value === 'new_news') {
-      return t('objectPreview.news', 'News');
-    }
-    if (value === 'card' || value === 'new_card') {
-      return t('objectPreview.card', 'Card');
-    }
-    if (value === 'surface' || value === 'surface_text' || value === 'text') {
-      return t('objectPreview.textPatch', 'Text Patch');
-    }
-    return t('objectPreview.event', 'World Event');
+    return previewEditorSyncApi().previewObjectRouteLabel(model, previewEditorSyncDeps());
   }
 
   function syncObjectCanvasFieldValues() {
-    if (!elements || !elements.host) {
-      return;
-    }
-    const active = global.document && global.document.activeElement;
-    const values = state.values || {};
-    elements.host.querySelectorAll('[data-object-canvas-field]').forEach((input) => {
-      const key = input.dataset && input.dataset.objectCanvasField;
-      if (!key || !Object.prototype.hasOwnProperty.call(values, key) || input === active) {
-        return;
-      }
-      const next = String(values[key] === undefined || values[key] === null ? '' : values[key]);
-      if (input.type === 'checkbox') {
-        input.checked = /^(1|true|yes|on)$/i.test(next);
-        return;
-      }
-      if (input.value !== next) {
-        input.value = next;
-      }
-    });
+    previewEditorSyncApi().syncObjectCanvasFieldValues(previewEditorSyncDeps());
   }
 
   function defaultDraftForTemplate(template) {
@@ -3134,6 +2781,9 @@
     if (state.deleteProposal) {
       return state.deleteProposal;
     }
+    if (state.mode === 'source_slice' || state.mode === 'semantic_logic') {
+      return draft;
+    }
     if ((state.workspace || 'content') === 'content') {
       const cardWorkspace = cardWorkspaceApi();
       if (cardWorkspace && typeof cardWorkspace.draftWithContext === 'function' && currentSurface().key === 'card_board') {
@@ -3159,91 +2809,71 @@
   }
 
   function templateFromDraft(draft) {
-    const apiModel = modelApi();
-    if (apiModel && typeof apiModel.templateFromDraft === 'function') {
-      return apiModel.templateFromDraft(draft);
-    }
-    const value = draft || {};
-    return value.kind === 'news_item' ? 'news' : value.kind === 'card' ? 'card' : 'event';
+    return surfaceAdapterApi().templateFromDraft(draft, surfaceAdapterDeps());
   }
 
   function isCanvasTemplate(template) {
-    const registry = registryApi();
-    if (registry && typeof registry.isTemplateSupported === 'function') {
-      return registry.isTemplateSupported(template) && normalizeTemplate(template) !== 'existing';
-    }
-    return Boolean(normalizeTemplate(template));
+    return surfaceAdapterApi().isCanvasTemplate(template, surfaceAdapterDeps());
   }
 
   function normalizeTemplate(template) {
-    const registry = registryApi();
-    if (registry && typeof registry.normalizeTemplate === 'function') {
-      return registry.normalizeTemplate(template);
-    }
-    const text = String(template || '').trim();
-    const supported = {
-      event: true,
-      news: true,
-      card: true,
-      play_surface: true,
-      workspace_layout: true,
-      sidebar_status: true,
-      surface: true,
-      entry: true,
-      project: true,
-      variables: true
-    };
-    return supported[text] ? text : '';
+    return surfaceAdapterApi().normalizeTemplate(template, surfaceAdapterDeps());
   }
 
   function workspaceForTemplate(template) {
-    const registry = registryApi();
-    if (registry && typeof registry.workspaceForTemplate === 'function') {
-      return registry.workspaceForTemplate(template);
-    }
-    const key = normalizeTemplate(template) || (template === 'existing' ? 'existing' : 'event');
-    if (key === 'entry' || key === 'play_surface' || key === 'workspace_layout' || key === 'sidebar_status' || key === 'project') {
-      return 'system_ui';
-    }
-    if (key === 'variables') {
-      return 'project_state';
-    }
-    return 'content';
+    return surfaceAdapterApi().workspaceForTemplate(template, surfaceAdapterDeps());
   }
 
   function systemUiTemplateForRegion(nodeKey) {
-    const router = global.ProjectMapSystemUiRegionRouter;
-    return router && typeof router.templateForRegion === 'function' ? router.templateForRegion(nodeKey) : '';
+    return surfaceAdapterApi().systemUiTemplateForRegion(nodeKey, surfaceAdapterDeps());
   }
 
   function surfaceForTemplate(template) {
-    const registry = registryApi();
-    if (registry && typeof registry.surfaceForTemplate === 'function') {
-      return registry.surfaceForTemplate(template);
-    }
-    return {key: 'content_storyboard', workspace: workspaceForTemplate(template), fallback: 'Content Storyboard', labelKey: 'authoring.surface.contentStoryboard'};
+    return surfaceAdapterApi().surfaceForTemplate(template, surfaceAdapterDeps());
   }
 
   function currentSurface(model) {
-    const cardWorkspace = cardWorkspaceApi();
-    if (cardWorkspace && typeof cardWorkspace.isCardBoardState === 'function' && cardWorkspace.isCardBoardState(state)) {
-      return surfaceForTemplate('card');
-    }
-    return surfaceForTemplate(state.mode === 'existing' ? 'existing' : state.template || model && model.template || 'event');
+    return surfaceAdapterApi().currentSurface(model, surfaceAdapterDeps());
   }
 
   function surfaceLabelFor(surface) {
-    const registry = registryApi();
-    if (registry && typeof registry.surfaceLabel === 'function') {
-      return registry.surfaceLabel(surface, t);
-    }
-    return surface && surface.fallback || '';
+    return surfaceAdapterApi().surfaceLabelFor(surface, surfaceAdapterDeps());
+  }
+
+  function surfaceAdapterDeps() {
+    return {
+      cardWorkspaceApi,
+      modelApi,
+      regionRouterApi,
+      registryApi,
+      state,
+      surfaceForTemplate,
+      t
+    };
   }
 
   function registryApi() {
     return global.ProjectMapAuthoringSurfaceRegistry || null;
   }
 
+  function regionRouterApi() {
+    return global.ProjectMapSystemUiRegionRouter || null;
+  }
+
+  function surfaceAdapterApi() {
+    return global.ProjectMapObjectCanvasSurfaceAdapter;
+  }
+
+  function modelBuilderApi() {
+    return global.ProjectMapObjectCanvasModelBuilder;
+  }
+
+  function projectStateWorkspaceApi() {
+    return global.ProjectMapObjectCanvasProjectStateWorkspace;
+  }
+
+  function objectCanvasShellApi() { return global.ProjectMapObjectCanvasShellUi || null; }
+  function objectDeleteProposalApi() { return global.ProjectMapObjectDeleteProposalModel || null; }
   function systemUiWorkspaceApi() {
     return global.ProjectMapSystemUiWorkspaceState || null;
   }
@@ -3252,10 +2882,38 @@
   function runtimeLensWorkspaceApi() { return global.ProjectMapRuntimeLensWorkspaceState || null; }
   function cardWorkspaceApi() { return global.ProjectMapCardWorkspaceState || null; }
   function cardDeps(entry) { return {buildExistingModel, buildExistingModelFor, buildTemplateModel, collectValues, defaultDraftForTemplate, entry, render, showWorkspace, t}; }
-  function runtimeLensDeps() { return {buildExistingModel, buildTemplateModel, collectValues, render}; }
+  function runtimeLensDeps() { return {buildExistingModel, buildTemplateModel, collectValues, render, renderRuntimeLensEvidence: updateRuntimeLensEvidence}; }
 
   function storyboardWorkspaceApi() { return global.ProjectMapStoryboardWorkspaceState || null; }
-  function storyboardDeps() { return {buildExistingModel, buildExistingModelFor, buildTemplateModel, collectValues, render, showWorkspace, t}; }
+  function storyboardDeps() { return {buildExistingModel, buildExistingModelFor, buildTemplateModel, collectValues, render, selectCanvasNode, showWorkspace, t}; }
+
+  function storyboardDraftsApi() {
+    if (global.ProjectMapObjectCanvasStoryboardDrafts) {
+      return global.ProjectMapObjectCanvasStoryboardDrafts;
+    }
+    throw new Error('ProjectMapObjectCanvasStoryboardDrafts must load before Object Canvas UI.');
+  }
+
+  function storyboardDraftDeps() {
+    return {
+      branchApi: global.ProjectMapAuthoringReferenceIndex,
+      buildExistingModelFor,
+      buildTemplateModel,
+      collectValues,
+      ensureArray,
+      normalizeTemplate,
+      openFromSelection,
+      openTemplate,
+      render,
+      resetStructureCommands,
+      safeDefaultDraftForTemplate,
+      safeDraftId,
+      showWorkspace,
+      storyboardDeps,
+      storyboardWorkspaceApi,
+      t
+    };
+  }
 
   function systemUiDeps(entry) {
     return {buildExistingModel, buildTemplateModel, collectValues, defaultDraftForTemplate, entry, normalizeTemplate, render, showWorkspace, t, templateForRegion: systemUiTemplateForRegion, workspaceForTemplate};
@@ -3289,6 +2947,111 @@
 
   function installPlanApi() {
     return global.ProjectMapInstallPlan || null;
+  }
+
+  function sourceSliceApi() {
+    return global.ProjectMapSourceSliceEditor || null;
+  }
+
+  function sourceSliceWorkspaceApi() {
+    return global.ProjectMapSourceSliceWorkspace || null;
+  }
+
+  function returnStackApi() {
+    return global.ProjectMapObjectWorkspaceReturnStack || null;
+  }
+
+  function semanticLogicApi() {
+    return global.ProjectMapSemanticLogicEditor || null;
+  }
+
+  function semanticLogicWorkspaceApi() {
+    return global.ProjectMapSemanticLogicWorkspace || null;
+  }
+
+  function visibleEditActionUi() {
+    return global.ProjectMapVisibleEditActionUi || null;
+  }
+
+  function structureDraftApi() {
+    if (global.ProjectMapPreviewObjectStructureDraft) {
+      return global.ProjectMapPreviewObjectStructureDraft;
+    }
+    if (typeof require === 'function') {
+      return require('./preview_object_structure_draft.js');
+    }
+    throw new Error('ProjectMapPreviewObjectStructureDraft must load before Object Canvas structure builders.');
+  }
+
+  function objectCanvasFieldValuesApi() {
+    if (global.ProjectMapObjectCanvasFieldValues) {
+      return global.ProjectMapObjectCanvasFieldValues;
+    }
+    if (typeof require === 'function') {
+      return require('./object_canvas_field_values.js');
+    }
+    throw new Error('ProjectMapObjectCanvasFieldValues must load before Object Canvas UI.');
+  }
+
+  function previewEditorSyncApi() {
+    if (global.ProjectMapObjectCanvasPreviewEditorSync) {
+      return global.ProjectMapObjectCanvasPreviewEditorSync;
+    }
+    if (typeof require === 'function') {
+      return require('./object_canvas_preview_editor_sync.js');
+    }
+    throw new Error('ProjectMapObjectCanvasPreviewEditorSync must load before Object Canvas UI.');
+  }
+
+  function previewEditorSyncDeps() {
+    return {
+      cssEscape,
+      currentSurface,
+      document: global.document,
+      elements,
+      ensureArray,
+      escapeHtml,
+      global,
+      headerTitle,
+      previewObjectEditor: global.ProjectMapPreviewObjectEditor,
+      state,
+      t,
+      visibleTextRenderer: global.ProjectMapVisibleTextRenderer
+    };
+  }
+
+  function bindVisibleEditUi(root) {
+    const visibleEditUi = visibleEditActionUi();
+    const host = root || elements && elements.host;
+    if (visibleEditUi && typeof visibleEditUi.bind === 'function' && host) {
+      visibleEditUi.bind(host, {projectIndex: state.projectIndex});
+    }
+  }
+
+  function parsedToDraftApi() {
+    return global.ProjectMapParsedToDraft || null;
+  }
+
+  function sourceSliceWorkspaceDeps() {
+    return {
+      translate: t,
+      escapeHtml,
+      escapeAttr,
+      renderPlanPreview,
+      renderDiagnostics,
+      sourceSliceApi: sourceSliceApi()
+    };
+  }
+
+  function semanticLogicWorkspaceDeps() {
+    return {
+      translate: t,
+      escapeHtml,
+      escapeAttr,
+      renderPlanPreview,
+      renderDiagnostics,
+      semanticLogicApi: semanticLogicApi()
+    };
   }
 
   function schedule(callback) {

@@ -12,7 +12,7 @@
     "area": { "type": "string" },
     "originalLabel": { "type": "string" },
     "replacementLabel": { "type": "string" },
-    "editability": { "enum": ["draft_exportable", "draft_extractable", "ide_escape_hatch", "text_proposal"] },
+    "editability": { "enum": ["draft_exportable", "draft_extractable", "source_patch", "ide_escape_hatch", "text_proposal"] },
     "source": { "$ref": "#/$defs/sourceRef" },
     "reason": { "type": "string" }
   },

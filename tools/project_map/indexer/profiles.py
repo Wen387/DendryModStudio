@@ -157,8 +157,8 @@ def normalize_parser_scene(scene: dict[str, Any], root: Path,
         "profileId": profile_id,
         "confidence": CONF_EXACT,
         "classificationConfidence": classification_confidence,
-        "sourceSpan": span_ref(path, scene.get("sourceSpan")),
-        "topLevelSpan": span_ref(path, scene.get("topLevelSpan")),
+        "sourceSpan": source_span_ref(root, path, scene.get("sourceSpan")),
+        "topLevelSpan": source_span_ref(root, path, scene.get("topLevelSpan")),
         "metadata": normalize_metadata_paths(scene.get("metadata", {}), root),
         "tags": split_tags(scene.get("tags")),
         "flags": {
@@ -194,22 +194,53 @@ def normalize_parser_scene(scene: dict[str, Any], root: Path,
     for option in scene.get("options", []):
         item = dict(option)
         item["metadata"] = normalize_metadata_paths(item.get("metadata", {}), root)
-        item["sourceSpan"] = span_ref(path, item.get("sourceSpan"))
+        item["sourceSpan"] = source_span_ref(root, path, item.get("sourceSpan"))
         out["options"].append(item)
 
     for section in scene.get("sections", []):
         item = dict(section)
         item["metadata"] = normalize_metadata_paths(item.get("metadata", {}), root)
-        item["sourceSpan"] = span_ref(path, item.get("sourceSpan"))
+        item["sourceSpan"] = source_span_ref(root, path, item.get("sourceSpan"))
         item["tags"] = split_tags(item.get("tags"))
         item["options"] = []
         for option in section.get("options", []):
             opt_item = dict(option)
             opt_item["metadata"] = normalize_metadata_paths(opt_item.get("metadata", {}), root)
-            opt_item["sourceSpan"] = span_ref(path, opt_item.get("sourceSpan"))
+            opt_item["sourceSpan"] = source_span_ref(root, path, opt_item.get("sourceSpan"))
             item["options"].append(opt_item)
         out["sections"].append(item)
     asset_refs = extract_scene_asset_references(root, out)
     if asset_refs:
         out["assetRefs"] = asset_refs
     return out
+
+
+def source_span_ref(root: Path, path: str, span: dict[str, Any] | None) -> dict[str, Any]:
+    ref = span_ref(path, span)
+    start = ref.get("startLine")
+    end = ref.get("endLine") or start
+    if start:
+        ref["line"] = start
+    if not start or not end:
+        return ref
+    try:
+        lines = (root / path).read_text(encoding="utf-8").splitlines()
+    except Exception:
+        return ref
+    if 1 <= int(start) <= len(lines):
+        ref["anchorText"] = lines[int(start) - 1].strip()
+    end_anchor = source_line_at_or_before(lines, int(end), int(start))
+    if end_anchor:
+        ref["endAnchorText"] = end_anchor["text"]
+        ref["endLine"] = end_anchor["line"]
+    elif "anchorText" in ref:
+        ref["endAnchorText"] = ref["anchorText"]
+    return ref
+
+
+def source_line_at_or_before(lines: list[str], line: int, floor: int) -> dict[str, Any] | None:
+    for index in range(min(line, len(lines)), max(floor, 1) - 1, -1):
+        text = lines[index - 1].strip()
+        if text:
+            return {"line": index, "text": text}
+    return None

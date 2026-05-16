@@ -12,6 +12,7 @@ surfaces authors expect from an SDAAH-style mod:
 - a deck scene,
 - one action card,
 - one pinned advisor-like card,
+- a four-event complex chain with conditional choices and branch routing,
 - small starter qualities and qdisplay text.
 
 All content is whiteboard placeholder content. It is meant to be replaced by the

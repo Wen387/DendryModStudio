@@ -58,6 +58,8 @@ assert(runtimeLensUi.includes('runtimeLens.suspended'), 'Runtime Lens UI should 
 assert(runtimeLensWorkspaceState.includes('runtimeLensEmbedsSuspended = false'), 'Runtime Lens actions should clear suspended state before rebuild');
 assert(runtimeLensWorkspaceState.includes('result && result.status'), 'Runtime Lens workspace should preserve blocked/partial session status from desktop results');
 assert(runtimeLensWorkspaceState.includes('runtimeLens.blocked'), 'Runtime Lens workspace should show blocked readiness copy');
+assert(runtimeLensWorkspaceState.includes('renderRuntimeLensEvidence'), 'Runtime Lens workspace should update returned evidence without forcing an iframe reload');
+assert(objectCanvasUi.includes('updateRuntimeLensEvidence'), 'Object Canvas should expose a targeted Runtime Lens evidence updater');
 
 assert(desktopMain.includes("require('./runtime_session_cleanup')"), 'Desktop main should load runtime session cleanup helper');
 assert(desktopMain.includes('pruneRuntimeSessions'), 'Desktop main should prune runtime sessions');

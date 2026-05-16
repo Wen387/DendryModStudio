@@ -26,6 +26,11 @@
     ].join('');
   }
 
+  function renderPaletteOnly(model, options) {
+    const storyboard = buildStoryboard(model, options || {});
+    return renderPalette(storyboard);
+  }
+
   function renderTextReplacementSurface(model, options) {
     const storyboard = {
       view: 'text',
@@ -870,7 +875,7 @@
     }[char]));
   }
 
-  const api = {render};
+  const api = {render, renderPaletteOnly};
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;
   }

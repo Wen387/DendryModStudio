@@ -12,6 +12,7 @@ copying an existing game system.
 
 - @spend_resources: Spend resources
 - @save_capacity: Save capacity
+- @prepare_case_file: Prepare a case file
 
 @spend_resources
 title: Spend resources
@@ -22,9 +23,32 @@ on-arrival: {!
 Q.demo_resources = (Q.demo_resources || 0) - 1;
 Q.demo_card_progress = (Q.demo_card_progress || 0) + 1;
 !}
-go-to: main
 
 The organization spends a small amount of capacity to move the project forward.
+
+- @return_spend_resources: Continue
+
+@return_spend_resources
+go-to: main
+
+@prepare_case_file
+title: Prepare a case file
+subtitle: Spend capacity before the complex event chain.
+choose-if: demo_resources >= 1
+unavailable-subtitle: Resources are too low.
+on-arrival: {!
+Q.demo_resources = (Q.demo_resources || 0) - 1;
+Q.demo_case_strength = (Q.demo_case_strength || 0) + 1;
+Q.demo_cabinet_balance = (Q.demo_cabinet_balance || 0) + 1;
+!}
+
+The team converts spare capacity into a case file. The complex event chain can
+read that state later.
+
+- @return_prepare_case_file: Continue
+
+@return_prepare_case_file
+go-to: main
 
 @save_capacity
 title: Save capacity
@@ -32,6 +56,10 @@ subtitle: Keep resources for later.
 on-arrival: {!
 Q.demo_resources = (Q.demo_resources || 0) + 1;
 !}
-go-to: main
 
 The organization keeps its limited capacity available for another moment.
+
+- @return_save_capacity: Continue
+
+@return_save_capacity
+go-to: main

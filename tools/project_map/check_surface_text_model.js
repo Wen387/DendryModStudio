@@ -116,14 +116,15 @@ assert(sourceBundle.ok, 'source-backed surface text draft should be valid: ' + J
 assert(htmlBundle.ok, 'HTML escape-hatch surface text draft should be valid: ' + JSON.stringify(htmlBundle.diagnostics));
 assert(textProposalBundle.ok, 'Text Corpus text_proposal draft should validate: ' + JSON.stringify(textProposalBundle.diagnostics));
 assert(surfaceSchema.properties.editability.enum.includes('text_proposal'), 'SurfaceTextDraft schema should accept Text Corpus text_proposal editability');
+assert(surfaceSchema.properties.editability.enum.includes('source_patch'), 'SurfaceTextDraft schema should accept Studio source_patch editability');
 assert(sourceBundle.installNotes.includes('proposal only / not installed'), 'source install notes should mark proposal-only status');
 assert(sourceBundle.installNotes.includes('資源'), 'source install notes should include original label');
 assert(sourceBundle.installNotes.includes('資金'), 'source install notes should include replacement label');
 assert(sourceBundle.installNotes.includes('source/scenes/status.scene.dry:12'), 'source install notes should include source path and line');
 assert(sourceBundle.proposal.includes('Replace: 資源'), 'source proposal should describe replacement');
-assert(htmlBundle.installNotes.includes('IDE escape hatch'), 'HTML install notes should explain escape hatch');
+assert(htmlBundle.installNotes.includes('Studio needs a source owner'), 'HTML install notes should explain source mapping need');
 assert(htmlBundle.installNotes.includes('out/html/strategy-sidebar.js:88'), 'HTML install notes should include generated UI evidence');
-assert(htmlBundle.installNotes.includes('why Studio will not auto-edit'), 'HTML install notes should explain why it cannot auto-handle generated UI');
+assert(htmlBundle.installNotes.includes('generated, runtime-owned, or too ambiguous'), 'HTML install notes should explain why it cannot auto-handle generated UI');
 assert(textProposalBundle.installNotes.includes('guarded-apply'), 'single-line text proposals should explain guarded apply');
 assert(textProposalBundle.installPlan.operations.every((op) => op.safety === 'guarded_apply'), 'single-line text_proposal install plans should use guarded apply');
 assert(textProposalBundle.installPlan.operations.every((op) => op.type === 'replace_text'), 'single-line text_proposal install plans should expose guarded replace_text operations');
@@ -145,8 +146,7 @@ assert(surfaceSearch.length === 2, 'surface text search should match label');
 assert(surfaceSearch.some((item) => item.raw && item.raw.editability === 'ide_escape_hatch'), 'surface text search should preserve escape hatch items');
 
 assert(viewerHtml.includes('data-view="surfaceText"'), 'viewer should expose Surface Text explore nav');
-const authoringWorkspaceUi = fs.readFileSync(path.join(__dirname, 'viewer', 'authoring_workspace_ui.js'), 'utf8');
-assert(authoringWorkspaceUi.includes("key: 'surface'"), 'viewer should expose Surface Text create template');
+assert(viewerHtml.includes('data-create-template-panel="surface"'), 'viewer should expose Surface Text create template');
 assert(viewerHtml.includes('id="surface-text-form"'), 'viewer should expose Surface Text form');
 assert(viewerHtml.includes('id="surface-label-original"'), 'viewer should expose original label field');
 assert(viewerHtml.includes('id="surface-label-replacement"'), 'viewer should expose replacement label field');
@@ -171,7 +171,7 @@ if (generated) {
   );
   assert(
     generatedItems.some((item) => String(item.source && item.source.path || '').startsWith('out/html/') && item.editability === 'ide_escape_hatch'),
-    'generated surfaceText should include IDE-only out/html evidence'
+    'generated surfaceText should include generated-only out/html evidence'
   );
 }
 

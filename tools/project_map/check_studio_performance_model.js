@@ -8,10 +8,13 @@ const {readExploreBundle} = require('./check_viewer_assets.js');
 const viewer = require('./viewer/app.js');
 const design = require('./viewer/design_model.js');
 const projectStateSurface = require('./viewer/project_state_surface.js');
+const storyPaletteModel = require('./authoring/story_palette_model.js');
+const storyPaletteSidebar = require('./viewer/storyboard_palette_sidebar.js');
 
 const DESIGN_UI = path.join(__dirname, 'viewer', 'design_ui.js');
 const OBJECT_CANVAS_UI = path.join(__dirname, 'viewer', 'object_authoring_canvas_ui.js');
 const PROJECT_STATE_SURFACE = path.join(__dirname, 'viewer', 'project_state_surface.js');
+const STORYBOARD_WORKSPACE_STATE = path.join(__dirname, 'viewer', 'storyboard_workspace_state.js');
 const VARIABLE_EDITOR_UI = path.join(__dirname, 'viewer', 'variable_editor_ui.js');
 
 function fail(message) {
@@ -102,6 +105,13 @@ const model = viewer.buildViewModel(index);
 
 assert(model.normalizedRowsByView instanceof Map, 'viewer model should expose a normalized row cache');
 assert(model.textCorpusContextIndex && model.textCorpusContextIndex.bySceneId instanceof Map, 'viewer model should pre-index Text Corpus context by owner scene');
+assert(model.coverageRowsDeferred === true, 'viewer model should defer full coverage rows during initial project load');
+const deferredCoverageRow = (model.lists.coverage || []).find((row) => row.id === 'visible_object_editor');
+assert(deferredCoverageRow && deferredCoverageRow.deferred === true, 'initial coverage list should use a deferred visible-object coverage row');
+assert(
+  /Coverage Map/.test(deferredCoverageRow.userCanDo || ''),
+  'deferred visible-object coverage row should explain that the full report is built on demand'
+);
 const firstTextContext = viewer.textCorpusContextRows(model, index.semantic.textCorpus.items[0]);
 assert(firstTextContext.length > 0 && firstTextContext.length <= 7, 'Text Corpus inspector context should use a bounded cached window');
 const firstNeedle = viewer.filterAndSortItems(model, 'textCorpus', 'needle', 'primary', 'asc');
@@ -126,6 +136,15 @@ assert(model.sortedRowsByView instanceof Map, 'viewer model should expose a sort
 assert(
   Array.from(model.sortedRowsByView.keys()).some((key) => String(key).includes('textCorpus') && String(key).includes('primary')),
   'filterAndSortItems should populate a per-view sorted row cache'
+);
+const normalizedCoverageRows = viewer.filterAndSortItems(model, 'coverage', '', 'label', 'asc');
+const fullVisibleCoverageRow = (model.lists.coverage || []).find((row) => row.id === 'visible_object_editor');
+assert(model.coverageRowsDeferred === false, 'opening Coverage Map should materialize full coverage rows');
+assert(fullVisibleCoverageRow && fullVisibleCoverageRow.deferred !== true, 'materialized visible-object coverage row should replace the deferred placeholder');
+assert((fullVisibleCoverageRow.count || 0) > 0, 'materialized visible-object coverage row should include report totals');
+assert(
+  normalizedCoverageRows.some((row) => row.raw && row.raw.id === 'visible_object_editor'),
+  'Coverage Map normalized rows should include the materialized visible-object row'
 );
 assert(typeof viewer.virtualWindowForList === 'function', 'viewer should expose virtualWindowForList for large Explore lists');
 const virtualWindow = viewer.virtualWindowForList(2400, 1160, 580);
@@ -181,10 +200,81 @@ const projectStateInspectorHtml = projectStateSurface.renderInspectorCard({
 });
 assert(projectStateInspectorHtml.includes('Q.global_variable_2999'), 'Project State should render selected variable inspector without full surface rerender');
 
+function largePaletteBoard() {
+  const eventCount = 520;
+  const variableCount = 1200;
+  const cards = Array.from({length: eventCount}, (_item, eventIndex) => ({
+    key: 'event:palette_event_' + eventIndex,
+    id: 'palette_event_' + eventIndex,
+    kind: 'event',
+    title: 'Palette event ' + eventIndex,
+    body: 'Synthetic palette body ' + eventIndex,
+    schedule: {year: 1930 + eventIndex % 5},
+    source: {path: 'source/scenes/palette/palette_event_' + eventIndex + '.scene.dry', line: 1}
+  }));
+  const variables = Array.from({length: variableCount}, (_item, variableIndex) => {
+    const event = cards[variableIndex % cards.length];
+    const hot = variableIndex % 37 === 0;
+    const unused = variableIndex % 40 === 0;
+    const readOnly = variableIndex % 3 === 0;
+    const writeOnly = variableIndex % 5 === 0;
+    const reads = unused || writeOnly ? [] : [{path: event.source.path, line: variableIndex + 1}];
+    const writes = unused || readOnly ? [] : [{path: event.source.path, line: variableIndex + 2}];
+    return {
+      name: 'palette_variable_' + variableIndex,
+      readCount: hot ? 24 : reads.length,
+      writeCount: hot ? 4 : writes.length,
+      reads,
+      writes,
+      confidence: 'static_inferred'
+    };
+  });
+  return {
+    view: 'timeline',
+    selectedKey: 'event:palette_event_0',
+    currentKey: 'event:palette_event_0',
+    cards,
+    projectIndex: {variables},
+    timeline: {lanes: [], undated: [], fullLanes: []},
+    chain: {levels: []}
+  };
+}
+
+const paletteBoard = largePaletteBoard();
+const largePalette = storyPaletteModel.buildPalette(paletteBoard, {
+  storyPaletteOpen: true,
+  storyPaletteRenderLimit: 60,
+  storyPaletteViewportHeight: 560
+});
+assert(largePalette.metrics.totalCandidateCount >= 1500, 'large palette fixture should cover at least 500 events plus 1000 variables');
+assert(largePalette.renderWindow && largePalette.renderWindow.enabled, 'large palette should enable render-window output');
+assert(largePalette.metrics.visibleEntryCount <= 60, 'large palette should cap rendered entries; rows=' + largePalette.metrics.visibleEntryCount);
+assert(largePalette.diagnostics.stateBadgeCounts.unused > 0, 'large palette should diagnose unused state variables');
+assert(largePalette.diagnostics.stateBadgeCounts.read_only > 0, 'large palette should diagnose read-only state variables');
+assert(largePalette.diagnostics.stateBadgeCounts.write_only > 0, 'large palette should diagnose write-only state variables');
+assert(largePalette.diagnostics.stateBadgeCounts.hot > 0, 'large palette should diagnose hot state variables');
+const largePaletteHtml = storyPaletteSidebar.renderPalette({palette: largePalette});
+const paletteRows = largePaletteHtml.match(/data-storyboard-palette-item=/g) || [];
+assert(paletteRows.length <= 60, 'large palette sidebar should not render every candidate DOM row; rows=' + paletteRows.length);
+assert(largePaletteHtml.includes('data-storyboard-palette-spacer="true"'), 'large palette sidebar should preserve virtual scroll spacers');
+const firstPaletteSearch = storyPaletteModel.buildPalette(paletteBoard, {
+  storyPaletteOpen: true,
+  storyPaletteQuery: 'palette_variable_99',
+  storyPaletteType: 'state'
+});
+const secondPaletteSearch = storyPaletteModel.buildPalette(paletteBoard, {
+  storyPaletteOpen: true,
+  storyPaletteQuery: 'palette_variable_99',
+  storyPaletteType: 'state'
+});
+assert(firstPaletteSearch.metrics.visibleEntryCount === secondPaletteSearch.metrics.visibleEntryCount, 'repeated palette search should return stable result windows');
+assert(!firstPaletteSearch.renderWindow.enabled, 'explicit palette search should not hide matches behind the virtual window');
+
 const appUi = readExploreBundle(path.join(__dirname, 'viewer'));
 const designUi = fs.readFileSync(DESIGN_UI, 'utf8');
 const objectCanvasUi = fs.readFileSync(OBJECT_CANVAS_UI, 'utf8');
 const projectStateUi = fs.readFileSync(PROJECT_STATE_SURFACE, 'utf8');
+const storyboardWorkspaceStateUi = fs.readFileSync(STORYBOARD_WORKSPACE_STATE, 'utf8');
 const variableEditorUi = fs.readFileSync(VARIABLE_EDITOR_UI, 'utf8');
 assert(appUi.includes('SORT_COLLATOR'), 'Explore sorting should reuse one collator instead of rebuilding localeCompare options per comparison');
 assert(appUi.includes('EXPLORE_SEARCH_DEBOUNCE_MS'), 'Explore search should use a named debounce interval');
@@ -203,6 +293,9 @@ assert(projectStateUi.includes('rowCache'), 'Project State variable rows should 
 assert(projectStateUi.includes('renderInspectorCard'), 'Project State should expose a narrow inspector render path for variable selection');
 assert(objectCanvasUi.includes('fastSelectProjectStateNode'), 'Project State variable clicks should avoid rebuilding the full authoring model');
 assert(objectCanvasUi.includes('syncProjectStateVariableSelection'), 'Project State variable selection should update only row highlight and inspector card');
+assert(storyboardWorkspaceStateUi.includes('refreshPaletteOnly'), 'Storyboard Palette filtering should use a narrow refresh path');
+assert(storyboardWorkspaceStateUi.includes('STORY_PALETTE_PIN_STORAGE_KEY'), 'Storyboard Palette pins should round-trip through localStorage');
+assert(storyboardWorkspaceStateUi.includes('STORY_PALETTE_RECENT_STORAGE_KEY'), 'Storyboard Palette recents should round-trip through localStorage');
 assert(variableEditorUi.includes('VARIABLE_OPTION_LIMIT'), 'Variable Editor should cap datalist options for large global variable sets');
 const inspectorContentMatch = designUi.match(/function renderInspectorContent[\s\S]*?\n  function renderEventWorkbenchForSelected/);
 assert(inspectorContentMatch, 'Design inspector content renderer should have a stable function boundary');

@@ -89,6 +89,14 @@ function checkResourcePaths(options) {
   };
 }
 
+function fileSize(filePath) {
+  try {
+    return fs.statSync(filePath).size;
+  } catch (_err) {
+    return 0;
+  }
+}
+
 function copyPath(src, dest) {
   fs.cpSync(src, dest, {
     recursive: true,
@@ -568,6 +576,7 @@ function loadStarterDemoIndex(options) {
       projectName: projectName(index, root),
       includeExcerpts: preferredIndexPath === paths.starterDemoIndexWithExcerpts,
       indexPath: preferredIndexPath,
+      indexSize: fileSize(preferredIndexPath),
       index,
       summary: summarizeIndex(index),
       fromCache: true
@@ -771,6 +780,7 @@ async function buildProjectIndex(options) {
     projectName: projectName(index, root),
     includeExcerpts,
     indexPath,
+    indexSize: fileSize(indexPath),
     parserIndexPath: parserOut,
     index,
     summary: summarizeIndex(index)
@@ -804,6 +814,7 @@ function applyInstallPlan(options) {
   const projectRoot = options && options.projectRoot;
   const dryRun = !options || options.dryRun !== false;
   const allowAdvanced = options && options.allowAdvanced === true;
+  const includeEvidence = options && options.includeEvidence === true;
   if (!plan || typeof plan !== 'object') {
     return {
       ok: false,
@@ -818,7 +829,7 @@ function applyInstallPlan(options) {
       }]
     };
   }
-  const result = installPlan.applyInstallPlan(plan, {projectRoot, dryRun, allowAdvanced});
+  const result = installPlan.applyInstallPlan(plan, {projectRoot, dryRun, allowAdvanced, includeEvidence});
   return Object.assign({}, result, {
     operationChecklist: installPlan.renderOperationChecklist(plan)
   });

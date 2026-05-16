@@ -57,7 +57,7 @@ function dispatchIndexLoaded(result) {
       index: result.index,
       fileInfo: {
         name: result.indexPath || 'desktop ProjectIndex',
-        size: JSON.stringify(result.index).length
+        size: Number(result.indexSize || 0)
       },
       root: result.root,
       projectName: result.projectName,

@@ -1,0 +1,53 @@
+title: Demo Back-room Talks
+tags: event, demo, complex
+new-page: true
+priority: 1
+on-arrival: {!
+Q.demo_pressure = (Q.demo_pressure || 0) - 1;
+!}
+
+= Back-room Talks
+
+The committee leaves the public hearing and argues over whether secrecy will
+protect the deal or weaken it. This branch is a separate event so the runtime
+preview shows the branch as a real playable step.
+
+[? if demo_public_attention >= 2 : Reporters are close enough that a leak could set the final frame. ?]
+[? if demo_cabinet_balance >= 1 : Cabinet allies still have room to bargain. ?]
+[? if demo_opposition_heat >= 2 : Opposition pressure makes a private deal more dangerous. ?]
+
+- @accept_press_leak: Leak the compromise outline.
+- @keep_private: Keep the bargain private.
+- @return_to_hearing: Return to the hearing table.
+
+@accept_press_leak
+title: Leak the compromise outline.
+on-arrival: {!
+Q.demo_public_attention = (Q.demo_public_attention || 0) + 1;
+Q.demo_reform_mandate = (Q.demo_reform_mandate || 0) + 1;
+!}
+go-to: demo_resolution_week
+
+The leak gives the story momentum, but it also makes the compromise harder to
+reshape.
+
+@keep_private
+title: Keep the bargain private.
+on-arrival: {!
+Q.demo_cabinet_balance = (Q.demo_cabinet_balance || 0) + 1;
+Q.demo_opposition_heat = (Q.demo_opposition_heat || 0) + 1;
+!}
+go-to: demo_resolution_week
+
+The private bargain survives the hour, though rumors make the opposition more
+suspicious.
+
+@return_to_hearing
+title: Return to the hearing table.
+on-arrival: {!
+Q.demo_pressure = (Q.demo_pressure || 0) + 1;
+!}
+go-to: demo_case_hearing
+
+The side room cannot settle the matter, so the committee returns to public
+procedure with less patience than before.

@@ -137,6 +137,8 @@ assert(leaderVariable && leaderVariable.writes.some((ref) => ref.path === 'sourc
 
 const indexedScene = index.scenes.find((item) => item.id === 'parser_story');
 assert(indexedScene && indexedScene.effects && indexedScene.effects.some((effect) => effect.variable === 'public_order' && effect.sourceExpression === 'public_order -= 2 if reform_done = 0'), 'ProjectIndex should keep source-backed shorthand on-arrival effects', indexedScene && indexedScene.effects);
+const indexedOption = indexedScene && indexedScene.options && indexedScene.options.find((option) => option.id === '@next_scene');
+assert(indexedOption && indexedOption.sourceSpan && indexedOption.sourceSpan.anchorText === '- @next_scene: Open debate——Make it visible.', 'ProjectIndex should keep option source anchors for structural deletion', indexedOption);
 
 const model = existingEdit.buildEditModel(index, 'events', 'parser_story');
 assert(model.ok, 'Existing Scene Edit model should build from parser-backed index', model.diagnostics);
@@ -147,6 +149,10 @@ const publicOrderEffect = model.fields.find((field) => field.role === 'effect' &
 assert(publicOrderEffect, 'existing edit model should expose shorthand on-arrival effects as editable effect fields');
 assert(publicOrderEffect.editability === 'guarded_replace_text', 'source-backed shorthand effect should be guarded', publicOrderEffect);
 assert(publicOrderEffect.searchText === 'public_order -= 2 if reform_done = 0', 'shorthand effect should preserve bare source syntax for replacement', publicOrderEffect);
+const removeOptionField = model.fields.find((field) => field.structureAction === 'remove_option' && field.optionId === 'next_scene');
+assert(removeOptionField, 'existing edit model should expose parser-backed option deletion');
+assert(removeOptionField.editability === 'advanced_source_patch', 'source-backed option deletion with local result fallout should be applyable, not manual review', removeOptionField);
+assert(removeOptionField.structureSourceBlock && removeOptionField.structureSourceBlock.kind === 'option_bundle_delete', 'option deletion with local result fallout should carry source-backed bundle evidence', removeOptionField);
 
 const block = model.textBlocks.find((item) => String(item.original || '').includes('First line of the public scene'));
 assert(block, 'existing edit model should build a source-backed page block from parsed body text');
@@ -159,6 +165,18 @@ const optionBundle = existingEdit.buildExportBundle(optionProposal, index);
 assert(optionBundle.installPlan.operations.length === 2, 'option/metadata proposal should create two operations');
 assert(optionBundle.installPlan.operations.every((operation) => operation.type === 'replace_text'), 'option/metadata edits should be replace_text');
 assert(optionBundle.installPlan.operations.every((operation) => operation.safety === 'guarded_apply'), 'option/metadata edits should be guarded');
+
+const removeOptionProposal = existingEdit.buildProposal(model, {
+  [removeOptionField.id]: 'true'
+});
+const removeOptionBundle = existingEdit.buildExportBundle(removeOptionProposal, index);
+assert(removeOptionBundle.installPlan.operations.length === 2, 'option deletion with local result fallout should create option-line and result-section operations');
+assert(removeOptionBundle.installPlan.operations[0].type === 'replace_text', 'option deletion should replace exactly one source line');
+assert(removeOptionBundle.installPlan.operations.every((operation) => operation.safety === 'advanced_apply'), 'option deletion bundle should be advanced apply, not manual review');
+assert(removeOptionBundle.installPlan.operations[0].search === '- @next_scene: Open debate——Make it visible.', 'option deletion should search for the exact option line', removeOptionBundle.installPlan.operations[0]);
+assert(removeOptionBundle.installPlan.operations[0].replace === '', 'option deletion should remove the exact option line', removeOptionBundle.installPlan.operations[0]);
+const removeOptionDryRun = installPlan.applyInstallPlan(removeOptionBundle.installPlan, {projectRoot: root, dryRun: true, allowAdvanced: true});
+assert(removeOptionDryRun.ok && removeOptionDryRun.results[0].status === 'would_apply', 'source-backed option deletion should dry-run cleanly', removeOptionDryRun);
 
 const effectProposal = existingEdit.buildProposal(model, {
   [publicOrderEffect.id]: 'Q.public_order -= 3 if reform_done = 0'
@@ -190,11 +208,15 @@ assert(dryRun.ok && dryRun.results[0].status === 'would_apply', 'parser-backed s
 const applied = installPlan.applyInstallPlan(blockBundle.installPlan, {projectRoot: root, dryRun: false});
 assert(applied.ok && applied.results[0].status === 'applied', 'parser-backed section replacement should apply to fixture', applied);
 assert(fs.readFileSync(path.join(root, 'source', 'scenes', 'events', 'parser_story.scene.dry'), 'utf8').includes('replaced parser-backed section'), 'source should contain applied parser-backed replacement');
+const removeOptionApplied = installPlan.applyInstallPlan(removeOptionBundle.installPlan, {projectRoot: root, dryRun: false, allowAdvanced: true});
+assert(removeOptionApplied.ok && removeOptionApplied.results[0].status === 'applied', 'source-backed option deletion should apply to fixture', removeOptionApplied);
+assert(!fs.readFileSync(path.join(root, 'source', 'scenes', 'events', 'parser_story.scene.dry'), 'utf8').includes('- @next_scene: Open debate——Make it visible.'), 'source should no longer contain the deleted option line');
 
 process.stdout.write(JSON.stringify({
   ok: true,
   textItems: corpus.length,
   fields: model.fields.length,
   textBlocks: model.textBlocks.length,
-  optionOperations: optionBundle.installPlan.operations.length
+  optionOperations: optionBundle.installPlan.operations.length,
+  removeOptionSafety: removeOptionBundle.installPlan.operations[0].safety
 }, null, 2) + '\n');

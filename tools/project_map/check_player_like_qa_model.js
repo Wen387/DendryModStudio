@@ -70,6 +70,11 @@ const postEvent = read(path.join(QA_FIXTURE, 'source', 'scenes', 'post_event.sce
   'justice_party_template_mod',
   'runtime_preview_entry_flow',
   'dynamic_mod_smoke',
+  'complex_event_authoring_flow',
+  'event_graph_click_edit_flow',
+  'asset_picker_copy_review_flow',
+  'variable_create_from_event_flow',
+  'unknown_profile_router_rule_flow',
   'Runtime preview support is visible',
   'waitForGameText',
   'demo_support',
@@ -102,9 +107,9 @@ const postEvent = read(path.join(QA_FIXTURE, 'source', 'scenes', 'post_event.sce
   'data-design-edit-existing',
   'data-editing-workspace',
   'data-object-authoring-canvas',
-  'data-object-canvas-event-body',
   'dispatchStoryboardPointerClick',
   'data-object-editing-modal',
+  'data-object-editing-modal-preview-pane',
   'reloadStudioWindow',
   'dendry:open-starter-demo',
   'dendry:update-notice-check',
@@ -167,7 +172,8 @@ assert(
     existingScenarioCard.includes('Allowed shortcut:') &&
     existingScenarioCard.includes('Object Authoring Canvas') &&
     existingScenarioCard.includes('context board') &&
-    existingScenarioCard.includes('inline event body'),
+    existingScenarioCard.includes('focused object editor') &&
+    existingScenarioCard.includes('live preview'),
   'existing edit scenario card should be written as a unified object authoring journey'
 );
 assert(
@@ -229,6 +235,6 @@ assert(
 
 process.stdout.write(JSON.stringify({
   ok: true,
-  scenarioCount: 8,
+  scenarioCount: 13,
   runner: path.relative(REPO, RUNNER)
 }, null, 2) + '\n');

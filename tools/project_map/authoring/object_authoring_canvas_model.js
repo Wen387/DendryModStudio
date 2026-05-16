@@ -96,6 +96,20 @@
     return null;
   }
 
+  function ownershipMatchingApi() {
+    if (global && global.ProjectMapOwnershipMatching) {
+      return global.ProjectMapOwnershipMatching;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./ownership_matching_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   function isExistingProposal(value) {
     return isObject(value) && (value.kind === 'existing_scene_edit' || Boolean(value.sceneId && value.changes));
   }
@@ -181,6 +195,7 @@
       ok: true,
       mode: 'existing',
       objectKind: context.sceneKind === 'card' ? 'card' : 'event',
+      objectView: view,
       objectId: context.sceneId || '',
       title: context.title || context.sceneId || '',
       source: sourceRef(context.source || {}),
@@ -297,12 +312,20 @@
       allEditors.find((editor) => editor.role === 'heading') ||
       null;
     const pageSectionEditors = ensureArray(editors.pageSections);
+    const metadataEditors = allEditors.filter((editor) => String(editor && editor.role || '') === 'metadata');
     const playerTextEditors = ensureArray(editors.playerText)
+      .filter((editor) => String(editor && editor.role || '') !== 'metadata')
       .filter((editor) => !titleEditor || editor.id !== titleEditor.id);
     const optionRows = optionBodyRows(context, pageSectionEditors);
     const consumedSectionIds = new Set();
+    const consumedPlayerTextIds = new Set();
     optionRows.forEach((option) => {
       ensureArray(option.resultFields).forEach((field) => consumedSectionIds.add(String(field.id || '')));
+      ensureArray(option.fields).forEach((field) => {
+        if (String(field && field.role || '') === 'unavailable_text') {
+          consumedPlayerTextIds.add(String(field.id || ''));
+        }
+      });
     });
     const primarySectionEditors = pageSectionEditors.filter((editor) => {
       return !consumedSectionIds.has(String(editor.id || '')) && isPrimaryExistingSection(editor, sceneId);
@@ -310,12 +333,13 @@
     const branchSectionEditors = pageSectionEditors.filter((editor) => {
       return !consumedSectionIds.has(String(editor.id || '')) && !isPrimaryExistingSection(editor, sceneId);
     });
-    const primaryPlayerTextEditors = playerTextEditors.filter((editor) => isPrimaryExistingSection(editor, sceneId));
-    const branchPlayerTextEditors = playerTextEditors.filter((editor) => !isPrimaryExistingSection(editor, sceneId));
+    const primaryPlayerTextEditors = playerTextEditors.filter((editor) => !consumedPlayerTextIds.has(String(editor.id || '')) && isPrimaryExistingSection(editor, sceneId));
+    const branchPlayerTextEditors = playerTextEditors.filter((editor) => !consumedPlayerTextIds.has(String(editor.id || '')) && !isPrimaryExistingSection(editor, sceneId));
     const sectionEditors = primarySectionEditors.concat(primaryPlayerTextEditors);
     const effectEditors = ensureArray(editors.effects);
     const body = {
       mode: 'existing',
+      eventShape: optionRows.length ? 'choice_event' : 'pure_event',
       title: titleEditor || {
         id: '',
         label: 'Title',
@@ -331,9 +355,13 @@
       assetBaseUrl: String(projectIndex && projectIndex.project && projectIndex.project.assetBaseUrl || ''),
       variables: variableRowsForExisting(context),
       backgroundEffects: backgroundEffectRowsForExisting(context),
-      metaFields: ensureArray(editors.conditions).concat(ensureArray(editors.routes)),
+      metaFields: metadataEditors.concat(ensureArray(editors.conditions), ensureArray(editors.routes)),
       structureActions: ensureArray(editors.structureActions),
+      scriptRows: ensureArray(context.editModel && context.editModel.scriptRows),
+      opaqueJsBlocks: ensureArray(context.editModel && context.editModel.opaqueJsBlocks),
+      projectSceneIds: ensureArray(projectIndex && projectIndex.scenes).map((scene) => String(scene && scene.id || '')).filter(Boolean),
       flow: context.flow || context.editModel && context.editModel.flow || {nodes: [], edges: [], summary: {}},
+      sourceStructureGraph: context.sourceStructureGraph || context.editModel && context.editModel.sourceStructureGraph || null,
       effects: effectEditors.filter((editor) => !editor.optionId && !editor.sectionId),
       optionEffects: optionRows.map((option) => ({
         id: option.id,
@@ -345,7 +373,44 @@
     const modeledBody = structureApi && typeof structureApi.fromEditingContext === 'function' && typeof structureApi.toEventBody === 'function'
       ? structureApi.toEventBody(structureApi.fromEditingContext(context, projectIndex, {body}))
       : body;
-    return bodyWithQueuedStructurePreviews(modeledBody, values);
+    return bodyWithQueuedStructurePreviews(regroupOptionOwnedText(modeledBody), values);
+  }
+
+  function regroupOptionOwnedText(body) {
+    const next = clone(body || {});
+    const options = ensureArray(next.options).map((option) => Object.assign({}, option, {
+      fields: ensureArray(option && option.fields).slice(),
+      resultFields: ensureArray(option && option.resultFields).slice()
+    }));
+    const consumed = new Set();
+    const candidates = ensureArray(next.sections).concat(ensureArray(next.branchSections));
+    options.forEach((option) => {
+      candidates.forEach((field) => {
+        const fieldKey = String(field && (field.id || field.fieldId) || '');
+        if (!field || (fieldKey && consumed.has(fieldKey))) {
+          return;
+        }
+        if (isUnavailableTextEditor(field) && optionUnavailableMatches(field, option)) {
+          option.fields = uniqueEditors(option.fields.concat([field]));
+          option.unavailableText = unavailableTextForOption(option, [field]);
+          if (fieldKey) {
+            consumed.add(fieldKey);
+          }
+          return;
+        }
+        if (isOptionResultEditor(field) && sectionEditorMatchesOption(field, option)) {
+          option.resultFields = uniqueEditors(option.resultFields.concat([field]));
+          option.fields = uniqueEditors(option.fields.concat([field]));
+          if (fieldKey) {
+            consumed.add(fieldKey);
+          }
+        }
+      });
+    });
+    next.options = options;
+    next.sections = ensureArray(next.sections).filter((field) => !consumed.has(String(field && (field.id || field.fieldId) || '')));
+    next.branchSections = ensureArray(next.branchSections).filter((field) => !consumed.has(String(field && (field.id || field.fieldId) || '')));
+    return next;
   }
 
   function bodyWithQueuedStructurePreviews(body, values) {
@@ -395,8 +460,8 @@
       fieldId: id,
       original: /^remove_/.test(action) ? 'false' : '',
       value: /^remove_/.test(action) ? 'true' : String(command.value || ''),
-      editability: 'manual_review',
-      status: 'manual',
+      editability: template.editability || 'manual_review',
+      status: template.status || editorStatus(template.editability || 'manual_review'),
       transform: 'structure_action',
       structureAction: action,
       optionId: String(command.optionId || template.optionId || ''),
@@ -415,6 +480,7 @@
 
   function structureActionFieldForCommand(body, command, action) {
     const fields = ensureArray(body && body.structureActions).filter((field) => String(field && field.transform || '') === 'structure_action' || field && field.structureAction);
+    const ownership = ownershipMatchingApi();
     const fieldId = String(command && command.fieldId || '').trim();
     if (fieldId) {
       const direct = fields.find((field) => String(field && field.id || '') === fieldId);
@@ -428,14 +494,35 @@
       if (normalizeStructureAction(field && field.structureAction) !== action) {
         return false;
       }
-      if (optionId && safeCompareId(field && field.optionId) !== optionId) {
-        return false;
+      if (optionId) {
+        const optionMatches = ownership && typeof ownership.endpointMatches === 'function'
+          ? ownership.endpointMatches(field && field.optionId, command && command.optionId)
+          : safeCompareId(field && field.optionId) === optionId;
+        if (!optionMatches) {
+          return false;
+        }
       }
-      if (sectionId && safeCompareId(field && field.sectionId) !== sectionId) {
-        return false;
+      if (sectionId) {
+        const sectionMatches = ownership && typeof ownership.endpointMatches === 'function'
+          ? ownership.endpointMatches(field && field.sectionId, command && command.sectionId)
+          : safeCompareId(field && field.sectionId) === sectionId;
+        if (!sectionMatches) {
+          return false;
+        }
       }
       return true;
     }) || null;
+  }
+
+  function editorStatus(editability) {
+    const text = String(editability || '');
+    if (text === 'guarded_replace_text' || text === 'guarded_replace_section' || text === 'guarded_apply') {
+      return 'guarded';
+    }
+    if (text === 'manual_review') {
+      return 'manual';
+    }
+    return text ? 'review' : 'read_only';
   }
 
   function normalizeStructureAction(value) {
@@ -528,20 +615,24 @@
   }
 
   function effectMatchesOption(editor, option) {
-    return Boolean(
-      editor &&
-      option &&
-      (
-        (editor.optionId && String(editor.optionId) === String(option.id || '')) ||
-        (editor.sectionId && String(editor.sectionId) === String(option.targetId || '')) ||
-        (editor.sectionId && String(editor.sectionId) === String(option.id || ''))
-      )
-    );
+    const api = ownershipMatchingApi();
+    return api && typeof api.ownerMatchesOption === 'function'
+      ? api.ownerMatchesOption(editor, option)
+      : Boolean(
+        editor &&
+        option &&
+        (
+          (editor.optionId && String(editor.optionId) === String(option.id || '')) ||
+          (editor.sectionId && String(editor.sectionId) === String(option.targetId || '')) ||
+          (editor.sectionId && String(editor.sectionId) === String(option.id || ''))
+        )
+      );
   }
 
   function optionBodyRows(context, sectionEditors) {
     const editors = context.editors || {};
     const optionEditors = ensureArray(editors.optionText);
+    const unavailableEditors = ensureArray(editors.all).filter((editor) => String(editor && editor.role || '') === 'unavailable_text');
     const resultEditors = ensureArray(sectionEditors).filter((editor) => {
       const role = String(editor && editor.semanticRole || '');
       return role === 'option_result_text' || role === 'conditional_option_result_text';
@@ -549,15 +640,18 @@
     const options = ensureArray(context.relationships && context.relationships.options);
     if (options.length) {
       return options.map((option, index) => {
-        const fields = optionEditors.filter((editor) => {
-          return editor.optionId && option.id && String(editor.optionId) === String(option.id);
-        });
+        const fields = optionEditors.filter((editor) => optionTextFieldMatchesOption(editor, option));
         if (!fields.length) {
           fields.push.apply(fields, optionEditors.filter((editor) => {
             return !editor.optionId && String(editor.original || '') === String(option.label || '');
           }));
         }
+        if (!fields.some(isOptionLabelEditor)) {
+          fields.unshift(optionLabelFallbackEditor(option, index));
+        }
+        const unavailableFields = unavailableEditors.filter((editor) => optionUnavailableMatches(editor, option));
         const resultFields = resultEditors.filter((editor) => sectionEditorMatchesOption(editor, option));
+        const allFields = uniqueEditors(fields.concat(unavailableFields, resultFields));
         return {
           id: option.id || 'option_' + (index + 1),
           targetId: option.targetId || '',
@@ -571,7 +665,8 @@
           labelSource: option.labelSource || '',
           label: option.label || ('Option ' + (index + 1)),
           subtitle: option.subtitle || '',
-          fields: fields.concat(resultFields),
+          unavailableText: unavailableTextForOption(option, unavailableFields),
+          fields: allFields,
           resultFields
         };
       });
@@ -581,37 +676,133 @@
       targetId: '',
       label: editor.original || editor.label || ('Option ' + (index + 1)),
       subtitle: '',
+      unavailableText: '',
       fields: [editor],
       resultFields: []
     }));
   }
 
-  function sectionEditorMatchesOption(editor, option) {
-    const editorIds = ensureArray(editor && editor.relatedOptionIds).map(normalizeEndpointToken).filter(Boolean);
+  function optionTextFieldMatchesOption(editor, option) {
+    if (!editor || !option) {
+      return false;
+    }
+    const editorOptionId = String(editor.optionId || '').trim();
+    if (!editorOptionId) {
+      return false;
+    }
     const optionIds = [
+      option.id,
+      option.rawTargetId,
+      option.targetId
+    ].map((value) => String(value || '').trim()).filter(Boolean);
+    const api = ownershipMatchingApi();
+    if (api && typeof api.endpointMatches === 'function') {
+      return optionIds.some((optionId) => api.endpointMatches(editorOptionId, optionId));
+    }
+    return optionIds.some((optionId) => normalizeEndpointId(editorOptionId) === normalizeEndpointId(optionId));
+  }
+
+  function normalizeEndpointId(value) {
+    const text = String(value || '').trim().replace(/^[@#]/, '');
+    const parts = text.split('.');
+    return parts[parts.length - 1] || text;
+  }
+
+  function optionUnavailableMatches(editor, option) {
+    if (!editor || !option) {
+      return false;
+    }
+    if (editor.optionId && option.id && String(editor.optionId) === String(option.id)) {
+      return true;
+    }
+    return sectionEditorMatchesOption(editor, option);
+  }
+
+  function isUnavailableTextEditor(editor) {
+    return String(editor && editor.role || '') === 'unavailable_text';
+  }
+
+  function isOptionResultEditor(editor) {
+    const role = String(editor && editor.semanticRole || '');
+    return role === 'option_result_text' || role === 'conditional_option_result_text';
+  }
+
+  function unavailableTextForOption(option, fields) {
+    const fieldValue = ensureArray(fields)
+      .map((field) => String(field && (field.value !== undefined ? field.value : field.original) || '').trim())
+      .find(Boolean);
+    return fieldValue || String(option && option.unavailableText || '').trim();
+  }
+
+  function uniqueEditors(fields) {
+    const seen = new Set();
+    const out = [];
+    ensureArray(fields).forEach((field) => {
+      const key = String(field && (field.id || field.fieldId) || '');
+      if (key && seen.has(key)) {
+        return;
+      }
+      if (key) {
+        seen.add(key);
+      }
+      out.push(field);
+    });
+    return out;
+  }
+
+  function isOptionLabelEditor(editor) {
+    return String(editor && editor.role || '') === 'option_label';
+  }
+
+  function optionLabelFallbackEditor(option, index) {
+    const label = String(option && (option.label || option.title || option.id) || ('Option ' + (index + 1)));
+    const id = 'fallback_option_label_' + safeCompareId(option && (option.id || option.rawTargetId || option.targetId) || ('option_' + (index + 1)));
+    return {
+      id,
+      fieldId: id,
+      group: 'option_text',
+      role: 'option_label',
+      label: 'Player option',
+      original: label,
+      value: label,
+      editability: 'read_only',
+      source: sourceRef(option && option.source || {}),
+      sectionId: String(option && option.sectionId || ''),
+      optionId: String(option && (option.id || option.rawTargetId || option.targetId) || ''),
+      status: 'read_only',
+      readOnly: true
+    };
+  }
+
+  function sectionEditorMatchesOption(editor, option) {
+    const api = ownershipMatchingApi();
+    const editorIds = ensureArray(editor && editor.relatedOptionIds);
+    const optionTargets = [
       option && option.id,
       option && option.rawTargetId,
       option && option.targetId
-    ].map(normalizeEndpointToken).filter(Boolean);
-    if (editorIds.some((id) => optionIds.includes(id))) {
+    ];
+    if (editorIds.length) {
+      return api && typeof api.endpointMatches === 'function'
+        ? api.endpointMatches(editorIds, optionTargets)
+        : editorIds.some((id) => optionTargets.some((target) => String(id || '') === String(target || '')));
+    }
+    const editorSection = String(editor && editor.sectionId || '').trim();
+    if (!editorSection) {
+      return false;
+    }
+    if (api && typeof api.endpointMatches === 'function' && api.endpointMatches(editorSection, optionTargets)) {
       return true;
     }
-    const sectionToken = normalizeEndpointToken(editor && editor.sectionId);
-    return Boolean(sectionToken && optionIds.includes(sectionToken));
-  }
-
-  function normalizeEndpointToken(value) {
-    const text = String(value || '').trim().replace(/^[@#]/, '');
-    if (!text) {
-      return '';
-    }
-    return text.includes('.') ? text.split('.').pop() : text;
+    return Boolean(editor && option && optionTargets.some((target) => String(editorSection) === String(target || '')));
   }
 
   function eventBodyForNewEvent(draft) {
     return {
       mode: 'new_event',
+      eventShape: draft.eventShape || (ensureArray(draft.options).length ? 'choice_event' : 'pure_event'),
       title: field('event.title', 'Title', draft.title, 'guarded'),
+      subtitle: field('event.subtitle', 'Subtitle', draft.subtitle || '', 'guarded'),
       heading: field('event.heading', 'Heading', draft.heading || draft.title, 'guarded'),
       sections: [
         field('event.intro', 'Opening text', ensureArray(draft.introParagraphs).join('\n\n'), 'guarded')
@@ -629,6 +820,9 @@
       })),
       metaFields: [
         field('event.id', 'Event id', draft.id, 'guarded'),
+        field('event.eventShape', 'Event type', draft.eventShape || 'choice_event', 'guarded'),
+        field('event.tags', 'Tags', ensureArray(draft.tags).join(', '), 'guarded'),
+        field('event.newPage', 'New page', draft.newPage === false ? 'false' : 'true', 'guarded'),
         field('event.year', 'Year', draft.when && draft.when.year, 'guarded'),
         field('event.monthStart', 'Month start', draft.when && draft.when.monthStart, 'guarded'),
         field('event.monthEnd', 'Month end', draft.when && draft.when.monthEnd, 'guarded'),
@@ -757,7 +951,7 @@
   }
 
   function normalizeEventOptions(options) {
-    return ensureArray(options).slice(0, 4).map((option, index) => {
+    return ensureArray(options).map((option, index) => {
       const value = isObject(option) ? option : {};
       const id = safeId(value.id || value.rawId || 'option_' + (index + 1));
       return {
