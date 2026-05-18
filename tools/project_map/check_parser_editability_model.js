@@ -8,6 +8,7 @@ const os = require('os');
 const path = require('path');
 
 const existingEdit = require('./authoring/existing_scene_edit_model.js');
+const eventWorkbench = require('./authoring/event_workbench_model.js');
 const installPlan = require('./authoring/install_plan.js');
 const {pythonCommand} = require('./check_python_command.js');
 
@@ -48,12 +49,29 @@ function writeFixture(root) {
     '- @parser_story: Begin',
     ''
   ].join('\n'), 'utf8');
+  fs.writeFileSync(path.join(scenes, 'main.scene.dry'), [
+    'title: Main',
+    'is-hand: true',
+    'max-cards: 4',
+    '',
+    '- @parser_deck',
+    '',
+    '@parser_deck',
+    'title: Parser Deck',
+    'is-deck: true',
+    '',
+    '- #parser',
+    ''
+  ].join('\n'), 'utf8');
   fs.writeFileSync(path.join(events, 'parser_story.scene.dry'), [
-    'title: Parser Story',
+    'Title: Parser Story',
     'tags: event parser',
     'view-if: year = 1936 and month >= 1',
     'priority: 2',
+    'faceImage: img/events/camelFace.png',
+    'setBg: img/events/camelBg.jpg',
     'on-arrival: parser_seen = 1; debate_leader = "Scholz"; debate_leader = "Curtius" if reform_done; public_order -= 2 if reform_done = 0',
+    'on-departure: departure_flag = 1; cleanup_score += 2 if public_order > 0',
     'new-page: true',
     '',
     '= Parser Story',
@@ -64,15 +82,42 @@ function writeFixture(root) {
     '- #parser_card: Pull tagged card——From the tag lane.',
     '',
     '@next_scene',
-    'title: Debate Result',
+    'Title: Debate Result',
     'subtitle: Result subtitle',
     'choose-if: public_order > 0',
-    'unavailable-subtitle: Not enough order.',
+    'unavailableSubtitle: Not enough order.',
     '',
     '= Debate Result',
     'The debate branch can be edited.',
+    'face-image: img/events/inertAfterBody.png',
     '',
     '- @root: Return',
+    ''
+  ].join('\n'), 'utf8');
+  fs.writeFileSync(path.join(events, 'advanced_parser.scene.dry'), [
+    'Title: Advanced Parser',
+    'go-to-ref: dynamic_scene_ref if dynamic_ready; fallback_scene_ref',
+    'check-quality: public_order',
+    'broad-difficulty: 60',
+    'difficulty-scaler: 0.5',
+    'check-success-go-to: success',
+    'check-failure-go-to: failure',
+    'set-sprites: topLeft: img/events/spriteOne.png, bottomRight: img/events/spriteTwo.webp',
+    'set-music: audio/theme.mp3',
+    'audio: queue audio/cue.ogg, audio/click.wav',
+    'set-top-left-style: "width: 10px"',
+    '',
+    'Advanced parser fixture body.',
+    '',
+    '@success',
+    'Title: Success',
+    '',
+    'The check succeeded.',
+    '',
+    '@failure',
+    'Title: Failure',
+    '',
+    'The check failed.',
     ''
   ].join('\n'), 'utf8');
 }
@@ -113,10 +158,15 @@ const corpus = textItems(index);
 
 const body = corpus.find((item) => item.role === 'body' && String(item.text || '').includes('First line of the public scene'));
 assert(body, 'Text Corpus should keep multiline body prose');
-assert(body.source && body.source.startLine === 9 && body.source.endLine === 10, 'multiline body should keep source range', body);
+assert(body.source && body.source.startLine === 12 && body.source.endLine === 13, 'multiline body should keep source range', body);
 assert(String(body.originalText || '').includes('\nSecond line continues'), 'multiline body should keep original source text', body);
 assert(body.source.anchorText === 'First line of the public scene.', 'body source should keep first anchor', body);
 assert(body.source.endAnchorText === 'Second line continues the public scene.', 'body source should keep end anchor', body);
+
+const parsedTitle = corpus.find((item) => item.role === 'title' && item.text === 'Parser Story');
+const unavailableText = corpus.find((item) => item.role === 'unavailable_text' && item.text === 'Not enough order.');
+assert(parsedTitle && parsedTitle.source && parsedTitle.source.line === 1, 'Text Corpus should recognize capitalized Dendry Title metadata');
+assert(unavailableText, 'Text Corpus should recognize camelCase unavailableSubtitle metadata');
 
 const optionLabel = corpus.find((item) => item.role === 'option_label' && item.text === 'Open debate');
 const optionSubtitle = corpus.find((item) => item.role === 'option_subtitle' && item.text === 'Make it visible.');
@@ -125,28 +175,63 @@ assert(optionLabel, 'option parser should split visible option labels');
 assert(optionSubtitle, 'option parser should split visible option subtitles');
 assert(tagOption && tagOption.optionId === 'parser_card', 'option parser should index #tag option labels');
 assert(
-  optionLabel.id === stableTextId('source/scenes/events/parser_story.scene.dry', 12, 'option_label', 'Open debate——Make it visible.'),
+  optionLabel.id === stableTextId('source/scenes/events/parser_story.scene.dry', 15, 'option_label', 'Open debate——Make it visible.'),
   'split option labels should keep the pre-split stable text id for saved-draft compatibility',
   optionLabel
 );
 
 const reformVariable = index.variables.find((variable) => variable.name === 'reform_done');
 const leaderVariable = index.variables.find((variable) => variable.name === 'debate_leader');
-assert(reformVariable && reformVariable.reads.some((ref) => ref.path === 'source/scenes/events/parser_story.scene.dry' && ref.line === 5), 'shorthand on-arrival if suffix should index condition variables as reads', reformVariable);
-assert(leaderVariable && leaderVariable.writes.some((ref) => ref.path === 'source/scenes/events/parser_story.scene.dry' && ref.line === 5), 'shorthand on-arrival assignments should still index variable writes', leaderVariable);
+const departureVariable = index.variables.find((variable) => variable.name === 'departure_flag');
+const cleanupVariable = index.variables.find((variable) => variable.name === 'cleanup_score');
+assert(reformVariable && reformVariable.reads.some((ref) => ref.path === 'source/scenes/events/parser_story.scene.dry' && ref.line === 7), 'shorthand on-arrival if suffix should index condition variables as reads', reformVariable);
+assert(leaderVariable && leaderVariable.writes.some((ref) => ref.path === 'source/scenes/events/parser_story.scene.dry' && ref.line === 7), 'shorthand on-arrival assignments should still index variable writes', leaderVariable);
+assert(departureVariable && departureVariable.writes.some((ref) => ref.path === 'source/scenes/events/parser_story.scene.dry' && ref.line === 8), 'shorthand on-departure assignments should index variable writes', departureVariable);
+assert(cleanupVariable && cleanupVariable.reads.some((ref) => ref.path === 'source/scenes/events/parser_story.scene.dry' && ref.line === 8), 'on-departure increments should index the written variable as a read', cleanupVariable);
 
 const indexedScene = index.scenes.find((item) => item.id === 'parser_story');
 assert(indexedScene && indexedScene.effects && indexedScene.effects.some((effect) => effect.variable === 'public_order' && effect.sourceExpression === 'public_order -= 2 if reform_done = 0'), 'ProjectIndex should keep source-backed shorthand on-arrival effects', indexedScene && indexedScene.effects);
+assert(indexedScene && indexedScene.effects && indexedScene.effects.some((effect) => effect.variable === 'cleanup_score' && effect.hook === 'on-departure'), 'ProjectIndex should keep source-backed shorthand on-departure effects', indexedScene && indexedScene.effects);
+const nextSection = indexedScene && indexedScene.sections && indexedScene.sections.find((section) => section.id === 'parser_story.next_scene');
+assert(nextSection && nextSection.unavailableSubtitle === 'Not enough order.', 'ProjectIndex should retain section unavailable-subtitle values for branch semantics', nextSection);
+assert(indexedScene && indexedScene.assetRefs && indexedScene.assetRefs.some((asset) => asset.path === 'img/events/camelFace.png' && asset.directive === 'face-image'), 'ProjectIndex should normalize camelCase faceImage asset directives', indexedScene && indexedScene.assetRefs);
+assert(indexedScene && indexedScene.assetRefs && indexedScene.assetRefs.some((asset) => asset.path === 'img/events/camelBg.jpg' && asset.directive === 'set-bg'), 'ProjectIndex should normalize camelCase setBg asset directives', indexedScene && indexedScene.assetRefs);
+const inertFaceRef = indexedScene && indexedScene.assetRefs && indexedScene.assetRefs.find((asset) => asset.path === 'img/events/inertAfterBody.png');
+assert(inertFaceRef && inertFaceRef.directiveStatus === 'inert_after_content' && inertFaceRef.runtimeActive === false, 'ProjectIndex should flag metadata-looking asset directives that Dendry will ignore after body text', inertFaceRef);
+assert(index.diagnostics.some((diag) => diag.code === 'project_map.inert_metadata_directive' && diag.path === 'source/scenes/events/parser_story.scene.dry' && diag.directive === 'face-image'), 'ProjectIndex should diagnose inert metadata-looking directives after body text', index.diagnostics);
+const handScene = index.scenes.find((item) => item.id === 'main');
+assert(handScene && handScene.maxCards === '4' && handScene.flags && handScene.flags.isHand, 'ProjectIndex should retain max-cards metadata on hand scenes', handScene);
+const sectionDeck = index.semantic && index.semantic.decks && index.semantic.decks.find((item) => item.id === 'main.parser_deck');
+assert(sectionDeck && sectionDeck.ownerKind === 'section' && sectionDeck.ownerSceneId === 'main', 'semantic decks should include section-owned decks inside hand scenes', index.semantic && index.semantic.decks);
+assert(sectionDeck && sectionDeck.options && sectionDeck.options.some((option) => option.id === '#parser'), 'section-owned deck semantic refs should keep deck tag-route options for Card Board lanes', sectionDeck);
+assert(index.summary && index.summary.deckCount >= 1, 'summary deck count should include section-owned decks', index.summary);
+assert(index.edges.some((edge) => edge.from === 'main' && edge.to === 'main.parser_deck'), 'graph should resolve hand option routes to section-owned deck ids', index.edges);
+const advancedScene = index.scenes.find((item) => item.id === 'advanced_parser');
+assert(advancedScene && advancedScene.checkQuality === 'public_order' && advancedScene.broadDifficulty === '60' && advancedScene.difficultyScaler === '0.5', 'ProjectIndex should retain DendryNexus stat-check metadata', advancedScene);
+assert(advancedScene && advancedScene.setTopLeftStyle === '"width: 10px"', 'ProjectIndex should retain sprite style metadata as source-backed evidence', advancedScene);
+assert(advancedScene && advancedScene.assetRefs && advancedScene.assetRefs.some((asset) => asset.path === 'img/events/spriteOne.png' && asset.directive === 'set-sprites'), 'ProjectIndex should index set-sprites image references', advancedScene && advancedScene.assetRefs);
+assert(advancedScene && advancedScene.assetRefs && advancedScene.assetRefs.some((asset) => asset.path === 'audio/theme.mp3' && asset.directive === 'set-music'), 'ProjectIndex should index set-music audio references', advancedScene && advancedScene.assetRefs);
+assert(advancedScene && advancedScene.assetRefs && advancedScene.assetRefs.some((asset) => asset.path === 'audio/cue.ogg' && asset.directive === 'audio'), 'ProjectIndex should index multi-audio references on audio directives', advancedScene && advancedScene.assetRefs);
+const goToRefEdges = index.edges.filter((edge) => edge.from === 'advanced_parser' && String(edge.kind || '').includes('go_to_ref'));
+assert(goToRefEdges.length === 2, 'graph should retain go-to-ref clauses as dynamic route evidence', goToRefEdges);
+assert(goToRefEdges.every((edge) => edge.dynamicTarget === true && edge.targetSource === 'quality' && String(edge.to || '').startsWith('quality_ref:')), 'go-to-ref edges should target quality refs instead of static scene ids', goToRefEdges);
+assert(!index.diagnostics.some((diag) => diag.code === 'project_map.missing_target' && String(diag.message || '').includes('dynamic_scene_ref')), 'go-to-ref quality names should not be reported as missing static scene targets', index.diagnostics);
 const indexedOption = indexedScene && indexedScene.options && indexedScene.options.find((option) => option.id === '@next_scene');
 assert(indexedOption && indexedOption.sourceSpan && indexedOption.sourceSpan.anchorText === '- @next_scene: Open debate——Make it visible.', 'ProjectIndex should keep option source anchors for structural deletion', indexedOption);
 
 const model = existingEdit.buildEditModel(index, 'events', 'parser_story');
 assert(model.ok, 'Existing Scene Edit model should build from parser-backed index', model.diagnostics);
+const workbench = eventWorkbench.buildEventWorkbench(index, 'parser_story');
+const nextOption = workbench.options.find((option) => option.id === 'next_scene');
+assert(nextOption && nextOption.unavailableText === 'Not enough order.', 'Event Workbench should surface section unavailable text on its owning option', workbench.options);
 assert(model.fields.some((field) => field.id === optionLabel.id && field.original === 'Open debate'), 'existing edit model should expose parsed option label');
 assert(model.fields.some((field) => field.id === optionSubtitle.id && field.original === 'Make it visible.'), 'existing edit model should expose parsed option subtitle');
+assert(model.fields.some((field) => field.role === 'unavailable_text' && field.original === 'Not enough order.'), 'existing edit model should expose camelCase unavailableSubtitle as editable visible text');
 assert(model.fields.some((field) => field.id === 'metadata_priority' && field.editability === 'guarded_replace_text'), 'existing edit model should expose guarded metadata priority');
 const publicOrderEffect = model.fields.find((field) => field.role === 'effect' && field.original === 'Q.public_order -= 2 if reform_done = 0');
+const departureEffect = model.fields.find((field) => field.role === 'effect' && field.original === 'Q.cleanup_score += 2 if public_order > 0');
 assert(publicOrderEffect, 'existing edit model should expose shorthand on-arrival effects as editable effect fields');
+assert(departureEffect && departureEffect.effectHook === 'on-departure', 'existing edit model should expose shorthand on-departure effects as editable effect fields', departureEffect);
 assert(publicOrderEffect.editability === 'guarded_replace_text', 'source-backed shorthand effect should be guarded', publicOrderEffect);
 assert(publicOrderEffect.searchText === 'public_order -= 2 if reform_done = 0', 'shorthand effect should preserve bare source syntax for replacement', publicOrderEffect);
 const removeOptionField = model.fields.find((field) => field.structureAction === 'remove_option' && field.optionId === 'next_scene');

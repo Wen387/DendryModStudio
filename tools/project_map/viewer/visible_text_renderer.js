@@ -299,10 +299,24 @@
       return raw;
     }
     const base = String(options && options.assetBaseUrl || '').trim();
+    const relative = runtimeRelativeAssetPath(raw.replace(/^\.?\//, '').replace(/^\/+/, ''), options);
     if (!base) {
-      return raw.replace(/^\.?\//, '');
+      return relative;
     }
-    return base.replace(/\/+$/, '') + '/' + raw.replace(/^\.?\//, '').replace(/^\/+/, '');
+    return base.replace(/\/+$/, '') + '/' + relative;
+  }
+
+  function runtimeRelativeAssetPath(value, options) {
+    const relative = String(value || '').replace(/\\/g, '/').replace(/^\/+/, '').trim();
+    const root = String(options && options.runtimeAssetRoot || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '').trim();
+    if (!relative || !root || relative === root || relative.startsWith(root + '/')) {
+      return relative;
+    }
+    const base = String(options && options.assetBaseUrl || '').replace(/\\/g, '/').replace(/\/+$/g, '');
+    if (base.endsWith('/' + root) || base === root) {
+      return relative;
+    }
+    return /^(?:img|images)\//i.test(relative) ? root + '/' + relative : relative;
   }
 
   function visualMarkupPlaceholder(raw) {

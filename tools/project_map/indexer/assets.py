@@ -25,6 +25,48 @@ def normalize_asset_path(value: str) -> str:
     return re.sub(r"/+", "/", str(value or "").strip().replace("\\", "/").lstrip("./"))
 
 
+def normalize_asset_directive(value: str) -> str:
+    key = re.sub(r"[^A-Za-z0-9]+", "", str(value or "").strip()).lower()
+    return {
+        "cardimage": "card-image",
+        "faceimage": "face-image",
+        "setbg": "set-bg",
+        "setmusic": "set-music",
+        "setsprites": "set-sprites",
+        "audio": "audio",
+    }.get(key, key)
+
+
+ASSET_DIRECTIVE_FIELDS = {
+    "cardImage": "card-image",
+    "faceImage": "face-image",
+    "setBg": "set-bg",
+    "setMusic": "set-music",
+    "setSprites": "set-sprites",
+    "audio": "audio",
+}
+
+
+def active_asset_directive_lines(scene: dict[str, Any]) -> set[tuple[int, str]]:
+    lines: set[tuple[int, str]] = set()
+
+    def add_from_metadata(item: dict[str, Any]) -> None:
+        metadata = item.get("metadata", {}) if isinstance(item, dict) else {}
+        if not isinstance(metadata, dict):
+            return
+        for field, directive in ASSET_DIRECTIVE_FIELDS.items():
+            source = metadata.get(field)
+            line = source.get("line") if isinstance(source, dict) else None
+            if isinstance(line, int) and line > 0:
+                lines.add((line, directive))
+
+    add_from_metadata(scene)
+    for section in scene.get("sections", []) or []:
+        if isinstance(section, dict):
+            add_from_metadata(section)
+    return lines
+
+
 def asset_paths_from_directive(value: str) -> list[str]:
     out: list[str] = []
     for match in re.finditer(
@@ -78,13 +120,14 @@ def extract_scene_asset_references(root: Path, scene: dict[str, Any]) -> list[di
         return []
     refs: list[dict[str, Any]] = []
     seen: set[tuple[str, str]] = set()
+    active_directive_lines = active_asset_directive_lines(scene)
     try:
         lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
     except Exception:
         return []
     for line_num, line in enumerate(lines, 1):
-        match = re.match(r"^\s*(card-image|face-image|set-bg|audio)\s*:\s*(.+)$", line, re.IGNORECASE)
-        directive = match.group(1).lower() if match else ""
+        match = re.match(r"^\s*(card[-_ ]?image|face[-_ ]?image|set[-_ ]?bg|set[-_ ]?music|set[-_ ]?sprites|audio)\s*:\s*(.+)$", line, re.IGNORECASE)
+        directive = normalize_asset_directive(match.group(1)) if match else ""
         reference_text = match.group(2) if match else line
         if not directive and not line_contains_inline_asset_reference(line):
             continue
@@ -98,6 +141,11 @@ def extract_scene_asset_references(root: Path, scene: dict[str, Any]) -> list[di
                 continue
             seen.add(key)
             file_exists, preview_url = resolve_asset_reference(root, asset_path)
+            source = source_ref(rel, line_num)
+            source["rawAnchorText"] = line
+            source["rawEndAnchorText"] = line
+            source["anchorText"] = line.strip()
+            source["endAnchorText"] = line.strip()
             ref: dict[str, Any] = {
                 "path": asset_path,
                 "name": Path(asset_path).name,
@@ -107,10 +155,16 @@ def extract_scene_asset_references(root: Path, scene: dict[str, Any]) -> list[di
                 "sourceKind": "source_reference",
                 "editability": "reference_only",
                 "confidence": CONF_STATIC,
-                "source": source_ref(rel, line_num),
+                "source": source,
                 "directive": role,
                 "fileExists": file_exists,
             }
+            if directive:
+                is_active_directive = (line_num, role) in active_directive_lines
+                ref["runtimeActive"] = is_active_directive
+                if not is_active_directive:
+                    ref["directiveStatus"] = "inert_after_content"
+                    ref["confidence"] = CONF_OPAQUE
             if preview_url and preview_url != asset_path:
                 ref["previewUrl"] = preview_url
             refs.append(ref)

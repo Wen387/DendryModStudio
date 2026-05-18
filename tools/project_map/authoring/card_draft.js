@@ -33,6 +33,7 @@
     draft.subtitle = String(draft.subtitle || '').trim();
     draft.introParagraphs = normalizeTextList(draft.introParagraphs);
     draft.assetRefs = ensureArray(draft.assetRefs).map(normalizeAssetRef);
+    draft.assetPlacements = ensureArray(draft.assetPlacements).map(normalizeAssetPlacement).filter((asset) => asset.path);
     draft.assetInstallRequests = ensureArray(draft.assetInstallRequests).map(normalizeAssetInstallRequest);
     draft.options = ensureArray(draft.options).map(normalizeOption);
     const sections = ensureArray(draft.sections).map(normalizeSection).filter((section) => section.id);
@@ -41,6 +42,7 @@
     } else {
       delete draft.sections;
     }
+    distributeAssetPlacements(draft);
     return draft;
   }
 
@@ -69,6 +71,7 @@
       unavailableText: String(value.unavailableText || '').trim(),
       effects: ensureArray(value.effects).map(normalizeEffect),
       narrativeParagraphs: normalizeTextList(value.narrativeParagraphs),
+      assetPlacements: ensureArray(value.assetPlacements).map(normalizeAssetPlacement).filter((asset) => asset.path),
       gotoAfter: String(value.gotoAfter || 'root').trim()
     };
   }
@@ -80,6 +83,7 @@
       title: String(value.title || '').trim(),
       condition: String(value.condition || '').trim(),
       paragraphs: normalizeTextList(value.paragraphs || value.body || value.text),
+      assetPlacements: ensureArray(value.assetPlacements).map(normalizeAssetPlacement).filter((asset) => asset.path),
       effects: ensureArray(value.effects).map(normalizeEffect),
       options: ensureArray(value.options).map(normalizeOption),
       exitTarget: String(value.exitTarget || 'root').trim()
@@ -123,8 +127,59 @@
       path,
       type: String(value.type || inferAssetType(path) || 'asset').trim(),
       label: String(value.label || value.name || fileName(path) || '').trim(),
+      directive: String(value.directive || value.assetDirective || '').trim(),
       role: String(value.role || '').trim()
     };
+  }
+
+  function normalizeAssetPlacement(asset) {
+    const ref = normalizeAssetRef(asset);
+    const value = isObject(asset) ? asset : {};
+    return Object.assign({}, ref, {
+      placementId: String(value.placementId || value.id || '').trim(),
+      placementKind: String(value.placementKind || value.kind || 'opening_visual').trim(),
+      sectionId: String(value.sectionId || '').trim(),
+      optionId: String(value.optionId || '').trim(),
+      branchKind: String(value.branchKind || '').trim(),
+      displayLocation: String(value.displayLocation || value.placementLabel || '').trim(),
+      directive: String(value.directive || value.assetDirective || ref.directive || 'inline-image').trim() || 'inline-image'
+    });
+  }
+
+  function distributeAssetPlacements(draft) {
+    const placements = ensureArray(draft.assetPlacements);
+    if (!placements.length) {
+      return;
+    }
+    draft.options = ensureArray(draft.options).map((option) => {
+      const optionId = String(option && option.id || '');
+      const scoped = placements.filter((asset) => asset.optionId && asset.optionId === optionId);
+      return scoped.length ? Object.assign({}, option, {
+        assetPlacements: dedupeAssetPlacements(ensureArray(option.assetPlacements).concat(scoped))
+      }) : option;
+    });
+    if (Array.isArray(draft.sections)) {
+      draft.sections = ensureArray(draft.sections).map((section) => {
+        const sectionId = String(section && section.id || '');
+        const scoped = placements.filter((asset) => asset.sectionId && asset.sectionId === sectionId);
+        return scoped.length ? Object.assign({}, section, {
+          assetPlacements: dedupeAssetPlacements(ensureArray(section.assetPlacements).concat(scoped))
+        }) : section;
+      });
+    }
+    draft.assetPlacements = placements.filter((asset) => !asset.optionId && !asset.sectionId);
+  }
+
+  function dedupeAssetPlacements(placements) {
+    const seen = new Set();
+    return ensureArray(placements).filter((asset) => {
+      const key = [asset && asset.path, asset && asset.optionId, asset && asset.sectionId, asset && asset.placementKind].join('|');
+      if (!asset || !asset.path || seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
   }
 
   function normalizeAssetInstallRequest(input) {
@@ -136,6 +191,7 @@
       targetPath,
       type: String(value.type || inferAssetType(targetPath || value.sourceName || '') || 'asset').trim(),
       label: String(value.label || value.sourceName || fileName(targetPath) || '').trim(),
+      directive: String(value.directive || value.assetDirective || '').trim(),
       role: String(value.role || '').trim()
     };
   }
@@ -343,6 +399,7 @@
     if (draft.tags.length) {
       lines.push('tags: ' + draft.tags.join(', '));
     }
+    appendAssetReferenceLines(lines, draft.assetRefs, 'card');
     if (draft.viewIf) {
       lines.push('view-if: ' + draft.viewIf);
     }
@@ -362,6 +419,7 @@
     lines.push('= ' + draft.heading);
     lines.push('');
     appendParagraphs(lines, draft.introParagraphs);
+    appendAssetPlacementLines(lines, draft.assetPlacements);
     if (draft.options.length) {
       draft.options.forEach((option) => {
         lines.push('- @' + option.id + ': ' + option.label);
@@ -376,6 +434,43 @@
     }
     ensureArray(draft.sections).forEach((section) => appendSection(lines, section));
     return lines.join('\n') + '\n';
+  }
+
+  function appendAssetReferenceLines(lines, assetRefs, target) {
+    ensureArray(assetRefs).forEach((asset) => {
+      const directive = assetDirectiveForRef(asset, target);
+      const path = String(asset && asset.path || '').trim();
+      if (directive && path) {
+        lines.push(directive + ': ' + path);
+      }
+    });
+  }
+
+  function assetDirectiveForRef(asset, target) {
+    const value = isObject(asset) ? asset : {};
+    const explicit = normalizeAssetDirective(value.directive || value.assetDirective);
+    if (explicit) {
+      return explicit;
+    }
+    const role = String(value.role || '').trim();
+    if (role === 'card_image') {
+      return 'card-image';
+    }
+    if (role === 'card_portrait') {
+      return 'face-image';
+    }
+    if (role === 'card_background') {
+      return 'set-bg';
+    }
+    if (role === 'card_audio' || String(value.type || '').trim() === 'audio') {
+      return 'audio';
+    }
+    return target === 'card' && String(value.type || '').trim() === 'image' ? 'card-image' : '';
+  }
+
+  function normalizeAssetDirective(value) {
+    const text = String(value || '').trim().toLowerCase();
+    return text === 'face-image' || text === 'card-image' || text === 'set-bg' || text === 'audio' ? text : '';
   }
 
   function appendOption(lines, option) {
@@ -399,6 +494,7 @@
     }
     lines.push('');
     appendParagraphs(lines, option.narrativeParagraphs);
+    appendAssetPlacementLines(lines, option.assetPlacements);
     if (option.narrativeParagraphs.length) {
       const returnAnchor = optionReturnAnchor(option);
       lines.push('- @' + returnAnchor + ': Continue');
@@ -434,6 +530,7 @@
     } else {
       appendParagraphs(lines, section.paragraphs);
     }
+    appendAssetPlacementLines(lines, section.assetPlacements);
     section.options.forEach((option) => {
       lines.push('- @' + option.id + ': ' + option.label);
     });
@@ -455,6 +552,20 @@
     ensureArray(paragraphs).forEach((paragraph) => {
       lines.push(paragraph);
       lines.push('');
+    });
+  }
+
+  function appendAssetPlacementLines(lines, placements) {
+    ensureArray(placements).forEach((asset) => {
+      const item = normalizeAssetPlacement(asset || {});
+      if (!item.path || item.type === 'audio') {
+        return;
+      }
+      const directive = assetDirectiveForRef(item, 'card');
+      if (directive) {
+        lines.push(directive + ': ' + item.path);
+        lines.push('');
+      }
     });
   }
 
@@ -680,13 +791,55 @@
   }
 
   function firstSourceBackedDeck(projectIndex) {
-    const deckIds = ensureArray(projectIndex && projectIndex.semantic && projectIndex.semantic.decks)
-      .map((deck) => String(deck && deck.id || '').trim())
-      .filter(Boolean);
+    const semanticDecks = ensureArray(projectIndex && projectIndex.semantic && projectIndex.semantic.decks);
+    const deckIds = semanticDecks.map((deck) => String(deck && deck.id || '').trim()).filter(Boolean);
     const scenes = ensureArray(projectIndex && projectIndex.scenes);
-    return scenes.find((scene) => scene && deckIds.includes(String(scene.id || '')) && scene.path) ||
+    const sceneDeck = scenes.find((scene) => scene && deckIds.includes(String(scene.id || '')) && scene.path);
+    if (sceneDeck) {
+      return sceneDeck;
+    }
+    const sectionDeck = semanticDecks.map((deck) => sourceBackedSectionDeck(deck, scenes)).find(Boolean);
+    if (sectionDeck) {
+      return sectionDeck;
+    }
+    return semanticDecks.find((deck) => deck && deck.path && (lastSourceBackedOption(deck) || sourceEndAnchor(deck))) ||
       scenes.find((scene) => scene && String(scene.type || '') === 'deck' && scene.path) ||
       null;
+  }
+
+  function sourceBackedSectionDeck(deck, scenes) {
+    const deckId = String(deck && deck.id || '').trim();
+    if (!deckId) {
+      return null;
+    }
+    const ownerId = String(deck && deck.ownerSceneId || '').trim();
+    const owner = scenes.find((scene) => {
+      if (!scene) {
+        return false;
+      }
+      if (ownerId && String(scene.id || '') === ownerId) {
+        return true;
+      }
+      return ensureArray(scene.sections).some((section) => section && String(section.id || '') === deckId);
+    });
+    const section = owner && ensureArray(owner.sections).find((item) => item && String(item.id || '') === deckId);
+    const candidate = Object.assign({}, section || {}, deck || {}, {
+      id: deckId,
+      type: 'deck',
+      ownerKind: 'section',
+      ownerSceneId: ownerId || owner && owner.id || '',
+      path: String(deck && deck.path || section && section.path || owner && owner.path || '').trim()
+    });
+    if (!candidate.path) {
+      return null;
+    }
+    if (!candidate.sourceSpan && section && section.sourceSpan) {
+      candidate.sourceSpan = section.sourceSpan;
+    }
+    if (!candidate.options && section && section.options) {
+      candidate.options = section.options;
+    }
+    return (lastSourceBackedOption(candidate) || sourceEndAnchor(candidate)) ? candidate : null;
   }
 
   function firstSourceBackedHand(projectIndex) {

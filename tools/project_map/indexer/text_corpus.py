@@ -24,6 +24,22 @@ def compact_visible_text(value: str) -> str:
     return re.sub(r"\s+", " ", value.strip())
 
 
+def scene_property_key(value: str) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    if re.match(r"^[a-z]+(?:[A-Z][a-z]+)*$", text):
+        return text
+    candidate = text[:1].lower() + text[1:]
+    if re.match(r"^[a-z]+(?:[A-Z][a-z]+)*$", candidate):
+        return candidate
+    return re.sub(
+        r"[_ -]+([A-Za-z])",
+        lambda match: match.group(1).upper(),
+        text.lower(),
+    )
+
+
 def original_source_text(lines: list[str], start_line: int, end_line: int) -> str:
     if start_line < 1 or end_line < start_line:
         return ""
@@ -164,8 +180,10 @@ def extract_text_corpus_from_scene(root: Path, scene: dict[str, Any]) -> list[di
         source_end_line = end_line or line_num
         source = source_range_ref(rel, line_num, source_end_line)
         if 1 <= line_num <= len(lines):
+            source["rawAnchorText"] = lines[line_num - 1]
             source["anchorText"] = lines[line_num - 1].strip()
         if 1 <= source_end_line <= len(lines):
+            source["rawEndAnchorText"] = lines[source_end_line - 1]
             source["endAnchorText"] = lines[source_end_line - 1].strip()
         original = original_source_text(lines, line_num, source_end_line)
         payload: dict[str, Any] = {
@@ -259,10 +277,10 @@ def extract_text_corpus_from_scene(root: Path, scene: dict[str, Any]) -> list[di
                 )
             continue
 
-        metadata = re.match(r"^\s*([A-Za-z][A-Za-z0-9_-]*)\s*:\s*(.+?)\s*$", raw)
+        metadata = re.match(r"^\s*([A-Za-z][A-Za-z0-9_ -]*[A-Za-z])\s*:\s*(.+?)\s*$", raw)
         if metadata:
             flush_paragraph(line_num)
-            role = TEXT_CORPUS_VISIBLE_METADATA.get(metadata.group(1))
+            role = TEXT_CORPUS_VISIBLE_METADATA.get(scene_property_key(metadata.group(1)))
             if role:
                 append_item(role, metadata.group(2), line_num, active_section)
             continue

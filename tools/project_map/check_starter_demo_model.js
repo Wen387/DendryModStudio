@@ -118,7 +118,7 @@ async function main() {
   const quietResultFieldCount = (campaignEditorHtml.match(/data-object-canvas-field="block:section_text_demo_campaign_pressure_quiet_briefing"/g) || []).length;
   assert(quietResultFieldCount === 1, 'right editor should not render duplicate controls for the same complex event option result field');
   const quietSectionAdd = campaignCanvas.eventBody.structureActions.find((field) => field.id === 'structure_add_option_section_demo_campaign_pressure_quiet_briefing');
-  assert(quietSectionAdd && quietSectionAdd.editability === 'advanced_source_patch', 'complex event result sections without existing nested choices should still expose source-backed option insertion');
+  assert(quietSectionAdd && quietSectionAdd.editability === 'guarded_apply', 'complex event result sections without existing nested choices should still expose guarded source-backed option insertion');
   assert(quietSectionAdd.structureSourceBlock && quietSectionAdd.structureSourceBlock.kind === 'section_text_option_insert_anchor', 'section option insertion should use the result prose tail as an exact source anchor');
   const campaignEdited = objectCanvasModel.buildExistingCanvas(bundledProjectIndex, 'events', 'demo_campaign_pressure', {
     values: {
@@ -140,10 +140,10 @@ async function main() {
   });
   assert(campaignEdited.changeState.installPlan.operations.some((operation) =>
     operation.type === 'insert_text' &&
-    operation.safety === 'advanced_apply' &&
+    operation.safety === 'guarded_apply' &&
     String(operation.content || '').includes('@press_witness') &&
     String(operation.content || '').includes('choose-if: demo_public_attention >= 1')
-  ), 'adding a nested option to a complex event result should produce an advanced source patch');
+  ), 'adding a nested option to a complex event result should produce a guarded source-backed insert');
   assert(!campaignEdited.changeState.installPlan.operations.some((operation) => operation.type === 'manual_snippet'), 'source-backed complex event nested option insertion should not fall back to a manual snippet');
 
   const preparedRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dendry_starter_demo_model_'));

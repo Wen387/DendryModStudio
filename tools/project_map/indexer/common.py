@@ -66,7 +66,8 @@ TEXT_CORPUS_MAX_ITEMS = 15000
 TEXT_CORPUS_VISIBLE_METADATA = {
     "title": "title",
     "subtitle": "subtitle",
-    "unavailable-subtitle": "unavailable_text",
+    "unavailableSubtitle": "unavailable_text",
+    "unavailableText": "unavailable_text",
 }
 DENDRY_BUILTIN_SCENES = {
     "jumpScene",
@@ -354,6 +355,7 @@ def parse_info_source(root: Path) -> dict[str, dict[str, Any]]:
         source[normalized_key] = {
             "path": "source/info.dry",
             "line": line_number,
+            "rawAnchorText": raw,
             "anchorText": raw,
         }
     return source

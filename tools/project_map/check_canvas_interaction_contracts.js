@@ -108,6 +108,7 @@ function checkObjectCanvasContracts() {
   contains(viewport, 'board.style.transform = transform', 'Object Canvas viewport transform update');
   contains(shell, 'data-object-canvas-action="toggle_board_chrome"', 'Object Canvas chrome toggle');
   contains(shell, 'aria-expanded="', 'Object Canvas chrome toggle accessibility state');
+  contains(shell, 'modalActive ? \'\' : opts.bodyHtml', 'Object Canvas modal should not duplicate the full editor body behind large object editors');
   contains(objectUi, 'action === \'toggle_board_chrome\'', 'Object Canvas chrome toggle handler');
   contains(objectUi, 'toggleBoardChrome()', 'Object Canvas chrome toggle handler');
   contains(objectUi, 'openVisibleEditAction', 'Object Canvas visible click-to-edit action bridge');
@@ -145,8 +146,10 @@ function checkObjectCanvasContracts() {
   contains(objectUi, 'sourceSliceReviewAllowed()', 'Object Canvas source slice advanced apply review guard');
   contains(objectUi, 'semanticLogicReviewAllowed()', 'Object Canvas semantic logic advanced apply review guard');
   contains(objectUi, 'objectCanvasFieldValuesApi()', 'Object Canvas field collection should use the field value helper');
+  contains(objectUi, 'dispatch: false', 'Structure builder part typing should not refresh/collapse the Object Canvas before commit');
   contains(fieldValues, 'collectCanvasFieldEntries(host, options)', 'Object Canvas field collection should use de-duplicated visible field entries');
   contains(fieldValues, 'fieldIsVisibleForCollection(input, options)', 'Object Canvas field collection should ignore hidden duplicate editor controls');
+  contains(fieldValues, 'isCollectableField', 'Object Canvas field collection should ignore non-control asset/list entries');
   contains(fieldValues, 'const activeRow = rows.find((row) => row.active)', 'Object Canvas field collection should prefer the focused editor control');
   contains(storyboardDrafts, 'ProjectMapObjectCanvasStoryboardDrafts', 'Object Canvas Storyboard draft helper should expose a browser API');
   contains(storyboardDrafts, 'createRelatedDraft', 'Object Canvas Storyboard draft helper should own related draft creation');
@@ -161,6 +164,16 @@ function checkObjectCanvasContracts() {
   contains(read('viewer/card_board_surface.js'), 'data-visible-edit-affordance="card-board"', 'Card Board edit affordance marker');
   contains(read('viewer/preview_object_editor.js'), 'data-visible-edit-affordance="object-canvas-preview"', 'Object Canvas preview edit affordance marker');
   contains(read('viewer/preview_object_editor.js'), 'data-metadata-kind="', 'Object Canvas preview metadata layout marker');
+  contains(read('viewer/preview_object_editor.js'), 'data-object-canvas-asset-replacement="true"', 'Object Canvas exact asset directive replacement marker');
+  contains(read('viewer/preview_object_editor.js'), 'data-object-canvas-asset-filter="true"', 'Object Canvas asset selectors should expose an inline filter for large project catalogs');
+  contains(read('viewer/preview_object_editor.js'), 'data-existing-asset-field="', 'Object Canvas asset replacement should preserve the existing source field id');
+  contains(objectUi, 'filterObjectCanvasAssetSelect', 'Object Canvas should filter large indexed asset selects without rebuilding the editor');
+  contains(objectUi, 'input.dataset.existingAssetField', 'Object Canvas asset file handler should route existing source-backed asset replacements');
+  contains(objectUi, 'state.values[fieldId] = existingAssetReferenceLine', 'Object Canvas existing asset replacement should write directive or inline source replacement values');
+  contains(objectUi, 'removeExistingAssetReference', 'Object Canvas existing asset references should expose a removal action');
+  contains(objectUi, 'existingAssetReferenceLine', 'Object Canvas existing asset references should format directive and inline markdown edits through one helper');
+  contains(objectUi, 'state.proposalOptions.assetInstallRequests = upsertObjectCanvasAssetInstallRequest', 'Object Canvas existing asset replacement should carry asset install requests into Review & Apply options');
+  contains(objectUi, 'state.mode === \'existing\' && state.model && state.model.objectId', 'Object Canvas existing asset replacement target paths should use the existing object id');
   contains(read('viewer/index.html'), 'preview_object_event_builder_ui.js', 'Complex Event Builder renderer module include');
   contains(eventBuilder, 'ProjectMapPreviewObjectEventBuilder', 'Complex Event Builder extracted renderer module');
   contains(eventBuilder, 'data-preview-object-event-graph-node', 'Complex Event Builder graph node entry marker');
@@ -233,6 +246,8 @@ function checkReviewAndLensContracts() {
   contains(runtimeLens, 'button.dataset.runtimeLensBound = \'true\'', 'Runtime Lens duplicate binding guard');
   contains(read('viewer/runtime_lens_workspace_state.js'), 'renderRuntimeLensEvidence', 'Runtime Lens evidence update contract');
   contains(read('viewer/object_authoring_canvas_ui.js'), 'updateRuntimeLensEvidence', 'Runtime Lens evidence update contract');
+  contains(read('viewer/object_authoring_canvas_ui.js'), 'syncObjectCanvasReviewButtons', 'Object Canvas should synchronize duplicate Review & Apply buttons after programmatic asset edits');
+  contains(read('viewer/object_authoring_canvas_ui.js'), 'dataset.reviewState', 'Object Canvas Review & Apply buttons should expose synchronized ready/blocked state');
 }
 
 function checkRenderedAndPureBehavior() {
@@ -264,13 +279,15 @@ function checkRenderedAndPureBehavior() {
     value: 'Generated body'
   });
   const firstHiddenField = fieldStub('body', 'first');
-  const host = fieldHost([visibleField, activeField, firstHiddenField, structureField]);
+  const assetArticle = fieldStub('asset:path', undefined, {tagName: 'ARTICLE', type: ''});
+  const host = fieldHost([visibleField, activeField, firstHiddenField, structureField, assetArticle]);
   const collected = fieldValues.collectCanvasFieldEntries(host, {
     activeElement: activeField,
     getComputedStyle: () => ({display: 'block', visibility: 'visible'})
   });
   assert(collected[0] === activeField, 'Object Canvas field helper should prefer the active duplicate field');
   assert(collected[1] === structureField, 'Object Canvas field helper should prefer valued structure output before the first hidden duplicate');
+  assert(!collected.includes(assetArticle), 'Object Canvas field helper should ignore non-control asset/list entries');
 
   const planHtml = installReview.renderPlanReview({
     plan: {operations: [{id: 'probe', type: 'replace_text', path: 'source/probe.scene.dry', safety: 'guarded_apply', search: 'before', replace: 'after'}]},
@@ -368,12 +385,17 @@ function fieldStub(key, value, options) {
   return {
     dataset,
     disabled: false,
+    tagName: opts.tagName || 'TEXTAREA',
     type: 'textarea',
     value,
     offsetWidth: opts.offsetWidth || 0,
     offsetHeight: opts.offsetHeight || 0,
     closest: () => null,
-    getClientRects: () => opts.rects || []
+    getClientRects: () => opts.rects || [],
+    matches: (selector) => {
+      const tag = String(opts.tagName || 'TEXTAREA').toLowerCase();
+      return String(selector || '').split(',').map((part) => part.trim()).includes(tag);
+    }
   };
 }
 

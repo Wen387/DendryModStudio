@@ -314,6 +314,14 @@ def source_ref_from_any(value: Any) -> dict[str, Any]:
         out["endLine"] = end_line
     if source.get("anchorText"):
         out["anchorText"] = str(source.get("anchorText"))
+    if source.get("endAnchorText"):
+        out["endAnchorText"] = str(source.get("endAnchorText"))
+    if source.get("rawAnchorText"):
+        out["rawAnchorText"] = str(source.get("rawAnchorText"))
+    if source.get("rawEndAnchorText"):
+        out["rawEndAnchorText"] = str(source.get("rawEndAnchorText"))
+    if source.get("expectedRangeHash"):
+        out["expectedRangeHash"] = str(source.get("expectedRangeHash"))
     return out
 
 

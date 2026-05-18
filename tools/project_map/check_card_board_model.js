@@ -112,6 +112,28 @@ const sparseBoard = cardBoardModel.buildBoard(sparseCardIndex, draftModel, {card
 const sparseCard = sparseBoard.selected;
 assert(sparseCard && sparseCard.options[6] && sparseCard.options[6].label === 'Choice 7', 'Card Board should fallback-label options when textCorpus option labels are absent');
 
+const sectionOwnedDeckIndex = Object.assign({}, index, {
+  semantic: Object.assign({}, index.semantic, {
+    decks: [{
+      id: 'main.parser_deck',
+      title: 'Inline Parser Deck',
+      type: 'deck',
+      ownerKind: 'section',
+      ownerSceneId: 'main',
+      path: 'source/scenes/main.scene.dry',
+      options: [{
+        id: '#demo_action',
+        target: {kind: 'tag', id: 'demo_action'},
+        sourceSpan: {path: 'source/scenes/main.scene.dry', startLine: 14, line: 14}
+      }]
+    }]
+  })
+});
+const sectionOwnedDeckBoard = cardBoardModel.buildBoard(sectionOwnedDeckIndex, draftModel, {cardBoardLane: 'deck'});
+const sectionDeckCard = lane(sectionOwnedDeckBoard, 'deck').cards.find((card) => card.id === 'demo_action_card');
+assert(sectionDeckCard, 'Card Board should place tagged cards in section-owned semantic deck lanes');
+assert(sectionDeckCard.routeEvidence.some((item) => item.containerId === 'main.parser_deck'), 'section-owned deck route evidence should keep the section deck id');
+
 const optionBoard = cardBoardModel.buildBoard(index, existingCardModel, {
   cardBoardSelectedKey: 'card:demo_action_card',
   cardBoardSelection: {kind: 'option', cardKey: 'card:demo_action_card', optionIndex: 0}

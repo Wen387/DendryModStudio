@@ -157,6 +157,7 @@
       const first = usable[0];
       const last = usable[usable.length - 1];
       const source = sourceRef(first.source || {});
+      const endSource = sourceRef(last.source || {});
       const anchorText = sourceAnchor(first);
       const endAnchorText = sourceEndAnchor(last);
       if (!source.path || !anchorText || !endAnchorText || isProtectedRouterPath(source.path)) {
@@ -227,7 +228,10 @@
           line: startLine,
           endLine,
           anchorText,
-          endAnchorText
+          endAnchorText,
+          rawAnchorText: source.rawAnchorText || '',
+          rawEndAnchorText: endSource.rawEndAnchorText || endSource.rawAnchorText || '',
+          expectedRangeHash: source.expectedRangeHash || ''
         },
         editability,
         confidence: 'exact',

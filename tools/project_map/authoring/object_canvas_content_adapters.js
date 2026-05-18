@@ -275,7 +275,7 @@
       source: sourceForDraft(def, draft),
       entry: entryInfo(opts.entry || opts.seed || {}),
       contextBoard: contextBoardForDraft(projectIndex, def, draft, opts),
-      eventBody: def.body(draft, projectIndex, opts),
+      eventBody: bodyWithAssets(projectIndex, def, draft, opts),
       changeState: {
         draft,
         proposal: draft,
@@ -343,6 +343,20 @@
       }
     }
     return {};
+  }
+
+  function assetModelApi() {
+    if (global && global.ProjectMapAssetModel) {
+      return global.ProjectMapAssetModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./asset_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
   }
 
   function eventStructureApi() {
@@ -819,6 +833,7 @@
     if (has(data, 'event.rawEffects')) {
       draft.rawEffectsOnTrigger = rawEffectLines(data['event.rawEffects']);
     }
+    draft = applyDraftAssetValues(draft, data, 'event.', 'event');
     draft.options = ensureArray(draft.options).map((option, index) => {
       const next = clone(option);
       setString(data, next, 'option.' + index + '.label', 'label');
@@ -920,6 +935,7 @@
     if (has(data, 'card.intro')) {
       draft.introParagraphs = paragraphs(data['card.intro']);
     }
+    applyDraftAssetValues(draft, data, 'card.', 'card');
     draft.options = ensureArray(draft.options).map((option, index) => {
       const next = clone(option);
       setString(data, next, 'card.option.' + index + '.label', 'label');
@@ -1329,10 +1345,70 @@
       flow: flowRows(def, draft, options),
       variables: variableRows(projectIndex, draft),
       effects: effectRows(draft),
-      assets: assetRows(draft),
+      assets: assetRows(projectIndex, def, draft),
       sourceEvidence: sourceRows(def, draft),
       manualBoundaries: boundaryRows(projectIndex, def, draft)
     };
+  }
+
+  function bodyWithAssets(projectIndex, def, draft, options) {
+    const body = def && typeof def.body === 'function'
+      ? def.body(draft, projectIndex, options)
+      : {};
+    const assets = assetRows(projectIndex, def, draft);
+    const assetAddFields = draftAssetAddFields(def, draft, body);
+    return Object.assign({}, body, {
+      assets: assets.length ? assets : ensureArray(body && body.assets),
+      assetAddFields: ensureArray(body && body.assetAddFields).concat(assetAddFields),
+      assetCatalog: assetCatalog(projectIndex, def)
+    });
+  }
+
+  function draftAssetAddFields(def, draft, body) {
+    const target = def && def.objectKind === 'card' ? 'card' : 'event';
+    const role = target === 'card' ? 'card_image' : 'event_illustration';
+    const directive = target === 'card' ? 'card-image' : 'face-image';
+    const rows = [{
+      placementId: 'opening',
+      placementKind: 'opening_visual',
+      sectionId: '',
+      optionId: '',
+      label: 'Add opening image',
+      displayLocation: 'Opening visual'
+    }];
+    ensureArray(body && body.options).forEach((option, index) => {
+      const id = String(option && option.id || 'option_' + (index + 1));
+      rows.push({
+        placementId: 'option_' + safeId(id),
+        placementKind: 'option_result_visual',
+        sectionId: '',
+        optionId: id,
+        label: 'Add image to option result',
+        displayLocation: String(option && option.label || id || 'Option result')
+      });
+    });
+    ensureArray(body && body.branchSections).forEach((section, index) => {
+      const sectionId = String(section && section.sectionId || section && section.id || 'section_' + (index + 1));
+      rows.push({
+        placementId: 'section_' + safeId(sectionId),
+        placementKind: section && section.semanticRole === 'conditional_text' ? 'conditional_visual' : 'section_visual',
+        sectionId,
+        optionId: String(section && section.optionId || ''),
+        label: 'Add image here',
+        displayLocation: String(section && (section.label || section.sectionLabel) || sectionId)
+      });
+    });
+    return rows.map((row) => Object.assign({}, row, {
+      id: 'draft_asset_add_' + row.placementId,
+      role,
+      directive,
+      type: 'image',
+      assetRole: role,
+      assetDirective: directive,
+      assetType: 'image',
+      draftPlacement: true,
+      status: 'guarded'
+    }));
   }
 
   function flowRows(def, draft, options) {
@@ -1437,13 +1513,339 @@
     };
   }
 
-  function assetRows(draft) {
+  function assetRows(projectIndex, def, draft) {
+    const assetApi = assetModelApi();
+    if (assetApi && typeof assetApi.buildAssetRows === 'function') {
+      return assetApi.buildAssetRows(Object.assign({}, draft || {}, {
+        assetPlacements: collectDraftAssetPlacements(draft)
+      }), {
+        projectIndex,
+        target: def && def.objectKind === 'card' ? 'card' : 'event'
+      });
+    }
     return ensureArray(draft.assetRefs).concat(ensureArray(draft.assetInstallRequests)).map((asset) => ({
       label: asset.label || asset.path || asset.targetPath || asset.sourceName || 'asset',
       path: asset.path || asset.targetPath || asset.sourcePath || '',
       role: asset.role || asset.type || 'asset',
       status: 'draft'
     }));
+  }
+
+  function collectDraftAssetPlacements(draft) {
+    const rows = ensureArray(draft && draft.assetPlacements).slice();
+    ensureArray(draft && draft.options).forEach((option) => {
+      rows.push.apply(rows, ensureArray(option && option.assetPlacements));
+    });
+    ensureArray(draft && draft.sections).forEach((section) => {
+      rows.push.apply(rows, ensureArray(section && section.assetPlacements));
+      ensureArray(section && section.options).forEach((option) => {
+        rows.push.apply(rows, ensureArray(option && option.assetPlacements));
+      });
+    });
+    return rows;
+  }
+
+  function assetCatalog(projectIndex, def) {
+    const items = ensureArray(projectIndex && projectIndex.semantic && projectIndex.semantic.assets && projectIndex.semantic.assets.items);
+    const assetApi = assetModelApi();
+    const target = def && def.objectKind === 'card' ? 'card' : 'event';
+    if (assetApi && typeof assetApi.buildAssetCatalog === 'function') {
+      return assetApi.buildAssetCatalog(projectIndex, {target});
+    }
+    return items.map((asset) => {
+      const normalized = assetApi && typeof assetApi.normalizeAssetRef === 'function'
+        ? assetApi.normalizeAssetRef(asset)
+        : normalizeAssetRefValue(asset, '');
+      const role = assetApi && typeof assetApi.inferAssetRole === 'function'
+        ? assetApi.inferAssetRole(normalized, target)
+        : defaultAssetRole(normalized, target);
+      return Object.assign({}, normalized, {
+        role,
+        roleLabel: assetApi && typeof assetApi.assetRoleLabel === 'function' ? assetApi.assetRoleLabel(role) : role
+      });
+    }).filter((asset) => asset && (asset.path || asset.id));
+  }
+
+  function applyDraftAssetValues(draft, data, prefix, target) {
+    let refs = ensureArray(draft.assetRefs).map((asset) => normalizeAssetRefValue(asset, '')).filter((asset) => asset.path);
+    let placements = ensureArray(draft.assetPlacements).map((asset) => normalizeAssetPlacementValue(asset, '', target)).filter((asset) => asset.path);
+    let requests = ensureArray(draft.assetInstallRequests).map((request) => normalizeAssetInstallRequestValue(request, '')).filter((request) => request.targetPath);
+    if (has(data, prefix + 'assetRefs')) {
+      refs = parseAssetRefsValue(data[prefix + 'assetRefs']);
+    }
+    if (has(data, prefix + 'assetInstallRequests')) {
+      requests = parseAssetInstallRequestsValue(data[prefix + 'assetInstallRequests']);
+    }
+    const refPrefix = prefix + 'assetRef.';
+    const requestPrefix = prefix + 'assetInstallRequest.';
+    const placementRefPrefix = prefix + 'assetPlacementRef.';
+    const placementRequestPrefix = prefix + 'assetPlacementInstallRequest.';
+    Object.keys(data || {}).forEach((key) => {
+      if (key.indexOf(refPrefix) === 0) {
+        const role = key.slice(refPrefix.length);
+        const ref = normalizeAssetRefValue(parseStructuredAssetValue(data[key]), role);
+        refs = replaceAssetRefForRole(refs, role, ref);
+      }
+    });
+    Object.keys(data || {}).forEach((key) => {
+      if (key.indexOf(requestPrefix) === 0) {
+        const role = key.slice(requestPrefix.length);
+        const request = normalizeAssetInstallRequestValue(parseStructuredAssetValue(data[key]), role, {target, draftId: draft && draft.id});
+        requests = replaceAssetInstallRequestForRole(requests, role, request);
+        refs = replaceAssetRefForRole(refs, role, request.targetPath ? {
+          path: request.targetPath,
+          type: request.type,
+          label: request.label || request.sourceName,
+          role
+        } : null);
+      }
+    });
+    Object.keys(data || {}).forEach((key) => {
+      if (key.indexOf(placementRefPrefix) === 0) {
+        const placementId = key.slice(placementRefPrefix.length);
+        const ref = normalizeAssetPlacementValue(parseStructuredAssetValue(data[key]), placementId, target);
+        placements = replaceAssetPlacement(placements, placementId, ref);
+      }
+    });
+    Object.keys(data || {}).forEach((key) => {
+      if (key.indexOf(placementRequestPrefix) === 0) {
+        const placementId = key.slice(placementRequestPrefix.length);
+        const request = normalizeAssetInstallRequestValue(Object.assign({}, parseStructuredAssetValue(data[key]), {
+          placementId
+        }), '', {target, draftId: draft && draft.id});
+        requests = replaceAssetInstallRequestForPlacement(requests, placementId, request);
+        placements = replaceAssetPlacement(placements, placementId, request.targetPath ? normalizeAssetPlacementValue(Object.assign({}, request, {
+          path: request.targetPath,
+          placementId,
+          label: request.label || request.sourceName
+        }), placementId, target) : null);
+      }
+    });
+    draft.assetRefs = dedupeAssetRefs(refs);
+    draft.assetPlacements = dedupeAssetPlacements(placements);
+    draft.assetInstallRequests = dedupeAssetInstallRequests(requests);
+    return draft;
+  }
+
+  function parseAssetRefsValue(value) {
+    if (Array.isArray(value)) {
+      return value.map((item) => normalizeAssetRefValue(item, '')).filter((item) => item.path);
+    }
+    return String(value || '')
+      .split(/\n+/)
+      .map((line) => normalizeAssetRefValue(parseStructuredAssetValue(line), ''))
+      .filter((item) => item.path);
+  }
+
+  function parseAssetInstallRequestsValue(value) {
+    if (Array.isArray(value)) {
+      return value.map((item) => normalizeAssetInstallRequestValue(item, '')).filter((item) => item.targetPath);
+    }
+    return String(value || '')
+      .split(/\n+/)
+      .map((line) => normalizeAssetInstallRequestValue(parseStructuredAssetValue(line), ''))
+      .filter((item) => item.targetPath);
+  }
+
+  function normalizeAssetPlacementValue(value, placementId, target) {
+    const item = normalizeAssetRefValue(value, '');
+    if (!item.path) {
+      return item;
+    }
+    const input = isObject(value) ? value : {};
+    const id = String(input.placementId || input.assetPlacementId || placementId || '').trim();
+    const defaultDirective = target === 'card' ? 'card-image' : 'face-image';
+    return Object.assign({}, item, {
+      placementId: id,
+      placementKind: String(input.placementKind || input.kind || 'opening_visual').trim(),
+      displayLocation: String(input.displayLocation || input.placementLabel || '').trim(),
+      sectionId: String(input.sectionId || '').trim(),
+      optionId: String(input.optionId || '').trim(),
+      branchKind: String(input.branchKind || '').trim(),
+      directive: String(input.directive || input.assetDirective || defaultDirective).trim() || defaultDirective,
+      role: String(input.role || (target === 'card' ? 'card_image' : 'event_illustration')).trim()
+    });
+  }
+
+  function replaceAssetPlacement(placements, placementId, ref) {
+    const id = String(placementId || ref && ref.placementId || '').trim();
+    const next = ensureArray(placements).filter((asset) => String(asset && asset.placementId || '') !== id);
+    if (ref && ref.path) {
+      next.push(Object.assign({}, ref, {placementId: id || ref.placementId || safeId(ref.path)}));
+    }
+    return next;
+  }
+
+  function dedupeAssetPlacements(placements) {
+    const seen = new Set();
+    return ensureArray(placements).filter((asset) => {
+      const key = [asset && asset.placementId, asset && asset.path, asset && asset.optionId, asset && asset.sectionId].join('|');
+      if (!asset || !asset.path || seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+  }
+
+  function parseStructuredAssetValue(value) {
+    if (isObject(value)) {
+      return value;
+    }
+    const text = String(value || '').trim();
+    if (!text) {
+      return {};
+    }
+    if (text[0] === '{') {
+      try {
+        return JSON.parse(text);
+      } catch (_err) {
+        return {path: text};
+      }
+    }
+    const parts = text.split('|').map((part) => part.trim());
+    if (parts.length >= 5) {
+      return {
+        sourceName: parts[0] || '',
+        targetPath: parts[1] || '',
+        type: parts[2] || '',
+        label: parts[3] || '',
+        role: parts[4] || ''
+      };
+    }
+    return {
+      path: parts[0] || text,
+      type: parts[1] || '',
+      label: parts[2] || '',
+      role: parts[3] || ''
+    };
+  }
+
+  function normalizeAssetRefValue(value, role) {
+    const item = isObject(value) ? value : {path: value};
+    const path = String(item.path || item.targetPath || item.src || item.url || '').trim();
+    const explicitRole = String(role || item.role || '').trim();
+    const api = assetModelApi();
+    if (api && typeof api.normalizeAssetRef === 'function') {
+      const ref = api.normalizeAssetRef(Object.assign({}, item, {path, role: explicitRole || item.role || ''}));
+      return {
+        path: ref.path,
+        type: ref.type || inferAssetType(path) || 'asset',
+        label: ref.label || ref.name || fileName(path),
+        role: explicitRole || ref.role || '',
+        directive: String(ref.directive || item.directive || item.assetDirective || '').trim()
+      };
+    }
+    return {
+      path,
+      type: String(item.type || inferAssetType(path) || 'asset').trim(),
+      label: String(item.label || item.name || fileName(path) || '').trim(),
+      role: explicitRole,
+      directive: String(item.directive || item.assetDirective || '').trim()
+    };
+  }
+
+  function normalizeAssetInstallRequestValue(value, role, options) {
+    const item = isObject(value) ? value : {sourceName: value};
+    const explicitRole = String(role || item.role || '').trim();
+    const api = assetModelApi();
+    if (api && typeof api.assetInstallRequest === 'function') {
+      return api.assetInstallRequest(Object.assign({}, item, {role: explicitRole || item.role || ''}), Object.assign({}, options || {}, {role: explicitRole || item.role || ''}));
+    }
+    const targetPath = String(item.targetPath || item.target || item.path || '').trim();
+    return {
+      sourceName: String(item.sourceName || item.fileName || item.name || '').trim(),
+      sourcePath: String(item.sourcePath || '').trim(),
+      targetPath,
+      type: String(item.type || inferAssetType(targetPath || item.sourceName || '') || 'asset').trim(),
+      label: String(item.label || item.sourceName || fileName(targetPath) || '').trim(),
+      role: explicitRole,
+      sourceSize: item.sourceSize,
+      sourceLastModified: item.sourceLastModified,
+      status: item.status || (item.sourceName ? 'ready_for_review' : 'needs_source_file')
+    };
+  }
+
+  function replaceAssetRefForRole(refs, role, ref) {
+    const wanted = String(role || '').trim();
+    const rows = ensureArray(refs).filter((item) => wanted ? String(item && item.role || '') !== wanted : true);
+    if (ref && ref.path) {
+      rows.push(normalizeAssetRefValue(ref, wanted));
+    }
+    return rows;
+  }
+
+  function replaceAssetInstallRequestForRole(requests, role, request) {
+    const wanted = String(role || '').trim();
+    const rows = ensureArray(requests).filter((item) => wanted ? String(item && item.role || '') !== wanted : true);
+    if (request && request.targetPath) {
+      rows.push(normalizeAssetInstallRequestValue(request, wanted));
+    }
+    return rows;
+  }
+
+  function replaceAssetInstallRequestForPlacement(requests, placementId, request) {
+    const wanted = String(placementId || '').trim();
+    const rows = ensureArray(requests).filter((item) => wanted ? String(item && item.placementId || '') !== wanted : true);
+    if (request && request.targetPath) {
+      rows.push(normalizeAssetInstallRequestValue(Object.assign({}, request, {
+        placementId: wanted || request.placementId || ''
+      }), request.role || ''));
+    }
+    return rows;
+  }
+
+  function dedupeAssetRefs(refs) {
+    const seen = new Set();
+    return ensureArray(refs).filter((ref) => {
+      if (!ref || !ref.path) {
+        return false;
+      }
+      const key = [ref.role || '', ref.path].join('|');
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+  }
+
+  function dedupeAssetInstallRequests(requests) {
+    const seen = new Set();
+    return ensureArray(requests).filter((request) => {
+      if (!request || !request.targetPath) {
+        return false;
+      }
+      const key = [request.role || '', request.targetPath, request.sourceName || request.sourcePath || ''].join('|');
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+  }
+
+  function defaultAssetRole(asset, target) {
+    if (String(asset && asset.type || '') === 'audio') {
+      return target === 'card' ? 'card_audio' : 'event_audio';
+    }
+    return target === 'card' ? 'card_image' : 'event_illustration';
+  }
+
+  function inferAssetType(path) {
+    const text = String(path || '').toLowerCase();
+    if (/\.(png|jpe?g|gif|webp|svg)$/.test(text)) {
+      return 'image';
+    }
+    if (/\.(mp3|ogg|wav|flac|m4a)$/.test(text)) {
+      return 'audio';
+    }
+    return '';
+  }
+
+  function fileName(path) {
+    const text = String(path || '').replace(/\\/g, '/');
+    return text.split('/').filter(Boolean).pop() || '';
   }
 
   function sourceRows(def, draft) {

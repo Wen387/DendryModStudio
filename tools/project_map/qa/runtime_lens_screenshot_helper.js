@@ -5,11 +5,12 @@
     const opts = options || {};
     const lensHtml = [
       '<!doctype html><html><head><style>',
-      'body{margin:0;background:#f8f5ed;color:#2d271e;font:18px Georgia,serif}',
-      'main{padding:28px}.title{font-size:26px;letter-spacing:2px;text-align:center}',
-      '.card{margin-top:22px;border:2px solid #8f7b61;padding:18px;background:white;box-shadow:0 8px 20px rgba(0,0,0,.12)}',
+      'body{margin:0;min-width:1280px;background:#f8f5ed;color:#2d271e;font:18px Georgia,serif}',
+      'main{position:relative;min-width:1280px;padding:28px}.title{font-size:26px;letter-spacing:2px;text-align:center}',
+      '.card{width:560px;margin-top:22px;border:2px solid #8f7b61;padding:18px;background:white;box-shadow:0 8px 20px rgba(0,0,0,.12)}',
+      '.right-edge{position:absolute;right:32px;top:90px;width:260px;border:2px solid #8f7b61;padding:16px;background:#fffaf1;text-align:right}',
       'button{display:block;width:100%;margin-top:18px;padding:12px;border:1px solid #8f7b61;background:#fffaf1;font:inherit}',
-      '</style></head><body><main><div class="title">SOCIAL DEMOCRACY: AN ALTERNATE HISTORY</div><section class="card"><strong>' + escapeHtml(opts.title || 'Runtime Lens focus') + '</strong><p>' + escapeHtml(opts.body || 'Runtime-rendered scene wrapper for the selected object.') + '</p><button>Continue</button></section></main></body></html>'
+      '</style></head><body><main><div class="title">SOCIAL DEMOCRACY: AN ALTERNATE HISTORY</div><section class="card"><strong>' + escapeHtml(opts.title || 'Runtime Lens focus') + '</strong><p>' + escapeHtml(opts.body || 'Runtime-rendered scene wrapper for the selected object.') + '</p><button>Continue</button></section><aside class="right-edge">Right edge reachable</aside></main></body></html>'
     ].join('');
     const url = 'data:text/html;charset=utf-8,' + encodeURIComponent(lensHtml);
     win.dendryDesktop = {
@@ -76,6 +77,13 @@
         const frame = win.document.querySelector('[data-runtime-lens-frame]');
         return panel && panel.dataset.runtimeLensStatus === 'ready' && frame && value.isVisible(win, frame);
       }, 4000);
+      if (mode === 'ready') {
+        const wrap = win.document.querySelector('[data-runtime-lens-frame-wrap]');
+        const frame = win.document.querySelector('[data-runtime-lens-frame]');
+        await value.waitFor(() => wrap && frame && wrap.scrollWidth > wrap.clientWidth + 24 && frame.getBoundingClientRect().width >= 1200, 4000);
+        wrap.scrollLeft = wrap.scrollWidth;
+        await new Promise((resolve) => global.setTimeout(resolve, 120));
+      }
     }
   }
 

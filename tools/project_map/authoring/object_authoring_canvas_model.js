@@ -155,6 +155,13 @@
     if (!opts.entry && request.entry) {
       opts.entry = request.entry;
     }
+    if (isExistingProposal(draft) && ensureArray(draft.assetInstallRequests).length) {
+      const proposalOptions = Object.assign({}, isObject(opts.proposalOptions) ? opts.proposalOptions : {});
+      if (!ensureArray(proposalOptions.assetInstallRequests).length) {
+        proposalOptions.assetInstallRequests = ensureArray(draft.assetInstallRequests);
+      }
+      opts.proposalOptions = proposalOptions;
+    }
     return opts;
   }
 
@@ -183,7 +190,10 @@
     if (!contextApi || typeof contextApi.buildContextModel !== 'function') {
       return emptyCanvas('existing', diagnostic('error', 'object_canvas.context_missing', 'Context model is unavailable.'));
     }
-    const context = contextApi.buildContextModel(projectIndex, view, itemOrId, {values: opts.values || {}});
+    const context = contextApi.buildContextModel(projectIndex, view, itemOrId, {
+      values: opts.values || {},
+      proposalOptions: opts.proposalOptions || {}
+    });
     if (!context || !context.ok) {
       return emptyCanvas('existing', diagnostic('warning', 'object_canvas.existing_unavailable', 'This object cannot be opened in the authoring Canvas yet.'), context);
     }
@@ -250,7 +260,7 @@
       source: {path: 'source/scenes/events/' + (draft.id || 'new_event') + '.scene.dry'},
       entry: entryInfo(opts.entry || {source: 'create'}),
       contextBoard: contextBoardForNewEvent(projectIndex, draft, opts.seed || opts.entry),
-      eventBody: eventBodyForNewEvent(draft),
+      eventBody: eventBodyForNewEvent(draft, projectIndex),
       changeState: {
         draft,
         proposal: draft,
@@ -315,6 +325,7 @@
     const metadataEditors = allEditors.filter((editor) => String(editor && editor.role || '') === 'metadata');
     const playerTextEditors = ensureArray(editors.playerText)
       .filter((editor) => String(editor && editor.role || '') !== 'metadata')
+      .filter((editor) => String(editor && editor.role || '') !== 'asset_reference')
       .filter((editor) => !titleEditor || editor.id !== titleEditor.id);
     const optionRows = optionBodyRows(context, pageSectionEditors);
     const consumedSectionIds = new Set();
@@ -352,6 +363,8 @@
       branchSections: branchSectionEditors.concat(branchPlayerTextEditors).map((editor, index) => Object.assign({slot: 'branch_' + (index + 1)}, editor)),
       options: optionRows,
       assets: assetRowsForExisting(context, projectIndex),
+      assetAddFields: assetAddFieldsForExisting(context),
+      assetCatalog: assetCatalogForProject(projectIndex, context.sceneKind === 'card' ? 'card' : 'event'),
       assetBaseUrl: String(projectIndex && projectIndex.project && projectIndex.project.assetBaseUrl || ''),
       variables: variableRowsForExisting(context),
       backgroundEffects: backgroundEffectRowsForExisting(context),
@@ -575,10 +588,27 @@
   function assetRowsForExisting(context, projectIndex) {
     const assetApi = assetModelApi();
     const rawAssets = ensureArray(context && context.editModel && context.editModel.assets);
-    if (assetApi && typeof assetApi.normalizeAssetItem === 'function') {
-      return rawAssets.map((asset) => assetApi.normalizeAssetItem(asset, {projectIndex})).filter((asset) => asset && asset.path);
+    const target = context && context.sceneKind === 'card' ? 'card' : 'event';
+    const assetFields = ensureArray(context && context.editModel && context.editModel.fields)
+      .filter((field) => String(field && field.role || '') === 'asset_reference' && String(field && field.transform || '') !== 'asset_add_reference');
+    const assetAddFields = ensureArray(context && context.editModel && context.editModel.fields)
+      .filter((field) => String(field && field.role || '') === 'asset_reference' && String(field && field.transform || '') === 'asset_add_reference');
+    const changes = ensureArray(context && context.proposal && context.proposal.changes);
+    const pendingAddRefs = pendingAssetAddRefs(assetAddFields, changes, projectIndex);
+    const installRequests = ensureArray(context && context.proposal && context.proposal.assetInstallRequests);
+    const enrichRows = (rows) => ensureArray(rows)
+      .map((row) => enrichExistingAssetRow(row, assetFields, changes, context, projectIndex, target))
+      .map((row) => enrichPendingAssetAddRow(row, pendingAddRefs));
+    if (assetApi && typeof assetApi.buildAssetRows === 'function') {
+      return enrichRows(assetApi.buildAssetRows({
+        assetRefs: rawAssets.concat(pendingAddRefs),
+        assetInstallRequests: installRequests
+      }, {projectIndex, target}));
     }
-    return rawAssets.map((asset) => ({
+    if (assetApi && typeof assetApi.normalizeAssetItem === 'function') {
+      return enrichRows(rawAssets.concat(pendingAddRefs).map((asset) => assetApi.normalizeAssetItem(asset, {projectIndex})).filter((asset) => asset && asset.path));
+    }
+    return enrichRows(rawAssets.concat(pendingAddRefs).map((asset) => ({
       id: String(asset && asset.id || asset && asset.path || ''),
       label: String(asset && (asset.label || asset.name || asset.path) || ''),
       path: String(asset && asset.path || ''),
@@ -586,7 +616,425 @@
       role: String(asset && asset.role || ''),
       status: {key: 'reference_only', label: 'Reference only'},
       previewCapability: {canPreview: false, mediaKind: String(asset && asset.type || 'asset'), url: '', message: 'Reference only'}
-    })).filter((asset) => asset.path);
+    })).filter((asset) => asset.path));
+  }
+
+  function pendingAssetAddRefs(assetAddFields, changes, projectIndex) {
+    return ensureArray(assetAddFields).map((field) => {
+      const change = ensureArray(changes).find((item) => String(item && item.fieldId || '') === String(field && field.id || ''));
+      const after = String(change && change.after || '').trim();
+      const path = assetPathFromReferenceLine(after);
+      if (!path) {
+        return null;
+      }
+      const directive = String(field && field.assetDirective || '').trim();
+      const role = String(field && field.assetRole || '').trim();
+      const globalSlot = isGlobalAssetAddField(field);
+      return {
+        id: safeId(['pending_asset_add', field.id, path].join('_')),
+        path,
+        previewUrl: indexedPreviewUrlForAssetPath(projectIndex, path),
+        type: String(field && field.assetType || ''),
+        label: fileName(path) || path,
+        name: fileName(path) || path,
+        role,
+        directive,
+        source: sourceRef(field && field.source || {}),
+        sourceKind: 'pending_asset_add',
+        editability: 'guarded_apply',
+        confidence: String(field && field.confidence || 'source_anchor'),
+        placementId: safeId(['pending_asset_add', field.id].join('_')),
+        placementKind: globalSlot ? 'global_slot' : String(field && field.placementKind || ''),
+        displayLocation: globalSlot ? 'Global media slot' : String(field && field.displayLocation || ''),
+        operationCapability: 'guarded_apply',
+        sectionId: globalSlot ? '' : String(field && field.sectionId || ''),
+        optionId: globalSlot ? '' : String(field && field.optionId || ''),
+        pendingAssetAddFieldId: String(field && field.id || ''),
+        pendingAssetAddSourcePath: String(field && (field.sourcePath || field.source && field.source.path) || ''),
+        pendingAssetAddDirective: directive
+      };
+    }).filter(Boolean);
+  }
+
+  function indexedPreviewUrlForAssetPath(projectIndex, path) {
+    const wanted = sourceReferencePathForAsset(path);
+    const wantedFile = fileName(wanted).toLowerCase();
+    if (!wanted && !wantedFile) {
+      return '';
+    }
+    const items = ensureArray(projectIndex && projectIndex.semantic && projectIndex.semantic.assets && projectIndex.semantic.assets.items);
+    const match = items.find((asset) => {
+      const candidate = String(asset && (asset.path || asset.previewUrl || asset.url || asset.id) || '').trim();
+      const normalized = sourceReferencePathForAsset(candidate);
+      return Boolean(
+        wanted && normalized && normalized === wanted ||
+        wantedFile && fileName(candidate).toLowerCase() === wantedFile
+      );
+    });
+    return String(match && (match.previewUrl || match.url || match.path) || '').trim();
+  }
+
+  function assetPathFromReferenceLine(value) {
+    const text = String(value || '').trim();
+    const directiveMatch = /^[a-z-]+\s*:\s*(.+)$/i.exec(text);
+    if (directiveMatch) {
+      return directiveMatch[1].trim();
+    }
+    const markdownMatch = /!\[[^\]]*\]\(([^)]+)\)/.exec(text);
+    if (markdownMatch) {
+      return markdownMatch[1].trim();
+    }
+    return '';
+  }
+
+  function isGlobalAssetAddField(field) {
+    const id = String(field && field.id || '');
+    if (id.indexOf('asset_add_flow_') === 0) {
+      return false;
+    }
+    return !String(field && field.sectionId || '').trim() && !String(field && field.optionId || '').trim();
+  }
+
+  function enrichPendingAssetAddRow(row, pendingAddRefs) {
+    const value = isObject(row) ? Object.assign({}, row) : {};
+    if (!value.path || value.rowKind === 'asset_install_request') {
+      return value;
+    }
+    if (String(value.sourceKind || '') !== 'pending_asset_add') {
+      return value;
+    }
+    const pending = ensureArray(pendingAddRefs).find((ref) => {
+      const samePath = String(ref && ref.path || '') === String(value.path || value.assetRef && value.assetRef.path || '');
+      const sameRole = !ref || !ref.role || String(ref.role || '') === String(value.role || value.assetRef && value.assetRef.role || '');
+      const sameDirective = !ref || !ref.directive || String(ref.directive || '') === String(value.directive || value.assetRef && value.assetRef.directive || '');
+      return samePath && sameRole && sameDirective;
+    });
+    if (!pending) {
+      return value;
+    }
+    return Object.assign(value, {
+      status: 'pending_addition',
+      statusLabel: 'Pending addition',
+      pendingAddition: true,
+      assetEditFieldId: String(pending.pendingAssetAddFieldId || ''),
+      assetEditability: 'guarded_apply',
+      assetOriginal: '',
+      assetCurrentPath: String(pending.path || value.path || ''),
+      source: value.source || sourceRef(pending.source || {}),
+      sourcePath: String(pending.pendingAssetAddSourcePath || pending.source && pending.source.path || ''),
+      replacementDirective: String(pending.pendingAssetAddDirective || pending.directive || value.directive || ''),
+      allowAssetRemoval: false,
+      replacementAvailable: false,
+      placementKind: pending.placementKind || value.placementKind,
+      displayLocation: pending.displayLocation || value.displayLocation,
+      operationCapability: pending.operationCapability || value.operationCapability,
+      sectionId: pending.sectionId || value.sectionId || '',
+      optionId: pending.optionId || value.optionId || '',
+      flowAsset: pending.placementKind ? pending.placementKind !== 'global_slot' : value.flowAsset,
+      assetRef: Object.assign({}, value.assetRef || {}, {
+        path: pending.path || value.path,
+        label: pending.label || value.label,
+        role: pending.role || value.role || value.assetRef && value.assetRef.role || '',
+        directive: pending.directive || value.directive || value.assetRef && value.assetRef.directive || ''
+      })
+    });
+  }
+
+  function enrichExistingAssetRow(row, assetFields, changes, context, projectIndex, target) {
+    const value = isObject(row) ? Object.assign({}, row) : {};
+    if (!value.path || value.rowKind === 'asset_install_request') {
+      return value;
+    }
+    const field = findAssetReferenceField(value, assetFields);
+    const placement = existingAssetPlacementForRow(value, context, projectIndex, target);
+    if (!field) {
+      return Object.assign(value, placement);
+    }
+    const change = ensureArray(changes).find((item) => String(item && item.fieldId || '') === String(field.id || ''));
+    const replacement = replacementAssetPathFromChange(change, value.path);
+    const pendingRemoval = Boolean(change && !String(change.after || '').trim() && change.allowEmptyReplace);
+    return Object.assign(value, replacement && !pendingRemoval ? {
+      path: replacement,
+      label: fileName(replacement) || value.label,
+      name: fileName(replacement) || value.name,
+      status: 'pending_replacement',
+      statusLabel: 'Pending replacement',
+      assetRef: Object.assign({}, value.assetRef || {}, {path: replacement, label: fileName(replacement) || value.label})
+    } : {}, pendingRemoval ? {
+      status: 'pending_removal',
+      statusLabel: 'Pending removal',
+      pendingRemoval: true
+    } : {}, {
+      assetEditFieldId: String(field.id || ''),
+      assetEditability: String(field.editability || ''),
+      assetOriginal: String(field.original || ''),
+      assetCurrentPath: String(field.assetPath || value.path || ''),
+      source: value.source || sourceRef(field.source || {}),
+      sourcePath: String(field.sourcePath || field.source && field.source.path || ''),
+      replacementDirective: assetDirectiveForRow(value, field),
+      allowAssetRemoval: Boolean(field.allowEmptyReplace),
+      replacementAvailable: String(field.editability || '') === 'guarded_replace_text'
+    }, placement);
+  }
+
+  function existingAssetPlacementForRow(row, context, projectIndex, target) {
+    const source = sourceRef(row && row.source || {});
+    const directive = String(row && row.directive || '').trim();
+    const textBlocks = ensureArray(context && context.editModel && context.editModel.textBlocks);
+    const optionRows = ensureArray(context && context.relationships && context.relationships.options);
+    const scene = resolveProjectScene(projectIndex, context && context.sceneId);
+    const section = sectionForSource(scene, source);
+    const option = optionForAssetSource(optionRows, source, section);
+    const block = textBlockForAssetSource(textBlocks, source, section, option);
+    let placementKind = 'global_slot';
+    if (block) {
+      placementKind = placementKindForBlock(block);
+    } else if (option) {
+      placementKind = 'option_result_visual';
+    } else if (isOpeningInlineAsset(row, directive)) {
+      placementKind = 'opening_visual';
+    } else if (directive === 'inline-image' || directive === 'inline-asset') {
+      placementKind = 'unknown_inline';
+    }
+    const sectionId = String(block && block.sectionId || option && (option.targetId || option.sectionId) || section && section.id || '').trim();
+    const optionId = String(option && option.id || block && block.relatedOptionIds && block.relatedOptionIds[0] || '').trim();
+    const displayLocation = assetPlacementDisplayLocation(placementKind, row, block, option, section);
+    return {
+      placementId: safeId(row && row.placementId || ['asset_placement', placementKind, optionId || sectionId || row && row.role || row && row.path].join('_')),
+      placementKind,
+      displayLocation,
+      operationCapability: String(row && row.editability || '') === 'manual_review' || placementKind === 'unknown_inline' ? 'manual_review' : 'guarded_apply',
+      sectionId,
+      optionId,
+      branchKind: String(block && block.branchKind || ''),
+      relatedOptionIds: uniqueStrings([optionId].concat(ensureArray(block && block.relatedOptionIds))).filter(Boolean),
+      flowAsset: placementKind !== 'global_slot'
+    };
+  }
+
+  function resolveProjectScene(projectIndex, sceneId) {
+    const id = String(sceneId || '').trim();
+    return ensureArray(projectIndex && projectIndex.scenes).find((scene) => String(scene && scene.id || '') === id) || null;
+  }
+
+  function sectionForSource(scene, source) {
+    if (!source || !source.path || !source.line) {
+      return null;
+    }
+    return ensureArray(scene && scene.sections).find((section) => sourceWithin(source, section && section.sourceSpan || section && section.source || {})) || null;
+  }
+
+  function optionForAssetSource(options, source, section) {
+    const sourceSectionId = String(section && section.id || '').trim();
+    return ensureArray(options).find((option) => {
+      if (sourceSectionId && [option && option.targetId, option && option.sectionId].some((id) => endpointTokensEqual(id, sourceSectionId))) {
+        return true;
+      }
+      return sourceWithin(source, option && option.target && option.target.source || {});
+    }) || null;
+  }
+
+  function textBlockForAssetSource(blocks, source, section, option) {
+    return ensureArray(blocks).find((block) => sourceWithin(source, block && block.source || {})) ||
+      ensureArray(blocks).find((block) => {
+        const blockSection = String(block && block.sectionId || '').trim();
+        if (section && blockSection && endpointTokensEqual(blockSection, section.id)) {
+          return true;
+        }
+        if (option) {
+          return ensureArray(block && block.relatedOptionIds).some((id) => endpointTokensEqual(id, option.id));
+        }
+        return false;
+      }) ||
+      null;
+  }
+
+  function placementKindForBlock(block) {
+    const role = String(block && block.semanticRole || '');
+    const branchKind = String(block && block.branchKind || '');
+    if (role === 'option_result_text') {
+      return 'option_result_visual';
+    }
+    if (role === 'conditional_option_result_text' || role === 'conditional_text' || ensureArray(block && block.conditions).length) {
+      return 'conditional_visual';
+    }
+    if (branchKind === 'menu' || ensureArray(block && block.ownedOptionIds).length) {
+      return 'menu_visual';
+    }
+    if (role === 'opening_text') {
+      return 'opening_visual';
+    }
+    return 'section_visual';
+  }
+
+  function isOpeningInlineAsset(row, directive) {
+    if (directive !== 'inline-image' && directive !== 'inline-asset') {
+      return false;
+    }
+    const source = sourceRef(row && row.source || {});
+    return Boolean(source.path && source.line);
+  }
+
+  function assetPlacementDisplayLocation(kind, row, block, option, section) {
+    if (kind === 'global_slot') {
+      return 'Global media slot';
+    }
+    if (option && option.label) {
+      return 'Option: ' + option.label;
+    }
+    if (block && block.label) {
+      return block.label;
+    }
+    if (section && (section.title || section.id)) {
+      return section.title || section.id;
+    }
+    if (kind === 'opening_visual') {
+      return 'Opening visual';
+    }
+    return row && (row.label || row.path) || 'Inline visual';
+  }
+
+  function sourceWithin(source, range) {
+    if (!source || !range || !sameSourcePath(source, range)) {
+      return false;
+    }
+    const line = Number(source.line || source.startLine || 0);
+    const start = Number(range.startLine || range.line || 0);
+    const end = Number(range.endLine || range.line || start || 0);
+    return Boolean(line && start && end && line >= start && line <= end);
+  }
+
+  function sameSourcePath(a, b) {
+    return String(a && a.path || '') === String(b && b.path || '');
+  }
+
+  function endpointTokensEqual(a, b) {
+    return normalizeEndpointToken(a) === normalizeEndpointToken(b);
+  }
+
+  function normalizeEndpointToken(value) {
+    const text = String(value || '').trim().replace(/^[@#]/, '');
+    if (!text) {
+      return '';
+    }
+    return text.includes('.') ? text.split('.').pop() : text;
+  }
+
+  function uniqueStrings(values) {
+    const seen = new Set();
+    const out = [];
+    ensureArray(values).forEach((value) => {
+      const text = String(value || '').trim();
+      if (!text || seen.has(text)) {
+        return;
+      }
+      seen.add(text);
+      out.push(text);
+    });
+    return out;
+  }
+
+  function findAssetReferenceField(row, assetFields) {
+    const directive = assetDirectiveForRow(row, null);
+    const path = String(row && row.path || '').trim();
+    if (!directive || !path) {
+      return null;
+    }
+    const original = directive + ': ' + path;
+    return ensureArray(assetFields).find((field) => {
+      const fieldDirective = assetDirectiveForRow(row, field);
+      const fieldPath = String(field && field.assetPath || '').trim();
+      return fieldDirective === directive && fieldPath === path;
+    }) ||
+      ensureArray(assetFields).find((field) => String(field && field.original || '').trim() === original) ||
+      ensureArray(assetFields).find((field) => {
+        const text = String(field && field.original || '').trim();
+        return text.startsWith(directive + ':') && text.slice(directive.length + 1).trim() === path;
+      }) ||
+      null;
+  }
+
+  function assetDirectiveForRow(row, field) {
+    const api = assetModelApi();
+    const normalize = api && typeof api.normalizeAssetDirective === 'function'
+      ? api.normalizeAssetDirective
+      : (value) => {
+        const text = String(value || '').trim().toLowerCase();
+        return text === 'face-image' || text === 'card-image' || text === 'set-bg' || text === 'audio' ? text : '';
+      };
+    const explicit = normalize(row && (row.directive || row.replacementDirective));
+    if (explicit) {
+      return explicit;
+    }
+    const original = String(field && field.original || '').trim();
+    const match = /^([a-z-]+)\s*:/.exec(original);
+    return match ? normalize(match[1]) : '';
+  }
+
+  function replacementAssetPathFromChange(change, currentPath) {
+    if (!change || !String(change.after || '').trim()) {
+      return '';
+    }
+    const after = String(change.after || '').trim();
+    const directiveMatch = /^[a-z-]+\s*:\s*(.+)$/i.exec(after);
+    if (directiveMatch) {
+      return directiveMatch[1].trim();
+    }
+    const current = String(currentPath || '').trim();
+    const imageMatch = /!\[[^\]]*\]\(([^)]+)\)/.exec(after);
+    if (imageMatch) {
+      return imageMatch[1].trim();
+    }
+    if (current && after.includes(current)) {
+      return current;
+    }
+    return '';
+  }
+
+  function assetAddFieldsForExisting(context) {
+    return ensureArray(context && context.editModel && context.editModel.fields)
+      .filter((field) => String(field && field.transform || '') === 'asset_add_reference')
+      .map((field) => ({
+        id: String(field.id || ''),
+        role: String(field.assetRole || ''),
+        directive: String(field.assetDirective || ''),
+        type: String(field.assetType || ''),
+        label: String(field.label || ''),
+        placementKind: String(field.placementKind || ''),
+        displayLocation: String(field.displayLocation || ''),
+        sectionId: String(field.sectionId || ''),
+        optionId: String(field.optionId || ''),
+        source: sourceRef(field.source || {}),
+        anchorText: String(field.anchorText || field.source && field.source.anchorText || ''),
+        status: editorStatus(field.editability || '')
+      }))
+      .filter((field) => field.id && field.role && field.directive);
+  }
+
+  function assetCatalogForProject(projectIndex, target) {
+    const assetApi = assetModelApi();
+    if (assetApi && typeof assetApi.buildAssetCatalog === 'function') {
+      return assetApi.buildAssetCatalog(projectIndex, {target});
+    }
+    return ensureArray(projectIndex && projectIndex.semantic && projectIndex.semantic.assets && projectIndex.semantic.assets.items).map((asset) => {
+      const normalized = assetApi && typeof assetApi.normalizeAssetRef === 'function'
+        ? assetApi.normalizeAssetRef(asset)
+        : asset;
+      const role = assetApi && typeof assetApi.inferAssetRole === 'function'
+        ? assetApi.inferAssetRole(normalized, target)
+        : '';
+      return Object.assign({}, normalized, {role});
+    }).filter((asset) => asset && (asset.path || asset.id));
+  }
+
+  function sourceReferencePathForAsset(value) {
+    const path = String(value || '').replace(/\\/g, '/').replace(/^\/+/, '').trim();
+    return path.replace(/^out\/html\//i, '');
+  }
+
+  function fileName(path) {
+    const text = String(path || '').replace(/\\/g, '/');
+    return text.split('/').filter(Boolean).pop() || '';
   }
 
   function isPrimaryExistingSection(editor, sceneId) {
@@ -797,7 +1245,7 @@
     return Boolean(editor && option && optionTargets.some((target) => String(editorSection) === String(target || '')));
   }
 
-  function eventBodyForNewEvent(draft) {
+  function eventBodyForNewEvent(draft, projectIndex) {
     return {
       mode: 'new_event',
       eventShape: draft.eventShape || (ensureArray(draft.options).length ? 'choice_event' : 'pure_event'),
@@ -828,7 +1276,8 @@
         field('event.monthEnd', 'Month end', draft.when && draft.when.monthEnd, 'guarded'),
         field('event.requires', 'Condition', draft.when && draft.when.requires, 'guarded'),
         field('event.priority', 'Priority', draft.when && draft.when.priority, 'guarded')
-      ]
+      ],
+      assets: assetRowsForDraft(projectIndex, draft, 'event')
     };
   }
 
@@ -874,12 +1323,7 @@
       ].filter(Boolean),
       variables: variablesMentionedByDraft(projectIndex, draft),
       effects: effectRowsForDraft(draft),
-      assets: ensureArray(draft.assetRefs).concat(ensureArray(draft.assetInstallRequests)).map((asset) => ({
-        label: asset.label || asset.path || asset.targetPath || asset.sourceName || 'asset',
-        path: asset.path || asset.targetPath || asset.sourcePath || '',
-        role: asset.role || asset.type || 'asset',
-        status: 'draft'
-      })),
+      assets: assetRowsForDraft(projectIndex, draft, 'event'),
       sourceEvidence: [
         {label: 'new scene target', path: 'source/scenes/events/' + (draft.id || 'new_event') + '.scene.dry', status: 'draft'}
       ],
@@ -892,6 +1336,19 @@
         }
       ]
     };
+  }
+
+  function assetRowsForDraft(projectIndex, draft, target) {
+    const assetApi = assetModelApi();
+    if (assetApi && typeof assetApi.buildAssetRows === 'function') {
+      return assetApi.buildAssetRows(draft || {}, {projectIndex, target});
+    }
+    return ensureArray(draft && draft.assetRefs).concat(ensureArray(draft && draft.assetInstallRequests)).map((asset) => ({
+      label: asset.label || asset.path || asset.targetPath || asset.sourceName || 'asset',
+      path: asset.path || asset.targetPath || asset.sourcePath || '',
+      role: asset.role || asset.type || 'asset',
+      status: 'draft'
+    }));
   }
 
   function flowRows(context) {

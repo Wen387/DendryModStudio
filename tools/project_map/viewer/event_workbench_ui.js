@@ -13,6 +13,10 @@
     effects: 'Effects and variable changes',
     variables: 'State touched by this event',
     links: 'Follow-up and related flow',
+    routeState: 'Route state',
+    noRouteState: 'No structured route state was found.',
+    routeDependencies: 'State dependencies',
+    routeFallback: 'fallback',
     actions: 'What you can do here',
     advanced: 'Advanced details',
     noText: 'No body text was extracted into this index.',
@@ -79,6 +83,7 @@
       '</div>',
       renderPlayerText(wb.playerText || [], locale),
       renderOptions(wb.options || [], locale),
+      renderRouteState(wb.routeState || {}, locale),
       renderConditions(wb.conditions || [], locale),
       renderEffects(wb.effects || [], locale),
       renderVariables(wb.variables || [], locale),
@@ -120,6 +125,29 @@
       '</div>';
     }).join('');
     return section('conditions', label(locale, 'conditions'), '<div class="event-workbench-chip-grid">' + (content || empty(label(locale, 'noConditions'))) + '</div>', sectionCount(rows));
+  }
+
+  function renderRouteState(routeState, locale) {
+    const rows = (routeState && routeState.states || []).slice(0, 8);
+    const content = rows.map((row) => {
+      const candidates = (row.candidates || []).slice(0, 4).map((candidate) => {
+        const predicate = candidate.predicate ? ' if ' + candidate.predicate : '';
+        const fallback = candidate.isFallback ? ' [' + label(locale, 'routeFallback') + ']' : '';
+        const dynamic = candidate.dynamicTarget ? ' · ' + (candidate.targetSource || 'dynamic') : '';
+        return '<li>' + escapeHtml((candidate.resolvedTarget || candidate.rawTarget || '') + predicate + fallback + dynamic) + '</li>';
+      }).join('');
+      const dependencies = (row.dependencies || []).length
+        ? '<small>' + escapeHtml(label(locale, 'routeDependencies') + ': ' + row.dependencies.join(', ')) + '</small>'
+        : '';
+      return '<article class="event-workbench-route-state-row" data-event-workbench-route-state="' + escapeAttr(row.id || '') + '">' +
+        '<strong>' + escapeHtml([row.routeField || row.routeKind || 'route', row.chainContext || row.status || ''].filter(Boolean).join(' · ')) + '</strong>' +
+        '<span>' + escapeHtml(row.summaryLabel || row.routePurpose || '') + '</span>' +
+        (candidates ? '<ul>' + candidates + '</ul>' : '') +
+        dependencies +
+      '</article>';
+    }).join('');
+    const count = routeState && routeState.summary && routeState.summary.routeStateCount || rows.length;
+    return section('routeState', label(locale, 'routeState'), content || empty(label(locale, 'noRouteState')), sectionCount(count));
   }
 
   function renderEffects(rows, locale) {

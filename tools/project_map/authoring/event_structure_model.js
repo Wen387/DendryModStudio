@@ -930,9 +930,7 @@
         sectionId,
         targetLabel: sectionLabel,
         source: sectionAddOptionSource || block && block.source || sceneSource,
-        editability: sectionAddOptionSource && sectionAddOptionSource.structureKind === 'section_text_option_insert_anchor'
-          ? 'advanced_source_patch'
-          : sectionAddOptionSource ? 'guarded_apply' : 'manual_review',
+        editability: sectionAddOptionSource ? 'guarded_apply' : 'manual_review',
         sourceBlock: {
           kind: sectionAddOptionSource && sectionAddOptionSource.structureKind || (sectionAddOptionSource ? 'section_option_insert_anchor' : 'section_option_manual_boundary'),
           sectionId,

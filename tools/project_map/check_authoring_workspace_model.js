@@ -213,6 +213,11 @@ assert(previewObjectStructureDraftApi.composeStructureValue('add_option', {
   'unavailable-subtitle: The bridge is closed.',
   'You cross safely.'
 ].join('\n'), 'Preview Object structure draft helpers should compose add-option drafts');
+assert(previewObjectStructureDraftApi.composeStructureValue('add_option', {
+  option_label: 'What next?',
+  target_id: 'Aufhäuser_republican_concordat',
+  result_text: 'The branch remains source-safe.'
+}).includes('@aufhauser_republican_concordat'), 'Preview Object structure draft helpers should normalize non-ASCII target ids into source-safe Dendry ids');
 assert(previewObjectStructureDraftApi.composeStructureValue('add_branch', {
   section_id: 'rain_check',
   condition: 'Q.weather = "rain"',
@@ -505,6 +510,7 @@ assert(inlineConditionalTitle.includes('Center Party') && inlineConditionalTitle
 assert(!inlineConditionalTitle.includes('<code>z_party_name'), 'Visible Text Renderer should not inflate inline conditional alternatives into condition cards');
 assert(visibleTextApi.renderBlocks('<table><tr><td>DNVP</td><td>54</td></tr></table>').includes('dendry-text-rich-block'), 'Visible Text Renderer should render chart/table markup as a visual block');
 assert(visibleTextApi.renderBlocks('![Congress](img/events/dnvp_congress.png)', {assetBaseUrl: 'file:///project'}).includes('file:///project/img/events/dnvp_congress.png'), 'Visible Text Renderer should resolve safe image asset references when an asset base is available');
+assert(visibleTextApi.renderBlocks('![Congress](img/events/dnvp_congress.png)', {assetBaseUrl: 'file:///project', runtimeAssetRoot: 'out/html'}).includes('file:///project/out/html/img/events/dnvp_congress.png'), 'Visible Text Renderer should resolve Dendry runtime image paths separately from source-relative references');
 assert(!visibleTextApi.renderInline('<script>alert(1)</script>').includes('<script'), 'Visible Text Renderer should drop unsupported HTML tags');
 assert(!visibleTextApi.renderInline('<span style="color: #c00000; background-image: url(x)">SPD</span>').includes('url('), 'Visible Text Renderer should reject unsafe CSS values');
 const previewPaneHtml = previewObjectEditorApi.renderPreviewPane({

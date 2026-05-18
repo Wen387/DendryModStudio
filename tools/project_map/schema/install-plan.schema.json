@@ -44,12 +44,17 @@
           "replace": {"type": "string"},
           "anchorText": {"type": "string"},
           "endAnchorText": {"type": "string"},
+          "rawAnchorText": {"type": "string"},
+          "rawEndAnchorText": {"type": "string"},
+          "expectedRangeHash": {"type": "string"},
+          "deleteMode": {"enum": ["", "line"]},
           "position": {"enum": ["before", "after"]},
           "dedupeSearch": {"type": "string"},
           "sourceName": {"type": "string"},
           "sourcePath": {"type": "string"},
           "assetType": {"type": "string"},
-          "role": {"type": "string"}
+          "role": {"type": "string"},
+          "deletesSourceLine": {"type": "boolean"}
         },
         "additionalProperties": true
       }

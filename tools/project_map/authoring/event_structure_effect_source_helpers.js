@@ -7,7 +7,7 @@
 
   function looksLikeStandaloneEffectAnchor(anchor) {
     const text = stringValue(anchor).trim();
-    if (!text || /^on-arrival\s*:/i.test(text) || /^on-display\s*:/i.test(text)) {
+    if (!text || /^on-arrival\s*:/i.test(text) || /^on-departure\s*:/i.test(text) || /^on-display\s*:/i.test(text)) {
       return false;
     }
     return /^(?:Q\.)?[A-Za-z_][A-Za-z0-9_]*\s*(?:=|\+=|-=|\*=|\/=)/.test(text);
@@ -18,7 +18,7 @@
     if (!line || /^on-display\s*:/i.test(line) || line.indexOf('{!') >= 0) {
       return {ok: false, nextLine: ''};
     }
-    const onArrival = line.match(/^(on-arrival\s*:\s*)([\s\S]+)$/i);
+    const onArrival = line.match(/^((?:on-arrival|on-departure)\s*:\s*)([\s\S]+)$/i);
     const standalone = !onArrival && looksLikeStandaloneEffectAnchor(line);
     if (!onArrival && !standalone) {
       return {ok: false, nextLine: ''};
@@ -99,7 +99,7 @@
 
   function normalizeEffectClause(value) {
     return stringValue(value)
-      .replace(/^on-arrival\s*:\s*/i, '')
+      .replace(/^(?:on-arrival|on-departure)\s*:\s*/i, '')
       .replace(/\bQ\./g, '')
       .replace(/\s*(=|\+=|-=|\*=|\/=)\s*/g, ' $1 ')
       .replace(/\s+/g, ' ')

@@ -186,6 +186,9 @@
       endLine: source.endLine || source.line || null,
       anchorText: source.anchorText || template.anchorText || currentText,
       endAnchorText: source.endAnchorText || template.endAnchorText || source.anchorText || currentText,
+      rawAnchorText: source.rawAnchorText || template.rawAnchorText || '',
+      rawEndAnchorText: source.rawEndAnchorText || template.rawEndAnchorText || source.rawAnchorText || '',
+      expectedRangeHash: source.expectedRangeHash || template.expectedRangeHash || '',
       search: operationType === 'replace_text' ? (template.search || source.anchorText || currentText) : '',
       replace: '',
       content: '',
@@ -208,6 +211,9 @@
       endLine: source.endLine || source.line || null,
       anchorText: model.anchorEvidence && model.anchorEvidence.anchorText || source.anchorText || model.currentText || '',
       endAnchorText: model.anchorEvidence && model.anchorEvidence.endAnchorText || source.endAnchorText || source.anchorText || model.currentText || '',
+      rawAnchorText: model.anchorEvidence && model.anchorEvidence.rawAnchorText || source.rawAnchorText || '',
+      rawEndAnchorText: model.anchorEvidence && model.anchorEvidence.rawEndAnchorText || source.rawEndAnchorText || source.rawAnchorText || '',
+      expectedRangeHash: model.anchorEvidence && model.anchorEvidence.expectedRangeHash || source.expectedRangeHash || '',
       safety: model.installSafety || safetyForSource(source),
       description: model.installSafety === 'advanced_apply'
         ? 'Advanced source slice replacement for player-visible content.'
@@ -287,7 +293,10 @@
       startLine: line,
       endLine,
       anchorText: String(value.anchorText || ''),
-      endAnchorText: String(value.endAnchorText || '')
+      endAnchorText: String(value.endAnchorText || ''),
+      rawAnchorText: String(value.rawAnchorText || ''),
+      rawEndAnchorText: String(value.rawEndAnchorText || ''),
+      expectedRangeHash: String(value.expectedRangeHash || '')
     };
   }
 

@@ -264,6 +264,7 @@
 
 .event-workbench-text-row,
 .event-workbench-option-row,
+.event-workbench-route-state-row,
 .event-workbench-action-row {
   display: grid;
   gap: 5px;
@@ -304,6 +305,8 @@
 
 .event-workbench-text-row span,
 .event-workbench-option-row small,
+.event-workbench-route-state-row span,
+.event-workbench-route-state-row small,
 .event-workbench-action-row p,
 .event-workbench-link-row small {
   color: var(--muted);
@@ -311,8 +314,15 @@
 
 .event-workbench-text-row p,
 .event-workbench-option-row p,
+.event-workbench-route-state-row p,
 .event-workbench-action-row p {
   margin: 0;
+  line-height: 1.45;
+}
+
+.event-workbench-route-state-row ul {
+  margin: 0;
+  padding-left: 18px;
   line-height: 1.45;
 }
 

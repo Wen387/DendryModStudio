@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 'use strict';
 
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const canvasModel = require('./authoring/object_authoring_canvas_model.js');
 const eventStructureModel = require('./authoring/event_structure_model.js');
 const eventWorkbench = require('./authoring/event_workbench_model.js');
@@ -148,7 +151,23 @@ current.effects = [{
 const target = scene('target_scene', {title: 'Target Scene'});
 const labor = scene('labor_unrest', {
   title: 'Labor Unrest',
-  assetRefs: [{path: 'img/events/dnvp_congress.png', type: 'image', label: 'Congress hall', role: 'event_illustration'}],
+  assetRefs: [
+    {path: 'img/events/dnvp_congress.png', type: 'image', label: 'Congress hall', role: 'event_illustration'},
+    {
+      path: 'img/events/iron_front_branch.png',
+      type: 'image',
+      label: 'Iron Front branch poster',
+      directive: 'face-image',
+      source: {
+        path: 'source/scenes/events/labor_unrest.scene.dry',
+        line: 20,
+        startLine: 20,
+        endLine: 20,
+        anchorText: 'face-image: img/events/iron_front_branch.png',
+        endAnchorText: 'face-image: img/events/iron_front_branch.png'
+      }
+    }
+  ],
   options: [{
     target: {id: 'support_labor'},
     title: 'Support labor.',
@@ -180,11 +199,110 @@ const labor = scene('labor_unrest', {
   sourceSpan: {path: 'source/scenes/events/labor_unrest.scene.dry', startLine: 1, endLine: 40},
   metadata: {viewIf: {path: 'source/scenes/events/labor_unrest.scene.dry', line: 4}}
 });
+const assetDirectiveEvent = scene('asset_directive_event', {
+  title: 'Asset Directive Event',
+  options: [],
+  sourceSpan: {path: 'source/scenes/events/asset_directive_event.scene.dry', startLine: 1, endLine: 20},
+  metadata: {viewIf: {path: 'source/scenes/events/asset_directive_event.scene.dry', line: 4}},
+  assetRefs: [
+    {
+      path: 'img/events/current-face.png',
+      type: 'image',
+      label: 'Current face',
+      directive: 'face-image',
+      source: {
+        path: 'source/scenes/events/asset_directive_event.scene.dry',
+        line: 7,
+        startLine: 7,
+        endLine: 7,
+        anchorText: 'face-image: img/events/current-face.png',
+        endAnchorText: 'face-image: img/events/current-face.png'
+      }
+    },
+    {
+      path: 'img/events/current-bg.jpg',
+      type: 'image',
+      label: 'Current background',
+      directive: 'set-bg',
+      source: {
+        path: 'source/scenes/events/asset_directive_event.scene.dry',
+        line: 8,
+        startLine: 8,
+        endLine: 8,
+        anchorText: 'set-bg: img/events/current-bg.jpg',
+        endAnchorText: 'set-bg: img/events/current-bg.jpg'
+      }
+    },
+    {
+      path: 'audio/events/current-theme.ogg',
+      type: 'audio',
+      label: 'Current theme',
+      directive: 'audio',
+      source: {
+        path: 'source/scenes/events/asset_directive_event.scene.dry',
+        line: 9,
+        startLine: 9,
+        endLine: 9,
+        anchorText: 'audio: audio/events/current-theme.ogg',
+        endAnchorText: 'audio: audio/events/current-theme.ogg'
+      }
+    },
+    {
+      path: 'img/events/current-inline.jpg',
+      type: 'image',
+      label: 'Current inline campaign',
+      directive: 'inline-image',
+      source: {
+        path: 'source/scenes/events/asset_directive_event.scene.dry',
+        line: 10,
+        startLine: 10,
+        endLine: 10,
+        anchorText: '![Campaign crowd](img/events/current-inline.jpg)',
+        endAnchorText: '![Campaign crowd](img/events/current-inline.jpg)'
+      }
+    }
+  ]
+});
+const fuzzyAssetEvent = scene('fuzzy_asset_event', {
+  title: 'Fuzzy Asset Event',
+  options: [],
+  sourceSpan: {path: 'source/scenes/events/fuzzy_asset_event.scene.dry', startLine: 1, endLine: 20},
+  assetRefs: [{
+    path: 'img/events/fuzzy-bg.jpg',
+    type: 'image',
+    label: 'Fuzzy background',
+    directive: 'set-bg',
+    source: {path: 'source/scenes/events/fuzzy_asset_event.scene.dry'}
+  }]
+});
+const assetDirectiveCard = scene('asset_directive_card', {
+  title: 'Asset Directive Card',
+  path: 'source/scenes/cards/asset_directive_card.scene.dry',
+  type: 'card',
+  flags: {isCard: true},
+  viewIf: '',
+  options: [],
+  sourceSpan: {path: 'source/scenes/cards/asset_directive_card.scene.dry', startLine: 1, endLine: 20},
+  assetRefs: [{
+    path: 'img/cards/current-card.png',
+    type: 'image',
+    label: 'Current card',
+    directive: 'card-image',
+    source: {
+      path: 'source/scenes/cards/asset_directive_card.scene.dry',
+      line: 6,
+      startLine: 6,
+      endLine: 6,
+      anchorText: 'card-image: img/cards/current-card.png',
+      endAnchorText: 'card-image: img/cards/current-card.png'
+    }
+  }]
+});
 
 const index = {
   schemaVersion: '0.1',
   project: {name: 'Object Canvas Fixture', root: '/tmp/object-canvas'},
-  scenes: [current, target, labor],
+  scenes: [current, target, labor, assetDirectiveEvent, fuzzyAssetEvent, assetDirectiveCard],
   edges: [
     {from: 'generic_intro', to: 'target_scene', kind: 'go_to', label: 'continues', source: {path: current.path, line: 20}}
   ],
@@ -193,8 +311,28 @@ const index = {
     {name: 'labor_minister', readCount: 1, writeCount: 1, reads: [{path: labor.path, line: 26}], writes: [{path: labor.path, line: 6}], tags: ['labor']}
   ],
   semantic: {
-    events: [{id: current.id, title: current.title, path: current.path}, {id: labor.id, title: labor.title, path: labor.path}],
-    cards: [],
+    events: [
+      {id: current.id, title: current.title, path: current.path},
+      {id: labor.id, title: labor.title, path: labor.path},
+      {id: assetDirectiveEvent.id, title: assetDirectiveEvent.title, path: assetDirectiveEvent.path},
+      {id: fuzzyAssetEvent.id, title: fuzzyAssetEvent.title, path: fuzzyAssetEvent.path}
+    ],
+    cards: [{id: assetDirectiveCard.id, title: assetDirectiveCard.title, path: assetDirectiveCard.path}],
+    assets: {
+      items: [
+        {path: 'img/events/dnvp_congress.png', type: 'image', label: 'Congress hall', fileExists: true},
+        {path: 'img/events/iron_front_branch.png', type: 'image', label: 'Iron Front branch poster', fileExists: true},
+        {path: 'img/events/current-face.png', type: 'image', label: 'Current face', fileExists: true},
+        {path: 'img/events/current-bg.jpg', type: 'image', label: 'Current background', fileExists: true},
+        {path: 'img/events/current-inline.jpg', type: 'image', label: 'Current inline campaign', fileExists: true},
+        {path: 'audio/events/current-theme.ogg', type: 'audio', label: 'Current theme', fileExists: true},
+        {path: 'img/cards/current-card.png', type: 'image', label: 'Current card', fileExists: true},
+        {path: 'img/events/indexed-portrait.png', type: 'image', label: 'Indexed portrait', fileExists: true},
+        {path: 'out/html/img/events/runtime-indexed.png', type: 'image', label: 'Runtime indexed', fileExists: true},
+        {path: 'img/cards/indexed-card.png', type: 'image', label: 'Indexed card art', fileExists: true},
+        {path: 'audio/events/indexed-theme.ogg', type: 'audio', label: 'Indexed theme', fileExists: true}
+      ]
+    },
     textCorpus: {
       items: [
         {
@@ -280,6 +418,18 @@ const index = {
           role: 'body',
           owner: {kind: 'scene', sceneId: 'labor_unrest', sectionId: 'labor_unrest.no_ministry'},
           source: {path: labor.path, line: 27}
+        },
+        {
+          id: 'asset_directive_event_inline_image',
+          text: '![Campaign crowd](img/events/current-inline.jpg)',
+          role: 'body',
+          owner: {kind: 'scene', sceneId: 'asset_directive_event'},
+          source: {
+            path: assetDirectiveEvent.path,
+            line: 10,
+            anchorText: '![Campaign crowd](img/events/current-inline.jpg)',
+            endAnchorText: '![Campaign crowd](img/events/current-inline.jpg)'
+          }
         }
       ]
     }
@@ -556,12 +706,12 @@ const menuComplexAddOption = canvasModel.buildExistingCanvas(index, 'events', 'm
 assert(menuComplexAddOption.ok, 'complex source-backed section option insertion should build');
 assert(menuComplexAddOption.changeState.installPlan.operations.some((operation) =>
   operation.type === 'insert_text' &&
-  operation.safety === 'advanced_apply' &&
+  operation.safety === 'guarded_apply' &&
   String(operation.content || '').includes('- @third: Third path.') &&
   String(operation.content || '').includes('choose-if: public_order >= 1') &&
   String(operation.content || '').includes('unavailable-subtitle: Public order is too low.') &&
   !String(operation.content || '').includes('result-mode: native')
-), 'complex source-backed option insertion should become an advanced source patch instead of a manual snippet');
+), 'complex source-backed option insertion should stay guarded and source-backed instead of a manual snippet');
 assert(!menuComplexAddOption.changeState.installPlan.operations.some((operation) => operation.type === 'manual_snippet'), 'complex source-backed option insertion should not fall back to manual review');
 const conditionalOptionEffect = canvasModel.buildExistingCanvas(index, 'events', 'generic_intro', {
   values: {
@@ -748,6 +898,270 @@ assert(laborExisting.ok, 'Labor Unrest should open in Object Canvas: ' + JSON.st
 assert(laborExisting.eventBody.sections.some((field) => field.semanticRole === 'opening_text'), 'existing event preview should keep opening prose in the main event body');
 assert(laborExisting.eventBody.sections.some((field) => field.visualKinds && field.visualKinds.includes('chart')), 'existing event preview should tag rendered charts/tables separately from plain prose');
 assert(laborExisting.eventBody.assets.some((asset) => asset.path === 'img/events/dnvp_congress.png'), 'existing event preview should carry referenced assets into the visible editor');
+assert(laborExisting.eventBody.assets.some((asset) => asset.role === 'event_illustration' && asset.roleLabel === 'Event illustration' && asset.rowKind === 'asset_ref'), 'existing event asset rows should use the shared Object Canvas asset contract');
+assert(laborExisting.eventBody.assets.some((asset) => asset.path === 'img/events/iron_front_branch.png' && asset.placementKind === 'option_result_visual' && asset.optionId === 'support_labor' && asset.flowAsset), 'existing branch face-image should be classified as an option-result flow asset');
+const laborAssetPreviewHtml = previewEditor.renderPreviewPane(laborExisting);
+assert(laborAssetPreviewHtml.includes('data-object-canvas-assets-panel="true"'), 'existing event preview should render the Object Canvas assets panel');
+assert(laborAssetPreviewHtml.includes('data-object-canvas-asset-slots="true"'), 'existing event preview should render Object Canvas asset slot markers');
+assert(laborAssetPreviewHtml.includes('data-asset-slot-role="event_illustration"'), 'existing event asset slots should expose the event illustration role marker');
+assert(laborAssetPreviewHtml.includes('data-asset-role="event_illustration"'), 'existing event asset rows should expose stable role markers');
+assert(laborAssetPreviewHtml.includes('data-object-canvas-flow-assets="true"'), 'existing event preview should render flow-positioned asset groups');
+assert(laborAssetPreviewHtml.includes('data-asset-placement-kind="option_result_visual"'), 'existing branch assets should expose option-result placement markers');
+const laborFlowSummaryStart = laborAssetPreviewHtml.indexOf('data-object-canvas-flow-asset-summary="true"');
+const laborFlowSummaryHtml = laborFlowSummaryStart >= 0
+  ? laborAssetPreviewHtml.slice(laborFlowSummaryStart, laborAssetPreviewHtml.indexOf('</section>', laborFlowSummaryStart))
+  : '';
+assert(laborFlowSummaryHtml.includes('data-object-canvas-flow-asset-add-summary="true"'), 'flow asset summary should collapse global add-here controls into a count');
+assert(!laborFlowSummaryHtml.includes('data-object-canvas-asset-select="true"'), 'flow asset summary should not render every add-here asset selector');
+const laborAssetEditorHtml = previewEditor.render(laborExisting);
+assert(laborAssetEditorHtml.includes('data-preview-object-inline-add="add_option"'), 'existing event editor should keep the player-choice add-option entry visible after asset panel rendering');
+assert(laborAssetEditorHtml.includes('data-object-canvas-assets-panel="true"'), 'existing event editor should render the same Object Canvas asset panel as the preview pane');
+assert(laborAssetEditorHtml.includes('data-asset-slot-role="event_illustration"'), 'existing event editor asset panel should expose the event illustration slot marker');
+assert(laborAssetEditorHtml.includes('data-existing-asset-add-field="asset_add_event_portrait"'), 'existing event empty asset slots should expose source-backed add controls');
+assert(laborAssetEditorHtml.includes('data-asset-directive="face-image"'), 'existing event add controls should carry the directive to insert');
+assert(laborAssetEditorHtml.includes('data-object-canvas-flow-asset-add="true"'), 'existing event editor should expose add-here controls for flow-positioned assets');
+assert(laborAssetEditorHtml.includes('Add image to option result'), 'existing flow asset add labels should be normalized through the localized wording');
+const largeCatalog = Array.from({length: 650}, (_item, index) => ({
+  path: 'img/events/filler_' + String(index).padStart(3, '0') + '.jpg',
+  type: 'image',
+  label: 'Filler asset ' + String(index).padStart(3, '0'),
+  fileExists: true
+})).concat({
+  path: 'img/events/late-related.jpg',
+  type: 'image',
+  label: 'Late related campaign',
+  fileExists: true
+});
+const lateRelatedHtml = previewEditor.render({
+  mode: 'existing',
+  objectKind: 'event',
+  objectId: 'late_related_fixture',
+  title: 'Late Related Fixture',
+  eventBody: {
+    title: {value: 'Late Related Fixture'},
+    sections: [{id: 'late_related_fixture.opening', value: 'Opening text.'}],
+    branchSections: [{
+      id: 'late_related_fixture.branch',
+      sectionId: 'late_related_fixture.branch',
+      relatedOptionIds: ['late_branch'],
+      semanticRole: 'option_result_text',
+      label: 'Option: Late branch',
+      value: 'The option result contains a related image.'
+    }],
+    assets: [{
+      path: 'img/events/late-related.jpg',
+      type: 'image',
+      label: 'Late related campaign',
+      placementKind: 'option_result_visual',
+      sectionId: 'late_related_fixture.branch',
+      optionId: 'late_branch',
+      flowAsset: true
+    }],
+    assetCatalog: largeCatalog,
+    assetAddFields: [{
+      id: 'asset_add_flow_late_branch',
+      role: 'event_illustration',
+      directive: 'face-image',
+      type: 'image',
+      placementKind: 'option_result_visual',
+      sectionId: 'late_related_fixture.branch',
+      optionId: 'late_branch',
+      displayLocation: 'Option: Late branch'
+    }]
+  }
+});
+const lateSelectMarker = lateRelatedHtml.indexOf('data-existing-asset-add-field="asset_add_flow_late_branch"');
+const lateSelectHtml = lateRelatedHtml.slice(lateRelatedHtml.lastIndexOf('<select', lateSelectMarker), lateRelatedHtml.indexOf('</select>', lateSelectMarker));
+const latePickerHtml = lateRelatedHtml.slice(lateRelatedHtml.lastIndexOf('<div class="object-canvas-flow-asset-add"', lateSelectMarker), lateRelatedHtml.indexOf('</div>', lateSelectMarker) + 6);
+assert(latePickerHtml.includes('data-object-canvas-asset-filter="true"'), 'large asset selectors should expose an inline filter for finding Dynamic-scale assets');
+assert(latePickerHtml.includes('651 indexed assets'), 'large asset selectors should show the full candidate count instead of hiding catalog size');
+assert(lateSelectHtml.includes('img/events/late-related.jpg'), 'local flow add selector should prioritize related event assets even when the project catalog is large');
+assert(lateSelectHtml.includes('img/events/filler_649.jpg'), 'large project asset selectors should expose the full Dynamic-scale image list, not only the first page of candidates');
+const outHtmlAssetSelectorHtml = previewEditor.render({
+  mode: 'existing',
+  objectKind: 'event',
+  objectId: 'out_html_selector_fixture',
+  title: 'out/html selector fixture',
+  eventBody: {
+    title: {value: 'out/html selector fixture'},
+    sections: [],
+    options: [],
+    assets: [],
+    assetCatalog: [{path: 'out/html/img/article48.jpg', type: 'image', label: 'article48.jpg', fileExists: true}],
+    assetAddFields: [{
+      id: 'asset_add_event_background',
+      role: 'event_background',
+      directive: 'set-bg',
+      type: 'image',
+      placementKind: 'global_slot',
+      displayLocation: 'Global media slot'
+    }]
+  }
+});
+assert(outHtmlAssetSelectorHtml.includes('&quot;path&quot;:&quot;img/article48.jpg&quot;'), 'asset selector values should write Dendry source-relative paths instead of out/html runtime paths');
+assert(outHtmlAssetSelectorHtml.includes('&quot;previewUrl&quot;:&quot;out/html/img/article48.jpg&quot;'), 'asset selector values should preserve runtime preview paths separately from source refs');
+const existingAssetEvent = canvasModel.buildExistingCanvas(index, 'events', 'asset_directive_event', {});
+assert(existingAssetEvent.eventBody.assets.some((asset) => asset.directive === 'face-image' && asset.role === 'event_portrait' && asset.assetEditFieldId === 'asset_face_image_7'), 'existing face-image directive should map to a source-backed asset edit field');
+assert(existingAssetEvent.eventBody.assets.some((asset) => asset.directive === 'set-bg' && asset.role === 'event_background' && asset.assetEditFieldId === 'asset_set_bg_8'), 'existing set-bg directive should map to a source-backed asset edit field');
+assert(existingAssetEvent.eventBody.assets.some((asset) => asset.directive === 'audio' && asset.role === 'event_audio' && asset.assetEditFieldId === 'asset_audio_9'), 'existing audio directive should map to a source-backed asset edit field');
+assert(existingAssetEvent.eventBody.assets.some((asset) => asset.directive === 'inline-image' && asset.role === 'event_illustration' && asset.assetEditFieldId === 'asset_inline_image_10'), 'existing inline image evidence should map into the managed event illustration slot');
+assert(existingAssetEvent.eventBody.assetAddFields.some((field) => field.id === 'asset_add_event_illustration' && field.role === 'event_illustration' && field.directive === 'face-image'), 'existing opening inline images should not hide the event illustration add slot and should add a runtime image directive');
+const existingAssetPreviewHtml = previewEditor.renderPreviewPane(existingAssetEvent);
+assert(existingAssetPreviewHtml.includes('data-object-canvas-asset-replacement="true"'), 'existing exact asset directives should expose Object Canvas replacement controls');
+assert(existingAssetPreviewHtml.includes('data-existing-asset-field="asset_face_image_7"'), 'existing asset replacement control should carry the source-backed field id');
+assert(existingAssetPreviewHtml.includes('data-asset-directive="face-image"'), 'existing asset replacement control should preserve the source directive marker');
+assert(existingAssetPreviewHtml.includes('data-existing-asset-field="asset_inline_image_10"'), 'existing inline image slot should expose replacement/removal controls');
+assert(existingAssetPreviewHtml.includes('data-asset-directive="inline-image"'), 'existing inline image controls should preserve the inline directive marker');
+assert(existingAssetPreviewHtml.includes('data-existing-asset-add-field="asset_add_event_illustration"'), 'existing event illustration slot should expose a source-backed add control when current inline images are flow assets');
+assert(existingAssetPreviewHtml.includes('data-object-canvas-action="remove_asset_reference"'), 'existing exact asset references should expose a remove-reference action');
+const existingAssetEditorHtml = previewEditor.render(existingAssetEvent);
+assert(existingAssetEditorHtml.includes('data-object-canvas-asset-replacement="true"'), 'existing event editor should expose exact asset replacement controls in the editing pane');
+assert(existingAssetEditorHtml.includes('data-existing-asset-field="asset_face_image_7"'), 'existing event editor replacement control should carry the source-backed field id');
+const eventReplacementTarget = 'assets/studio/events/asset_directive_event/new-face.png';
+const existingAssetReplacement = canvasModel.buildExistingCanvas(index, 'events', 'asset_directive_event', {
+  values: {
+    asset_face_image_7: 'face-image: ' + eventReplacementTarget
+  },
+  proposalOptions: {
+    assetInstallRequests: [{
+      sourceName: 'New Face.png',
+      sourcePath: '/tmp/New Face.png',
+      targetPath: eventReplacementTarget,
+      type: 'image',
+      label: 'New Face.png',
+      role: 'event_portrait'
+    }]
+  }
+});
+assert(existingAssetReplacement.changeState.proposal.changes.some((change) => change.before === 'face-image: img/events/current-face.png' && change.after === 'face-image: ' + eventReplacementTarget), 'existing asset replacement should build an exact before/after source change');
+assert(existingAssetReplacement.changeState.installPlan.operations.some((operation) => operation.type === 'replace_text' && operation.safety === 'guarded_apply' && operation.search === 'face-image: img/events/current-face.png'), 'existing asset replacement should produce a guarded replace_text operation');
+assert(existingAssetReplacement.changeState.installPlan.operations.some((operation) => operation.type === 'copy_asset_file' && operation.safety === 'guarded_apply' && operation.sourcePath === '/tmp/New Face.png' && operation.path === eventReplacementTarget), 'existing asset replacement should include a guarded copy_asset_file when desktop sourcePath is present');
+assert(existingAssetReplacement.eventBody.assets.some((asset) => asset.rowKind === 'asset_install_request' && asset.path === eventReplacementTarget && asset.role === 'event_portrait'), 'existing asset replacement should render the pending asset install request row');
+const inlineReplacementTarget = 'assets/studio/events/asset_directive_event/inline-new.jpg';
+const existingInlineReplacement = canvasModel.buildExistingCanvas(index, 'events', 'asset_directive_event', {
+  values: {
+    asset_inline_image_10: '![Campaign crowd](' + inlineReplacementTarget + ')'
+  }
+});
+assert(existingInlineReplacement.changeState.proposal.changes.some((change) => change.before === '![Campaign crowd](img/events/current-inline.jpg)' && change.after === '![Campaign crowd](' + inlineReplacementTarget + ')'), 'existing inline image replacement should preserve the markdown line while changing the referenced path');
+assert(existingInlineReplacement.changeState.installPlan.operations.some((operation) => operation.type === 'replace_text' && operation.safety === 'guarded_apply' && operation.search === '![Campaign crowd](img/events/current-inline.jpg)' && operation.replace === '![Campaign crowd](' + inlineReplacementTarget + ')'), 'existing inline image replacement should produce a guarded replace_text operation');
+const existingInlineRemoval = canvasModel.buildExistingCanvas(index, 'events', 'asset_directive_event', {
+  values: {
+    asset_inline_image_10: ''
+  }
+});
+assert(existingInlineRemoval.changeState.proposal.changes.some((change) => change.fieldId === 'asset_inline_image_10' && change.allowEmptyReplace), 'existing inline image removal should preserve the empty replace safety marker');
+assert(existingInlineRemoval.changeState.installPlan.operations.some((operation) => operation.type === 'replace_text' && operation.safety === 'guarded_apply' && operation.search === '![Campaign crowd](img/events/current-inline.jpg)' && operation.replace === ''), 'existing inline image removal should produce a guarded line removal proposal');
+const existingAssetAdd = canvasModel.buildExistingCanvas(index, 'events', 'labor_unrest', {
+  values: {
+    asset_add_event_portrait: 'face-image: img/events/indexed-portrait.png'
+  }
+});
+assert(existingAssetAdd.changeState.proposal.changes.some((change) => change.fieldId === 'asset_add_event_portrait' && change.operationType === 'insert_text'), 'existing event add-asset control should build an insert_text proposal');
+assert(existingAssetAdd.changeState.installPlan.operations.some((operation) => operation.type === 'insert_text' && operation.safety === 'guarded_apply' && operation.content.includes('face-image: img/events/indexed-portrait.png')), 'existing event add-asset control should produce a guarded insert_text operation');
+assert(existingAssetAdd.eventBody.assets.some((asset) => asset.path === 'img/events/indexed-portrait.png' && asset.role === 'event_portrait' && asset.status === 'pending_addition'), 'existing event indexed add should render an immediate pending asset row');
+const existingAssetAddHtml = previewEditor.renderPreviewPane(existingAssetAdd);
+assert(existingAssetAddHtml.includes('<code>img/events/indexed-portrait.png</code>'), 'existing event indexed add should update the visible slot path immediately');
+assert(existingAssetAddHtml.includes('data-object-canvas-action="clear_asset_addition"') && existingAssetAddHtml.includes('data-existing-asset-add-field="asset_add_event_portrait"'), 'existing event pending add should expose a clear-addition action');
+const existingRuntimePathAssetAdd = canvasModel.buildExistingCanvas(index, 'events', 'labor_unrest', {
+  values: {
+    asset_add_event_background: 'set-bg: img/events/runtime-indexed.png'
+  }
+});
+assert(existingRuntimePathAssetAdd.eventBody.assets.some((asset) => asset.path === 'img/events/runtime-indexed.png' && asset.previewUrl === 'out/html/img/events/runtime-indexed.png'), 'pending indexed adds should keep runtime previewUrl while writing source-relative paths');
+const existingAudioAdd = canvasModel.buildExistingCanvas(index, 'events', 'labor_unrest', {
+  values: {
+    asset_add_event_audio: 'audio: audio/events/indexed-theme.ogg'
+  }
+});
+assert(existingAudioAdd.changeState.installPlan.operations.some((operation) => operation.type === 'insert_text' && operation.content.includes('audio: audio/events/indexed-theme.ogg')), 'existing event audio add should produce a guarded insert_text operation');
+assert(existingAudioAdd.eventBody.assets.some((asset) => asset.path === 'audio/events/indexed-theme.ogg' && asset.role === 'event_audio' && asset.type === 'audio' && asset.status === 'pending_addition'), 'existing event audio indexed add should render as pending audio immediately');
+const existingIllustrationAdd = canvasModel.buildExistingCanvas(index, 'events', 'asset_directive_event', {
+  values: {
+    asset_add_event_illustration: 'face-image: img/events/indexed-portrait.png'
+  }
+});
+assert(existingIllustrationAdd.eventBody.assets.some((asset) => asset.path === 'img/events/indexed-portrait.png' && asset.role === 'event_illustration' && asset.status === 'pending_addition' && asset.flowAsset === false), 'existing event illustration add should render as a pending slot asset instead of disappearing into flow summary');
+assert(existingIllustrationAdd.changeState.installPlan.operations.some((operation) => operation.type === 'insert_text' && operation.content.includes('face-image: img/events/indexed-portrait.png')), 'existing event illustration add should write a runtime face-image directive');
+const branchReplacementTarget = 'assets/studio/events/labor_unrest/iron-front-new.png';
+const existingBranchAssetReplacement = canvasModel.buildExistingCanvas(index, 'events', 'labor_unrest', {
+  values: {
+    asset_face_image_20: 'face-image: ' + branchReplacementTarget
+  }
+});
+assert(existingBranchAssetReplacement.changeState.proposal.changes.some((change) => change.fieldId === 'asset_face_image_20' && change.after === 'face-image: ' + branchReplacementTarget), 'existing branch face-image replacement should keep the source-backed branch field id');
+assert(existingBranchAssetReplacement.changeState.installPlan.operations.some((operation) => operation.type === 'replace_text' && operation.safety === 'guarded_apply' && operation.search === 'face-image: img/events/iron_front_branch.png'), 'existing branch face-image replacement should produce a guarded source replace operation');
+const existingBranchAssetRemoval = canvasModel.buildExistingCanvas(index, 'events', 'labor_unrest', {
+  values: {
+    asset_face_image_20: ''
+  }
+});
+assert(existingBranchAssetRemoval.changeState.installPlan.operations.some((operation) => operation.type === 'replace_text' && operation.safety === 'guarded_apply' && operation.search === 'face-image: img/events/iron_front_branch.png' && operation.replace === ''), 'existing branch face-image removal should produce a guarded line removal operation');
+const existingBranchAssetAdd = canvasModel.buildExistingCanvas(index, 'events', 'labor_unrest', {
+  values: {
+    asset_add_flow_support_labor: 'face-image: img/events/support-branch-added.png'
+  }
+});
+assert(existingBranchAssetAdd.changeState.proposal.changes.some((change) => change.fieldId === 'asset_add_flow_support_labor' && change.operationType === 'insert_text'), 'existing branch add-here control should build a source-backed insert proposal');
+assert(existingBranchAssetAdd.changeState.installPlan.operations.some((operation) => operation.type === 'insert_text' && operation.safety === 'guarded_apply' && operation.content.includes('face-image: img/events/support-branch-added.png')), 'existing branch add-here control should produce a guarded branch insert operation');
+assert(existingBranchAssetAdd.changeState.installPlan.operations.some((operation) => operation.type === 'insert_text' && operation.position === 'before' && operation.anchorText === 'The cabinet makes a public concession.'), 'existing branch add-here control should insert image directives before branch body text so Dendry parses them as metadata');
+assert(existingBranchAssetAdd.eventBody.assets.some((asset) => asset.path === 'img/events/support-branch-added.png' && asset.status === 'pending_addition' && asset.placementKind === 'option_result_visual'), 'existing branch add-here control should render a pending flow-positioned asset row');
+const branchAssetApplyRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dms_branch_asset_insert_'));
+const branchAssetSourcePath = path.join(branchAssetApplyRoot, 'source', 'scenes', 'events');
+fs.mkdirSync(branchAssetSourcePath, {recursive: true});
+fs.writeFileSync(path.join(branchAssetApplyRoot, 'source', 'info.dry'), 'title: Branch asset insert fixture\n', 'utf8');
+const branchAssetFixtureLines = Array.from({length: 24}, (_, index) => 'fixture line ' + (index + 1));
+branchAssetFixtureLines[20] = 'The cabinet makes a public concession.';
+fs.writeFileSync(path.join(branchAssetSourcePath, 'labor_unrest.scene.dry'), branchAssetFixtureLines.join('\n') + '\n', 'utf8');
+const branchAssetPlan = Object.assign({}, existingBranchAssetAdd.changeState.installPlan, {
+  project: Object.assign({}, existingBranchAssetAdd.changeState.installPlan.project || {}, {root: branchAssetApplyRoot})
+});
+const branchAssetApply = installPlanApi.applyInstallPlan(branchAssetPlan, {projectRoot: branchAssetApplyRoot, dryRun: false});
+const branchAssetAppliedSource = fs.readFileSync(path.join(branchAssetSourcePath, 'labor_unrest.scene.dry'), 'utf8');
+assert(branchAssetApply.ok, 'existing branch add-here insert should apply against exact source evidence: ' + JSON.stringify(branchAssetApply.diagnostics || branchAssetApply.results || branchAssetApply));
+assert(branchAssetAppliedSource.indexOf('face-image: img/events/support-branch-added.png') < branchAssetAppliedSource.indexOf('The cabinet makes a public concession.'), 'existing branch add-here install should write image directives before branch body text');
+const existingBranchAssetAddHtml = previewEditor.render(existingBranchAssetAdd);
+assert(existingBranchAssetAddHtml.includes('data-object-canvas-action="clear_asset_addition"') && existingBranchAssetAddHtml.includes('data-existing-asset-add-field="asset_add_flow_support_labor"'), 'existing branch pending add should expose a clear-addition action');
+const proposalOnlyReplacement = canvasModel.buildExistingCanvas(index, 'events', 'asset_directive_event', {
+  values: {
+    asset_set_bg_8: 'set-bg: assets/studio/events/asset_directive_event/new-bg.jpg'
+  },
+  proposalOptions: {
+    assetInstallRequests: [{
+      sourceName: 'New Background.jpg',
+      targetPath: 'assets/studio/events/asset_directive_event/new-bg.jpg',
+      type: 'image',
+      label: 'New Background.jpg',
+      role: 'event_background'
+    }]
+  }
+});
+assert(proposalOnlyReplacement.changeState.installPlan.operations.some((operation) => operation.type === 'copy_asset_file' && operation.safety === 'manual_review'), 'existing asset replacement without desktop sourcePath should keep copy_asset_file manual-review');
+const fuzzyAssetCanvas = canvasModel.buildExistingCanvas(index, 'events', 'fuzzy_asset_event', {});
+const fuzzyAssetHtml = previewEditor.renderPreviewPane(fuzzyAssetCanvas);
+assert(!fuzzyAssetHtml.includes('data-object-canvas-asset-replacement="true"'), 'fuzzy asset directives should not expose guarded replacement controls');
+const existingAssetCard = canvasModel.buildExistingCanvas(index, 'cards', 'asset_directive_card', {
+  values: {
+    asset_card_image_6: 'card-image: assets/studio/cards/asset_directive_card/new-card.png'
+  },
+  proposalOptions: {
+    assetInstallRequests: [{
+      sourceName: 'New Card.png',
+      sourcePath: '/tmp/New Card.png',
+      targetPath: 'assets/studio/cards/asset_directive_card/new-card.png',
+      type: 'image',
+      label: 'New Card.png',
+      role: 'card_image'
+    }]
+  }
+});
+assert(existingAssetCard.objectKind === 'card', 'existing card asset directive should stay in card Object Canvas mode');
+assert(existingAssetCard.eventBody.assets.some((asset) => asset.directive === 'card-image' && asset.role === 'card_image' && asset.assetEditFieldId === 'asset_card_image_6'), 'existing card-image directive should map to a card source-backed asset edit field');
+assert(existingAssetCard.changeState.installPlan.operations.some((operation) => operation.type === 'replace_text' && operation.safety === 'guarded_apply' && operation.search === 'card-image: img/cards/current-card.png'), 'existing card-image replacement should produce a guarded replace_text operation');
+assert(existingAssetCard.changeState.installPlan.operations.some((operation) => operation.type === 'copy_asset_file' && operation.safety === 'guarded_apply' && operation.path === 'assets/studio/cards/asset_directive_card/new-card.png'), 'existing card-image replacement should include a guarded copy_asset_file operation');
+const existingAssetCardEditorHtml = previewEditor.render(existingAssetCard);
+assert(existingAssetCardEditorHtml.includes('data-object-canvas-assets-panel="true"'), 'existing Card editor should render the Object Canvas asset panel');
+assert(existingAssetCardEditorHtml.includes('data-existing-asset-field="asset_card_image_6"'), 'existing Card editor should expose card-image replacement controls');
 assert(!laborExisting.eventBody.sections.some((field) => String(field.value || '').includes('public concession')), 'option-result prose should not be flattened into the opening preview');
 assert(laborExisting.eventBody.options[0].fields.some((field) => field.semanticRole === 'option_result_text' && String(field.value || '').includes('public concession')), 'option-result prose should be attached under the matching option');
 assert(laborExisting.eventBody.branchSections.some((field) => field.semanticRole === 'conditional_text' && field.conditions.includes('labor_minister != "SPD"')), 'standalone conditional text should remain in a dedicated branch section');
@@ -936,6 +1350,7 @@ const newEvent = canvasModel.buildNewEventCanvas(index, {
   year: 1936,
   monthStart: 2,
   monthEnd: 4,
+  assetRefs: [{path: 'img/events/followup-bg.png', type: 'image', label: 'Follow-up background', directive: 'set-bg'}],
   options: [
     {id: 'accept', title: 'Accept the risk', body: 'The campaign accepts the risk.'},
     {id: 'delay', title: 'Delay the decision', body: 'The campaign waits another week.'}
@@ -964,12 +1379,23 @@ assert(newEvent.eventBody.options[0].fields.some((field) => field.value === 'Acc
 assert(newEvent.eventBody.options[0].fields.some((field) => field.id === 'option.0.chooseIf' && field.value === 'public_order >= 0'), 'new options should expose editable choose-if conditions');
 assert(newEvent.eventBody.effects.some((field) => field.id === 'event.effect.0.variable' && field.value === 'public_order'), 'new Event should expose trigger effect fields');
 assert(newEvent.eventBody.optionEffects[0].fields.some((field) => field.id === 'option.0.effect.0.value' && field.value === '1'), 'new Event should expose option effect fields');
+assert(newEvent.eventBody.assets.some((asset) => asset.directive === 'set-bg' && asset.role === 'event_background'), 'new Event asset rows should map draft asset directives through the shared asset contract');
 assert(newEvent.eventBody.eventStructure && newEvent.eventBody.eventStructure.provenance === 'draft', 'new Event editor body should be derived through EventStructure');
 assert(newEvent.eventBody.structureActions.some((field) => field.structureAction === 'add_option'), 'new Event should expose EventStructure add-option controls');
 assert(newEvent.eventBody.structureActions.some((field) => field.structureAction === 'add_branch'), 'new Event should expose EventStructure add-section controls');
 const newEventHtml = previewEditor.render(newEvent);
 assert(newEventHtml.includes('data-preview-object-condition-chips="true"') && newEventHtml.includes('public_order &gt;= 0'), 'new Event editor should render option conditions as scan-friendly chips');
 assert(newEventHtml.includes('Updates the current draft.'), 'new Event structural creators should clearly show draft-update safety');
+assert(newEventHtml.includes('data-object-canvas-assets-panel="true"'), 'new Event editor should render Object Canvas asset slots in the editing pane');
+assert(newEventHtml.includes('data-object-canvas-asset-select="true"'), 'new Event editor should expose indexed asset selectors in the editing pane');
+const newEventPreviewHtml = previewEditor.renderPreviewPane(newEvent);
+assert(newEventPreviewHtml.includes('data-object-canvas-assets-panel="true"'), 'new Event preview should render the Object Canvas assets panel');
+assert(newEventPreviewHtml.includes('data-object-canvas-asset-slots="true"'), 'new Event preview should render Object Canvas asset slot markers');
+assert(newEventPreviewHtml.includes('data-asset-slot-role="event_background"'), 'new Event asset slots should expose background slot markers');
+assert(newEventPreviewHtml.includes('data-asset-slot-role="event_audio"'), 'new Event asset slots should expose audio slot markers');
+assert(newEventPreviewHtml.includes('data-asset-directive="set-bg"'), 'new Event asset rows should preserve source directive markers');
+assert(newEventPreviewHtml.includes('data-object-canvas-asset-select="true"'), 'new Event asset panel should expose indexed asset selection controls');
+assert(newEventPreviewHtml.includes('data-object-canvas-asset-file="true"'), 'new Event asset panel should expose local file proposal controls');
 assert(newEvent.changeState.draft.effectsOnTrigger.some((effect) => effect.variable === 'public_order' && effect.value === 2), 'trigger effect edits should update the draft');
 assert(newEvent.changeState.draft.options[0].effects.some((effect) => effect.variable === 'public_order' && effect.value === 1), 'option effect edits should update the draft');
 assert(newEvent.contextBoard.flow.some((row) => row.direction === 'seed'), 'new Event context should include Design/Create seed context');
@@ -978,6 +1404,196 @@ assert(newEvent.changeState.draft.kind === 'world_event', 'new Event draft shoul
 assert(newEvent.changeState.output.installPlan, 'new Event should produce an install plan');
 assert(newEvent.changeState.operationSummary.total > 0, 'new Event install plan should summarize operations');
 assert(newEvent.changeState.output.scene.includes('max-visits: 1'), 'one-shot new Event should render a runtime-valid default max-visits value');
+
+const largeNewEventAssetIndex = Object.assign({}, index, {
+  semantic: Object.assign({}, index.semantic, {
+    assets: {
+      items: Array.from({length: 90}, (_item, assetIndex) => ({
+        path: 'img/events/new-event-catalog-' + String(assetIndex).padStart(3, '0') + '.jpg',
+        type: 'image',
+        label: 'New event catalog ' + String(assetIndex).padStart(3, '0'),
+        fileExists: true
+      })).concat({
+        path: 'audio/events/new-event-theme.ogg',
+        type: 'audio',
+        label: 'New event theme',
+        fileExists: true
+      })
+    }
+  })
+});
+const largeCatalogNewEvent = canvasModel.buildNewEventCanvas(largeNewEventAssetIndex, {
+  id: 'large_catalog_new_event',
+  title: 'Large catalog new event',
+  heading: 'Large catalog new event',
+  year: 1936,
+  monthStart: 2,
+  monthEnd: 4,
+  options: [
+    {id: 'first', title: 'First option', body: 'First result.'},
+    {id: 'second', title: 'Second option', body: 'Second result.'}
+  ]
+}, {});
+assert(largeCatalogNewEvent.eventBody.assetCatalog.length === 91, 'new Event asset catalog should keep the full project asset list for picker scoring');
+assert(largeCatalogNewEvent.eventBody.assetCatalog.some((asset) => asset.path === 'audio/events/new-event-theme.ogg' && asset.role === 'event_audio'), 'new Event asset catalog should include late audio assets');
+
+const indexedAssetEvent = canvasModel.buildNewEventCanvas(index, {
+  id: 'indexed_asset_event',
+  title: 'Indexed asset event',
+  heading: 'Indexed asset event',
+  year: 1936,
+  monthStart: 2,
+  monthEnd: 4,
+  options: [{id: 'continue', title: 'Continue', body: 'Continue.'}]
+}, {
+  values: {
+    'event.assetRef.event_portrait': JSON.stringify({path: 'img/events/indexed-portrait.png', type: 'image', label: 'Indexed portrait', role: 'event_portrait'}),
+    'event.assetRef.event_audio': JSON.stringify({path: 'audio/events/indexed-theme.ogg', type: 'audio', label: 'Indexed theme', role: 'event_audio'})
+  }
+});
+assert(indexedAssetEvent.changeState.draft.assetRefs.some((asset) => asset.path === 'img/events/indexed-portrait.png' && asset.role === 'event_portrait'), 'new Event indexed asset selection should write a role-aware assetRefs entry');
+assert(indexedAssetEvent.changeState.draft.assetRefs.some((asset) => asset.path === 'audio/events/indexed-theme.ogg' && asset.role === 'event_audio'), 'new Event indexed audio selection should write a role-aware assetRefs entry');
+assert(indexedAssetEvent.eventBody.assets.some((asset) => asset.path === 'img/events/indexed-portrait.png' && asset.role === 'event_portrait'), 'new Event indexed asset selection should render through shared asset rows');
+assert(indexedAssetEvent.changeState.output.scene.includes('face-image: img/events/indexed-portrait.png'), 'new Event indexed portrait asset should render a Dendry face-image directive');
+assert(indexedAssetEvent.changeState.output.scene.includes('audio: audio/events/indexed-theme.ogg'), 'new Event indexed audio asset should render a Dendry audio directive');
+
+const localAssetEvent = canvasModel.buildNewEventCanvas(index, {
+  id: 'local_asset_event',
+  title: 'Local asset event',
+  heading: 'Local asset event',
+  year: 1936,
+  monthStart: 2,
+  monthEnd: 4,
+  options: [{id: 'continue', title: 'Continue', body: 'Continue.'}]
+}, {
+  values: {
+    'event.assetInstallRequest.event_illustration': JSON.stringify({
+      sourceName: 'Hero Local.png',
+      sourcePath: '/tmp/Hero Local.png',
+      targetPath: 'assets/studio/events/local_asset_event/hero-local.png',
+      type: 'image',
+      label: 'Hero Local.png',
+      role: 'event_illustration'
+    })
+  }
+});
+assert(localAssetEvent.changeState.draft.assetRefs.some((asset) => asset.path === 'assets/studio/events/local_asset_event/hero-local.png' && asset.role === 'event_illustration'), 'new Event local asset proposal should create the matching target assetRefs entry');
+assert(localAssetEvent.changeState.draft.assetInstallRequests.some((request) => request.sourcePath === '/tmp/Hero Local.png' && request.targetPath === 'assets/studio/events/local_asset_event/hero-local.png'), 'new Event local asset proposal should preserve desktop sourcePath and targetPath');
+assert(localAssetEvent.changeState.installPlan.operations.some((operation) => operation.type === 'copy_asset_file' && operation.sourcePath === '/tmp/Hero Local.png' && operation.path === 'assets/studio/events/local_asset_event/hero-local.png'), 'new Event local asset proposal should produce a copy_asset_file operation');
+assert(localAssetEvent.changeState.output.scene.includes('set-bg: assets/studio/events/local_asset_event/hero-local.png'), 'new Event local illustration proposal should render a Dendry set-bg directive');
+
+const branchAssetEvent = canvasModel.buildNewEventCanvas(index, {
+  id: 'presidential_1932_fixture',
+  title: '1932 Campaign Fixture',
+  heading: '1932 Campaign Fixture',
+  year: 1932,
+  monthStart: 3,
+  monthEnd: 4,
+  introParagraphs: ['The campaign opens with a public rally.'],
+  options: [
+    {id: 'campaigning_braun', title: 'Campaign with Braun', body: 'Braun answers the crowd from the platform.'},
+    {id: 'stay_quiet', title: 'Stay quiet', body: 'The posters stay rolled up.'}
+  ]
+}, {
+  values: {
+    'event.assetPlacementRef.option_campaigning_braun': JSON.stringify({
+      path: 'img/events/iron-front.png',
+      type: 'image',
+      label: 'Iron Front poster',
+      role: 'event_illustration',
+      directive: 'face-image',
+      placementId: 'option_campaigning_braun',
+      placementKind: 'option_result_visual',
+      optionId: 'campaigning_braun',
+      displayLocation: 'Option: Campaign with Braun'
+    })
+  }
+});
+const branchAssetScene = branchAssetEvent.changeState.output.scene;
+const branchOptionIndex = branchAssetScene.indexOf('@campaigning_braun');
+const branchImageIndex = branchAssetScene.indexOf('face-image: img/events/iron-front.png');
+assert(branchAssetEvent.changeState.draft.assetPlacements.some((asset) => asset.path === 'img/events/iron-front.png' && asset.optionId === 'campaigning_braun'), 'new Event flow asset selection should write a placement-scoped draft asset');
+assert(!branchAssetEvent.changeState.draft.assetRefs.some((asset) => asset.path === 'img/events/iron-front.png'), 'new Event flow asset selection should not pollute global assetRefs');
+assert(branchOptionIndex >= 0 && branchImageIndex > branchOptionIndex, 'new Event flow asset should render inside the option result branch');
+assert(!branchAssetScene.slice(0, branchOptionIndex).includes('img/events/iron-front.png'), 'new Event flow asset should not render in the opening event body');
+assert(branchAssetEvent.eventBody.assets.some((asset) => asset.path === 'img/events/iron-front.png' && asset.placementKind === 'option_result_visual' && asset.flowAsset), 'new Event flow assets should be visible through shared Object Canvas asset rows');
+const branchAssetEventHtml = previewEditor.render(branchAssetEvent);
+assert(branchAssetEventHtml.includes('data-object-canvas-asset-placement-id="option_campaigning_braun"'), 'new Event editor should expose placement-scoped asset controls');
+assert(branchAssetEventHtml.includes('data-asset-placement-kind="option_result_visual"'), 'new Event editor should expose option-result placement markers');
+
+const localBranchAssetEvent = canvasModel.buildNewEventCanvas(index, {
+  id: 'presidential_1932_local_fixture',
+  title: '1932 Campaign Local Fixture',
+  heading: '1932 Campaign Local Fixture',
+  year: 1932,
+  monthStart: 3,
+  monthEnd: 4,
+  options: [
+    {id: 'iron_front', title: 'Rally the Iron Front', body: 'The rally fills the avenue.'},
+    {id: 'radio', title: 'Stay on radio', body: 'The speech goes out over the air.'}
+  ]
+}, {
+  values: {
+    'event.assetPlacementInstallRequest.option_iron_front': JSON.stringify({
+      sourceName: 'Iron Front Local.png',
+      sourcePath: '/tmp/Iron Front Local.png',
+      targetPath: 'assets/studio/events/presidential_1932_local_fixture/iron-front-local.png',
+      type: 'image',
+      label: 'Iron Front Local.png',
+      role: 'event_illustration',
+      directive: 'face-image',
+      placementKind: 'option_result_visual',
+      optionId: 'iron_front',
+      displayLocation: 'Option: Rally the Iron Front'
+    })
+  }
+});
+assert(localBranchAssetEvent.changeState.draft.assetPlacements.some((asset) => asset.path === 'assets/studio/events/presidential_1932_local_fixture/iron-front-local.png' && asset.optionId === 'iron_front'), 'new Event local flow asset proposal should write a target path into placement-scoped draft assets');
+assert(localBranchAssetEvent.changeState.draft.assetInstallRequests.some((request) => request.placementId === 'option_iron_front' && request.targetPath === 'assets/studio/events/presidential_1932_local_fixture/iron-front-local.png'), 'new Event local flow asset proposal should preserve placement metadata on install requests');
+assert(localBranchAssetEvent.changeState.installPlan.operations.some((operation) => operation.type === 'copy_asset_file' && operation.path === 'assets/studio/events/presidential_1932_local_fixture/iron-front-local.png'), 'new Event local flow asset proposal should still produce a copy_asset_file operation');
+assert(localBranchAssetEvent.changeState.output.scene.indexOf('face-image: assets/studio/events/presidential_1932_local_fixture/iron-front-local.png') > localBranchAssetEvent.changeState.output.scene.indexOf('@iron_front'), 'new Event local flow asset proposal should render in the targeted option branch');
+
+const indexedAssetCard = canvasModel.buildTemplateCanvas(index, 'card', {
+  id: 'indexed_asset_card',
+  title: 'Indexed asset card',
+  heading: 'Indexed asset card',
+  options: [{id: 'play', label: 'Play card', narrativeParagraphs: ['The card resolves.'], gotoAfter: 'root'}]
+}, {
+  values: {
+    'card.assetRef.card_image': JSON.stringify({path: 'img/cards/indexed-card.png', type: 'image', label: 'Indexed card art', role: 'card_image'})
+  }
+});
+assert(indexedAssetCard.mode === 'new_card', 'new Card should open through the template canvas path');
+assert(indexedAssetCard.changeState.draft.assetRefs.some((asset) => asset.path === 'img/cards/indexed-card.png' && asset.role === 'card_image'), 'new Card indexed asset selection should write a role-aware assetRefs entry');
+assert(indexedAssetCard.changeState.output.scene.includes('card-image: img/cards/indexed-card.png'), 'new Card indexed image asset should render a Dendry card-image directive');
+const indexedCardPreviewHtml = previewEditor.renderPreviewPane(indexedAssetCard);
+assert(indexedCardPreviewHtml.includes('data-asset-target="card"'), 'new Card asset panel should keep card target markers');
+assert(indexedCardPreviewHtml.includes('data-object-canvas-asset-select="true"'), 'new Card asset panel should expose indexed asset selection controls');
+assert(indexedCardPreviewHtml.includes('data-object-canvas-asset-file="true"'), 'new Card asset panel should expose local file proposal controls');
+const indexedCardEditorHtml = previewEditor.render(indexedAssetCard);
+assert(indexedCardEditorHtml.includes('data-object-canvas-assets-panel="true"'), 'new Card editor should render Object Canvas asset slots in the editing pane');
+assert(indexedCardEditorHtml.includes('data-object-canvas-asset-select="true"'), 'new Card editor should expose indexed asset selectors in the editing pane');
+
+const localAssetCard = canvasModel.buildTemplateCanvas(index, 'card', {
+  id: 'local_asset_card',
+  title: 'Local asset card',
+  heading: 'Local asset card',
+  options: [{id: 'play', label: 'Play card', narrativeParagraphs: ['The card resolves.'], gotoAfter: 'root'}]
+}, {
+  values: {
+    'card.assetInstallRequest.card_image': JSON.stringify({
+      sourceName: 'Card Local.png',
+      sourcePath: '/tmp/Card Local.png',
+      targetPath: 'assets/studio/cards/local_asset_card/card-local.png',
+      type: 'image',
+      label: 'Card Local.png',
+      role: 'card_image'
+    })
+  }
+});
+assert(localAssetCard.changeState.draft.assetRefs.some((asset) => asset.path === 'assets/studio/cards/local_asset_card/card-local.png' && asset.role === 'card_image'), 'new Card local asset proposal should create the matching target assetRefs entry');
+assert(localAssetCard.changeState.installPlan.operations.some((operation) => operation.type === 'copy_asset_file' && operation.path === 'assets/studio/cards/local_asset_card/card-local.png'), 'new Card local asset proposal should produce a copy_asset_file operation');
+assert(localAssetCard.changeState.output.scene.includes('card-image: assets/studio/cards/local_asset_card/card-local.png'), 'new Card local image proposal should render a Dendry card-image directive');
 
 const invalidMaxVisitsEvent = canvasModel.buildNewEventCanvas(index, {
   id: 'invalid_max_visits_event',

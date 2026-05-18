@@ -227,7 +227,7 @@ Object.values(expectedActions).forEach((actionKind) => {
 assert(lensMarkers(html).some((marker) => marker.payload && marker.payload.kind === 'authoring_context_lens' && /Repair|Review|missing/i.test(marker.payload.meaning || '')), 'rendered repair lens payloads should describe repair context', lensMarkers(html));
 
 const eventBuilderSource = fs.readFileSync(path.join(__dirname, 'viewer/preview_object_event_builder_ui.js'), 'utf8');
-assert(eventBuilderSource.includes('data-object-canvas-field'), 'asset reference editor rows should expose focusable repair anchors');
+assert(eventBuilderSource.includes('data-preview-object-asset-entry'), 'asset reference editor rows should expose focusable repair anchors without pretending to be form fields');
 assert(eventBuilderSource.includes('tabindex="0"'), 'asset reference anchors should be keyboard focusable when routed from repair rows');
 
 process.stdout.write(JSON.stringify({

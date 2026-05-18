@@ -759,6 +759,15 @@ assert(structureBundle.installPlan.operations.some((op) => op.type === 'replace_
 assert(structureBundle.installPlan.operations.some((op) => op.type === 'replace_text' && op.safety === 'advanced_apply' && op.search.includes('@ban') && op.replace === ''), 'source-backed option removal should produce an advanced empty replace_text operation');
 assert(structureBundle.installPlan.operations.some((op) => op.type === 'replace_section' && op.safety === 'advanced_apply' && op.allowEmptyReplace), 'source-backed option removal should produce an advanced empty replace_section operation');
 assert(structureBundle.proposalText.includes('Add trigger effect'), 'structural proposal preview should include effect creation');
+const addSectionOptionField = eventModel.fields.find((field) => field.structureAction === 'add_option' && field.structureSourceBlock && field.structureSourceBlock.kind === 'section_text_option_insert_anchor');
+assert(addSectionOptionField, 'existing editor should expose a source-backed add-option control for a selected result section');
+const complexSectionOptionProposal = existingEdit.buildProposal(eventModel, {
+  [addSectionOptionField.id]: '- @republican_concordat: What next?\n# republican_concordat\nresult-mode: native\nchoose-if: resources >= 1\nunavailable-subtitle: We need at least one resource.\nA complex result can be created without falling back to a fake manual snippet.'
+});
+const complexSectionOptionChange = complexSectionOptionProposal.changes.find((change) => change.fieldId === addSectionOptionField.id);
+assert(complexSectionOptionChange && complexSectionOptionChange.editability === 'guarded_apply' && complexSectionOptionChange.operationType === 'insert_text', 'conditioned add-option result proposals should remain source-backed and installable');
+assert(complexSectionOptionChange.after.includes('choose-if: resources >= 1'), 'conditioned add-option insert should preserve choose-if evidence');
+assert(complexSectionOptionChange.after.includes('unavailable-subtitle: We need at least one resource.'), 'conditioned add-option insert should preserve unavailable text');
 const unsafeBranchProposal = existingEdit.buildProposal(eventModel, {
   [addBranchField.id]: '# q_prefixed_branch\n[? if Q.public_order >= 2 : This source-invalid branch should not auto-apply. ?]'
 });

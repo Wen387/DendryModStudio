@@ -1,5 +1,12 @@
 from .common import *
+from .assets import active_asset_directive_lines, normalize_asset_directive
 from .graph import GraphBuilder, parse_route_clauses
+
+
+ASSET_DIRECTIVE_RE = re.compile(
+    r"^\s*(card[-_ ]?image|face[-_ ]?image|set[-_ ]?bg|set[-_ ]?music|set[-_ ]?sprites|audio)\s*:\s*(.+)$",
+    re.IGNORECASE,
+)
 
 def parser_diagnostics(parser_index: dict[str, Any], root: Path) -> list[dict[str, Any]]:
     out = []
@@ -21,6 +28,43 @@ def parser_diagnostics(parser_index: dict[str, Any], root: Path) -> list[dict[st
             "confidence": CONF_OPAQUE,
         })
     return out
+
+
+def inert_metadata_directive_diagnostics(root: Path, scenes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    diagnostics: list[dict[str, Any]] = []
+    for scene in scenes:
+        rel = str(scene.get("path", ""))
+        if not rel or scene.get("opaque"):
+            continue
+        path = root / rel
+        if not path.is_file():
+            continue
+        active_lines = active_asset_directive_lines(scene)
+        try:
+            lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+        except Exception:
+            continue
+        for line_num, line in enumerate(lines, 1):
+            match = ASSET_DIRECTIVE_RE.match(line)
+            if not match:
+                continue
+            directive = normalize_asset_directive(match.group(1))
+            if (line_num, directive) in active_lines:
+                continue
+            diagnostics.append({
+                "severity": "warning",
+                "code": "project_map.inert_metadata_directive",
+                "message": (
+                    f"{directive} at line {line_num} appears inside rendered content, "
+                    "so Dendry will not treat it as metadata. Move it before the section body."
+                ),
+                "path": rel,
+                "sceneId": scene.get("id", ""),
+                "source": source_ref(rel, line_num),
+                "directive": directive,
+                "confidence": CONF_EXACT,
+            })
+    return diagnostics
 
 
 def scan_post_event_targeted(root: Path) -> dict[str, Any] | None:

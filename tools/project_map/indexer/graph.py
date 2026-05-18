@@ -4,6 +4,10 @@ def route_field_to_kind(field: str) -> str:
     return re.sub(r"(?<!^)([A-Z])", r"_\1", field).lower()
 
 
+def quality_ref_target(raw: str) -> str:
+    return f"quality_ref:{raw.strip()}"
+
+
 class GraphBuilder:
     def __init__(self, scenes: list[dict[str, Any]]):
         self.scenes = scenes
@@ -73,6 +77,22 @@ class GraphBuilder:
             for route in routes:
                 raw_target = str(route.get("id", "")).strip()
                 if not raw_target:
+                    continue
+                if field == "goToRef":
+                    edge = {
+                        "from": from_id,
+                        "to": quality_ref_target(raw_target),
+                        "kind": route_kind,
+                        "rawTarget": raw_target,
+                        "dynamicTarget": True,
+                        "targetSource": "quality",
+                        "confidence": CONF_EXACT,
+                        "source": route_source,
+                    }
+                    if route.get("predicate"):
+                        edge["condition"] = route["predicate"]
+                        edge["kind"] = "conditional_" + route_kind
+                    edges.append(edge)
                     continue
                 resolved, ok = self.resolve_target(raw_target, scene["id"], prefer_local_anchor=False)
                 edge: dict[str, Any] = {
@@ -151,9 +171,13 @@ class GraphBuilder:
         clauses = []
         for order, route in enumerate(routes, 1):
             raw_target = str(route.get("id", "")).strip()
-            resolved, ok = self.resolve_target(raw_target, scene["id"], prefer_local_anchor=False)
+            if route_kind == "go_to_ref":
+                resolved = quality_ref_target(raw_target)
+                ok = True
+            else:
+                resolved, ok = self.resolve_target(raw_target, scene["id"], prefer_local_anchor=False)
             predicate = str(route.get("predicate", "")).strip()
-            clauses.append({
+            clause = {
                 "order": order,
                 "raw": str(route.get("raw", raw_target)).strip(),
                 "rawTarget": raw_target,
@@ -163,7 +187,11 @@ class GraphBuilder:
                 "isFallback": not predicate and len(routes) > 1,
                 "routeKind": "conditional_" + route_kind if predicate else route_kind,
                 "installSafety": "manual_review",
-            })
+            }
+            if route_kind == "go_to_ref":
+                clause["dynamicTarget"] = True
+                clause["targetSource"] = "quality"
+            clauses.append(clause)
         return {
             "id": group_id,
             "sceneId": scene["id"],

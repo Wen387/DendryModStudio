@@ -28,7 +28,14 @@
 
   function normalizeAssetDirective(value) {
     const text = String(value || '').trim().toLowerCase();
-    return text === 'face-image' || text === 'card-image' || text === 'set-bg' || text === 'audio' ? text : '';
+    return text === 'face-image' ||
+      text === 'card-image' ||
+      text === 'set-bg' ||
+      text === 'audio' ||
+      text === 'inline-image' ||
+      text === 'inline-asset'
+      ? text
+      : '';
   }
 
   function assetDirectiveLabel(directive) {
@@ -36,7 +43,9 @@
       'face-image': 'Portrait image',
       'card-image': 'Card image',
       'set-bg': 'Background image',
-      audio: 'Audio asset'
+      audio: 'Audio asset',
+      'inline-image': 'Inline image',
+      'inline-asset': 'Inline asset'
     };
     return labels[directive] || 'Asset reference';
   }
@@ -73,12 +82,15 @@
       if (!path) {
         return null;
       }
+      const directive = normalizeAssetDirective(item.directive || item.assetDirective || item.role);
+      const explicitRole = String(item.role || '').trim();
       return {
         id: item.id ? String(item.id) : '',
         path,
         type: String(item.type || assetType(path)),
         label: String(item.label || item.name || fileName(path) || path),
-        role: String(item.role || item.directive || '').trim(),
+        role: directive ? '' : explicitRole,
+        directive,
         source: sourceRef(item.source || {}),
         sourceKind: String(item.sourceKind || ''),
         editability: String(item.editability || ''),
@@ -88,8 +100,9 @@
       };
     }
 
-    function assetEditableFields(scene, sceneSourcePath) {
+    function assetEditableFields(scene, sceneSourcePath, options) {
       const sceneId = String(scene && scene.id || '');
+      const textRows = ensureArray(options && options.textRows);
       return ensureArray(scene && scene.assetRefs).map((asset, index) => {
         const directive = normalizeAssetDirective(asset && (asset.directive || asset.role));
         const path = String(asset && (asset.path || asset.previewUrl || asset.src) || '').trim();
@@ -97,7 +110,7 @@
           return null;
         }
         const source = sourceRef(asset && asset.source || {});
-        const original = directive + ': ' + path;
+        const original = originalAssetReferenceText(asset, directive, path, textRows);
         const guarded = canGuardField(source, original);
         return {
           id: safeId(['asset', directive, source.line || index + 1].join('_')),
@@ -108,6 +121,11 @@
           source,
           sourcePath: source.path || sceneSourcePath || '',
           editability: guarded ? 'guarded_replace_text' : 'manual_review',
+          operationType: 'replace_text',
+          allowEmptyReplace: guarded,
+          deletesSourceLine: false,
+          assetDirective: directive,
+          assetPath: path,
           owner: {
             sceneId,
             sectionId: '',
@@ -122,6 +140,24 @@
             : 'Needs Studio source review because safe single-line asset directive evidence is missing.'
         };
       }).filter(Boolean);
+    }
+
+    function originalAssetReferenceText(asset, directive, path, textRows) {
+      if (directive === 'inline-image' || directive === 'inline-asset') {
+        const source = sourceRef(asset && asset.source || {});
+        const matchingText = ensureArray(textRows).find((row) => {
+          const rowSource = sourceRef(row && row.source || {});
+          return rowSource.path === source.path &&
+            rowSource.line === source.line &&
+            String(row && row.text || '').includes(path);
+        });
+        const text = String(matchingText && matchingText.text || source.anchorText || '').trim();
+        if (text) {
+          return text;
+        }
+        return path;
+      }
+      return directive + ': ' + path;
     }
 
     return {

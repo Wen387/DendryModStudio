@@ -45,6 +45,20 @@ def classify_semantics(root: Path, scenes: list[dict[str, Any]],
             "type": scene.get("type", "scene"),
             "confidence": scene.get("classificationConfidence", CONF_PROFILE),
         }
+        section_refs = []
+        for section in scene.get("sections", []):
+            section_refs.append({
+                "id": section.get("id", ""),
+                "path": path,
+                "title": section.get("title", ""),
+                "type": "section",
+                "ownerKind": "section",
+                "ownerSceneId": scene_id,
+                "sourceSpan": section.get("sourceSpan", {}),
+                "options": section.get("options", []),
+                "tags": section.get("tags", []),
+                "confidence": CONF_EXACT,
+            })
         if timeline_event:
             events.append(scene_ref)
             systems["events"].add(scene_id)
@@ -60,6 +74,15 @@ def classify_semantics(root: Path, scenes: list[dict[str, Any]],
         if flags.get("isDeck") or scene.get("type") == "deck":
             decks.append(scene_ref)
             systems["decks"].add(scene_id)
+        for section_ref, section in zip(section_refs, scene.get("sections", [])):
+            section_id = section_ref["id"]
+            if not section_id:
+                continue
+            if boolish(section.get("isDeck")) or section.get("type") == "deck":
+                deck_ref = dict(section_ref)
+                deck_ref["type"] = "deck"
+                decks.append(deck_ref)
+                systems["decks"].add(section_id)
         if path.endswith("post_event.scene.dry") or path.endswith("post_event_news.scene.dry"):
             systems["monthly_tick"].add(scene_id)
 

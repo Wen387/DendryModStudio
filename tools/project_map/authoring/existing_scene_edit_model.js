@@ -248,7 +248,7 @@
     let fields = textFields.concat(
       optionTextFields,
       metadataEditableFields(scene, source.path, textFields),
-      assetEditableFields(scene, source.path)
+      assetEditableFields(scene, source.path, {textRows})
     );
     if (!fields.length) {
       diagnostics.push(diagnostic('warning', 'existing_scene_edit.no_text_rows', 'No source-backed Text Corpus rows were found for this scene.'));
@@ -256,6 +256,7 @@
     diagnostics.push.apply(diagnostics, conditionWindowDiagnosticsForScene(scene));
     const eventOptions = optionRows(scene, fields);
     const textBlocks = textBlocksForScene(scene, visibleTextRows, source.path, eventOptions);
+    fields = fields.concat(assetAddReferenceFields(scene, source.path, fields, textRows, sceneKind, {textBlocks, eventOptions}));
     const effects = effectRows(index, scene, scriptRows);
     const routeFields = routeEditableFields(scene, eventOptions);
     const flow = flowForScene(scene, eventOptions, effects, routeFields);
@@ -1427,7 +1428,7 @@
   function parseEffectText(text) {
     const rows = [];
     const raw = String(text || '').trim();
-    const hookMatch = raw.match(/^(on-arrival|on-display)\s*:\s*(.+)$/i);
+    const hookMatch = raw.match(/^(on-arrival|on-departure|on-display)\s*:\s*(.+)$/i);
     const hook = hookMatch ? hookMatch[1].toLowerCase() : '';
     const body = hookMatch ? hookMatch[2] : raw;
     splitEffectClauses(body).forEach((clause) => {
@@ -1441,7 +1442,7 @@
 
   function isEffectScriptRow(row) {
     const text = String(row && row.text || '').trim();
-    return /^(?:on-arrival|on-display)\s*:/i.test(text) ||
+    return /^(?:on-arrival|on-departure|on-display)\s*:/i.test(text) ||
       /^(?:Q\.)?[A-Za-z_][A-Za-z0-9_]*\s*(?:[+\-*/]?=)/.test(text) ||
       (/(?:^|[;\s])Q\.[A-Za-z_][A-Za-z0-9_]*\s*(?:[+\-*/]?=)/.test(text) && text.includes(';'));
   }
@@ -1577,6 +1578,9 @@
         operationType: 'replace_section',
         anchorText: block.source && block.source.anchorText || '',
         endAnchorText: block.source && block.source.endAnchorText || '',
+        rawAnchorText: block.source && block.source.rawAnchorText || '',
+        rawEndAnchorText: block.source && block.source.rawEndAnchorText || '',
+        expectedRangeHash: block.source && block.source.expectedRangeHash || '',
         startLine: block.source && block.source.line || null,
         endLine: block.source && block.source.endLine || null,
         dedupeSearch: String(after || '').trim().slice(0, 200),
@@ -1937,13 +1941,14 @@
       return null;
     }
     const parsed = parseStructuralAddOption(afterText);
-    if (!parsed.ok || parsed.chooseIf || parsed.unavailableText || !safeNewStructureId(parsed.target)) {
+    if (!parsed.ok || String(parsed.resultMode || 'native') !== 'native' || !safeNewStructureId(parsed.target)) {
       return null;
     }
     if (structureIdExists(field, parsed.target) || !safeNewOptionResultText(parsed.result)) {
       return null;
     }
-    const content = renderAddOptionInsert(parsed);
+    const textAnchorInsert = blockKind === 'section_text_option_insert_anchor';
+    const content = renderAddOptionInsert(parsed, {leadingBlank: textAnchorInsert});
     const change = baseFieldChange(field, '(not present yet)', content);
     change.editability = 'guarded_apply';
     change.operationType = 'insert_text';
@@ -1966,7 +1971,7 @@
       return {ok: false};
     }
     const chooseLine = lines.find((line) => /^\s*choose-if\s*:/i.test(line)) || '';
-    const unavailableLine = lines.find((line) => /^\s*unavailable-(?:subtitle|text)\s*:/i.test(line)) || '';
+    const unavailableLine = lines.find((line) => /^\s*unavailable(?:-(?:subtitle|text)|subtitle|text)\s*:/i.test(line)) || '';
     const resultModeLine = lines.find((line) => /^\s*result-mode\s*:/i.test(line)) || '';
     const result = lines.filter((line) => {
       return line !== optionLine && line !== sectionLine && line !== chooseLine && line !== unavailableLine && line !== resultModeLine;
@@ -1977,7 +1982,7 @@
       label: optionMatch[2].trim(),
       result,
       chooseIf: chooseLine.replace(/^\s*choose-if\s*:\s*/i, '').trim(),
-      unavailableText: unavailableLine.replace(/^\s*unavailable-(?:subtitle|text)\s*:\s*/i, '').trim(),
+      unavailableText: unavailableLine.replace(/^\s*unavailable(?:-(?:subtitle|text)|subtitle|text)\s*:\s*/i, '').trim(),
       resultMode: resultModeLine.replace(/^\s*result-mode\s*:\s*/i, '').trim() || 'native'
     };
   }
@@ -2015,18 +2020,24 @@
       }
       return /^[@#]\s*\S+/.test(trimmed) ||
         /^-\s*@/.test(trimmed) ||
-        /^(?:title|new-page|tags|view-if|choose-if|go-to|set-root|on-arrival|on-display|result-mode|unavailable-(?:subtitle|text))\s*:/i.test(trimmed);
+        /^(?:title|new-page|tags|view-if|choose-if|go-to|set-root|on-arrival|on-departure|on-display|result-mode|unavailable(?:-(?:subtitle|text)|subtitle|text))\s*:/i.test(trimmed);
     });
   }
 
-  function renderAddOptionInsert(option) {
+  function renderAddOptionInsert(option, options) {
+    const opts = isObject(options) ? options : {};
     return [
+      opts.leadingBlank ? '' : null,
       '- @' + option.target + ': ' + option.label,
       '',
       '@' + option.target,
+      option.chooseIf || option.unavailableText ? 'title: ' + option.label : '',
+      option.chooseIf ? 'choose-if: ' + option.chooseIf : '',
+      option.unavailableText ? 'unavailable-subtitle: ' + option.unavailableText : '',
+      option.chooseIf || option.unavailableText ? '' : null,
       '',
       option.result
-    ].join('\n') + '\n';
+    ].filter((line) => line !== null).join('\n') + '\n';
   }
 
   function advancedAddOptionChange(field, afterText) {
@@ -2143,7 +2154,7 @@
       }
       return /^[@#]\s*\S+/.test(trimmed) ||
         /^-\s*@/.test(trimmed) ||
-        /^(?:title|new-page|tags|view-if|choose-if|go-to|set-root|on-arrival|on-display|call|audio|face-image|achievement|priority|max-visits|frequency|unavailable-(?:subtitle|text))\s*:/i.test(trimmed);
+        /^(?:title|new-page|tags|view-if|choose-if|go-to|set-root|on-arrival|on-departure|on-display|call|audio|face-image|achievement|priority|max-visits|frequency|unavailable(?:-(?:subtitle|text)|subtitle|text))\s*:/i.test(trimmed);
     });
   }
 
@@ -2672,7 +2683,7 @@
     if (!line || /^on-display\s*:/i.test(line) || line.indexOf('{!') >= 0) {
       return {ok: false, nextLine: ''};
     }
-    const match = line.match(/^(on-arrival\s*:\s*)([\s\S]+)$/i);
+    const match = line.match(/^((?:on-arrival|on-departure)\s*:\s*)([\s\S]+)$/i);
     const standalone = !match && looksLikeStandaloneEffectAnchor(line);
     if (!match && !standalone) {
       return {ok: false, nextLine: ''};
@@ -2710,7 +2721,7 @@
 
   function normalizeEffectClause(value) {
     return String(value || '')
-      .replace(/^on-arrival\s*:\s*/i, '')
+      .replace(/^(?:on-arrival|on-departure)\s*:\s*/i, '')
       .replace(/\bQ\./g, '')
       .replace(/\s*(=|\+=|-=|\*=|\/=)\s*/g, ' $1 ')
       .replace(/\s+/g, ' ')
@@ -2756,7 +2767,7 @@
 
   function looksLikeStandaloneEffectAnchor(anchor) {
     const text = String(anchor || '').trim();
-    if (!text || /^on-arrival\s*:/i.test(text) || /^on-display\s*:/i.test(text)) {
+    if (!text || /^on-arrival\s*:/i.test(text) || /^on-departure\s*:/i.test(text) || /^on-display\s*:/i.test(text)) {
       return false;
     }
     return /^(?:Q\.)?[A-Za-z_][A-Za-z0-9_]*\s*(?:=|\+=|-=|\*=|\/=)/.test(text);
@@ -2771,6 +2782,16 @@
       optionId: field.optionId || '',
       source: sourceRef(field.source || {}),
       editability: field.editability || 'manual_review',
+      operationType: String(field.operationType || ''),
+      anchorText: String(field.anchorText || field.source && field.source.anchorText || ''),
+      endAnchorText: String(field.endAnchorText || field.source && field.source.endAnchorText || ''),
+      rawAnchorText: String(field.rawAnchorText || field.source && field.source.rawAnchorText || ''),
+      rawEndAnchorText: String(field.rawEndAnchorText || field.source && field.source.rawEndAnchorText || ''),
+      expectedRangeHash: String(field.expectedRangeHash || field.source && field.source.expectedRangeHash || ''),
+      position: String(field.position || 'after') === 'before' ? 'before' : 'after',
+      dedupeSearch: String(field.dedupeSearch || ''),
+      allowEmptyReplace: Boolean(field.allowEmptyReplace),
+      deletesSourceLine: Boolean(field.deletesSourceLine),
       before: String(before === undefined || before === null ? '' : before),
       after: String(after === undefined || after === null ? '' : after)
     };
@@ -2809,6 +2830,9 @@
       operationType: String(value.operationType || ''),
       anchorText: String(value.anchorText || ''),
       endAnchorText: String(value.endAnchorText || ''),
+      rawAnchorText: String(value.rawAnchorText || value.source && value.source.rawAnchorText || ''),
+      rawEndAnchorText: String(value.rawEndAnchorText || value.source && value.source.rawEndAnchorText || ''),
+      expectedRangeHash: String(value.expectedRangeHash || value.source && value.source.expectedRangeHash || ''),
       position: String(value.position || 'after') === 'before' ? 'before' : 'after',
       startLine: numberOrNull(value.startLine),
       endLine: numberOrNull(value.endLine),
@@ -2967,7 +2991,10 @@
       startLine: line,
       endLine,
       anchorText: String(value.anchorText || '').trim(),
-      endAnchorText: String(value.endAnchorText || '').trim()
+      endAnchorText: String(value.endAnchorText || '').trim(),
+      rawAnchorText: String(value.rawAnchorText || ''),
+      rawEndAnchorText: String(value.rawEndAnchorText || ''),
+      expectedRangeHash: String(value.expectedRangeHash || '')
     };
   }
 
@@ -3004,8 +3031,264 @@
     return labels[String(role || '')] || String(role || 'Text');
   }
 
-  function assetEditableFields(scene, sceneSourcePath) {
-    return existingSceneAssetHelpers().assetEditableFields(scene, sceneSourcePath);
+  function assetEditableFields(scene, sceneSourcePath, options) {
+    return existingSceneAssetHelpers().assetEditableFields(scene, sceneSourcePath, options);
+  }
+
+  function assetAddReferenceFields(scene, sceneSourcePath, existingFields, textRows, sceneKind, options) {
+    const target = String(sceneKind || '') === 'card' ? 'card' : 'event';
+    const existingRoles = new Set(ensureArray(scene && scene.assetRefs)
+      .filter((asset) => isGlobalExistingAssetRef(asset, scene))
+      .filter((asset) => !isInlineExistingAssetRef(asset))
+      .map((asset) => assetRoleForExistingAsset(asset, target))
+      .filter(Boolean));
+    const slots = target === 'card'
+      ? [
+        {role: 'card_image', directive: 'card-image', label: 'Add card image', type: 'image'},
+        {role: 'card_portrait', directive: 'face-image', label: 'Add card portrait', type: 'image'},
+        {role: 'card_background', directive: 'set-bg', label: 'Add card background', type: 'image'},
+        {role: 'card_audio', directive: 'audio', label: 'Add card audio', type: 'audio'}
+      ]
+      : [
+        {role: 'event_illustration', directive: 'face-image', label: 'Add event illustration', type: 'image'},
+        {role: 'event_portrait', directive: 'face-image', label: 'Add event portrait', type: 'image'},
+        {role: 'event_background', directive: 'set-bg', label: 'Add event background', type: 'image'},
+        {role: 'event_audio', directive: 'audio', label: 'Add event audio', type: 'audio'}
+      ];
+    const globalFields = slots.filter((slot) => !existingRoles.has(slot.role)).map((slot) => {
+      const anchor = assetInsertAnchorForSlot(slot, existingFields, textRows, options && options.textBlocks);
+      if (!anchor || !anchor.source || !anchor.source.path || !anchor.anchorText) {
+        return null;
+      }
+      const source = Object.assign({}, sourceRef(anchor.source), {
+        anchorText: anchor.anchorText,
+        endAnchorText: anchor.anchorText
+      });
+      return {
+        id: safeId(['asset_add', slot.role].join('_')),
+        role: 'asset_reference',
+        label: slot.label,
+        original: '',
+        value: '',
+        source,
+        sourcePath: source.path || sceneSourcePath || '',
+        editability: 'guarded_apply',
+        operationType: 'insert_text',
+        transform: 'asset_add_reference',
+        anchorText: anchor.anchorText,
+        position: 'after',
+        dedupeSearch: '',
+        assetDirective: slot.directive,
+        assetRole: slot.role,
+        assetType: slot.type,
+        placementKind: slot.directive === 'inline-image' ? 'opening_visual' : 'global_slot',
+        displayLocation: slot.directive === 'inline-image' ? 'Opening visual' : 'Global media slot',
+        owner: {
+          sceneId: String(scene && scene.id || ''),
+          sectionId: '',
+          itemId: '',
+          kind: 'asset_reference'
+        },
+        sectionId: '',
+        optionId: '',
+        confidence: 'source_anchor',
+        reason: 'Source-backed anchor can be checked before inserting a new asset reference.'
+      };
+    }).filter(Boolean);
+    return globalFields.concat(flowAssetAddReferenceFields(scene, sceneSourcePath, options));
+  }
+
+  function isGlobalExistingAssetRef(asset, scene) {
+    const source = sourceRef(asset && asset.source || {});
+    if (!source.path || !source.line) {
+      return true;
+    }
+    return !ensureArray(scene && scene.sections).some((section) => sourceWithin(source, section && section.sourceSpan || section && section.source || {}));
+  }
+
+  function isInlineExistingAssetRef(asset) {
+    const directive = normalizeAssetDirective(asset && (asset.directive || asset.assetDirective || asset.role));
+    return directive === 'inline-image' || directive === 'inline-asset';
+  }
+
+  function flowAssetAddReferenceFields(scene, sceneSourcePath, options) {
+    const opts = options || {};
+    return ensureArray(opts.textBlocks).map((block, index) => {
+      const source = insertionSourceForTextBlock(block);
+      if (!source.path || !source.line || !source.anchorText) {
+        return null;
+      }
+      const placementKind = placementKindForTextBlock(block);
+      const optionId = ensureArray(block && block.relatedOptionIds).map(String).filter(Boolean)[0] || '';
+      const sectionId = String(block && block.sectionId || '');
+      return {
+        id: safeId(['asset_add_flow', optionId || sectionId || index + 1].join('_')),
+        role: 'asset_reference',
+        label: flowAssetAddLabel(placementKind),
+        original: '',
+        value: '',
+        source: Object.assign({}, source, {
+          path: source.path || sceneSourcePath || '',
+          anchorText: source.anchorText,
+          endAnchorText: source.anchorText
+        }),
+        sourcePath: source.path || sceneSourcePath || '',
+        editability: 'guarded_apply',
+        operationType: 'insert_text',
+        transform: 'asset_add_reference',
+        anchorText: source.anchorText,
+        position: 'before',
+        dedupeSearch: '',
+        assetDirective: 'face-image',
+        assetRole: 'event_illustration',
+        assetType: 'image',
+        placementKind,
+        displayLocation: String(block && block.label || sectionId || optionId || 'Flow visual'),
+        owner: {
+          sceneId: String(scene && scene.id || ''),
+          sectionId,
+          itemId: optionId,
+          kind: 'asset_reference'
+        },
+        sectionId,
+        optionId,
+        confidence: 'source_anchor',
+        reason: 'Source-backed text block anchor can be checked before inserting a flow-positioned image reference.'
+      };
+    }).filter(Boolean);
+  }
+
+  function insertionSourceForTextBlock(block) {
+    const source = sourceRef(block && block.source || {});
+    source.endLine = source.line;
+    return source;
+  }
+
+  function placementKindForTextBlock(block) {
+    const role = String(block && block.semanticRole || '');
+    const branchKind = String(block && block.branchKind || '');
+    if (role === 'option_result_text') {
+      return 'option_result_visual';
+    }
+    if (role === 'conditional_option_result_text' || role === 'conditional_text' || ensureArray(block && block.conditions).length) {
+      return 'conditional_visual';
+    }
+    if (branchKind === 'menu' || ensureArray(block && block.ownedOptionIds).length) {
+      return 'menu_visual';
+    }
+    if (role === 'opening_text') {
+      return 'opening_visual';
+    }
+    return 'section_visual';
+  }
+
+  function flowAssetAddLabel(kind) {
+    if (kind === 'option_result_visual') {
+      return 'Add image to option result';
+    }
+    if (kind === 'conditional_visual') {
+      return 'Add image to conditional branch';
+    }
+    if (kind === 'menu_visual') {
+      return 'Add image to menu branch';
+    }
+    if (kind === 'opening_visual') {
+      return 'Add opening image';
+    }
+    return 'Add image here';
+  }
+
+  function sourceWithin(source, range) {
+    if (!source || !range || !sameSourcePath(source, range)) {
+      return false;
+    }
+    const line = Number(source.line || source.startLine || 0);
+    const start = Number(range.startLine || range.line || 0);
+    const end = Number(range.endLine || range.line || start || 0);
+    return Boolean(line && start && end && line >= start && line <= end);
+  }
+
+  function sameSourcePath(a, b) {
+    return String(a && a.path || '') === String(b && b.path || '');
+  }
+
+  function assetRoleForExistingAsset(asset, target) {
+    const directive = normalizeAssetDirective(asset && (asset.directive || asset.assetDirective || asset.role));
+    if (directive === 'card-image') {
+      return 'card_image';
+    }
+    if (directive === 'face-image') {
+      return target === 'card' ? 'card_portrait' : 'event_portrait';
+    }
+    if (directive === 'set-bg') {
+      return target === 'card' ? 'card_background' : 'event_background';
+    }
+    if (directive === 'audio') {
+      return target === 'card' ? 'card_audio' : 'event_audio';
+    }
+    if (directive === 'inline-image' || directive === 'inline-asset') {
+      return target === 'card' ? 'card_image' : 'event_illustration';
+    }
+    const role = String(asset && asset.role || '').trim();
+    if (role) {
+      return role;
+    }
+    return String(asset && asset.type || '') === 'audio'
+      ? (target === 'card' ? 'card_audio' : 'event_audio')
+      : (target === 'card' ? 'card_image' : 'event_illustration');
+  }
+
+  function assetInsertAnchorForSlot(slot, existingFields, textRows, textBlocks) {
+    if (slot && slot.directive === 'inline-image') {
+      const textAnchor = ensureArray(textBlocks).find((block) => {
+        const source = sourceRef(block && block.source || {});
+        return source.path && source.line && String(block && (block.value || block.text) || '').trim() && String(block && block.semanticRole || '') === 'opening_text';
+      }) || ensureArray(textBlocks).find((block) => {
+        const source = sourceRef(block && block.source || {});
+        return source.path && source.line && String(block && (block.value || block.text) || '').trim();
+      }) || ensureArray(textRows).find((row) => {
+        const source = sourceRef(row && row.source || {});
+        return source.path && source.line && String(row && (row.text || row.value) || '').trim();
+      });
+      if (textAnchor) {
+        const source = sourceRef(textAnchor.source || {});
+        return {source, anchorText: source.anchorText || String(textAnchor.text || textAnchor.value || '').trim()};
+      }
+    }
+    const fields = ensureArray(existingFields).filter((field) => {
+      const source = sourceRef(field && field.source || {});
+      return source.path && source.line && String(field && field.original || '').trim();
+    }).sort((a, b) => sourceLine(a.source) - sourceLine(b.source));
+    const firstTextLine = ensureArray(textRows).reduce((line, row) => {
+      const next = sourceLine(row && row.source);
+      return next > 0 ? Math.min(line, next) : line;
+    }, Number.POSITIVE_INFINITY);
+    const globalFields = fields.filter(isGlobalInsertAnchorField);
+    const beforeBodyFields = Number.isFinite(firstTextLine)
+      ? globalFields.filter((field) => sourceLine(field && field.source) > 0 && sourceLine(field && field.source) < firstTextLine)
+      : globalFields;
+    const assetAnchor = beforeBodyFields.filter((field) => String(field && field.role || '') === 'asset_reference').pop();
+    const metadataAnchor = beforeBodyFields.filter((field) => ['title', 'metadata', 'condition'].includes(String(field && field.role || ''))).pop() ||
+      globalFields[0] ||
+      fields.find((field) => String(field && field.role || '') === 'title') ||
+      fields[0];
+    const anchor = assetAnchor || metadataAnchor;
+    if (!anchor) {
+      return null;
+    }
+    const source = sourceRef(anchor.source || {});
+    return {source, anchorText: source.anchorText || String(anchor.original || '').trim()};
+  }
+
+  function isGlobalInsertAnchorField(field) {
+    if (!field) {
+      return false;
+    }
+    if (String(field.sectionId || '').trim() || String(field.optionId || '').trim()) {
+      return false;
+    }
+    const owner = field.owner || {};
+    return !String(owner.sectionId || '').trim() && !String(owner.itemId || '').trim();
   }
 
   function normalizeOpaqueJsBlock(block) {

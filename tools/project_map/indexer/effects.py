@@ -1,7 +1,7 @@
 from .common import *
 
 
-EFFECT_HOOK_RE = re.compile(r"\b(on-arrival|on-display)\s*:\s*(.+)$")
+EFFECT_HOOK_RE = re.compile(r"\b(on-arrival|on-departure|on-display)\s*:\s*(.+)$")
 EFFECT_ASSIGNMENT_RE = re.compile(
     r"^\s*(?:Q\.)?([A-Za-z_][A-Za-z0-9_]*)\s*(\+=|-=|\*=|/=|=)\s*(.+?)\s*$"
 )
@@ -56,6 +56,8 @@ def extract_scene_effects(root: Path, scene: dict[str, Any]) -> list[dict[str, A
             source.update({
                 "startLine": line_num,
                 "endLine": line_num,
+                "rawAnchorText": raw,
+                "rawEndAnchorText": raw,
                 "anchorText": stripped,
                 "endAnchorText": stripped,
             })

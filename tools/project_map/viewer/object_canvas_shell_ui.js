@@ -7,6 +7,7 @@
     const model = opts.model || {};
     const surface = opts.surface || {};
     const canCollapse = boardChromeCanCollapse(surface);
+    const modalActive = Boolean(state.editorOverlay && previewEditorIsActive(surface));
     const classes = [
       'object-canvas editing-workspace',
       state.editorOverlay ? 'is-editor-overlay' : '',
@@ -18,7 +19,7 @@
       renderHeader(model, surface, state, opts),
       opts.stageHtml || '',
       opts.modalHtml || '',
-      opts.bodyHtml || '',
+      modalActive ? '' : opts.bodyHtml || '',
       '</section>'
     ].join('');
   }
@@ -34,6 +35,7 @@
     const kindLabel = systemUi ? t('authoring.template.systemUiScreen', 'System UI Screen') : model.templateLabel || model.objectKind || state.template || 'event';
     const surfaceLabel = surface && labelForSurface(surface, opts) || t('objectCanvas.eyebrow', 'Object Authoring Canvas');
     const title = headerTitle(model, surface, t);
+    const displayTitle = displayCompactLabel(title);
     const canCollapse = boardChromeCanCollapse(surface);
     const collapsed = canCollapse && state.boardChromeCollapsed;
     const toggleLabel = collapsed
@@ -45,7 +47,7 @@
       '<div class="object-canvas-title-row">',
       '<div>',
       '<div class="template-eyebrow" data-authoring-surface-label="true">' + escapeHtml(surfaceLabel) + '</div>',
-      '<h2 data-object-canvas-title="true">' + escapeHtml(title) + '</h2>',
+      '<h2 data-object-canvas-title="true" title="' + escapeAttr(title) + '">' + escapeHtml(displayTitle) + '</h2>',
       '</div>',
       canCollapse ? '<button class="object-canvas-chrome-toggle" type="button" data-object-canvas-action="toggle_board_chrome" aria-expanded="' + (collapsed ? 'false' : 'true') + '">' + escapeHtml(toggleLabel) + '</button>' : '',
       '</div>',
@@ -204,6 +206,67 @@
       : surface && surface.key === 'system_ui_preview'
       ? t('authoring.template.systemUiScreen', 'System UI Screen')
       : model && model.title || t('objectCanvas.titleFallback', 'Author object');
+  }
+
+  function displayCompactLabel(value) {
+    const raw = String(value || '');
+    const display = compactDendryInlineLabel(raw) || raw.trim();
+    return display || raw;
+  }
+
+  function compactDendryInlineLabel(value) {
+    const raw = String(value || '');
+    if (!raw) {
+      return '';
+    }
+    const conditionalPattern = /\[\?\s*if\s+[^:]+:\s*([\s\S]*?)\?\]/g;
+    const matches = [];
+    let match;
+    while ((match = conditionalPattern.exec(raw)) !== null) {
+      matches.push({index: match.index, text: cleanDisplayLabel(match[1]), raw: match[0]});
+    }
+    if (!matches.length) {
+      return cleanDisplayLabel(raw);
+    }
+    const first = matches[0];
+    const last = matches[matches.length - 1];
+    const before = raw.slice(0, first.index);
+    const after = raw.slice(last.index + last.raw.length);
+    const onlyAdjacentConditionals = !cleanDisplayLabel(before) && matches.every((item, index) => {
+      if (index === 0) {
+        return true;
+      }
+      const previous = matches[index - 1];
+      return !cleanDisplayLabel(raw.slice(previous.index + previous.raw.length, item.index));
+    });
+    const unique = uniqueNonEmpty(matches.map((item) => item.text));
+    if (onlyAdjacentConditionals && unique.length > 1) {
+      return cleanDisplayLabel([unique.join(' / '), after].filter(Boolean).join(' '));
+    }
+    return cleanDisplayLabel(raw.replace(conditionalPattern, (_token, body) => ' ' + cleanDisplayLabel(body) + ' '));
+  }
+
+  function cleanDisplayLabel(value) {
+    return String(value || '')
+      .replace(/<[^>]*>/g, '')
+      .replace(/\*\*/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function uniqueNonEmpty(values) {
+    const seen = new Set();
+    const result = [];
+    (Array.isArray(values) ? values : []).forEach((value) => {
+      const text = String(value || '').trim();
+      if (!text || seen.has(text)) {
+        return;
+      }
+      seen.add(text);
+      result.push(text);
+    });
+    return result;
   }
 
   function labelForSurface(surface, options) {

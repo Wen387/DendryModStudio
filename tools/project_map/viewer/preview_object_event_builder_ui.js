@@ -29,7 +29,7 @@
       '<div class="preview-object-section-title">' + escapeHtml(t('previewObjectEditor.assets', 'Referenced assets')) + '</div>',
       rows.map((asset) => {
         const fieldId = String(asset && (asset.id || asset.path || asset.previewUrl) || '').trim();
-        const fieldAttrs = fieldId ? ' data-object-canvas-field="' + escapeAttr(fieldId) + '" tabindex="0"' : '';
+        const fieldAttrs = fieldId ? ' data-preview-object-asset-entry="' + escapeAttr(fieldId) + '" tabindex="0"' : '';
         return [
         '<article' + fieldAttrs + '>',
         '<strong>' + escapeHtml(asset.label || asset.name || asset.path || t('previewObjectEditor.asset', 'Asset')) + '</strong>',

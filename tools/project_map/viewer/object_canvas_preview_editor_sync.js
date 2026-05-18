@@ -6,10 +6,14 @@
     if (!hasActivePreviewEditor(ctx) || !ctx.editor || typeof ctx.editor.renderPreviewPane !== 'function') {
       return;
     }
+    const renderPane = typeof ctx.editor.renderModalPreviewPane === 'function'
+      ? ctx.editor.renderModalPreviewPane
+      : ctx.editor.renderPreviewPane;
     ctx.host.querySelectorAll('[data-object-editing-modal-preview-pane]').forEach((node) => {
-      node.innerHTML = ctx.editor.renderPreviewPane(ctx.model, {
+      node.innerHTML = renderPane(ctx.model, {
         template: ctx.state.template,
-        selectedKey: ctx.state.selectedCanvasNode
+        selectedKey: ctx.state.selectedCanvasNode,
+        previewExpanded: ctx.state.objectEditorPreviewExpanded
       });
     });
   }
@@ -75,7 +79,8 @@
           if (selector === '[data-preview-object-editor-title]') {
             node.innerHTML = renderVisibleTextInline(title, ctx);
           } else {
-            node.textContent = title;
+            node.textContent = displayCompactLabel(title);
+            node.setAttribute('title', title);
           }
         }
       });
@@ -92,6 +97,67 @@
     return renderer && typeof renderer.renderInline === 'function'
       ? renderer.renderInline(value)
       : ctx.escapeHtml(value);
+  }
+
+  function displayCompactLabel(value) {
+    const raw = String(value || '');
+    const display = compactDendryInlineLabel(raw) || raw.trim();
+    return display || raw;
+  }
+
+  function compactDendryInlineLabel(value) {
+    const raw = String(value || '');
+    if (!raw) {
+      return '';
+    }
+    const conditionalPattern = /\[\?\s*if\s+[^:]+:\s*([\s\S]*?)\?\]/g;
+    const matches = [];
+    let match;
+    while ((match = conditionalPattern.exec(raw)) !== null) {
+      matches.push({index: match.index, text: cleanDisplayLabel(match[1]), raw: match[0]});
+    }
+    if (!matches.length) {
+      return cleanDisplayLabel(raw);
+    }
+    const first = matches[0];
+    const last = matches[matches.length - 1];
+    const before = raw.slice(0, first.index);
+    const after = raw.slice(last.index + last.raw.length);
+    const onlyAdjacentConditionals = !cleanDisplayLabel(before) && matches.every((item, index) => {
+      if (index === 0) {
+        return true;
+      }
+      const previous = matches[index - 1];
+      return !cleanDisplayLabel(raw.slice(previous.index + previous.raw.length, item.index));
+    });
+    const unique = uniqueNonEmpty(matches.map((item) => item.text));
+    if (onlyAdjacentConditionals && unique.length > 1) {
+      return cleanDisplayLabel([unique.join(' / '), after].filter(Boolean).join(' '));
+    }
+    return cleanDisplayLabel(raw.replace(conditionalPattern, (_token, body) => ' ' + cleanDisplayLabel(body) + ' '));
+  }
+
+  function cleanDisplayLabel(value) {
+    return String(value || '')
+      .replace(/<[^>]*>/g, '')
+      .replace(/\*\*/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function uniqueNonEmpty(values) {
+    const seen = new Set();
+    const result = [];
+    (Array.isArray(values) ? values : []).forEach((value) => {
+      const text = String(value || '').trim();
+      if (!text || seen.has(text)) {
+        return;
+      }
+      seen.add(text);
+      result.push(text);
+    });
+    return result;
   }
 
   function renderPreviewObjectDraftSummary(model, deps) {

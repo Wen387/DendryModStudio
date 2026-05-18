@@ -83,7 +83,7 @@
     const beforeLine = directive + ': ' + current.path;
     const afterLine = directive + ': ' + replacement.path;
     const change = {
-      fieldId: safeId(['asset', directive, owner.sceneId, source.line].join('_')),
+      fieldId: safeId(['asset', directive, source.line].join('_')),
       role: 'asset_reference',
       label: directiveLabel(directive),
       sectionId: '',

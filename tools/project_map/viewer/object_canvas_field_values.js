@@ -12,7 +12,7 @@
     const byKey = new Map();
     host.querySelectorAll('[data-object-canvas-field]').forEach((input, order) => {
       const key = input && input.dataset && input.dataset.objectCanvasField || '';
-      if (!key || input.disabled) {
+      if (!key || input.disabled || !isCollectableField(input)) {
         return;
       }
       if (!byKey.has(key)) {
@@ -44,6 +44,13 @@
     return entries;
   }
 
+  function isCollectableField(input) {
+    if (!input || !input.matches) {
+      return false;
+    }
+    return input.matches('input, textarea, select');
+  }
+
   function fieldIsVisibleForCollection(input, options) {
     if (!input || String(input.type || '').toLowerCase() === 'hidden') {
       return false;
@@ -67,7 +74,8 @@
 
   const api = {
     collectCanvasFieldEntries,
-    fieldIsVisibleForCollection
+    fieldIsVisibleForCollection,
+    isCollectableField
   };
 
   if (typeof module !== 'undefined' && module.exports) {

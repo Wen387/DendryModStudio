@@ -37,6 +37,7 @@ const OPTION_FIELDS = [
 const SECTION_FIELDS = [
   'title',
   'subtitle',
+  'unavailableSubtitle',
   'viewIf',
   'chooseIf',
   'order',
@@ -54,11 +55,33 @@ const SECTION_FIELDS = [
   'isSpecial',
   'isDeck',
   'isPinnedCard',
+  'isMyNewRowType',
   'isCard',
   'isHand',
+  'maxCards',
   'minChoices',
   'maxChoices',
-  'gameOver'
+  'gameOver',
+  'onArrival',
+  'onDeparture',
+  'onDisplay',
+  'setBg',
+  'setMusic',
+  'setSprites',
+  'setSpriteStyles',
+  'setTopLeftStyle',
+  'setTopRightStyle',
+  'setBottomLeftStyle',
+  'setBottomRightStyle',
+  'achievement',
+  'audio',
+  'cardImage',
+  'faceImage',
+  'checkQuality',
+  'broadDifficulty',
+  'narrowDifficulty',
+  'difficultyScaler',
+  'difficultyIncrement'
 ];
 
 const TIMELINE_FIELDS = [

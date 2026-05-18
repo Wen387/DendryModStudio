@@ -57,6 +57,10 @@
 
 .editing-workspace-header h2 {
   margin: 2px 0 6px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .create-workspace.is-object-authoring .editing-workspace-header h2 {
@@ -1212,7 +1216,10 @@
 .object-editor-launch-card h3,
 .object-editor-launch-card h4 {
   margin: 0;
-  overflow-wrap: anywhere;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .object-editor-launch-card p {
@@ -2463,7 +2470,10 @@
 
 .object-canvas-command-head h3 {
   margin: 0;
-  overflow-wrap: anywhere;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 15px;
   line-height: 1.16;
 }

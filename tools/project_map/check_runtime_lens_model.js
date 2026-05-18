@@ -356,6 +356,10 @@ assert(lensPageHtml.includes('SOURCE_EVIDENCE'), 'Runtime Lens wrapper should ca
 assert(lensPageHtml.includes('/api/runtime-snapshot'), 'Runtime Lens wrapper should record the latest runtime snapshot');
 assert(lensPageHtml.includes('dms-runtime-lens-session-evidence'), 'Runtime Lens wrapper should report snapshot evidence back to the viewer');
 assert(lensPageHtml.includes('dms-runtime-lens-action'), 'Runtime Lens wrapper should accept parent focus/reset actions');
+assert(lensPageHtml.includes('overflow:hidden;isolation:isolate'), 'Runtime Lens wrapper should isolate nested iframe painting');
+assert(lensPageHtml.includes('--runtime-lens-frame-min-width:1280px'), 'Runtime Lens wrapper should keep a desktop-width runtime viewport for docked previews');
+assert(lensPageHtml.includes('main{position:relative;z-index:1;min-height:0;overflow:auto;overscroll-behavior:contain;background:white;contain:paint}'), 'Runtime Lens wrapper main should let docked previews pan across wide runtime layouts');
+assert(lensPageHtml.includes('iframe{display:block;width:100%;min-width:var(--runtime-lens-frame-min-width);height:100%;border:0;background:white;contain:paint}'), 'Runtime Lens wrapper iframe should paint as an opaque desktop-width contained layer');
 assert(lensPageHtml.includes('var autoFocused=false'), 'Runtime Lens wrapper should track whether automatic focus already ran');
 assert(lensPageHtml.includes('AUTO_COMMANDS.length&&!autoFocused'), 'Runtime Lens wrapper should not re-run automatic focus on every iframe load');
 assert(lensPageHtml.includes('else captureSnapshot()'), 'Runtime Lens wrapper should capture evidence after follow-up iframe loads instead of focusing again');

@@ -26,6 +26,8 @@
   function slugForStructurePreview(value) {
     return String(value || '')
       .trim()
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '_')
       .replace(/^_+|_+$/g, '')
@@ -40,7 +42,7 @@
       const chooseIf = String(values.choose_if || '').trim();
       const unavailableText = String(values.unavailable_text || '').trim();
       const resultMode = String(values.result_mode || 'native').trim() || 'native';
-      const target = String(values.target_id || '').trim() || slugForStructurePreview(label) || 'new_option';
+      const target = slugForStructurePreview(values.target_id) || slugForStructurePreview(label) || 'new_option';
       if (!label && !result && !String(values.target_id || '').trim() && !chooseIf && !unavailableText && resultMode === 'native') {
         return '';
       }
@@ -54,7 +56,7 @@
       ].filter(Boolean).join('\n');
     }
     if (action === 'add_branch') {
-      const section = String(values.section_id || '').trim() || 'follow_up';
+      const section = slugForStructurePreview(values.section_id) || 'follow_up';
       const condition = String(values.condition || '').trim();
       const text = String(values.branch_text || '').trim();
       if (!String(values.section_id || '').trim() && !condition && !text) {

@@ -603,6 +603,7 @@
   function renderCommandDock(model, storyboard, options) {
     const selected = findStoryboardCard(storyboard, storyboard && storyboard.selectedKey) || {};
     const title = selected.title || model && model.title || t('objectCanvas.titleFallback', 'Author object');
+    const displayTitle = displayCompactLabel(title);
     const kind = selected.kind ? kindLabel(selected.kind) : model && (model.templateLabel || model.objectKind) || '';
     const active = Boolean(options && options.editorOverlay);
     return [
@@ -610,7 +611,7 @@
       '<div class="object-canvas-command-head">',
       '<div>',
       '<div class="template-eyebrow">' + escapeHtml(t('storyboard.selected', 'Selected story object')) + '</div>',
-      '<h3 data-content-storyboard-selected-title="true">' + escapeHtml(title) + '</h3>',
+      '<h3 data-content-storyboard-selected-title="true" title="' + escapeAttr(title) + '">' + escapeHtml(displayTitle) + '</h3>',
       '</div>',
       kind ? '<span class="object-canvas-command-pill">' + escapeHtml(kind) + '</span>' : '',
       '</div>',
@@ -625,12 +626,13 @@
   function renderOpenEditorCard(model, storyboard, options) {
     const selected = storyboard && storyboard.cards && storyboard.cards.find((card) => card.key === storyboard.selectedKey) || {};
     const title = selected.title || model && model.title || t('objectCanvas.titleFallback', 'Author object');
+    const displayTitle = displayCompactLabel(title);
     const kind = selected.kind ? kindLabel(selected.kind) : model && (model.templateLabel || model.objectKind) || '';
     const active = Boolean(options && options.editorOverlay);
     return [
       '<section class="content-storyboard-detail object-editor-launch-card" data-object-editor-launch-card="true">',
       '<div class="template-eyebrow">' + escapeHtml(t('previewObjectEditor.modalEyebrow', 'Object editor')) + '</div>',
-      '<h3>' + escapeHtml(title) + '</h3>',
+      '<h3 title="' + escapeAttr(title) + '">' + escapeHtml(displayTitle) + '</h3>',
       '<p>' + escapeHtml(t('previewObjectEditor.modalHint', 'Open a focused editor with a live preview and fields beside it.')) + '</p>',
       kind ? '<small>' + escapeHtml(kind) + '</small>' : '',
       '<button type="button" class="primary-action" data-object-canvas-action="toggle_overlay">' + escapeHtml(active ? t('objectCanvas.editorDock', 'Close editor') : t('objectCanvas.editorOverlay', 'Open object editor')) + '</button>',
@@ -771,6 +773,67 @@
       return renderer.renderInline(value);
     }
     return escapeHtml(value);
+  }
+
+  function displayCompactLabel(value) {
+    const raw = String(value || '');
+    const display = compactDendryInlineLabel(raw) || raw.trim();
+    return display || raw;
+  }
+
+  function compactDendryInlineLabel(value) {
+    const raw = String(value || '');
+    if (!raw) {
+      return '';
+    }
+    const conditionalPattern = /\[\?\s*if\s+[^:]+:\s*([\s\S]*?)\?\]/g;
+    const matches = [];
+    let match;
+    while ((match = conditionalPattern.exec(raw)) !== null) {
+      matches.push({index: match.index, text: cleanDisplayLabel(match[1]), raw: match[0]});
+    }
+    if (!matches.length) {
+      return cleanDisplayLabel(raw);
+    }
+    const first = matches[0];
+    const last = matches[matches.length - 1];
+    const before = raw.slice(0, first.index);
+    const after = raw.slice(last.index + last.raw.length);
+    const onlyAdjacentConditionals = !cleanDisplayLabel(before) && matches.every((item, index) => {
+      if (index === 0) {
+        return true;
+      }
+      const previous = matches[index - 1];
+      return !cleanDisplayLabel(raw.slice(previous.index + previous.raw.length, item.index));
+    });
+    const unique = uniqueNonEmpty(matches.map((item) => item.text));
+    if (onlyAdjacentConditionals && unique.length > 1) {
+      return cleanDisplayLabel([unique.join(' / '), after].filter(Boolean).join(' '));
+    }
+    return cleanDisplayLabel(raw.replace(conditionalPattern, (_token, body) => ' ' + cleanDisplayLabel(body) + ' '));
+  }
+
+  function cleanDisplayLabel(value) {
+    return String(value || '')
+      .replace(/<[^>]*>/g, '')
+      .replace(/\*\*/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function uniqueNonEmpty(values) {
+    const seen = new Set();
+    const result = [];
+    ensureArray(values).forEach((value) => {
+      const text = String(value || '').trim();
+      if (!text || seen.has(text)) {
+        return;
+      }
+      seen.add(text);
+      result.push(text);
+    });
+    return result;
   }
 
   function richTextApi() {

@@ -308,7 +308,7 @@ class VariableScanner:
         current: list[tuple[int, str]] = []
         for line_num, line in enumerate(lines, 1):
             if not in_block:
-                if re.search(r"\b(on-arrival|on-display)\s*:\s*\{!", line):
+                if re.search(r"\b(on-arrival|on-departure|on-display)\s*:\s*\{!", line, re.I):
                     in_block = True
                     current = [(line_num, line)]
                     self.opaque_js_blocks[rel] += 1
@@ -336,11 +336,13 @@ class VariableScanner:
         end_line = block[-1][0]
         lines = [content for _, content in block]
         raw = "\n".join(lines)
-        hook_match = re.search(r"\b(on-arrival|on-display)\s*:\s*\{!", lines[0], re.I)
+        hook_match = re.search(r"\b(on-arrival|on-departure|on-display)\s*:\s*\{!", lines[0], re.I)
         hook = hook_match.group(1).lower() if hook_match else ""
         reads, writes, dynamic_writes = self.variable_names_in_js_block(block)
         source = source_range_ref(rel, start_line, end_line)
         source.update({
+            "rawAnchorText": lines[0],
+            "rawEndAnchorText": lines[-1],
             "anchorText": lines[0].strip(),
             "endAnchorText": lines[-1].strip(),
         })
@@ -377,7 +379,7 @@ class VariableScanner:
     @staticmethod
     def compact_js_preview(lines: list[str]) -> str:
         body = "\n".join(line.strip() for line in lines)
-        body = re.sub(r"^\s*(?:on-arrival|on-display)\s*:\s*\{!\s*", "", body, flags=re.I)
+        body = re.sub(r"^\s*(?:on-arrival|on-departure|on-display)\s*:\s*\{!\s*", "", body, flags=re.I)
         body = re.sub(r"\s*!\}\s*$", "", body)
         body = body.strip()
         if len(body) > 1200:
@@ -386,19 +388,19 @@ class VariableScanner:
 
     def scan_lines(self, rel: str, lines: list[str]) -> None:
         for line_num, line in enumerate(lines, 1):
-            if "view-if:" in line:
-                self.extract_vars_from_condition(line.split("view-if:", 1)[1], rel, line_num)
-            if "choose-if:" in line:
-                self.extract_vars_from_condition(line.split("choose-if:", 1)[1], rel, line_num)
+            condition_match = re.match(r"^\s*(view[-_ ]?if|choose[-_ ]?if)\s*:\s*(.+)$", line, re.I)
+            if condition_match:
+                self.extract_vars_from_condition(condition_match.group(2), rel, line_num)
             for match in re.finditer(r"\[\?\s*if\s+([^:?]+)", line):
                 self.extract_vars_from_condition(match.group(1), rel, line_num)
-            if "go-to:" in line and " if " in line:
-                for condition in re.findall(r"\s+if\s+([^;]+)", line):
+            if re.search(r"\bgo[-_ ]?to\s*:", line, re.I) and re.search(r"\s+if\s+", line, re.I):
+                for condition in re.findall(r"\s+if\s+([^;]+)", line, re.I):
                     self.extract_vars_from_condition(condition, rel, line_num)
             for match in re.finditer(r"\[\+\s*([A-Za-z_][A-Za-z0-9_]*)\b", line):
                 self.record_read(match.group(1), rel, line_num)
-            if "on-arrival:" in line and "{!" not in line:
-                self.scan_shorthand_on_arrival(rel, line_num, line.split("on-arrival:", 1)[1])
+            hook_match = re.search(r"\b(on-arrival|on-departure|on-display)\s*:\s*(.+)$", line, re.I)
+            if hook_match and "{!" not in line:
+                self.scan_shorthand_hook(rel, line_num, hook_match.group(2))
 
         for block in self.iter_js_blocks(rel, lines):
             self.scan_js_block(rel, block)
@@ -413,7 +415,7 @@ class VariableScanner:
             if name not in RESERVED_CONDITION_WORDS:
                 self.record_read(name, rel, line_num)
 
-    def scan_shorthand_on_arrival(self, rel: str, line_num: int, raw: str) -> None:
+    def scan_shorthand_hook(self, rel: str, line_num: int, raw: str) -> None:
         for match in self.SHORTHAND_WRITE_RE.finditer(raw):
             name, op = match.group(1), match.group(2)
             self.record_write(name, rel, line_num)

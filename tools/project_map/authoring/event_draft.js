@@ -43,6 +43,7 @@
     draft.rawEffectsOnTrigger = rawEffectLines(draft.rawEffectsOnTrigger || draft.rawTriggerEffects || draft.advancedEffectsOnTrigger);
     draft.introParagraphs = normalizeTextList(draft.introParagraphs);
     draft.assetRefs = ensureArray(draft.assetRefs).map(normalizeAssetRef);
+    draft.assetPlacements = ensureArray(draft.assetPlacements).map(normalizeAssetPlacement).filter((asset) => asset.path);
     draft.assetInstallRequests = ensureArray(draft.assetInstallRequests).map(normalizeAssetInstallRequest);
     draft.options = ensureArray(draft.options).map(normalizeOption);
     const sections = ensureArray(draft.sections).map(normalizeSection).filter((section) => section.id);
@@ -51,6 +52,7 @@
     } else {
       delete draft.sections;
     }
+    distributeAssetPlacements(draft);
     return draft;
   }
 
@@ -99,6 +101,7 @@
       effects: ensureArray(value.effects).map(normalizeEffect),
       rawEffects: rawEffectLines(value.rawEffects || value.rawOptionEffects || value.advancedEffects),
       narrativeParagraphs: normalizeTextList(value.narrativeParagraphs),
+      assetPlacements: ensureArray(value.assetPlacements).map(normalizeAssetPlacement).filter((asset) => asset.path),
       variants: ensureArray(value.variants).map(normalizeVariant),
       resultMode,
       gotoAfter: resultMode === 'continue' ? (explicitGotoAfter || fallbackGotoAfter) : explicitGotoAfter,
@@ -186,6 +189,7 @@
       title: String(value.title || value.heading || '').trim(),
       condition: String(value.condition || value.viewIf || value.chooseIf || '').trim(),
       paragraphs: normalizeTextList(value.paragraphs || value.narrativeParagraphs || value.body || value.text),
+      assetPlacements: ensureArray(value.assetPlacements).map(normalizeAssetPlacement).filter((asset) => asset.path),
       effects: ensureArray(value.effects).map(normalizeEffect),
       options: ensureArray(value.options).map(normalizeOption),
       exitTarget: String(value.exitTarget || value.returnTarget || 'root').trim()
@@ -217,8 +221,59 @@
       path,
       type: String(value.type || inferAssetType(path) || 'asset').trim(),
       label: String(value.label || value.name || fileName(path) || '').trim(),
+      directive: String(value.directive || value.assetDirective || '').trim(),
       role: String(value.role || '').trim()
     };
+  }
+
+  function normalizeAssetPlacement(asset) {
+    const ref = normalizeAssetRef(asset);
+    const value = isObject(asset) ? asset : {};
+    return Object.assign({}, ref, {
+      placementId: String(value.placementId || value.id || '').trim(),
+      placementKind: String(value.placementKind || value.kind || 'opening_visual').trim(),
+      sectionId: String(value.sectionId || '').trim(),
+      optionId: String(value.optionId || '').trim(),
+      branchKind: String(value.branchKind || '').trim(),
+      displayLocation: String(value.displayLocation || value.placementLabel || '').trim(),
+      directive: String(value.directive || value.assetDirective || ref.directive || 'inline-image').trim() || 'inline-image'
+    });
+  }
+
+  function distributeAssetPlacements(draft) {
+    const placements = ensureArray(draft.assetPlacements);
+    if (!placements.length) {
+      return;
+    }
+    draft.options = ensureArray(draft.options).map((option) => {
+      const optionId = String(option && option.id || '');
+      const scoped = placements.filter((asset) => asset.optionId && asset.optionId === optionId);
+      return scoped.length ? Object.assign({}, option, {
+        assetPlacements: dedupeAssetPlacements(ensureArray(option.assetPlacements).concat(scoped))
+      }) : option;
+    });
+    if (Array.isArray(draft.sections)) {
+      draft.sections = ensureArray(draft.sections).map((section) => {
+        const sectionId = String(section && section.id || '');
+        const scoped = placements.filter((asset) => asset.sectionId && asset.sectionId === sectionId);
+        return scoped.length ? Object.assign({}, section, {
+          assetPlacements: dedupeAssetPlacements(ensureArray(section.assetPlacements).concat(scoped))
+        }) : section;
+      });
+    }
+    draft.assetPlacements = placements.filter((asset) => !asset.optionId && !asset.sectionId);
+  }
+
+  function dedupeAssetPlacements(placements) {
+    const seen = new Set();
+    return ensureArray(placements).filter((asset) => {
+      const key = [asset && asset.path, asset && asset.optionId, asset && asset.sectionId, asset && asset.placementKind].join('|');
+      if (!asset || !asset.path || seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
   }
 
   function normalizeAssetInstallRequest(input) {
@@ -230,6 +285,7 @@
       targetPath,
       type: String(value.type || inferAssetType(targetPath || value.sourceName || '') || 'asset').trim(),
       label: String(value.label || value.sourceName || fileName(targetPath) || '').trim(),
+      directive: String(value.directive || value.assetDirective || '').trim(),
       role: String(value.role || '').trim()
     };
   }
@@ -576,6 +632,7 @@
     if (ensureArray(draft.tags).length) {
       lines.push('tags: ' + ensureArray(draft.tags).join(', '));
     }
+    appendAssetReferenceLines(lines, draft.assetRefs, 'event');
     const viewIf = renderViewIf(draft);
     if (viewIf) {
       lines.push('view-if: ' + viewIf);
@@ -597,6 +654,7 @@
     lines.push('= ' + draft.heading);
     lines.push('');
     appendParagraphs(lines, draft.introParagraphs);
+    appendAssetPlacementLines(lines, draft.assetPlacements, {placementKind: 'opening_visual'});
     if (draft.options.length) {
       draft.options.forEach((option) => {
         lines.push('- @' + option.id + ': ' + option.label);
@@ -611,6 +669,40 @@
     }
     ensureArray(draft.sections).forEach((section) => appendSection(lines, section, continueLabel));
     return lines.join('\n') + '\n';
+  }
+
+  function appendAssetReferenceLines(lines, assetRefs, target) {
+    ensureArray(assetRefs).forEach((asset) => {
+      const directive = assetDirectiveForRef(asset, target);
+      const path = String(asset && asset.path || '').trim();
+      if (directive && path) {
+        lines.push(directive + ': ' + path);
+      }
+    });
+  }
+
+  function assetDirectiveForRef(asset, target) {
+    const value = isObject(asset) ? asset : {};
+    const explicit = normalizeAssetDirective(value.directive || value.assetDirective);
+    if (explicit) {
+      return explicit;
+    }
+    const role = String(value.role || '').trim();
+    if (role === 'event_portrait') {
+      return 'face-image';
+    }
+    if (role === 'event_illustration' || role === 'event_background') {
+      return 'set-bg';
+    }
+    if (role === 'event_audio' || String(value.type || '').trim() === 'audio') {
+      return 'audio';
+    }
+    return target === 'event' && String(value.type || '').trim() === 'image' ? 'set-bg' : '';
+  }
+
+  function normalizeAssetDirective(value) {
+    const text = String(value || '').trim().toLowerCase();
+    return text === 'face-image' || text === 'card-image' || text === 'set-bg' || text === 'audio' ? text : '';
   }
 
   function defaultContinueLabel(options) {
@@ -673,6 +765,7 @@
       lines.push('');
     }
     appendParagraphs(lines, option.narrativeParagraphs);
+    appendAssetPlacementLines(lines, option.assetPlacements, {optionId: option.id});
     option.variants.forEach((variant) => {
       lines.push('[? if ' + variant.condition + ' : ' + variant.text + ' ?]');
       lines.push('');
@@ -709,6 +802,7 @@
       lines.push('');
     }
     appendParagraphs(lines, section.paragraphs);
+    appendAssetPlacementLines(lines, section.assetPlacements, {sectionId: section.id});
     section.options.forEach((option) => {
       lines.push('- @' + option.id + ': ' + option.label);
     });
@@ -731,6 +825,41 @@
       lines.push(paragraph);
       lines.push('');
     });
+  }
+
+  function appendAssetPlacementLines(lines, placements, scope) {
+    ensureArray(placements).forEach((asset) => {
+      const line = assetPlacementLine(asset, scope);
+      if (line) {
+        lines.push(line);
+        lines.push('');
+      }
+    });
+  }
+
+  function assetPlacementLine(asset, scope) {
+    const item = normalizeAssetPlacement(asset || {});
+    if (!item.path || item.type === 'audio') {
+      return '';
+    }
+    const directive = assetPlacementDirective(item, scope);
+    return directive ? directive + ': ' + item.path : '';
+  }
+
+  function assetPlacementDirective(asset, scope) {
+    const explicit = normalizeAssetDirective(asset && (asset.directive || asset.assetDirective));
+    if (explicit) {
+      return explicit;
+    }
+    const raw = String(asset && (asset.directive || asset.assetDirective) || '').trim().toLowerCase();
+    if (raw === 'inline-image' || raw === 'inline-asset') {
+      return 'face-image';
+    }
+    const scoped = scope && (scope.optionId || scope.sectionId);
+    if (!scoped && String(asset && asset.role || '').trim() === 'event_background') {
+      return 'set-bg';
+    }
+    return 'face-image';
   }
 
   function renderEffect(effect) {

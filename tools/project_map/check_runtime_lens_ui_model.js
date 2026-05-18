@@ -2,6 +2,7 @@
 'use strict';
 
 const path = require('path');
+const fs = require('fs');
 
 global.ProjectMapI18n = {t: (_key, fallback) => fallback};
 global.ProjectMapCardBoardModel = require('./authoring/card_board_model.js');
@@ -23,6 +24,7 @@ global.ProjectMapRuntimeVisualAssetDraftModel = require('./authoring/runtime_vis
 
 const runtimeLensUi = require('./viewer/runtime_lens_ui.js');
 const runtimeLensWorkspace = require('./viewer/runtime_lens_workspace_state.js');
+const canvasModel = require('./authoring/object_authoring_canvas_model.js');
 
 function fail(message) {
   process.stderr.write('FAIL: ' + message + '\n');
@@ -249,6 +251,11 @@ const readyHtml = runtimeLensUi.renderPanel({
   }
 });
 assert(readyHtml.includes('data-runtime-lens-frame="true"'), 'Ready Runtime Lens panel should render an iframe');
+assert(readyHtml.includes('class="runtime-lens-body"'), 'Ready Runtime Lens panel should group preview and diagnostics in one body');
+assert(readyHtml.includes('class="runtime-lens-preview-shell"'), 'Ready Runtime Lens panel should render a preview shell around the iframe');
+assert(readyHtml.includes('data-runtime-lens-evidence="true"'), 'Ready Runtime Lens panel should collapse runtime evidence below the preview');
+assert(readyHtml.includes('Runtime evidence'), 'Ready Runtime Lens panel should label the collapsed evidence drawer');
+assert(readyHtml.includes('data-runtime-lens-resize-grip="true"'), 'Ready Runtime Lens panel should expose a draggable height control');
 assert(readyHtml.includes('http://127.0.0.1:4000/session/lens/'), 'Runtime Lens iframe should point at the focused wrapper URL');
 assert(readyHtml.includes('Runtime health'), 'Ready Runtime Lens panel should render runtime snapshot health');
 assert(readyHtml.includes('Regions: 3/4'), 'Ready Runtime Lens panel should summarize visible runtime regions');
@@ -295,6 +302,13 @@ assert(assetActionOpened, 'Runtime Lens workspace should open a runtime visual a
 assert(loadedAssetDraft && loadedAssetDraft.draft && loadedAssetDraft.draft.kind === 'existing_scene_edit', 'Runtime visual asset action should load an existing scene edit draft');
 assert(loadedAssetDraft.draft.assetInstallRequests && loadedAssetDraft.draft.assetInstallRequests.length === 1, 'Runtime visual asset draft should carry an asset install request');
 assert(assetActionState.runtimeLensSession.runtimeVisualAssetDraft && assetActionState.runtimeLensSession.runtimeVisualAssetDraft.status === 'proposal_only', 'Runtime visual asset action should store latest draft metadata on the session');
+const runtimeAssetCanvas = canvasModel.buildCanvasModel(projectIndex, loadedAssetDraft.draft, {});
+assert(runtimeAssetCanvas.ok, 'Runtime visual asset draft should reopen through Object Canvas');
+assert(runtimeAssetCanvas.changeState.proposal.changes.some((change) => change.before === 'face-image: img/hero.png' && change.after === 'face-image: assets/studio/events/election_start/hero.png'), 'Runtime visual asset draft should preserve the source-backed asset directive replacement in Object Canvas');
+assert(runtimeAssetCanvas.changeState.proposal.assetInstallRequests.length === 1, 'Runtime visual asset draft should preserve assetInstallRequests when reopened in Object Canvas');
+assert(runtimeAssetCanvas.changeState.installPlan.operations.some((operation) => operation.type === 'replace_text' && operation.safety === 'guarded_apply'), 'Runtime visual asset draft reopened in Object Canvas should keep guarded source replacement');
+assert(runtimeAssetCanvas.changeState.installPlan.operations.some((operation) => operation.type === 'copy_asset_file' && operation.safety === 'manual_review'), 'Runtime visual asset draft reopened without replacement sourcePath should keep asset copy manual review');
+assert(runtimeAssetCanvas.eventBody.assets.some((asset) => asset.rowKind === 'asset_install_request' && asset.path === 'assets/studio/events/election_start/hero.png'), 'Runtime visual asset draft reopened in Object Canvas should render the pending asset install row');
 
 const staleHtml = runtimeLensUi.renderPanel({
   focus,
@@ -359,6 +373,35 @@ assert(blockedHtml.includes('DOM source map'), 'Blocked Runtime Lens panel shoul
 assert(blockedHtml.includes('Runtime DOM source map is blocked.'), 'Blocked Runtime Lens panel should show DOM map blocker diagnostics');
 assert(blockedHtml.includes('Editable visual surfaces'), 'Blocked Runtime Lens panel should still render visual surface summary');
 assert(blockedHtml.includes('Runtime visual surface authoring is blocked.'), 'Blocked Runtime Lens panel should show visual surface blocker diagnostics');
+
+const conditionalTitleHtml = runtimeLensUi.renderPanel({
+  focus: {
+    kind: 'event',
+    id: 'center_party_conference',
+    title: '[? if z_party_name != "CVP": <span style="color: #000000;">Center Party</span>?][? if z_party_name == "CVP": <span style="color: #000000;">**CVP**</span>?] Conference'
+  },
+  status: 'ready',
+  sessionFocusKey: 'event:center_party_conference',
+  session: {ok: true, status: 'ready', lensUrl: 'http://127.0.0.1:4000/session/lens/'}
+});
+assert(conditionalTitleHtml.includes('Center Party / CVP Conference'), 'Runtime Lens summary should compact common Dendry conditional labels for display');
+assert(conditionalTitleHtml.includes('title="[? if z_party_name'), 'Runtime Lens summary should keep raw conditional title evidence in the tooltip');
+
+const runtimeLensCss = fs.readFileSync(path.join(__dirname, 'viewer', 'styles', 'runtime-lens.css'), 'utf8');
+assert(runtimeLensCss.includes('.runtime-lens-body'), 'Runtime Lens CSS should style the grouped preview body');
+assert(runtimeLensCss.includes('.runtime-lens-resize-grip'), 'Runtime Lens CSS should style the preview height grip');
+assert(runtimeLensCss.includes('--runtime-lens-frame-min-width: 1280px'), 'Runtime Lens CSS should reserve a desktop-width preview surface for horizontal panning');
+assert(runtimeLensCss.includes('grid-template-rows: auto auto minmax(0, 1fr)'), 'Expanded Runtime Lens should reserve a real body row for the preview');
+assert(/\.runtime-lens-panel\.is-expanded \.runtime-lens-body\s*\{[^}]*grid-template-rows: minmax\(0, 1fr\) auto[^}]*overflow: hidden/s.test(runtimeLensCss), 'Expanded Runtime Lens body should dedicate remaining height to the iframe and keep evidence compact');
+assert(/\.runtime-lens-panel\.is-expanded \.runtime-lens-preview-shell\s*\{[^}]*grid-template-rows: minmax\(0, 1fr\) auto/s.test(runtimeLensCss), 'Expanded Runtime Lens preview shell should let the iframe fill the available preview row');
+assert(/\.runtime-lens-evidence-body\s*\{[^}]*max-height: min\(34vh, 360px\)[^}]*overflow: auto/s.test(runtimeLensCss), 'Runtime Lens evidence drawer should scroll internally instead of growing over the preview');
+assert(/\.runtime-lens-panel\s*\{[^}]*isolation: isolate/s.test(runtimeLensCss), 'Runtime Lens panel should isolate nested iframe painting');
+assert(/\.runtime-lens-preview-shell\s*\{[^}]*contain: paint/s.test(runtimeLensCss), 'Runtime Lens preview shell should contain iframe painting');
+assert(/\.runtime-lens-frame-wrap\s*\{[^}]*contain: paint[^}]*isolation: isolate/s.test(runtimeLensCss), 'Runtime Lens frame wrap should isolate iframe compositing');
+assert(/\.runtime-lens-frame-wrap\s*\{[^}]*overflow: auto[^}]*overscroll-behavior: contain/s.test(runtimeLensCss), 'Runtime Lens frame wrap should expose horizontal panning for docked wide previews');
+assert(/\.runtime-lens-frame\s*\{[^}]*min-width: var\(--runtime-lens-frame-min-width\)/s.test(runtimeLensCss), 'Runtime Lens iframe should keep a panning width in narrow docked previews');
+assert(/\.runtime-lens-health\s*\{[^}]*background: var\(--surface\)/s.test(runtimeLensCss), 'Runtime Lens health evidence should paint an opaque surface');
+assert(/\.runtime-lens-dom-map,\s*\.runtime-lens-visual-surface\s*\{[^}]*background: var\(--surface\)/s.test(runtimeLensCss), 'Runtime Lens evidence details should paint an opaque surface');
 
 const evidenceState = {
   projectIndex,

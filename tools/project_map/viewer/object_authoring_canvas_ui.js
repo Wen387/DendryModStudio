@@ -1144,14 +1144,17 @@
     return ok;
   }
 
-  function refresh() {
+  function refresh(options) {
     if (!state.active) {
       return;
     }
+    const opts = options || {};
     if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = null; }
     const scrollSnapshot = state.preserveScrollOnNextRefresh ? captureObjectCanvasScroll() : null;
     state.preserveScrollOnNextRefresh = false;
-    state.values = collectValues();
+    if (!opts.preserveStateValues) {
+      state.values = collectValues();
+    }
     state.model = state.deleteProposal
       ? buildDeleteProposalModel(state.deleteProposal)
       : state.mode === 'source_slice'
@@ -1504,6 +1507,67 @@
       : model && model.title || t('objectCanvas.titleFallback', 'Author object');
   }
 
+  function displayCompactLabel(value) {
+    const raw = String(value || '');
+    const display = compactDendryInlineLabel(raw) || raw.trim();
+    return display || raw;
+  }
+
+  function compactDendryInlineLabel(value) {
+    const raw = String(value || '');
+    if (!raw) {
+      return '';
+    }
+    const conditionalPattern = /\[\?\s*if\s+[^:]+:\s*([\s\S]*?)\?\]/g;
+    const matches = [];
+    let match;
+    while ((match = conditionalPattern.exec(raw)) !== null) {
+      matches.push({index: match.index, text: cleanDisplayLabel(match[1]), raw: match[0]});
+    }
+    if (!matches.length) {
+      return cleanDisplayLabel(raw);
+    }
+    const first = matches[0];
+    const last = matches[matches.length - 1];
+    const before = raw.slice(0, first.index);
+    const after = raw.slice(last.index + last.raw.length);
+    const onlyAdjacentConditionals = !cleanDisplayLabel(before) && matches.every((item, index) => {
+      if (index === 0) {
+        return true;
+      }
+      const previous = matches[index - 1];
+      return !cleanDisplayLabel(raw.slice(previous.index + previous.raw.length, item.index));
+    });
+    const unique = uniqueNonEmpty(matches.map((item) => item.text));
+    if (onlyAdjacentConditionals && unique.length > 1) {
+      return cleanDisplayLabel([unique.join(' / '), after].filter(Boolean).join(' '));
+    }
+    return cleanDisplayLabel(raw.replace(conditionalPattern, (_token, body) => ' ' + cleanDisplayLabel(body) + ' '));
+  }
+
+  function cleanDisplayLabel(value) {
+    return String(value || '')
+      .replace(/<[^>]*>/g, '')
+      .replace(/\*\*/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function uniqueNonEmpty(values) {
+    const seen = new Set();
+    const result = [];
+    ensureArray(values).forEach((value) => {
+      const text = String(value || '').trim();
+      if (!text || seen.has(text)) {
+        return;
+      }
+      seen.add(text);
+      result.push(text);
+    });
+    return result;
+  }
+
   function renderUnavailable(model) {
     return objectCanvasShellApi().renderUnavailable(model, {translate: t});
   }
@@ -1561,6 +1625,15 @@
         handleAction(button.dataset.objectCanvasAction || '', button);
       });
     }
+    if (!elements.host.__dmsObjectCanvasAssetDelegated) {
+      elements.host.__dmsObjectCanvasAssetDelegated = true;
+      elements.host.addEventListener('change', handleObjectCanvasAssetChange);
+    }
+    if (global.document && !global.document.__dmsObjectCanvasAssetDelegated) {
+      global.document.__dmsObjectCanvasAssetDelegated = true;
+      global.document.addEventListener('change', handleObjectCanvasAssetChange, true);
+      global.document.addEventListener('input', handleObjectCanvasAssetChange, true);
+    }
     elements.host.querySelectorAll('[data-object-canvas-action]').forEach((button) => {
       if (button.__dmsObjectCanvasActionBound) {
         return;
@@ -1593,6 +1666,22 @@
       input.addEventListener('input', scheduleRefresh);
       input.addEventListener('change', scheduleRefresh);
     });
+    if (global.document && typeof global.document.querySelectorAll === 'function') {
+      global.document.querySelectorAll('[data-object-canvas-asset-select], [data-object-canvas-asset-file]').forEach((control) => {
+        if (control.__dmsObjectCanvasAssetBound) {
+          return;
+        }
+        control.__dmsObjectCanvasAssetBound = true;
+        control.addEventListener('change', handleObjectCanvasAssetChange);
+      });
+      global.document.querySelectorAll('[data-object-canvas-asset-filter]').forEach((control) => {
+        if (control.__dmsObjectCanvasAssetFilterBound) {
+          return;
+        }
+        control.__dmsObjectCanvasAssetFilterBound = true;
+        control.addEventListener('input', () => filterObjectCanvasAssetSelect(control));
+      });
+    }
     const sourceSliceWorkspace = sourceSliceWorkspaceApi();
     if (sourceSliceWorkspace && typeof sourceSliceWorkspace.bind === 'function') {
       sourceSliceWorkspace.bind(elements.host, state, sourceSliceWorkspaceDeps());
@@ -1662,10 +1751,479 @@
     restoreProjectStateSearchFocus();
   }
 
-  function scheduleRefresh() {
+  function scheduleRefresh(options) {
     state.preserveScrollOnNextRefresh = true;
     if (refreshTimer) { clearTimeout(refreshTimer); }
-    refreshTimer = setTimeout(refresh, 180);
+    refreshTimer = setTimeout(() => refresh(options || {}), 180);
+  }
+
+  function collectValuesForProgrammaticUpdate() {
+    state.values = collectValues();
+    if (!state.values || typeof state.values !== 'object') {
+      state.values = {};
+    }
+    return state.values;
+  }
+
+  function refreshProgrammaticValues() {
+    state.preserveScrollOnNextRefresh = true;
+    refresh({preserveStateValues: true});
+  }
+
+  function handleObjectCanvasAssetChange(event) {
+    const target = event && event.target;
+    if (!target || event.__dmsObjectCanvasAssetHandled || !elements || !elements.host) {
+      return;
+    }
+    const assetControl = target.closest && target.closest('[data-object-canvas-asset-select], [data-object-canvas-asset-file]');
+    if (!assetControl) {
+      return;
+    }
+    const insideHost = elements.host.contains(target);
+    const insideObjectEditor = target.closest && target.closest('[data-preview-object-editor], [data-object-editing-preview-assets], [data-object-canvas-assets-panel]');
+    if (!insideHost && !insideObjectEditor) {
+      return;
+    }
+    event.__dmsObjectCanvasAssetHandled = true;
+    const select = target.closest && target.closest('[data-object-canvas-asset-select]');
+    if (select) {
+      updateObjectCanvasAssetSelection(select);
+      return;
+    }
+    const input = target.closest && target.closest('[data-object-canvas-asset-file]');
+    if (input) {
+      updateObjectCanvasAssetFile(input);
+    }
+  }
+
+  function updateObjectCanvasAssetSelection(select) {
+    if (select && select.dataset && select.dataset.objectCanvasAssetPlacementId) {
+      updateDraftObjectCanvasAssetPlacementSelection(select);
+      return;
+    }
+    if (select && select.dataset && select.dataset.existingAssetAddField) {
+      updateExistingObjectCanvasAssetSelection(select);
+      return;
+    }
+    const target = select.dataset.assetTarget === 'card' ? 'card' : 'event';
+    const role = String(select.dataset.assetRole || '').trim();
+    if (!role) {
+      return;
+    }
+    const prefix = objectCanvasAssetValuePrefix(target);
+    state.values = collectValuesForProgrammaticUpdate();
+    if (select.value) {
+      const ref = normalizeAssetReferenceForSource(parseStructuredAssetValue(select.value) || {path: select.value});
+      state.values[prefix + 'assetRef.' + role] = JSON.stringify(Object.assign({}, ref, {role: ref.role || role}));
+      state.status = t('objectCanvas.status.assetReferencePrepared', 'Asset reference prepared in Object Canvas.');
+    } else {
+      delete state.values[prefix + 'assetRef.' + role];
+      delete state.values[prefix + 'assetInstallRequest.' + role];
+      state.status = t('objectCanvas.status.assetReferenceCleared', 'Asset reference cleared in Object Canvas.');
+    }
+    refreshProgrammaticValues();
+  }
+
+  function filterObjectCanvasAssetSelect(input) {
+    if (!input || !input.closest) {
+      return;
+    }
+    const control = input.closest('.object-canvas-asset-picker-control');
+    const select = control && control.querySelector && control.querySelector('select[data-object-canvas-asset-select]');
+    if (!select || !select.options) {
+      return;
+    }
+    const terms = String(input.value || '').toLowerCase().trim().split(/\s+/).filter(Boolean);
+    const selectedValue = String(select.value || '');
+    let matchCount = 0;
+    Array.from(select.options).forEach((option, index) => {
+      if (!option.value || index === 0) {
+        option.hidden = false;
+        option.disabled = false;
+        return;
+      }
+      const haystack = String(option.dataset && option.dataset.assetSearchText || option.textContent || option.value || '').toLowerCase();
+      const matches = !terms.length || terms.every((term) => haystack.includes(term));
+      const keep = matches || Boolean(selectedValue && option.value === selectedValue);
+      option.hidden = !keep;
+      option.disabled = !keep;
+      if (matches) {
+        matchCount += 1;
+      }
+    });
+    select.dataset.assetFilterActive = terms.length ? 'true' : 'false';
+    control.dataset.assetFilterMatchCount = String(matchCount);
+  }
+
+  function updateObjectCanvasAssetFile(input) {
+    if (input && input.dataset && input.dataset.objectCanvasAssetPlacementId) {
+      updateDraftObjectCanvasAssetPlacementFile(input);
+      return;
+    }
+    if (input && input.dataset && input.dataset.existingAssetField) {
+      updateExistingObjectCanvasAssetFile(input);
+      return;
+    }
+    if (input && input.dataset && input.dataset.existingAssetAddField) {
+      updateExistingObjectCanvasAssetAddFile(input);
+      return;
+    }
+    const file = input.files && input.files[0];
+    const target = input.dataset.assetTarget === 'card' ? 'card' : 'event';
+    const role = String(input.dataset.assetRole || '').trim();
+    if (!file || !role) {
+      return;
+    }
+    const request = objectCanvasAssetInstallRequestFromFile(file, target, role);
+    const prefix = objectCanvasAssetValuePrefix(target);
+    state.values = collectValuesForProgrammaticUpdate();
+    state.values[prefix + 'assetInstallRequest.' + role] = JSON.stringify(request);
+    state.values[prefix + 'assetRef.' + role] = JSON.stringify({
+      path: request.targetPath,
+      type: request.type,
+      label: request.label || request.sourceName,
+      role
+    });
+    state.status = t('objectCanvas.status.assetInstallPrepared', 'Asset install proposal prepared in Object Canvas.');
+    input.value = '';
+    refreshProgrammaticValues();
+  }
+
+  function updateDraftObjectCanvasAssetPlacementSelection(select) {
+    const target = select.dataset.assetTarget === 'card' ? 'card' : 'event';
+    const role = String(select.dataset.assetRole || '').trim();
+    const placement = assetPlacementFromDataset(select.dataset, role);
+    if (!role || !placement.placementId) {
+      return;
+    }
+    const prefix = objectCanvasAssetValuePrefix(target);
+    state.values = collectValuesForProgrammaticUpdate();
+    if (!select.value) {
+      delete state.values[prefix + 'assetPlacementRef.' + placement.placementId];
+      delete state.values[prefix + 'assetPlacementInstallRequest.' + placement.placementId];
+      state.status = t('objectCanvas.status.assetReferenceCleared', 'Asset reference cleared in Object Canvas.');
+      refreshProgrammaticValues();
+      return;
+    }
+    const ref = Object.assign({}, normalizeAssetReferenceForSource(parseStructuredAssetValue(select.value) || {}), placement, {role});
+    state.values[prefix + 'assetPlacementRef.' + placement.placementId] = JSON.stringify(ref);
+    state.status = t('objectCanvas.status.assetReferencePrepared', 'Asset reference prepared in Object Canvas.');
+    refreshProgrammaticValues();
+  }
+
+  function updateDraftObjectCanvasAssetPlacementFile(input) {
+    const file = input.files && input.files[0];
+    const target = input.dataset.assetTarget === 'card' ? 'card' : 'event';
+    const role = String(input.dataset.assetRole || '').trim();
+    const placement = assetPlacementFromDataset(input.dataset, role);
+    if (!file || !role || !placement.placementId) {
+      return;
+    }
+    const request = Object.assign({}, objectCanvasAssetInstallRequestFromFile(file, target, role), placement, {role});
+    const prefix = objectCanvasAssetValuePrefix(target);
+    state.values = collectValuesForProgrammaticUpdate();
+    state.values[prefix + 'assetPlacementInstallRequest.' + placement.placementId] = JSON.stringify(request);
+    state.values[prefix + 'assetPlacementRef.' + placement.placementId] = JSON.stringify({
+      path: request.targetPath,
+      type: request.type,
+      label: request.label || request.sourceName,
+      role,
+      directive: placement.directive,
+      placementId: placement.placementId,
+      placementKind: placement.placementKind,
+      sectionId: placement.sectionId,
+      optionId: placement.optionId,
+      displayLocation: placement.displayLocation
+    });
+    state.status = t('objectCanvas.status.assetInstallPrepared', 'Asset install proposal prepared in Object Canvas.');
+    input.value = '';
+    refreshProgrammaticValues();
+  }
+
+  function assetPlacementFromDataset(dataset, role) {
+    const data = dataset || {};
+    return {
+      placementId: String(data.objectCanvasAssetPlacementId || '').trim(),
+      placementKind: String(data.assetPlacementKind || 'opening_visual').trim(),
+      sectionId: String(data.assetSectionId || '').trim(),
+      optionId: String(data.assetOptionId || '').trim(),
+      directive: String(data.assetDirective || 'inline-image').trim(),
+      displayLocation: String(data.assetDisplayLocation || '').trim(),
+      role: String(role || data.assetRole || '').trim()
+    };
+  }
+
+  function updateExistingObjectCanvasAssetFile(input) {
+    const file = input.files && input.files[0];
+    const target = input.dataset.assetTarget === 'card' ? 'card' : 'event';
+    const role = String(input.dataset.assetRole || '').trim();
+    const fieldId = String(input.dataset.existingAssetField || '').trim();
+    const directive = String(input.dataset.assetDirective || '').trim();
+    if (!file || !role || !fieldId || !directive) {
+      return;
+    }
+    const request = objectCanvasAssetInstallRequestFromFile(file, target, role);
+    state.values = collectValuesForProgrammaticUpdate();
+    state.values[fieldId] = existingAssetReferenceLine({
+      directive,
+      targetPath: request.targetPath,
+      label: request.label || request.sourceName,
+      original: input.dataset.assetOriginal || '',
+      currentPath: input.dataset.currentAssetPath || '',
+      target,
+      role
+    });
+    state.proposalOptions = state.proposalOptions && typeof state.proposalOptions === 'object'
+      ? Object.assign({}, state.proposalOptions)
+      : {};
+    state.proposalOptions.assetInstallRequests = upsertObjectCanvasAssetInstallRequest(state.proposalOptions.assetInstallRequests, Object.assign({}, request, {
+      role,
+      directive,
+      fieldId
+    }));
+    state.status = t('objectCanvas.status.assetReplacementPrepared', 'Asset replacement proposal prepared in Object Canvas.');
+    input.value = '';
+    refreshProgrammaticValues();
+  }
+
+  function updateExistingObjectCanvasAssetSelection(select) {
+    const fieldId = String(select.dataset.existingAssetAddField || '').trim();
+    const directive = String(select.dataset.assetDirective || '').trim();
+    const target = select.dataset.assetTarget === 'card' ? 'card' : 'event';
+    const role = String(select.dataset.assetRole || '').trim();
+    if (!fieldId || !directive) {
+      return;
+    }
+    state.values = collectValuesForProgrammaticUpdate();
+    if (!select.value) {
+      delete state.values[fieldId];
+      state.proposalOptions = removeObjectCanvasAssetInstallRequestForField(state.proposalOptions, fieldId);
+      state.status = t('objectCanvas.status.assetReferenceCleared', 'Asset reference cleared in Object Canvas.');
+      refreshProgrammaticValues();
+      return;
+    }
+    const ref = normalizeAssetReferenceForSource(parseStructuredAssetValue(select.value));
+    const path = String(ref && (ref.path || ref.targetPath) || '').trim();
+    if (!path) {
+      return;
+    }
+    state.values[fieldId] = existingAssetReferenceLine({
+      directive,
+      targetPath: path,
+      label: ref.label || ref.name || path,
+      target,
+      role
+    });
+    state.proposalOptions = removeObjectCanvasAssetInstallRequestForField(state.proposalOptions, fieldId);
+    state.status = t('objectCanvas.status.assetReferencePrepared', 'Asset reference prepared in Object Canvas.');
+    refreshProgrammaticValues();
+  }
+
+  function updateExistingObjectCanvasAssetAddFile(input) {
+    const file = input.files && input.files[0];
+    const target = input.dataset.assetTarget === 'card' ? 'card' : 'event';
+    const role = String(input.dataset.assetRole || '').trim();
+    const fieldId = String(input.dataset.existingAssetAddField || '').trim();
+    const directive = String(input.dataset.assetDirective || '').trim();
+    if (!file || !role || !fieldId || !directive) {
+      return;
+    }
+    const request = objectCanvasAssetInstallRequestFromFile(file, target, role);
+    state.values = collectValuesForProgrammaticUpdate();
+    state.values[fieldId] = existingAssetReferenceLine({
+      directive,
+      targetPath: request.targetPath,
+      label: request.label || request.sourceName,
+      target,
+      role
+    });
+    state.proposalOptions = state.proposalOptions && typeof state.proposalOptions === 'object'
+      ? Object.assign({}, state.proposalOptions)
+      : {};
+    state.proposalOptions.assetInstallRequests = upsertObjectCanvasAssetInstallRequest(state.proposalOptions.assetInstallRequests, Object.assign({}, request, {
+      role,
+      directive,
+      fieldId
+    }));
+    state.status = t('objectCanvas.status.assetInstallPrepared', 'Asset install proposal prepared in Object Canvas.');
+    input.value = '';
+    refreshProgrammaticValues();
+  }
+
+  function removeExistingAssetReference(target) {
+    const fieldId = String(target && target.dataset && target.dataset.existingAssetField || '').trim();
+    if (!fieldId) {
+      return;
+    }
+    state.values = collectValuesForProgrammaticUpdate();
+    if (Object.prototype.hasOwnProperty.call(state.values, fieldId) && !String(state.values[fieldId] || '').trim()) {
+      delete state.values[fieldId];
+      state.proposalOptions = removeObjectCanvasAssetInstallRequestForField(state.proposalOptions, fieldId);
+      state.status = t('objectCanvas.status.assetReferenceCleared', 'Asset reference cleared in Object Canvas.');
+      refreshProgrammaticValues();
+      return;
+    }
+    state.values[fieldId] = '';
+    state.proposalOptions = removeObjectCanvasAssetInstallRequestForField(state.proposalOptions, fieldId);
+    state.status = t('objectCanvas.status.assetRemovalPrepared', 'Asset removal proposal prepared in Object Canvas.');
+    refreshProgrammaticValues();
+  }
+
+  function clearExistingAssetAddition(target) {
+    const fieldId = String(target && target.dataset && target.dataset.existingAssetAddField || '').trim();
+    if (!fieldId) {
+      return;
+    }
+    state.values = collectValuesForProgrammaticUpdate();
+    delete state.values[fieldId];
+    state.proposalOptions = removeObjectCanvasAssetInstallRequestForField(state.proposalOptions, fieldId);
+    state.status = t('objectCanvas.status.assetReferenceCleared', 'Asset reference cleared in Object Canvas.');
+    refreshProgrammaticValues();
+  }
+
+  function existingAssetReferenceLine(options) {
+    const opts = options || {};
+    const directive = String(opts.directive || '').trim();
+    const targetPath = sourceReferencePathForAsset(opts.targetPath || '');
+    if (!targetPath) {
+      return '';
+    }
+    if (directive === 'inline-image' || directive === 'inline-asset') {
+      const original = String(opts.original || '');
+      const currentPath = String(opts.currentPath || '').trim();
+      if (original && currentPath && original.includes(currentPath)) {
+        return original.replace(currentPath, targetPath);
+      }
+      const target = opts.target === 'card' ? 'card' : 'event';
+      if (target === 'card') {
+        return 'card-image: ' + targetPath;
+      }
+      if (String(opts.role || '').trim() === 'event_illustration') {
+        return 'face-image: ' + targetPath;
+      }
+      const label = String(opts.label || '').trim().replace(/[\]\r\n]/g, ' ');
+      return '![' + label + '](' + targetPath + ')';
+    }
+    return directive + ': ' + targetPath;
+  }
+
+  function upsertObjectCanvasAssetInstallRequest(requests, request) {
+    const next = [];
+    const fieldId = String(request && request.fieldId || '').trim();
+    const role = String(request && request.role || '').trim();
+    ensureArray(requests).forEach((item) => {
+      const itemFieldId = String(item && item.fieldId || '').trim();
+      const itemRole = String(item && item.role || '').trim();
+      if (fieldId && itemFieldId && itemFieldId === fieldId) {
+        return;
+      }
+      if (!fieldId && role && itemRole === role) {
+        return;
+      }
+      next.push(item);
+    });
+    next.push(request);
+    return next;
+  }
+
+  function removeObjectCanvasAssetInstallRequestForField(options, fieldId) {
+    if (!options || typeof options !== 'object') {
+      return options;
+    }
+    const next = Object.assign({}, options);
+    next.assetInstallRequests = ensureArray(next.assetInstallRequests).filter((request) => {
+      return String(request && request.fieldId || '') !== String(fieldId || '');
+    });
+    return next;
+  }
+
+  function parseStructuredAssetValue(value) {
+    const text = String(value || '').trim();
+    if (!text) {
+      return null;
+    }
+    try {
+      const parsed = JSON.parse(text);
+      return parsed && typeof parsed === 'object' ? parsed : null;
+    } catch (_err) {
+      return {path: text};
+    }
+  }
+
+  function normalizeAssetReferenceForSource(value) {
+    if (!value || typeof value !== 'object') {
+      return value;
+    }
+    const next = Object.assign({}, value);
+    if (next.path) {
+      next.path = sourceReferencePathForAsset(next.path);
+    }
+    if (next.targetPath) {
+      next.targetPath = sourceReferencePathForAsset(next.targetPath);
+    }
+    return next;
+  }
+
+  function sourceReferencePathForAsset(value) {
+    const path = String(value || '').replace(/\\/g, '/').replace(/^\/+/, '').trim();
+    return path.replace(/^out\/html\//i, '');
+  }
+
+  function objectCanvasAssetInstallRequestFromFile(file, target, role) {
+    const type = objectCanvasAssetType(file, role);
+    const draft = state.model && state.model.changeState && state.model.changeState.draft || state.baseDraft || {};
+    const draftId = state.mode === 'existing' && state.model && state.model.objectId
+      ? state.model.objectId
+      : draft && draft.id;
+    const api = assetModelApi();
+    const targetPath = api && typeof api.suggestAssetTargetPath === 'function'
+      ? api.suggestAssetTargetPath({name: file && file.name, type}, {target, draftId, role})
+      : fallbackObjectCanvasAssetTargetPath(file && file.name, type, target, draftId);
+    const input = {
+      sourceName: file && file.name || '',
+      sourcePath: file && file.path || '',
+      targetPath,
+      type,
+      label: file && file.name || '',
+      role,
+      sourceSize: file && file.size,
+      sourceLastModified: file && file.lastModified
+    };
+    return api && typeof api.assetInstallRequest === 'function'
+      ? api.assetInstallRequest(input, {target, draftId: draft && draft.id, role})
+      : input;
+  }
+
+  function objectCanvasAssetType(file, role) {
+    const name = String(file && file.name || '').toLowerCase();
+    if (/audio/.test(String(role || '')) || /\.(mp3|ogg|wav|flac|m4a)$/.test(name)) {
+      return 'audio';
+    }
+    if (/\.(png|jpe?g|gif|webp|svg)$/.test(name)) {
+      return 'image';
+    }
+    return 'asset';
+  }
+
+  function fallbackObjectCanvasAssetTargetPath(name, type, target, draftId) {
+    const lane = target === 'card' ? 'cards' : 'events';
+    const draft = String(draftId || target || 'draft')
+      .toLowerCase()
+      .replace(/[^a-z0-9_]+/g, '_')
+      .replace(/^_+|_+$/g, '') || 'draft';
+    const fileName = String(objectCanvasFileName(name) || (type === 'audio' ? 'asset.ogg' : 'asset.png'))
+      .toLowerCase()
+      .replace(/[^a-z0-9.]+/g, '-')
+      .replace(/^-+|-+$/g, '') || (type === 'audio' ? 'asset.ogg' : 'asset.png');
+    return 'assets/studio/' + lane + '/' + draft + '/' + fileName;
+  }
+
+  function objectCanvasFileName(path) {
+    return String(path || '').replace(/\\/g, '/').split('/').filter(Boolean).pop() || '';
+  }
+
+  function objectCanvasAssetValuePrefix(target) {
+    return target === 'card' ? 'card.' : 'event.';
   }
 
   function scheduleProjectStateSearch(input) {
@@ -1793,7 +2351,7 @@
     if (storyboard && typeof storyboard.selectObject === 'function' && storyboard.selectObject(state, next, storyboardDeps())) {
       return;
     }
-    state.model = state.mode === 'existing' ? buildExistingModel({values: state.values}) : buildTemplateModel({values: state.values});
+    state.model = state.mode === 'existing' ? buildExistingModel({values: state.values, proposalOptions: state.proposalOptions}) : buildTemplateModel({values: state.values});
     state.selectedCanvasNode = next;
     markRuntimeLensStale();
     render();
@@ -1951,6 +2509,14 @@
     } else if (action === 'delete_current_object') {
       global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
       handleDeleteCurrentObject(target);
+      return;
+    } else if (action === 'remove_asset_reference') {
+      global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
+      removeExistingAssetReference(target);
+      return;
+    } else if (action === 'clear_asset_addition') {
+      global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
+      clearExistingAssetAddition(target);
       return;
     } else if (action === 'create_election_event') {
       global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
@@ -2328,7 +2894,7 @@
   function toggleEditorOverlay(next) {
     state.editorOverlay = next === undefined ? !state.editorOverlay : Boolean(next);
     state.values = collectValues();
-    state.model = state.mode === 'existing' ? buildExistingModel({values: state.values}) : buildTemplateModel({values: state.values});
+    state.model = state.mode === 'existing' ? buildExistingModel({values: state.values, proposalOptions: state.proposalOptions}) : buildTemplateModel({values: state.values});
     render();
   }
 
@@ -2414,7 +2980,7 @@
       delete state.valueOriginals[command.fieldId];
     }
     clearStructureBuilder(builder);
-    state.model = state.mode === 'existing' ? buildExistingModel({values: state.values}) : buildTemplateModel({values: state.values});
+    state.model = state.mode === 'existing' ? buildExistingModel({values: state.values, proposalOptions: state.proposalOptions}) : buildTemplateModel({values: state.values});
     if (shouldMaterializeNewEventDraft(state.values)) {
       state.model = materializeNewEventDraft(state.model);
     }
@@ -2428,8 +2994,7 @@
 
   function reviewCurrentPlan() {
     refresh();
-    const output = state.model && state.model.changeState && state.model.changeState.output;
-    const plan = output && (output.installPlan || parseJson(output.installPlanJson));
+    const plan = currentInstallPlan();
     if (!plan) {
       return;
     }
@@ -2460,7 +3025,7 @@
     state.values = collectValues();
     state.model = state.deleteProposal
       ? buildDeleteProposalModel(state.deleteProposal)
-      : state.mode === 'existing' ? buildExistingModel({values: state.values}) : buildTemplateModel({values: state.values});
+      : state.mode === 'existing' ? buildExistingModel({values: state.values, proposalOptions: state.proposalOptions}) : buildTemplateModel({values: state.values});
     const draft = draftWithAuthoringContext() || state.model && state.model.changeState && state.model.changeState.draft;
     const template = state.template || 'event';
     deactivate();
@@ -2533,7 +3098,7 @@
   }
 
   function syncStructureBuilder(builder) {
-    structureDraftApi().syncBuilder(builder, {Event: global.Event});
+    structureDraftApi().syncBuilder(builder, {Event: global.Event, dispatch: false});
   }
 
   function rememberFieldOriginal(key, value) {
@@ -2569,7 +3134,9 @@
     }
     const title = elements.host.querySelector('[data-object-canvas-title]');
     if (title) {
-      title.textContent = headerTitle(state.model, currentSurface(state.model));
+      const rawTitle = headerTitle(state.model, currentSurface(state.model));
+      title.textContent = displayCompactLabel(rawTitle);
+      title.setAttribute('title', rawTitle);
     }
     syncPreviewObjectEditorChrome();
     syncPreviewObjectEditorPane();
@@ -2577,6 +3144,7 @@
     syncSourceSliceAdvancedControls();
     syncSemanticLogicAdvancedControls();
     syncEventReadinessControls();
+    syncObjectCanvasReviewButtons();
     syncPreviewObjectRenderedFields();
     bindVisibleEditUi(elements.host);
     const panel = elements.host.querySelector('[data-runtime-lens-panel]');
@@ -2622,6 +3190,37 @@
       button.setAttribute('aria-disabled', allowed ? 'false' : 'true');
       button.dataset.reviewReadinessGate = allowed ? 'ready' : 'blocked';
     });
+  }
+
+  function syncObjectCanvasReviewButtons() {
+    if (!elements || !elements.host || !state.model) {
+      return;
+    }
+    const allowed = objectCanvasReviewAllowed();
+    elements.host.querySelectorAll('[data-object-canvas-action="review"]').forEach((button) => {
+      button.disabled = !allowed;
+      button.setAttribute('aria-disabled', allowed ? 'false' : 'true');
+      button.dataset.reviewState = allowed ? 'ready' : 'blocked';
+    });
+  }
+
+  function objectCanvasReviewAllowed() {
+    if (state.mode === 'source_slice') {
+      return sourceSliceReviewAllowed();
+    }
+    if (state.mode === 'semantic_logic') {
+      return semanticLogicReviewAllowed();
+    }
+    if (state.mode === 'new_event') {
+      return eventReadinessReviewAllowed() && Boolean(currentInstallPlan());
+    }
+    return Boolean(currentInstallPlan());
+  }
+
+  function currentInstallPlan() {
+    const change = state.model && state.model.changeState || {};
+    const output = change.output || {};
+    return change.installPlan || output.installPlan || parseJson(output.installPlanJson);
   }
 
   function updateRuntimeLensEvidence() {
@@ -2947,6 +3546,10 @@
 
   function installPlanApi() {
     return global.ProjectMapInstallPlan || null;
+  }
+
+  function assetModelApi() {
+    return global.ProjectMapAssetModel || null;
   }
 
   function sourceSliceApi() {

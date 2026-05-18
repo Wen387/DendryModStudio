@@ -17,6 +17,7 @@ from typing import Any
 
 from indexer.common import *
 from indexer.diagnostics import (
+    inert_metadata_directive_diagnostics,
     parser_diagnostics,
     post_event_targeted_edges,
     scan_post_event_targeted,
@@ -78,6 +79,7 @@ def build_index(
 
     diagnostics = (
         parser_diagnostics(parser_index, root)
+        + inert_metadata_directive_diagnostics(root, scenes)
         + graph_diagnostics
         + post_event_diagnostics
         + overlay_diagnostics

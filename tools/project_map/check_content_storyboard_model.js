@@ -421,6 +421,21 @@ assert(!timelineHtml.includes('data-object-canvas-graph-inspector'), 'content st
 assert(!timelineHtml.includes('>Object</span><strong>'), 'content storyboard should not render the old Object workflow node');
 assert(!timelineHtml.includes('>Plan</span><strong>'), 'content storyboard should not render Plan as a canvas node');
 
+const conditionalIndex = JSON.parse(JSON.stringify(index));
+const conditionalTitle = '[? if z_party_name != "CVP": <span style="color: #000000;">Center Party</span>?][? if z_party_name == "CVP": <span style="color: #000000;">**CVP**</span>?] Conference';
+conditionalIndex.scenes.find((item) => item.id === 'election_start').title = conditionalTitle;
+conditionalIndex.semantic.textCorpus.items.find((item) => item.id === 'election_start_title').text = conditionalTitle;
+const conditionalExisting = canvasModel.buildExistingCanvas(conditionalIndex, 'events', 'election_start', {
+  entry: {source: 'Design', action: 'edit_existing'}
+});
+const conditionalStoryboardHtml = storyboardSurface.render(conditionalExisting, {
+  projectIndex: conditionalIndex,
+  view: 'timeline',
+  selected: 'event:election_start'
+});
+assert(conditionalStoryboardHtml.includes('data-content-storyboard-selected-title="true" title="[? if z_party_name != &quot;CVP&quot;'), 'Storyboard selected-title chip should retain raw conditional title evidence');
+assert(conditionalStoryboardHtml.includes('>Center Party / CVP Conference</h3>'), 'Storyboard selected-title chip should display a compact conditional title');
+
 const newEvent = canvasModel.buildNewEventCanvas(index, {
   kind: 'world_event',
   id: 'studio_followup_event',

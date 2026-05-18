@@ -117,6 +117,13 @@ assert(imageAsset.usageRefs.some((ref) => ref.kind === 'event' && ref.label === 
 assert(imageAsset.status.key === 'reference_only', 'source asset should remain read-only reference');
 assert(imageAsset.referenceState.key === 'indexed', 'source asset should be marked as indexed');
 assert(assetModel.renderReferenceHelper(imageAsset).includes('assets/radio/radio-icon.svg'), 'asset model should expose a reusable reference helper');
+const eventAssetCatalog = assetModel.buildAssetCatalog(index, {target: 'event'});
+const eventAssetCatalogAgain = assetModel.buildAssetCatalog(index, {target: 'event'});
+assert(eventAssetCatalog === eventAssetCatalogAgain, 'asset picker catalogs should be cached per project index and target');
+assert(eventAssetCatalog.length === 2, 'asset picker catalog should include the indexed project asset list');
+assert(eventAssetCatalog.some((asset) => asset.path === 'assets/radio/radio-icon.svg' && asset.role === 'event_illustration'), 'event asset picker catalog should infer event image roles');
+assert(eventAssetCatalog.some((asset) => asset.path === 'out/html/audio/theme.ogg' && asset.role === 'event_audio'), 'event asset picker catalog should infer event audio roles');
+assert(eventAssetCatalog.find((asset) => asset.path === 'assets/radio/radio-icon.svg').usageRefs.length === 0, 'asset picker catalog should not rescan full project usage on the hot path');
 
 const audioAsset = assetModel.normalizeAssetItem(index.semantic.assets.items[1], {projectIndex: index});
 assert(audioAsset.previewCapability.canPreview, 'audio asset should expose preview capability');
@@ -203,9 +210,15 @@ assert(assetModel.assetDraftReference(imageAsset, {role: 'event_illustration'}).
 assert(/Event illustration/.test(assetModel.renderAssetText(assetModel.assetDraftReference(imageAsset, {role: 'event_illustration'}))), 'asset text should show human role context');
 const eventSlots = assetModel.assetSlotDefinitions('event');
 assert(eventSlots.some((slot) => slot.role === 'event_illustration'), 'asset model should define event illustration slots');
+assert(eventSlots.some((slot) => slot.role === 'event_background'), 'asset model should define event background slots');
 assert(eventSlots.some((slot) => slot.role === 'event_audio'), 'asset model should define event audio slots');
 const cardSlots = assetModel.assetSlotDefinitions('card');
 assert(cardSlots.some((slot) => slot.role === 'card_image'), 'asset model should define card image slots');
+assert(cardSlots.some((slot) => slot.role === 'card_background'), 'asset model should define card background slots');
+assert(assetModel.roleForAssetDirective('set-bg', 'event') === 'event_background', 'set-bg should map to event background for event objects');
+assert(assetModel.roleForAssetDirective('set-bg', 'card') === 'card_background', 'set-bg should map to card background for card objects');
+assert(assetModel.roleForAssetDirective('inline-image', 'event') === 'event_illustration', 'inline images should map into the managed event illustration slot');
+assert(assetModel.roleForAssetDirective('inline-image', 'card') === 'card_image', 'inline card images should map into the managed card image slot');
 const filledSlots = assetModel.buildAssetSlots({
   assetRefs: [
     {path: 'assets/radio/radio-icon.svg', type: 'image', label: 'Radio icon', role: 'event_illustration'}
@@ -237,6 +250,48 @@ assert(installRequest.targetPath === 'assets/studio/events/asset_preview_event/p
 assert(installRequest.sourceName === 'Portrait Hero.PNG', 'asset install requests should keep the selected source file name');
 assert(installRequest.roleLabel === 'Event illustration', 'asset install requests should expose role labels');
 assert(assetModel.renderAssetInstallRequestText(installRequest).includes('copy Portrait Hero.PNG'), 'asset install request text should explain the copy action');
+const eventAssetRows = assetModel.buildAssetRows({
+  assetRefs: [
+    {path: 'assets/radio/radio-icon.svg', type: 'image', label: 'Radio icon', directive: 'set-bg'},
+    {path: 'assets/missing/missing.png', type: 'image', label: 'Missing image', role: 'event_illustration'}
+  ],
+  assetInstallRequests: [installRequest]
+}, {projectIndex: index, target: 'event'});
+assert(eventAssetRows.some((row) => row.rowKind === 'asset_ref' && row.directive === 'set-bg' && row.role === 'event_background'), 'asset rows should map source directives into role-aware Object Canvas rows');
+assert(eventAssetRows.some((row) => row.rowKind === 'asset_ref' && row.referenceState.key === 'missing'), 'asset rows should preserve missing reference state');
+assert(eventAssetRows.some((row) => row.rowKind === 'asset_install_request' && row.status === 'pending_install' && row.installRequest.targetPath.includes('portrait-hero.png')), 'asset rows should include pending install requests');
+const flowAssetRows = assetModel.buildAssetRows({
+  assetRefs: [{path: 'assets/radio/radio-icon.svg', type: 'image', label: 'Radio icon', directive: 'set-bg'}],
+  assetPlacements: [{
+    placementId: 'option_iron_front',
+    placementKind: 'option_result_visual',
+    displayLocation: 'Option: Rally the Iron Front',
+    optionId: 'iron_front',
+    path: 'img/events/iron-front.png',
+    type: 'image',
+    label: 'Iron Front poster',
+    directive: 'face-image',
+    role: 'event_illustration'
+  }],
+  assetInstallRequests: [assetModel.assetInstallRequest({
+    sourceName: 'Iron Front Local.png',
+    targetPath: 'assets/studio/events/1932/iron-front-local.png',
+    type: 'image',
+    role: 'event_illustration',
+    placementId: 'option_iron_front',
+    placementKind: 'option_result_visual',
+    optionId: 'iron_front',
+    displayLocation: 'Option: Rally the Iron Front'
+  })]
+}, {projectIndex: index, target: 'event'});
+assert(flowAssetRows.some((row) => row.path === 'img/events/iron-front.png' && row.placementKind === 'option_result_visual' && row.optionId === 'iron_front' && row.flowAsset), 'asset rows should keep option-result asset placements separate from global slots');
+assert(flowAssetRows.some((row) => row.rowKind === 'asset_install_request' && row.placementId === 'option_iron_front' && row.placementKind === 'option_result_visual'), 'asset install requests should preserve placement metadata for draft flow assets');
+assert(assetModel.normalizeAssetPlacementKind('not-a-kind') === 'unknown_inline', 'unknown placement kinds should normalize to the inline fallback');
+assert(assetModel.isFlowPlacementKind('option_result_visual'), 'option-result placements should be classified as flow assets');
+const cardAssetRows = assetModel.buildAssetRows({
+  assetRefs: [{path: 'assets/radio/radio-icon.svg', type: 'image', label: 'Card background', directive: 'set-bg'}]
+}, {projectIndex: index, target: 'card'});
+assert(cardAssetRows.some((row) => row.role === 'card_background' && row.roleLabel === 'Card background'), 'card asset rows should map set-bg to card background');
 const repairRequest = assetModel.assetRepairInstallRequest(fileMissingAsset, {
   name: 'ReplacementPortrait.png',
   path: '/tmp/ReplacementPortrait.png'

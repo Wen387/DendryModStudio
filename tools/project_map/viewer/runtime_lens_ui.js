@@ -137,6 +137,9 @@
 
   function renderSummary(focus, status, options) {
     const opts = options || {};
+    const value = focus || {};
+    const focusTitle = displayFocusTitle(value);
+    const targetTitle = displayCompactLabel([value.kind, value.id].filter(Boolean).join(' / '));
     const message = !opts.isDesktop
       ? t('runtimeLens.browserOnly', 'Focused Runtime Lens is available in the desktop app because it builds a temporary runtime sandbox.')
       : !opts.canFocus
@@ -150,8 +153,8 @@
             : statusText(status);
     return [
       '<div class="runtime-lens-summary">',
-      '<div><span>' + escapeHtml(t('runtimeLens.focus', 'Focus')) + '</span><strong>' + escapeHtml(focus.title || focus.id || '') + '</strong></div>',
-      '<div><span>' + escapeHtml(t('runtimeLens.target', 'Target')) + '</span><strong>' + escapeHtml([focus.kind, focus.id].filter(Boolean).join(' / ')) + '</strong></div>',
+      '<div><span>' + escapeHtml(t('runtimeLens.focus', 'Focus')) + '</span><strong title="' + escapeAttr(focusTitle.raw) + '">' + escapeHtml(focusTitle.display) + '</strong></div>',
+      '<div><span>' + escapeHtml(t('runtimeLens.target', 'Target')) + '</span><strong title="' + escapeAttr(targetTitle.raw) + '">' + escapeHtml(targetTitle.display) + '</strong></div>',
       '<p data-runtime-lens-message="true">' + escapeHtml(message) + '</p>',
       '</div>'
     ].join('');
@@ -160,24 +163,78 @@
   function renderBody(options) {
     const opts = options || {};
     if (opts.status === 'building') {
-      return '<div class="runtime-lens-empty">' + escapeHtml(t('runtimeLens.building', 'Building a temporary runtime lens...')) + '</div>';
+      return wrapBody('<div class="runtime-lens-empty">' + escapeHtml(t('runtimeLens.building', 'Building a temporary runtime lens...')) + '</div>');
     }
     if (opts.status === 'suspended') {
-      return '<div class="runtime-lens-empty">' + escapeHtml(t('runtimeLens.suspended', 'Lens is suspended while this workspace is in the background. Refresh to reload it.')) + '</div>' + renderDiagnostics(opts.session && opts.session.diagnostics);
+      return wrapBody('<div class="runtime-lens-empty">' + escapeHtml(t('runtimeLens.suspended', 'Lens is suspended while this workspace is in the background. Refresh to reload it.')) + '</div>' + renderDiagnostics(opts.session && opts.session.diagnostics));
     }
     if (opts.url && opts.status !== 'failed') {
-      return [
-        '<div class="runtime-lens-frame-wrap">',
+      return wrapBody([
+        '<div class="runtime-lens-preview-shell">',
+        '<div class="runtime-lens-frame-wrap" data-runtime-lens-frame-wrap="true">',
         '<iframe class="runtime-lens-frame" data-runtime-lens-frame="true" title="' + escapeAttr(t('runtimeLens.frameTitle', 'Focused runtime preview')) + '" src="' + escapeAttr(opts.url) + '"></iframe>',
         '</div>',
-        renderRuntimeSnapshot(opts.session && opts.session.runtimeSnapshot),
-        renderRuntimeDomMap(opts.session && (opts.session.runtimeDomMap || opts.session.runtimeSnapshot && opts.session.runtimeSnapshot.runtimeDomMap)),
-        renderRuntimeVisualSurface(opts.session && opts.session.runtimeVisualSurface),
-        renderTimings(opts.session && opts.session.timings),
-        renderDiagnostics(opts.session && opts.session.diagnostics)
-      ].join('');
+        '<div class="runtime-lens-resize-grip" data-runtime-lens-resize-grip="true" role="separator" aria-orientation="horizontal" tabindex="0"></div>',
+        '</div>',
+        renderRuntimeEvidence(opts.session)
+      ].join(''));
     }
-    return '<div class="runtime-lens-empty">' + escapeHtml(opts.isDesktop ? t('runtimeLens.empty', 'Open a Quick Lens to observe this object in the latest generated runtime.') : t('runtimeLens.browserOnlyShort', 'Desktop app required.')) + '</div>' + renderRuntimeSnapshot(opts.session && opts.session.runtimeSnapshot) + renderRuntimeDomMap(opts.session && (opts.session.runtimeDomMap || opts.session.runtimeSnapshot && opts.session.runtimeSnapshot.runtimeDomMap)) + renderRuntimeVisualSurface(opts.session && opts.session.runtimeVisualSurface) + renderTimings(opts.session && opts.session.timings) + renderDiagnostics(opts.session && opts.session.diagnostics);
+    return wrapBody('<div class="runtime-lens-empty">' + escapeHtml(opts.isDesktop ? t('runtimeLens.empty', 'Open a Quick Lens to observe this object in the latest generated runtime.') : t('runtimeLens.browserOnlyShort', 'Desktop app required.')) + '</div>' + renderRuntimeEvidence(opts.session));
+  }
+
+  function wrapBody(content) {
+    return '<div class="runtime-lens-body">' + content + '</div>';
+  }
+
+  function renderRuntimeEvidence(session) {
+    const value = session && typeof session === 'object' ? session : {};
+    const content = [
+      renderRuntimeSnapshot(value.runtimeSnapshot),
+      renderRuntimeDomMap(value.runtimeDomMap || value.runtimeSnapshot && value.runtimeSnapshot.runtimeDomMap),
+      renderRuntimeVisualSurface(value.runtimeVisualSurface),
+      renderTimings(value.timings),
+      renderDiagnostics(value.diagnostics)
+    ].join('');
+    if (!content) {
+      return '';
+    }
+    return [
+      '<details class="runtime-lens-evidence" data-runtime-lens-evidence="true">',
+      '<summary><strong>' + escapeHtml(t('runtimeLens.evidence', 'Runtime evidence')) + '</strong> ' + escapeHtml(runtimeEvidenceSummary(value)) + '</summary>',
+      '<div class="runtime-lens-evidence-body">',
+      content,
+      '</div>',
+      '</details>'
+    ].join('');
+  }
+
+  function runtimeEvidenceSummary(session) {
+    const snapshot = session && session.runtimeSnapshot || {};
+    const snapshotSummary = snapshot.summary || {};
+    const domMap = session && (session.runtimeDomMap || snapshot.runtimeDomMap) || {};
+    const domSummary = domMap.summary || {};
+    const visualSurface = session && session.runtimeVisualSurface || {};
+    const visualSummary = visualSurface.summary || {};
+    const parts = [];
+    if (snapshot.status) {
+      parts.push(String(snapshot.status));
+    }
+    if (snapshotSummary.indexedRegionCount !== undefined || snapshotSummary.visibleRegionCount !== undefined) {
+      parts.push('Regions ' + Number(snapshotSummary.visibleRegionCount || 0) + '/' + Number(snapshotSummary.indexedRegionCount || 0));
+    }
+    if (snapshotSummary.choiceCount !== undefined) {
+      parts.push('Choices ' + Number(snapshotSummary.choiceCount || 0));
+    }
+    if (domSummary.visibleCount !== undefined || domSummary.mappedCount !== undefined) {
+      parts.push('Map ' + Number(domSummary.mappedCount || 0) + '/' + Number(domSummary.visibleCount || 0));
+    }
+    if (visualSummary.draftableCount !== undefined || visualSummary.manualReviewCount !== undefined) {
+      parts.push('Visual ' + Number(visualSummary.draftableCount || 0) + '/' + Number(visualSummary.manualReviewCount || 0));
+    }
+    if (session && session.timings && session.timings.totalMs !== undefined) {
+      parts.push(formatMs(session.timings.totalMs));
+    }
+    return parts.length ? '· ' + parts.join(' · ') : '';
   }
 
   function renderRuntimeSnapshot(snapshot) {
@@ -326,6 +383,74 @@
     return Math.round(number) + 'ms';
   }
 
+  function displayFocusTitle(focus) {
+    return displayCompactLabel(firstNonEmpty(focus && focus.title, focus && focus.id));
+  }
+
+  function displayCompactLabel(value) {
+    const raw = String(value || '');
+    const display = compactDendryInlineLabel(raw) || raw.trim();
+    return {
+      raw,
+      display: display || raw
+    };
+  }
+
+  function compactDendryInlineLabel(value) {
+    const raw = String(value || '');
+    if (!raw) {
+      return '';
+    }
+    const conditionalPattern = /\[\?\s*if\s+[^:]+:\s*([\s\S]*?)\?\]/g;
+    const matches = [];
+    let match;
+    while ((match = conditionalPattern.exec(raw)) !== null) {
+      matches.push({index: match.index, text: cleanDisplayLabel(match[1]), raw: match[0]});
+    }
+    if (matches.length) {
+      const first = matches[0];
+      const last = matches[matches.length - 1];
+      const before = raw.slice(0, first.index);
+      const after = raw.slice(last.index + last.raw.length);
+      const onlyAdjacentConditionals = !cleanDisplayLabel(before) && matches.every((item, index) => {
+        if (index === 0) {
+          return true;
+        }
+        const previous = matches[index - 1];
+        return !cleanDisplayLabel(raw.slice(previous.index + previous.raw.length, item.index));
+      });
+      const unique = uniqueNonEmpty(matches.map((item) => item.text));
+      if (onlyAdjacentConditionals && unique.length > 1) {
+        return cleanDisplayLabel([unique.join(' / '), after].filter(Boolean).join(' '));
+      }
+      return cleanDisplayLabel(raw.replace(conditionalPattern, (_token, body) => ' ' + cleanDisplayLabel(body) + ' '));
+    }
+    return cleanDisplayLabel(raw);
+  }
+
+  function cleanDisplayLabel(value) {
+    return String(value || '')
+      .replace(/<[^>]*>/g, '')
+      .replace(/\*\*/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function uniqueNonEmpty(values) {
+    const seen = new Set();
+    const result = [];
+    ensureArray(values).forEach((value) => {
+      const text = String(value || '').trim();
+      if (!text || seen.has(text)) {
+        return;
+      }
+      seen.add(text);
+      result.push(text);
+    });
+    return result;
+  }
+
   function bind(root, callbacks) {
     const opts = callbacks || {};
     if (!root || !root.querySelectorAll) {
@@ -369,6 +494,68 @@
         }
       });
     });
+    root.querySelectorAll('[data-runtime-lens-resize-grip]').forEach((grip) => {
+      if (grip.dataset.runtimeLensResizeBound === 'true') {
+        return;
+      }
+      grip.dataset.runtimeLensResizeBound = 'true';
+      grip.addEventListener('pointerdown', (event) => {
+        const wrap = resizeWrapForGrip(grip);
+        if (!wrap) {
+          return;
+        }
+        const pointerId = event.pointerId;
+        const startY = event.clientY;
+        const startHeight = wrap.getBoundingClientRect().height;
+        const onMove = (moveEvent) => {
+          setRuntimeFrameHeight(wrap, startHeight + moveEvent.clientY - startY);
+        };
+        const onEnd = () => {
+          try {
+            grip.releasePointerCapture(pointerId);
+          } catch (_err) {
+            // Pointer capture can already be gone if the browser cancels the drag.
+          }
+          grip.removeEventListener('pointermove', onMove);
+          grip.removeEventListener('pointerup', onEnd);
+          grip.removeEventListener('pointercancel', onEnd);
+        };
+        event.preventDefault();
+        try {
+          grip.setPointerCapture(pointerId);
+        } catch (_err) {
+          return;
+        }
+        grip.addEventListener('pointermove', onMove);
+        grip.addEventListener('pointerup', onEnd);
+        grip.addEventListener('pointercancel', onEnd);
+      });
+      grip.addEventListener('keydown', (event) => {
+        if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') {
+          return;
+        }
+        const wrap = resizeWrapForGrip(grip);
+        if (!wrap) {
+          return;
+        }
+        const step = event.shiftKey ? 80 : 32;
+        const direction = event.key === 'ArrowDown' ? 1 : -1;
+        event.preventDefault();
+        setRuntimeFrameHeight(wrap, wrap.getBoundingClientRect().height + direction * step);
+      });
+    });
+  }
+
+  function resizeWrapForGrip(grip) {
+    const shell = grip && grip.closest && grip.closest('.runtime-lens-preview-shell');
+    return shell && shell.querySelector && shell.querySelector('[data-runtime-lens-frame-wrap]');
+  }
+
+  function setRuntimeFrameHeight(wrap, value) {
+    const viewport = global && Number(global.innerHeight) || 900;
+    const max = Math.max(360, viewport - 140);
+    const height = Math.max(240, Math.min(max, Number(value) || 0));
+    wrap.style.height = Math.round(height) + 'px';
   }
 
   function statusText(status) {
