@@ -8,6 +8,7 @@ const ROOT = __dirname;
 const REPO = path.resolve(ROOT, '..', '..');
 const RUNNER = path.join(ROOT, 'qa', 'run_desktop_scenario.js');
 const README = path.join(ROOT, 'qa', 'README.md');
+const DESKTOP_MIXED_APPLY_FLOW = path.join(ROOT, 'qa', 'desktop_mixed_apply_flow.js');
 const QA_FIXTURE = path.join(ROOT, 'fixtures', 'qa-mini');
 const SCENARIO_DIR = path.join(ROOT, 'qa', 'scenarios');
 
@@ -29,6 +30,7 @@ function read(filePath) {
 [
   RUNNER,
   README,
+  DESKTOP_MIXED_APPLY_FLOW,
   path.join(SCENARIO_DIR, 'first_time_user.md'),
   path.join(SCENARIO_DIR, 'explore_design_existing_edit.md'),
   path.join(SCENARIO_DIR, 'content_storyboard_canvas_selection.md'),
@@ -47,6 +49,7 @@ function read(filePath) {
 
 const runner = read(RUNNER);
 const readme = read(README);
+const desktopMixedApplyFlow = read(DESKTOP_MIXED_APPLY_FLOW);
 const existingScenarioCard = read(path.join(SCENARIO_DIR, 'explore_design_existing_edit.md'));
 const storyboardSelectionScenarioCard = read(path.join(SCENARIO_DIR, 'content_storyboard_canvas_selection.md'));
 const persistenceScenarioCard = read(path.join(SCENARIO_DIR, 'draft_persistence_restart.md'));
@@ -64,6 +67,7 @@ const postEvent = read(path.join(QA_FIXTURE, 'source', 'scenes', 'post_event.sce
   'transcript.json',
   'first_time_user',
   'explore_design_existing_edit',
+  'desktop_mixed_apply_flow',
   'content_storyboard_canvas_selection',
   'draft_persistence_restart',
   'load_bundled_demo_template',
@@ -104,6 +108,7 @@ const postEvent = read(path.join(QA_FIXTURE, 'source', 'scenes', 'post_event.sce
   'fillJusticeSidebarStatus',
   'post_event_news',
   'ProjectMapInstallAssistant',
+  'desktopMixedApplyFlow.definition',
   'data-design-edit-existing',
   'data-editing-workspace',
   'data-object-authoring-canvas',
@@ -128,6 +133,7 @@ const postEvent = read(path.join(QA_FIXTURE, 'source', 'scenes', 'post_event.sce
   'Guided UI QA',
   'first_time_user',
   'explore_design_existing_edit',
+  'desktop_mixed_apply_flow',
   'content_storyboard_canvas_selection',
   'draft_persistence_restart',
   'load_bundled_demo_template',
@@ -136,10 +142,23 @@ const postEvent = read(path.join(QA_FIXTURE, 'source', 'scenes', 'post_event.sce
   'Playable Surface',
   'Workspace Layout',
   'project_mismatch',
+  'post-apply verification',
   'test dialog adapter',
   'Do not treat these runs as full manual QA'
 ].forEach((needle) => {
   assert(readme.includes(needle), 'QA README should mention ' + needle);
+});
+
+[
+  'Desktop bridge dry-runs, applies, and verifies mixed create/replace/copy operations',
+  'copy_selected_asset',
+  'create_mixed_scene',
+  'replace_intro_paragraph',
+  'post-apply verify',
+  'already_applied',
+  'local-art.png'
+].forEach((needle) => {
+  assert(desktopMixedApplyFlow.includes(needle), 'desktop mixed apply flow should include ' + needle);
 });
 
 assert(rootScene.includes('// ====== U. EVENT SEEN FLAGS ======'), 'QA fixture root should include event seen flag anchor');
@@ -235,6 +254,6 @@ assert(
 
 process.stdout.write(JSON.stringify({
   ok: true,
-  scenarioCount: 13,
+  scenarioCount: 14,
   runner: path.relative(REPO, RUNNER)
 }, null, 2) + '\n');

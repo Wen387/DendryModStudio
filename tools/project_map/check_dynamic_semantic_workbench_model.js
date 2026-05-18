@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-check
 'use strict';
 
 const fs = require('fs');
@@ -158,6 +159,8 @@ function runAssertions(index, dynamicChecked) {
   const route = workflow(model, 'route_order_presidential_1932');
   assert(route.sections.routes.routeOrderSensitiveCount > 0, 'route-heavy workflow should expose route-order count', route.sections.routes);
   assert(route.sections.routes.routeOrderSamples[0].routes[0].predicate, 'route-order sample should parse predicates', route.sections.routes.routeOrderSamples);
+  assert(route.sections.routes.routeStateSummary.routeStateCount >= 1, 'route-heavy workflow should expose structured route-state summary', route.sections.routes.routeStateSummary);
+  assert(route.sections.routes.routeStates[0].candidates[0].predicateStatus, 'route state candidates should include predicate parse status', route.sections.routes.routeStates);
   const dynamicQ = workflow(model, 'dynamic_q_hindenburg_president');
   assert(dynamicQ.sections.effects.dynamicQ.count > 0, 'dynamic Q workflow should expose dynamic Q section', dynamicQ.sections.effects.dynamicQ);
   assert(dynamicQ.sections.effects.dynamicQ.samples[0].classification === 'dynamic_concatenation', 'dynamic Q sample should preserve classification', dynamicQ.sections.effects.dynamicQ.samples);
@@ -172,6 +175,7 @@ function runAssertions(index, dynamicChecked) {
   if (dynamicChecked) {
     assert(route.sections.playerText.count >= 200, 'Dynamic presidential workflow should expose large player-text context', route.sections.playerText);
     assert(route.sections.routes.routeOrderGroups.length >= 1 && route.sections.routes.routeOrderGroups[0].parserBacked, 'Dynamic presidential workflow should render parser-backed route-order groups', route.sections.routes.routeOrderGroups);
+    assert(route.sections.routes.routeStateSummary.predicateRouteCount >= 1, 'Dynamic presidential workflow should render predicate route-state count', route.sections.routes.routeStateSummary);
     assert(dynamicQ.sections.effects.dynamicQ.count === 12, 'Dynamic Hindenburg workflow should expose 12 dynamic Q diagnostics', dynamicQ.sections.effects.dynamicQ);
     assert(dynamicQ.sections.effects.dynamicQ.structuredEvidenceCount === 12, 'Dynamic Hindenburg workflow should render structured manual dynamic Q evidence', dynamicQ.sections.effects.dynamicQ);
     assert(dynamicQ.sections.effects.effectClauses.count > 0, 'Dynamic Hindenburg workflow should render parser-backed effect clauses', dynamicQ.sections.effects.effectClauses);

@@ -9,6 +9,7 @@ The runner is intentionally focused:
 ```bash
 node tools/project_map/qa/run_desktop_scenario.js --scenario first_time_user
 node tools/project_map/qa/run_desktop_scenario.js --scenario explore_design_existing_edit
+node tools/project_map/qa/run_desktop_scenario.js --scenario desktop_mixed_apply_flow
 node tools/project_map/qa/run_desktop_scenario.js --scenario content_storyboard_canvas_selection
 node tools/project_map/qa/run_desktop_scenario.js --scenario draft_persistence_restart
 node tools/project_map/qa/run_desktop_scenario.js --scenario load_bundled_demo_template
@@ -48,6 +49,16 @@ Each run contains:
 5. A source-backed page section is changed and saved to My Changes.
 6. Review & Apply loads an `existing_scene_edit` install plan.
 7. Desktop dry-run proves the guarded `replace_section` operation would apply.
+
+`desktop_mixed_apply_flow` covers the highest-risk Review & Apply bridge path:
+
+1. Quick Start opens a writable QA mini fixture copy.
+2. Review & Apply loads a mixed install plan with create, replace, and copy
+   operations.
+3. Desktop dry-run runs through the preload IPC bridge without changing disk.
+4. Apply writes the reviewed operations through the same bridge.
+5. A follow-up dry-run reports the operations as already applied.
+6. Disk checks confirm the created scene, text replacement, and copied asset.
 
 `content_storyboard_canvas_selection` covers Canvas as an editing entry point:
 
@@ -140,6 +151,11 @@ user data.
 inside Electron. It is still testing the real Canvas pointer handler; the
 shortcut only replaces manual hand movement.
 
+`desktop_mixed_apply_flow` writes under the system temp directory, in
+`dms-playtests/desktop-mixed-apply-flow/`, and deliberately mixes create,
+replace, and local asset copy operations to exercise the real desktop dry-run,
+apply, and post-apply verification path.
+
 `load_bundled_demo_template` uses the packaged starter template and app-data
 copy path directly. It proves the first-run Demo button can produce a writable
 project, but it is still not a fresh package relaunch test.
@@ -175,6 +191,7 @@ journey.
 ```bash
 node tools/project_map/qa/run_desktop_scenario.js --list
 node tools/project_map/qa/run_desktop_scenario.js --scenario first_time_user --headed
+node tools/project_map/qa/run_desktop_scenario.js --scenario desktop_mixed_apply_flow --timeout-ms 60000
 node tools/project_map/qa/run_desktop_scenario.js --scenario justice_party_template_mod --headed --step-delay-ms 1200
 node tools/project_map/qa/run_desktop_scenario.js --scenario dynamic_mod_smoke --dynamic-project-root /path/to/SDAAHdynamic --timeout-ms 90000
 node tools/project_map/qa/run_desktop_scenario.js --artifact-dir /tmp/my-dms-qa

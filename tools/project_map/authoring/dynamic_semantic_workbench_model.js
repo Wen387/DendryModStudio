@@ -1,8 +1,17 @@
+// @ts-check
 (function initProjectMapDynamicSemanticWorkbench(global) {
   'use strict';
 
   const MODEL_VERSION = '0.1';
   const MODEL_KIND = 'dynamic_semantic_workbench';
+
+  /**
+   * @typedef {import('../types/project_map_contracts').ConditionState} ConditionState
+   * @typedef {import('../types/project_map_contracts').DynamicSemanticWorkbenchModel} DynamicSemanticWorkbenchModel
+   * @typedef {import('../types/project_map_contracts').ProjectIndex} ProjectIndex
+   * @typedef {import('../types/project_map_contracts').RouteState} RouteState
+   * @typedef {import('../types/project_map_contracts').RouteStateSummary} RouteStateSummary
+   */
 
   function ensureArray(value) {
     return Array.isArray(value) ? value : [];
@@ -54,6 +63,11 @@
     return null;
   }
 
+  /**
+   * @param {ProjectIndex|unknown} projectIndex
+   * @param {Record<string, unknown>=} options
+   * @returns {DynamicSemanticWorkbenchModel}
+   */
   function buildDynamicSemanticWorkbench(projectIndex, options) {
     const index = isObject(projectIndex) ? projectIndex : {};
     const opts = isObject(options) ? options : {};
@@ -249,6 +263,7 @@
 
   function routesSection(workbench, routeGroups, routeDiagnostics, sampleLimit) {
     const links = workbench && workbench.links || {};
+    const routeState = workbench && workbench.routeState || {};
     const groups = ensureArray(routeGroups);
     const fallbackDiagnostics = ensureArray(routeDiagnostics);
     const sensitiveCount = groups.length || fallbackDiagnostics.length;
@@ -256,6 +271,9 @@
       outgoingCount: ensureArray(links.outgoing).length,
       incomingCount: ensureArray(links.incoming).length,
       routeOrderSensitiveCount: sensitiveCount,
+      routeStateSummary: routeState.summary || {},
+      routeStates: ensureArray(routeState.states).slice(0, sampleLimit).map(compactRouteState),
+      conditionStates: ensureArray(routeState.conditionStates).slice(0, sampleLimit).map(compactConditionState),
       routeOrderGroups: groups.slice(0, sampleLimit).map(compactRouteOrderGroup),
       routeOrderSamples: groups.length
         ? groups.slice(0, sampleLimit).map(compactRouteOrderGroup)
@@ -266,6 +284,45 @@
         incoming: ensureArray(links.incoming).slice(0, sampleLimit).map(compactLink)
       }
     });
+  }
+
+  function compactRouteState(state) {
+    return {
+      id: String(state && state.id || ''),
+      ownerId: String(state && state.ownerId || ''),
+      routeField: String(state && state.routeField || ''),
+      routeKind: String(state && state.routeKind || ''),
+      routePurpose: String(state && state.routePurpose || ''),
+      chainContext: String(state && state.chainContext || ''),
+      status: String(state && state.status || ''),
+      dependencies: ensureArray(state && state.dependencies).slice(0, 8),
+      candidateCount: Number(state && state.candidateCount || 0),
+      fallbackTarget: state && state.fallbackCandidate ? String(state.fallbackCandidate.resolvedTarget || state.fallbackCandidate.rawTarget || '') : '',
+      dynamicTargetCount: Number(state && state.dynamicTargetCount || 0),
+      candidates: ensureArray(state && state.candidates).slice(0, 4).map((candidate) => ({
+        order: Number(candidate && candidate.order || 0),
+        rawTarget: String(candidate && candidate.rawTarget || ''),
+        resolvedTarget: String(candidate && candidate.resolvedTarget || candidate && candidate.target || ''),
+        predicate: String(candidate && candidate.predicate || ''),
+        predicateStatus: String(candidate && candidate.predicateSummary && candidate.predicateSummary.status || ''),
+        dependencies: ensureArray(candidate && candidate.predicateSummary && candidate.predicateSummary.dependencies).slice(0, 8),
+        isFallback: Boolean(candidate && candidate.isFallback),
+        dynamicTarget: Boolean(candidate && candidate.dynamicTarget),
+        targetSource: String(candidate && candidate.targetSource || ''),
+        targetKind: String(candidate && candidate.targetKind || '')
+      }))
+    };
+  }
+
+  function compactConditionState(state) {
+    return {
+      id: String(state && state.id || ''),
+      ownerId: String(state && state.ownerId || ''),
+      conditionKind: String(state && state.conditionKind || ''),
+      raw: String(state && state.raw || ''),
+      status: String(state && state.status || ''),
+      dependencies: ensureArray(state && state.dependencies).slice(0, 8)
+    };
   }
 
   function conditionsSection(workbench, sampleLimit) {

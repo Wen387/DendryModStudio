@@ -16,6 +16,7 @@
     const operations = Array.isArray(plan.operations) ? plan.operations : [];
     const installApi = opts.installApi || null;
     const resultMap = resultById(opts.result);
+    const readinessAttrs = renderReadinessAttrs(opts.readiness);
     const classified = operations.map((operation, index) => {
       const item = classify(installApi, operation);
       item.operation = item.operation || operation;
@@ -32,13 +33,22 @@
       ['refused', t('install.human.refused', 'Protected'), t('install.human.refusedHelp', 'Studio will not apply this operation. Rewrite it or handle it outside the app.')]
     ];
     return [
-      '<div class="install-human-intro">',
+      '<div class="install-human-intro"' + readinessAttrs + '>',
       '<strong>' + escapeHtml(t('install.human.title', 'What this will change')) + '</strong>',
       '<span>' + escapeHtml((summary.total || operations.length || 0) + ' ' + t('install.human.changeCount', 'change(s) in this plan')) + '</span>',
       '</div>',
       renderDryRunRecap(opts.result, opts),
       groups.map(([status, title, help]) => renderGroup(status, title, help, classified.filter((item) => item.status === status), opts)).join('')
     ].join('');
+  }
+
+  function renderReadinessAttrs(readiness) {
+    if (!readiness || typeof readiness !== 'object') {
+      return '';
+    }
+    return ' data-review-apply-can-apply="' + escapeAttr(readiness.canApply ? 'true' : 'false') + '"' +
+      ' data-review-apply-needs-check="' + escapeAttr(readiness.needsCheck ? 'true' : 'false') + '"' +
+      ' data-review-apply-needs-advanced="' + escapeAttr(readiness.needsAdvancedConsent ? 'true' : 'false') + '"';
   }
 
   function classify(installApi, operation) {

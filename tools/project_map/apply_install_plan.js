@@ -1,8 +1,10 @@
 #!/usr/bin/env node
+// @ts-check
 'use strict';
 
 const fs = require('fs');
 const installPlan = require('./authoring/install_plan.js');
+const installOperationContracts = require('./authoring/install_operation_contracts.js');
 
 function usage() {
   return [
@@ -14,7 +16,7 @@ function usage() {
 }
 
 function fail(message, code = 1) {
-  const err = new Error(message);
+  const err = /** @type {Error & {exitCode?: number}} */ (new Error(message));
   err.exitCode = code;
   throw err;
 }
@@ -69,15 +71,16 @@ function runCli(argv, io) {
   try {
     args = parseArgs(argv || []);
   } catch (err) {
-    streams.stderr.write('ERROR: ' + err.message + '\n');
-    return err.exitCode || 1;
+    const error = /** @type {Error & {exitCode?: number}} */ (err);
+    streams.stderr.write('ERROR: ' + error.message + '\n');
+    return error.exitCode || 1;
   }
   const plan = readJson(args.plan);
-  const result = installPlan.applyInstallPlan(plan, {
+  const result = installOperationContracts.normalizeApplyResult(installPlan.applyInstallPlan(plan, {
     projectRoot: args.root,
     dryRun: !args.apply,
     allowAdvanced: args.allowAdvanced
-  });
+  }));
 
   if (args.summary) {
     streams.stdout.write(JSON.stringify(result, null, 2) + '\n');
@@ -101,8 +104,9 @@ if (require.main === module) {
   try {
     process.exitCode = runCli(process.argv.slice(2), process);
   } catch (err) {
-    process.stderr.write('ERROR: ' + err.message + '\n');
-    process.exitCode = err.exitCode || 1;
+    const error = /** @type {Error & {exitCode?: number}} */ (err);
+    process.stderr.write('ERROR: ' + error.message + '\n');
+    process.exitCode = error.exitCode || 1;
   }
 }
 

@@ -5,6 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const {spawnSync} = require('child_process');
+const desktopMixedApplyFlow = require('./desktop_mixed_apply_flow.js');
 
 const QA_DIR = __dirname;
 const PROJECT_MAP_DIR = path.resolve(QA_DIR, '..');
@@ -52,6 +53,7 @@ const SCENARIOS = {
       'uses a deterministic test dialog adapter for native folder selection'
     ]
   },
+  desktop_mixed_apply_flow: Object.assign({}, desktopMixedApplyFlow.definition, {artifactBase: path.join(DEFAULT_ARTIFACT_ROOT, desktopMixedApplyFlow.definition.artifactSlug), run: (win, args, artifactDir, log) => desktopMixedApplyFlow.run(win, args, artifactDir, log, {ensureDir, expectVisible, click, waitForHidden, waitForProjectLoaded, screenshot, evalInPage, expectInstallOperationPath, statusSummary})}),
   content_storyboard_canvas_selection: {
     title: 'Player opens Create, clicks a Storyboard event card on Canvas, and gets the visible object editor.',
     run: scenarioContentStoryboardCanvasSelection,

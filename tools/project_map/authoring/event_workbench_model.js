@@ -1,3 +1,4 @@
+// @ts-check
 (function initProjectMapEventWorkbench(global) {
   'use strict';
 
@@ -8,6 +9,14 @@
     'source/scenes/post_event.scene.dry',
     'source/scenes/post_event_news.scene.dry'
   ]);
+
+  /**
+   * @typedef {import('../types/project_map_contracts').EventWorkbenchModel} EventWorkbenchModel
+   * @typedef {import('../types/project_map_contracts').ProjectIndex} ProjectIndex
+   * @typedef {import('../types/project_map_contracts').ProjectIndexScene} ProjectIndexScene
+   * @typedef {import('../types/project_map_contracts').SceneRouteState} SceneRouteState
+   * @typedef {import('../types/project_map_contracts').SourceRef} SourceRef
+   */
 
   function ensureArray(value) {
     return Array.isArray(value) ? value : [];
@@ -31,6 +40,26 @@
     return null;
   }
 
+  function routeStateApi() {
+    if (global && global.ProjectMapRouteStateModel) {
+      return global.ProjectMapRouteStateModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./route_state_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * @param {ProjectIndex|unknown} projectIndex
+   * @param {ProjectIndexScene|string|unknown} sceneOrId
+   * @param {Record<string, unknown>=} options
+   * @returns {EventWorkbenchModel}
+   */
   function buildEventWorkbench(projectIndex, sceneOrId, options) {
     const index = isObject(projectIndex) ? projectIndex : {};
     const opts = isObject(options) ? options : {};
@@ -46,8 +75,9 @@
     const variables = variablesForScene(lookup, scene);
     const links = linksForScene(lookup, scene);
     const diagnostics = diagnosticsForScene(lookup, scene);
-    const conditions = conditionCards(scene, playerRows, opts);
+    const conditions = conditionCards(scene, playerRows);
     const eventOptions = optionRows(index, scene, playerRows, effectRows);
+    const routeState = buildRouteState(index, scene, opts);
     const path = sourcePath(scene);
 
     return {
@@ -64,6 +94,8 @@
         effectCount: effectRows.length,
         variableCount: variables.length,
         linkCount: links.outgoing.length + links.incoming.length,
+        routeStateCount: routeState.summary.routeStateCount || 0,
+        routePredicateDependencyCount: routeState.summary.predicateDependencyCount || 0,
         textCount: playerRows.length
       },
       playerText: playerRows.map((row) => playerTextRow(row, index)),
@@ -72,6 +104,7 @@
       effects: effectRows,
       variables,
       links,
+      routeState,
       diagnostics,
       actions: actionRows(scene),
       advanced: {
@@ -134,9 +167,49 @@
       effects: [],
       variables: [],
       links: {outgoing: [], incoming: []},
+      routeState: emptyRouteState(sceneOrId),
       diagnostics: [{severity: 'warning', code: 'event_workbench.not_found', message: 'No matching scene was found.'}],
       actions: [],
       advanced: {}
+    };
+  }
+
+  function buildRouteState(index, scene, opts) {
+    const routeState = routeStateApi();
+    if (!routeState || typeof routeState.routeStatesForScene !== 'function') {
+      return emptyRouteState(scene && scene.id);
+    }
+    return routeState.routeStatesForScene(index, scene, {sampleLimit: opts.sampleLimit || 6});
+  }
+
+  /**
+   * @param {unknown} sceneOrId
+   * @returns {SceneRouteState}
+   */
+  function emptyRouteState(sceneOrId) {
+    return {
+      schemaVersion: EVENT_WORKBENCH_VERSION,
+      kind: 'scene_route_state',
+      sceneId: String(sceneOrId || ''),
+      title: '',
+      summary: {
+        routeStateCount: 0,
+        routeCandidateCount: 0,
+        orderedChainCount: 0,
+        predicateRouteCount: 0,
+        fallbackCount: 0,
+        dynamicTargetCount: 0,
+        unresolvedTargetCount: 0,
+        setJumpCount: 0,
+        goToRefCount: 0,
+        conditionStateCount: 0,
+        predicateDependencyCount: 0,
+        opaquePredicateCount: 0,
+        diagnosticCount: 0
+      },
+      states: [],
+      conditionStates: [],
+      diagnostics: []
     };
   }
 
@@ -202,7 +275,7 @@
     if (!text) {
       return false;
     }
-    if (/^(?:on-arrival|on-display)\s*:/i.test(text)) {
+    if (/^(?:on-arrival|on-departure|on-display)\s*:/i.test(text)) {
       return true;
     }
     if (/^(?:Q\.)?[A-Za-z_][A-Za-z0-9_]*\s*(?:[+\-*/]?=)/.test(text) && /(?:^|;)\s*(?:Q\.)?[A-Za-z_][A-Za-z0-9_]*\s*(?:[+\-*/]?=)/.test(text)) {
@@ -346,7 +419,7 @@
   function parseEffectText(text) {
     const rows = [];
     const raw = String(text || '').trim();
-    const hookMatch = raw.match(/^(on-arrival|on-display)\s*:\s*(.+)$/i);
+    const hookMatch = raw.match(/^(on-arrival|on-departure|on-display)\s*:\s*(.+)$/i);
     const hook = hookMatch ? hookMatch[1].toLowerCase() : '';
     const body = hookMatch ? hookMatch[2] : raw;
     splitEffectClauses(body).forEach((clause, index) => {

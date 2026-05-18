@@ -6,6 +6,10 @@ installing Dendry/DendryNexus project changes.
 For development workflow, smoke tiers, packaging hygiene, and contributor
 boundaries, see `tools/project_map/WORKFLOW.md`.
 
+For practical DendryNexus parser and authoring lessons gathered from real
+projects and community modding experience, see
+`tools/project_map/DENDRYNEXUS_FIELD_NOTES.md`.
+
 ## Repository Layout
 
 This directory contains the shared Project Map scanner, browser viewer, desktop

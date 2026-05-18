@@ -81,6 +81,7 @@ const PROJECT_METADATA_UI = path.join(ROOT, 'viewer', 'project_metadata_ui.js');
 const VARIABLE_EDITOR_UI = path.join(ROOT, 'viewer', 'variable_editor_ui.js');
 const INSTALL_REVIEW_UI = path.join(ROOT, 'viewer', 'install_review_ui.js');
 const INSTALL_UI = path.join(ROOT, 'viewer', 'install_assistant_ui.js');
+const INSTALL_RESULT_REPORT_MODEL = path.join(ROOT, 'viewer', 'install_result_report_model.js');
 const DRAFT_WORKSPACE_UI = path.join(ROOT, 'viewer', 'draft_workspace_ui.js');
 const CHANGE_TRAY_UI = path.join(ROOT, 'viewer', 'change_tray_ui.js');
 const UPDATE_NOTICE_UI = path.join(ROOT, 'viewer', 'update_notice_ui.js');
@@ -194,6 +195,7 @@ const projectMetadataUi = fs.readFileSync(PROJECT_METADATA_UI, 'utf8');
 const variableEditorUi = fs.readFileSync(VARIABLE_EDITOR_UI, 'utf8');
 const installReviewUi = fs.readFileSync(INSTALL_REVIEW_UI, 'utf8');
 const installUi = fs.readFileSync(INSTALL_UI, 'utf8');
+const installResultReportModel = fs.readFileSync(INSTALL_RESULT_REPORT_MODEL, 'utf8');
 const draftWorkspaceUi = fs.readFileSync(DRAFT_WORKSPACE_UI, 'utf8');
 const changeTrayUi = fs.readFileSync(CHANGE_TRAY_UI, 'utf8');
 const i18nUi = readViewerI18n(VIEWER_DIR);
@@ -743,7 +745,7 @@ assert(variableEditorUi.includes('variable-editor-review-install'), 'Variable Ed
 
 assert(installUi.includes('renderHumanChecklist'), 'Install should render a human checklist before raw technical details');
 assert(installUi.includes('install.human.safeApply'), 'Install should translate safe_apply into player-facing labels');
-assert(installUi.includes('install.report.wouldApplyHuman'), 'Install result report should avoid raw would_apply labels in the main summary');
+assert(installResultReportModel.includes('install.report.wouldApplyHuman'), 'Install result report should avoid raw would_apply labels in the main summary');
 assert(installUi.includes('createRuntimePreview'), 'Install Assistant should call the desktop Runtime Preview API');
 assert(installUi.includes('endRuntimePreview'), 'Install Assistant should expose a Runtime Preview end action');
 assert(installUi.includes('renderRuntimePreviewResult'), 'Install Assistant should render Runtime Preview results');

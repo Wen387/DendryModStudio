@@ -1,3 +1,4 @@
+// @ts-check
 (function initProjectMapRouteScriptIntelligenceModel(global) {
   'use strict';
 
@@ -16,6 +17,22 @@
     UNKNOWN: 'unknown'
   });
 
+  /**
+   * @typedef {import('../types/project_map_contracts').DiagnosticRow} DiagnosticRow
+   * @typedef {import('../types/project_map_contracts').GuidedScriptEdit} GuidedScriptEdit
+   * @typedef {import('../types/project_map_contracts').RouteEvidenceMap} RouteEvidenceMap
+   * @typedef {import('../types/project_map_contracts').RouteEvidenceItem} RouteEvidenceItem
+   * @typedef {import('../types/project_map_contracts').RouteScriptIntelligenceModel} RouteScriptIntelligenceModel
+   * @typedef {import('../types/project_map_contracts').ScriptImpactMap} ScriptImpactMap
+   * @typedef {import('../types/project_map_contracts').ScriptImpactBlock} ScriptImpactBlock
+   * @typedef {import('../types/project_map_contracts').SourceRef} SourceRef
+   */
+
+  /**
+   * @param {unknown} eventBody
+   * @param {Record<string, unknown>=} options
+   * @returns {RouteScriptIntelligenceModel}
+   */
   function buildRouteScriptIntelligence(eventBody, options) {
     const body = isObject(eventBody) ? clone(eventBody) : {};
     const opts = isObject(options) ? options : {};
@@ -74,6 +91,12 @@
     return body;
   }
 
+  /**
+   * @param {Record<string, any>} body
+   * @param {ScriptImpactMap|Record<string, any>} scriptBlocks
+   * @param {Record<string, unknown>=} options
+   * @returns {RouteEvidenceMap}
+   */
   function buildRouteEvidenceMap(body, scriptBlocks, options) {
     const rows = [];
     ensureArray(body && body.flow && body.flow.edges).forEach((edge, index) => {
@@ -162,6 +185,11 @@
     };
   }
 
+  /**
+   * @param {Record<string, any>} body
+   * @param {Record<string, unknown>=} options
+   * @returns {ScriptImpactMap}
+   */
   function buildScriptImpactMap(body, options) {
     const conditionIndex = conditionVariables(body);
     const routePredicateIndex = routePredicateVariables(body);
@@ -181,7 +209,7 @@
       return opaqueScriptImpactBlock(row, index, conditionIndex, routePredicateIndex, raw);
     }
     const hook = hookFor(raw, row);
-    const bodyText = raw.replace(/^(on-arrival|on-display)\s*:\s*/i, '').trim();
+    const bodyText = raw.replace(/^(on-arrival|on-departure|on-display)\s*:\s*/i, '').trim();
     const statements = splitStatements(bodyText).map((statement, statementIndex) => parseScriptStatement(statement, hook, row, statementIndex));
     const complexReasons = complexScriptReasons(bodyText, statements);
     const sets = scriptReadWriteSets(statements);
@@ -939,7 +967,7 @@
   }
 
   function hookFor(raw, row) {
-    const hookMatch = stringValue(raw).match(/^(on-arrival|on-display)\s*:/i);
+    const hookMatch = stringValue(raw).match(/^(on-arrival|on-departure|on-display)\s*:/i);
     if (hookMatch) {
       return hookMatch[1].toLowerCase();
     }

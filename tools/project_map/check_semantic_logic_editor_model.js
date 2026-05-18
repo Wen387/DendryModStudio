@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-check
 'use strict';
 
 const coverage = require('./authoring/visible_object_coverage_model.js');

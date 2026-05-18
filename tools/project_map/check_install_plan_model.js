@@ -1,7 +1,9 @@
 #!/usr/bin/env node
+// @ts-check
 'use strict';
 
 const fs = require('fs');
+const crypto = require('crypto');
 const os = require('os');
 const path = require('path');
 
@@ -33,6 +35,10 @@ function assert(condition, message) {
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+function sha256(text) {
+  return crypto.createHash('sha256').update(String(text || ''), 'utf8').digest('hex');
 }
 
 function syntheticIndex(root) {
@@ -165,6 +171,70 @@ fs.writeFileSync(
   'utf8'
 );
 fs.writeFileSync(
+  path.join(tmpRoot, 'source', 'scenes', 'events', 'section_trailing.scene.dry'),
+  [
+    'title: Trailing Section',
+    '',
+    '= Old Trailing Section   ',
+    '',
+    'First branch paragraph.',
+    'Second branch paragraph.   ',
+    'Tail stays put.',
+    ''
+  ].join('\n'),
+  'utf8'
+);
+fs.writeFileSync(
+  path.join(tmpRoot, 'source', 'scenes', 'events', 'section_trim_ambiguous.scene.dry'),
+  [
+    'title: Trim Ambiguous Section',
+    '',
+    '= Trim Anchor   ',
+    'Body one.',
+    '= Trim Anchor\t',
+    'Body two.',
+    ''
+  ].join('\n'),
+  'utf8'
+);
+fs.writeFileSync(
+  path.join(tmpRoot, 'source', 'scenes', 'events', 'transaction.scene.dry'),
+  ['title: Transaction', 'LINE_ONE', 'LINE_TWO', ''].join('\n'),
+  'utf8'
+);
+fs.writeFileSync(
+  path.join(tmpRoot, 'source', 'scenes', 'events', 'sequential.scene.dry'),
+  ['title: Sequential', 'alpha', 'omega', ''].join('\n'),
+  'utf8'
+);
+fs.writeFileSync(
+  path.join(tmpRoot, 'source', 'scenes', 'events', 'report.scene.dry'),
+  ['title: Report', 'first report line', 'second report line', 'third report line', ''].join('\n'),
+  'utf8'
+);
+fs.writeFileSync(
+  path.join(tmpRoot, 'source', 'scenes', 'events', 'same_line_effect.scene.dry'),
+  [
+    'title: Same Line Effect',
+    'on-arrival: z_leader = "Kaas"; z_relation -= 5; prussian_concordat_progress += 1; z_ideology = "Right"; resources += 9',
+    ''
+  ].join('\n'),
+  'utf8'
+);
+fs.writeFileSync(
+  path.join(tmpRoot, 'source', 'scenes', 'events', 'center_party_conference.scene.dry'),
+  [
+    'title: Center Party Conference',
+    'on-arrival: z_leader = "Kaas"; z_relation -= 5; prussian_concordat_progress += 1; z_ideology = "Right"',
+    'face-image: img/portraits/Ludwig_Kaas.jpg',
+    '',
+    'Ludwig Kaas has been selected as the chairman of the Center Party. He seems to represent a rightward turn from Marx, and will preside over a Center Party less inclined to compromise with the left.   ',
+    'Despite this, Kaas is committed to the current constitutional order and the republic. He maintains a close friendship with Eugenio Pacelli, the Papal Nuncio to Germany, which may prove useful during concordat negotiations.',
+    ''
+  ].join('\n'),
+  'utf8'
+);
+fs.writeFileSync(
   path.join(tmpRoot, 'source', 'scenes', 'events', 'insert_dedupe.scene.dry'),
   'title: Insert Dedupe\r\nMention @sample_route elsewhere.\r\nANCHOR ROUTES\r\nTail stays put.\r\n',
   'utf8'
@@ -257,6 +327,85 @@ assert(installPlan.operationSummary(deckWiredCardBundle.installPlan).manualRevie
 const deckWiringApply = installPlan.applyInstallPlan(deckWiredCardBundle.installPlan, {projectRoot: tmpRoot, dryRun: false});
 assert(deckWiringApply.ok, 'deck-wired card install should apply: ' + JSON.stringify(deckWiringApply));
 assert(fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'decks', 'starter_deck.scene.dry'), 'utf8').includes('- #cards'), 'apply should insert the new card tag into the deck');
+fs.writeFileSync(
+  path.join(tmpRoot, 'source', 'scenes', 'inline_hand.scene.dry'),
+  [
+    'title: Inline Hand',
+    'is-hand: true',
+    '',
+    '- @inline_deck',
+    '',
+    '@inline_deck',
+    'title: Inline Deck',
+    'is-deck: true',
+    '',
+    '- #demo_action',
+    ''
+  ].join('\n'),
+  'utf8'
+);
+const sectionDeckWiringIndex = {
+  schemaVersion: '0.1',
+  project: {name: 'section deck wiring fixture', root: tmpRoot, profileIds: ['generic-dendry']},
+  profiles: [{id: 'generic-dendry'}],
+  scenes: [
+    {id: 'root'},
+    {
+      id: 'inline_hand',
+      title: 'Inline Hand',
+      type: 'hand',
+      path: 'source/scenes/inline_hand.scene.dry',
+      sourceSpan: {path: 'source/scenes/inline_hand.scene.dry', startLine: 1, endLine: 10, line: 1, anchorText: 'title: Inline Hand', endAnchorText: '- #demo_action'},
+      options: [
+        {id: '@inline_deck', target: {kind: 'scene', id: 'inline_deck'}, sourceSpan: {path: 'source/scenes/inline_hand.scene.dry', startLine: 4, endLine: 4, line: 4, anchorText: '- @inline_deck', endAnchorText: '- @inline_deck'}}
+      ],
+      sections: [{
+        id: 'inline_hand.inline_deck',
+        title: 'Inline Deck',
+        isDeck: 'true',
+        path: 'source/scenes/inline_hand.scene.dry',
+        sourceSpan: {path: 'source/scenes/inline_hand.scene.dry', startLine: 6, endLine: 10, line: 6, anchorText: '@inline_deck', endAnchorText: '- #demo_action'},
+        options: [
+          {id: '#demo_action', target: {kind: 'tag', id: 'demo_action'}, sourceSpan: {path: 'source/scenes/inline_hand.scene.dry', startLine: 10, endLine: 10, line: 10, anchorText: '- #demo_action', endAnchorText: '- #demo_action'}}
+        ]
+      }]
+    }
+  ],
+  variables: [{name: 'resources'}, {name: 'media_reach'}, {name: 'civil_society_trust'}],
+  semantic: {
+    events: [],
+    cards: [],
+    hands: [{id: 'inline_hand', path: 'source/scenes/inline_hand.scene.dry'}],
+    decks: [{
+      id: 'inline_hand.inline_deck',
+      path: 'source/scenes/inline_hand.scene.dry',
+      title: 'Inline Deck',
+      type: 'deck',
+      ownerKind: 'section',
+      ownerSceneId: 'inline_hand',
+      sourceSpan: {path: 'source/scenes/inline_hand.scene.dry', startLine: 6, endLine: 10, line: 6, anchorText: '@inline_deck', endAnchorText: '- #demo_action'},
+      options: [
+        {id: '#demo_action', target: {kind: 'tag', id: 'demo_action'}, sourceSpan: {path: 'source/scenes/inline_hand.scene.dry', startLine: 10, endLine: 10, line: 10, anchorText: '- #demo_action', endAnchorText: '- #demo_action'}}
+      ]
+    }],
+    pinnedCards: []
+  },
+  diagnostics: [],
+  summary: {}
+};
+const sectionDeckWiredCardBundle = cardDraft.buildExportBundle(Object.assign({}, readJson(SAMPLE_CARD), {
+  id: 'section_deck_wired_card',
+  title: 'Section Deck Wired Card',
+  tags: ['section_cards']
+}), sectionDeckWiringIndex);
+const sectionDeckRouteOp = sectionDeckWiredCardBundle.installPlan.operations.find((op) => op.id === 'card_deck_tag_route');
+assert(sectionDeckRouteOp && sectionDeckRouteOp.path === 'source/scenes/inline_hand.scene.dry', 'card plan should route section-owned deck inserts back to the owning source file');
+assert(sectionDeckRouteOp.line === 10 && sectionDeckRouteOp.anchorText === '- #demo_action', 'section-owned deck wiring should use the deck section option anchor');
+assert(sectionDeckRouteOp.content === '- #section_cards\n', 'section-owned deck wiring should insert the generated card tag');
+assert(installPlan.operationSummary(sectionDeckWiredCardBundle.installPlan).manualReview === 0, 'section-owned deck wiring should not leave manual wiring');
+const sectionDeckWiringApply = installPlan.applyInstallPlan(sectionDeckWiredCardBundle.installPlan, {projectRoot: tmpRoot, dryRun: false});
+assert(sectionDeckWiringApply.ok, 'section-owned deck-wired card install should apply: ' + JSON.stringify(sectionDeckWiringApply));
+assert(fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'inline_hand.scene.dry'), 'utf8').includes('- #section_cards'), 'apply should insert the new card tag into the inline deck section');
 const advisorWiringIndex = {
   schemaVersion: '0.1',
   project: {name: 'advisor wiring fixture', root: tmpRoot, profileIds: ['generic-dendry']},
@@ -360,6 +509,42 @@ const copyAssetPlan = installPlan.buildInstallPlan({
 });
 const copyAssetClassification = installPlan.classifyOperation(copyAssetPlan.operations[0]);
 assert(copyAssetClassification.status === 'guarded_apply', 'desktop copy_asset_file with sourcePath should become guarded installable');
+const relativeSourceAssetPlan = installPlan.buildInstallPlan({
+  id: 'copy_asset_relative_source',
+  draftKind: 'asset',
+  operations: [
+    {
+      id: 'copy_asset_file_relative_source',
+      type: 'copy_asset_file',
+      path: 'assets/studio/events/copy_asset_guarded/relative-source.png',
+      sourceName: 'Relative Source.PNG',
+      sourcePath: 'relative/source.png',
+      assetType: 'image',
+      safety: 'guarded_apply'
+    }
+  ]
+});
+const relativeSourceClassification = installPlan.classifyOperation(relativeSourceAssetPlan.operations[0]);
+assert(relativeSourceClassification.status === 'refused', 'copy_asset_file should refuse relative sourcePath at classification time');
+assert(relativeSourceClassification.reason.includes('absolute desktop sourcePath'), 'relative sourcePath refusal should explain the desktop sourcePath requirement');
+const unsafeCopyTargetPlan = installPlan.buildInstallPlan({
+  id: 'copy_asset_unsafe_target',
+  draftKind: 'asset',
+  operations: [
+    {
+      id: 'copy_asset_file_unsafe_target',
+      type: 'copy_asset_file',
+      path: 'out/html/portrait-hero.png',
+      sourceName: 'Portrait Hero.PNG',
+      sourcePath: sourceAssetPath,
+      assetType: 'image',
+      safety: 'guarded_apply'
+    }
+  ]
+});
+const unsafeCopyTargetClassification = installPlan.classifyOperation(unsafeCopyTargetPlan.operations[0]);
+assert(unsafeCopyTargetClassification.status === 'refused', 'copy_asset_file should refuse generated runtime output targets');
+assert(unsafeCopyTargetClassification.reason.includes('generated/protected output') || unsafeCopyTargetClassification.reason.includes('project asset folders'), 'unsafe copy target refusal should explain the generated output or asset folder boundary');
 const copyAssetDryRun = installPlan.applyInstallPlan(copyAssetPlan, {projectRoot: tmpRoot, dryRun: true});
 assert(copyAssetDryRun.ok, 'asset copy dry-run should succeed when source and target are safe: ' + JSON.stringify(copyAssetDryRun));
 assert(copyAssetDryRun.results[0].status === 'would_apply', 'asset copy dry-run should report would_apply');
@@ -461,6 +646,201 @@ assert(replaceSectionCrlfApply.ok, 'replace_section should match CRLF anchors an
 const replacedSectionCrlfText = fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'events', 'section_crlf.scene.dry'), 'utf8');
 assert(replacedSectionCrlfText.includes('= New CRLF Section\r\n\r\nNew CRLF body.\r\nTail stays put.\r\n'), 'replace_section should preserve CRLF line endings around replacement content');
 assert(!/[^\r]\n/.test(replacedSectionCrlfText), 'replace_section should not introduce bare LF into a CRLF source file');
+
+const trailingSectionPlan = installPlan.buildInstallPlan({
+  id: 'replace_section_trailing_whitespace',
+  draftKind: 'test',
+  operations: [
+    {
+      id: 'replace_section_trailing_whitespace',
+      type: 'replace_section',
+      path: 'source/scenes/events/section_trailing.scene.dry',
+      anchorText: '= Old Trailing Section',
+      endAnchorText: 'Second branch paragraph.',
+      content: '= Old Trailing Section\n\nFirst branch paragraph.\nSecond branch paragraph.\nTest! Test!\n',
+      dedupeSearch: 'Test! Test!',
+      startLine: 3,
+      endLine: 6,
+      safety: 'guarded_apply',
+      description: 'Replace a source-backed section whose stored display anchors were trimmed.'
+    }
+  ]
+});
+const trailingSectionDryRun = installPlan.applyInstallPlan(trailingSectionPlan, {projectRoot: tmpRoot, dryRun: true, includeEvidence: true});
+assert(trailingSectionDryRun.ok, 'replace_section should accept trim-equivalent line evidence when old indexes lack raw anchors: ' + JSON.stringify(trailingSectionDryRun));
+assert(trailingSectionDryRun.results[0].evidence.match === 'matched_current_section_trim_equivalent', 'trim-equivalent replace_section evidence should be explicit');
+const rawMismatchSectionPlan = installPlan.buildInstallPlan({
+  id: 'replace_section_raw_mismatch',
+  draftKind: 'test',
+  operations: [
+    {
+      id: 'replace_section_raw_mismatch',
+      type: 'replace_section',
+      path: 'source/scenes/events/section_trailing.scene.dry',
+      anchorText: '= Old Trailing Section',
+      rawAnchorText: '= Old Trailing Section',
+      endAnchorText: 'Second branch paragraph.',
+      startLine: 3,
+      endLine: 6,
+      content: '= Changed\n',
+      dedupeSearch: '= Changed',
+      safety: 'guarded_apply'
+    }
+  ]
+});
+const rawMismatchSectionResult = installPlan.applyInstallPlan(rawMismatchSectionPlan, {projectRoot: tmpRoot, dryRun: true});
+assert(!rawMismatchSectionResult.ok, 'replace_section should refuse mismatched raw source evidence instead of trimming it');
+assert(rawMismatchSectionResult.diagnostics.some((diag) => diag.code === 'install_plan.section_start_line_mismatch'), 'raw anchor mismatch should report section_start_line_mismatch');
+const driftedSectionPlan = installPlan.buildInstallPlan({
+  id: 'replace_section_line_drift',
+  draftKind: 'test',
+  operations: [
+    {
+      id: 'replace_section_line_drift',
+      type: 'replace_section',
+      path: 'source/scenes/events/section_trailing.scene.dry',
+      anchorText: '= Old Trailing Section',
+      endAnchorText: 'Second branch paragraph.',
+      startLine: 4,
+      endLine: 6,
+      content: '= Changed\n',
+      dedupeSearch: '= Changed',
+      safety: 'guarded_apply'
+    }
+  ]
+});
+const driftedSectionResult = installPlan.applyInstallPlan(driftedSectionPlan, {projectRoot: tmpRoot, dryRun: true});
+assert(!driftedSectionResult.ok, 'replace_section should fail stale line evidence instead of falling back to a global anchor search');
+assert(driftedSectionResult.diagnostics.some((diag) => diag.code === 'install_plan.section_start_line_mismatch'), 'stale replace_section line evidence should report section_start_line_mismatch');
+const ambiguousTrimSectionPlan = installPlan.buildInstallPlan({
+  id: 'replace_section_ambiguous_trim',
+  draftKind: 'test',
+  operations: [
+    {
+      id: 'replace_section_ambiguous_trim',
+      type: 'replace_section',
+      path: 'source/scenes/events/section_trim_ambiguous.scene.dry',
+      anchorText: '= Trim Anchor',
+      endAnchorText: 'Body one.',
+      content: '= Changed\n',
+      dedupeSearch: '= Changed',
+      safety: 'guarded_apply'
+    }
+  ]
+});
+const ambiguousTrimSectionResult = installPlan.applyInstallPlan(ambiguousTrimSectionPlan, {projectRoot: tmpRoot, dryRun: true});
+assert(!ambiguousTrimSectionResult.ok, 'replace_section should refuse ambiguous trim-equivalent anchors without line evidence');
+assert(ambiguousTrimSectionResult.diagnostics.some((diag) => diag.code === 'install_plan.section_ambiguous_anchor'), 'ambiguous trim fallback should report section_ambiguous_anchor');
+const trailingSectionApply = installPlan.applyInstallPlan(trailingSectionPlan, {projectRoot: tmpRoot, dryRun: false});
+assert(trailingSectionApply.ok, 'trim-equivalent replace_section should apply after source evidence passes: ' + JSON.stringify(trailingSectionApply));
+const trailingSectionText = fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'events', 'section_trailing.scene.dry'), 'utf8');
+assert(trailingSectionText.includes('Test! Test!\nTail stays put.'), 'trim-equivalent replace_section should preserve text after the replaced range');
+const trailingSectionAgain = installPlan.applyInstallPlan(trailingSectionPlan, {projectRoot: tmpRoot, dryRun: true, includeEvidence: true});
+assert(trailingSectionAgain.ok && trailingSectionAgain.results[0].status === 'already_applied', 'replace_section should be idempotent when the replacement keeps the same anchors');
+
+const transactionBefore = fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'events', 'transaction.scene.dry'), 'utf8');
+const transactionPlan = installPlan.buildInstallPlan({
+  id: 'transaction_no_partial_write',
+  draftKind: 'test',
+  operations: [
+    {
+      id: 'transaction_replace_first',
+      type: 'replace_text',
+      path: 'source/scenes/events/transaction.scene.dry',
+      line: 2,
+      search: 'LINE_ONE',
+      replace: 'LINE_ONE_CHANGED',
+      rawAnchorText: 'LINE_ONE',
+      expectedRangeHash: sha256('LINE_ONE'),
+      safety: 'guarded_apply'
+    },
+    {
+      id: 'transaction_replace_missing',
+      type: 'replace_text',
+      path: 'source/scenes/events/transaction.scene.dry',
+      line: 99,
+      search: 'MISSING_LINE',
+      replace: 'SHOULD_NOT_APPLY',
+      safety: 'guarded_apply'
+    }
+  ]
+});
+const transactionApply = installPlan.applyInstallPlan(transactionPlan, {projectRoot: tmpRoot, dryRun: false, includeEvidence: true});
+assert(!transactionApply.ok, 'apply should fail the whole transaction when any automatic operation fails');
+assert(transactionApply.results.some((result) => result.id === 'transaction_replace_first' && result.status === 'would_apply') && transactionApply.results.some((result) => result.id === 'transaction_replace_missing' && result.status === 'failed'), 'transaction preflight should still report each operation status');
+assert(!transactionApply.changedFiles.length, 'failed apply transactions should not report committed changed files');
+assert(fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'events', 'transaction.scene.dry'), 'utf8') === transactionBefore, 'failed apply transaction must leave the file completely unchanged');
+
+const sequentialPlan = installPlan.buildInstallPlan({
+  id: 'sequential_in_memory',
+  draftKind: 'test',
+  operations: [
+    {
+      id: 'sequential_first',
+      type: 'replace_text',
+      path: 'source/scenes/events/sequential.scene.dry',
+      line: 2,
+      search: 'alpha',
+      replace: 'alpha beta',
+      rawAnchorText: 'alpha',
+      safety: 'guarded_apply'
+    },
+    {
+      id: 'sequential_second',
+      type: 'replace_text',
+      path: 'source/scenes/events/sequential.scene.dry',
+      line: 2,
+      search: 'alpha beta',
+      replace: 'alpha gamma',
+      rawAnchorText: 'alpha beta',
+      safety: 'guarded_apply'
+    }
+  ]
+});
+const sequentialDryRun = installPlan.applyInstallPlan(sequentialPlan, {projectRoot: tmpRoot, dryRun: true, includeEvidence: true});
+assert(sequentialDryRun.ok && sequentialDryRun.results.every((result) => result.status === 'would_apply'), 'same-file operations should preflight sequentially in memory: ' + JSON.stringify(sequentialDryRun));
+assert(sequentialDryRun.uniqueFileCount === 1 && sequentialDryRun.operationCount === 2, 'evidence result should separate operation count from unique file count');
+const sequentialApply = installPlan.applyInstallPlan(sequentialPlan, {projectRoot: tmpRoot, dryRun: false});
+assert(sequentialApply.ok, 'same-file sequential apply should commit only after both operations pass: ' + JSON.stringify(sequentialApply));
+assert(fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'events', 'sequential.scene.dry'), 'utf8').includes('alpha gamma'), 'same-file sequential apply should write the final in-memory state');
+
+const reportPlan = installPlan.buildInstallPlan({
+  id: 'report_counts',
+  draftKind: 'test',
+  operations: [
+    {id: 'report_first', type: 'replace_text', path: 'source/scenes/events/report.scene.dry', line: 2, search: 'first report line', replace: 'first report changed', safety: 'guarded_apply'},
+    {id: 'report_second', type: 'replace_text', path: 'source/scenes/events/report.scene.dry', line: 3, search: 'second report line', replace: 'second report changed', safety: 'guarded_apply'},
+    {id: 'report_third', type: 'replace_text', path: 'source/scenes/events/report.scene.dry', line: 4, search: 'third report line', replace: 'third report changed', safety: 'guarded_apply'}
+  ]
+});
+const reportDryRun = installPlan.applyInstallPlan(reportPlan, {projectRoot: tmpRoot, dryRun: true, includeEvidence: true});
+assert(reportDryRun.ok, 'multi-operation same-file report dry-run should succeed: ' + JSON.stringify(reportDryRun));
+assert(reportDryRun.operationCount === 3, 'evidence result should count three operations');
+assert(reportDryRun.uniqueFileCount === 1, 'evidence result should count one unique file');
+assert(reportDryRun.changedFiles.length === 1 && reportDryRun.changedFiles[0].operationCount === 3, 'changedFiles should aggregate same-file operations instead of duplicating files');
+
+const sameLineAnchor = 'on-arrival: z_leader = "Kaas"; z_relation -= 5; prussian_concordat_progress += 1; z_ideology = "Right"; resources += 9';
+const sameLineSource = {path: 'source/scenes/events/same_line_effect.scene.dry', line: 2, anchorText: sameLineAnchor};
+const sameLineEffectPlan = installPlan.existingSceneEditInstallPlan({
+  id: 'same_line_effect_coalesce',
+  draftKind: 'existing_scene_edit',
+  title: 'Same Line Effect',
+  changes: [
+    {fieldId: 'relation', role: 'effect', source: sameLineSource, before: 'z_relation -= 5', after: 'z_relation += 25', editability: 'guarded_apply'},
+    {fieldId: 'ideology', role: 'effect', source: sameLineSource, before: 'z_ideology = "Right"', after: 'z_ideology = "Left"', editability: 'guarded_apply'},
+    {fieldId: 'resources', role: 'effect', source: sameLineSource, before: 'resources += 9', after: 'resources += 2', editability: 'guarded_apply'},
+    {fieldId: 'remove_leader', role: 'effect', operationType: 'replace_text', source: sameLineSource, before: sameLineAnchor, after: 'on-arrival: z_relation -= 5; prussian_concordat_progress += 1; z_ideology = "Right"; resources += 9', editability: 'guarded_apply'},
+    {fieldId: 'add_resources', role: 'effect', operationType: 'replace_text', source: sameLineSource, before: sameLineAnchor, after: sameLineAnchor + '; resources += 9', editability: 'guarded_apply'}
+  ]
+});
+assert(sameLineEffectPlan.operations.length === 1, 'same-line effect changes should be coalesced into one source-backed operation');
+assert(sameLineEffectPlan.operations[0].search === sameLineAnchor, 'coalesced same-line effect operation should use the original source line as evidence');
+assert(
+  sameLineEffectPlan.operations[0].replace === 'on-arrival: z_relation += 25; prussian_concordat_progress += 1; z_ideology = "Left"; resources += 2; resources += 9',
+  'coalesced same-line effect operation should preserve all edited clauses in order'
+);
+const sameLineEffectDryRun = installPlan.applyInstallPlan(sameLineEffectPlan, {projectRoot: tmpRoot, dryRun: true, includeEvidence: true});
+assert(sameLineEffectDryRun.ok && sameLineEffectDryRun.results[0].status === 'would_apply', 'coalesced same-line effect dry-run should verify against current source: ' + JSON.stringify(sameLineEffectDryRun));
 
 const insertScopedDedupePlan = installPlan.buildInstallPlan({
   id: 'insert_scoped_dedupe',
@@ -797,6 +1177,84 @@ assert(
   fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'events', 'event_text.scene.dry'), 'utf8').includes('Rewritten existing paragraph.'),
   'existing scene edit apply should modify the existing source file'
 );
+
+const centerPartyPlan = installPlan.existingSceneEditInstallPlan({
+  id: 'center_party_conference_reliability',
+  kind: 'existing_scene_edit',
+  title: 'Center Party Conference',
+  sceneId: 'center_party_conference',
+  sceneKind: 'event',
+  sourcePath: 'source/scenes/events/center_party_conference.scene.dry',
+  changes: [
+    {
+      fieldId: 'center_party_kaas_result',
+      role: 'section_text',
+      label: 'Kaas branch result text',
+      operationType: 'replace_section',
+      source: {
+        path: 'source/scenes/events/center_party_conference.scene.dry',
+        line: 5,
+        startLine: 5,
+        endLine: 6,
+        anchorText: 'Ludwig Kaas has been selected as the chairman of the Center Party. He seems to represent a rightward turn from Marx, and will preside over a Center Party less inclined to compromise with the left.',
+        endAnchorText: 'Despite this, Kaas is committed to the current constitutional order and the republic. He maintains a close friendship with Eugenio Pacelli, the Papal Nuncio to Germany, which may prove useful during concordat negotiations.'
+      },
+      anchorText: 'Ludwig Kaas has been selected as the chairman of the Center Party. He seems to represent a rightward turn from Marx, and will preside over a Center Party less inclined to compromise with the left.',
+      endAnchorText: 'Despite this, Kaas is committed to the current constitutional order and the republic. He maintains a close friendship with Eugenio Pacelli, the Papal Nuncio to Germany, which may prove useful during concordat negotiations.',
+      before: [
+        'Ludwig Kaas has been selected as the chairman of the Center Party. He seems to represent a rightward turn from Marx, and will preside over a Center Party less inclined to compromise with the left.',
+        '',
+        'Despite this, Kaas is committed to the current constitutional order and the republic. He maintains a close friendship with Eugenio Pacelli, the Papal Nuncio to Germany, which may prove useful during concordat negotiations.'
+      ].join('\n'),
+      after: [
+        'Ludwig Kaas has been selected as the chairman of the Center Party. He seems to represent a rightward turn from Marx, and will preside over a Center Party less inclined to compromise with the left.',
+        '',
+        'Despite this, Kaas is committed to the current constitutional order and the republic. He maintains a close friendship with Eugenio Pacelli, the Papal Nuncio to Germany, which may prove useful during concordat negotiations.',
+        '',
+        'Test! Test!'
+      ].join('\n'),
+      editability: 'guarded_apply'
+    },
+    {
+      fieldId: 'center_party_face_image',
+      role: 'asset',
+      label: 'Remove Kaas portrait',
+      operationType: 'replace_text',
+      source: {path: 'source/scenes/events/center_party_conference.scene.dry', line: 3, anchorText: 'face-image: img/portraits/Ludwig_Kaas.jpg'},
+      before: 'face-image: img/portraits/Ludwig_Kaas.jpg',
+      after: '',
+      allowEmptyReplace: true,
+      deletesSourceLine: true,
+      editability: 'guarded_apply'
+    },
+    {
+      fieldId: 'center_party_arrival_effect',
+      role: 'effect',
+      label: 'Arrival effect',
+      operationType: 'replace_text',
+      source: {path: 'source/scenes/events/center_party_conference.scene.dry', line: 2, anchorText: 'on-arrival: z_leader = "Kaas"; z_relation -= 5; prussian_concordat_progress += 1; z_ideology = "Right"'},
+      before: 'on-arrival: z_leader = "Kaas"; z_relation -= 5; prussian_concordat_progress += 1; z_ideology = "Right"',
+      after: 'on-arrival: z_leader = "Kaas"; z_relation -= 5; prussian_concordat_progress += 1; z_ideology = "Right"; resources += 9',
+      editability: 'guarded_apply'
+    }
+  ]
+}, {project: installPlan.projectProvenanceFromIndex(index)});
+assert(centerPartyPlan.operations.length === 3, 'Dynamic-like center party edit should produce three source-backed operations');
+assert(centerPartyPlan.operations[1].deleteMode === 'line', 'existing asset deletion should carry deleteMode=line');
+const centerPartyDryRun = installPlan.applyInstallPlan(centerPartyPlan, {projectRoot: tmpRoot, dryRun: true, includeEvidence: true});
+assert(centerPartyDryRun.ok, 'Dynamic-like center party dry-run should accept section text, asset removal, and effect edit: ' + JSON.stringify(centerPartyDryRun));
+assert(centerPartyDryRun.results.every((result) => result.status === 'would_apply'), 'center party dry-run should mark all three operations would_apply');
+assert(centerPartyDryRun.operationCount === 3 && centerPartyDryRun.uniqueFileCount === 1, 'center party report should show 3 operations / 1 unique file');
+const centerPartyApply = installPlan.applyInstallPlan(centerPartyPlan, {projectRoot: tmpRoot, dryRun: false, includeEvidence: true});
+assert(centerPartyApply.ok && centerPartyApply.results.every((result) => result.status === 'applied'), 'Dynamic-like center party apply should commit all operations together: ' + JSON.stringify(centerPartyApply));
+const centerPartySource = fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'events', 'center_party_conference.scene.dry'), 'utf8');
+assert(centerPartySource.includes('Test! Test!'), 'center party apply should write added branch result text');
+assert(!centerPartySource.includes('face-image: img/portraits/Ludwig_Kaas.jpg'), 'center party apply should delete the whole portrait source line');
+assert(!centerPartySource.includes('\n\n\n'), 'center party apply should not leave a blank source line where the portrait was deleted');
+assert(centerPartySource.includes('resources += 9'), 'center party apply should write the arrival effect edit');
+const centerPartyPostApply = installPlan.applyInstallPlan(centerPartyPlan, {projectRoot: tmpRoot, dryRun: true, includeEvidence: true});
+assert(centerPartyPostApply.ok, 'center party post-apply dry-run should remain verifiable: ' + JSON.stringify(centerPartyPostApply));
+assert(centerPartyPostApply.results.every((result) => result.status === 'already_applied'), 'center party post-apply dry-run should report already_applied for every operation');
 
 fs.writeFileSync(
   path.join(tmpRoot, 'source', 'scenes', 'events', 'menu_add_option.scene.dry'),

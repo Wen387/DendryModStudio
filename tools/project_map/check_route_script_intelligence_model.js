@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-check
 'use strict';
 
 const routeScript = require('./authoring/route_script_intelligence_model.js');
@@ -134,7 +135,8 @@ function runRouteScriptIntelligence() {
   const manual = model.scripts.blocks.find((block) => block.id === 'manual_display');
   assert(manual && manual.safetyClass === 'manual_boundary', 'complex display script should stay manual boundary', manual);
   assert(manual.displayInfluence, 'on-display script should report display influence', manual);
-  assert(manual.boundaryReasons.includes('control_flow_or_block'), 'manual script should explain the boundary reason', manual);
+  const manualReasons = manual && Array.isArray(manual.boundaryReasons) ? /** @type {string[]} */ (manual.boundaryReasons) : [];
+  assert(manualReasons.includes('control_flow_or_block'), 'manual script should explain the boundary reason', manual);
   const hyphenRootRoute = model.scripts.blocks.find((block) => block.id === 'hyphen_root_route');
   assert(hyphenRootRoute && hyphenRootRoute.routeTargets.includes('omega'), 'hyphenated set-root scripts should expose route targets', hyphenRootRoute);
   const openingRoute = model.routes.items.find((route) => route.target === 'opening');

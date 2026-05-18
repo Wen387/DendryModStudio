@@ -1,3 +1,4 @@
+// @ts-check
 (function initProjectMapSemanticLogicEditor(global) {
   'use strict';
 
@@ -6,6 +7,16 @@
   const PROPOSAL_KIND = 'semantic_logic_editor_proposal';
   const APPLY_INSTALL = new Set(['safe_apply', 'guarded_apply', 'advanced_apply']);
   const GUIDED_EFFECT_OPS = new Set(['=', '+=', '-=']);
+
+  /**
+   * @typedef {import('../types/project_map_contracts').DiagnosticRow} DiagnosticRow
+   * @typedef {import('../types/project_map_contracts').ProjectIndex} ProjectIndex
+   * @typedef {import('../types/project_map_contracts').SemanticEditorEvidence} SemanticEditorEvidence
+   * @typedef {import('../types/project_map_contracts').SemanticFieldControl} SemanticFieldControl
+   * @typedef {import('../types/project_map_contracts').SemanticLogicEditorModel} SemanticLogicEditorModel
+   * @typedef {import('../types/project_map_contracts').SemanticLogicProposal} SemanticLogicProposal
+   * @typedef {import('../types/project_map_contracts').SourceRef} SourceRef
+   */
 
   function ensureArray(value) {
     return Array.isArray(value) ? value : [];
@@ -29,6 +40,12 @@
     return null;
   }
 
+  /**
+   * @param {ProjectIndex|unknown} projectIndex
+   * @param {Record<string, unknown>|unknown} input
+   * @param {Record<string, unknown>=} options
+   * @returns {SemanticLogicEditorModel}
+   */
   function buildSemanticLogicEditor(projectIndex, input, options) {
     const index = isObject(projectIndex) ? projectIndex : {};
     const normalized = normalizeInput(input || {});
@@ -87,6 +104,12 @@
     };
   }
 
+  /**
+   * @param {any} projectIndex
+   * @param {any} input
+   * @param {Record<string, unknown>=} values
+   * @returns {SemanticLogicProposal}
+   */
   function buildProposal(projectIndex, input, values) {
     const first = isObject(projectIndex) ? projectIndex : {};
     const model = first.kind === MODEL_KIND
@@ -112,7 +135,7 @@
         diagnostics: ensureArray(model && model.diagnostics).concat(diagnostic('error', 'semantic_logic.no_operation', 'No semantic logic operation can be generated until source mapping is fixed.'))
       };
     }
-    const proposal = sourceApi.buildProposal(model.sourceSliceModel || model, {replacementText});
+    const proposal = /** @type {Record<string, any>} */ (sourceApi.buildProposal(model.sourceSliceModel || model, {replacementText}));
     return Object.assign({}, proposal || {}, {
       schemaVersion: SEMANTIC_LOGIC_EDITOR_VERSION,
       kind: PROPOSAL_KIND,
@@ -198,7 +221,7 @@
 
   function effectFieldControls(semanticEditor, evidence, currentText) {
     const effectEvidence = ensureArray(evidence && evidence.effectEvidence);
-    const effectClauses = effectClausesFromEvidence(effectEvidence, currentText);
+    const effectClauses = /** @type {Array<Record<string, any>>} */ (effectClausesFromEvidence(effectEvidence, currentText));
     const row = effectClauses[0] || {};
     const parsed = row.variable ? row : parseEffectExpression(row.sourceExpression || currentText);
     const variable = String(row.variable || parsed && parsed.variable || '').replace(/^Q\./, '');
@@ -501,11 +524,11 @@
   }
 
   function stripHookPrefix(value) {
-    return String(value || '').trim().replace(/^(on-arrival|on-display)\s*:\s*/i, '');
+    return String(value || '').trim().replace(/^(on-arrival|on-departure|on-display)\s*:\s*/i, '');
   }
 
   function hookPrefixForCurrent(value) {
-    const match = String(value || '').match(/^\s*((?:on-arrival|on-display)\s*:\s*)/i);
+    const match = String(value || '').match(/^\s*((?:on-arrival|on-departure|on-display)\s*:\s*)/i);
     return match ? match[1] : '';
   }
 

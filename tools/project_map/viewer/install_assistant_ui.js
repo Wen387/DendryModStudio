@@ -27,6 +27,8 @@
   const api = {
     loadPlan,
     renderInstallAssistantPlan,
+    buildReviewApplyReadiness,
+    buildReviewApplyUiState,
     applyLoadedPlan,
     createRuntimePreview,
     endRuntimePreview,
@@ -625,42 +627,9 @@
         '</div>'
       ].join('');
     }
-    const safe = summary.safeApply || 0;
-    const guarded = summary.guardedApply || 0;
-    const advanced = summary.advancedApply || 0;
-    const manual = summary.manualReview || 0;
-    const refused = summary.refused || 0;
-    const allowAdvanced = Boolean(elements && elements.allowAdvanced && elements.allowAdvanced.checked);
-    const autoApplyAvailable = Boolean(safe || guarded || (allowAdvanced && advanced));
-    const checked = canApplyReviewed(allowAdvanced);
-    const postApply = postApplyReadiness(summary);
-    const status = postApply
-      ? postApply.status
-      : refused
-      ? t('install.readiness.blocked', 'Some changes are protected and will not be applied.')
-      : advanced
-        ? t('install.readiness.advanced', 'Some changes need explicit advanced opt-in.')
-        : manual
-        ? t('install.readiness.manual', 'Playable after you complete the manual steps.')
-        : guarded
-          ? checked
-            ? t('install.readiness.checked', 'Check passed. Studio can apply the reviewed changes.')
-            : t('install.readiness.guarded', 'Run a check, then Studio can apply the reviewed changes.')
-          : safe
-            ? checked
-              ? t('install.readiness.checked', 'Check passed. Studio can apply the reviewed changes.')
-              : t('install.readiness.safe', 'Ready to apply safe changes.')
-            : t('install.readiness.none', 'No installable changes in this plan.');
-    const steps = (postApply ? postApply.steps : []).concat([
-      autoApplyAvailable
-        ? checked ? t('install.readiness.checkPassed', 'Latest check matches this plan.') : t('install.readiness.checkNeeded', 'Run check before applying.')
-        : t('install.readiness.noCheckNeeded', 'No automatic apply step is available.'),
-      safe ? t('install.readiness.safeCount', 'Safe changes') + ': ' + safe : t('install.readiness.noSafe', 'No safe one-click changes.'),
-      guarded ? t('install.readiness.guardedCount', 'Reviewed changes') + ': ' + guarded : t('install.readiness.noGuarded', 'No guarded changes.'),
-      advanced ? t('install.readiness.advancedCount', 'Advanced changes') + ': ' + advanced : t('install.readiness.noAdvanced', 'No advanced changes.'),
-      manual ? t('install.readiness.manualCount', 'Manual steps') + ': ' + manual : t('install.readiness.noManual', 'No manual steps remain.'),
-      refused ? t('install.readiness.refusedCount', 'Protected changes') + ': ' + refused : t('install.readiness.noRefused', 'No protected changes.')
-    ]);
+    const viewState = buildReviewApplyUiState(summary);
+    const status = renderReadinessStatus(viewState);
+    const steps = viewState.steps.map(renderReadinessStep);
     return [
       '<div class="install-readiness-card">',
       '<strong>' + escapeHtml(t('install.finishMod', 'Finish this mod')) + '</strong>',
@@ -672,48 +641,16 @@
     ].join('');
   }
 
-  function postApplyReadiness(summary) {
-    const result = state.lastResult;
-    if (!result || result.dryRun !== false) {
-      return null;
-    }
-    const verification = result.postApplyVerification || state.postApplyVerification;
-    if (!verification) {
-      return {
-        status: t('install.readiness.appliedNeedsVerification', 'Changes were applied; post-apply verification did not run.'),
-        steps: [t('install.readiness.applyDone', 'Apply step completed.')]
-      };
-    }
-    const hasFailures = resultHasFailures(verification) || verification.ok === false;
-    const rows = Array.isArray(verification.results) ? verification.results : [];
-    const stillPending = rows.some((row) => row && row.status === 'would_apply');
-    const manual = summary && summary.manualReview || 0;
-    const refused = summary && summary.refused || 0;
-    if (hasFailures || stillPending) {
-      return {
-        status: t('install.readiness.appliedAttention', 'Applied, but verification needs attention.'),
-        steps: [t('install.readiness.postVerifyAttention', 'Post-apply verification found a mismatch or a still-pending automatic change.')]
-      };
-    }
-    if (manual || refused) {
-      return {
-        status: t('install.readiness.appliedManualRemaining', 'Applied and verified; manual steps remain.'),
-        steps: [t('install.readiness.postVerifyPassed', 'Post-apply verification found the automatic changes in place.')]
-      };
-    }
-    return {
-      status: t('install.readiness.appliedVerified', 'Applied and verified.'),
-      steps: [t('install.readiness.postVerifyPassed', 'Post-apply verification found the automatic changes in place.')]
-    };
-  }
-
   function renderHumanChecklist(plan, summary) {
     const reviewApi = global.ProjectMapInstallReviewUi;
+    const allowAdvanced = currentAllowAdvanced();
+    const viewState = buildReviewApplyUiState(summary, allowAdvanced);
     if (reviewApi && typeof reviewApi.renderPlanReview === 'function') {
       return reviewApi.renderPlanReview({
         plan,
         summary,
         result: state.lastResult,
+        readiness: viewState.readiness,
         installApi: installPlanApi(),
         locale: currentLocale(),
         t
@@ -733,6 +670,10 @@
       '<span>' + escapeHtml((summary && summary.total || 0) + ' ' + t('install.human.changeCount', 'change(s) in this plan')) + '</span>',
       '</div>'
     ].join('');
+  }
+
+  function currentAllowAdvanced() {
+    return Boolean(elements && elements.allowAdvanced && elements.allowAdvanced.checked);
   }
 
   function renderProjectStatus() {
@@ -775,21 +716,7 @@
     if (!state.plan || !global.dendryDesktop) {
       return false;
     }
-    if (!hasAutoApplyOperations(state.plan, allowAdvanced)) {
-      return false;
-    }
-    const advancedMatches = !hasAdvancedApplyOperations(state.plan) || state.lastCheckAllowAdvanced === Boolean(allowAdvanced);
-    return Boolean(state.lastCheckKey && state.lastCheckKey === planFingerprint(state.plan) && advancedMatches);
-  }
-
-  function hasAutoApplyOperations(plan, allowAdvanced) {
-    const summary = operationSummaryForPlan(plan);
-    return Boolean(summary.safeApply || summary.guardedApply || (allowAdvanced && summary.advancedApply));
-  }
-
-  function hasAdvancedApplyOperations(plan) {
-    const summary = operationSummaryForPlan(plan);
-    return Boolean(summary.advancedApply);
+    return buildReviewApplyUiState(operationSummaryForPlan(state.plan), allowAdvanced).readiness.canApply === true;
   }
 
   function operationSummaryForPlan(plan) {
@@ -797,24 +724,146 @@
     if (installApi && typeof installApi.operationSummary === 'function') {
       return installApi.operationSummary(plan) || {};
     }
-    const summary = {safeApply: 0, guardedApply: 0, advancedApply: 0};
-    const operations = Array.isArray(plan && plan.operations) ? plan.operations : [];
-    operations.forEach((operation) => {
-      const safety = operation && operation.safety;
-      if (safety === 'safe_apply') {
-        summary.safeApply += 1;
-      } else if (safety === 'guarded_apply') {
-        summary.guardedApply += 1;
-      } else if (safety === 'advanced_apply') {
-        summary.advancedApply += 1;
-      }
-    });
-    return summary;
+    const contracts = installOperationContractsApi();
+    if (contracts && typeof contracts.summarizeInstallOperations === 'function') {
+      return contracts.summarizeInstallOperations(plan);
+    }
+    return emptySummary();
+  }
+
+  function buildReviewApplyReadiness(plan, options) {
+    const summary = operationSummaryForPlan(plan);
+    const checked = Boolean(options && options.checked);
+    return reviewApplyReadinessForSummary(summary, checked, Boolean(options && options.allowAdvanced));
+  }
+
+  function reviewApplyReadiness(summary, allowAdvanced) {
+    return reviewApplyReadinessForSummary(summary, currentCheckMatches(allowAdvanced), allowAdvanced);
+  }
+
+  function reviewApplyReadinessForSummary(summary, checked, allowAdvanced) {
+    const reviewStateApi = installReviewStateApi();
+    if (reviewStateApi && typeof reviewStateApi.buildReviewApplyReadiness === 'function') {
+      return reviewStateApi.buildReviewApplyReadiness(summary || emptySummary(), checked, allowAdvanced, installOperationContractsApi());
+    }
+    const value = summary || emptySummary();
+    return {
+      canApply: false,
+      checked: checked === true,
+      needsCheck: false,
+      needsAdvancedConsent: false,
+      manualReviewCount: Number(value.manualReview || 0),
+      refusedCount: Number(value.refused || 0),
+      automaticOperationCount: Number(value.safeApply || 0) + Number(value.guardedApply || 0) + Number(value.advancedApply || 0),
+      eligibleAutomaticOperationCount: 0,
+      skippedAdvancedOperationCount: Number(value.advancedApply || 0)
+    };
+  }
+
+  function buildReviewApplyUiState(summary, allowAdvanced) {
+    const advancedAllowed = allowAdvanced === undefined ? currentAllowAdvanced() : Boolean(allowAdvanced);
+    const readiness = reviewApplyReadiness(summary, advancedAllowed);
+    const reviewStateApi = installReviewStateApi();
+    if (reviewStateApi && typeof reviewStateApi.buildReviewApplyUiState === 'function') {
+      return reviewStateApi.buildReviewApplyUiState({
+        summary,
+        readiness,
+        lastResult: state.lastResult,
+        postApplyVerification: state.postApplyVerification
+      });
+    }
+    return {
+      summary: summary || emptySummary(),
+      readiness,
+      autoApplyAvailable: false,
+      checked: false,
+      failedResult: null,
+      postApply: null,
+      statusKind: 'none',
+      steps: []
+    };
+  }
+
+  function renderReadinessStatus(viewState) {
+    const labels = {
+      applied_needs_verification: t('install.readiness.appliedNeedsVerification', 'Changes were applied; post-apply verification did not run.'),
+      applied_attention: t('install.readiness.appliedAttention', 'Applied, but verification needs attention.'),
+      applied_manual_remaining: t('install.readiness.appliedManualRemaining', 'Applied and verified; manual steps remain.'),
+      applied_verified: t('install.readiness.appliedVerified', 'Applied and verified.'),
+      failed_check: t('install.readiness.failedCheck', 'Latest check found an operation that cannot be applied yet.'),
+      checked: t('install.readiness.checked', 'Check passed. Studio can apply the reviewed changes.'),
+      needs_check_guarded: t('install.readiness.guarded', 'Run a check, then Studio can apply the reviewed changes.'),
+      needs_check_safe: t('install.readiness.safe', 'Ready to apply safe changes.'),
+      blocked: t('install.readiness.blocked', 'Some changes are protected and will not be applied.'),
+      advanced: t('install.readiness.advanced', 'Some changes need explicit advanced opt-in.'),
+      manual: t('install.readiness.manual', 'Playable after you complete the manual steps.'),
+      none: t('install.readiness.none', 'No installable changes in this plan.')
+    };
+    return labels[viewState && viewState.statusKind] || labels.none;
+  }
+
+  function renderReadinessStep(step) {
+    if (!step || !step.kind) {
+      return '';
+    }
+    const count = Number(step.count || 0);
+    const labels = {
+      apply_done: t('install.readiness.applyDone', 'Apply step completed.'),
+      post_verify_attention: t('install.readiness.postVerifyAttention', 'Post-apply verification found a mismatch or a still-pending automatic change.'),
+      post_verify_passed: t('install.readiness.postVerifyPassed', 'Post-apply verification found the automatic changes in place.'),
+      check_passed: t('install.readiness.checkPassed', 'Latest check matches this plan.'),
+      check_needed: t('install.readiness.checkNeeded', 'Run check before applying.'),
+      no_check_needed: t('install.readiness.noCheckNeeded', 'No automatic apply step is available.'),
+      no_safe: t('install.readiness.noSafe', 'No safe one-click changes.'),
+      no_guarded: t('install.readiness.noGuarded', 'No guarded changes.'),
+      no_advanced: t('install.readiness.noAdvanced', 'No advanced changes.'),
+      no_manual: t('install.readiness.noManual', 'No manual steps remain.'),
+      no_refused: t('install.readiness.noRefused', 'No protected changes.')
+    };
+    if (step.kind === 'failed_operation') {
+      return t('install.readiness.failedOperation', 'Blocking operation') + ': ' + (Array.isArray(step.labelParts) ? step.labelParts.join(' · ') : '');
+    }
+    if (step.kind === 'safe_count') {
+      return t('install.readiness.safeCount', 'Safe changes') + ': ' + count;
+    }
+    if (step.kind === 'guarded_count') {
+      return t('install.readiness.guardedCount', 'Reviewed changes') + ': ' + count;
+    }
+    if (step.kind === 'advanced_count') {
+      return t('install.readiness.advancedCount', 'Advanced changes') + ': ' + count;
+    }
+    if (step.kind === 'manual_count') {
+      return t('install.readiness.manualCount', 'Manual steps') + ': ' + count;
+    }
+    if (step.kind === 'refused_count') {
+      return t('install.readiness.refusedCount', 'Protected changes') + ': ' + count;
+    }
+    return labels[step.kind] || String(step.kind);
+  }
+
+  function currentCheckMatches(allowAdvanced) {
+    if (!state.plan || !state.lastCheckKey || state.lastCheckKey !== planFingerprint(state.plan)) {
+      return false;
+    }
+    const summary = operationSummaryForPlan(state.plan);
+    const hasAdvanced = Number(summary.advancedApply || 0) > 0;
+    return !hasAdvanced || state.lastCheckAllowAdvanced === Boolean(allowAdvanced);
   }
 
   function resultHasFailures(result) {
-    const rows = Array.isArray(result && result.results) ? result.results : [];
-    return rows.some((item) => item && item.status === 'failed');
+    const reviewStateApi = installReviewStateApi();
+    if (reviewStateApi && typeof reviewStateApi.resultHasFailures === 'function') {
+      return reviewStateApi.resultHasFailures(result);
+    }
+    return true;
+  }
+
+  function firstFailedResult(result) {
+    const reviewStateApi = installReviewStateApi();
+    if (reviewStateApi && typeof reviewStateApi.firstFailedResult === 'function') {
+      return reviewStateApi.firstFailedResult(result);
+    }
+    return null;
   }
 
   function planFingerprint(plan) {
@@ -984,125 +1033,11 @@
   }
 
   function renderResultReport(result) {
-    if (!result) {
-      return '';
+    const reportApi = installResultReportApi();
+    if (reportApi && typeof reportApi.buildInstallResultReport === 'function') {
+      return reportApi.buildInstallResultReport(result, {plan: state.plan, t});
     }
-    const lines = [];
-    const results = Array.isArray(result.results) ? result.results : [];
-    lines.push(result.ok ? t('install.report.ok', 'Install check completed.') : t('install.report.needsAttention', 'Install check needs attention.'));
-    lines.push((result.dryRun ? t('install.report.dryRun', 'Mode: dry-run') : t('install.report.apply', 'Mode: apply')) +
-      (result.allowAdvanced ? ' · ' + t('install.report.advancedOn', 'advanced opt-in enabled') : ''));
-    if (result.message) {
-      lines.push(String(result.message));
-    }
-    const changedFiles = Array.isArray(result.changedFiles) ? result.changedFiles : [];
-    if (changedFiles.length) {
-      lines.push(t('install.report.verifiedDiffReady', 'Verified diff available') + ': ' + changedFiles.length + ' ' + t('install.report.fileCount', 'file(s)'));
-    }
-    lines.push('');
-    lines.push(t('install.report.results', 'Results'));
-    const grouped = groupResults(results);
-    ['applied', 'already_applied', 'would_apply', 'advanced_review', 'manual_review', 'failed'].forEach((status) => {
-      const rows = grouped.get(status) || [];
-      lines.push('- ' + statusLabel(status) + ': ' + rows.length);
-      rows.slice(0, 12).forEach((row) => {
-        lines.push('  - ' + [row.id || row.type || 'operation', row.path || ''].filter(Boolean).join(' · '));
-      });
-    });
-    const diagnostics = Array.isArray(result.diagnostics) ? result.diagnostics : [];
-    if (diagnostics.length) {
-      lines.push('');
-      lines.push(t('install.report.diagnostics', 'Diagnostics'));
-      diagnostics.slice(0, 12).forEach((diag) => {
-        lines.push('- ' + (diag.severity || 'info') + ' · ' + (diag.code || 'diagnostic') + ': ' + (diag.message || ''));
-      });
-    }
-    if (changedFiles.length) {
-      lines.push('');
-      lines.push(t('install.report.changedFiles', 'Changed files'));
-      changedFiles.slice(0, 20).forEach((file) => {
-        lines.push('- ' + [file.path, file.status, file.match].filter(Boolean).join(' · '));
-      });
-    }
-    if (result.postApplyVerification) {
-      lines.push('');
-      lines.push(t('install.report.postApplyVerification', 'Post-apply verification'));
-      lines.push(postApplyVerificationLabel(result.postApplyVerification));
-    }
-    const rollback = rollbackNotes(results);
-    if (rollback.length) {
-      lines.push('');
-      lines.push(t('install.report.rollback', 'Rollback notes'));
-      rollback.forEach((note) => lines.push('- ' + note));
-    }
-    if (!results.length && !diagnostics.length && result.message) {
-      lines.push('');
-      lines.push(t('install.report.noOperations', 'No install operations were run.'));
-    }
-    return lines.join('\n');
-  }
-
-  function postApplyVerificationLabel(verification) {
-    if (!verification) {
-      return t('install.report.postApplySkipped', 'Not run');
-    }
-    if (verification.ok === false || resultHasFailures(verification)) {
-      return t('install.report.postApplyAttention', 'Needs attention');
-    }
-    const rows = Array.isArray(verification.results) ? verification.results : [];
-    if (rows.some((row) => row && row.status === 'would_apply')) {
-      return t('install.report.postApplyAttention', 'Needs attention');
-    }
-    return t('install.report.postApplyVerified', 'Applied changes verified');
-  }
-
-  function groupResults(results) {
-    const map = new Map();
-    results.forEach((result) => {
-      const status = result && result.status ? result.status : 'unknown';
-      if (!map.has(status)) {
-        map.set(status, []);
-      }
-      map.get(status).push(result);
-    });
-    return map;
-  }
-
-  function statusLabel(status) {
-    return {
-      applied: t('install.report.appliedHuman', 'Applied'),
-      already_applied: t('install.report.alreadyAppliedHuman', 'Already applied'),
-      would_apply: t('install.report.wouldApplyHuman', 'Check passed, not applied yet'),
-      advanced_review: t('install.report.advancedReviewHuman', 'Waiting for advanced opt-in'),
-      manual_review: t('install.report.manualReviewHuman', 'Manual step'),
-      failed: t('install.report.failedHuman', 'Needs attention')
-    }[status] || status;
-  }
-
-  function rollbackNotes(results) {
-    const operations = new Map();
-    if (state.plan && Array.isArray(state.plan.operations)) {
-      state.plan.operations.forEach((operation) => {
-        if (operation && operation.id) {
-          operations.set(operation.id, operation);
-        }
-      });
-    }
-    return results
-      .filter((result) => result && (result.status === 'applied' || result.status === 'would_apply'))
-      .map((result) => {
-        const operation = operations.get(result.id) || {};
-        if (operation.type === 'create_file') {
-          return (result.status === 'would_apply' ? t('install.report.wouldDelete', 'Would undo by deleting') : t('install.report.delete', 'Undo by deleting')) +
-            ' ' + (operation.path || result.path || '');
-        }
-        if (operation.type === 'replace_text') {
-          return (result.status === 'would_apply' ? t('install.report.wouldRestore', 'Would undo by restoring original text in') : t('install.report.restore', 'Undo by restoring original text in')) +
-            ' ' + (operation.path || result.path || '') + ': "' + shorten(operation.replace || '') + '" -> "' + shorten(operation.search || '') + '"';
-        }
-        return '';
-      })
-      .filter(Boolean);
+    return result ? 'Install report helper is not loaded.' : '';
   }
 
   function downloadEvidenceBundle() {
@@ -1181,6 +1116,18 @@
     return global.ProjectMapInstallPlan || null;
   }
 
+  function installOperationContractsApi() {
+    return global.ProjectMapInstallOperationContracts || null;
+  }
+
+  function installReviewStateApi() {
+    return global.ProjectMapInstallReviewStateModel || null;
+  }
+
+  function installResultReportApi() {
+    return global.ProjectMapInstallResultReportModel || null;
+  }
+
   function studioContracts() {
     return global.ProjectMapStudioSharedConstants || null;
   }
@@ -1203,11 +1150,6 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
-  }
-
-  function shorten(value) {
-    const text = String(value || '').replace(/\s+/g, ' ').trim();
-    return text.length > 80 ? text.slice(0, 77) + '...' : text;
   }
 
   function t(key, fallback) {

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// @ts-check
 'use strict';
 
 const fs = require('fs');
@@ -6,10 +7,15 @@ const path = require('path');
 const vm = require('vm');
 
 const installPlan = require('./authoring/install_plan.js');
+const installOperationContracts = require('./authoring/install_operation_contracts.js');
+const reviewStateModel = require('./viewer/install_review_state_model.js');
+const resultReportModel = require('./viewer/install_result_report_model.js');
 const reviewUi = require('./viewer/install_review_ui.js');
 
 const ROOT = __dirname;
 const INSTALL_UI = path.join(ROOT, 'viewer', 'install_assistant_ui.js');
+const REVIEW_STATE_MODEL = path.join(ROOT, 'viewer', 'install_review_state_model.js');
+const RESULT_REPORT_MODEL = path.join(ROOT, 'viewer', 'install_result_report_model.js');
 
 function fail(message) {
   process.stderr.write('FAIL: ' + message + '\n');
@@ -31,7 +37,10 @@ function loadAssistant() {
     console,
     setTimeout,
     clearTimeout,
-    dendryDesktop: {applyInstallPlan() {}}
+    dendryDesktop: {applyInstallPlan() {}},
+    ProjectMapInstallOperationContracts: installOperationContracts,
+    ProjectMapInstallReviewStateModel: reviewStateModel,
+    ProjectMapInstallResultReportModel: resultReportModel
   };
   context.globalThis = context;
   vm.createContext(context);
@@ -77,6 +86,7 @@ const plan = installPlan.buildInstallPlan({
 const reviewHtml = reviewUi.renderPlanReview({
   plan,
   summary: installPlan.operationSummary(plan),
+  readiness: installOperationContracts.classifyReviewApplyReadiness(installPlan.operationSummary(plan), true, false),
   installApi: installPlan,
   runtimeReadiness: {
     generatedRuntimeComplete: false,
@@ -111,6 +121,8 @@ const reviewHtml = reviewUi.renderPlanReview({
 });
 
 assert(reviewHtml.includes('data-install-operation-id="replace_intro"'), 'review cards should expose stable operation ids');
+assert(reviewHtml.includes('data-review-apply-can-apply="true"'), 'review panel should consume shared readiness can-apply state');
+assert(reviewHtml.includes('data-review-apply-needs-check="false"'), 'review panel should consume shared readiness check state');
 assert(reviewHtml.includes('data-authoring-context-lens="true"'), 'review cards should expose context lens affordances');
 assert(reviewHtml.includes('data-context-lens-kind="operation"'), 'review operation lens should identify operation context');
 assert(reviewHtml.includes('data-install-dry-run-recap="true"'), 'review panel should summarize dry-run evidence');
@@ -136,6 +148,106 @@ assert(reviewHtml.includes('matched_current_file'), 'review cards should show th
 assert(reviewHtml.includes('1234567890ab...'), 'review cards should shorten evidence hashes');
 
 const assistant = loadAssistant();
+const readiness = assistant.buildReviewApplyReadiness(plan, {checked: true, allowAdvanced: false});
+assert(readiness.canApply === true, 'assistant readiness should allow applying checked automatic operations while manual review remains');
+assert(readiness.manualReviewCount === 1, 'assistant readiness should preserve manual review count from the shared classifier');
+const uncheckedReadiness = assistant.buildReviewApplyReadiness(plan, {checked: false, allowAdvanced: false});
+assert(uncheckedReadiness.canApply === false && uncheckedReadiness.needsCheck === true, 'assistant readiness should block apply before a matching check');
+const mixedSummary = {safeApply: 0, guardedApply: 1, advancedApply: 1, manualReview: 1, refused: 1, total: 4};
+const mixedState = reviewStateModel.buildReviewApplyUiState({
+  summary: mixedSummary,
+  readiness: installOperationContracts.classifyReviewApplyReadiness(mixedSummary, true, false)
+});
+assert(mixedState.statusKind === 'checked', 'mixed review/apply state should prioritize checked automatic apply over remaining manual/refused work');
+assert(mixedState.readiness.needsAdvancedConsent === true, 'mixed review/apply state should preserve skipped advanced consent');
+assert(mixedState.steps.some((step) => step.kind === 'manual_count' && step.count === 1), 'mixed review/apply state should keep manual work visible');
+assert(mixedState.steps.some((step) => step.kind === 'refused_count' && step.count === 1), 'mixed review/apply state should keep refused work visible');
+const assistantMixedState = assistant.buildReviewApplyUiState(mixedSummary, false);
+assert(assistantMixedState.statusKind === 'needs_check_guarded', 'assistant should consume shared mixed review/apply UI state before check');
+const assistantSource = fs.readFileSync(INSTALL_UI, 'utf8');
+const reviewStateSource = fs.readFileSync(REVIEW_STATE_MODEL, 'utf8');
+const resultReportSource = fs.readFileSync(RESULT_REPORT_MODEL, 'utf8');
+assert(reviewStateSource.includes('classifyReviewApplyReadiness'), 'review state model should route readiness through the shared typed classifier');
+assert(assistantSource.includes('buildReviewApplyUiState'), 'assistant should route rendered readiness through the shared UI state model');
+assert(resultReportSource.includes('rollbackNotes'), 'result report model should own rollback note construction');
+assert(assistantSource.includes('buildInstallResultReport'), 'assistant should route result reports through the shared report model');
+assert(!assistantSource.includes('function hasAutoApplyOperations'), 'assistant should not keep a local auto-apply operation classifier');
+assert(!assistantSource.includes('eligibleAutomatic = safe + guarded'), 'assistant should not keep a local readiness classifier fallback');
+assert(!assistantSource.includes('refused && !autoApplyAvailable'), 'assistant should not keep local blocked/apply priority rules');
+assert(!assistantSource.includes('function rollbackNotes'), 'assistant should not keep local rollback report logic');
+assert(!assistantSource.includes('function groupResults'), 'assistant should not keep local result grouping logic');
+assistant.loadPlan(installPlan.buildInstallPlan({
+  id: 'assistant_report_plan',
+  draftKind: 'test',
+  title: 'Assistant Report Plan',
+  operations: [
+    {
+      id: 'delete_asset_line',
+      type: 'replace_text',
+      path: 'source/scenes/events/opening.scene.dry',
+      line: 4,
+      search: 'face-image: img/portraits/old.png',
+      replace: '',
+      allowEmptyReplace: true,
+      deleteMode: 'line',
+      deletesSourceLine: true,
+      safety: 'guarded_apply'
+    },
+    {
+      id: 'replace_line_two',
+      type: 'replace_text',
+      path: 'source/scenes/events/opening.scene.dry',
+      line: 5,
+      search: 'Old line two.',
+      replace: 'New line two.',
+      safety: 'guarded_apply'
+    },
+    {
+      id: 'replace_line_three',
+      type: 'replace_text',
+      path: 'source/scenes/events/opening.scene.dry',
+      line: 6,
+      search: 'Old line three.',
+      replace: 'New line three.',
+      safety: 'guarded_apply'
+    }
+  ]
+}));
+const assistantReport = assistant.renderResultReport({
+  ok: true,
+  dryRun: true,
+  results: [
+    {id: 'delete_asset_line', status: 'would_apply', path: 'source/scenes/events/opening.scene.dry'},
+    {id: 'replace_line_two', status: 'would_apply', path: 'source/scenes/events/opening.scene.dry'},
+    {id: 'replace_line_three', status: 'would_apply', path: 'source/scenes/events/opening.scene.dry'}
+  ],
+  changedFiles: [
+    {path: 'source/scenes/events/opening.scene.dry', status: 'would_apply', match: 'matched_current_file', operationCount: 3}
+  ],
+  operationCount: 3,
+  uniqueFileCount: 1,
+  diagnostics: []
+});
+assert(assistantReport.includes('3 operation(s) / 1 file(s)'), 'assistant report should separate operation count from unique file count');
+assert(assistantReport.includes('source/scenes/events/opening.scene.dry · would_apply · matched_current_file · 3 operation(s)'), 'assistant report should aggregate same-file operation details');
+assert(assistantReport.includes('Would undo by restoring deleted line in source/scenes/events/opening.scene.dry'), 'line deletion rollback note should say restore deleted line');
+const failedAssistantReport = assistant.renderResultReport({
+  ok: false,
+  dryRun: true,
+  results: [
+    {id: 'replace_ok', status: 'would_apply', path: 'source/scenes/events/opening.scene.dry'},
+    {id: 'replace_failed', status: 'failed', path: 'source/scenes/events/opening.scene.dry'}
+  ],
+  diagnostics: [
+    {severity: 'error', code: 'install_plan.section_anchor_missing', message: 'Expected exactly one section start anchor match, found 0.'}
+  ],
+  operationCount: 2,
+  uniqueFileCount: 0,
+  changedFiles: []
+});
+assert(failedAssistantReport.includes('Install check needs attention.'), 'failed assistant report should be explicit that the check needs attention');
+assert(failedAssistantReport.includes('- Needs attention: 1'), 'failed assistant report should list failed operations separately');
+assert(!failedAssistantReport.includes('Verified diff available'), 'failed assistant report without committed/checkable files should not claim a verified diff');
 const runtimeHtml = assistant.renderRuntimePreviewResult({
   ok: true,
   sessionId: 'review_ui_runtime',
