@@ -4,8 +4,8 @@
   const CATALOG = {
     en: {
       'topbar.subtitle.default': 'Studio workspace for branching Dendry projects',
-      'topbar.version': 'Dendry Mod Studio v0.97 dev preview',
-      'topbar.author': 'by Wenmo',
+      'topbar.version': 'Dendry Mod Studio v0.97.5 dev preview',
+      'topbar.author': 'by Awen',
       'topbar.language': 'Language',
       'topbar.language.auto': 'Auto',
       'topbar.language.en': 'English',

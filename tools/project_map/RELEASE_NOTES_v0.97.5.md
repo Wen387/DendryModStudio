@@ -1,10 +1,10 @@
-# Dendry Mod Studio v0.97 Dev Preview Notes
+# Dendry Mod Studio v0.97.5 Dev Preview Notes
 
 Date: 2026-05-16
 
 ## Status
 
-v0.97 is an unsigned developer-facing preview build. This local draft carries
+v0.97.5 is an unsigned developer-facing preview build. This local draft carries
 the current authoring, Runtime Preview, Runtime Lens, and governance work while
 keeping the faster Windows installer layout from the previous preview.
 
@@ -31,8 +31,8 @@ must be rebuilt and retested before sharing.
   lifecycle checks.
 - The bundled Starter Demo and player-like QA paths cover more first-run and
   template-mod scenarios.
-- The package metadata and desktop manifest now report semver `0.97.0`; the
-  user-facing release label remains `v0.97`.
+- The package metadata and desktop manifest now report semver `0.97.5`; the
+  user-facing release label is `v0.97.5`.
 
 ## Known Limits
 

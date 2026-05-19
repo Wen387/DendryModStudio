@@ -1,6 +1,6 @@
 {
   "name": "dendry-mod-studio",
-  "version": "0.97.0",
+  "version": "0.97.5",
   "private": true,
   "description": "Desktop and browser tooling for Dendry Mod Studio.",
   "scripts": {
