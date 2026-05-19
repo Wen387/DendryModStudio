@@ -1,12 +1,13 @@
-# Dendry Mod Studio v0.97.5 Dev Preview Notes
+# Dendry Mod Studio v0.97.6 Dev Preview Notes
 
-Date: 2026-05-16
+Date: 2026-05-19
 
 ## Status
 
-v0.97.5 is an unsigned developer-facing preview build. This local draft carries
-the current authoring, Runtime Preview, Runtime Lens, and governance work while
-keeping the faster Windows installer layout from the previous preview.
+v0.97.6 is an unsigned developer-facing preview build. This local draft carries
+the current authoring, first-run UI, install review, Runtime Preview, Runtime
+Lens, and governance work while keeping the faster Windows installer layout
+from the previous preview.
 
 Release artifacts use these names:
 
@@ -21,8 +22,23 @@ must be rebuilt and retested before sharing.
 
 ## What Changed Since the Previous Preview
 
+- Added a friendlier Welcome Hub for first-time users, with a clearer path from
+  demo/opening a project through finding, drafting, saving, and review.
+- Added a shared inline icon layer across the Welcome Hub, navigation, Create,
+  Explore, My Changes, and Install actions.
+- Reworked the Tutorial Library into a one-page reference with left-side jump
+  navigation and updated Traditional Chinese content.
+- Simplified the Install Assistant with a guided flow, clearer project/plan
+  context, compact summary cards, visible advanced-change controls, and icon
+  actions.
+- Reworked the Canvas material sidebar toward a denser IDE-style browser and
+  added lightweight open/close motion.
+- Runtime Preview and Runtime Lens now share a compact loading overlay with a
+  progress bar while desktop preview work is being created.
 - Object Canvas, Story Palette, and Storyboard workflows now cover more
   proposal-first authoring paths.
+- Fixed a set of preview-era editing bugs and added asset editor support for
+  image, portrait, background, audio, and reviewed asset-copy proposals.
 - Existing-content editing has stronger source-backed evidence and clearer
   Review & Apply boundaries.
 - Complex Event Builder, route/effect workflows, and parser-backed draft
@@ -31,8 +47,8 @@ must be rebuilt and retested before sharing.
   lifecycle checks.
 - The bundled Starter Demo and player-like QA paths cover more first-run and
   template-mod scenarios.
-- The package metadata and desktop manifest now report semver `0.97.5`; the
-  user-facing release label is `v0.97.5`.
+- The package metadata and desktop manifest now report semver `0.97.6`; the
+  user-facing release label is `v0.97.6`.
 
 ## Known Limits
 

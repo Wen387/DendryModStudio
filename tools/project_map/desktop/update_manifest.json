@@ -1,52 +1,52 @@
 {
   "schemaVersion": 1,
   "channel": "dev-preview",
-  "latestVersion": "0.97.5",
-  "minimumRecommendedVersion": "0.97.5",
+  "latestVersion": "0.97.6",
+  "minimumRecommendedVersion": "0.97.6",
   "severity": "info",
-  "noticeId": "v0.97.5-preview-announcement-2026-05-16",
-  "title": "Dendry Mod Studio v0.97.5 preview update is ready",
+  "noticeId": "v0.97.6-preview-announcement-2026-05-19",
+  "title": "Dendry Mod Studio v0.97.6 preview update is ready",
   "titleLocalized": {
-    "en": "Dendry Mod Studio v0.97.5 preview update is ready",
-    "zh-Hant": "Dendry Mod Studio v0.97.5 預覽更新已可使用"
+    "en": "Dendry Mod Studio v0.97.6 preview update is ready",
+    "zh-Hant": "Dendry Mod Studio v0.97.6 預覽更新已可使用"
   },
-  "body": "v0.97.5 focuses on a smoother Studio experience: cleaner UI presentation, quality-of-life improvements, and a much more tested Object Editor workflow.",
+  "body": "v0.97.6 focuses on the Studio UI path: a friendlier Welcome Hub, clearer install review, denser material browsing, and smoother Runtime Preview feedback.",
   "bodyLocalized": {
-    "en": "v0.97.5 focuses on a smoother Studio experience: cleaner UI presentation, quality-of-life improvements, and a much more tested Object Editor workflow.",
-    "zh-Hant": "v0.97.5 聚焦於更順手的 Studio 體驗：改善 UI 表現、加入多項生活品質更新，並大幅測試與完善物件編輯器流程。"
+    "en": "v0.97.6 focuses on the Studio UI path: a friendlier Welcome Hub, clearer install review, denser material browsing, and smoother Runtime Preview feedback.",
+    "zh-Hant": "v0.97.6 聚焦於 Studio 的 UI 路線：更友善的新手起點、更清楚的安裝審查、更緊湊的素材瀏覽，以及更平順的實機預覽回饋。"
   },
-  "details": "This release puts most of its work into making everyday editing feel less rough. The interface should be clearer in more places, common workflows should require fewer awkward steps, and the Object Editor has received a broad testing and polish pass.\n\nThis is still a preview build. Please keep backups of real projects, review install plans before applying changes, and report any confusing editor behavior or broken preview output.",
+  "details": "This release puts most of its work into making the first editing loop feel less abrupt. New users now land in a Welcome Hub, the Tutorial Library is easier to scan, install review has a clearer flow, material browsing is denser, and Runtime Preview shows a simple loading overlay while desktop preview work is being created.\n\nThis is still a preview build. Please keep backups of real projects, review install plans before applying changes, and report any confusing editor behavior or broken preview output.",
   "detailsLocalized": {
-    "en": "This release puts most of its work into making everyday editing feel less rough. The interface should be clearer in more places, common workflows should require fewer awkward steps, and the Object Editor has received a broad testing and polish pass.\n\nThis is still a preview build. Please keep backups of real projects, review install plans before applying changes, and report any confusing editor behavior or broken preview output.",
-    "zh-Hant": "這個版本主要把精力放在讓日常編輯少一點粗糙感：更多介面狀態會更清楚，常用流程減少了一些卡手步驟，物件編輯器也經過更大範圍的測試與打磨。\n\n這仍然是預覽版。請保留真實專案備份，在套用修改前檢查 install plan；如果遇到令人困惑的編輯行為或破損預覽，也歡迎回報。"
+    "en": "This release puts most of its work into making the first editing loop feel less abrupt. New users now land in a Welcome Hub, the Tutorial Library is easier to scan, install review has a clearer flow, material browsing is denser, and Runtime Preview shows a simple loading overlay while desktop preview work is being created.\n\nThis is still a preview build. Please keep backups of real projects, review install plans before applying changes, and report any confusing editor behavior or broken preview output.",
+    "zh-Hant": "這個版本主要把精力放在讓第一次編輯循環少一點突兀感：新使用者會先進入 Welcome Hub，教學圖書館更容易掃讀，安裝審查有更清楚的流程，素材瀏覽更緊湊，而實機預覽在建立桌面預覽工作時會顯示簡潔的載入提示。\n\n這仍然是預覽版。請保留真實專案備份，在套用修改前檢查 install plan；如果遇到令人困惑的編輯行為或破損預覽，也歡迎回報。"
   },
   "announcementOnly": true,
   "notices": [
     {
-      "noticeId": "v0.97.5-release-2026-05-16",
+      "noticeId": "v0.97.6-release-2026-05-19",
       "kind": "release",
       "severity": "info",
-      "title": "v0.97.5 preview update is ready",
+      "title": "v0.97.6 preview update is ready",
       "titleLocalized": {
-        "en": "v0.97.5 preview update is ready",
-        "zh-Hant": "v0.97.5 預覽更新已可使用"
+        "en": "v0.97.6 preview update is ready",
+        "zh-Hant": "v0.97.6 預覽更新已可使用"
       },
-      "body": "v0.97.5 focuses on a smoother Studio experience: cleaner UI presentation, quality-of-life improvements, and a much more tested Object Editor workflow.",
+      "body": "v0.97.6 focuses on the Studio UI path: a friendlier Welcome Hub, clearer install review, denser material browsing, and smoother Runtime Preview feedback.",
       "bodyLocalized": {
-        "en": "v0.97.5 focuses on a smoother Studio experience: cleaner UI presentation, quality-of-life improvements, and a much more tested Object Editor workflow.",
-        "zh-Hant": "v0.97.5 聚焦於更順手的 Studio 體驗：改善 UI 表現、加入多項生活品質更新，並大幅測試與完善物件編輯器流程。"
+        "en": "v0.97.6 focuses on the Studio UI path: a friendlier Welcome Hub, clearer install review, denser material browsing, and smoother Runtime Preview feedback.",
+        "zh-Hant": "v0.97.6 聚焦於 Studio 的 UI 路線：更友善的新手起點、更清楚的安裝審查、更緊湊的素材瀏覽，以及更平順的實機預覽回饋。"
       },
-      "details": "This release puts most of its work into making everyday editing feel less rough. The interface should be clearer in more places, common workflows should require fewer awkward steps, and the Object Editor has received a broad testing and polish pass.\n\nThis is still a preview build. Please keep backups of real projects, review install plans before applying changes, and report any confusing editor behavior or broken preview output.",
+      "details": "This release puts most of its work into making the first editing loop feel less abrupt. New users now land in a Welcome Hub, the Tutorial Library is easier to scan, install review has a clearer flow, material browsing is denser, and Runtime Preview shows a simple loading overlay while desktop preview work is being created.\n\nThis is still a preview build. Please keep backups of real projects, review install plans before applying changes, and report any confusing editor behavior or broken preview output.",
       "detailsLocalized": {
-        "en": "This release puts most of its work into making everyday editing feel less rough. The interface should be clearer in more places, common workflows should require fewer awkward steps, and the Object Editor has received a broad testing and polish pass.\n\nThis is still a preview build. Please keep backups of real projects, review install plans before applying changes, and report any confusing editor behavior or broken preview output.",
-        "zh-Hant": "這個版本主要把精力放在讓日常編輯少一點粗糙感：更多介面狀態會更清楚，常用流程減少了一些卡手步驟，物件編輯器也經過更大範圍的測試與打磨。\n\n這仍然是預覽版。請保留真實專案備份，在套用修改前檢查 install plan；如果遇到令人困惑的編輯行為或破損預覽，也歡迎回報。"
+        "en": "This release puts most of its work into making the first editing loop feel less abrupt. New users now land in a Welcome Hub, the Tutorial Library is easier to scan, install review has a clearer flow, material browsing is denser, and Runtime Preview shows a simple loading overlay while desktop preview work is being created.\n\nThis is still a preview build. Please keep backups of real projects, review install plans before applying changes, and report any confusing editor behavior or broken preview output.",
+        "zh-Hant": "這個版本主要把精力放在讓第一次編輯循環少一點突兀感：新使用者會先進入 Welcome Hub，教學圖書館更容易掃讀，安裝審查有更清楚的流程，素材瀏覽更緊湊，而實機預覽在建立桌面預覽工作時會顯示簡潔的載入提示。\n\n這仍然是預覽版。請保留真實專案備份，在套用修改前檢查 install plan；如果遇到令人困惑的編輯行為或破損預覽，也歡迎回報。"
       },
       "downloadUrl": "https://github.com/Wen387/DendryModStudio/releases",
-      "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.97.5.md",
-      "publishedAt": "2026-05-16"
+      "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.97.6.md",
+      "publishedAt": "2026-05-19"
     },
     {
-      "noticeId": "v0.97.5-dev-preview-status-2026-05-16",
+      "noticeId": "v0.97.6-dev-preview-status-2026-05-19",
       "kind": "announcement",
       "severity": "info",
       "title": "A note about the dev preview",
@@ -64,11 +64,11 @@
         "en": "The editor is becoming more capable, but it is not yet at the stage where development can focus only on polish and repairs. If something feels confusing, too manual, unsafe, or simply absent, that is useful feedback.\n\nThe most helpful report includes the Studio version, OS, mod name, source path if available, what you tried, what you expected, and what actually happened.",
         "zh-Hant": "編輯器正在變得更有能力，但專案還沒有進入只需要打磨和修繕的階段。如果某個地方讓你困惑、太手動、不放心，或乾脆缺少入口，這些都是有用回饋。\n\n最有幫助的回報會包含 Studio 版本、作業系統、Mod 名稱、可用的 source 路徑、你嘗試了什麼、原本期待什麼，以及實際發生了什麼。"
       },
-      "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.97.5.md",
-      "publishedAt": "2026-05-16"
+      "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.97.6.md",
+      "publishedAt": "2026-05-19"
     },
     {
-      "noticeId": "v0.97.5-playtest-call-2026-05-16",
+      "noticeId": "v0.97.6-playtest-call-2026-05-19",
       "kind": "playtest",
       "severity": "info",
       "title": "Trying a real mod? Please tell me where it breaks.",
@@ -76,10 +76,10 @@
         "en": "Trying a real mod? Please tell me where it breaks.",
         "zh-Hant": "正在測試真實 Mod？歡迎告訴我哪裡壞了。"
       },
-      "body": "The most useful v0.97.5 feedback is about real editing flows: complex events, Review & Apply, Runtime Preview, D3 result screens, material browsing, and Windows install speed.",
+      "body": "The most useful v0.97.6 feedback is about real editing flows: complex events, Review & Apply, Runtime Preview, D3 result screens, material browsing, and Windows install speed.",
       "bodyLocalized": {
-        "en": "The most useful v0.97.5 feedback is about real editing flows: complex events, Review & Apply, Runtime Preview, D3 result screens, material browsing, and Windows install speed.",
-        "zh-Hant": "v0.97.5 最需要的回饋是真實編輯流程：複合事件、審查與套用、Runtime Preview、D3 結果頁、素材瀏覽，以及 Windows 安裝速度。"
+        "en": "The most useful v0.97.6 feedback is about real editing flows: complex events, Review & Apply, Runtime Preview, D3 result screens, material browsing, and Windows install speed.",
+        "zh-Hant": "v0.97.6 最需要的回饋是真實編輯流程：複合事件、審查與套用、Runtime Preview、D3 結果頁、素材瀏覽，以及 Windows 安裝速度。"
       },
       "details": "Screenshots are very helpful for layout or preview problems. For editing bugs, source paths and the generated install plan are even better because they make the issue reproducible.",
       "detailsLocalized": {
@@ -92,10 +92,10 @@
         "en": "Share playtest feedback",
         "zh-Hant": "分享測試回饋"
       },
-      "publishedAt": "2026-05-16"
+      "publishedAt": "2026-05-19"
     },
     {
-      "noticeId": "v0.97.5-contact-bug-report-2026-05-16",
+      "noticeId": "v0.97.6-contact-bug-report-2026-05-19",
       "kind": "contact",
       "severity": "info",
       "notify": false,
@@ -120,10 +120,10 @@
         "en": "Report issue",
         "zh-Hant": "回報問題"
       },
-      "publishedAt": "2026-05-16"
+      "publishedAt": "2026-05-19"
     },
     {
-      "noticeId": "v0.97.5-contact-feature-request-2026-05-16",
+      "noticeId": "v0.97.6-contact-feature-request-2026-05-19",
       "kind": "contact",
       "severity": "info",
       "notify": false,
@@ -148,10 +148,10 @@
         "en": "Request feature",
         "zh-Hant": "提出功能需求"
       },
-      "publishedAt": "2026-05-16"
+      "publishedAt": "2026-05-19"
     }
   ],
   "downloadUrl": "https://github.com/Wen387/DendryModStudio/releases",
-  "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.97.5.md",
-  "publishedAt": "2026-05-16"
+  "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.97.6.md",
+  "publishedAt": "2026-05-19"
 }

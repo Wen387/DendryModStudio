@@ -8,6 +8,8 @@ const {readViewerCss, readViewerI18n, readExploreBundle} = require('./check_view
 const ROOT = __dirname;
 const VIEWER_HTML = path.join(ROOT, 'viewer', 'index.html');
 const VIEWER_DIR = path.join(ROOT, 'viewer');
+const WELCOME_SURFACE_UI = path.join(ROOT, 'viewer', 'welcome_surface_ui.js');
+const RUNTIME_PREVIEW_LOADING_UI = path.join(ROOT, 'viewer', 'runtime_preview_loading_ui.js');
 const WIZARD_UI = path.join(ROOT, 'viewer', 'wizard_ui.js');
 const CARD_UI = path.join(ROOT, 'viewer', 'card_ui.js');
 const EXISTING_SCENE_EDIT_UI = path.join(ROOT, 'viewer', 'existing_scene_edit_ui.js');
@@ -137,6 +139,9 @@ function mediaBlock(source, marker) {
 
 const html = fs.readFileSync(VIEWER_HTML, 'utf8');
 const css = readViewerCss(VIEWER_DIR);
+const welcomeSurfaceUi = fs.readFileSync(WELCOME_SURFACE_UI, 'utf8');
+const welcomeSurface = html + '\n' + welcomeSurfaceUi;
+const runtimePreviewLoadingUi = fs.readFileSync(RUNTIME_PREVIEW_LOADING_UI, 'utf8');
 const wizardUi = fs.readFileSync(WIZARD_UI, 'utf8');
 const cardUi = fs.readFileSync(CARD_UI, 'utf8');
 const existingSceneEditUi = fs.readFileSync(EXISTING_SCENE_EDIT_UI, 'utf8');
@@ -230,7 +235,7 @@ const previewObjectStructureUi = fs.readFileSync(PREVIEW_OBJECT_STRUCTURE_UI, 'u
 assert(html.includes('data-studio-surface="direction-b"'), 'viewer should mark Direction B Studio as the active surface');
 assert(html.includes('brand-mark branch-mark'), 'viewer should expose a Branch brand mark');
 assert(html.includes('Dendry <span>Mod Studio</span>'), 'viewer should emphasize Mod Studio in the wordmark');
-assert(html.includes('Dendry Mod Studio v0.97.5 dev preview'), 'topbar should expose the Studio version for testers');
+assert(html.includes('Dendry Mod Studio v0.97.6 dev preview'), 'topbar should expose the Studio version for testers');
 assert(html.includes('https://github.com/Wen387'), 'topbar should link the author GitHub profile');
 assert(html.includes('nav-group-title'), 'Explore navigation should be grouped by authoring purpose');
 assert(html.includes('Story content'), 'Explore navigation should include a Story content group');
@@ -594,10 +599,15 @@ assert(html.includes('id="workspace-layout-variable-options"'), 'Workspace Layou
 assert(html.includes('id="sidebar-status-readiness"'), 'Sidebar / Status should expose source-backed section readiness checks');
 assert(html.includes('id="sidebar-status-section-id"'), 'Sidebar / Status should expose an existing section selector');
 assert(html.includes('id="sidebar-status-variable-options"'), 'Sidebar / Status should expose variable suggestions for conditional lines');
+assert(html.includes('id="studio-welcome-root"'), 'viewer should expose the Welcome Hub mount point');
+assert(welcomeSurface.includes('id="studio-welcome"'), 'Welcome Hub controller should render the Welcome Hub surface');
+assert(welcomeSurface.includes('id="welcome-demo-card"'), 'Welcome Hub should offer a desktop Demo Template route');
+assert(welcomeSurface.includes('id="welcome-primary"'), 'Welcome Hub should offer Open Project / ProjectIndex as the primary browser route');
+assert(welcomeSurface.includes('id="welcome-browse-workspace"'), 'Welcome Hub should offer a non-blocking Browse Workspace route');
 assert(html.includes('id="studio-tutorial-library"'), 'viewer should expose an in-app Tutorial Library dialog');
 assert(html.includes('id="studio-open-tutorial-library"'), 'More menu should expose Tutorial Library');
-assert(html.includes('id="onboarding-open-tutorial-library"'), 'Quick Start should offer Tutorial Library');
-assert(html.includes('id="onboarding-load-demo"'), 'Quick Start should offer the bundled Demo Template');
+assert(welcomeSurface.includes('id="onboarding-open-tutorial-library"'), 'Welcome Hub should offer Tutorial Library');
+assert(welcomeSurface.includes('id="onboarding-load-demo"'), 'Welcome Hub should offer the bundled Demo Template');
 assert(html.includes('id="studio-check-updates"'), 'More menu should expose Check for Updates in desktop mode');
 assert(html.includes('id="update-notice-banner"'), 'viewer should expose the Update Notice banner');
 assert(html.includes('id="studio-open-announcements"'), 'More menu should expose the announcement preview');
@@ -608,7 +618,25 @@ assert(html.includes('data-announcement-category="updates"'), 'announcement prev
 assert(html.includes('data-announcement-category="announcements"'), 'announcement preview should include Announcements');
 assert(html.includes('data-announcement-category="testing"'), 'announcement preview should include Testing & Contact');
 assert(html.includes('tutorial_library_ui.js'), 'viewer should load Tutorial Library UI');
+assert(html.includes('icons.js'), 'viewer should load the shared icon layer');
+assert(html.includes('welcome_surface_ui.js'), 'viewer should load the Welcome Hub controller');
+assert(html.includes('runtime_preview_loading_ui.js'), 'viewer should load the shared Runtime Preview loading overlay');
+assertHtmlOrder(
+  'runtime_preview_loading_ui.js',
+  'runtime_lens_workspace_state.js',
+  'viewer should load Runtime Preview loading overlay before Runtime Lens state'
+);
+assertHtmlOrder(
+  'runtime_preview_loading_ui.js',
+  'install_assistant_ui.js',
+  'viewer should load Runtime Preview loading overlay before Install Assistant'
+);
+assert(runtimePreviewLoadingUi.includes('ProjectMapRuntimePreviewLoading'), 'Runtime Preview loading overlay should expose a browser API');
+assert(runtimePreviewLoadingUi.includes('document.createElement(\'progress\')'), 'Runtime Preview loading overlay should use a compact progress element');
+assert(css.includes('.runtime-preview-loading-overlay'), 'Runtime Preview loading overlay should have shared dialog styles');
 assert(html.includes('update_notice_ui.js'), 'viewer should load Update Notice UI');
+assert(appUi.includes('iconForView') && appUi.includes('ProjectMapIcons'), 'Explore nav rerender should preserve shared icons');
+assert(css.includes('.nav-label') && css.includes('.nav-item .ui-icon'), 'Explore nav should style icon-and-label rows');
 assert(html.includes('wizard-field-help'), 'Create forms should explain what important fields change');
 assert(html.includes('id="wizard-variable-assistant"'), 'Event editor should expose semantic variable candidates');
 assert(html.includes('id="card-variable-assistant"'), 'Card editor should expose semantic variable candidates');
@@ -631,8 +659,12 @@ assert(html.includes('id="install-runtime-preview-result"'), 'Install Assistant 
 assert(html.includes('id="install-verified-diff"'), 'Install Assistant should render verified diff evidence');
 assert(html.includes('id="install-download-evidence"'), 'Install Assistant should expose evidence download');
 assert(html.includes('id="install-download-verified-diff"'), 'Install Assistant should expose verified diff download');
+assert(html.includes('id="install-flow"'), 'Install Assistant should expose a guided install flow');
+assert(html.includes('id="install-next-panel"'), 'Install Assistant should expose a state-driven next action panel');
 assert(installReviewUi.includes('data-install-operation-id'), 'Review & Apply renderer should expose operation-level review cards');
 assert(installUi.includes('data-runtime-preview-frame'), 'Install Assistant should embed successful Runtime Preview results');
+assert(installUi.includes('renderInstallFlow'), 'Install Assistant should render the guided install flow');
+assert(installUi.includes('renderNextPanel'), 'Install Assistant should render one clear next-action panel');
 assert(i18nUi.includes("'draftWorkspace.title': '我的修改'"), 'zh-Hant copy should rename Draft Workspace to 我的修改');
 assert(i18nUi.includes("'draftWorkspace.review': '審查與套用'"), 'saved changes should route to Review & Apply copy');
 assert(i18nUi.includes("'draftWorkspace.template.entry'"), 'saved changes should label Entry & Sidebar drafts');
@@ -674,6 +706,8 @@ assert(css.includes('.effect-helper button') && css.includes('overflow-wrap: any
 assert(css.includes('.tutorial-library-dialog'), 'CSS should style Tutorial Library dialog');
 assert(css.includes('.tutorial-library-nav'), 'CSS should style Tutorial Library navigation');
 assert(css.includes('.tutorial-library-article'), 'CSS should style Tutorial Library articles');
+assert(css.includes('.tutorial-library-section'), 'CSS should style one-page Tutorial Library sections');
+assert(css.includes('.install-flow-step') && css.includes('.install-next-card'), 'CSS should style guided install flow and next action card');
 assert(css.includes('.update-notice-banner'), 'CSS should style the Update Notice banner');
 assert(css.includes('.update-notice-actions'), 'CSS should style Update Notice actions');
 assert(css.includes('.announcement-board-tabs'), 'CSS should style Announcement Preview category buttons');

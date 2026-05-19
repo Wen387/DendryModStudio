@@ -106,6 +106,8 @@ function sameList(left, right) {
 }
 
 const html = fs.readFileSync(VIEWER_HTML, 'utf8');
+const welcomeUiSource = fs.readFileSync(path.join(VIEWER_DIR, 'welcome_surface_ui.js'), 'utf8');
+const htmlAndInjectedSurfaces = html + '\n' + welcomeUiSource;
 const i18nSource = readViewerI18n(VIEWER_DIR);
 const wizardSource = fs.readFileSync(path.join(VIEWER_DIR, 'wizard_ui.js'), 'utf8');
 const cardSource = fs.readFileSync(path.join(VIEWER_DIR, 'card_ui.js'), 'utf8');
@@ -281,8 +283,8 @@ function tagForId(id) {
 [
   ['mode switch aria', 'data-i18n-aria-label="aria.modeSwitch"'],
   ['language select aria', 'data-i18n-aria-label="aria.language"'],
-  ['onboarding close aria', 'data-i18n-aria-label="onboarding.dismiss"'],
-  ['onboarding step list aria', 'data-i18n-aria-label="onboarding.stepsLabel"'],
+  ['welcome close aria', 'data-i18n-aria-label="welcome.close"'],
+  ['welcome route aria', 'data-i18n-aria-label="welcome.stepsLabel"'],
   ['project nav aria', 'data-i18n-aria-label="aria.projectMapViews"'],
   ['confidence legend aria', 'data-i18n-aria-label="aria.confidenceLegend"'],
   ['sort direction title', 'data-i18n-title="explore.sortDirection"'],
@@ -321,7 +323,8 @@ function tagForId(id) {
   ['asset advanced panel label', 'data-i18n="assets.advancedRawData"'],
   ['asset install request label', 'data-i18n="assets.installRequests"']
 ].forEach(([label, snippet]) => {
-  assert(html.includes(snippet), label + ' should be localized');
+  const haystack = label.startsWith('welcome') ? htmlAndInjectedSurfaces : html;
+  assert(haystack.includes(snippet), label + ' should be localized');
 });
 
 [

@@ -3,148 +3,150 @@
 
   const ARTICLES = [
     {
-      id: 'studio-overview',
-      titleKey: 'tutorial.article.overview.title',
-      titleFallback: 'How Studio thinks about changes',
+      id: 'studio-intro',
+      titleKey: 'tutorial.article.studioIntro.title',
+      titleFallback: 'What Studio is',
       bodyKeys: [
-        ['tutorial.article.overview.body', 'Studio reads a Dendry project index, shows player-facing content, lets you draft change proposals, and sends installable proposals to Review & Apply. A saved proposal is still only a proposal until an install plan is reviewed and applied.'],
-        ['tutorial.article.overview.body2', 'The reverse parser is evidence-based. When Studio says something is matched, inferred, guessed, or unknown, it is telling you how much source evidence it has for that item.']
+        ['tutorial.article.studioIntro.body', 'Studio is a mod editing tool. It reads a Dendry game project, organizes the files into browsable and editable content, and helps write reviewed changes back to game files.'],
+        ['tutorial.article.studioIntro.body2', 'Every edit starts as a proposal: a draft describing what you want to change. Drafts do not modify game files until you reach Install, confirm the checks, and explicitly apply the change.'],
+        ['tutorial.article.studioIntro.body3', 'Dendry is the engine under these games. You do not need to understand its source code, but knowing it exists helps explain why Studio can automate some work while asking you to confirm other parts.']
       ]
     },
     {
       id: 'dev-preview',
       titleKey: 'tutorial.article.devPreview.title',
-      titleFallback: 'Dev Preview status',
+      titleFallback: 'Current development status',
       bodyKeys: [
-        ['tutorial.article.devPreview.body', 'This is a Dev Preview, not a finished editor. Studio is still in active feature development, and some workflows may move, break, or need redesign as real projects show what the first design missed.'],
-        ['tutorial.article.devPreview.body2', 'The project is not yet ready to shift from new feature development into mostly polish and repair. Please expect bugs, confusing UI, parser mistakes, and places where Studio asks for manual review instead of doing the edit automatically.'],
-        ['tutorial.article.devPreview.body3', 'I will keep improving it, but reports and suggestions are part of the work. When something feels wrong, please include your OS, Studio version, the mod or project, what you tried, what you expected, what happened, and any useful screenshot or source path.']
+        ['tutorial.article.devPreview.body', 'Studio is still in Dev Preview, not a finished product. Features will keep changing, and real projects will reveal bugs, unclear interface moments, and places where manual review is required.'],
+        ['tutorial.article.devPreview.body2', 'UI editing, variable parsing rules, and the Design workspace are still being developed.'],
+        ['tutorial.article.devPreview.body3', 'Useful reports include your operating system, Studio version, mod or project name, what you did, what you expected, what happened, and any relevant screenshot or file path.']
       ]
     },
     {
-      id: 'mode-buttons',
-      titleKey: 'tutorial.article.modes.title',
-      titleFallback: 'Explore, Design, Create, and Install',
+      id: 'workspaces',
+      titleKey: 'tutorial.article.workspaces.title',
+      titleFallback: 'The four workspaces',
       bodyKeys: [
-        ['tutorial.article.modes.body', 'The top buttons are work areas, not difficulty levels. Explore is the searchable table view: use it when you know a word, file, event, card, asset, or variable you want to inspect. Design is the map view: use it when you want to understand how player-facing beats connect. Create is where you write a proposal. Install, shown as Review & Apply, is where you inspect what the proposal would change before anything touches source files.'],
-        ['tutorial.article.modes.body2', 'A practical path is: open a project, search in Explore, switch to Design if you need flow context, use Create to draft the change, save it to My Changes, then send it to Review & Apply. You can move back and forth; nothing is installed just because you opened Create or saved a draft.']
+        ['tutorial.article.workspaces.body', 'Studio has four top workspaces: Explore, Design, Create, and Install. They serve different parts of the editing route.'],
+        ['tutorial.article.workspaces.body2', 'Explore is a searchable list for keywords, cards, events, variables, and other known content.'],
+        ['tutorial.article.workspaces.body3', 'Design is a visual flow map for understanding how content connects and how players reach it. This surface is still being refined.'],
+        ['tutorial.article.workspaces.body4', 'Create is where you write change proposals. Install, also called Review & Apply, is where you inspect what a proposal would touch before it writes to game files.'],
+        ['tutorial.article.workspaces.body5', 'Opening Create, writing a draft, or exporting a file does not change your game. Only an explicit apply action in Install writes changes.']
       ]
     },
     {
-      id: 'what-is-ide',
-      titleKey: 'tutorial.article.ide.title',
-      titleFallback: 'When Studio needs source review',
+      id: 'create-editor',
+      titleKey: 'tutorial.article.createEditor.title',
+      titleFallback: 'Create: how the editing surface works',
       bodyKeys: [
-        ['tutorial.article.ide.body', 'Studio should keep player-visible authoring inside the app. When a semantic editor is not precise enough, Studio opens a bounded source edit or source mapping task.'],
-        ['tutorial.article.ide.body2', 'Protected files, unusual routers, handwritten script logic, and unsupported mod styles may still require advanced confirmation, but the primary workflow should remain a Studio patch, anchor picker, or profile rule task.']
+        ['tutorial.article.createEditor.body', 'Create centers on a canvas. The left asset rail lets you search for event cards and add them to the canvas. The right sidebar provides event management and can run a preview of how the event appears in game.'],
+        ['tutorial.article.createEditor.body2', 'Double-click an event card to open the Object Editor. The left side is the preview, and the right side contains editable fields.'],
+        ['tutorial.article.createEditor.body3', 'The floating window in the lower-right shows your accumulated draft edits. You can review, rename, or delete drafts from there.']
       ]
     },
     {
-      id: 'sdaah-style',
-      titleKey: 'tutorial.article.sdaah.title',
-      titleFallback: 'How SDAAH-style games are usually built',
+      id: 'install-flow',
+      titleKey: 'tutorial.article.installFlow.title',
+      titleFallback: 'Install: from checks to apply',
       bodyKeys: [
-        ['tutorial.article.sdaah.body', 'SDAAH-style games usually combine scene files, event routers, cards, news snippets, surface text, assets, and variables. Studio scans those files, builds a ProjectIndex, and turns recognized patterns into Explore rows, Design nodes, draft seeds, previews, and install plans.'],
-        ['tutorial.article.sdaah.body2', 'SDAAH Dynamic, Bienio Rossa, and Social Democracy Redux are examples of projects whose editing habits are close enough that Studio can often be useful. Similar habits do not guarantee full compatibility.']
+        ['tutorial.article.installFlow.body', 'After editing, go to Install. The flow is check first, apply second. Do not skip the check.'],
+        ['tutorial.article.installFlow.body2', 'When you run the check, Studio builds an install test and shows a Diff: the line-by-line difference between current game files and files after your proposal. Read the Diff and confirm the scope before applying.'],
+        ['tutorial.article.installFlow.body3', 'Full Preview opens a complete game instance so you can test the result, but it rebuilds the whole game and is slower.'],
+        ['tutorial.article.installFlow.body4', 'Advanced install options allow higher-risk operations such as router changes or protected files. They are marked high-risk for a reason, so leave them alone unless you know what you are doing.']
       ]
     },
     {
-      id: 'variables-in-sdaah',
-      titleKey: 'tutorial.article.variables.sdaah.title',
-      titleFallback: 'How variables are used in SDAAH-like games',
+      id: 'sdaah-structure',
+      titleKey: 'tutorial.article.sdaahStructure.title',
+      titleFallback: 'SDAAH-style game structure',
       bodyKeys: [
-        ['tutorial.article.variables.sdaah.body', 'In SDAAH-like games, variables are the project memory. They store the month, event flags, party strength, relationship values, resources, and many other small facts the game needs after the current screen is gone.'],
-        ['tutorial.article.variables.consumers.body', 'A value is consumed when another scene, router, card, sidebar, or status display reads it. For example, a choice may set Q.worker_unrest, post_event may use that value to unlock a later popup, and a sidebar may display the result to the player.'],
-        ['tutorial.article.variables.studio.body', 'This matters in Studio because a proposal that changes a variable is not just changing one line. It may affect every condition, event router, card requirement, and visible status label that consumes the same value.'],
-        ['tutorial.article.variables.selector.body', 'The variable candidate helper reduces lookup mistakes. It searches existing ProjectIndex variables by name, tags, and source evidence, then inserts a variable name or simple condition into the draft field you are editing. It is still a helper, not a promise that the political logic is correct.']
+        ['tutorial.article.sdaahStructure.body', 'Studio is optimized for SDAAH-style games. SDAAH, Social Democracy: An Alternate History, is a political simulation built with Dendry, and several mods use similar file structures and writing conventions.'],
+        ['tutorial.article.sdaahStructure.body2', 'Scene files are the basic content units. A scene may contain narration, dialogue, an event, choices, and effects triggered by those choices.'],
+        ['tutorial.article.sdaahStructure.body3', 'An event router is the hidden scheduling system that decides what event appears next. In many SDAAH-style projects, scenes such as post_event or post_event_news play this role, so router edits often require extra confirmation.'],
+        ['tutorial.article.sdaahStructure.body4', 'Cards are interactive game elements such as policy cards, advisor cards, and event cards.'],
+        ['tutorial.article.sdaahStructure.body5', 'News differs by project. In original SDAAH, monthly popups are technically events routed through post_event, so they should be edited as world event drafts. IslandSunrise uses ticker-style news, which is a different mechanism.'],
+        ['tutorial.article.sdaahStructure.body6', 'Interface text covers short UI words such as sidebar labels, button names, tab titles, and status messages. Some labels in original SDAAH exist only in out/html/index.html, so Studio may mark uncertain text as a source-locating task.'],
+        ['tutorial.article.sdaahStructure.body7', 'Art assets are referenced images, audio, and other files. Studio can find references, but a referenced physical file may still be missing from your current project folder.']
       ]
     },
     {
-      id: 'world-events-router',
-      titleKey: 'tutorial.article.worldEvents.router.title',
-      titleFallback: 'World events, routers, and news',
+      id: 'variables',
+      titleKey: 'tutorial.article.variables.title',
+      titleFallback: 'Variables',
       bodyKeys: [
-        ['tutorial.article.worldEvents.router.body', 'A world event is the moment the player sees: title, prose, choices, and effects. A router is the hidden traffic controller that decides which event can appear next. In many SDAAH-like projects, post_event or post_event_news plays that routing role.'],
-        ['tutorial.article.worldEvents.router.body2', 'This is why Studio separates Island-style ticker news from original SDAAH monthly popups. A monthly popup may feel like news to the player, but technically it is often an event routed from post_event, so it belongs in an event draft.'],
-        ['tutorial.article.worldEvents.router.body3', 'Knowing the difference helps you understand why some drafts can be reviewed and applied directly while router changes may need an advanced source patch, anchor picker, or profile rule task.']
+        ['tutorial.article.variables.body', 'Variables are the game state notebook. They record the month, whether an event happened, party support, relationship values, available resources, and anything else the game must remember after the current screen.'],
+        ['tutorial.article.variables.body2', 'Changing a variable is rarely just changing one line. A value may be written by one option, read by post_event to unlock a later event, and displayed by the sidebar as a status hint. Renaming or changing the range of a variable can affect conditions, event triggers, card requirements, news, and UI.'],
+        ['tutorial.article.variables.body3', 'Studio has a semantic candidate helper that searches existing variable names, reads, writes, and evidence so you can insert variables with fewer spelling mistakes. It is a helper, not a guarantee that the game logic is correct.']
       ]
     },
     {
       id: 'tags-event',
       titleKey: 'tutorial.article.tagsEvent.title',
-      titleFallback: 'What does tags: event mean?',
+      titleFallback: 'What tags: event means',
       bodyKeys: [
-        ['tutorial.article.tagsEvent.body', 'In a Dendry scene file, tags are short labels written by the author. They help the project and Studio group scenes. In SDAAH-like projects, putting event in the tags field usually means “treat this scene as a world event candidate.” It is not the headline, not the title, and not a special magic password; it is a label that existing routers often look for.'],
-        ['tutorial.article.tagsEvent.body2', 'When the News Wizard says original SDAAH monthly popups should use World Event with tags: event, it means this: open Create, choose World Event, write the popup as an event, and put event in the tags field. Studio can then build an event-style proposal instead of pretending that monthly popup is the same thing as Island-style ticker news.'],
-        ['tutorial.article.tagsEvent.body3', 'If you are editing a different SDAAH-like mod, still check the preview and Review & Apply summary. Some mods use different tag names or route events by hand, and Studio will stay conservative when it cannot prove the router pattern.']
+        ['tutorial.article.tagsEvent.body', 'In Dendry scene files, tags are author-written labels that help projects and tools identify what a scene is for. In SDAAH-style projects, tags: event usually means this scene can be considered by the event router.'],
+        ['tutorial.article.tagsEvent.body2', 'It is not player-facing text and not a news title. It is a marker telling the router that this scene can be picked. When writing a monthly event as a world event draft, the event tag helps the existing router find it.'],
+        ['tutorial.article.tagsEvent.body3', 'Different mods may use different tags or custom router logic. After creating a proposal, check the preview and Install summary to confirm Studio understood the project correctly.']
       ]
     },
     {
-      id: 'surface-text-sidebar',
-      titleKey: 'tutorial.article.surfaceText.sidebar.title',
-      titleFallback: 'Sidebar and interface text',
+      id: 'confidence',
+      titleKey: 'tutorial.article.confidence.title',
+      titleFallback: 'How Studio shows what it knows',
       bodyKeys: [
-        ['tutorial.article.surfaceText.sidebar.body', 'Surface text means visible UI words such as Sidebar labels, buttons, tab names, unavailable text, or short status messages. These are not always written beside the event that caused them.'],
-        ['tutorial.article.surfaceText.sidebar.body2', 'In SDAAH original, some visible labels are only found in out/html/index.html. In IslandSunrise, more UI is protected custom HTML or JavaScript. Studio can show source-backed text proposals when it has evidence; generated-only UI is treated as a source-mapping task.'],
-        ['tutorial.article.surfaceText.sidebar.body3', 'This helps you decide whether you are changing story prose, a game rule explanation, or a UI label. The same sentence can feel editable, but Studio must check where it actually lives before offering Review & Apply.']
+        ['tutorial.article.confidence.body', 'Studio labels its confidence as exact, inferred, guessed, or unknown. This tells you how much evidence Studio found in the source files for a specific item.'],
+        ['tutorial.article.confidence.body2', 'Exact means Studio found a direct source match. Inferred means it made a reasonable judgment from convention and context. Guessed means evidence is thin. Unknown means there is not enough information.'],
+        ['tutorial.article.confidence.body3', 'The weaker the evidence, the more carefully you should inspect the install plan before applying it.']
       ]
     },
     {
-      id: 'asset-references',
-      titleKey: 'tutorial.article.assets.references.title',
-      titleFallback: 'Art assets and missing files',
+      id: 'island-sunrise',
+      titleKey: 'tutorial.article.islandSunrise.title',
+      titleFallback: 'IslandSunrise',
       bodyKeys: [
-        ['tutorial.article.assets.references.body', 'An asset reference is a path written in source, such as card-image, face-image, or audio. The reference says what the game wants to use; the physical image or sound file may still be missing from the checkout.'],
-        ['tutorial.article.assets.references.body2', 'When Studio says an asset has no physical file, it means the reference was found but the actual img or music file was not present. Studio can still show where it is used, but it cannot preview, copy, optimize, or install that asset yet.'],
-        ['tutorial.article.assets.references.body3', 'This matters because a draft may look correct while still needing you to supply the real file. Treat Assets as a read-only map for now, not as an importer.']
+        ['tutorial.article.islandSunrise.body', 'IslandSunrise is an unreleased mod and the Studio author\'s own project. It builds on SDAAH but adds custom systems such as Circle, district, local, collective, and coverage, plus protected custom UI and JavaScript.'],
+        ['tutorial.article.islandSunrise.body2', 'Because its structure is more complex than a standard SDAAH-style project, Studio automates less for IslandSunrise in some areas. Changes involving protected UI require manual review instead of automatic apply.']
       ]
     },
     {
-      id: 'review-apply',
-      titleKey: 'tutorial.article.install.title',
-      titleFallback: 'Does automatic install mean everything is installed?',
+      id: 'compatibility',
+      titleKey: 'tutorial.article.compatibility.title',
+      titleFallback: 'Compatibility',
       bodyKeys: [
-        ['tutorial.article.install.body', 'No. Review & Apply only applies operations that the install plan marks as safe or guarded and that pass source checks. Manual steps, advanced risky operations, unsupported routers, and protected edits are not silently installed.'],
-        ['tutorial.article.install.body2', 'Browser mode can review plans but cannot write local files. Desktop mode can dry-run and apply supported operations, then you should still read the result report and test the game.']
+        ['tutorial.article.compatibility.body', 'Studio works best when your project overlaps with the conventions Studio understands. It currently recognizes three profiles: generic Dendry, SDAAH-style, and IslandSunrise.'],
+        ['tutorial.article.compatibility.body2', 'High compatibility makes search results, previews, variable candidates, and install plans more reliable. Low compatibility, such as unusual naming or a custom router, makes Studio show more evidence and ask for manual confirmation.'],
+        ['tutorial.article.compatibility.body3', 'The parser is the reader that turns source files into structured Studio data. When parser evidence is weak, Studio may know a line exists without knowing whether it is player prose, a condition, or a protected UI detail.']
       ]
     },
     {
-      id: 'local-file-paths',
-      titleKey: 'tutorial.article.paths.title',
-      titleFallback: 'How to find local file paths',
+      id: 'upstream',
+      titleKey: 'tutorial.article.upstream.title',
+      titleFallback: 'Upstream changes',
       bodyKeys: [
-        ['tutorial.article.paths.body', 'A file path is the folder route to a file. Studio shows source paths in Explore, Design inspectors, text proposals, and install details when the parser has evidence. A path like source/scenes/example.scene.dry is relative to the project folder you opened.'],
-        ['tutorial.article.paths.body2', 'In desktop mode, Studio starts from the project folder you opened and can dry-run or apply supported operations. In browser mode, Studio can still show paths from ProjectIndex JSON, but only the desktop app can write files.']
+        ['tutorial.article.upstream.body', 'Upstream means the things Studio depends on: the Dendry engine, source projects whose conventions Studio learned from, or packages needed to build the game.'],
+        ['tutorial.article.upstream.body2', 'If upstream projects such as Petrograd, Popular Front, or DendryNexus change scene syntax, router logic, or variable access, features that used to be safe may need parser updates. Studio understands games through the assumption that they are written a certain way; when that assumption changes, Studio must change too.']
       ]
     },
     {
-      id: 'faq-export-open-diagnostics',
-      titleKey: 'tutorial.article.faq.export.title',
-      titleFallback: 'Open project, Export, and Diagnostics',
+      id: 'practical',
+      titleKey: 'tutorial.article.practical.title',
+      titleFallback: 'Practical basics',
       bodyKeys: [
-        ['tutorial.article.faq.export.body', 'Open Project means choosing the folder that contains the game or mod source. In the desktop app, click Open Project Folder and select the project root, the folder that contains source, out, and package files. In browser mode, Studio cannot read your disk, so you load a ProjectIndex JSON that was already generated.'],
-        ['tutorial.article.faq.export.body2', 'Export means “save a file that represents this proposal.” Exporting a draft JSON, scene file, patch preview, or install plan does not automatically change your game. It gives you a portable artifact you can review, share, back up, or load into Review & Apply. If a button says Review & Apply, that is the path where Studio checks what can actually be installed.'],
-        ['tutorial.article.faq.export.body3', 'Diagnostics are warnings and notes. They are Studio saying what it knows, what it is guessing, and what still needs your attention. A diagnostic is not always a bug. For example, “manual review” can simply mean Studio found the right idea but will not edit that file automatically.']
+        ['tutorial.article.practical.body', 'A file path is where a file lives on your computer, such as source/scenes/example.scene.dry, relative to the project folder you opened. Studio shows paths in Explore, Design, Object Editor, and install details.'],
+        ['tutorial.article.practical.body2', 'Open Project means handing Studio your game or mod folder. Desktop mode can choose the folder directly; browser mode cannot read your disk and needs a generated ProjectIndex JSON file.'],
+        ['tutorial.article.practical.body3', 'Export saves your proposal as a file. It does not change the game. It simply preserves a draft for backup, sharing, or later review.'],
+        ['tutorial.article.practical.body4', 'Diagnostics are hints and notes attached to items. They do not always mean errors. A manual step often means Studio found a possible edit but believes you should decide whether to perform it.'],
+        ['tutorial.article.practical.body5', 'Review & Apply does not mean everything was installed. It only applies operations that pass checks and are marked safe. Browser mode reviews plans only; desktop mode can dry run and apply, and you should still read the result report and test the game.']
       ]
     },
     {
-      id: 'faq-git-safety',
-      titleKey: 'tutorial.article.faq.git.title',
-      titleFallback: 'Using Git as a safety net',
+      id: 'git-safety',
+      titleKey: 'tutorial.article.gitSafety.title',
+      titleFallback: 'Use Git to protect yourself',
       bodyKeys: [
-        ['tutorial.article.faq.git.body', 'Git is a save-history tool for a folder. It lets you see what changed, undo a bad edit, and keep a clean checkpoint before trying a risky mod change. If your project is not already tracked by Git, install Git, open a terminal in the project folder, run git init, then make an initial commit before using automatic apply.'],
-        ['tutorial.article.faq.git.body2', 'A simple habit is enough: before a big edit, commit the current working version; after Studio applies a proposal, look at the changed files; if the game breaks, use your Git tool to inspect and undo the exact changes. Git does not replace testing the game, but it makes mistakes much less scary.'],
-        ['tutorial.article.faq.git.body3', 'If Git feels unfamiliar, use a visual Git client or VS Code Source Control first. The important part is not mastering every command. The important part is having a restore point before changing source files.']
-      ]
-    },
-    {
-      id: 'faq-ide-project',
-      titleKey: 'tutorial.article.faq.ide.title',
-      titleFallback: 'Source paths and advanced edits',
-      bodyKeys: [
-        ['tutorial.article.faq.ide.body', 'Studio shows source paths so you can understand what a patch will touch. For player-visible content, the primary path should be a Studio editor, source patch, anchor picker, or Review & Apply plan.'],
-        ['tutorial.article.faq.ide.body2', 'When Studio shows a path like source/scenes/post_event.scene.dry, it is evidence for the patch or router rule. Desktop mode can use that evidence to dry-run and apply supported operations.'],
-        ['tutorial.article.faq.ide.body3', 'Advanced edits still require attention: read the diff, confirm the source anchor, and keep a Git checkpoint. The goal is to keep the editing workflow in Studio without pretending every source rewrite is automatically safe.']
+        ['tutorial.article.gitSafety.body', 'Git tracks file history. Think of it as a restore point before you edit, so you can return to a known-good state if something breaks.'],
+        ['tutorial.article.gitSafety.body2', 'If your project does not use Git yet, install Git, open a terminal in the project folder, run git init, then make an initial commit before applying Studio changes.'],
+        ['tutorial.article.gitSafety.body3', 'A simple habit is enough: commit before large changes, inspect changed files after Studio applies a proposal, and use Git to understand and undo bad changes. Git does not replace in-game testing, but it makes experimentation much less scary.']
       ]
     },
     {
@@ -152,38 +154,25 @@
       titleKey: 'tutorial.article.troubleshooting.title',
       titleFallback: 'If the game errors',
       bodyKeys: [
-        ['tutorial.article.troubleshooting.body', 'First read the game error and the Studio install result. Undo or isolate the newest change, check the mentioned file path and line, then test with the smallest project state that still reproduces the problem.'],
-        ['tutorial.article.troubleshooting.body2', 'When filing a GitHub issue, include reproduction steps and your environment. Reproduction steps are the exact actions that make the bug happen again. Environment means operating system, Studio version or package, browser or desktop mode, game or mod name and version, and any relevant draft or install plan.']
+        ['tutorial.article.troubleshooting.body', 'Start by reading the game error and the Studio install result. Revert or temporarily disable the newest change, then inspect the file path and line number named in the error. Try to find the smallest project state that reproduces the problem.'],
+        ['tutorial.article.troubleshooting.body2', 'When reporting a GitHub issue, include reproduction steps and your environment: operating system, Studio version, browser or desktop mode, mod name and version, and any relevant draft or install plan.']
       ]
     },
     {
-      id: 'profile-compatibility',
-      titleKey: 'tutorial.article.profileCompatibility.title',
-      titleFallback: 'SDAAH-like and IslandSunrise compatibility',
+      id: 'open-source',
+      titleKey: 'tutorial.article.openSource.title',
+      titleFallback: 'Open source and contributing',
       bodyKeys: [
-        ['tutorial.article.profileCompatibility.body', 'A profile is Studio\'s parsing type for a project. Generic Dendry, SDAAH-style, and IslandSunrise share one Studio, but they do not promise the same parsing coverage or install safety.'],
-        ['tutorial.article.profileCompatibility.body2', 'SDAAH-like projects usually need strong monthly event, advisor, card, surface text, and asset reference parsing. IslandSunrise adds custom protected UI and project-specific systems such as Circle, district, local, collective, and coverage data.'],
-        ['tutorial.article.profileCompatibility.body3', 'Before invited testing, Studio should prefer visible caveats over aggressive automation. If the active profile has weak evidence, Studio may still let you draft and preview, but Review & Apply should stay conservative.'],
-        ['tutorial.article.profileCompatibility.compatibilityMeaning.body', 'Compatibility means Studio and the project agree about enough conventions to make a feature useful: where events live, how cards are routed, what variables look like, where interface text is stored, and which files are protected. More compatibility means more reliable search, previews, candidates, and install plans. Less compatibility means Studio should show evidence and ask for source review.'],
-        ['tutorial.article.profileCompatibility.parserMeaning.body', 'A parser is the reader that turns source files into structured Studio data. Parsing is that reading process. When parser evidence is weak, Studio may know that a line exists without knowing whether it is player prose, a router condition, a variable migration, or a protected UI detail.']
-      ]
-    },
-    {
-      id: 'compatibility-open-source',
-      titleKey: 'tutorial.article.compatibility.title',
-      titleFallback: 'Compatibility, upstream, and open source',
-      bodyKeys: [
-        ['tutorial.article.compatibility.body', 'Studio does not support every SDAAH-style game equally. It is mainly compatible with projects that follow editing habits close to SDAAH. If naming or implementation differs, reverse parsing and automatic install can become incomplete or wrong.'],
-        ['tutorial.article.compatibility.body2', 'Petrograd, Popular Front, or an upstream DendryNexus engine change can break assumptions. Upstream means something Studio depends on: the original engine that runs scene files, the source project whose writing habits Studio learned from, or a dependency used to build or inspect the game. If upstream changes how scenes, routers, or variables are written, Studio may need parser updates.'],
-        ['tutorial.article.compatibility.body4', 'Original engine means the runtime rules underneath the mod: how scene files are read, how conditions are evaluated, how choices jump to other sections, and how variables live in Q. Source project means the actual game or mod folder you opened, including its source/scenes and out/html files. Knowing this helps you understand why a change in the engine or source style can make a previously safe Studio feature become uncertain.'],
-        ['tutorial.article.compatibility.body3', 'If you are technical, you can submit a GitHub pull request to optimize Studio for a specific mod. If this project is no longer maintained, you can fork the full Studio files and publish your optimized version under the permissive MIT license.']
+        ['tutorial.article.openSource.body', 'Studio is open source. If you are technical, you can submit a GitHub pull request to improve support for a specific mod.'],
+        ['tutorial.article.openSource.body2', 'If the project is no longer maintained in the future, you can fork Studio and publish your own version under the MIT license.']
       ]
     }
   ];
 
   const state = {
     elements: null,
-    activeId: ARTICLES[0].id
+    activeId: ARTICLES[0].id,
+    scrollFrame: null
   };
 
   const api = {
@@ -231,7 +220,10 @@
     }
     render();
     wireEvents(document);
-    document.addEventListener('project-map:locale-changed', render);
+    document.addEventListener('project-map:locale-changed', () => {
+      render();
+      jumpToArticle(state.activeId, false);
+    });
   }
 
   function wireEvents(document) {
@@ -243,6 +235,7 @@
         closeDialog();
       }
     });
+    state.elements.article.addEventListener('scroll', syncActiveFromScroll);
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape' && !state.elements.dialog.classList.contains('hidden')) {
         closeDialog();
@@ -276,24 +269,31 @@
       button.className = article.id === state.activeId ? 'is-active' : '';
       button.textContent = translate(article.titleKey, article.titleFallback);
       button.addEventListener('click', () => {
-        state.activeId = article.id;
-        render();
+        jumpToArticle(article.id, true);
       });
       nav.appendChild(button);
     });
   }
 
   function renderArticle() {
-    const article = ARTICLES.find((item) => item.id === state.activeId) || ARTICLES[0];
     const target = state.elements.article;
     target.textContent = '';
-    const heading = global.document.createElement('h2');
-    heading.textContent = translate(article.titleKey, article.titleFallback);
-    target.appendChild(heading);
-    article.bodyKeys.forEach(([key, fallback]) => {
-      const paragraph = global.document.createElement('p');
-      paragraph.textContent = translate(key, fallback);
-      target.appendChild(paragraph);
+    ARTICLES.forEach((article) => {
+      const section = global.document.createElement('section');
+      section.id = 'tutorial-article-' + article.id;
+      section.className = 'tutorial-library-section';
+      section.dataset.tutorialSection = article.id;
+      section.setAttribute('aria-labelledby', 'tutorial-heading-' + article.id);
+      const heading = global.document.createElement('h2');
+      heading.id = 'tutorial-heading-' + article.id;
+      heading.textContent = translate(article.titleKey, article.titleFallback);
+      section.appendChild(heading);
+      article.bodyKeys.forEach(([key, fallback]) => {
+        const paragraph = global.document.createElement('p');
+        paragraph.textContent = translate(key, fallback);
+        section.appendChild(paragraph);
+      });
+      target.appendChild(section);
     });
   }
 
@@ -313,6 +313,7 @@
     if (active) {
       active.focus();
     }
+    jumpToArticle(state.activeId, false);
     return true;
   }
 
@@ -322,6 +323,64 @@
     }
     state.elements.dialog.classList.add('hidden');
     return true;
+  }
+
+  function jumpToArticle(articleId, smooth) {
+    if (!state.elements || !state.elements.article || !articleId) {
+      return false;
+    }
+    const section = state.elements.article.querySelector('[data-tutorial-section="' + articleId + '"]');
+    if (!section) {
+      return false;
+    }
+    state.activeId = articleId;
+    updateActiveNav();
+    const container = state.elements.article;
+    const delta = section.getBoundingClientRect().top - container.getBoundingClientRect().top;
+    container.scrollTo({
+      top: container.scrollTop + delta,
+      behavior: smooth && !prefersReducedMotion() ? 'smooth' : 'auto',
+    });
+    return true;
+  }
+
+  function updateActiveNav() {
+    if (!state.elements || !state.elements.nav) {
+      return;
+    }
+    state.elements.nav.querySelectorAll('[data-tutorial-article]').forEach((button) => {
+      button.classList.toggle('is-active', button.dataset.tutorialArticle === state.activeId);
+    });
+  }
+
+  function syncActiveFromScroll() {
+    if (!state.elements || !state.elements.article) {
+      return;
+    }
+    if (state.scrollFrame) {
+      global.cancelAnimationFrame(state.scrollFrame);
+    }
+    state.scrollFrame = global.requestAnimationFrame(() => {
+      state.scrollFrame = null;
+      const articleTop = state.elements.article.getBoundingClientRect().top;
+      let activeId = state.activeId;
+      let bestDistance = Infinity;
+      state.elements.article.querySelectorAll('[data-tutorial-section]').forEach((section) => {
+        const distance = Math.abs(section.getBoundingClientRect().top - articleTop);
+        if (distance < bestDistance) {
+          bestDistance = distance;
+          activeId = section.dataset.tutorialSection || activeId;
+        }
+      });
+      if (activeId !== state.activeId) {
+        state.activeId = activeId;
+        updateActiveNav();
+      }
+    });
+  }
+
+  function prefersReducedMotion() {
+    return Boolean(global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches);
   }
 
   function translate(key, fallback) {

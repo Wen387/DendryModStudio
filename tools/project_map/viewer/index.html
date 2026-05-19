@@ -23,7 +23,7 @@
         <div class="brand-copy">
           <div class="wordmark">Dendry <span>Mod Studio</span></div>
           <div class="brand-meta">
-            <span data-i18n="topbar.version">Dendry Mod Studio v0.97.5 dev preview</span>
+            <span data-i18n="topbar.version">Dendry Mod Studio v0.97.6 dev preview</span>
             <a href="https://github.com/Wen387" target="_blank" rel="noreferrer" data-i18n="topbar.author">by Awen</a>
           </div>
           <div id="brand-subtitle" class="brand-subtitle" data-i18n="topbar.subtitle.default">Studio workspace for branching Dendry projects</div>
@@ -51,14 +51,14 @@
         <details id="topbar-more" class="topbar-more">
           <summary><span data-i18n="topbar.more">More</span></summary>
           <div class="topbar-more-menu">
-            <button id="studio-open-onboarding" class="desktop-secondary-button" type="button" data-i18n="topbar.quickStart">Quick Start</button>
-            <button id="studio-open-tutorial-library" class="desktop-secondary-button" type="button" data-i18n="topbar.tutorialLibrary">Tutorial Library</button>
+            <button id="studio-open-onboarding" class="desktop-secondary-button" type="button"><span data-i18n="topbar.welcome">Welcome Hub</span></button>
+            <button id="studio-open-tutorial-library" class="desktop-secondary-button" type="button"><span data-i18n="topbar.tutorialLibrary">Tutorial Library</span></button>
             <button id="studio-open-announcements" class="desktop-secondary-button desktop-only-control hidden" type="button">
               <span data-i18n="topbar.announcements">Notice Preview</span>
               <span id="announcement-board-badge" class="announcement-board-badge hidden" aria-hidden="true"></span>
             </button>
-            <button id="studio-check-updates" class="desktop-secondary-button desktop-only-control hidden" type="button" data-i18n="topbar.checkUpdates">Check Notices</button>
-            <button id="desktop-run-doctor" class="desktop-secondary-button desktop-only-control hidden" type="button" data-i18n="topbar.checkSetup">Check Setup</button>
+            <button id="studio-check-updates" class="desktop-secondary-button desktop-only-control hidden" type="button"><span data-i18n="topbar.checkUpdates">Check Notices</span></button>
+            <button id="desktop-run-doctor" class="desktop-secondary-button desktop-only-control hidden" type="button"><span data-i18n="topbar.checkSetup">Check Setup</span></button>
             <label class="desktop-excerpt-toggle desktop-only-control hidden">
               <input id="desktop-include-excerpts" type="checkbox">
               <span data-i18n="topbar.includeExcerpts">Include source excerpts</span>
@@ -142,51 +142,7 @@
       </div>
     </div>
 
-    <div id="studio-onboarding" class="onboarding-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
-      <section class="onboarding-dialog">
-        <button class="onboarding-close" type="button" data-onboarding-close="true" aria-label="Close" data-i18n-aria-label="onboarding.dismiss">×</button>
-        <div class="onboarding-copy">
-          <p class="onboarding-eyebrow" data-i18n="topbar.quickStart">Quick Start</p>
-          <h1 id="onboarding-title" data-i18n="onboarding.title">Make your first safe mod proposal</h1>
-          <p data-i18n="onboarding.subtitle">Studio helps you find player-facing content, draft changes, save them as My Changes, and review what can be applied safely.</p>
-        </div>
-        <div class="onboarding-steps" aria-label="Quick Start steps" data-i18n-aria-label="onboarding.stepsLabel">
-          <article>
-            <span>1</span>
-            <h2 data-i18n="onboarding.step.open.title">Open or load a project</h2>
-            <p data-i18n="onboarding.step.open.body">Desktop users open a Dendry project folder. Browser users load a ProjectIndex JSON.</p>
-          </article>
-          <article>
-            <span>2</span>
-            <h2 data-i18n="onboarding.step.find.title">Find what to change</h2>
-            <p data-i18n="onboarding.step.find.body">Use Design for player flow, or Explore for searchable lists and source evidence.</p>
-          </article>
-          <article>
-            <span>3</span>
-            <h2 data-i18n="onboarding.step.create.title">Create a proposal</h2>
-            <p data-i18n="onboarding.step.create.body">Seed an existing Event, Card, News, or Text proposal, or start from a blank Create template.</p>
-          </article>
-          <article>
-            <span>4</span>
-            <h2 data-i18n="onboarding.step.save.title">Save to My Changes</h2>
-            <p data-i18n="onboarding.step.save.body">Saved proposals are drafts. They do not edit source until reviewed and applied.</p>
-          </article>
-          <article>
-            <span>5</span>
-            <h2 data-i18n="onboarding.step.review.title">Review & Apply</h2>
-            <p data-i18n="onboarding.step.review.body">Browser mode reviews plans. Desktop mode can dry-run and apply safe or guarded operations.</p>
-          </article>
-        </div>
-        <div class="onboarding-actions">
-          <button id="onboarding-primary" class="primary-action" type="button" data-onboarding-primary="true" data-i18n="onboarding.primary.browser">Load ProjectIndex JSON</button>
-          <button id="onboarding-load-demo" class="demo-action desktop-only-control hidden" type="button" data-i18n="onboarding.loadDemo">Load Demo Template</button>
-          <button id="onboarding-open-tutorial-library" type="button" data-i18n="onboarding.openTutorialLibrary">Open Tutorial Library</button>
-          <button type="button" data-onboarding-close="true" data-i18n="onboarding.secondary">Start in Studio</button>
-        </div>
-        <p class="onboarding-demo-note desktop-only-control hidden" data-i18n="onboarding.demoNote">The demo opens as a writable copy in your app data, so you can experiment without touching a real project.</p>
-        <p class="onboarding-note" data-i18n="onboarding.reopenLabel">You can reopen Quick Start from More.</p>
-      </section>
-    </div>
+    <div id="studio-welcome-root"></div>
 
     <div id="studio-tutorial-library" class="tutorial-library-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="tutorial-library-title">
       <section class="tutorial-library-dialog">
@@ -416,25 +372,34 @@
             <div class="template-eyebrow" data-i18n="install.assistant">Install Assistant</div>
             <h1 class="wizard-title" data-i18n="install.reviewPlan">Review & Apply</h1>
           </div>
-          <div class="wizard-status-stack">
-            <label class="draft-file-picker">
-              <span data-i18n="install.loadPlan">Load change plan</span>
-              <input id="install-plan-file" type="file" accept="application/json,.json">
-            </label>
-            <div id="install-status" class="wizard-index-status" data-i18n="install.noPlan">No install plan loaded.</div>
-            <div id="install-project-status" class="wizard-index-status" data-i18n="install.projectMissing">Open or load a project index first.</div>
+          <div class="install-context-panel" aria-label="Install context" data-i18n-aria-label="install.contextAria">
+            <input id="install-plan-file" class="install-plan-file-input" type="file" accept="application/json,.json">
+            <div class="install-context-grid">
+              <span class="install-context-label" data-i18n="install.planLabel">Change plan</span>
+              <strong id="install-plan-name" class="install-context-value" data-i18n="install.noPlanShort">No plan loaded</strong>
+              <button id="install-load-plan-button" class="install-plan-button" type="button" data-i18n="install.loadPlanButton">Load plan</button>
+              <span class="install-context-label" data-i18n="install.projectRoot">Project root</span>
+              <strong id="install-project-root-name" class="install-context-value" data-i18n="install.projectMissingShort">No project</strong>
+              <span class="install-context-spacer"></span>
+              <span class="install-context-label" data-i18n="install.fullPath">Full path</span>
+              <code id="install-project-status" class="install-context-path" data-i18n="install.projectMissing">Open or load a project index first.</code>
+              <span class="install-context-spacer"></span>
+            </div>
+            <div id="install-status" class="install-context-status" data-i18n="install.noPlan">No change plan loaded.</div>
           </div>
         </div>
 
-        <div id="install-summary" class="install-summary-grid"></div>
-        <div id="install-readiness" class="install-readiness"></div>
+        <section id="install-flow" class="install-flow" aria-label="Install flow" data-i18n-aria-label="install.flowAria"></section>
+        <section id="install-next-panel" class="install-next-panel" aria-live="polite"></section>
 
-        <section class="preview-drawer" aria-label="Install operation review" data-i18n-aria-label="install.operationReviewAria">
+        <div id="install-summary" class="install-summary-grid"></div>
+
+        <section id="install-operation-section" class="preview-drawer install-detail-section" aria-label="Install operation review" data-i18n-aria-label="install.operationReviewAria">
           <div class="preview-heading output-heading" data-i18n="install.operationChecklist">Change summary</div>
           <div id="install-checklist" class="install-human-checklist"></div>
         </section>
 
-        <section class="preview-drawer" aria-label="Install diff preview" data-i18n-aria-label="install.diffPreviewAria">
+        <section id="install-diff-section" class="preview-drawer install-detail-section" aria-label="Install diff preview" data-i18n-aria-label="install.diffPreviewAria">
           <div class="preview-heading output-heading" data-i18n="install.diffPreview">Plan preview / verified diff</div>
           <div class="install-diff-grid">
             <div class="install-diff-pane">
@@ -448,24 +413,40 @@
           </div>
         </section>
 
-        <div class="wizard-actions">
-          <button id="install-dry-run" class="primary-action" type="button" data-i18n="install.dryRunInstallable">Dry run installable operations</button>
-          <button id="install-apply" type="button" data-i18n="install.applyReviewed">Apply safe + guarded</button>
-          <button id="install-runtime-preview" type="button" data-i18n="install.runtimePreview">Runtime Preview</button>
-          <button id="install-download-evidence" type="button" data-i18n="install.downloadEvidence">Download evidence</button>
-          <button id="install-download-verified-diff" type="button" data-i18n="install.downloadVerifiedDiff">Download verified diff</button>
+        <div id="install-actions" class="wizard-actions install-actions">
+          <button id="install-dry-run" class="primary-action" type="button">
+            <span class="install-action-icon" data-ui-icon="search"></span>
+            <span data-i18n="install.dryRunInstallable">Dry run installable operations</span>
+          </button>
+          <button id="install-apply" type="button">
+            <span class="install-action-icon" data-ui-icon="check"></span>
+            <span data-i18n="install.applyReviewed">Apply safe + guarded</span>
+          </button>
+          <button id="install-runtime-preview" type="button">
+            <span class="install-action-icon" data-ui-icon="play"></span>
+            <span data-i18n="install.runtimePreview">Runtime Preview</span>
+          </button>
+          <button id="install-download-evidence" type="button">
+            <span class="install-action-icon" data-ui-icon="save"></span>
+            <span data-i18n="install.downloadEvidence">Download evidence</span>
+          </button>
+          <button id="install-download-verified-diff" type="button">
+            <span class="install-action-icon" data-ui-icon="text"></span>
+            <span data-i18n="install.downloadVerifiedDiff">Download verified diff</span>
+          </button>
           <label class="install-advanced-toggle">
+            <span class="install-action-icon" data-ui-icon="warning"></span>
             <input id="install-allow-advanced" type="checkbox">
-            <span data-i18n="install.includeAdvanced">! Advanced risky operations !</span>
+            <span data-install-advanced-label data-i18n="install.includeAdvanced">! Advanced risky operations !</span>
           </label>
         </div>
 
-        <section class="preview-drawer" aria-label="Runtime preview" data-i18n-aria-label="install.runtimePreviewAria">
+        <section id="install-runtime-preview-section" class="preview-drawer install-detail-section" aria-label="Runtime preview" data-i18n-aria-label="install.runtimePreviewAria">
           <div class="preview-heading output-heading" data-i18n="install.runtimePreviewResult">Runtime preview</div>
           <div id="install-runtime-preview-result" class="runtime-preview-report" aria-live="polite"></div>
         </section>
 
-        <section class="preview-drawer" aria-label="Install result" data-i18n-aria-label="install.resultAria">
+        <section id="install-result-section" class="preview-drawer install-detail-section" aria-label="Install result" data-i18n-aria-label="install.resultAria">
           <div class="preview-heading output-heading" data-i18n="install.result">Result</div>
           <pre id="install-result" class="code-preview"></pre>
         </section>
@@ -2786,6 +2767,9 @@ media_reach += 1</textarea>
   <script src="i18n/zh-Hant.js"></script>
   <script src="desktop_capabilities.js"></script>
   <script src="i18n.js"></script>
+  <script src="icons.js"></script>
+  <script src="welcome_surface_ui.js"></script>
+  <script src="runtime_preview_loading_ui.js"></script>
   <script src="explore_model.js"></script>
   <script src="editing_context_graph.js"></script>
   <script src="editing_field_panels.js"></script>

@@ -12,6 +12,7 @@
 
   const state = {
     plan: null,
+    planFileName: '',
     projectRoot: '',
     projectIndex: null,
     lastCheckKey: '',
@@ -36,6 +37,7 @@
     renderRuntimePreviewResult,
     getState: () => ({
       plan: state.plan,
+      planFileName: state.planFileName,
       projectRoot: state.projectRoot,
       projectIndex: state.projectIndex,
       lastCheckKey: state.lastCheckKey,
@@ -66,13 +68,18 @@
   function startInstallAssistant(document) {
     elements = {
       file: document.getElementById('install-plan-file'),
+      loadPlanButton: document.getElementById('install-load-plan-button'),
+      planName: document.getElementById('install-plan-name'),
       status: document.getElementById('install-status'),
+      projectRootName: document.getElementById('install-project-root-name'),
       projectStatus: document.getElementById('install-project-status'),
+      flow: document.getElementById('install-flow'),
+      nextPanel: document.getElementById('install-next-panel'),
       summary: document.getElementById('install-summary'),
-      readiness: document.getElementById('install-readiness'),
       checklist: document.getElementById('install-checklist'),
       patchPreview: document.getElementById('install-patch-preview'),
       verifiedDiff: document.getElementById('install-verified-diff'),
+      actions: document.getElementById('install-actions'),
       dryRun: document.getElementById('install-dry-run'),
       apply: document.getElementById('install-apply'),
       runtimePreview: document.getElementById('install-runtime-preview'),
@@ -80,7 +87,11 @@
       downloadVerifiedDiff: document.getElementById('install-download-verified-diff'),
       allowAdvanced: document.getElementById('install-allow-advanced'),
       runtimePreviewResult: document.getElementById('install-runtime-preview-result'),
-      result: document.getElementById('install-result')
+      result: document.getElementById('install-result'),
+      operationSection: document.getElementById('install-operation-section'),
+      diffSection: document.getElementById('install-diff-section'),
+      runtimePreviewSection: document.getElementById('install-runtime-preview-section'),
+      resultSection: document.getElementById('install-result-section')
     };
     if (!elements.file) {
       return;
@@ -94,6 +105,21 @@
         readPlanFile(file);
       }
     });
+    if (elements.loadPlanButton) {
+      elements.loadPlanButton.addEventListener('click', () => {
+        if (elements.file && typeof elements.file.click === 'function') {
+          elements.file.click();
+        }
+      });
+    }
+    if (elements.nextPanel) {
+      elements.nextPanel.addEventListener('click', (event) => {
+        const button = event.target && event.target.closest && event.target.closest('[data-install-next-action], [data-install-empty-action]');
+        if (button) {
+          handlePanelAction(button.dataset.installNextAction || button.dataset.installEmptyAction);
+        }
+      });
+    }
     elements.dryRun.addEventListener('click', () => {
       applyLoadedPlan({
         dryRun: true,
@@ -145,6 +171,54 @@
     render();
   }
 
+  function handlePanelAction(action) {
+    if (action === 'load-plan') {
+      if (elements && elements.file && typeof elements.file.click === 'function') {
+        elements.file.click();
+      }
+      return;
+    }
+    if (action === 'open-changes') {
+      openSavedChanges();
+      return;
+    }
+    if (action === 'tutorial') {
+      const library = global.ProjectMapTutorialLibrary;
+      if (library && typeof library.open === 'function') {
+        library.open();
+      }
+      return;
+    }
+    if (action === 'dry-run') {
+      if (elements && elements.dryRun && !elements.dryRun.disabled) {
+        elements.dryRun.click();
+      }
+      return;
+    }
+    if (action === 'apply') {
+      if (elements && elements.apply && !elements.apply.disabled) {
+        elements.apply.click();
+      }
+      return;
+    }
+    if (action === 'runtime-preview') {
+      if (elements && elements.runtimePreview && !elements.runtimePreview.disabled) {
+        elements.runtimePreview.click();
+      }
+    }
+  }
+
+  function openSavedChanges() {
+    const createButton = global.document && global.document.querySelector('[data-mode="create"]');
+    if (createButton && typeof createButton.click === 'function') {
+      createButton.click();
+    }
+    const tray = global.ProjectMapChangeTray;
+    if (tray && typeof tray.setOpen === 'function') {
+      tray.setOpen(true);
+    }
+  }
+
   function confirmEnableAdvanced() {
     if (!global.confirm) {
       return true;
@@ -158,7 +232,7 @@
       const index = detail.index || (detail.model && detail.model.index) || null;
       state.projectIndex = index || state.projectIndex || null;
       state.projectRoot = detail.root || (index && index.project && index.project.root) || state.projectRoot || '';
-      renderProjectStatus();
+      renderInstallHeaderContext();
     };
     EVENT_NAMES.forEach((name) => {
       global.document.addEventListener(name, handler);
@@ -222,6 +296,7 @@
         loadPlan(JSON.parse(String(reader.result || '{}')), {fileName: file.name});
       } catch (err) {
         state.plan = null;
+        state.planFileName = '';
         state.lastResult = null;
         state.postApplyVerification = null;
         state.runtimePreviewResult = null;
@@ -238,6 +313,7 @@
 
   function loadPlan(plan, meta) {
     state.plan = plan && typeof plan === 'object' ? plan : null;
+    state.planFileName = state.plan ? planDisplayName(state.plan, meta) : '';
     const planRoot = installPlanProjectRoot(state.plan);
     if (planRoot) {
       state.projectRoot = planRoot;
@@ -249,7 +325,7 @@
     state.runtimePreviewResult = null;
     state.runtimePreviewSuspended = false;
     setStatus(state.plan
-      ? t('install.loadedPlan', 'Loaded change plan') + ': ' + ((meta && meta.fileName) || state.plan.id || 'install plan')
+      ? t('install.loadedPlan', 'Loaded change plan') + ': ' + (state.planFileName || t('install.genericPlan', 'install plan'))
       : t('install.noPlan', 'No change plan loaded.'), state.plan ? 'ready' : '');
     render();
     return renderInstallAssistantPlan(state.plan);
@@ -372,6 +448,24 @@
     return rows.some((item) => item && (item.status === 'applied' || item.status === 'already_applied'));
   }
 
+  function showRuntimePreviewLoading() {
+    const loading = global.ProjectMapRuntimePreviewLoading;
+    return loading && typeof loading.show === 'function'
+      ? loading.show({label: t('install.runtimePreviewProgressLabel', 'Runtime preview progress')})
+      : null;
+  }
+
+  function hideRuntimePreviewLoading(releaseLoading) {
+    if (typeof releaseLoading === 'function') {
+      releaseLoading();
+      return;
+    }
+    const loading = global.ProjectMapRuntimePreviewLoading;
+    if (loading && typeof loading.hide === 'function') {
+      loading.hide();
+    }
+  }
+
   async function createRuntimePreview(options) {
     const allowAdvanced = Boolean(options && options.allowAdvanced === true);
     const projectRoot = await resolveActiveProjectRoot();
@@ -400,6 +494,7 @@
       progressStage: 'full-build',
       message: t('install.runtimePreviewStarting', 'Creating a temporary baseline and modified preview...')
     });
+    const releaseLoading = showRuntimePreviewLoading();
     try {
       const result = await desktop.createRuntimePreview({
         plan: state.plan || emptyRuntimePreviewPlan(projectRoot),
@@ -416,6 +511,8 @@
         message: err && err.message ? err.message : String(err)
       });
       return state.runtimePreviewResult;
+    } finally {
+      hideRuntimePreviewLoading(releaseLoading);
     }
   }
 
@@ -542,12 +639,18 @@
     if (!elements) {
       return;
     }
-    renderProjectStatus();
+    renderInstallHeaderContext();
     const rendered = renderInstallAssistantPlan(state.plan);
-    elements.summary.innerHTML = renderSummary(rendered.summary);
-    if (elements.readiness) {
-      elements.readiness.innerHTML = renderReadiness(rendered.summary);
+    const summary = rendered.summary || emptySummary();
+    const viewState = buildReviewApplyUiState(summary, currentAllowAdvanced());
+    if (elements.flow) {
+      elements.flow.innerHTML = renderInstallFlow(summary, viewState);
     }
+    if (elements.nextPanel) {
+      elements.nextPanel.innerHTML = renderNextPanel(summary, viewState);
+    }
+    elements.summary.innerHTML = renderSummary(rendered.summary);
+    toggleElement(elements.summary, Boolean(state.plan));
     elements.checklist.innerHTML = renderHumanChecklist(state.plan, rendered.summary);
     elements.patchPreview.textContent = rendered.patchPreview || t('install.patchPreview.empty', '(no patch preview)');
     if (elements.verifiedDiff) {
@@ -564,6 +667,8 @@
     if (elements.runtimePreview) {
       elements.runtimePreview.disabled = !global.dendryDesktop || Boolean(state.runtimePreviewResult && state.runtimePreviewResult.pending);
     }
+    syncDetailVisibility();
+    syncActionLayout(summary, viewState);
     if (elements.runtimePreviewResult) {
       elements.runtimePreviewResult.innerHTML = renderRuntimePreviewResult(state.runtimePreviewResult);
     }
@@ -572,6 +677,251 @@
         ? t('install.result.emptyDesktop', 'Load a change plan, then run a check before applying changes.')
         : browserReviewOnlyMessage();
     }
+  }
+
+  function renderInstallFlow(summary, viewState) {
+    const steps = installFlowSteps(summary, viewState);
+    return [
+      '<ol class="install-flow-list">',
+      steps.map((step, index) => [
+        '<li class="install-flow-step is-' + step.state + '">',
+        '<span class="install-flow-index">' + escapeHtml(String(index + 1).padStart(2, '0')) + '</span>',
+        '<span class="install-flow-text">',
+        '<strong>' + escapeHtml(step.title) + '</strong>',
+        '<small>' + escapeHtml(step.body) + '</small>',
+        '</span>',
+        '</li>'
+      ].join('')).join(''),
+      '</ol>'
+    ].join('');
+  }
+
+  function installFlowSteps(_summary, viewState) {
+    const hasPlan = Boolean(state.plan);
+    const checked = currentCheckMatches(currentAllowAdvanced());
+    const failedCheck = Boolean(state.lastResult && state.lastResult.dryRun && (!state.lastResult.ok || resultHasFailures(state.lastResult)));
+    const diffReady = Boolean(currentVerifiedDiff());
+    const applied = Boolean(state.lastResult && state.lastResult.dryRun === false && state.lastResult.ok);
+    const verified = Boolean(state.postApplyVerification && state.postApplyVerification.ok && !resultHasFailures(state.postApplyVerification));
+    const canApplyNow = Boolean(viewState && viewState.readiness && viewState.readiness.canApply);
+    return [
+      {
+        title: t('install.flow.load.title', 'Load proposal'),
+        body: t('install.flow.load.body', 'Bring in a draft or install-plan JSON.'),
+        state: hasPlan ? 'done' : 'active'
+      },
+      {
+        title: t('install.flow.check.title', 'Check files'),
+        body: t('install.flow.check.body', 'Compare the plan against the current project.'),
+        state: failedCheck ? 'blocked' : checked || applied ? 'done' : hasPlan ? 'active' : 'waiting'
+      },
+      {
+        title: t('install.flow.preview.title', 'Preview diff'),
+        body: t('install.flow.preview.body', 'Read the verified file changes.'),
+        state: diffReady || applied ? 'done' : checked && !canApplyNow ? 'active' : 'waiting'
+      },
+      {
+        title: t('install.flow.apply.title', 'Apply'),
+        body: t('install.flow.apply.body', 'Write only the reviewed automatic changes.'),
+        state: applied ? 'done' : canApplyNow ? 'active' : 'waiting'
+      },
+      {
+        title: t('install.flow.verify.title', 'Verify'),
+        body: t('install.flow.verify.body', 'Review the result and test the game.'),
+        state: verified ? 'done' : applied ? 'active' : 'waiting'
+      }
+    ];
+  }
+
+  function renderNextPanel(summary, viewState) {
+    if (!state.plan) {
+      return renderEmptyInstallPanel();
+    }
+    if (!global.dendryDesktop) {
+      return renderNextCard({
+        icon: 'book',
+        eyebrow: t('install.next.reviewOnlyEyebrow', 'Browser review mode'),
+        title: t('install.next.reviewOnlyTitle', 'Review the plan here, apply in the desktop app'),
+        body: browserReviewOnlyMessage(),
+        aside: summary.total ? t('install.next.loadedCount', '{count} change(s) loaded').replace('{count}', summary.total) : '',
+        action: 'tutorial',
+        actionLabel: t('install.next.learnMode', 'Open Tutorial Library'),
+        secondary: true
+      });
+    }
+    if (state.runtimePreviewResult && state.runtimePreviewResult.pending) {
+      return renderNextCard({
+        icon: 'map',
+        eyebrow: t('install.next.previewEyebrow', 'Runtime preview'),
+        title: t('install.next.previewTitle', 'Building a temporary preview'),
+        body: t('install.next.previewBody', 'Studio is copying the project, applying this plan to a sandbox, and preparing a comparison server.'),
+        aside: t('install.next.wait', 'This can take a little while on larger projects.')
+      });
+    }
+    if (state.lastResult && state.lastResult.dryRun === false) {
+      const attention = !state.lastResult.ok || resultHasFailures(state.lastResult) || (state.postApplyVerification && (!state.postApplyVerification.ok || resultHasFailures(state.postApplyVerification)));
+      return renderNextCard({
+        icon: attention ? 'warning' : 'check',
+        eyebrow: t('install.next.afterApplyEyebrow', 'Apply result'),
+        title: attention
+          ? t('install.next.afterApplyAttentionTitle', 'Read the result before continuing')
+          : t('install.next.afterApplyTitle', 'Applied changes are ready to inspect'),
+        body: attention
+          ? t('install.next.afterApplyAttentionBody', 'The result report has warnings or a failed verification. Review the details before testing.')
+          : t('install.next.afterApplyBody', 'Review the result report, then launch the game or use Runtime Preview to inspect the playable outcome.'),
+        action: state.runtimePreviewResult ? '' : 'runtime-preview',
+        actionLabel: t('install.runtimePreview', 'Runtime Preview'),
+        secondary: true
+      });
+    }
+    const readiness = viewState && viewState.readiness || {};
+    if (readiness.canApply) {
+      return renderNextCard({
+        icon: 'check',
+        eyebrow: t('install.next.readyEyebrow', 'Check passed'),
+        title: t('install.next.readyTitle', 'Ready to apply reviewed changes'),
+        body: t('install.next.readyBody', 'The current files match this plan. Studio will apply only automatic safe and reviewed changes; manual steps stay visible.'),
+        aside: t('install.next.readyAside', 'Read the verified diff first if you want one more look.'),
+        action: 'apply',
+        actionLabel: t('install.applyReviewed', 'Apply safe + guarded')
+      });
+    }
+    if (state.lastResult && state.lastResult.dryRun && (!state.lastResult.ok || resultHasFailures(state.lastResult))) {
+      return renderNextCard({
+        icon: 'warning',
+        eyebrow: t('install.next.blockedEyebrow', 'Check needs attention'),
+        title: t('install.next.blockedTitle', 'Fix or review the blocking item first'),
+        body: t('install.next.blockedBody', 'The latest check found a mismatch or protected operation. Read the result report and operation evidence before applying anything.'),
+        action: 'dry-run',
+        actionLabel: t('install.next.recheck', 'Run check again'),
+        secondary: true
+      });
+    }
+    return renderNextCard({
+      icon: 'search',
+      eyebrow: t('install.next.checkEyebrow', 'Next step'),
+      title: t('install.next.checkTitle', 'Check the current files before applying'),
+      body: t('install.next.checkBody', 'Studio will compare the proposal against the project on disk and produce evidence before any file is changed.'),
+      aside: summary.total ? t('install.next.loadedCount', '{count} change(s) loaded').replace('{count}', summary.total) : '',
+      action: 'dry-run',
+      actionLabel: t('install.dryRunInstallable', 'Dry run installable operations')
+    });
+  }
+
+  function renderEmptyInstallPanel() {
+    return [
+      '<div class="install-empty-panel">',
+      '<div class="install-empty-intro">',
+      '<span class="install-empty-icon">' + iconHtml('check') + '</span>',
+      '<div>',
+      '<strong>' + escapeHtml(t('install.empty.title', 'Choose how to bring changes here')) + '</strong>',
+      '<p>' + escapeHtml(t('install.empty.body', 'Review & Apply is the final gate. Nothing is written until a plan is loaded, checked, and explicitly applied.')) + '</p>',
+      '</div>',
+      '</div>',
+      '<div class="install-empty-options">',
+      renderEmptyOption('save', t('install.empty.fromChanges.title', 'Review My Changes'), t('install.empty.fromChanges.body', 'Return to Create and open saved drafts that can be sent into Review & Apply.'), 'open-changes', t('install.empty.fromChanges.cta', 'Open My Changes'), true),
+      renderEmptyOption('folder', t('install.empty.loadJson.title', 'Load install-plan JSON'), t('install.empty.loadJson.body', 'Use a plan exported from this Studio session or generated elsewhere.'), 'load-plan', t('install.loadPlan', 'Load change plan')),
+      renderEmptyOption('book', t('install.empty.mode.title', 'Browser vs desktop'), t('install.empty.mode.body', 'Browser mode can review plans. Desktop mode can check current files, apply supported changes, and create runtime previews.'), 'tutorial', t('install.next.learnMode', 'Open Tutorial Library'), true),
+      '</div>',
+      '</div>'
+    ].join('');
+  }
+
+  function renderEmptyOption(icon, title, body, action, label, secondary) {
+    return [
+      '<article class="install-empty-option">',
+      '<span class="install-empty-option-icon">' + iconHtml(icon) + '</span>',
+      '<strong>' + escapeHtml(title) + '</strong>',
+      '<p>' + escapeHtml(body) + '</p>',
+      '<button type="button" class="' + (secondary ? '' : 'primary-action') + '" data-install-empty-action="' + action + '">',
+      escapeHtml(label),
+      '</button>',
+      '</article>'
+    ].join('');
+  }
+
+  function renderNextCard(options) {
+    const value = options || {};
+    const action = value.action || '';
+    return [
+      '<article class="install-next-card">',
+      '<div class="install-next-copy">',
+      '<span class="install-next-icon">' + iconHtml(value.icon || 'check') + '</span>',
+      '<div>',
+      value.eyebrow ? '<small>' + escapeHtml(value.eyebrow) + '</small>' : '',
+      '<strong>' + escapeHtml(value.title || '') + '</strong>',
+      value.body ? '<p>' + escapeHtml(value.body) + '</p>' : '',
+      value.aside ? '<em>' + escapeHtml(value.aside) + '</em>' : '',
+      '</div>',
+      '</div>',
+      action ? '<button type="button" class="' + (value.secondary ? '' : 'primary-action') + '" data-install-next-action="' + action + '">' + escapeHtml(value.actionLabel || '') + '</button>' : '',
+      '</article>'
+    ].join('');
+  }
+
+  function syncDetailVisibility() {
+    const hasPlan = Boolean(state.plan);
+    toggleElement(elements.operationSection, hasPlan);
+    toggleElement(elements.diffSection, hasPlan);
+    toggleElement(elements.runtimePreviewSection, hasPlan || Boolean(state.runtimePreviewResult));
+    toggleElement(elements.resultSection, hasPlan || Boolean(state.lastResult));
+  }
+
+  function syncActionLayout(summary, viewState) {
+    const hasPlan = Boolean(state.plan);
+    toggleElement(elements.actions, hasPlan);
+    if (!hasPlan) {
+      return;
+    }
+    const hasDesktop = Boolean(global.dendryDesktop);
+    const canApply = Boolean(viewState && viewState.readiness && viewState.readiness.canApply);
+    toggleElement(elements.dryRun, hasDesktop);
+    toggleElement(elements.apply, hasDesktop);
+    toggleElement(elements.runtimePreview, hasDesktop);
+    toggleElement(elements.downloadEvidence, hasEvidenceBundle());
+    toggleElement(elements.downloadVerifiedDiff, Boolean(currentVerifiedDiff()));
+    syncAdvancedToggle(summary, hasDesktop);
+    [elements.dryRun, elements.apply].forEach((button) => {
+      if (button && button.classList) {
+        button.classList.remove('primary-action');
+      }
+    });
+    if (canApply && elements.apply && elements.apply.classList) {
+      elements.apply.classList.add('primary-action');
+    } else if (elements.dryRun && elements.dryRun.classList) {
+      elements.dryRun.classList.add('primary-action');
+    }
+  }
+
+  function syncAdvancedToggle(summary, hasDesktop) {
+    if (!elements || !elements.allowAdvanced || !elements.allowAdvanced.closest) {
+      return;
+    }
+    const advancedToggle = elements.allowAdvanced.closest('.install-advanced-toggle');
+    const advancedCount = Number(summary && summary.advancedApply || 0);
+    const disabled = !hasDesktop || advancedCount <= 0;
+    toggleElement(advancedToggle, Boolean(state.plan));
+    elements.allowAdvanced.disabled = disabled;
+    if (disabled) {
+      elements.allowAdvanced.checked = false;
+    }
+    if (advancedToggle && advancedToggle.classList) {
+      advancedToggle.classList.toggle('is-disabled', disabled);
+      advancedToggle.classList.toggle('has-advanced', advancedCount > 0);
+    }
+    const label = advancedToggle && advancedToggle.querySelector ? advancedToggle.querySelector('[data-install-advanced-label]') : null;
+    if (label) {
+      label.textContent = advancedCount > 0
+        ? t('install.includeAdvancedCount', 'Advanced changes ({count})').replace('{count}', String(advancedCount))
+        : t('install.noAdvancedChanges', 'No advanced changes');
+    }
+  }
+
+  function toggleElement(element, visible) {
+    if (!element) {
+      return;
+    }
+    element.hidden = !visible;
   }
 
   function renderSummary(summary) {
@@ -618,29 +968,6 @@
     ));
   }
 
-  function renderReadiness(summary) {
-    if (!state.plan) {
-      return [
-        '<div class="install-readiness-card">',
-        '<strong>' + escapeHtml(t('install.finishMod', 'Finish this mod')) + '</strong>',
-        '<p>' + escapeHtml(t('install.readiness.noPlan', 'Load a change plan to see what Studio can apply and what still needs manual review.')) + '</p>',
-        '</div>'
-      ].join('');
-    }
-    const viewState = buildReviewApplyUiState(summary);
-    const status = renderReadinessStatus(viewState);
-    const steps = viewState.steps.map(renderReadinessStep);
-    return [
-      '<div class="install-readiness-card">',
-      '<strong>' + escapeHtml(t('install.finishMod', 'Finish this mod')) + '</strong>',
-      '<p>' + escapeHtml(status) + '</p>',
-      '<ul>',
-      steps.map((step) => '<li>' + escapeHtml(step) + '</li>').join(''),
-      '</ul>',
-      '</div>'
-    ].join('');
-  }
-
   function renderHumanChecklist(plan, summary) {
     const reviewApi = global.ProjectMapInstallReviewUi;
     const allowAdvanced = currentAllowAdvanced();
@@ -676,13 +1003,35 @@
     return Boolean(elements && elements.allowAdvanced && elements.allowAdvanced.checked);
   }
 
-  function renderProjectStatus() {
-    if (!elements || !elements.projectStatus) {
+  function renderInstallHeaderContext() {
+    if (!elements) {
       return;
     }
-    elements.projectStatus.textContent = state.projectRoot
-      ? t('install.projectRoot', 'Project root') + ': ' + state.projectRoot
-      : t('install.projectMissing', 'Open or load a project index first.');
+    const root = state.projectRoot || installPlanProjectRoot(state.plan) || '';
+    if (elements.planName) {
+      const planName = state.plan
+        ? state.planFileName || planDisplayName(state.plan, null)
+        : t('install.noPlanShort', 'No plan loaded');
+      elements.planName.textContent = planName;
+      elements.planName.title = state.plan ? planName : '';
+      elements.planName.classList.toggle('is-missing', !state.plan);
+    }
+    if (elements.loadPlanButton) {
+      elements.loadPlanButton.textContent = state.plan
+        ? t('install.replacePlanButton', 'Change plan')
+        : t('install.loadPlanButton', 'Load plan');
+    }
+    if (elements.projectRootName) {
+      const rootName = root ? projectRootName(root) : t('install.projectMissingShort', 'No project');
+      elements.projectRootName.textContent = rootName;
+      elements.projectRootName.title = root || '';
+      elements.projectRootName.classList.toggle('is-missing', !root);
+    }
+    if (elements.projectStatus) {
+      elements.projectStatus.textContent = root || t('install.projectMissing', 'Open or load a project index first.');
+      elements.projectStatus.title = root || '';
+      elements.projectStatus.classList.toggle('is-missing', !root);
+    }
   }
 
   function setStatus(message, kind) {
@@ -782,63 +1131,6 @@
       statusKind: 'none',
       steps: []
     };
-  }
-
-  function renderReadinessStatus(viewState) {
-    const labels = {
-      applied_needs_verification: t('install.readiness.appliedNeedsVerification', 'Changes were applied; post-apply verification did not run.'),
-      applied_attention: t('install.readiness.appliedAttention', 'Applied, but verification needs attention.'),
-      applied_manual_remaining: t('install.readiness.appliedManualRemaining', 'Applied and verified; manual steps remain.'),
-      applied_verified: t('install.readiness.appliedVerified', 'Applied and verified.'),
-      failed_check: t('install.readiness.failedCheck', 'Latest check found an operation that cannot be applied yet.'),
-      checked: t('install.readiness.checked', 'Check passed. Studio can apply the reviewed changes.'),
-      needs_check_guarded: t('install.readiness.guarded', 'Run a check, then Studio can apply the reviewed changes.'),
-      needs_check_safe: t('install.readiness.safe', 'Ready to apply safe changes.'),
-      blocked: t('install.readiness.blocked', 'Some changes are protected and will not be applied.'),
-      advanced: t('install.readiness.advanced', 'Some changes need explicit advanced opt-in.'),
-      manual: t('install.readiness.manual', 'Playable after you complete the manual steps.'),
-      none: t('install.readiness.none', 'No installable changes in this plan.')
-    };
-    return labels[viewState && viewState.statusKind] || labels.none;
-  }
-
-  function renderReadinessStep(step) {
-    if (!step || !step.kind) {
-      return '';
-    }
-    const count = Number(step.count || 0);
-    const labels = {
-      apply_done: t('install.readiness.applyDone', 'Apply step completed.'),
-      post_verify_attention: t('install.readiness.postVerifyAttention', 'Post-apply verification found a mismatch or a still-pending automatic change.'),
-      post_verify_passed: t('install.readiness.postVerifyPassed', 'Post-apply verification found the automatic changes in place.'),
-      check_passed: t('install.readiness.checkPassed', 'Latest check matches this plan.'),
-      check_needed: t('install.readiness.checkNeeded', 'Run check before applying.'),
-      no_check_needed: t('install.readiness.noCheckNeeded', 'No automatic apply step is available.'),
-      no_safe: t('install.readiness.noSafe', 'No safe one-click changes.'),
-      no_guarded: t('install.readiness.noGuarded', 'No guarded changes.'),
-      no_advanced: t('install.readiness.noAdvanced', 'No advanced changes.'),
-      no_manual: t('install.readiness.noManual', 'No manual steps remain.'),
-      no_refused: t('install.readiness.noRefused', 'No protected changes.')
-    };
-    if (step.kind === 'failed_operation') {
-      return t('install.readiness.failedOperation', 'Blocking operation') + ': ' + (Array.isArray(step.labelParts) ? step.labelParts.join(' · ') : '');
-    }
-    if (step.kind === 'safe_count') {
-      return t('install.readiness.safeCount', 'Safe changes') + ': ' + count;
-    }
-    if (step.kind === 'guarded_count') {
-      return t('install.readiness.guardedCount', 'Reviewed changes') + ': ' + count;
-    }
-    if (step.kind === 'advanced_count') {
-      return t('install.readiness.advancedCount', 'Advanced changes') + ': ' + count;
-    }
-    if (step.kind === 'manual_count') {
-      return t('install.readiness.manualCount', 'Manual steps') + ': ' + count;
-    }
-    if (step.kind === 'refused_count') {
-      return t('install.readiness.refusedCount', 'Protected changes') + ': ' + count;
-    }
-    return labels[step.kind] || String(step.kind);
   }
 
   function currentCheckMatches(allowAdvanced) {
@@ -944,19 +1236,9 @@
     if (!result || !result.pending) {
       return '';
     }
-    const steps = [
-      t('install.runtimePreviewProgress.copy', 'Copying the project into a temporary sandbox'),
-      t('install.runtimePreviewProgress.apply', 'Applying this plan to the modified copy'),
-      t('install.runtimePreviewProgress.build', 'Building generated game output for preview'),
-      t('install.runtimePreviewProgress.server', 'Starting the local comparison server')
-    ];
     return [
       '<div class="runtime-preview-progress" role="status" aria-live="polite">',
       '<progress max="100" aria-label="' + escapeHtml(t('install.runtimePreviewProgressLabel', 'Runtime preview progress')) + '"></progress>',
-      '<p>' + escapeHtml(t('install.runtimePreviewFullBuildNote', 'This is a full deployment preview: Studio copies the project, applies the plan to a temporary modified copy, and rebuilds game output. Large projects can take a while.')) + '</p>',
-      '<ol>',
-      steps.map((step) => '<li>' + escapeHtml(step) + '</li>').join(''),
-      '</ol>',
       '</div>'
     ].join('');
   }
@@ -1096,6 +1378,22 @@
     return String(raw || 'dendry-install-plan').trim().replace(/[^A-Za-z0-9_.-]+/g, '_') || 'dendry-install-plan';
   }
 
+  function planDisplayName(plan, meta) {
+    const fromMeta = meta && typeof meta.fileName === 'string' ? meta.fileName.trim() : '';
+    const fromPlan = plan && (plan.fileName || plan.id || plan.title);
+    return fromMeta || String(fromPlan || '').trim() || t('install.genericPlan', 'install plan');
+  }
+
+  function projectRootName(root) {
+    const value = String(root || '').trim();
+    if (!value) {
+      return '';
+    }
+    const normalized = value.replace(/[\\/]+$/, '');
+    const parts = normalized.split(/[\\/]+/).filter(Boolean);
+    return parts.length ? parts[parts.length - 1] : value;
+  }
+
   function downloadText(fileName, content, type) {
     if (!global.document || typeof Blob === 'undefined' || !global.URL || typeof global.URL.createObjectURL !== 'function') {
       return false;
@@ -1155,6 +1453,11 @@
   function t(key, fallback) {
     const i18n = global.ProjectMapI18n;
     return i18n && typeof i18n.t === 'function' ? i18n.t(key, fallback) : fallback;
+  }
+
+  function iconHtml(name) {
+    const icons = global.ProjectMapIcons;
+    return icons && typeof icons.icon === 'function' ? icons.icon(name) : '';
   }
 
   function currentLocale() {

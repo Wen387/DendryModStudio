@@ -9,9 +9,10 @@
   const STORY_PALETTE_DEFAULT_WIDTH = 376;
   const STORY_PALETTE_MIN_WIDTH = 300;
   const STORY_PALETTE_MAX_WIDTH = 620;
-  const STORY_PALETTE_DEFAULT_ROW_HEIGHT = 220;
-  const STORY_PALETTE_MIN_ROW_HEIGHT = 120;
-  const STORY_PALETTE_MAX_ROW_HEIGHT = 420;
+  const STORY_PALETTE_DEFAULT_ROW_HEIGHT = 96;
+  const STORY_PALETTE_MIN_ROW_HEIGHT = 56;
+  const STORY_PALETTE_MAX_ROW_HEIGHT = 220;
+  const STORY_PALETTE_CLOSE_MOTION_MS = 150;
 
   function reset(state) {
     state.storyboardView = 'timeline';
@@ -128,10 +129,12 @@
       return setCardColor(state, key, color, deps);
     }
     if (action === 'toggle_story_palette') {
-      return refreshPaletteOnly(state, deps, {storyPaletteOpen: !state.storyPaletteOpen});
+      return state.storyPaletteOpen
+        ? closePaletteWithMotion(state, deps)
+        : refreshPaletteOnly(state, deps, {storyPaletteOpen: true});
     }
     if (action === 'close_story_palette') {
-      return refreshPaletteOnly(state, deps, {storyPaletteOpen: false});
+      return closePaletteWithMotion(state, deps);
     }
     if (action === 'toggle_story_palette_chrome') {
       const collapsed = !state.storyPaletteChromeCollapsed;
@@ -665,6 +668,9 @@
   }
 
   function refreshPaletteOnly(state, deps, patch, options) {
+    if (patch && patch.storyPaletteOpen) {
+      cancelPaletteCloseTimer(state);
+    }
     Object.assign(state, patch || {});
     state.storyPalettePinnedKeys = normalizeKeyList(state.storyPalettePinnedKeys || readStoredKeyList(STORY_PALETTE_PIN_STORAGE_KEY));
     state.storyPaletteRecentKeys = normalizeKeyList(state.storyPaletteRecentKeys || readStoredKeyList(STORY_PALETTE_RECENT_STORAGE_KEY));
@@ -701,6 +707,36 @@
       restorePaletteScroll(root, state.storyPaletteScrollOffset || 0);
     }
     return true;
+  }
+
+  function closePaletteWithMotion(state, deps) {
+    if (!state || !state.storyPaletteOpen) {
+      return refreshPaletteOnly(state, deps, {storyPaletteOpen: false});
+    }
+    if (state.__storyPaletteCloseTimer) {
+      return true;
+    }
+    const root = state.__storyPaletteRoot;
+    const palette = root && root.querySelector && root.querySelector('[data-storyboard-palette-open="true"]');
+    if (!palette || !palette.classList) {
+      return refreshPaletteOnly(state, deps, {storyPaletteOpen: false});
+    }
+    palette.classList.add('is-closing');
+    const view = root.ownerDocument && root.ownerDocument.defaultView || global;
+    const reduceMotion = view && view.matchMedia && view.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    state.__storyPaletteCloseTimer = (view.setTimeout || setTimeout)(() => {
+      state.__storyPaletteCloseTimer = null;
+      refreshPaletteOnly(state, deps, {storyPaletteOpen: false});
+    }, reduceMotion ? 1 : STORY_PALETTE_CLOSE_MOTION_MS);
+    return true;
+  }
+
+  function cancelPaletteCloseTimer(state) {
+    if (!state || !state.__storyPaletteCloseTimer) {
+      return;
+    }
+    clearTimeout(state.__storyPaletteCloseTimer);
+    state.__storyPaletteCloseTimer = null;
   }
 
   function restorePaletteScroll(root, offset) {

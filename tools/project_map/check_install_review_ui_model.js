@@ -266,7 +266,8 @@ const pendingRuntimeHtml = assistant.renderRuntimePreviewResult({
   message: 'Creating preview...'
 });
 assert(pendingRuntimeHtml.includes('<progress'), 'pending runtime preview should show progress');
-assert(pendingRuntimeHtml.includes('full deployment preview'), 'pending runtime preview should explain full deployment preview cost');
+assert(!pendingRuntimeHtml.includes('<ol>'), 'pending runtime preview should stay compact');
+assert(!pendingRuntimeHtml.includes('full deployment preview'), 'pending runtime preview should avoid verbose inline copy');
 
 process.stdout.write(JSON.stringify({
   ok: true,

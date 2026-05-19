@@ -198,6 +198,7 @@ function checkObjectCanvasContracts() {
 function checkStoryboardContracts() {
   const interactions = read('viewer/content_storyboard_interactions.js');
   const palette = read('viewer/storyboard_palette_sidebar.js');
+  const paletteCss = read('viewer/styles/content-storyboard-palette.css');
   const workspace = read('viewer/storyboard_workspace_state.js');
   const objectUi = read('viewer/object_authoring_canvas_ui.js');
 
@@ -210,28 +211,49 @@ function checkStoryboardContracts() {
   contains(palette, 'data-object-canvas-action="toggle_story_palette"', 'Storyboard palette toggle action');
   contains(palette, 'aria-expanded="', 'Storyboard palette accessibility state');
   contains(workspace, 'action === \'toggle_story_palette\'', 'Storyboard palette toggle handler');
-  contains(workspace, 'storyPaletteOpen: !state.storyPaletteOpen', 'Storyboard palette toggle state update');
+  contains(workspace, '? closePaletteWithMotion(state, deps)', 'Storyboard palette toggle should route closing through motion');
+  contains(workspace, 'storyPaletteOpen: true', 'Storyboard palette toggle should still open through palette refresh');
+  contains(workspace, 'closePaletteWithMotion', 'Storyboard palette close should allow the drawer to animate out');
+  contains(paletteCss, '.storyboard-palette.is-closing', 'Storyboard palette closing animation state');
+  contains(paletteCss, '@keyframes storyboard-palette-enter', 'Storyboard palette open animation');
+  contains(paletteCss, '@keyframes storyboard-palette-exit', 'Storyboard palette close animation');
   contains(objectUi, 'handleStoryboardAction(action, target)', 'Object Canvas storyboard action bridge');
 }
 
 function checkReviewAndLensContracts() {
   const installReview = read('viewer/install_review_ui.js');
+  const installAssistant = read('viewer/install_assistant_ui.js');
   const installCss = read('viewer/styles/install-preview.css');
+  const dialogsCss = read('viewer/styles/dialogs.css');
   const editingCss = read('viewer/styles/editing.css');
   const eventWorkbench = read('viewer/event_workbench_ui.js');
   const runtimeLens = read('viewer/runtime_lens_ui.js');
+  const runtimeLensWorkspace = read('viewer/runtime_lens_workspace_state.js');
+  const runtimePreviewLoading = read('viewer/runtime_preview_loading_ui.js');
   const visibleEdit = read('viewer/visible_edit_action_ui.js');
 
   contains(installReview, '<details>', 'Review & Apply operation details');
   contains(installReview, 'install.human.advancedDetails', 'Review & Apply operation details summary');
   contains(installReview, 'data-authoring-context-lens="true"', 'Review & Apply context lens marker');
   contains(installCss, '.install-human-op details', 'Review & Apply details style');
-  contains(read('viewer/install_assistant_ui.js'), 'confirmEnableAdvanced()', 'Install assistant should confirm before enabling advanced operations');
-  contains(read('viewer/install_assistant_ui.js'), 'install.confirmEnableAdvanced', 'Install assistant should explain advanced-operation risk');
+  contains(installAssistant, 'confirmEnableAdvanced()', 'Install assistant should confirm before enabling advanced operations');
+  contains(installAssistant, 'install.confirmEnableAdvanced', 'Install assistant should explain advanced-operation risk');
   contains(installCss, 'background: #fff7d6', 'Advanced operation toggle should use a visible but restrained warning block');
-  contains(installCss, 'border-left: 5px solid #c97316', 'Advanced operation toggle should use a standard warning accent stripe');
-  contains(installCss, 'font-size: 16px', 'Advanced operation toggle should be larger than normal checkbox text');
-  contains(read('viewer/i18n/zh-Hant.js'), "'install.includeAdvanced': '！進階操作！'", 'Advanced operation toggle should use warning punctuation in Traditional Chinese');
+  contains(installCss, '.install-advanced-toggle.is-disabled', 'Advanced operation toggle should stay visible but disabled when no advanced operations exist');
+  contains(installCss, '.wizard-actions.install-actions', 'Install action bar should override generic wizard action layout');
+  contains(read('viewer/index.html'), 'class="install-action-icon" data-ui-icon="search"', 'Install action buttons should include inline icons');
+  contains(read('viewer/index.html'), 'data-install-advanced-label', 'Install advanced toggle should preserve its icon while updating dynamic label text');
+  contains(installCss, '.install-actions .ui-icon', 'Install action icons should have compact toolbar sizing');
+  contains(installAssistant, 'syncAdvancedToggle', 'Install assistant should keep the advanced toggle label and disabled state synchronized');
+  contains(read('viewer/index.html'), 'runtime_preview_loading_ui.js', 'Runtime preview loading helper should be loaded by the viewer');
+  contains(runtimePreviewLoading, 'ProjectMapRuntimePreviewLoading', 'Runtime preview loading helper should expose a shared UI API');
+  contains(runtimePreviewLoading, 'data-runtime-preview-loading-overlay', 'Runtime preview loading helper should mark the overlay with a stable data hook');
+  contains(runtimePreviewLoading, 'document.createElement(\'progress\')', 'Runtime preview loading helper should render only progress for the visible control');
+  contains(dialogsCss, '.runtime-preview-loading-overlay', 'Runtime preview loading overlay should have dialog-level styling');
+  contains(installAssistant, 'showRuntimePreviewLoading()', 'Install assistant should show the shared runtime preview loading overlay');
+  contains(runtimeLensWorkspace, 'showRuntimePreviewLoading()', 'Runtime Lens should show the shared runtime preview loading overlay');
+  contains(read('viewer/i18n/zh-Hant.js'), "'install.includeAdvancedCount': '進階修改（{count}）'", 'Advanced operation toggle should show a localized operation count');
+  contains(read('viewer/i18n/zh-Hant.js'), "'install.noAdvancedChanges': '沒有進階修改'", 'Advanced operation toggle should explain when no advanced operations exist');
   contains(editingCss, '.authoring-context-lens-popover', 'Authoring context lens popover style');
   contains(editingCss, 'data-context-lens-placement="left"', 'Authoring context lens left-edge placement style');
   contains(editingCss, '.authoring-context-lens[data-authoring-context-lens][aria-expanded="true"]', 'Authoring context lens elevated open state');
@@ -244,7 +266,7 @@ function checkReviewAndLensContracts() {
   contains(runtimeLens, 'data-runtime-lens-action="toggle_expand"', 'Runtime Lens expand action');
   contains(runtimeLens, 'root.querySelectorAll(\'[data-runtime-lens-action]\')', 'Runtime Lens action binding');
   contains(runtimeLens, 'button.dataset.runtimeLensBound = \'true\'', 'Runtime Lens duplicate binding guard');
-  contains(read('viewer/runtime_lens_workspace_state.js'), 'renderRuntimeLensEvidence', 'Runtime Lens evidence update contract');
+  contains(runtimeLensWorkspace, 'renderRuntimeLensEvidence', 'Runtime Lens evidence update contract');
   contains(read('viewer/object_authoring_canvas_ui.js'), 'updateRuntimeLensEvidence', 'Runtime Lens evidence update contract');
   contains(read('viewer/object_authoring_canvas_ui.js'), 'syncObjectCanvasReviewButtons', 'Object Canvas should synchronize duplicate Review & Apply buttons after programmatic asset edits');
   contains(read('viewer/object_authoring_canvas_ui.js'), 'dataset.reviewState', 'Object Canvas Review & Apply buttons should expose synchronized ready/blocked state');

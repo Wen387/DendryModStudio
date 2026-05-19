@@ -115,6 +115,7 @@
     const buildToken = Number(state.runtimeLensBuildSeq || 0) + 1;
     state.runtimeLensBuildSeq = buildToken;
     deps.render && deps.render();
+    const releaseLoading = showRuntimePreviewLoading();
     try {
       const result = await desktop.createRuntimeLens({
         plan: currentPlan(state),
@@ -143,6 +144,8 @@
       state.runtimeLensStatus = 'failed';
       state.runtimeLensDraftKey = '';
       state.status = translate('runtimeLens.status.failed', 'Focused Runtime Lens could not be created.');
+    } finally {
+      hideRuntimePreviewLoading(releaseLoading);
     }
     if (state.runtimeLensBuildQueued) {
       state.runtimeLensBuildQueued = false;
@@ -408,6 +411,24 @@
 
   function runtimeLensUi() {
     return global.ProjectMapRuntimeLensUi || null;
+  }
+
+  function showRuntimePreviewLoading() {
+    const loading = global.ProjectMapRuntimePreviewLoading;
+    return loading && typeof loading.show === 'function'
+      ? loading.show({label: translate('install.runtimePreviewProgressLabel', 'Runtime preview progress')})
+      : null;
+  }
+
+  function hideRuntimePreviewLoading(releaseLoading) {
+    if (typeof releaseLoading === 'function') {
+      releaseLoading();
+      return;
+    }
+    const loading = global.ProjectMapRuntimePreviewLoading;
+    if (loading && typeof loading.hide === 'function') {
+      loading.hide();
+    }
   }
 
   function isCardBoardState(state) {

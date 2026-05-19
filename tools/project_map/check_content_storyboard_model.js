@@ -382,9 +382,12 @@ assert(timelineHtml.includes('data-storyboard-draft-key="draft:election_start_fo
 assert(timelineHtml.includes('data-content-storyboard-card="event:election_start"'), 'surface should render event cards');
 assert(timelineHtml.includes('data-storyboard-palette="true"'), 'surface should render the Storyboard Palette');
 assert(timelineHtml.includes('--storyboard-palette-width: 444px'), 'palette should apply a user-sized asset rail width');
+assert(timelineHtml.includes('data-storyboard-palette-density="compact"'), 'palette should render the Canvas asset rail as a compact IDE-style explorer');
 assert(timelineHtml.includes('data-storyboard-palette-resizer="true"'), 'palette should expose a local width resizer');
 assert(timelineHtml.includes('data-object-canvas-action="toggle_story_palette_chrome"'), 'palette should expose a compact controls toggle');
 assert(timelineHtml.includes('data-storyboard-palette-item="true"'), 'palette should render draggable story object items');
+assert(timelineHtml.includes('storyboard-palette-item-type'), 'palette entries should expose a compact type rail');
+assert(timelineHtml.includes('storyboard-palette-item-footer'), 'palette entries should keep source, tags, and badges in a dense footer');
 assert(timelineHtml.includes('data-storyboard-palette-scroll="true"'), 'palette should render an independently scrollable asset list');
 assert(timelineHtml.includes('data-storyboard-palette-window-enabled='), 'palette scroll region should expose virtual-window metadata');
 assert(timelineHtml.includes('data-storyboard-palette-scope-filters="true"'), 'palette should render scope-aware filters');

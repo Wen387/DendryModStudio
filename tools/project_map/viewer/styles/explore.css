@@ -9,7 +9,7 @@
 .nav-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 8px;
 }
 
@@ -73,7 +73,7 @@
 .nav-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 8px;
   width: 100%;
   min-height: 32px;
@@ -84,6 +84,21 @@
   color: var(--text);
   text-align: left;
   padding: 6px 9px;
+}
+
+.nav-label {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.nav-item .ui-icon {
+  width: 16px;
+  height: 16px;
+  opacity: 0.78;
+}
+
+.nav-item.is-active .ui-icon {
+  opacity: 1;
 }
 
 .nav-item:hover {

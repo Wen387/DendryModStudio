@@ -202,7 +202,10 @@
 
   function renderWorkspaceButton(item, index) {
     const active = index === 0;
-    return '<button class="authoring-workspace-button' + (active ? ' is-active' : '') + '" type="button" role="tab" aria-selected="' + (active ? 'true' : 'false') + '" data-authoring-workspace="' + item.key + '" data-i18n="' + item.labelKey + '">' + item.fallback + '</button>';
+    return '<button class="authoring-workspace-button' + (active ? ' is-active' : '') + '" type="button" role="tab" aria-selected="' + (active ? 'true' : 'false') + '" data-authoring-workspace="' + item.key + '">' +
+      iconHtml(iconForWorkspace(item.key)) +
+      '<span data-i18n="' + item.labelKey + '">' + item.fallback + '</span>' +
+      '</button>';
   }
 
   function renderTemplateGroup(workspace) {
@@ -217,7 +220,43 @@
   }
 
   function renderTemplateButton(item, active) {
-    return '<button class="template-button' + (active ? ' is-active' : '') + '" type="button" role="tab" aria-selected="' + (active ? 'true' : 'false') + '" data-create-template="' + item.key + '" data-i18n="' + item.labelKey + '">' + item.fallback + '</button>';
+    return '<button class="template-button' + (active ? ' is-active' : '') + '" type="button" role="tab" aria-selected="' + (active ? 'true' : 'false') + '" data-create-template="' + item.key + '">' +
+      iconHtml(iconForTemplate(item.key)) +
+      '<span data-i18n="' + item.labelKey + '">' + item.fallback + '</span>' +
+      '</button>';
+  }
+
+  function iconHtml(name) {
+    const icons = global.ProjectMapIcons;
+    return icons && typeof icons.icon === 'function' ? icons.icon(name) : '';
+  }
+
+  function iconForWorkspace(workspace) {
+    if (workspace === 'system_ui') {
+      return 'settings';
+    }
+    if (workspace === 'project_state') {
+      return 'check';
+    }
+    return 'edit';
+  }
+
+  function iconForTemplate(template) {
+    const icons = {
+      event: 'play',
+      news: 'book',
+      card: 'card',
+      surface: 'text',
+      existing: 'edit',
+      entry: 'map',
+      play_surface: 'play',
+      workspace_layout: 'map',
+      sidebar_status: 'text',
+      election_results: 'check',
+      project: 'settings',
+      variables: 'settings'
+    };
+    return icons[template] || 'plus';
   }
 
   function activeTemplateFromDom() {

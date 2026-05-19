@@ -28,6 +28,11 @@
     grid-template-columns: 1fr;
   }
 
+  .install-context-panel {
+    width: 100%;
+    min-width: 0;
+  }
+
   .design-inspector {
     grid-column: 1 / -1;
     border-left: 0;
@@ -143,10 +148,14 @@
 
   .tutorial-library-layout {
     grid-template-columns: 1fr;
+    gap: 12px;
   }
 
   .tutorial-library-nav {
-    max-height: 180px;
+    max-height: 150px;
+    border-right: 0;
+    border-bottom: 1px solid var(--border-soft);
+    padding: 0 0 10px;
   }
 
   .mode-switch {
@@ -253,6 +262,23 @@
     flex-direction: column;
   }
 
+  .install-context-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .install-context-spacer {
+    display: none;
+  }
+
+  .install-plan-button,
+  .install-context-status {
+    justify-self: stretch;
+  }
+
+  .install-context-status {
+    text-align: left;
+  }
+
   .existing-scene-header {
     grid-template-columns: 1fr;
   }
@@ -269,6 +295,22 @@
 
   .draft-file-picker input {
     max-width: none;
+    width: 100%;
+  }
+
+  .install-flow-list,
+  .install-empty-options {
+    grid-template-columns: 1fr;
+  }
+
+  .install-next-card,
+  .install-empty-intro {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .install-next-card button,
+  .install-empty-option button {
     width: 100%;
   }
 
@@ -310,5 +352,19 @@
 
   .wizard-actions button {
     width: 100%;
+  }
+
+  .wizard-actions.install-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .wizard-actions.install-actions button,
+  .wizard-actions.install-actions .install-advanced-toggle {
+    width: 100%;
+  }
+
+  #install-runtime-preview {
+    margin-left: 0;
   }
 }

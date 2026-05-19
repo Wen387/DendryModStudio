@@ -31,7 +31,7 @@
     const groups = ensureArray(palette.groups);
     const collapsed = Boolean(palette.chromeCollapsed);
     return [
-      '<section class="storyboard-palette-drawer' + (collapsed ? ' is-chrome-collapsed' : '') + '" data-storyboard-palette-drawer="true" data-storyboard-palette-chrome-collapsed="' + (collapsed ? 'true' : 'false') + '">',
+      '<section class="storyboard-palette-drawer' + (collapsed ? ' is-chrome-collapsed' : '') + '" data-storyboard-palette-drawer="true" data-storyboard-palette-density="compact" data-storyboard-palette-chrome-collapsed="' + (collapsed ? 'true' : 'false') + '">',
       renderResizer(),
       '<header class="storyboard-palette-header">',
       '<div>',
@@ -48,6 +48,7 @@
       '<div class="storyboard-palette-scroll" data-storyboard-palette-scroll="true"' + renderScrollWindowAttrs(palette.renderWindow) + '>',
       groups.length ? groups.map(renderGroup).join('') : renderEmpty(),
       '</div>',
+      renderInspector(palette.inspector),
       '</section>'
     ].join('');
   }
@@ -61,7 +62,6 @@
       renderSearch(palette),
       renderTypeFilters(palette),
       renderScopeFilters(palette),
-      renderInspector(palette.inspector),
       '</div>'
     ].join('');
   }
@@ -180,15 +180,25 @@
     const pinned = Boolean(entry.pinned);
     return [
       '<article class="storyboard-palette-item storyboard-palette-item-' + safeClass(entry.kind) + (draggable ? '' : ' is-reference-only') + (selected ? ' is-selected' : '') + '" tabindex="0"' + (draggable ? ' draggable="true"' : '') + ' data-storyboard-palette-item="true" data-storyboard-palette-key="' + escapeAttr(entry.key || '') + '" data-storyboard-palette-kind="' + escapeAttr(entry.kind || '') + '" data-storyboard-palette-title="' + escapeAttr(entry.title || '') + '" data-storyboard-palette-selected="' + (selected ? 'true' : 'false') + '">',
-      '<div class="storyboard-palette-item-kicker"><span>' + escapeHtml(typeLabel(entry.kind)) + '</span><em>' + escapeHtml(entry.scheduleLabel || entry.reason || '') + '</em><button type="button" data-storyboard-palette-pin="' + escapeAttr(entry.key || '') + '" aria-pressed="' + (pinned ? 'true' : 'false') + '" title="' + escapeAttr(pinned ? t('storyboard.palette.unpin', 'Unpin') : t('storyboard.palette.pin', 'Pin')) + '">' + escapeHtml(pinned ? t('storyboard.palette.unpinShort', 'Unpin') : t('storyboard.palette.pinShort', 'Pin')) + '</button></div>',
-      '<strong>' + escapeHtml(entry.title || entry.id || '') + '</strong>',
-      entry.body ? '<p>' + escapeHtml(entry.body) + '</p>' : '',
+      '<div class="storyboard-palette-item-type">' + iconHtml(iconForKind(entry.kind)) + '<span>' + escapeHtml(typeLabel(entry.kind)) + '</span></div>',
+      '<div class="storyboard-palette-item-main">',
+      '<div class="storyboard-palette-item-title-row"><strong title="' + escapeAttr(entry.title || entry.id || '') + '">' + escapeHtml(entry.title || entry.id || '') + '</strong>' + renderEntryHint(entry) + '</div>',
+      entry.body ? '<p class="storyboard-palette-item-preview">' + escapeHtml(entry.body) + '</p>' : '',
+      '<div class="storyboard-palette-item-footer">',
       renderEntryMeta(entry),
       renderBadgeStrip(ensureArray(entry.scopeBadges).concat(ensureArray(entry.diagnosticBadges))),
       renderTags(entry),
-      entry.sourceLabel ? '<small>' + escapeHtml(entry.sourceLabel) + '</small>' : '',
+      entry.sourceLabel ? '<small class="storyboard-palette-source" title="' + escapeAttr(entry.sourceLabel) + '">' + escapeHtml(entry.sourceLabel) + '</small>' : '',
+      '</div>',
+      '</div>',
+      '<button type="button" class="storyboard-palette-pin" data-storyboard-palette-pin="' + escapeAttr(entry.key || '') + '" aria-pressed="' + (pinned ? 'true' : 'false') + '" title="' + escapeAttr(pinned ? t('storyboard.palette.unpin', 'Unpin') : t('storyboard.palette.pin', 'Pin')) + '">' + escapeHtml(pinned ? t('storyboard.palette.unpinShort', 'Unpin') : t('storyboard.palette.pinShort', 'Pin')) + '</button>',
       '</article>'
     ].join('');
+  }
+
+  function renderEntryHint(entry) {
+    const value = entry && (entry.scheduleLabel || entry.reason) || '';
+    return value ? '<em>' + escapeHtml(value) + '</em>' : '';
   }
 
   function renderVirtualSpacer(height) {
@@ -276,6 +286,23 @@
       write_only: t('storyboard.palette.badge.writeOnly', 'Write-only'),
       hot: t('storyboard.palette.badge.hot', 'Hot')
     }[badge] || badge;
+  }
+
+  function iconForKind(kind) {
+    return {
+      event: 'play',
+      news: 'book',
+      card: 'card',
+      advisor: 'settings',
+      state: 'settings',
+      draft: 'edit',
+      chain_relation: 'chevron'
+    }[kind] || 'map';
+  }
+
+  function iconHtml(name) {
+    const icons = global.ProjectMapIcons;
+    return icons && typeof icons.icon === 'function' ? icons.icon(name) : '';
   }
 
   function safeClass(value) {

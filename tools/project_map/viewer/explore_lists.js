@@ -78,9 +78,32 @@
     elements.nav.forEach((button) => {
       const view = button.dataset.view;
       button.classList.toggle('is-active', button.dataset.view === state.view);
-      button.innerHTML = '<span>' + escapeHtml(viewLabel(view)) + '</span>' +
+      button.innerHTML = iconHtml(iconForView(view)) +
+        '<span class="nav-label">' + escapeHtml(viewLabel(view)) + '</span>' +
         '<span class="nav-count">' + escapeHtml(navCountLabel(state.model, view)) + '</span>';
     });
+  }
+
+  function iconForView(view) {
+    const icons = {
+      overview: 'map',
+      scenes: 'map',
+      events: 'play',
+      cards: 'card',
+      news: 'book',
+      textCorpus: 'text',
+      assets: 'image',
+      variables: 'settings',
+      surfaceText: 'edit',
+      coverage: 'check',
+      diagnostics: 'warning'
+    };
+    return icons[view] || 'spark';
+  }
+
+  function iconHtml(name) {
+    const icons = global && global.ProjectMapIcons;
+    return icons && typeof icons.icon === 'function' ? icons.icon(name) : '';
   }
 
   function navCountLabel(model, view) {

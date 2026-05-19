@@ -65,10 +65,10 @@ for the Windows installer performance release. The version keeps the v0.9.65
 editing scope and formalizes the faster `deps-in-asar` Windows package layout
 as the normal `dist:win` build.
 
-2026-05-16 version note: the preview package version was advanced to v0.97.5 for
-the broader authoring and release-readiness preview. It keeps the previous fast
-Windows packaging layout while carrying the newer Studio authoring, Runtime
-Preview, and governance checks.
+2026-05-19 version note: the preview package version was advanced to v0.97.6 for
+the broader UI, onboarding, authoring, and release-readiness preview. It keeps
+the previous fast Windows packaging layout while carrying the newer Studio
+authoring, Runtime Preview, and governance checks.
 
 2026-05-10 Windows install performance experiment: branch
 `exp-windows-install-performance` adds a non-release `fast-install` Windows

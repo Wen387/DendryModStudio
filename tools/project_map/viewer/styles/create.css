@@ -148,6 +148,9 @@
 .draft-workspace-actions button,
 .draft-workspace-item-actions button {
   min-height: 31px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--surface);
@@ -244,6 +247,10 @@
 .authoring-workspace-button {
   min-width: 0;
   min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
   border: 1px solid transparent;
   border-radius: 5px;
   background: transparent;
@@ -287,6 +294,10 @@
 .template-button {
   min-height: 32px;
   min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
   border: 1px solid transparent;
   border-radius: 5px;
   background: transparent;

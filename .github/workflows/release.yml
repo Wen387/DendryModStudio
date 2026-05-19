@@ -8,7 +8,7 @@ on:
         type: boolean
         default: false
       release_tag:
-        description: "Release tag to create/use, for example v0.97.5-preview.1"
+        description: "Release tag to create/use, for example v0.97.6-preview.1"
         type: string
         required: false
       prerelease:

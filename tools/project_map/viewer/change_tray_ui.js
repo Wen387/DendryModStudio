@@ -52,6 +52,7 @@
     toggle.setAttribute('aria-controls', panel.id || 'draft-workspace-panel');
     toggle.setAttribute('aria-expanded', 'false');
     toggle.innerHTML = [
+      iconHtml('save'),
       '<span data-change-tray-label="true"></span>',
       '<strong data-change-tray-count="true">0</strong>'
     ].join('');
@@ -179,12 +180,12 @@
     }
     const textPatch = elements.panel.querySelector('[data-change-tray-text-patch]');
     if (textPatch) {
-      textPatch.textContent = t('changeTray.textPatch', 'Text Patch');
+      textPatch.innerHTML = iconHtml('edit') + '<span>' + escapeHtml(t('changeTray.textPatch', 'Text Patch')) + '</span>';
       textPatch.title = t('changeTray.textPatchHelp', 'Open the source-backed text patch workspace');
     }
     const close = elements.panel.querySelector('[data-change-tray-close]');
     if (close) {
-      close.textContent = t('changeTray.collapse', 'Collapse');
+      close.innerHTML = iconHtml('chevron') + '<span>' + escapeHtml(t('changeTray.collapse', 'Collapse')) + '</span>';
       close.title = t('changeTray.collapse', 'Collapse');
     }
   }
@@ -214,5 +215,19 @@
   function t(key, fallback) {
     const i18n = global.ProjectMapI18n;
     return i18n && typeof i18n.t === 'function' ? i18n.t(key, fallback) : fallback;
+  }
+
+  function iconHtml(name) {
+    const icons = global.ProjectMapIcons;
+    return icons && typeof icons.icon === 'function' ? icons.icon(name) : '';
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 })(typeof window !== 'undefined' ? window : globalThis);
