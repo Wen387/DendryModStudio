@@ -104,6 +104,32 @@ function fixtureBody() {
   };
 }
 
+function quietBody() {
+  return {
+    mode: 'existing',
+    eventShape: 'choice_event',
+    eventStructure: {id: 'quiet_route_script_fixture'},
+    title: {id: 'title', label: 'Title', value: 'Quiet Route Script Fixture'},
+    sections: [{id: 'opening', label: 'Opening', value: 'Opening text'}],
+    options: [
+      {id: 'continue', optionId: 'continue', label: 'Continue', targetId: 'opening', fields: []}
+    ],
+    flow: {
+      edges: [
+        {kind: 'route', from: 'root', to: 'opening', source: src('source/scenes/events/quiet_route_script.scene.dry', 10, 'go-to: opening')}
+      ]
+    },
+    scriptRows: [
+      {
+        id: 'simple_arrival',
+        label: 'Simple arrival script',
+        text: 'on-arrival: Q.pressure += 1',
+        source: src('source/scenes/events/quiet_route_script.scene.dry', 5, 'on-arrival: Q.pressure += 1')
+      }
+    ]
+  };
+}
+
 function runRouteScriptIntelligence() {
   const body = fixtureBody();
   const model = routeScript.buildRouteScriptIntelligence(body, {});
@@ -170,8 +196,15 @@ function runRouteScriptIntelligence() {
   const enriched = routeScript.enrichEventBody(body, {});
   const html = previewEditor.render({mode: 'existing', objectKind: 'event', title: 'Route Script Fixture', eventBody: enriched});
   assert(html.includes('data-preview-object-route-script="true"'), 'event editor should render route/script intelligence summary');
+  assert(html.includes('preview-object-route-script-summary') && html.includes('preview-object-route-script-chips'), 'route/script review should render a collapsible summary with counts');
   assert(html.includes('data-preview-object-route-evidence="true"'), 'event editor should render route evidence');
   assert(html.includes('data-preview-object-script-impact="true"'), 'event editor should render script impact');
+  const modalHtml = previewEditor.renderModal({mode: 'existing', objectKind: 'event', title: 'Route Script Fixture', eventBody: enriched});
+  assert((modalHtml.match(/data-preview-object-route-script="true"/g) || []).length === 1, 'modal editor should show route/script review only once');
+  const previewPaneHtml = previewEditor.renderPreviewPane({mode: 'existing', objectKind: 'event', title: 'Route Script Fixture', eventBody: enriched});
+  assert(!previewPaneHtml.includes('data-preview-object-route-script="true"'), 'live preview pane should not duplicate route/script review');
+  const quietHtml = previewEditor.render({mode: 'existing', objectKind: 'event', title: 'Quiet Route Script Fixture', eventBody: routeScript.enrichEventBody(quietBody(), {})});
+  assert(!quietHtml.includes('data-preview-object-route-script="true"'), 'exact routes and simple guided effects should not render a no-op route/script review panel');
 
   return {
     ok: true,

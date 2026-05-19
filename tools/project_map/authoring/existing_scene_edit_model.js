@@ -5,7 +5,6 @@
   const MODEL_KIND = 'existing_scene_edit_model';
   const PROPOSAL_KIND = 'existing_scene_edit';
   const ID_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
-  const ROUTE_TARGET_RE = /^[A-Za-z_][A-Za-z0-9_.-]*$/;
 
   function ensureArray(value) {
     return Array.isArray(value) ? value : [];
@@ -127,6 +126,20 @@
     return null;
   }
 
+  function structureOperationsApi() {
+    if (global && global.ProjectMapExistingSceneStructureOperations) {
+      return global.ProjectMapExistingSceneStructureOperations;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./existing_scene_structure_operations.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   function eventStructureApi() {
     if (global && global.ProjectMapEventStructureModel) {
       return global.ProjectMapEventStructureModel;
@@ -172,6 +185,7 @@
   let cachedAssetHelpers = null;
   let cachedTextBlockHelpers = null;
   let cachedTextBlockBuilder = null;
+  let cachedStructureOperations = null;
 
   function existingSceneAssetHelpers() {
     if (!cachedAssetHelpers) {
@@ -210,6 +224,17 @@
       });
     }
     return cachedTextBlockBuilder;
+  }
+
+  function existingSceneStructureOperations() {
+    if (!cachedStructureOperations) {
+      const operations = structureOperationsApi();
+      if (!operations || typeof operations.create !== 'function') {
+        throw new Error('ProjectMapExistingSceneStructureOperations is required before ProjectMapExistingSceneEdit.');
+      }
+      cachedStructureOperations = operations.create({sourceRef, baseFieldChange, isProtectedRouterPath, normalizeStructuralEffect});
+    }
+    return cachedStructureOperations;
   }
 
   function buildEditModel(projectIndex, view, itemOrId, options) {
@@ -1421,6 +1446,8 @@
       textBlocks,
       sections: ensureArray(scene && scene.sections),
       opaqueJsBlocks: ensureArray(scene && scene.opaqueJsBlocks),
+      metadata: isObject(scene && scene.metadata) ? scene.metadata : {},
+      topLevelSpan: scene && scene.topLevelSpan || null,
       sourceGraph: sourceStructureGraph
     });
   }
@@ -1851,8 +1878,7 @@
   }
 
   function normalizeStructureAction(value) {
-    const text = String(value || '').trim();
-    return text === 'add_section' ? 'add_branch' : text === 'remove_section' ? 'remove_layer' : text;
+    return existingSceneStructureOperations().normalizeStructureAction(value);
   }
 
   function structuralBeforeText(field) {
@@ -1868,51 +1894,7 @@
   }
 
   function structuralAfterText(field, afterText) {
-    const action = String(field && field.structureAction || '');
-    const target = String(field && field.structureTargetLabel || field && field.optionId || field && field.sectionId || '').trim();
-    if (action === 'add_trigger_effect') {
-      return ['Add trigger effect to this object:', normalizeStructuralEffect(afterText)].join('\n');
-    }
-    if (action === 'add_option_effect') {
-      return ['Add option effect' + (target ? ' for ' + target : '') + ':', normalizeStructuralEffect(afterText)].join('\n');
-    }
-    if (action === 'add_option') {
-      return [
-        'Add option and result layer proposal:',
-        afterText,
-        '',
-        'Review the option line, target section id, result text, route target, prerequisite, unavailable text, and any effects together.'
-      ].join('\n');
-    }
-    if (action === 'add_branch') {
-      return [
-        'Add conditional or follow-up layer proposal:',
-        afterText,
-        '',
-        'Review section id, condition, ordering, nested routes, and consumed/written variables together.'
-      ].join('\n');
-    }
-    if (action === 'reroute_layer') {
-      return [
-        'Reroute incoming go-to lines to:',
-        afterText,
-        '',
-        'Review each incoming route line before applying this retargeting.'
-      ].join('\n');
-    }
-    if (action === 'remove_option_condition') {
-      return 'Remove prerequisite' + (target ? ' from ' + target : '') + ' after checking unavailable text and route fallout.';
-    }
-    if (action === 'remove_option') {
-      return 'Remove option' + (target ? ': ' + target : '') + ' after checking its result section, effects, incoming references, and unavailable text.';
-    }
-    if (action === 'remove_effect') {
-      return 'Remove effect' + (target ? ' for ' + target : '') + ' after checking variable consumers and adjacent route logic.';
-    }
-    if (action === 'remove_layer') {
-      return 'Remove this composite layer after checking nested options, routes, effects, variables, and incoming references.';
-    }
-    return afterText;
+    return existingSceneStructureOperations().structureActionFallbackText(field, afterText);
   }
 
   function normalizeStructuralEffect(value) {
@@ -2210,6 +2192,29 @@
   }
 
   function guardedAddTriggerEffectChange(field, afterText) {
+    const sourceBlock = isObject(field && field.structureSourceBlock) ? field.structureSourceBlock : {};
+    if (String(sourceBlock.kind || '') === 'root_on_arrival_insert_anchor') {
+      const parsed = parseSimpleStructuralEffect(afterText);
+      const source = sourceRef(field && field.source || {});
+      const path = String(source.path || '');
+      const line = Number(source.line || source.startLine || 0);
+      const endLine = Number(source.endLine || source.line || source.startLine || line || 0);
+      const anchor = String(source.anchorText || '').trim();
+      if (!parsed || !path.startsWith('source/scenes/') || !path.endsWith('.scene.dry') ||
+        isProtectedRouterPath(path) || !Number.isInteger(line) || line <= 0 ||
+        (Number.isInteger(endLine) && endLine > 0 && endLine !== line) || !anchor) {
+        return null;
+      }
+      const expression = structuralEffectSourceExpression(parsed, {qPrefix: false});
+      const nextLine = 'on-arrival: ' + expression;
+      const change = baseFieldChange(field, '(not present yet)', nextLine);
+      change.editability = 'guarded_apply';
+      change.operationType = 'insert_text';
+      change.anchorText = anchor;
+      change.position = 'after';
+      change.dedupeSearch = nextLine;
+      return change;
+    }
     return guardedOptionEffectChange(field, afterText);
   }
 
@@ -2390,211 +2395,15 @@
   }
 
   function advancedRemoveLayerChange(field) {
-    const sourceBlock = isObject(field && field.structureSourceBlock) ? field.structureSourceBlock : {};
-    const kind = String(sourceBlock.kind || '');
-    if (kind === 'layer_bundle_delete') {
-      return advancedRemoveLayerBundleChanges(field, sourceBlock);
-    }
-    if (kind !== 'layer_section_delete' && kind !== 'layer_text_delete') {
-      return null;
-    }
-    const sectionSource = sourceRef(sourceBlock.sectionSource || field && field.source || {});
-    if (!sourceSupportsAdvancedLayerDelete(sectionSource, {requireSectionHeader: kind === 'layer_section_delete'})) {
-      return null;
-    }
-    const anchor = String(sectionSource.anchorText || '').trim();
-    const endAnchor = String(sectionSource.endAnchorText || '').trim();
-    const before = anchor + (endAnchor && endAnchor !== anchor ? '\n...\n' + endAnchor : '');
-    return {
-      fieldId: field.id,
-      role: field.role || 'structure',
-      label: 'Remove layer: ' + (field.structureTargetLabel || field.sectionId || ''),
-      sectionId: field.sectionId || sourceBlock.sectionId || '',
-      optionId: field.optionId || '',
-      source: sectionSource,
-      editability: 'advanced_source_patch',
-      operationType: 'replace_section',
-      anchorText: anchor,
-      endAnchorText: endAnchor,
-      startLine: sectionSource.line || sectionSource.startLine || null,
-      endLine: sectionSource.endLine || null,
-      dedupeSearch: anchor,
-      allowEmptyReplace: true,
-      deletesSourceLine: true,
-      before,
-      after: ''
-    };
+    return existingSceneStructureOperations().advancedRemoveLayerChange(field);
   }
 
   function advancedRerouteLayerChanges(field, afterText) {
-    const sourceBlock = isObject(field && field.structureSourceBlock) ? field.structureSourceBlock : {};
-    if (String(sourceBlock.kind || '') !== 'incoming_route_reroute') {
-      return null;
-    }
-    const nextTarget = String(afterText || '').trim().replace(/^[@#]/, '');
-    if (!ROUTE_TARGET_RE.test(nextTarget)) {
-      return null;
-    }
-    const oldTarget = String(sourceBlock.oldTarget || '').trim().replace(/^[@#]/, '');
-    if (oldTarget && nextTarget === oldTarget) {
-      return [];
-    }
-    const changes = [];
-    ensureArray(sourceBlock.incomingRouteSources).map(sourceRef).forEach((routeSource, index) => {
-      const anchor = String(routeSource.anchorText || '').trim();
-      const after = routeLineReplacement(anchor, nextTarget);
-      if (!sourceSupportsAdvancedRouteReroute(routeSource) || !after) {
-        return;
-      }
-      const routeChange = baseFieldChange(Object.assign({}, field, {
-        id: field.id + '__reroute_' + (index + 1),
-        source: routeSource
-      }), anchor, after);
-      routeChange.editability = 'advanced_source_patch';
-      routeChange.operationType = 'replace_text';
-      routeChange.dedupeSearch = anchor;
-      routeChange.label = 'Reroute incoming route: ' + anchor;
-      changes.push(routeChange);
-    });
-    return changes.length === ensureArray(sourceBlock.incomingRouteSources).length ? changes : null;
-  }
-
-  function advancedRemoveLayerBundleChanges(field, sourceBlock) {
-    const sectionSource = sourceRef(sourceBlock.sectionSource || field && field.source || {});
-    if (!sourceSupportsAdvancedLayerDelete(sectionSource, {requireSectionHeader: true})) {
-      return null;
-    }
-    const changes = [];
-    ensureArray(sourceBlock.incomingOptionSources).map(sourceRef).forEach((optionSource, index) => {
-      const anchor = String(optionSource.anchorText || '').trim();
-      if (!sourceSupportsAdvancedOptionDelete(optionSource) || !anchor) {
-        return;
-      }
-      const optionId = ensureArray(sourceBlock.incomingOptionIds)[index] || field.optionId || '';
-      const optionChange = baseFieldChange(Object.assign({}, field, {
-        id: field.id + '__incoming_option_' + (index + 1),
-        optionId,
-        source: optionSource
-      }), anchor, '');
-      optionChange.editability = 'advanced_source_patch';
-      optionChange.operationType = 'replace_text';
-      optionChange.allowEmptyReplace = true;
-      optionChange.deletesSourceLine = true;
-      optionChange.dedupeSearch = anchor;
-      changes.push(optionChange);
-    });
-    ensureArray(sourceBlock.incomingRouteSources).map(sourceRef).forEach((routeSource, index) => {
-      const anchor = String(routeSource.anchorText || '').trim();
-      if (!sourceSupportsAdvancedRouteDelete(routeSource) || !anchor) {
-        return;
-      }
-      const routeChange = baseFieldChange(Object.assign({}, field, {
-        id: field.id + '__incoming_route_' + (index + 1),
-        source: routeSource
-      }), anchor, '');
-      routeChange.editability = 'advanced_source_patch';
-      routeChange.operationType = 'replace_text';
-      routeChange.allowEmptyReplace = true;
-      routeChange.deletesSourceLine = true;
-      routeChange.dedupeSearch = anchor;
-      routeChange.label = 'Remove incoming route: ' + anchor;
-      changes.push(routeChange);
-    });
-    const parentChange = sectionDeleteChange(field, sectionSource, {
-      fieldId: field.id + '__section',
-      label: 'Remove layer section: ' + (field.structureTargetLabel || field.sectionId || ''),
-      sectionId: field.sectionId || sourceBlock.sectionId || ''
-    });
-    if (!parentChange) {
-      return null;
-    }
-    const childChanges = [];
-    ensureArray(sourceBlock.childSectionSources).map(sourceRef).forEach((childSource, index) => {
-      const childChange = sectionDeleteChange(field, childSource, {
-        fieldId: field.id + '__child_section_' + (index + 1),
-        label: 'Remove nested result section: ' + (ensureArray(sourceBlock.childSectionIds)[index] || ''),
-        sectionId: ensureArray(sourceBlock.childSectionIds)[index] || ''
-      });
-      if (childChange) {
-        childChanges.push(childChange);
-      }
-    });
-    changes.push(...childChanges, parentChange);
-    changes.sort(layerBundleDeleteOrder);
-    const expected = 1 + ensureArray(sourceBlock.incomingOptionSources).length +
-      ensureArray(sourceBlock.incomingRouteSources).length +
-      ensureArray(sourceBlock.childSectionSources).length;
-    return changes.length === expected ? changes : null;
-  }
-
-  function layerBundleDeleteOrder(left, right) {
-    const leftPath = changeSourcePath(left);
-    const rightPath = changeSourcePath(right);
-    if (leftPath !== rightPath) {
-      return leftPath.localeCompare(rightPath);
-    }
-    const lineDelta = changeSourceLine(right) - changeSourceLine(left);
-    if (lineDelta) {
-      return lineDelta;
-    }
-    return layerBundleChangeWeight(left) - layerBundleChangeWeight(right);
-  }
-
-  function changeSourcePath(change) {
-    return String(change && change.source && change.source.path || '');
-  }
-
-  function changeSourceLine(change) {
-    return Number(change && (change.startLine || change.source && (change.source.line || change.source.startLine)) || 0);
-  }
-
-  function layerBundleChangeWeight(change) {
-    return String(change && change.operationType || '') === 'replace_section' ? 0 : 1;
-  }
-
-  function sectionDeleteChange(field, sourceInput, overrides) {
-    const source = sourceRef(sourceInput || {});
-    if (!sourceSupportsAdvancedLayerDelete(source, {requireSectionHeader: true})) {
-      return null;
-    }
-    const anchor = String(source.anchorText || '').trim();
-    const endAnchor = String(source.endAnchorText || '').trim();
-    const before = anchor + (endAnchor && endAnchor !== anchor ? '\n...\n' + endAnchor : '');
-    return {
-      fieldId: overrides && overrides.fieldId || field.id,
-      role: field.role || 'structure',
-      label: overrides && overrides.label || ('Remove layer: ' + (field.structureTargetLabel || field.sectionId || '')),
-      sectionId: overrides && overrides.sectionId || field.sectionId || '',
-      optionId: field.optionId || '',
-      source,
-      editability: 'advanced_source_patch',
-      operationType: 'replace_section',
-      anchorText: anchor,
-      endAnchorText: endAnchor,
-      startLine: source.line || source.startLine || null,
-      endLine: source.endLine || null,
-      dedupeSearch: anchor,
-      allowEmptyReplace: true,
-      deletesSourceLine: true,
-      before,
-      after: ''
-    };
+    return existingSceneStructureOperations().advancedRerouteLayerChanges(field, afterText);
   }
 
   function sourceSupportsAdvancedOptionDelete(sourceInput) {
-    const source = sourceRef(sourceInput || {});
-    const path = String(source.path || '').replace(/\\/g, '/');
-    const line = Number(source.line || source.startLine || 0);
-    const endLine = Number(source.endLine || source.line || source.startLine || line || 0);
-    return Boolean(
-      path.startsWith('source/scenes/') &&
-      path.endsWith('.scene.dry') &&
-      !isProtectedRouterPath(path) &&
-      Number.isInteger(line) &&
-      line > 0 &&
-      (!Number.isInteger(endLine) || endLine <= 0 || endLine === line) &&
-      isSourceOptionLine(String(source.anchorText || '').trim())
-    );
+    return existingSceneStructureOperations().sourceSupportsAdvancedOptionDelete(sourceInput);
   }
 
   function isSourceOptionLine(anchor) {
@@ -2606,76 +2415,8 @@
     );
   }
 
-  function sourceSupportsAdvancedRouteDelete(sourceInput) {
-    const source = sourceRef(sourceInput || {});
-    const path = String(source.path || '').replace(/\\/g, '/');
-    const line = Number(source.line || source.startLine || 0);
-    const endLine = Number(source.endLine || source.line || source.startLine || line || 0);
-    return Boolean(
-      path.startsWith('source/scenes/') &&
-      path.endsWith('.scene.dry') &&
-      !isProtectedRouterPath(path) &&
-      Number.isInteger(line) &&
-      line > 0 &&
-      (!Number.isInteger(endLine) || endLine <= 0 || endLine === line) &&
-      Boolean(simpleGoToLineTarget(source.anchorText))
-    );
-  }
-
-  function sourceSupportsAdvancedRouteReroute(sourceInput) {
-    return sourceSupportsAdvancedRouteDelete(sourceInput);
-  }
-
-  function routeLineReplacement(anchorText, nextTarget) {
-    const prefixMatch = String(anchorText || '').trim().match(/^(go-to\s*:\s*)[A-Za-z_][A-Za-z0-9_.-]*\s*$/i);
-    if (!prefixMatch || !ROUTE_TARGET_RE.test(String(nextTarget || '').trim())) {
-      return '';
-    }
-    return prefixMatch[1] + String(nextTarget || '').trim();
-  }
-
-  function simpleGoToLineTarget(value) {
-    const match = String(value || '').trim().match(/^go-to\s*:\s*([A-Za-z_][A-Za-z0-9_.-]*)\s*$/i);
-    return match ? match[1] : '';
-  }
-
   function sourceSupportsAdvancedSectionDelete(sourceInput) {
-    const source = sourceRef(sourceInput || {});
-    const path = String(source.path || '').replace(/\\/g, '/');
-    const line = Number(source.line || source.startLine || 0);
-    const endLine = Number(source.endLine || source.line || source.startLine || line || 0);
-    return Boolean(
-      path.startsWith('source/scenes/') &&
-      path.endsWith('.scene.dry') &&
-      !isProtectedRouterPath(path) &&
-      Number.isInteger(line) &&
-      line > 0 &&
-      Number.isInteger(endLine) &&
-      endLine >= line &&
-      String(source.anchorText || '').trim() &&
-      String(source.endAnchorText || '').trim()
-    );
-  }
-
-  function sourceSupportsAdvancedLayerDelete(sourceInput, options) {
-    const source = sourceRef(sourceInput || {});
-    const opts = isObject(options) ? options : {};
-    const path = String(source.path || '').replace(/\\/g, '/');
-    const line = Number(source.line || source.startLine || 0);
-    const endLine = Number(source.endLine || source.line || source.startLine || line || 0);
-    const anchor = String(source.anchorText || '').trim();
-    return Boolean(
-      path.startsWith('source/scenes/') &&
-      path.endsWith('.scene.dry') &&
-      !isProtectedRouterPath(path) &&
-      Number.isInteger(line) &&
-      line > 0 &&
-      Number.isInteger(endLine) &&
-      endLine >= line &&
-      anchor &&
-      String(source.endAnchorText || '').trim() &&
-      (!opts.requireSectionHeader || /^[@#]\s*[A-Za-z_][A-Za-z0-9_.-]*/.test(anchor))
-    );
+    return existingSceneStructureOperations().sourceSupportsAdvancedSectionDelete(sourceInput);
   }
 
   function removeEffectFromSourceLine(anchor, candidates) {
@@ -2819,7 +2560,7 @@
 
   function normalizeChange(change, index) {
     const value = isObject(change) ? change : {};
-    return {
+    const normalized = {
       fieldId: safeId(value.fieldId || 'field_' + (index + 1)),
       role: String(value.role || 'text'),
       label: String(value.label || roleLabel(value.role)),
@@ -2842,6 +2583,8 @@
       before: String(value.before === undefined || value.before === null ? '' : value.before),
       after: String(value.after === undefined || value.after === null ? '' : value.after)
     };
+    normalized.operationSummary = existingSceneStructureOperations().classifyChange(normalized);
+    return normalized;
   }
 
   function summarizeChanges(changes) {
@@ -2854,7 +2597,8 @@
       } else {
         summary.textFields += 1;
       }
-      if (change.editability === 'manual_review' || !(canGuardField(change.source, change.before) || canGuardSectionChange(change) || canAdvancedSourceChange(change))) {
+      const operationSummary = change.operationSummary || existingSceneStructureOperations().classifyChange(change);
+      if (operationSummary.status === 'manual_review') {
         summary.manualFields += 1;
       }
       if (change.operationType === 'replace_section') {

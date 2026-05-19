@@ -4,30 +4,29 @@
   const ASSET_MODEL_VERSION = '0.1';
   const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg']);
   const AUDIO_EXTENSIONS = new Set(['.mp3', '.ogg', '.wav', '.flac', '.m4a']);
-  const ASSET_PLACEMENT_KINDS = new Set([
-    'global_slot',
-    'opening_visual',
-    'section_visual',
-    'option_result_visual',
-    'conditional_visual',
-    'menu_visual',
-    'unknown_inline'
-  ]);
-  const ASSET_SLOT_DEFS = {
-    event: [
-      {role: 'event_illustration', type: 'image', label: 'Event illustration'},
-      {role: 'event_portrait', type: 'image', label: 'Event portrait'},
-      {role: 'event_background', type: 'image', label: 'Event background'},
-      {role: 'event_audio', type: 'audio', label: 'Event audio'}
-    ],
-    card: [
-      {role: 'card_image', type: 'image', label: 'Card image'},
-      {role: 'card_portrait', type: 'image', label: 'Card portrait'},
-      {role: 'card_background', type: 'image', label: 'Card background'},
-      {role: 'card_audio', type: 'audio', label: 'Card audio'}
-    ]
-  };
   const assetCatalogCache = typeof WeakMap === 'function' ? new WeakMap() : null;
+
+  function assetContractApi() {
+    if (global && global.ProjectMapAssetContractModel) {
+      return global.ProjectMapAssetContractModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./asset_contract_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function assetContracts() {
+    const api = assetContractApi();
+    if (!api) {
+      throw new Error('ProjectMapAssetContractModel is required before ProjectMapAssetModel.');
+    }
+    return api;
+  }
 
   function ensureArray(value) {
     return Array.isArray(value) ? value : [];
@@ -266,43 +265,11 @@
   }
 
   function suggestAssetTargetPath(asset, options) {
-    const item = normalizeAssetRef(asset || {});
-    const opts = options || {};
-    const target = opts.target === 'card' ? 'cards' : opts.target === 'event' ? 'events' : 'shared';
-    const draftId = safeId(opts.draftId || opts.id || target.slice(0, -1) || 'draft');
-    const sourceName = String(item.sourceName || item.name || item.label || fileName(item.path) || 'asset').trim();
-    return ['assets', 'studio', target, draftId, safeAssetFileName(sourceName, item.type || opts.type)].join('/');
+    return assetContracts().suggestAssetTargetPath(asset, options);
   }
 
   function assetInstallRequest(input, options) {
-    const value = isObject(input) ? input : {sourceName: input};
-    const sourceName = String(value.sourceName || value.fileName || value.name || fileName(value.sourcePath || value.path || '') || '').trim();
-    const sourcePath = String(value.sourcePath || '').trim();
-    const targetPath = String(value.targetPath || value.target || value.path || suggestAssetTargetPath(value, options)).trim();
-    const type = String(value.type || assetTypeForExtension(extensionForPath(targetPath || sourceName)) || 'asset').trim();
-    const role = String(value.role || options && options.role || '').trim();
-    const label = String(value.label || sourceName || fileName(targetPath) || '').trim();
-    return {
-      sourceName,
-      sourcePath,
-      targetPath,
-      type,
-      label,
-      role,
-      directive: String(value.directive || value.assetDirective || '').trim(),
-      placementId: String(value.placementId || value.assetPlacementId || '').trim(),
-      placementKind: normalizeAssetPlacementKind(value.placementKind || value.assetPlacementKind),
-      displayLocation: String(value.displayLocation || value.placementLabel || '').trim(),
-      operationCapability: String(value.operationCapability || '').trim(),
-      sectionId: String(value.sectionId || '').trim(),
-      optionId: String(value.optionId || '').trim(),
-      branchKind: String(value.branchKind || '').trim(),
-      relatedOptionIds: ensureArray(value.relatedOptionIds).map(String).filter(Boolean),
-      roleLabel: assetRoleLabel(role),
-      sourceSize: value.sourceSize,
-      sourceLastModified: value.sourceLastModified,
-      status: sourceName ? 'ready_for_review' : 'needs_source_file'
-    };
+    return assetContracts().assetInstallRequest(input, options);
   }
 
   function assetRepairInstallRequest(asset, file, options) {
@@ -357,27 +324,11 @@
   }
 
   function assetRoleLabel(role) {
-    const labels = {
-      event_illustration: 'Event illustration',
-      event_portrait: 'Event portrait',
-      event_background: 'Event background',
-      event_audio: 'Event audio',
-      card_image: 'Card image',
-      card_portrait: 'Card portrait',
-      card_background: 'Card background',
-      card_audio: 'Card audio',
-      advisor_portrait: 'Advisor portrait',
-      reference: 'Reference'
-    };
-    const value = String(role || '').trim();
-    return labels[value] || humanize(value || 'reference');
+    return assetContracts().assetRoleLabel(role);
   }
 
   function assetSlotDefinitions(target) {
-    const key = target === 'card' ? 'card' : 'event';
-    return ensureArray(ASSET_SLOT_DEFS[key]).map((slot) => Object.assign({}, slot, {
-      roleLabel: assetRoleLabel(slot.role)
-    }));
+    return assetContracts().assetSlotDefinitions(target);
   }
 
   function buildAssetSlots(draft, options) {
@@ -565,6 +516,8 @@
       sourceKind: 'asset_install_request',
       editability: item.sourcePath ? 'guarded_apply' : 'manual_review'
     }, {projectIndex, assetBaseUrl: opts.assetBaseUrl, relativePrefix: opts.relativePrefix});
+    const referenceState = pendingInstallReferenceState(item);
+    const previewCapability = pendingInstallPreviewCapability(item, ref);
     return {
       schemaVersion: ASSET_MODEL_VERSION,
       rowKind: 'asset_install_request',
@@ -594,13 +547,37 @@
       confidence: item.sourcePath ? 'desktop_source_path' : 'proposal_only',
       fileExists: ref.fileExists,
       previewUrl: ref.previewUrl || '',
-      referenceState: ref.referenceState,
-      previewCapability: ref.previewCapability,
+      referenceState,
+      previewCapability,
       usageRefs: ensureArray(ref.usageRefs),
       status: 'pending_install',
       statusLabel: 'Pending install',
       assetRef: assetDraftReference(Object.assign({path: item.targetPath, type: item.type, label: item.label, role}, placement), {role}),
       installRequest: item
+    };
+  }
+
+  function pendingInstallReferenceState(request) {
+    const hasSource = Boolean(request && request.sourcePath);
+    return {
+      key: 'pending_install',
+      label: 'Pending install',
+      help: hasSource
+        ? 'This local asset is queued for Review & Apply and will be copied into the project before the new reference is expected to exist.'
+        : 'This asset target is queued, but Studio still needs a local source file before it can copy it automatically.'
+    };
+  }
+
+  function pendingInstallPreviewCapability(request, normalizedRef) {
+    const ref = isObject(normalizedRef) ? normalizedRef : {};
+    const mediaKind = request && request.type || ref.type || assetTypeForExtension(extensionForPath(request && (request.targetPath || request.sourceName) || ref.path));
+    return {
+      canPreview: false,
+      mediaKind: mediaKind || 'asset',
+      url: '',
+      message: request && request.sourcePath
+        ? 'Pending install: Review & Apply will copy this local file into the project.'
+        : 'Pending install: choose a local source file before automatic copy is available.'
     };
   }
 
@@ -668,16 +645,11 @@
   }
 
   function normalizeAssetPlacementKind(value) {
-    const text = String(value || '').trim();
-    if (!text) {
-      return '';
-    }
-    return ASSET_PLACEMENT_KINDS.has(text) ? text : 'unknown_inline';
+    return assetContracts().normalizeAssetPlacementKind(value);
   }
 
   function isFlowPlacementKind(kind) {
-    const text = normalizeAssetPlacementKind(kind);
-    return Boolean(text && text !== 'global_slot');
+    return assetContracts().isFlowPlacementKind(kind);
   }
 
   function assetPlacementLabel(kind, asset, context) {
@@ -724,39 +696,11 @@
   }
 
   function normalizeAssetDirective(value) {
-    const text = String(value || '').trim().toLowerCase();
-    return text === 'face-image' ||
-      text === 'card-image' ||
-      text === 'set-bg' ||
-      text === 'audio' ||
-      text === 'inline-image' ||
-      text === 'inline-asset'
-      ? text
-      : '';
+    return assetContracts().normalizeAssetDirective(value);
   }
 
   function roleForAssetDirective(directive, target) {
-    const normalizedTarget = normalizeTarget(target);
-    const text = normalizeAssetDirective(directive);
-    if (text === 'card-image') {
-      return 'card_image';
-    }
-    if (text === 'face-image') {
-      return normalizedTarget === 'card' ? 'card_portrait' : 'event_portrait';
-    }
-    if (text === 'set-bg') {
-      return normalizedTarget === 'card' ? 'card_background' : 'event_background';
-    }
-    if (text === 'audio') {
-      return normalizedTarget === 'card' ? 'card_audio' : 'event_audio';
-    }
-    if (text === 'inline-image') {
-      return normalizedTarget === 'card' ? 'card_image' : 'event_illustration';
-    }
-    if (text === 'inline-asset') {
-      return normalizedTarget === 'card' ? 'card_image' : 'event_illustration';
-    }
-    return normalizedTarget === 'card' ? 'card_image' : 'event_illustration';
+    return assetContracts().roleForAssetDirective(directive, target);
   }
 
   function normalizeTarget(value) {

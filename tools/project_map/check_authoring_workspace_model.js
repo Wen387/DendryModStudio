@@ -302,7 +302,8 @@ assert(objectCanvasPreviewEditorSync.includes('ProjectMapObjectCanvasPreviewEdit
   'renderVisibleTextInline',
   'renderPreviewObjectDraftSummary',
   'previewObjectRouteLabel',
-  'syncObjectCanvasFieldValues'
+  'syncObjectCanvasFieldValues',
+  'syncObjectCanvasAssetActionState'
 ].forEach((name) => {
   assert(typeof objectCanvasPreviewEditorSyncApi[name] === 'function', 'Object Canvas Preview editor sync should export ' + name);
   assert(canvasUi.includes('previewEditorSyncApi().' + name), 'Object Canvas should keep ' + name + ' as a thin Preview editor sync wrapper');

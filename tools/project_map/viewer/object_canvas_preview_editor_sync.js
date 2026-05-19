@@ -211,6 +211,36 @@
     });
   }
 
+  function syncObjectCanvasAssetActionState(deps) {
+    const ctx = normalizeDeps(deps);
+    if (!ctx.host) {
+      return;
+    }
+    const values = ctx.state.values || {};
+    ctx.host.querySelectorAll('[data-object-canvas-action="remove_asset_reference"][data-existing-asset-field]').forEach((button) => {
+      const fieldId = String(button && button.dataset && button.dataset.existingAssetField || '').trim();
+      if (!fieldId) {
+        return;
+      }
+      const pendingRemoval = Object.prototype.hasOwnProperty.call(values, fieldId) && !String(values[fieldId] == null ? '' : values[fieldId]).trim();
+      const label = pendingRemoval
+        ? ctx.t('assets.restoreReference', 'Undo removal')
+        : ctx.t('assets.removeReference', 'Remove reference');
+      if (button.textContent !== label) {
+        button.textContent = label;
+      }
+      if (button.dataset) {
+        button.dataset.assetRemovalState = pendingRemoval ? 'pending' : 'idle';
+      }
+      if (typeof button.setAttribute === 'function') {
+        button.setAttribute('aria-pressed', pendingRemoval ? 'true' : 'false');
+      }
+      if (button.classList && typeof button.classList.toggle === 'function') {
+        button.classList.toggle('is-pending-removal', pendingRemoval);
+      }
+    });
+  }
+
   function isFocusedField(input, active) {
     if (input !== active) {
       return false;
@@ -278,7 +308,8 @@
     renderVisibleTextInline,
     renderPreviewObjectDraftSummary,
     previewObjectRouteLabel,
-    syncObjectCanvasFieldValues
+    syncObjectCanvasFieldValues,
+    syncObjectCanvasAssetActionState
   };
 
   if (typeof module !== 'undefined' && module.exports) {

@@ -248,6 +248,7 @@ function checkReviewAndLensContracts() {
   contains(read('viewer/object_authoring_canvas_ui.js'), 'updateRuntimeLensEvidence', 'Runtime Lens evidence update contract');
   contains(read('viewer/object_authoring_canvas_ui.js'), 'syncObjectCanvasReviewButtons', 'Object Canvas should synchronize duplicate Review & Apply buttons after programmatic asset edits');
   contains(read('viewer/object_authoring_canvas_ui.js'), 'dataset.reviewState', 'Object Canvas Review & Apply buttons should expose synchronized ready/blocked state');
+  contains(read('viewer/object_authoring_canvas_ui.js'), 'syncObjectCanvasAssetActionState', 'Object Canvas should synchronize asset action button labels after programmatic asset edits');
 }
 
 function checkRenderedAndPureBehavior() {
@@ -354,6 +355,25 @@ function checkRenderedAndPureBehavior() {
   });
   assert(checkbox.checked === false, 'Preview editor sync should treat false as an unchecked checkbox value');
 
+  const removeAssetButton = syncAssetActionButtonStub('asset_face_image_7');
+  previewEditorSync.syncObjectCanvasAssetActionState({
+    host: syncAssetActionHost([removeAssetButton]),
+    state: {values: {asset_face_image_7: ''}},
+    t: (key, fallback) => key === 'assets.restoreReference' ? '撤銷刪除' : fallback
+  });
+  assert(removeAssetButton.textContent === '撤銷刪除', 'Preview editor sync should relabel pending asset removal buttons');
+  assert(removeAssetButton.dataset.assetRemovalState === 'pending', 'Preview editor sync should mark pending asset removal state');
+  assert(removeAssetButton.attributes['aria-pressed'] === 'true', 'Preview editor sync should expose pending asset removal as pressed');
+  assert(removeAssetButton.classList.has('is-pending-removal'), 'Preview editor sync should style pending asset removal buttons');
+  previewEditorSync.syncObjectCanvasAssetActionState({
+    host: syncAssetActionHost([removeAssetButton]),
+    state: {values: {}}
+  });
+  assert(removeAssetButton.textContent === 'Remove reference', 'Preview editor sync should restore idle asset removal labels');
+  assert(removeAssetButton.dataset.assetRemovalState === 'idle', 'Preview editor sync should clear pending asset removal state');
+  assert(removeAssetButton.attributes['aria-pressed'] === 'false', 'Preview editor sync should expose idle asset removal as not pressed');
+  assert(!removeAssetButton.classList.has('is-pending-removal'), 'Preview editor sync should remove pending asset removal styling');
+
   const summaryHtml = previewEditorSync.renderPreviewObjectDraftSummary({
     template: 'card',
     changeState: {changedCount: 2, operationSummary: {guardedApply: 1, manualReview: 3}}
@@ -408,6 +428,15 @@ function syncHost(fields) {
   };
 }
 
+function syncAssetActionHost(buttons) {
+  return {
+    querySelectorAll(selector) {
+      assert(selector === '[data-object-canvas-action="remove_asset_reference"][data-existing-asset-field]', 'Preview editor sync should query asset action buttons by stable contract');
+      return buttons;
+    }
+  };
+}
+
 function syncFieldStub(key, value, options) {
   const opts = options || {};
   return {
@@ -416,6 +445,28 @@ function syncFieldStub(key, value, options) {
     tagName: opts.tagName || 'INPUT',
     type: opts.type || 'text',
     value
+  };
+}
+
+function syncAssetActionButtonStub(fieldId) {
+  const classes = new Set();
+  return {
+    attributes: {},
+    classList: {
+      has: (name) => classes.has(name),
+      toggle: (name, enabled) => {
+        if (enabled) {
+          classes.add(name);
+        } else {
+          classes.delete(name);
+        }
+      }
+    },
+    dataset: {existingAssetField: fieldId},
+    setAttribute(name, value) {
+      this.attributes[name] = value;
+    },
+    textContent: 'Remove reference'
   };
 }
 

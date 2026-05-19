@@ -166,7 +166,7 @@
           pending.triggerEffects.push(Object.assign({}, field, {
             value,
             original: value,
-            label: t('previewObjectEditor.structureTriggerEffectTitle', 'New trigger effect'),
+            label: t('previewObjectEditor.structureTriggerEffectTitle', 'New on-arrival effect'),
             status: field && field.status || statusFromEditability(field && field.editability) || 'manual'
           }));
           return;
@@ -405,8 +405,11 @@
       if (action === 'add_option' && editability === 'guarded_apply') {
         return t('previewObjectEditor.structureGuardedOptionNotice', 'Simple source-backed options can be applied automatically after review.');
       }
-      if (action === 'add_option_effect' && editability === 'guarded_apply') {
+      if ((action === 'add_option_effect' || action === 'add_trigger_effect') && editability === 'guarded_apply') {
         return t('previewObjectEditor.structureGuardedEffectNotice', 'Simple source-backed Q effects can be applied automatically after review.');
+      }
+      if ((action === 'add_option_effect' || action === 'add_trigger_effect') && editability === 'advanced_source_patch') {
+        return t('previewObjectEditor.structureAdvancedEffectNotice', 'Source-backed conditional or script-adjacent effects can be applied after advanced confirmation.');
       }
       if (/^remove_/.test(action) && editability === 'guarded_apply') {
         return t('previewObjectEditor.structureGuardedNotice', 'This source-backed structural change can be applied automatically after review.');
@@ -451,7 +454,7 @@
       const draft = structureDraftApi().parseEffectDraft(fieldValue(field));
       return renderStructureBuilder(field, action, action === 'add_option_effect'
         ? t('previewObjectEditor.structureChoiceEffectTitle', 'New choice effect')
-        : t('previewObjectEditor.structureTriggerEffectTitle', 'New trigger effect'), [
+        : t('previewObjectEditor.structureTriggerEffectTitle', 'New on-arrival effect'), [
         builderInput('variable', t('previewObjectEditor.structureVariable', 'Variable'), draft.variable, 'public_order'),
         builderSelect('operation', t('previewObjectEditor.structureOperation', 'Operation'), draft.op || '+=', ['=', '+=', '-=']),
         builderInput('value', t('previewObjectEditor.structureValue', 'Value'), draft.value, '1'),
@@ -487,7 +490,7 @@
       return {
         add_option: t('previewObjectEditor.structureHelpAddOption', 'Adds an option and result section to the current draft.'),
         add_branch: t('previewObjectEditor.structureHelpAddBranch', 'Adds a conditional or follow-up section to the current draft.'),
-        add_trigger_effect: t('previewObjectEditor.structureHelpTriggerEffect', 'Adds a Q effect that runs when this object opens.'),
+        add_trigger_effect: t('previewObjectEditor.structureHelpTriggerEffect', 'Adds a Q effect to the on-arrival logic that runs when this object opens.'),
         add_option_effect: t('previewObjectEditor.structureHelpChoiceEffect', 'Adds a Q effect for this choice or result.')
       }[String(action || '')] || '';
     }

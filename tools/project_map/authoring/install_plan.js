@@ -1158,7 +1158,7 @@
       return failedPreflightResult(context, operation, 'target_missing', 'Target file does not exist: ' + operation.path);
     }
     const before = state.text;
-    const after = replaceOnce(before, operation, context.crypto);
+    const after = replaceOnce(before, operation, context.crypto, state.originalText);
     if (!after.ok) {
       diagnostics.push(diagnostic('error', after.code, after.message, operation));
       return withOperationEvidence(
@@ -1206,7 +1206,7 @@
       return failedPreflightResult(context, operation, 'target_missing', 'Target file does not exist: ' + operation.path);
     }
     const before = state.text;
-    const inserted = insertAtAnchor(before, operation);
+    const inserted = insertAtAnchor(before, operation, state.originalText);
     if (!inserted.ok) {
       diagnostics.push(diagnostic('error', inserted.code, inserted.message, operation));
       return withOperationEvidence(
@@ -1254,7 +1254,7 @@
       return failedPreflightResult(context, operation, 'target_missing', 'Target file does not exist: ' + operation.path);
     }
     const before = state.text;
-    const section = replaceSection(before, operation);
+    const section = replaceSection(before, operation, state.originalText);
     if (!section.ok) {
       diagnostics.push(diagnostic('error', section.code, section.message, operation));
       return withOperationEvidence(
@@ -1709,6 +1709,18 @@
     const before = String(beforeSnippet || '');
     const after = String(afterSnippet || '');
     const body = [];
+    if (operation.type === 'insert_text') {
+      if (operation.position === 'before' && after) {
+        body.push(prefixLines('+', after));
+      }
+      if (before) {
+        body.push(prefixLines(' ', before));
+      }
+      if (operation.position !== 'before' && after) {
+        body.push(prefixLines('+', after));
+      }
+      return header.concat(body.length ? body : [' # no text diff']).join('\n') + '\n';
+    }
     if (before) {
       body.push(prefixLines('-', before));
     }
@@ -1821,7 +1833,7 @@
     return lines.slice(start, end).join('\n').includes(dedupe);
   }
 
-  function replaceOnce(text, operation, crypto) {
+  function replaceOnce(text, operation, crypto, originalText) {
     const search = operation.search || '';
     if (!search) {
       return {ok: false, code: 'install_plan.replace_empty_search', message: 'Replacement search text is empty.'};
@@ -1831,17 +1843,17 @@
     if (operation.line) {
       const parts = splitLogicalLines(text);
       const lines = parts.lines;
-      const index = operation.line - 1;
-      const beforeLine = index >= 0 && index < lines.length ? lines[index] : '';
-      if (replacement && beforeLine.includes(replacement)) {
-        return {ok: true, alreadyApplied: true, text, line: operation.line, beforeSnippet: beforeLine, afterSnippet: beforeLine};
+      const resolvedLine = resolveReplaceLineIndex(lines, originalText, operation, crypto, search, replacement, deleteLine);
+      if (!resolvedLine.ok) {
+        return resolvedLine;
+      }
+      const index = resolvedLine.index;
+      const beforeLine = lines[index];
+      if (replacement && beforeLine && beforeLine.includes(replacement)) {
+        return {ok: true, alreadyApplied: true, text, line: index + 1, beforeSnippet: beforeLine, afterSnippet: beforeLine};
       }
       if (deleteLine && text.split(search).length - 1 === 0) {
         return {ok: true, alreadyApplied: true, text, line: operation.line, beforeSnippet: '', afterSnippet: ''};
-      }
-      const sourceEvidence = lineMatchesReplaceEvidence(beforeLine, operation, crypto);
-      if (!sourceEvidence.ok) {
-        return sourceEvidence;
       }
       if (index >= 0 && index < lines.length && lines[index].includes(search)) {
         if (deleteLine) {
@@ -1852,7 +1864,7 @@
         return {
           ok: true,
           text: joinLogicalLines(parts),
-          line: operation.line,
+          line: index + 1,
           beforeSnippet: beforeLine,
           afterSnippet: deleteLine ? '' : lines[index],
           deleteMode: deleteLine ? 'line' : ''
@@ -1898,6 +1910,73 @@
     return {ok: true, text: text.replace(search, replacement), beforeSnippet: search, afterSnippet: replacement};
   }
 
+  function resolveReplaceLineIndex(lines, originalText, operation, crypto, search, replacement, deleteLine) {
+    const lineIndex = Number(operation && operation.line || 0) - 1;
+    const beforeLine = lineIndex >= 0 && lineIndex < lines.length ? lines[lineIndex] : undefined;
+    const sourceEvidence = lineMatchesReplaceEvidence(beforeLine, operation, crypto);
+    if (sourceEvidence.ok && lineSatisfiesReplaceTarget(beforeLine, search, replacement, deleteLine)) {
+      return {ok: true, index: lineIndex};
+    }
+    const shifted = resolveShiftedReplaceLineIndex(lines, originalText, lineIndex, operation, crypto, search, replacement, deleteLine);
+    if (shifted.ok) {
+      return shifted;
+    }
+    if (!sourceEvidence.ok) {
+      return sourceEvidence;
+    }
+    return {
+      ok: false,
+      code: 'install_plan.replace_line_mismatch',
+      message: 'Replacement line evidence did not match the target text.'
+    };
+  }
+
+  function lineSatisfiesReplaceTarget(line, search, replacement, deleteLine) {
+    const value = String(line === undefined || line === null ? '' : line);
+    return value.includes(search) || Boolean(replacement && value.includes(replacement)) || Boolean(deleteLine && search);
+  }
+
+  function resolveShiftedReplaceLineIndex(lines, originalText, lineIndex, operation, crypto, search, replacement, deleteLine) {
+    const originalLines = splitLogicalLines(originalText || '').lines;
+    const originalLine = originalLines[lineIndex];
+    const sourceEvidence = lineMatchesReplaceEvidence(originalLine, operation, crypto);
+    if (!sourceEvidence.ok || !lineSatisfiesReplaceTarget(originalLine, search, replacement, deleteLine)) {
+      return {ok: false};
+    }
+    const exactOriginalLineMatches = [];
+    lines.forEach((line, index) => {
+      if (line === originalLine) {
+        exactOriginalLineMatches.push(index);
+      }
+    });
+    if (exactOriginalLineMatches.length === 1) {
+      return {ok: true, index: exactOriginalLineMatches[0]};
+    }
+    if (exactOriginalLineMatches.length > 1) {
+      return {
+        ok: false,
+        code: 'install_plan.replace_line_mismatch',
+        message: 'Replacement line evidence matched the original source, but the shifted line is ambiguous after earlier same-file operations.'
+      };
+    }
+    const searchMatches = [];
+    lines.forEach((line, index) => {
+      if (String(line || '').includes(search)) {
+        searchMatches.push(index);
+      }
+    });
+    if (searchMatches.length === 1) {
+      return {ok: true, index: searchMatches[0]};
+    }
+    return {
+      ok: false,
+      code: 'install_plan.replace_line_mismatch',
+      message: searchMatches.length
+        ? 'Replacement line evidence matched the original source, but the shifted target is ambiguous after earlier same-file operations.'
+        : 'Replacement line evidence matched the original source, but the target no longer exists after earlier same-file operations.'
+    };
+  }
+
   function lineMatchesReplaceEvidence(line, operation, crypto) {
     const rawAnchor = String(operation && operation.rawAnchorText || '');
     if (line === undefined || line === null) {
@@ -1930,7 +2009,7 @@
       (String(operation && operation.deleteMode || '') === 'line' || Boolean(operation && operation.deletesSourceLine));
   }
 
-  function insertAtAnchor(text, operation) {
+  function insertAtAnchor(text, operation, originalText) {
     const anchor = operation.anchorText || '';
     if (!anchor) {
       return {ok: false, code: 'install_plan.insert_empty_anchor', message: 'Insert anchor text is empty.'};
@@ -1954,14 +2033,15 @@
           message: 'Insert line evidence points outside the target file.'
         };
       }
-      if (!line.includes(anchor)) {
-        return {
-          ok: false,
-          code: 'install_plan.insert_line_anchor_mismatch',
-          message: 'Insert line evidence did not match the anchor text.'
-        };
+      if (line.includes(anchor)) {
+        matches.push(lineIndex);
+      } else {
+        const shifted = resolveShiftedInsertAnchorLine(lines, originalText, lineIndex, anchor);
+        if (!shifted.ok) {
+          return shifted;
+        }
+        matches.push(shifted.index);
       }
-      matches.push(lineIndex);
     } else {
       lines.forEach((line, index) => {
         if (line.includes(anchor)) {
@@ -1998,7 +2078,51 @@
     };
   }
 
-  function replaceSection(text, operation) {
+  function resolveShiftedInsertAnchorLine(lines, originalText, lineIndex, anchor) {
+    const originalLines = splitLogicalLines(originalText || '').lines;
+    const originalLine = originalLines[lineIndex];
+    if (originalLine === undefined || !String(originalLine || '').includes(anchor)) {
+      return {
+        ok: false,
+        code: 'install_plan.insert_line_anchor_mismatch',
+        message: 'Insert line evidence did not match the anchor text.'
+      };
+    }
+    const exactOriginalLineMatches = [];
+    lines.forEach((line, index) => {
+      if (line === originalLine) {
+        exactOriginalLineMatches.push(index);
+      }
+    });
+    if (exactOriginalLineMatches.length === 1) {
+      return {ok: true, index: exactOriginalLineMatches[0]};
+    }
+    if (exactOriginalLineMatches.length > 1) {
+      return {
+        ok: false,
+        code: 'install_plan.insert_line_anchor_mismatch',
+        message: 'Insert line evidence matched the original source, but the shifted anchor is ambiguous after earlier same-file operations.'
+      };
+    }
+    const anchorMatches = [];
+    lines.forEach((line, index) => {
+      if (String(line || '').includes(anchor)) {
+        anchorMatches.push(index);
+      }
+    });
+    if (anchorMatches.length === 1) {
+      return {ok: true, index: anchorMatches[0]};
+    }
+    return {
+      ok: false,
+      code: 'install_plan.insert_line_anchor_mismatch',
+      message: anchorMatches.length
+        ? 'Insert line evidence matched the original source, but the shifted anchor is ambiguous after earlier same-file operations.'
+        : 'Insert line evidence matched the original source, but the anchor no longer exists after earlier same-file operations.'
+    };
+  }
+
+  function replaceSection(text, operation, originalText) {
     const anchor = operation.anchorText || '';
     const endAnchor = operation.endAnchorText || '';
     const content = operation.content || '';
@@ -2013,7 +2137,7 @@
     }
     const parts = splitLogicalLines(text);
     const lines = parts.lines;
-    const startMatch = resolveSectionAnchor(lines, anchor, operation.rawAnchorText || '', operation.startLine || operation.line || null, 0, 'start');
+    const startMatch = resolveSectionAnchor(lines, anchor, operation.rawAnchorText || '', operation.startLine || operation.line || null, 0, 'start', originalText);
     if (!startMatch.ok) {
       if (startMatch.count === 0 && containsNormalizedBlock(text, content)) {
         return {ok: true, alreadyApplied: true, text, beforeSnippet: content, afterSnippet: content};
@@ -2041,7 +2165,7 @@
           : 'exact_line_evidence'
       };
     }
-    const endMatch = resolveSectionAnchor(lines, endAnchor, operation.rawEndAnchorText || '', operation.endLine || null, start, 'end');
+    const endMatch = resolveSectionAnchor(lines, endAnchor, operation.rawEndAnchorText || '', operation.endLine || null, start, 'end', originalText);
     if (!endMatch.ok) {
       return {
         ok: false,
@@ -2050,14 +2174,14 @@
       };
     }
     const end = endMatch.index;
-    if (operation.startLine && start + 1 !== operation.startLine) {
+    if (operation.startLine && start + 1 !== operation.startLine && !isShiftedSectionMatch(startMatch.matchKind)) {
       return {
         ok: false,
         code: 'install_plan.section_start_line_mismatch',
         message: 'Section start anchor matched line ' + (start + 1) + ', expected line ' + operation.startLine + '.'
       };
     }
-    if (operation.endLine && end + 1 !== operation.endLine) {
+    if (operation.endLine && end + 1 !== operation.endLine && !isShiftedSectionMatch(endMatch.matchKind)) {
       return {
         ok: false,
         code: 'install_plan.section_end_line_mismatch',
@@ -2097,7 +2221,7 @@
     return normalizeNewlines(value).replace(/\n$/, '');
   }
 
-  function resolveSectionAnchor(lines, anchor, rawAnchor, lineEvidence, minimumIndex, kind) {
+  function resolveSectionAnchor(lines, anchor, rawAnchor, lineEvidence, minimumIndex, kind, originalText) {
     const label = kind === 'end' ? 'end' : 'start';
     const missingCode = kind === 'end' ? 'install_plan.section_end_anchor_missing' : 'install_plan.section_anchor_missing';
     const ambiguousCode = kind === 'end' ? 'install_plan.section_ambiguous_end_anchor' : 'install_plan.section_ambiguous_anchor';
@@ -2115,7 +2239,11 @@
       }
       const match = lineMatchesSourceAnchor(line, anchor, rawAnchor, true);
       if (!match.ok) {
-        return {
+        const shifted = resolveShiftedSectionAnchorLine(lines, originalText, index, anchor, rawAnchor, minimumIndex, kind);
+        if (shifted.ok) {
+          return shifted;
+        }
+        return shifted.code ? shifted : {
           ok: false,
           code: kind === 'end' ? 'install_plan.section_end_line_mismatch' : 'install_plan.section_start_line_mismatch',
           count: 0,
@@ -2158,7 +2286,57 @@
     };
   }
 
+  function resolveShiftedSectionAnchorLine(lines, originalText, lineIndex, anchor, rawAnchor, minimumIndex, kind) {
+    const originalLines = splitLogicalLines(originalText || '').lines;
+    const originalLine = originalLines[lineIndex];
+    const originalMatch = lineMatchesSourceAnchor(originalLine, anchor, rawAnchor, true);
+    if (!originalMatch.ok) {
+      return {ok: false};
+    }
+    const exactOriginalLineMatches = [];
+    lines.forEach((line, index) => {
+      if (index >= minimumIndex && line === originalLine) {
+        exactOriginalLineMatches.push(index);
+      }
+    });
+    if (exactOriginalLineMatches.length === 1) {
+      return {ok: true, index: exactOriginalLineMatches[0], count: 1, matchKind: 'shifted_' + originalMatch.kind};
+    }
+    if (exactOriginalLineMatches.length > 1) {
+      return shiftedSectionAnchorFailure(kind, true);
+    }
+    const anchorMatches = [];
+    lines.forEach((line, index) => {
+      if (index >= minimumIndex && lineMatchesSourceAnchor(line, anchor, rawAnchor, true).ok) {
+        anchorMatches.push(index);
+      }
+    });
+    if (anchorMatches.length === 1) {
+      return {ok: true, index: anchorMatches[0], count: 1, matchKind: 'shifted_anchor'};
+    }
+    return shiftedSectionAnchorFailure(kind, anchorMatches.length > 0);
+  }
+
+  function shiftedSectionAnchorFailure(kind, ambiguous) {
+    const label = kind === 'end' ? 'end' : 'start';
+    return {
+      ok: false,
+      code: kind === 'end' ? 'install_plan.section_end_line_mismatch' : 'install_plan.section_start_line_mismatch',
+      count: ambiguous ? 2 : 0,
+      message: ambiguous
+        ? 'Section ' + label + ' line evidence matched the original source, but the shifted anchor is ambiguous after earlier same-file operations.'
+        : 'Section ' + label + ' line evidence matched the original source, but the anchor no longer exists after earlier same-file operations.'
+    };
+  }
+
+  function isShiftedSectionMatch(matchKind) {
+    return String(matchKind || '').indexOf('shifted_') === 0;
+  }
+
   function lineMatchesSourceAnchor(line, anchor, rawAnchor, allowTrimEquivalent) {
+    if (line === undefined || line === null) {
+      return {ok: false};
+    }
     if (rawAnchor) {
       return line === rawAnchor ? {ok: true, kind: 'raw_exact'} : {ok: false};
     }

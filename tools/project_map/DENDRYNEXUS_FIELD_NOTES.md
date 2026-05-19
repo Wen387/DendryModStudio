@@ -261,6 +261,9 @@ On-display: {! Q.preview_seen = true; !}
 Engine-facing lessons:
 
 - `on-arrival` runs when entering a scene.
+- A scene can pair `on-arrival` state writes with immediate route directives.
+  Route analysis should treat those writes as possible pre-route state changes
+  instead of evaluating the `go-to` predicates in isolation.
 - `on-departure` runs when leaving a scene and can be gameplay-significant.
 - `on-display` runs when the scene text is rendered.
 - Hook values may be shorthand expressions or `{! ... !}` JavaScript blocks.
@@ -283,6 +286,17 @@ View-if: z_party_name == "CVP"
 Choose-if: z_relations >= 2
 Go-to: @center_party_conference
 ```
+
+Inline conditional text can also appear inside ordinary prose:
+
+```dry
+We improved relations[? if in_grand_coalition:, and reduced coalition tensions?].
+```
+
+Treat this as a conditional fragment inside one paragraph. The paragraph is
+still a normal source-backed text block, but the condition and conditional text
+should remain inspectable. Do not promote the fragment into a standalone branch,
+and do not render the conditional fragment as if it were unconditional prose.
 
 Studio should accept common spelling and casing variants when indexing:
 
@@ -315,14 +329,50 @@ go-sub: shared_intro
 set-jump: return_from_algorithm
 ```
 
+Dendry `go-to:` lines can be semicolon-separated route lists, not just single
+edges. Each clause is a route entry with its own target and optional condition:
+
+```dry
+@results
+go-to: left if reform_wins; right if reform_loses; compromise if reform_ties
+```
+
+Important lessons:
+
+- Preserve sibling clauses and source order when editing one branch, but do not
+  treat order as if/else priority. The DendryNexus runtime gathers all route
+  clauses whose predicates are true; if more than one target is valid, it
+  chooses randomly among them. A mixed line such as
+  `go-to: main_rally; sa_disrupt if sa_force > 25` can therefore be a random
+  split when the condition is true, not a fallback chain.
+- A local section such as `@right` may be reached only through one clause in a
+  multi-clause `go-to:` line. That still makes it a referenced layer.
+- Removing or retargeting that layer should update only the matching clause
+  when source evidence is exact. Deleting the whole `go-to:` line would silently
+  remove unrelated branches.
+- Match source-local targets such as `right` against compiled qualified ids such
+  as `event_id.right`; both describe the same section at different layers.
+- When an index has a line number and source excerpt but no clean anchor text,
+  recover the exact directive line from the excerpt before treating the route as
+  editable evidence.
+
 Studio lessons:
 
 - `go-to` and option targets can usually be resolved against scene ids and
   local section anchors.
 - `go-to-ref` points at a quality whose runtime value is a scene id. Index it
   as dynamic route evidence, not as a missing static scene target.
-- Chained or conditional routes preserve order. They can be parser-backed while
-  still requiring manual review before source rewrites.
+- Chained or conditional routes preserve source order for editing, and should
+  also expose possible multi-valid randomization when predicates can overlap.
+  They can be parser-backed while still requiring manual review before source
+  rewrites.
+- Route collision checks should distinguish direct pre-route writes to
+  predicate dependencies from opaque script-before-route blocks, because the
+  former can be simulated by a bounded safe evaluator while the latter remains
+  evidence for manual review.
+- Collision checks should also surface zero-valid samples. A conditional route
+  group can have no valid target for some state combinations, which is a
+  routing coverage gap rather than a normal fallback.
 - `go-sub`, `go-sub-start`, and `go-sub-end` are parser-backed subroutine-like
   navigation. Treat them as real behavior, but keep automated edits
   conservative because runtime handling is more nuanced than ordinary `go-to`.
@@ -452,6 +502,9 @@ These assumptions have caused or can cause Studio bugs:
 - "Community examples are parser grammar."
 - "Every parser-valid top-level scene has an editable `@scene_id` line."
 - "Every deck is an independent top-level scene."
+- "A `go-to:` line is one indivisible route edge."
+- "Deleting a branch section is safe once the section body has exact source
+  evidence." Incoming option and route clauses can still reference it.
 
 Each of these should become a test when it affects user-visible editing.
 

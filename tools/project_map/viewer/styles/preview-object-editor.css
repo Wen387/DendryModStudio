@@ -650,6 +650,17 @@ input.preview-object-control[type="checkbox"] {
   background: color-mix(in srgb, var(--danger, #b84a4a) 14%, var(--surface));
 }
 
+.object-canvas-asset-remove-control.is-pending-removal {
+  border-color: color-mix(in srgb, var(--accent, #2f6f57) 55%, var(--border));
+  background: color-mix(in srgb, var(--accent, #2f6f57) 9%, var(--surface));
+  color: var(--accent-strong, #245a46);
+}
+
+.object-canvas-asset-remove-control.is-pending-removal:hover,
+.object-canvas-asset-remove-control.is-pending-removal:focus-visible {
+  background: color-mix(in srgb, var(--accent, #2f6f57) 15%, var(--surface));
+}
+
 .object-canvas-asset-row {
   display: grid;
   gap: 5px;
@@ -1297,6 +1308,89 @@ input.preview-object-control[type="checkbox"] {
 
 .preview-object-effect-fields {
   grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr));
+}
+
+.preview-object-effect-row {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--success) 14%, var(--border-soft));
+  border-radius: 8px;
+  background: color-mix(in srgb, #edf7ef 28%, var(--surface));
+}
+
+.preview-object-effect-row > .preview-object-field {
+  padding: 9px 10px 0;
+}
+
+.preview-object-effect-row:not(.has-delete-action) > .preview-object-field {
+  padding-bottom: 9px;
+}
+
+.preview-object-effect-readonly {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 9px 10px 0;
+}
+
+.preview-object-effect-readonly span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.preview-object-effect-readonly code {
+  min-width: 0;
+  color: var(--accent-strong);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.preview-object-effect-row:has(.preview-object-effect-delete input:checked) {
+  border-color: color-mix(in srgb, var(--danger) 34%, var(--border));
+  background: color-mix(in srgb, #fff1ee 50%, var(--surface));
+}
+
+.preview-object-effect-delete {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 3px 7px;
+  min-width: 0;
+  padding: 7px 10px;
+  border-top: 1px solid color-mix(in srgb, var(--danger) 20%, var(--border-soft));
+  color: var(--text);
+}
+
+.preview-object-effect-delete input {
+  grid-row: span 3;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--danger);
+}
+
+.preview-object-effect-delete span {
+  color: color-mix(in srgb, var(--text) 78%, var(--danger));
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.preview-object-effect-delete code {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.preview-object-effect-delete .preview-object-structure-safety {
+  justify-self: start;
+  color: var(--muted);
+  font-size: 11px;
 }
 
 .preview-object-before-after {

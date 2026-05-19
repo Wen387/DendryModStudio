@@ -168,17 +168,91 @@
   }
 
   function renderRouteScriptIntelligence(model) {
-    const routes = ensureArray(model && model.routes && model.routes.items || model && model.routeEvidenceMap && model.routeEvidenceMap.items).slice(0, 8);
-    const scripts = ensureArray(model && model.scripts && model.scripts.blocks || model && model.scriptImpactMap && model.scriptImpactMap.blocks).slice(0, 8);
-    if (!routes.length && !scripts.length) {
+    const allRoutes = ensureArray(model && model.routes && model.routes.items || model && model.routeEvidenceMap && model.routeEvidenceMap.items);
+    const allScripts = ensureArray(model && model.scripts && model.scripts.blocks || model && model.scriptImpactMap && model.scriptImpactMap.blocks);
+    const summary = model && model.routeScriptIntelligence && model.routeScriptIntelligence.summary || {};
+    const diagnostics = ensureArray(model && model.diagnostics || model && model.routeScriptIntelligence && model.routeScriptIntelligence.diagnostics).slice(0, 6);
+    const routes = allRoutes.filter(routeEvidenceNeedsReview).slice(0, 8);
+    const scripts = allScripts.filter(scriptImpactNeedsReview).slice(0, 8);
+    if (!routes.length && !scripts.length && !diagnostics.length) {
       return '';
     }
+    const open = diagnostics.some((item) => ['error', 'warning'].includes(String(item && item.severity || ''))) ||
+      routes.some((route) => ['missing_target', 'fuzzy', 'script_derived'].includes(String(route && route.evidenceClass || ''))) ||
+      scripts.some((block) => String(block && block.safetyClass || '') === 'manual_boundary');
+    const summaryChips = routeScriptSummaryChips(diagnostics, routes, scripts);
     return [
       '<section class="preview-object-route-script" data-preview-object-route-script="true">',
-      '<div class="preview-object-section-title">' + escapeHtml(t('previewObjectEditor.routeScriptIntelligence', 'Route and script intelligence')) + '</div>',
-      routes.length ? '<div class="preview-object-route-script-grid" data-preview-object-route-evidence="true">' + routes.map(renderRouteEvidenceItem).join('') + '</div>' : '',
-      scripts.length ? '<div class="preview-object-route-script-grid" data-preview-object-script-impact="true">' + scripts.map(renderScriptImpactItem).join('') + '</div>' : '',
+      '<details' + (open ? ' open' : '') + '>',
+      '<summary class="preview-object-route-script-summary preview-object-section-title"><span>' + escapeHtml(t('previewObjectEditor.routeScriptIntelligence', 'Route/script review')) + '</span>' + (summaryChips.length ? '<span class="preview-object-route-script-chips">' + summaryChips.map((chip) => '<b>' + escapeHtml(chip) + '</b>').join('') + '</span>' : '') + '</summary>',
+      '<p class="preview-object-route-script-note" data-preview-object-route-script-note="true">' + escapeHtml(routeScriptPanelNote(summary, allRoutes, allScripts, routes, scripts)) + '</p>',
+      diagnostics.length ? renderRouteScriptGroup(t('previewObjectEditor.routeScriptDiagnostics', 'Diagnostics'), 'route-diagnostics', diagnostics.map(renderRouteScriptDiagnostic).join('')) : '',
+      routes.length ? renderRouteScriptGroup(t('previewObjectEditor.routeScriptRouteEvidence', 'Route evidence needing review'), 'route-evidence', routes.map(renderRouteEvidenceItem).join('')) : '',
+      scripts.length ? renderRouteScriptGroup(t('previewObjectEditor.routeScriptScriptEvidence', 'Script impact needing review'), 'script-impact', scripts.map(renderScriptImpactItem).join('')) : '',
+      '</details>',
       '</section>'
+    ].join('');
+  }
+
+  function renderRouteScriptGroup(title, dataKey, content) {
+    return [
+      '<div class="preview-object-route-script-group" data-preview-object-' + escapeAttr(dataKey) + '="true">',
+      '<h4>' + escapeHtml(title) + '</h4>',
+      '<div class="preview-object-route-script-grid">' + content + '</div>',
+      '</div>'
+    ].join('');
+  }
+
+  function routeScriptPanelNote(summary, allRoutes, allScripts, routes, scripts) {
+    const routeCount = Number(summary && summary.routeCount || allRoutes.length || 0);
+    const scriptCount = Number(summary && summary.scriptBlockCount || allScripts.length || 0);
+    const hiddenRoutes = Math.max(0, routeCount - routes.length);
+    const hiddenScripts = Math.max(0, scriptCount - scripts.length);
+    const parts = [t('previewObjectEditor.routeScriptPanelNote', 'This is a review lens, not a separate editor. It only shows conditional routes, unresolved targets, script-derived routes, or script blocks that can affect edit safety.')];
+    if (hiddenRoutes || hiddenScripts) {
+      parts.push(t('previewObjectEditor.routeScriptHiddenStable', 'Stable exact routes and guided simple effects are hidden here unless they affect routing.')
+        .replace('{routes}', String(hiddenRoutes))
+        .replace('{scripts}', String(hiddenScripts)));
+    }
+    return parts.join(' ');
+  }
+
+  function routeScriptSummaryChips(diagnostics, routes, scripts) {
+    return [
+      diagnostics.length ? t('previewObjectEditor.routeScriptDiagnostics', 'Diagnostics') + ': ' + diagnostics.length : '',
+      routes.length ? t('previewObjectEditor.routeScriptRoutes', 'Routes') + ': ' + routes.length : '',
+      scripts.length ? t('previewObjectEditor.routeScriptScripts', 'Scripts') + ': ' + scripts.length : ''
+    ].filter(Boolean);
+  }
+
+  function routeEvidenceNeedsReview(route) {
+    const value = route || {};
+    const evidenceClass = String(value.evidenceClass || '');
+    if (value.predicate) {
+      return true;
+    }
+    return Boolean(evidenceClass && !['exact', 'parser_backed', 'terminal'].includes(evidenceClass));
+  }
+
+  function scriptImpactNeedsReview(block) {
+    const value = block || {};
+    const safety = String(value.safetyClass || '');
+    if (safety && safety !== 'guided') {
+      return true;
+    }
+    if (String(value.boundaryCategory || '') === 'opaque_js_block') {
+      return true;
+    }
+    return ensureArray(value.boundaryReasons).length > 0;
+  }
+
+  function renderRouteScriptDiagnostic(item) {
+    const value = item || {};
+    return [
+      '<article data-preview-object-route-diagnostic="' + escapeAttr(value.code || value.severity || 'info') + '">',
+      '<strong>' + escapeHtml(playabilitySeverityLabel(value.severity || 'info')) + '</strong>',
+      '<span>' + escapeHtml(value.message || value.code || '') + '</span>',
+      '</article>'
     ].join('');
   }
 
@@ -189,6 +263,8 @@
       '<strong>' + escapeHtml(routeEvidenceClassLabel(value.evidenceClass)) + '</strong>',
       '<span>' + escapeHtml([value.from, value.target].filter(Boolean).join(' -> ') || value.rawTarget || value.target || '') + '</span>',
       value.predicate ? '<code>' + escapeHtml(value.predicate) + '</code>' : '',
+      '<small data-preview-object-route-review-reason="true">' + escapeHtml(routeReviewReasonLabel(value)) + '</small>',
+      value.sourceKind || value.owner ? '<small>' + escapeHtml([sourceKindLabel(value.sourceKind), value.owner].filter(Boolean).join(' / ')) + '</small>' : '',
       '</article>'
     ].join('');
   }
@@ -205,6 +281,7 @@
       '<strong>' + escapeHtml(scriptSafetyLabel(value.safetyClass)) + '</strong>',
       '<span>' + escapeHtml(value.label || value.hook || value.id || '') + '</span>',
       value.boundaryCategory ? '<small>' + escapeHtml(t('previewObjectEditor.scriptCategory', 'Category') + ': ' + scriptBoundaryCategoryLabel(value.boundaryCategory)) + '</small>' : '',
+      '<small data-preview-object-script-review-reason="true">' + escapeHtml(scriptReviewReasonLabel(value)) + '</small>',
       value.lineCount ? '<small>' + escapeHtml(t('previewObjectEditor.scriptLines', 'Lines') + ': ' + String(value.lineCount)) + '</small>' : '',
       ensureArray(value.writes).length ? '<code>' + escapeHtml(t('previewObjectEditor.scriptWrites', 'writes') + ': ' + ensureArray(value.writes).slice(0, 5).join(', ')) + '</code>' : '',
       influence ? '<small>' + escapeHtml(t('previewObjectEditor.scriptInfluence', 'Influence') + ': ' + influence) + '</small>' : '',
@@ -311,6 +388,52 @@
       missing_target: t('previewObjectEditor.routeMissing', 'Missing target'),
       terminal: t('previewObjectEditor.routeTerminal', 'Terminal/root'),
       external: t('previewObjectEditor.routeExternal', 'External')
+    }[String(value || '')] || String(value || '');
+  }
+
+  function routeReviewReasonLabel(route) {
+    const value = route || {};
+    const klass = String(value.evidenceClass || '');
+    if (value.predicate) {
+      return t('previewObjectEditor.routeReasonPredicate', 'Shown because this route has a predicate; target edits must preserve its condition.');
+    }
+    if (klass === 'missing_target') {
+      return t('previewObjectEditor.routeReasonMissing', 'Shown because the target could not be resolved from the current index.');
+    }
+    if (klass === 'script_derived') {
+      return t('previewObjectEditor.routeReasonScript', 'Shown because routing was inferred from script evidence.');
+    }
+    if (klass === 'fuzzy') {
+      return t('previewObjectEditor.routeReasonFuzzy', 'Shown because the target match is approximate.');
+    }
+    return t('previewObjectEditor.routeReasonBoundary', 'Shown as route evidence that can affect edit safety.');
+  }
+
+  function scriptReviewReasonLabel(block) {
+    const value = block || {};
+    const safety = String(value.safetyClass || '');
+    if (safety === 'manual_boundary') {
+      return t('previewObjectEditor.scriptReasonManual', 'Shown because this script crosses a manual review boundary.');
+    }
+    if (String(value.boundaryCategory || '') === 'opaque_js_block') {
+      return t('previewObjectEditor.scriptReasonOpaque', 'Shown because this is an opaque JavaScript block.');
+    }
+    if (value.routeInfluence) {
+      return t('previewObjectEditor.scriptReasonRoute', 'Shown because the script may influence route selection.');
+    }
+    if (safety === 'advanced_review') {
+      return t('previewObjectEditor.scriptReasonAdvanced', 'Shown because this script needs advanced source review before edits.');
+    }
+    return t('previewObjectEditor.scriptReasonBoundary', 'Shown because this script affects edit safety.');
+  }
+
+  function sourceKindLabel(value) {
+    return {
+      flow: t('previewObjectEditor.routeSourceFlow', 'flow'),
+      field: t('previewObjectEditor.routeSourceField', 'field'),
+      continuation: t('previewObjectEditor.routeSourceContinuation', 'continuation'),
+      script: t('previewObjectEditor.routeSourceScript', 'script'),
+      explicit: t('previewObjectEditor.routeSourceExplicit', 'explicit')
     }[String(value || '')] || String(value || '');
   }
 

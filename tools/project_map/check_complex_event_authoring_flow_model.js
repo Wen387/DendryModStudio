@@ -234,6 +234,8 @@ function runComplexEventAuthoringFlow() {
   assert(html.includes('data-preview-object-choice-units="true"'), 'UI should render complete choice unit summary');
   assert(html.includes('data-preview-object-consequence-groups="true"'), 'UI should render consequence groups');
   assert(html.includes('data-preview-object-continuation-map="true"'), 'UI should render continuation map');
+  assert(html.includes('data-preview-object-route-script-note="true"'), 'Route/script panel should explain why review evidence is shown');
+  assert(html.includes('data-preview-object-route-review-reason="true"'), 'Route/script panel should name why a route is surfaced for review');
 
   return {
     ok: true,

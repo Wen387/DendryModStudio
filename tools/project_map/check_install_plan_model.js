@@ -252,6 +252,41 @@ fs.writeFileSync(
   'utf8'
 );
 fs.writeFileSync(
+  path.join(tmpRoot, 'source', 'scenes', 'events', 'same_anchor_insert.scene.dry'),
+  [
+    'title: Same Anchor Insert',
+    '',
+    'Shared body anchor.',
+    'Tail stays put.',
+    ''
+  ].join('\n'),
+  'utf8'
+);
+fs.writeFileSync(
+  path.join(tmpRoot, 'source', 'scenes', 'events', 'same_line_shift_replace.scene.dry'),
+  [
+    'title: Same Line Shift Replace',
+    '',
+    'Shared editable line.',
+    'Tail stays put.',
+    ''
+  ].join('\n'),
+  'utf8'
+);
+fs.writeFileSync(
+  path.join(tmpRoot, 'source', 'scenes', 'events', 'same_section_shift_replace.scene.dry'),
+  [
+    'title: Same Section Shift Replace',
+    '',
+    '= Shared Section',
+    '',
+    'Shared section body.',
+    'Tail stays put.',
+    ''
+  ].join('\n'),
+  'utf8'
+);
+fs.writeFileSync(
   path.join(tmpRoot, 'source', 'scenes', 'events', 'already_applied.scene.dry'),
   'title: Already Applied\n\nOld label\n',
   'utf8'
@@ -886,6 +921,112 @@ const insertLineDisambiguatedApply = installPlan.applyInstallPlan(insertLineDisa
 assert(insertLineDisambiguatedApply.ok && insertLineDisambiguatedApply.results[0].status === 'applied', 'insert_text should use exact line evidence to disambiguate repeated anchors: ' + JSON.stringify(insertLineDisambiguatedApply));
 const insertedLineDisambiguatedText = fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'events', 'insert_line_disambiguated.scene.dry'), 'utf8');
 assert(insertedLineDisambiguatedText.includes('- @repeat: Second repeated anchor\n- @after_second: Inserted after the second anchor\nTail stays put.'), 'line-disambiguated insert_text should mutate the selected repeated anchor only');
+
+const sameAnchorInsertPlan = installPlan.buildInstallPlan({
+  id: 'same_anchor_insert_shift',
+  draftKind: 'test',
+  operations: [
+    {
+      id: 'same_anchor_insert_before',
+      type: 'insert_text',
+      path: 'source/scenes/events/same_anchor_insert.scene.dry',
+      line: 3,
+      position: 'before',
+      anchorText: 'Shared body anchor.',
+      content: 'face-image: img/events/shared-anchor.png\n',
+      dedupeSearch: 'face-image: img/events/shared-anchor.png',
+      safety: 'guarded_apply',
+      description: 'Insert a flow asset before a line-backed body anchor.'
+    },
+    {
+      id: 'same_anchor_insert_after',
+      type: 'insert_text',
+      path: 'source/scenes/events/same_anchor_insert.scene.dry',
+      line: 3,
+      position: 'after',
+      anchorText: 'Shared body anchor.',
+      content: '\n- @new_path: Continue through the new branch.\n\n@new_path\nA new branch opens.\n',
+      dedupeSearch: '@new_path',
+      safety: 'advanced_apply',
+      description: 'Insert a branch after the same body anchor after an earlier same-file insert shifted it.'
+    }
+  ]
+});
+const sameAnchorInsertDryRun = installPlan.applyInstallPlan(sameAnchorInsertPlan, {projectRoot: tmpRoot, dryRun: true, allowAdvanced: true, includeEvidence: true});
+assert(sameAnchorInsertDryRun.ok && sameAnchorInsertDryRun.results.every((result) => result.status === 'would_apply'), 'line-backed inserts sharing one anchor should tolerate prior same-file insert shifts: ' + JSON.stringify(sameAnchorInsertDryRun));
+const sameAnchorInsertAfter = sameAnchorInsertDryRun.results.find((result) => result.id === 'same_anchor_insert_after');
+assert(sameAnchorInsertAfter && sameAnchorInsertAfter.evidence && sameAnchorInsertAfter.evidence.line === 4, 'shifted insert evidence should report the current in-memory anchor line');
+assert(sameAnchorInsertAfter.evidence.diff.includes(' Shared body anchor.'), 'insert verified diff should render the anchor as context, not a deletion');
+assert(!sameAnchorInsertAfter.evidence.diff.includes('-Shared body anchor.'), 'insert verified diff should not pretend the anchor is removed');
+const sameAnchorInsertApply = installPlan.applyInstallPlan(sameAnchorInsertPlan, {projectRoot: tmpRoot, dryRun: false, allowAdvanced: true});
+assert(sameAnchorInsertApply.ok && sameAnchorInsertApply.results.every((result) => result.status === 'applied'), 'same-anchor insert apply should commit after shifted-anchor preflight: ' + JSON.stringify(sameAnchorInsertApply));
+const sameAnchorInsertText = fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'events', 'same_anchor_insert.scene.dry'), 'utf8');
+assert(sameAnchorInsertText.includes('face-image: img/events/shared-anchor.png\nShared body anchor.\n\n- @new_path: Continue through the new branch.'), 'same-anchor insert apply should preserve before-anchor and after-anchor ordering');
+
+const sameLineShiftReplacePlan = installPlan.buildInstallPlan({
+  id: 'same_line_shift_replace',
+  draftKind: 'test',
+  operations: [
+    {
+      id: 'same_line_shift_insert',
+      type: 'insert_text',
+      path: 'source/scenes/events/same_line_shift_replace.scene.dry',
+      line: 3,
+      position: 'before',
+      anchorText: 'Shared editable line.',
+      content: 'face-image: img/events/line-shift.png\n',
+      dedupeSearch: 'face-image: img/events/line-shift.png',
+      safety: 'guarded_apply'
+    },
+    {
+      id: 'same_line_shift_replace',
+      type: 'replace_text',
+      path: 'source/scenes/events/same_line_shift_replace.scene.dry',
+      line: 3,
+      search: 'Shared editable line.',
+      replace: 'Shared editable line changed.',
+      safety: 'guarded_apply'
+    }
+  ]
+});
+const sameLineShiftReplaceDryRun = installPlan.applyInstallPlan(sameLineShiftReplacePlan, {projectRoot: tmpRoot, dryRun: true, includeEvidence: true});
+assert(sameLineShiftReplaceDryRun.ok && sameLineShiftReplaceDryRun.results.every((result) => result.status === 'would_apply'), 'line-backed replace_text should tolerate prior same-file insert shifts: ' + JSON.stringify(sameLineShiftReplaceDryRun));
+const sameLineShiftReplaceResult = sameLineShiftReplaceDryRun.results.find((result) => result.id === 'same_line_shift_replace');
+assert(sameLineShiftReplaceResult && sameLineShiftReplaceResult.evidence && sameLineShiftReplaceResult.evidence.line === 4, 'shifted replace_text evidence should report the current in-memory line');
+
+const sameSectionShiftReplacePlan = installPlan.buildInstallPlan({
+  id: 'same_section_shift_replace',
+  draftKind: 'test',
+  operations: [
+    {
+      id: 'same_section_shift_insert',
+      type: 'insert_text',
+      path: 'source/scenes/events/same_section_shift_replace.scene.dry',
+      line: 3,
+      position: 'before',
+      anchorText: '= Shared Section',
+      content: 'face-image: img/events/section-shift.png\n',
+      dedupeSearch: 'face-image: img/events/section-shift.png',
+      safety: 'guarded_apply'
+    },
+    {
+      id: 'same_section_shift_replace',
+      type: 'replace_section',
+      path: 'source/scenes/events/same_section_shift_replace.scene.dry',
+      startLine: 3,
+      endLine: 5,
+      anchorText: '= Shared Section',
+      endAnchorText: 'Shared section body.',
+      content: '= Shared Section\n\nShared section body changed.\n',
+      dedupeSearch: 'Shared section body changed.',
+      safety: 'guarded_apply'
+    }
+  ]
+});
+const sameSectionShiftReplaceDryRun = installPlan.applyInstallPlan(sameSectionShiftReplacePlan, {projectRoot: tmpRoot, dryRun: true, includeEvidence: true});
+assert(sameSectionShiftReplaceDryRun.ok && sameSectionShiftReplaceDryRun.results.every((result) => result.status === 'would_apply'), 'line-backed replace_section should tolerate prior same-file insert shifts: ' + JSON.stringify(sameSectionShiftReplaceDryRun));
+const sameSectionShiftReplaceResult = sameSectionShiftReplaceDryRun.results.find((result) => result.id === 'same_section_shift_replace');
+assert(sameSectionShiftReplaceResult && sameSectionShiftReplaceResult.evidence && sameSectionShiftReplaceResult.evidence.startLine === 4 && sameSectionShiftReplaceResult.evidence.endLine === 6, 'shifted replace_section evidence should report the current in-memory section lines');
 
 const staleInsertLinePlan = installPlan.buildInstallPlan({
   id: 'insert_line_stale',

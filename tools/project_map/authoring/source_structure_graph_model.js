@@ -301,7 +301,15 @@
     const incomingRoutes = externalIncomingRoutesForSection(sectionNodeId, nodes, edges);
     const incomingRouteCount = incomingRoutes.length;
     const incomingRouteSources = incomingRoutes.map((route) => sourceRef(route.source || {}));
-    const incomingRouteSourcesExact = incomingRouteSources.every(isExactSingleLineRouteSource);
+    const incomingRouteRefs = incomingRoutes.map((route) => {
+      return Object.assign(sourceRef(route.source || {}), {
+        routeNodeId: stringValue(route.routeNodeId),
+        target: stringValue(route.localId),
+        condition: stringValue(route.condition)
+      });
+    });
+    const incomingRouteSourcesExact = incomingRouteRefs.every(isExactSingleLineRouteSource);
+    const incomingRouteSourcesPatchable = incomingRouteRefs.every(isPatchableIncomingRouteSource);
     const effectCount = ensureArray(nodes).filter((node) => {
       return node && node.kind === 'effect' && sameEndpoint(sceneId, node.sectionId, sectionId);
     }).length;
@@ -319,8 +327,8 @@
     let reason = 'Layer removal needs source review before Studio can patch it.';
     if (!sourceSupportsAdvancedLayerDelete(source)) {
       reason = 'Layer source span is missing, inferred, or does not start at a section header.';
-    } else if (incomingRouteCount && !incomingRouteSourcesExact) {
-      reason = 'Layer has incoming route references without exact single-line go-to source evidence.';
+    } else if (incomingRouteCount && !incomingRouteSourcesPatchable) {
+      reason = 'Layer has incoming route references without exact go-to source evidence.';
     } else if (incomingOptionIds.length && (incomingOptions.length !== incomingOptionIds.length || !incomingOptionSources.every(isExactSingleLineOptionSource))) {
       reason = 'Layer has an incoming option, but its option-line source is missing or not exact.';
     } else if (ownedOptionIds.length) {
@@ -368,6 +376,7 @@
         incomingRouteCount,
         incomingRouteNodeIds: incomingRoutes.map((route) => route.routeNodeId).filter(Boolean),
         incomingRouteSources,
+        incomingRouteRefs,
         ownedOptionCount: ownedOptionIds.length,
         ownedOptionIds,
         childSectionCount: childBundle.sections.length,
@@ -555,6 +564,7 @@
         fromNodeId: stringValue(from),
         label: stringValue(edge.label || routeNode.label),
         localId: stringValue(routeNode.localId || edge.label),
+        condition: stringValue(edge.condition || routeNode.condition),
         source: sourceRef(edge.source || routeNode.source || {})
       };
     }).filter(Boolean);
@@ -587,6 +597,50 @@
       (!Number.isInteger(endLine) || endLine <= 0 || endLine === line) &&
       Boolean(simpleGoToLineTarget(source.anchorText))
     );
+  }
+
+  function isPatchableIncomingRouteSource(sourceInput) {
+    const raw = isObject(sourceInput) ? sourceInput : {};
+    const source = sourceRef(sourceInput || {});
+    return isExactSingleLineRouteSource(source) || Boolean(goToClauseReplacement(source.anchorText, raw.target || raw.localId, raw.condition).ok);
+  }
+
+  function goToClauseReplacement(anchorText, target, condition) {
+    const line = stringValue(anchorText).trim();
+    const match = line.match(/^(go-to\s*:\s*)([\s\S]+)$/i);
+    const wanted = stringValue(target).trim().replace(/^[@#]/, '');
+    if (!match || !wanted) {
+      return {ok: false, line: ''};
+    }
+    const expectedCondition = normalizeCondition(condition);
+    const clauses = match[2].split(';').map((clause) => clause.trim()).filter(Boolean);
+    let removed = 0;
+    const remaining = clauses.filter((clause) => {
+      const parsed = parseGoToClause(clause);
+      const matched = parsed.target === wanted && (!expectedCondition || normalizeCondition(parsed.condition) === expectedCondition);
+      if (matched) {
+        removed += 1;
+        return false;
+      }
+      return true;
+    });
+    if (removed !== 1 || remaining.length === clauses.length) {
+      return {ok: false, line: ''};
+    }
+    return {ok: true, line: remaining.length ? match[1] + remaining.join('; ') : ''};
+  }
+
+  function parseGoToClause(value) {
+    const text = stringValue(value).trim();
+    const match = text.match(/^([A-Za-z_][A-Za-z0-9_.-]*)(?:\s+if\s+([\s\S]+))?$/i);
+    return {
+      target: match ? match[1] : '',
+      condition: match ? stringValue(match[2]).trim() : ''
+    };
+  }
+
+  function normalizeCondition(value) {
+    return stringValue(value).replace(/\s+/g, ' ').trim();
   }
 
   function simpleGoToLineTarget(value) {

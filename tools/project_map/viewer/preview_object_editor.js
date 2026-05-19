@@ -202,7 +202,6 @@
       eventBuilderUi().renderConsequenceGroups(previewBody.consequenceGroups),
       eventBuilderUi().renderContinuationMap(previewBody.continuationMap),
       eventBuilderUi().renderPlayabilityChecks(previewBody.playabilityChecks),
-      eventBuilderUi().renderRouteScriptIntelligence(previewBody),
       renderPreviewBranches(branchSections, previewTextOptions(previewBody, model), model, previewBody),
       renderPreviewAssets(assets, 'event', {
         assetCatalog: previewBody.assetCatalog,
@@ -1251,7 +1250,7 @@
 
   function renderConditionalAlternatives(field, options) {
     const rows = ensureArray(field && field.conditionalAlternatives).filter((item) => item && (item.condition || item.text));
-    if (rows.length <= 1) {
+    if (!rows.length) {
       return '';
     }
     const opts = options || {};
@@ -1351,8 +1350,8 @@
       return '';
     }
     return [
-      '<button type="button" class="object-canvas-asset-remove-control" data-object-canvas-action="remove_asset_reference" data-existing-asset-field="' + escapeAttr(fieldId) + '" data-asset-target="' + escapeAttr(target === 'card' ? 'card' : 'event') + '" data-asset-role="' + escapeAttr(item.role || '') + '" data-asset-directive="' + escapeAttr(item.replacementDirective || item.directive || '') + '" data-current-asset-path="' + escapeAttr(item.assetCurrentPath || item.path || '') + '" data-asset-original="' + escapeAttr(item.assetOriginal || '') + '">',
-      escapeHtml(item.pendingRemoval ? t('assets.restoreReference', 'Restore reference') : t('assets.removeReference', 'Remove reference')),
+      '<button type="button" class="' + assetRemovalButtonClass(item.pendingRemoval) + '" data-object-canvas-action="remove_asset_reference" data-existing-asset-field="' + escapeAttr(fieldId) + '" data-asset-target="' + escapeAttr(target === 'card' ? 'card' : 'event') + '" data-asset-role="' + escapeAttr(item.role || '') + '" data-asset-directive="' + escapeAttr(item.replacementDirective || item.directive || '') + '" data-current-asset-path="' + escapeAttr(item.assetCurrentPath || item.path || '') + '" data-asset-original="' + escapeAttr(item.assetOriginal || '') + '"' + assetRemovalStateAttrs(item.pendingRemoval) + '>',
+      assetRemovalButtonLabel(item.pendingRemoval),
       '</button>'
     ].join('');
   }
@@ -1573,10 +1572,22 @@
       return '';
     }
     return [
-      '<button type="button" class="object-canvas-asset-remove-control" data-object-canvas-action="remove_asset_reference" data-existing-asset-field="' + escapeAttr(fieldId) + '" data-asset-target="' + escapeAttr(target === 'card' ? 'card' : 'event') + '" data-asset-role="' + escapeAttr(slot && slot.role || ref.role || '') + '" data-asset-directive="' + escapeAttr(ref.replacementDirective || ref.directive || '') + '" data-current-asset-path="' + escapeAttr(ref.assetCurrentPath || ref.path || '') + '" data-asset-original="' + escapeAttr(ref.assetOriginal || '') + '">',
-      escapeHtml(ref.pendingRemoval ? t('assets.restoreReference', 'Restore reference') : t('assets.removeReference', 'Remove reference')),
+      '<button type="button" class="' + assetRemovalButtonClass(ref.pendingRemoval) + '" data-object-canvas-action="remove_asset_reference" data-existing-asset-field="' + escapeAttr(fieldId) + '" data-asset-target="' + escapeAttr(target === 'card' ? 'card' : 'event') + '" data-asset-role="' + escapeAttr(slot && slot.role || ref.role || '') + '" data-asset-directive="' + escapeAttr(ref.replacementDirective || ref.directive || '') + '" data-current-asset-path="' + escapeAttr(ref.assetCurrentPath || ref.path || '') + '" data-asset-original="' + escapeAttr(ref.assetOriginal || '') + '"' + assetRemovalStateAttrs(ref.pendingRemoval) + '>',
+      assetRemovalButtonLabel(ref.pendingRemoval),
       '</button>'
     ].join('');
+  }
+
+  function assetRemovalButtonClass(pendingRemoval) {
+    return 'object-canvas-asset-remove-control' + (pendingRemoval ? ' is-pending-removal' : '');
+  }
+
+  function assetRemovalStateAttrs(pendingRemoval) {
+    return ' data-asset-removal-state="' + (pendingRemoval ? 'pending' : 'idle') + '" aria-pressed="' + (pendingRemoval ? 'true' : 'false') + '"';
+  }
+
+  function assetRemovalButtonLabel(pendingRemoval) {
+    return escapeHtml(pendingRemoval ? t('assets.restoreReference', 'Undo removal') : t('assets.removeReference', 'Remove reference'));
   }
 
   function assetCatalogForSlot(catalog, slot) {
@@ -2199,17 +2210,152 @@
   }
 
   function renderEffectFields(fields, body) {
-    return '<div class="preview-object-effect-fields">' + ensureArray(fields).map((field) => {
-      if (field && field.structureAction) {
-        return /^add_/.test(String(field.structureAction || ''))
-          ? structureUi().renderInlineAddAction(field, body)
-          : structureUi().renderCompactStructureAction(field, body);
+    const rows = pairedEffectRows(fields);
+    return '<div class="preview-object-effect-fields">' + rows.map((row) => {
+      if (row.kind === 'add') {
+        return structureUi().renderInlineAddAction(row.field, body);
       }
-      return renderInlineField(field, {
+      if (row.kind === 'structure') {
+        return structureUi().renderCompactStructureAction(row.field, body);
+      }
+      if (row.kind === 'effect-delete') {
+        return renderDeleteOnlyEffectRow(row.field, body);
+      }
+      return renderEffectRow(row.field, row.removeAction, body);
+    }).join('') + '</div>';
+  }
+
+  function pairedEffectRows(fields) {
+    const normal = [];
+    const removeActions = [];
+    const addActions = [];
+    const otherStructure = [];
+    ensureArray(fields).forEach((field) => {
+      const action = String(field && field.structureAction || '');
+      if (action === 'remove_effect') {
+        removeActions.push(field);
+        return;
+      }
+      if (/^add_/.test(action)) {
+        addActions.push(field);
+        return;
+      }
+      if (action) {
+        otherStructure.push(field);
+        return;
+      }
+      normal.push(field);
+    });
+    const usedRemove = new Set();
+    const rows = normal.map((field) => {
+      const removeAction = matchingRemoveEffectAction(field, removeActions, usedRemove);
+      if (removeAction) {
+        usedRemove.add(removeAction);
+      }
+      return {kind: 'effect', field, removeAction};
+    });
+    removeActions.forEach((field) => {
+      if (!usedRemove.has(field)) {
+        rows.push({kind: 'effect-delete', field});
+      }
+    });
+    otherStructure.forEach((field) => rows.push({kind: 'structure', field}));
+    addActions.forEach((field) => rows.push({kind: 'add', field}));
+    return rows;
+  }
+
+  function matchingRemoveEffectAction(field, removeActions, usedRemove) {
+    const key = normalizedEffectKey(fieldValue(field));
+    if (!key) {
+      return null;
+    }
+    let best = null;
+    let bestScore = 0;
+    removeActions.forEach((action) => {
+      if (usedRemove.has(action)) {
+        return;
+      }
+      const actionKey = normalizedEffectKey(action && (action.structureBefore || action.structureSourceExpression || action.before || action.value || action.original));
+      if (!actionKey || actionKey !== key) {
+        return;
+      }
+      const score = effectMatchScore(field, action);
+      if (score > bestScore) {
+        best = action;
+        bestScore = score;
+      }
+    });
+    return best;
+  }
+
+  function effectMatchScore(field, action) {
+    let score = 1;
+    if (String(field && field.optionId || '').trim() && String(field && field.optionId || '').trim() === String(action && action.optionId || '').trim()) {
+      score += 3;
+    }
+    if (String(field && field.sectionId || '').trim() && String(field && field.sectionId || '').trim() === String(action && action.sectionId || '').trim()) {
+      score += 2;
+    }
+    const fieldSource = field && field.source || {};
+    const actionSource = action && action.source || {};
+    if (String(fieldSource.path || '') && String(fieldSource.path || '') === String(actionSource.path || '')) {
+      score += 1;
+    }
+    const fieldLine = Number(fieldSource.line || fieldSource.startLine || 0);
+    const actionLine = Number(actionSource.line || actionSource.startLine || 0);
+    if (fieldLine && actionLine && fieldLine === actionLine) {
+      score += 4;
+    }
+    return score;
+  }
+
+  function normalizedEffectKey(value) {
+    return String(value || '')
+      .replace(/^\s*on-(?:arrival|departure|display)\s*:\s*/i, '')
+      .replace(/;\s*$/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function renderEffectRow(field, removeAction, body) {
+    const id = fieldId(field);
+    return [
+      '<article class="preview-object-effect-row' + (removeAction ? ' has-delete-action' : '') + '" data-preview-object-effect-row="true"' + (id ? ' data-preview-object-effect-field-id="' + escapeAttr(id) + '"' : '') + '>',
+      renderInlineField(field, {
         role: 'effect',
         element: logicFieldElement(field)
-      });
-    }).join('') + '</div>';
+      }),
+      removeAction ? renderEffectDeleteControl(removeAction, body) : '',
+      '</article>'
+    ].join('');
+  }
+
+  function renderDeleteOnlyEffectRow(field, body) {
+    const context = structureUi().structureActionContext(field);
+    return [
+      '<article class="preview-object-effect-row has-delete-action is-delete-only" data-preview-object-effect-row="true">',
+      '<div class="preview-object-effect-readonly">',
+      '<span>' + escapeHtml(t('previewObjectEditor.effectDeleteOnly', 'Effect')) + '</span>',
+      context ? '<code>' + escapeHtml(context) + '</code>' : '',
+      '</div>',
+      renderEffectDeleteControl(field, body),
+      '</article>'
+    ].join('');
+  }
+
+  function renderEffectDeleteControl(field, body) {
+    const id = fieldId(field);
+    const original = field && field.original !== undefined ? String(field.original || '') : 'false';
+    const safety = structureUi().structureActionSafetyLabel(body, field);
+    const context = structureUi().structureActionContext(field);
+    return [
+      '<label class="preview-object-effect-delete preview-object-action-remove_effect" data-preview-object-effect-delete="true">',
+      id ? '<input type="checkbox" data-object-canvas-field="' + escapeAttr(id) + '" data-editing-field="' + escapeAttr(id) + '" data-object-canvas-original="' + escapeAttr(original) + '">' : '',
+      '<span>' + escapeHtml(t('previewObjectEditor.deleteEffect', 'Delete effect')) + '</span>',
+      context ? '<code>' + escapeHtml(context) + '</code>' : '',
+      safety ? '<small class="preview-object-structure-safety">' + escapeHtml(safety) + '</small>' : '',
+      '</label>'
+    ].join('');
   }
 
   function logicFieldElement(field) {
@@ -2467,7 +2613,7 @@
       return t('previewObjectEditor.structureAddBranchTitle', 'New branch or follow-up');
     }
     if (action === 'add_trigger_effect') {
-      return t('previewObjectEditor.structureTriggerEffectTitle', 'New trigger effect');
+      return t('previewObjectEditor.structureTriggerEffectTitle', 'New on-arrival effect');
     }
     if (action === 'add_option_effect') {
       return t('previewObjectEditor.structureChoiceEffectTitle', 'New choice effect');
@@ -2618,6 +2764,10 @@
     if (conditions.length) {
       parts.push(t('previewObjectEditor.when', 'When') + ': ' + conditions.join(' / '));
     }
+    const inlineConditions = ensureArray(field.inlineConditions).map(String).filter(Boolean);
+    if (inlineConditions.length) {
+      parts.push(t('previewObjectEditor.when', 'When') + ': ' + inlineConditions.join(' / '));
+    }
     const section = String(field.sectionLabel || '').trim();
     if (section && !optionLabels.length) {
       parts.push(t('previewObjectEditor.section', 'Section') + ': ' + section);
@@ -2641,7 +2791,7 @@
     if (!field || typeof field !== 'object') {
       return '';
     }
-    const conditions = ensureArray(field.conditionVariables).map(String).filter(Boolean);
+    const conditions = uniqueStrings(ensureArray(field.conditionVariables).concat(ensureArray(field.inlineConditionVariables)).map(String).filter(Boolean));
     const textVariables = ensureArray(field.textVariables).map(String).filter(Boolean);
     const reads = uniqueStrings(conditions.concat(textVariables));
     if (!reads.length) {

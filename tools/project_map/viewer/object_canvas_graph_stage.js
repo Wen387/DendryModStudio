@@ -283,7 +283,7 @@
       return t('previewObjectEditor.structureAddBranchTitle', 'New branch or follow-up');
     }
     if (action === 'add_trigger_effect') {
-      return t('previewObjectEditor.structureTriggerEffectTitle', 'New trigger effect');
+      return t('previewObjectEditor.structureTriggerEffectTitle', 'New on-arrival effect');
     }
     if (action === 'add_option_effect') {
       return t('previewObjectEditor.structureChoiceEffectTitle', 'New choice effect');

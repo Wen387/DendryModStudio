@@ -1,38 +1,79 @@
+// @ts-check
 (function initProjectMapExistingSceneTextBlockHelpers(global) {
   'use strict';
 
+  /**
+   * @typedef {import('../types/project_map_contracts').ExistingSceneTextBlockHelperDeps} ExistingSceneTextBlockHelperDeps
+   * @typedef {import('../types/project_map_contracts').ExistingSceneTextBlockHelpersApi} ExistingSceneTextBlockHelpersApi
+   * @typedef {import('../types/project_map_contracts').ExistingSceneTextBlockHelpersFactory} ExistingSceneTextBlockHelpersFactory
+   * @typedef {import('../types/project_map_contracts').ExistingSceneTextBlockRow} ExistingSceneTextBlockRow
+   * @typedef {import('../types/project_map_contracts').ExistingSceneOptionRow} ExistingSceneOptionRow
+   * @typedef {import('../types/project_map_contracts').ExistingSceneConditionalAlternative} ExistingSceneConditionalAlternative
+   * @typedef {import('../types/project_map_contracts').ExistingSceneTextBlockSemantics} ExistingSceneTextBlockSemantics
+   * @typedef {import('../types/project_map_contracts').ExistingSceneLogicalTextRun} ExistingSceneLogicalTextRun
+   * @typedef {import('../types/project_map_contracts').ProjectIndexScene} ProjectIndexScene
+   * @typedef {import('../types/project_map_contracts').ProjectIndexSection} ProjectIndexSection
+   * @typedef {import('../types/project_map_contracts').SourceRef} SourceRef
+   */
+
+  /**
+   * @param {ExistingSceneTextBlockHelperDeps=} deps
+   * @returns {ExistingSceneTextBlockHelpersApi}
+   */
   function create(deps) {
     const options = deps && typeof deps === 'object' && !Array.isArray(deps) ? deps : {};
     const sourceRef = typeof options.sourceRef === 'function' ? options.sourceRef : defaultSourceRef;
     const humanSectionId = typeof options.humanSectionId === 'function' ? options.humanSectionId : defaultHumanSectionId;
 
+    /**
+     * @param {ExistingSceneTextBlockRow[]} rows
+     * @returns {ExistingSceneConditionalAlternative[]}
+     */
     function conditionalAlternativesForRows(rows) {
       const seen = new Set();
+      /** @type {ExistingSceneConditionalAlternative[]} */
       const out = [];
-      ensureArray(rows).forEach((row) => {
-        if (String(row && row.role || '') !== 'conditional_body') {
-          return;
-        }
-        const condition = lastMeaningfulCondition(row && row.conditions);
-        const text = String(row && row.text || '').trim();
+      /**
+       * @param {unknown} conditionInput
+       * @param {unknown} textInput
+       * @param {unknown} sourceInput
+       */
+      function push(conditionInput, textInput, sourceInput) {
+        const condition = compactVisibleText(conditionInput);
+        const text = compactVisibleText(textInput);
         if (!condition || !text) {
           return;
         }
-        const source = sourceRef(row && row.source || {});
+        const source = sourceRef(sourceInput || {});
         const key = [condition, text, source.path || '', source.line || ''].join('|');
         if (seen.has(key)) {
           return;
         }
         seen.add(key);
-        out.push({
-          condition,
-          text,
-          source
-        });
+        out.push({condition, text, source});
+      }
+      ensureArray(rows).forEach((row) => {
+        if (String(row && row.role || '') === 'conditional_body') {
+          push(lastMeaningfulCondition(row && row.conditions), row && row.text, row && row.source);
+        }
+        if (row && row.hasInlineConditionals) {
+          const source = sourceRef(row.source || {});
+          const raw = String(source.anchorText || row.originalText || row.text || '').trim();
+          extractInlineConditionals(raw).forEach((item) => {
+            push(item.condition, item.text, source);
+          });
+        }
       });
       return out;
     }
 
+    /**
+     * @param {ProjectIndexScene} scene
+     * @param {string} sectionId
+     * @param {ExistingSceneTextBlockRow[]} rows
+     * @param {ExistingSceneOptionRow[]} optionRows
+     * @returns {ExistingSceneTextBlockSemantics}
+     */
     function textBlockSemantics(scene, sectionId, rows, optionRows) {
       const sceneId = String(scene && scene.id || '');
       const id = String(sectionId || '');
@@ -138,6 +179,12 @@
       };
     }
 
+    /**
+     * @param {string} sceneId
+     * @param {ProjectIndexSection|null|undefined} section
+     * @param {string} sectionId
+     * @returns {string}
+     */
     function sectionDisplayLabel(sceneId, section, sectionId) {
       const raw = String(sectionId || '');
       const local = raw.startsWith(sceneId + '.') ? raw.slice(sceneId.length + 1) : raw;
@@ -166,6 +213,10 @@
     };
   }
 
+  /**
+   * @param {unknown} value
+   * @returns {string[]}
+   */
   function detectVisualKinds(value) {
     const text = String(value || '');
     const kinds = [];
@@ -185,18 +236,59 @@
     return uniqueStrings(kinds);
   }
 
+  /**
+   * @param {unknown} values
+   * @returns {string}
+   */
   function lastMeaningfulCondition(values) {
     const rows = ensureArray(values).map((value) => String(value || '').trim()).filter(Boolean);
     return rows.length ? rows[rows.length - 1] : '';
   }
 
+  /**
+   * @param {unknown} value
+   * @returns {string}
+   */
+  function compactVisibleText(value) {
+    return String(value || '').replace(/\s+/g, ' ').trim();
+  }
+
+  /**
+   * @param {unknown} value
+   * @returns {Array<{condition: string, text: string}>}
+   */
+  function extractInlineConditionals(value) {
+    const out = [];
+    const text = String(value || '');
+    const re = /\[\?\s*if\s+([\s\S]+?)\s*:\s*([\s\S]*?)\s*\?\]/g;
+    let match;
+    while ((match = re.exec(text)) !== null) {
+      const condition = compactVisibleText(match[1]);
+      const body = compactVisibleText(match[2]);
+      if (condition && body) {
+        out.push({condition, text: body});
+      }
+    }
+    return out;
+  }
+
+  /**
+   * @param {unknown} role
+   * @returns {boolean}
+   */
   function isBlockTextRole(role) {
     const text = String(role || '');
     return text === 'heading' || text === 'body' || text === 'conditional_body';
   }
 
+  /**
+   * @param {ExistingSceneTextBlockRow[]} rows
+   * @returns {ExistingSceneLogicalTextRun[]}
+   */
   function logicalTextRuns(rows) {
+    /** @type {ExistingSceneLogicalTextRun[]} */
     const runs = [];
+    /** @type {ExistingSceneLogicalTextRun|null} */
     let current = null;
     ensureArray(rows).forEach((row) => {
       const kind = String(row && row.role || '') === 'conditional_body' ? 'conditional' : 'prose';
@@ -209,6 +301,10 @@
     return runs;
   }
 
+  /**
+   * @param {unknown} value
+   * @returns {boolean}
+   */
   function isMixedInlineConditionalSource(value) {
     const text = String(value || '').trim();
     if (!/\[\?\s*if\s+/i.test(text)) {
@@ -218,6 +314,10 @@
     return Boolean(remainder && !isStructuralSceneLine(remainder));
   }
 
+  /**
+   * @param {unknown} value
+   * @returns {boolean}
+   */
   function isStructuralSceneLine(value) {
     const text = String(value || '').trim();
     if (!text) {
@@ -235,6 +335,11 @@
     return false;
   }
 
+  /**
+   * @param {ProjectIndexScene} scene
+   * @param {string} sectionId
+   * @returns {ProjectIndexSection|null}
+   */
   function findSceneSection(scene, sectionId) {
     const id = String(sectionId || '');
     if (!id) {
@@ -247,6 +352,12 @@
     }) || null;
   }
 
+  /**
+   * @param {string} sceneId
+   * @param {string} sectionId
+   * @param {ExistingSceneOptionRow} option
+   * @returns {boolean}
+   */
   function sectionTargetedByOption(sceneId, sectionId, option) {
     const sectionVariants = new Set(sectionIdVariants(sceneId, sectionId));
     if (!sectionVariants.size) {
@@ -255,6 +366,12 @@
     return optionTargetVariants(sceneId, option).some((candidate) => sectionVariants.has(candidate));
   }
 
+  /**
+   * @param {string} sceneId
+   * @param {string} sectionId
+   * @param {ExistingSceneOptionRow} option
+   * @returns {boolean}
+   */
   function sectionOwnsOption(sceneId, sectionId, option) {
     const sectionVariants = new Set(sectionIdVariants(sceneId, sectionId));
     if (!sectionVariants.size) {
@@ -263,6 +380,11 @@
     return optionOwnerVariants(sceneId, option).some((candidate) => sectionVariants.has(candidate));
   }
 
+  /**
+   * @param {string} sceneId
+   * @param {string} sectionId
+   * @returns {string[]}
+   */
   function sectionIdVariants(sceneId, sectionId) {
     const raw = String(sectionId || '').trim();
     if (!raw) {
@@ -279,6 +401,11 @@
     return uniqueStrings(variants);
   }
 
+  /**
+   * @param {string} sceneId
+   * @param {ExistingSceneOptionRow} option
+   * @returns {string[]}
+   */
   function optionTargetVariants(sceneId, option) {
     const values = [
       option && option.targetId,
@@ -288,10 +415,20 @@
     return endpointVariants(sceneId, values);
   }
 
+  /**
+   * @param {string} sceneId
+   * @param {ExistingSceneOptionRow} option
+   * @returns {string[]}
+   */
   function optionOwnerVariants(sceneId, option) {
     return endpointVariants(sceneId, [option && option.sectionId]);
   }
 
+  /**
+   * @param {string} sceneId
+   * @param {unknown[]|unknown} values
+   * @returns {string[]}
+   */
   function endpointVariants(sceneId, values) {
     const rows = Array.isArray(values) ? values : [values];
     const out = [];
@@ -305,6 +442,11 @@
     return uniqueStrings(out);
   }
 
+  /**
+   * @param {string} sceneId
+   * @param {ExistingSceneOptionRow} option
+   * @returns {string[]}
+   */
   function optionIdVariants(sceneId, option) {
     const values = [
       option && option.targetId,
@@ -315,6 +457,11 @@
     return endpointVariants(sceneId, values);
   }
 
+  /**
+   * @param {string} sceneId
+   * @param {string} sectionId
+   * @returns {boolean}
+   */
   function isOpeningSectionId(sceneId, sectionId) {
     const text = String(sectionId || '').trim();
     if (!text) {
@@ -324,10 +471,18 @@
     return /^(?:start|opening|intro|main)$/i.test(local);
   }
 
+  /**
+   * @param {unknown} value
+   * @returns {any[]}
+   */
   function ensureArray(value) {
     return Array.isArray(value) ? value : [];
   }
 
+  /**
+   * @param {unknown[]} values
+   * @returns {string[]}
+   */
   function uniqueStrings(values) {
     const seen = new Set();
     const out = [];
@@ -342,7 +497,12 @@
     return out;
   }
 
+  /**
+   * @param {unknown} source
+   * @returns {SourceRef}
+   */
   function defaultSourceRef(source) {
+    /** @type {Record<string, any>} */
     const value = source && typeof source === 'object' && !Array.isArray(source) ? source : {};
     const line = numberOrNull(value.line || value.startLine);
     const endLine = numberOrNull(value.endLine || value.line || value.startLine);
@@ -356,6 +516,10 @@
     };
   }
 
+  /**
+   * @param {unknown} value
+   * @returns {number|null}
+   */
   function numberOrNull(value) {
     if (value === undefined || value === null || value === '') {
       return null;
@@ -364,12 +528,17 @@
     return Number.isFinite(num) ? Math.floor(num) : null;
   }
 
+  /**
+   * @param {string} sectionId
+   * @returns {string}
+   */
   function defaultHumanSectionId(sectionId) {
     const text = String(sectionId || '');
     const last = text.includes('.') ? text.split('.').pop() : text;
     return last.replace(/[_-]+/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
   }
 
+  /** @type {ExistingSceneTextBlockHelpersFactory} */
   const api = {create};
 
   if (typeof module !== 'undefined' && module.exports) {

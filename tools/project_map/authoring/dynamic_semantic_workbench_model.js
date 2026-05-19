@@ -295,6 +295,8 @@
       routePurpose: String(state && state.routePurpose || ''),
       chainContext: String(state && state.chainContext || ''),
       status: String(state && state.status || ''),
+      preRouteScript: compactPreRouteScript(state && state.preRouteScript),
+      runtimeSemantics: compactRouteRuntimeSemantics(state && state.runtimeSemantics),
       dependencies: ensureArray(state && state.dependencies).slice(0, 8),
       candidateCount: Number(state && state.candidateCount || 0),
       fallbackTarget: state && state.fallbackCandidate ? String(state.fallbackCandidate.resolvedTarget || state.fallbackCandidate.rawTarget || '') : '',
@@ -311,6 +313,58 @@
         targetSource: String(candidate && candidate.targetSource || ''),
         targetKind: String(candidate && candidate.targetKind || '')
       }))
+    };
+  }
+
+  function compactRouteRuntimeSemantics(semantics) {
+    const value = semantics || {};
+    return {
+      selectionMode: String(value.selectionMode || ''),
+      exclusivity: String(value.exclusivity || ''),
+      possibleRandomization: Boolean(value.possibleRandomization),
+      multiValidRisk: Boolean(value.multiValidRisk),
+      reason: String(value.reason || ''),
+      warnings: ensureArray(value.warnings).slice(0, 6),
+      preRouteScript: compactPreRouteScript(value.preRouteScript),
+      collisionSummary: compactRouteCollision(value.collisionSummary)
+    };
+  }
+
+  function compactPreRouteScript(value) {
+    const summary = value || {};
+    return {
+      status: String(summary.status || 'none'),
+      rawPresent: Boolean(summary.rawPresent),
+      effectCount: Number(summary.effectCount || 0),
+      safeEffectCount: Number(summary.safeEffectCount || 0),
+      opaqueBlockCount: Number(summary.opaqueBlockCount || 0),
+      routeDependencyWriteCount: Number(summary.routeDependencyWriteCount || 0),
+      directDependencyWrites: ensureArray(summary.directDependencyWrites).slice(0, 8),
+      opaque: Boolean(summary.opaque),
+      opaqueReasons: ensureArray(summary.opaqueReasons).slice(0, 4)
+    };
+  }
+
+  function compactRouteCollision(value) {
+    const summary = value || {};
+    return {
+      tested: Boolean(summary.tested),
+      sampleCount: Number(summary.sampleCount || 0),
+      dependencyCount: Number(summary.dependencyCount || 0),
+      before: compactRouteCollisionBucket(summary.before),
+      after: compactRouteCollisionBucket(summary.after),
+      preRouteMutationCount: Number(summary.preRouteMutationCount || 0),
+      verdict: String(summary.verdict || 'untested'),
+      reason: String(summary.reason || '')
+    };
+  }
+
+  function compactRouteCollisionBucket(value) {
+    const bucket = value || {};
+    return {
+      zeroValidCount: Number(bucket.zeroValidCount || 0),
+      oneValidCount: Number(bucket.oneValidCount || 0),
+      multiValidCount: Number(bucket.multiValidCount || 0)
     };
   }
 

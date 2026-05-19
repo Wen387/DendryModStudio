@@ -149,6 +149,150 @@ current.effects = [{
   }
 }];
 const target = scene('target_scene', {title: 'Target Scene'});
+const rootEffectless = scene('root_effectless_event', {
+  title: 'Root Effectless Event',
+  options: [],
+  effects: [],
+  sourceSpan: {
+    path: 'source/scenes/events/root_effectless_event.scene.dry',
+    startLine: 1,
+    endLine: 18,
+    line: 1,
+    anchorText: 'title: Root Effectless Event',
+    endAnchorText: 'Opening prose.'
+  },
+  topLevelSpan: {
+    path: 'source/scenes/events/root_effectless_event.scene.dry',
+    startLine: 1,
+    endLine: 8,
+    line: 1,
+    anchorText: 'title: Root Effectless Event',
+    endAnchorText: '= Root Effectless Event'
+  },
+  metadata: {
+    title: {
+      path: 'source/scenes/events/root_effectless_event.scene.dry',
+      line: 1,
+      excerpt: '1: title: Root Effectless Event\n2: subtitle: No trigger yet.\n3: new-page: true'
+    },
+    subtitle: {
+      path: 'source/scenes/events/root_effectless_event.scene.dry',
+      line: 2,
+      excerpt: '1: title: Root Effectless Event\n2: subtitle: No trigger yet.\n3: new-page: true\n4: tags: event'
+    },
+    newPage: {
+      path: 'source/scenes/events/root_effectless_event.scene.dry',
+      line: 3,
+      excerpt: '1: title: Root Effectless Event\n2: subtitle: No trigger yet.\n3: new-page: true\n4: tags: event\n5: view-if: year = 1936'
+    },
+    tags: {
+      path: 'source/scenes/events/root_effectless_event.scene.dry',
+      line: 4,
+      excerpt: '2: subtitle: No trigger yet.\n3: new-page: true\n4: tags: event\n5: view-if: year = 1936\n6: max-visits: 1'
+    },
+    viewIf: {
+      path: 'source/scenes/events/root_effectless_event.scene.dry',
+      line: 5,
+      excerpt: '3: new-page: true\n4: tags: event\n5: view-if: year = 1936\n6: max-visits: 1\n7: '
+    },
+    maxVisits: {
+      path: 'source/scenes/events/root_effectless_event.scene.dry',
+      line: 6,
+      excerpt: '4: tags: event\n5: view-if: year = 1936\n6: max-visits: 1\n7: \n8: = Root Effectless Event'
+    }
+  }
+});
+const routeBranchEvent = scene('route_branch_event', {
+  title: 'Route Branch Event',
+  options: [{
+    target: {id: 'results'},
+    title: 'Resolve the vote.',
+    sourceSpan: {
+      path: 'source/scenes/events/route_branch_event.scene.dry',
+      line: 12,
+      startLine: 12,
+      endLine: 12,
+      anchorText: '- @results: Resolve the vote.',
+      endAnchorText: '- @results: Resolve the vote.'
+    }
+  }],
+  sections: [
+    {
+      id: 'route_branch_event.results',
+      sourceSpan: {
+        path: 'source/scenes/events/route_branch_event.scene.dry',
+        line: 14,
+        startLine: 14,
+        endLine: 15,
+        anchorText: '@results',
+        endAnchorText: 'go-to: left if reform_wins; right if reform_loses; compromise if reform_ties'
+      },
+      metadata: {
+        goTo: {
+          path: 'source/scenes/events/route_branch_event.scene.dry',
+          line: 15,
+          excerpt: '13: \n14: @results\n15: go-to: left if reform_wins; right if reform_loses; compromise if reform_ties\n16: '
+        }
+      },
+      routes: {
+        goTo: [
+          {id: 'left', raw: 'left if reform_wins', predicate: 'reform_wins'},
+          {id: 'right', raw: 'right if reform_loses', predicate: 'reform_loses'},
+          {id: 'compromise', raw: 'compromise if reform_ties', predicate: 'reform_ties'}
+        ]
+      },
+      options: []
+    },
+    {
+      id: 'route_branch_event.left',
+      sourceSpan: {
+        path: 'source/scenes/events/route_branch_event.scene.dry',
+        line: 17,
+        startLine: 17,
+        endLine: 20,
+        anchorText: '@left',
+        endAnchorText: 'The left wins.'
+      },
+      routes: {},
+      options: []
+    },
+    {
+      id: 'route_branch_event.right',
+      sourceSpan: {
+        path: 'source/scenes/events/route_branch_event.scene.dry',
+        line: 22,
+        startLine: 22,
+        endLine: 25,
+        anchorText: '@right',
+        endAnchorText: 'The right wins.'
+      },
+      routes: {},
+      options: []
+    },
+    {
+      id: 'route_branch_event.compromise',
+      sourceSpan: {
+        path: 'source/scenes/events/route_branch_event.scene.dry',
+        line: 27,
+        startLine: 27,
+        endLine: 30,
+        anchorText: '@compromise',
+        endAnchorText: 'The vote is tied.'
+      },
+      routes: {},
+      options: []
+    }
+  ],
+  sourceSpan: {
+    path: 'source/scenes/events/route_branch_event.scene.dry',
+    startLine: 1,
+    endLine: 30,
+    line: 1,
+    anchorText: 'title: Route Branch Event',
+    endAnchorText: 'The vote is tied.'
+  },
+  metadata: {viewIf: {path: 'source/scenes/events/route_branch_event.scene.dry', line: 4}}
+});
 const labor = scene('labor_unrest', {
   title: 'Labor Unrest',
   assetRefs: [
@@ -302,7 +446,7 @@ const assetDirectiveCard = scene('asset_directive_card', {
 const index = {
   schemaVersion: '0.1',
   project: {name: 'Object Canvas Fixture', root: '/tmp/object-canvas'},
-  scenes: [current, target, labor, assetDirectiveEvent, fuzzyAssetEvent, assetDirectiveCard],
+  scenes: [current, target, rootEffectless, routeBranchEvent, labor, assetDirectiveEvent, fuzzyAssetEvent, assetDirectiveCard],
   edges: [
     {from: 'generic_intro', to: 'target_scene', kind: 'go_to', label: 'continues', source: {path: current.path, line: 20}}
   ],
@@ -313,6 +457,8 @@ const index = {
   semantic: {
     events: [
       {id: current.id, title: current.title, path: current.path},
+      {id: rootEffectless.id, title: rootEffectless.title, path: rootEffectless.path},
+      {id: routeBranchEvent.id, title: routeBranchEvent.title, path: routeBranchEvent.path},
       {id: labor.id, title: labor.title, path: labor.path},
       {id: assetDirectiveEvent.id, title: assetDirectiveEvent.title, path: assetDirectiveEvent.path},
       {id: fuzzyAssetEvent.id, title: fuzzyAssetEvent.title, path: fuzzyAssetEvent.path}
@@ -369,6 +515,20 @@ const index = {
           role: 'script',
           owner: {kind: 'scene', sceneId: 'generic_intro', sectionId: 'generic_intro.target_scene'},
           source: {path: current.path, line: 26, anchorText: 'Q.stability += 2;', endAnchorText: 'Q.stability += 2;'}
+        },
+        {
+          id: 'route_branch_right_result',
+          text: 'The right wins.',
+          role: 'body',
+          owner: {kind: 'scene', sceneId: 'route_branch_event', sectionId: 'route_branch_event.right'},
+          source: {
+            path: routeBranchEvent.path,
+            line: 25,
+            startLine: 25,
+            endLine: 25,
+            anchorText: 'The right wins.',
+            endAnchorText: 'The right wins.'
+          }
         },
         {
           id: 'generic_intro_followup_heading',
@@ -736,8 +896,49 @@ assert(existingEditorHtml.includes('data-preview-object-structure-builder="add_o
 assert(/data-preview-object-structure-output="true"[^>]*data-object-canvas-field="structure_add_option"/.test(existingEditorHtml), 'structure builder hidden output should preserve the source-backed add-option field id');
 assert(existingEditorHtml.includes('New player option'), 'preview editor should present add-option as a creator form instead of a raw snippet');
 assert(existingEditorHtml.includes('data-preview-object-structure-builder="add_trigger_effect"'), 'preview editor should show structured trigger-effect controls');
+assert(existingEditorHtml.includes('New on-arrival effect'), 'preview editor should label event-level trigger effects as on-arrival effects');
+assert(existingEditorHtml.includes('Simple source-backed Q effects can be applied automatically after review.'), 'preview editor should not label source-backed trigger effects as manual review');
+assert(!/data-preview-object-structure-builder="add_trigger_effect"[\s\S]{0,1600}Manual review only/.test(existingEditorHtml), 'source-backed trigger-effect builders should not show the manual-review notice');
+assert(existingEditorHtml.includes('data-preview-object-effect-row="true"'), 'preview editor should render effect edits as unified effect rows');
+assert(/data-preview-object-effect-row="true"[\s\S]*Q\.budget \+= 1[\s\S]*data-preview-object-effect-delete="true"[\s\S]*structure_remove_effect_budget_1/.test(existingEditorHtml), 'trigger effect edit and delete controls should share one effect row');
+assert(/data-preview-object-effect-row="true"[\s\S]*Q\.public_order \+= 1[\s\S]*data-preview-object-effect-delete="true"[\s\S]*structure_remove_effect_public_order_/.test(existingEditorHtml), 'choice effect edit and delete controls should share one effect row');
+assert(!/preview-object-structure-delete[^"]*preview-object-action-remove_effect/.test(existingEditorHtml), 'paired effect deletions should not render as separate delete cards');
 assert(existingEditorHtml.includes('data-preview-object-inline-add="add_option"'), 'preview editor should place structural add controls at the end of the relevant object category');
 assert(!existingEditorHtml.includes('preview-object-structure-workbench'), 'preview editor should not isolate structural controls in a separate workbench');
+const rootEffectlessExisting = canvasModel.buildExistingCanvas(index, 'events', 'root_effectless_event', {});
+const rootEffectlessTriggerField = rootEffectlessExisting.eventBody.structureActions.find((field) => field.structureAction === 'add_trigger_effect');
+assert(rootEffectlessTriggerField && rootEffectlessTriggerField.editability === 'guarded_apply', 'events without an existing root on-arrival line should still expose source-backed trigger-effect insertion');
+assert(rootEffectlessTriggerField.structureSourceBlock && rootEffectlessTriggerField.structureSourceBlock.kind === 'root_on_arrival_insert_anchor', 'root trigger insertion should carry a root on-arrival insert anchor');
+assert(rootEffectlessTriggerField.source && rootEffectlessTriggerField.source.anchorText === 'max-visits: 1', 'root trigger insertion should anchor after the last exact root metadata line');
+const rootEffectlessEditorHtml = previewEditor.render(rootEffectlessExisting);
+assert(!/data-preview-object-structure-builder="add_trigger_effect"[\s\S]{0,1600}Manual review only/.test(rootEffectlessEditorHtml), 'root trigger insertion builders should not show manual review when metadata anchors are exact');
+const rootEffectlessChanged = canvasModel.buildExistingCanvas(index, 'events', 'root_effectless_event', {
+  values: {structure_add_trigger_effect: 'Q.public_order += 1'}
+});
+const rootEffectlessTriggerOp = rootEffectlessChanged.changeState.installPlan.operations.find((operation) => operation.type === 'insert_text' && operation.anchorText === 'max-visits: 1');
+assert(rootEffectlessTriggerOp && rootEffectlessTriggerOp.safety === 'guarded_apply' && String(rootEffectlessTriggerOp.content || '').includes('on-arrival: public_order += 1'), 'root trigger insertion should create a guarded on-arrival insert instead of a manual snippet');
+assert(!rootEffectlessChanged.changeState.installPlan.operations.some((operation) => operation.type === 'manual_snippet'), 'root trigger insertion should not fall back to manual review');
+const routeBranchExisting = canvasModel.buildExistingCanvas(index, 'events', 'route_branch_event', {});
+const routeBranchRightLayer = routeBranchExisting.eventBody.structureActions.find((field) => field.structureAction === 'remove_layer' && field.sectionId === 'route_branch_event.right');
+assert(routeBranchRightLayer && routeBranchRightLayer.editability === 'advanced_source_patch', 'routed branch layers reached by a multi-clause go-to line should be advanced-deleteable');
+assert(routeBranchRightLayer.structureSourceBlock && routeBranchRightLayer.structureSourceBlock.kind === 'layer_bundle_delete', 'routed branch deletion should carry a bundle delete block');
+assert(routeBranchRightLayer.structureSourceBlock.incomingRouteSources[0].target === 'right', 'routed branch deletion should preserve the route clause target');
+assert(routeBranchRightLayer.structureSourceBlock.incomingRouteSources[0].anchorText === 'go-to: left if reform_wins; right if reform_loses; compromise if reform_ties', 'routed branch deletion should recover the full go-to line from source excerpts');
+const routeBranchDelete = canvasModel.buildExistingCanvas(index, 'events', 'route_branch_event', {
+  values: {[routeBranchRightLayer.id]: 'true'}
+});
+assert(routeBranchDelete.changeState.installPlan.operations.some((operation) =>
+  operation.type === 'replace_section' &&
+  operation.safety === 'advanced_apply' &&
+  operation.anchorText === '@right'
+), 'routed branch deletion should remove the target section through advanced apply');
+assert(routeBranchDelete.changeState.installPlan.operations.some((operation) =>
+  operation.type === 'replace_text' &&
+  operation.safety === 'advanced_apply' &&
+  operation.search === 'go-to: left if reform_wins; right if reform_loses; compromise if reform_ties' &&
+  operation.replace === 'go-to: left if reform_wins; compromise if reform_ties'
+), 'routed branch deletion should remove only the matching go-to clause and preserve sibling route clauses');
+assert(!routeBranchDelete.changeState.installPlan.operations.some((operation) => operation.type === 'manual_snippet'), 'routed branch deletion should not fall back to manual review');
 const expandedModalHtml = previewEditor.renderModal(existing, {previewExpanded: true});
 assert(expandedModalHtml.includes('is-preview-expanded'), 'preview object modal should expose an expanded preview state');
 assert(expandedModalHtml.includes('Collapse preview'), 'expanded preview modal should offer a collapse action');
@@ -900,6 +1101,30 @@ assert(laborExisting.eventBody.sections.some((field) => field.visualKinds && fie
 assert(laborExisting.eventBody.assets.some((asset) => asset.path === 'img/events/dnvp_congress.png'), 'existing event preview should carry referenced assets into the visible editor');
 assert(laborExisting.eventBody.assets.some((asset) => asset.role === 'event_illustration' && asset.roleLabel === 'Event illustration' && asset.rowKind === 'asset_ref'), 'existing event asset rows should use the shared Object Canvas asset contract');
 assert(laborExisting.eventBody.assets.some((asset) => asset.path === 'img/events/iron_front_branch.png' && asset.placementKind === 'option_result_visual' && asset.optionId === 'support_labor' && asset.flowAsset), 'existing branch face-image should be classified as an option-result flow asset');
+const laborSupportRemoveLayer = laborExisting.eventBody.structureActions.find((field) => field.structureAction === 'remove_layer' && field.sectionId === 'labor_unrest.support_labor');
+assert(laborSupportRemoveLayer && laborSupportRemoveLayer.editability === 'advanced_source_patch', 'referenced leaf result layers with exact incoming option and exact body text should be advanced-deleteable when the parser inferred the section header');
+assert(laborSupportRemoveLayer.structureSourceBlock && laborSupportRemoveLayer.structureSourceBlock.kind === 'layer_bundle_delete', 'advanced referenced leaf deletion should carry a bundle delete source block');
+assert(laborSupportRemoveLayer.structureSourceBlock.sectionSource.anchorText === '@support_labor', 'advanced referenced leaf deletion should infer the local section header from the result section id');
+assert(laborSupportRemoveLayer.structureSourceBlock.incomingOptionSources.length === 1, 'advanced referenced leaf deletion should preserve the exact incoming option line evidence');
+const laborSupportDeleteCanvas = canvasModel.buildExistingCanvas(index, 'events', 'labor_unrest', {
+  values: {[laborSupportRemoveLayer.id]: 'true'}
+});
+assert(laborSupportDeleteCanvas.changeState.installPlan.operations.some((operation) => operation.type === 'replace_section' && operation.anchorText === '@support_labor' && operation.safety === 'advanced_apply'), 'referenced leaf layer deletion should replace the inferred result section through advanced apply');
+assert(laborSupportDeleteCanvas.changeState.installPlan.operations.some((operation) => operation.type === 'replace_text' && operation.search === '- @support_labor: Support labor.' && operation.safety === 'advanced_apply'), 'referenced leaf layer deletion should also delete the exact incoming option line');
+assert(!laborSupportDeleteCanvas.changeState.installPlan.operations.some((operation) => operation.type === 'manual_snippet'), 'referenced leaf layer deletion should not fall back to manual snippets');
+const laborNoMinistryRemoveLayer = laborExisting.eventBody.structureActions.find((field) => field.structureAction === 'remove_layer' && field.sectionId === 'labor_unrest.no_ministry');
+assert(laborNoMinistryRemoveLayer && laborNoMinistryRemoveLayer.editability === 'advanced_source_patch', 'standalone source-spanned layers with exact body text should be advanced-deleteable even when the parser inferred the section header');
+assert(laborNoMinistryRemoveLayer.structureSourceBlock && laborNoMinistryRemoveLayer.structureSourceBlock.kind === 'layer_section_delete', 'advanced inferred layer deletion should carry a section delete source block');
+assert(laborNoMinistryRemoveLayer.structureSourceBlock.sectionSource.anchorText === '@no_ministry', 'advanced inferred layer deletion should derive the local Dendry section header from the section id');
+assert(laborNoMinistryRemoveLayer.structureSourceBlock.sectionSource.endAnchorText === 'The ministry is outside our control.', 'advanced inferred layer deletion should use exact body text as the dry-run end anchor');
+const laborNoMinistryDeleteCanvas = canvasModel.buildExistingCanvas(index, 'events', 'labor_unrest', {
+  values: {[laborNoMinistryRemoveLayer.id]: 'true'}
+});
+const laborNoMinistryDeleteOp = laborNoMinistryDeleteCanvas.changeState.installPlan.operations.find((operation) => {
+  return operation.type === 'replace_section' && operation.anchorText === '@no_ministry';
+});
+assert(laborNoMinistryDeleteOp && laborNoMinistryDeleteOp.safety === 'advanced_apply', 'standalone inferred layer deletion should become an advanced replace_section operation');
+assert(!laborNoMinistryDeleteCanvas.changeState.installPlan.operations.some((operation) => operation.type === 'manual_snippet'), 'standalone inferred layer deletion should not fall back to manual snippets');
 const laborAssetPreviewHtml = previewEditor.renderPreviewPane(laborExisting);
 assert(laborAssetPreviewHtml.includes('data-object-canvas-assets-panel="true"'), 'existing event preview should render the Object Canvas assets panel');
 assert(laborAssetPreviewHtml.includes('data-object-canvas-asset-slots="true"'), 'existing event preview should render Object Canvas asset slot markers');
@@ -1037,6 +1262,10 @@ assert(existingAssetReplacement.changeState.proposal.changes.some((change) => ch
 assert(existingAssetReplacement.changeState.installPlan.operations.some((operation) => operation.type === 'replace_text' && operation.safety === 'guarded_apply' && operation.search === 'face-image: img/events/current-face.png'), 'existing asset replacement should produce a guarded replace_text operation');
 assert(existingAssetReplacement.changeState.installPlan.operations.some((operation) => operation.type === 'copy_asset_file' && operation.safety === 'guarded_apply' && operation.sourcePath === '/tmp/New Face.png' && operation.path === eventReplacementTarget), 'existing asset replacement should include a guarded copy_asset_file when desktop sourcePath is present');
 assert(existingAssetReplacement.eventBody.assets.some((asset) => asset.rowKind === 'asset_install_request' && asset.path === eventReplacementTarget && asset.role === 'event_portrait'), 'existing asset replacement should render the pending asset install request row');
+assert(existingAssetReplacement.eventBody.assets.some((asset) => asset.rowKind === 'asset_install_request' && asset.referenceState && asset.referenceState.key === 'pending_install'), 'existing local asset replacement should show pending install rather than missing asset');
+const existingAssetReplacementHtml = previewEditor.renderPreviewPane(existingAssetReplacement);
+assert(existingAssetReplacementHtml.includes('data-asset-state="pending_install"'), 'existing local asset replacement preview should mark pending install rows with a stable state');
+assert(!/data-asset-row-kind="asset_install_request"[\s\S]{0,500}Missing asset/.test(existingAssetReplacementHtml), 'existing local asset replacement preview should not label queued local files as missing assets');
 const inlineReplacementTarget = 'assets/studio/events/asset_directive_event/inline-new.jpg';
 const existingInlineReplacement = canvasModel.buildExistingCanvas(index, 'events', 'asset_directive_event', {
   values: {
@@ -1052,6 +1281,9 @@ const existingInlineRemoval = canvasModel.buildExistingCanvas(index, 'events', '
 });
 assert(existingInlineRemoval.changeState.proposal.changes.some((change) => change.fieldId === 'asset_inline_image_10' && change.allowEmptyReplace), 'existing inline image removal should preserve the empty replace safety marker');
 assert(existingInlineRemoval.changeState.installPlan.operations.some((operation) => operation.type === 'replace_text' && operation.safety === 'guarded_apply' && operation.search === '![Campaign crowd](img/events/current-inline.jpg)' && operation.replace === ''), 'existing inline image removal should produce a guarded line removal proposal');
+const existingInlineRemovalHtml = previewEditor.render(existingInlineRemoval);
+assert(existingInlineRemovalHtml.includes('data-asset-removal-state="pending"'), 'existing inline image removal editor should mark the pending removal action state');
+assert(existingInlineRemovalHtml.includes('Undo removal'), 'existing inline image removal editor should relabel the right-pane action as undo removal');
 const existingAssetAdd = canvasModel.buildExistingCanvas(index, 'events', 'labor_unrest', {
   values: {
     asset_add_event_portrait: 'face-image: img/events/indexed-portrait.png'

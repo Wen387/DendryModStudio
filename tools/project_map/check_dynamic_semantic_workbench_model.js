@@ -161,6 +161,7 @@ function runAssertions(index, dynamicChecked) {
   assert(route.sections.routes.routeOrderSamples[0].routes[0].predicate, 'route-order sample should parse predicates', route.sections.routes.routeOrderSamples);
   assert(route.sections.routes.routeStateSummary.routeStateCount >= 1, 'route-heavy workflow should expose structured route-state summary', route.sections.routes.routeStateSummary);
   assert(route.sections.routes.routeStates[0].candidates[0].predicateStatus, 'route state candidates should include predicate parse status', route.sections.routes.routeStates);
+  assert(route.sections.routes.routeStates[0].runtimeSemantics && route.sections.routes.routeStates[0].runtimeSemantics.selectionMode, 'route states should expose runtime route selection semantics', route.sections.routes.routeStates);
   const dynamicQ = workflow(model, 'dynamic_q_hindenburg_president');
   assert(dynamicQ.sections.effects.dynamicQ.count > 0, 'dynamic Q workflow should expose dynamic Q section', dynamicQ.sections.effects.dynamicQ);
   assert(dynamicQ.sections.effects.dynamicQ.samples[0].classification === 'dynamic_concatenation', 'dynamic Q sample should preserve classification', dynamicQ.sections.effects.dynamicQ.samples);

@@ -2,6 +2,7 @@
 'use strict';
 
 const existingEdit = require('./authoring/existing_scene_edit_model.js');
+const structureOperationsFactory = require('./authoring/existing_scene_structure_operations.js');
 const installPlan = require('./authoring/install_plan.js');
 const fs = require('fs');
 const os = require('os');
@@ -17,6 +18,44 @@ function assert(condition, message) {
     fail(message);
   }
 }
+
+const structureOperations = structureOperationsFactory.create();
+assert(structureOperations.routeLineReplacement('go-to: old_target', 'new_target') === 'go-to: new_target', 'structure operations should reroute simple go-to lines');
+const removedRouteClause = structureOperations.routeClauseDeleteReplacement('go-to: left if reform_wins; right if reform_loses', 'left', 'reform_wins');
+assert(removedRouteClause.ok && removedRouteClause.line === 'go-to: right if reform_loses', 'structure operations should remove only the matching route clause');
+assert(structureOperations.normalizeStructureAction('remove_section') === 'remove_layer', 'structure operations should normalize legacy remove_section actions');
+const guardedChangeSummary = structureOperations.classifyChange({
+  operationType: 'replace_text',
+  editability: 'guarded_apply',
+  source: {path: 'source/scenes/events/simple.scene.dry', line: 4, startLine: 4, endLine: 4, anchorText: '- @old: Old'},
+  before: '- @old: Old',
+  deletesSourceLine: true,
+  after: ''
+});
+assert(guardedChangeSummary.status === 'guarded_apply', 'typed structure operation summary should classify exact line deletion as guarded');
+const sectionChangeSummary = structureOperations.classifyChange({
+  operationType: 'replace_section',
+  editability: 'advanced_source_patch',
+  source: {path: 'source/scenes/events/simple.scene.dry', line: 8, startLine: 8, endLine: 12, anchorText: '@child', endAnchorText: 'Result text.'},
+  anchorText: '@child',
+  endAnchorText: 'Result text.',
+  allowEmptyReplace: true,
+  before: '@child\n...\nResult text.',
+  after: ''
+});
+assert(sectionChangeSummary.status === 'advanced_apply', 'typed structure operation summary should classify exact section deletion as advanced');
+const manualSummary = structureOperations.classifyChange({
+  operationType: 'manual_snippet',
+  editability: 'manual_review',
+  source: {path: 'out/game.json', line: 1},
+  before: 'runtime output',
+  after: ''
+});
+assert(manualSummary.status === 'manual_review', 'typed structure operation summary should keep non-source changes manual');
+assert(
+  /Remove option: Talk/.test(structureOperations.structureActionFallbackText({structureAction: 'remove_option', structureTargetLabel: 'Talk'}, '')),
+  'structure operations should own manual fallback text for option removal'
+);
 
 function optionFixture(scenePath, line, targetId, title) {
   const anchorText = '- @' + targetId + ': ' + title;
@@ -863,6 +902,8 @@ assert(complexModel.fields.some((field) => field.role === 'condition' && field.s
 assert(complexModel.fields.some((field) => field.id === 'structure_add_branch'), 'single composite event should expose add-layer structure action');
 const sectionGotoField = complexModel.fields.find((field) => field.role === 'route' && field.sectionId === 'civil_war.war_outcome' && field.original === 'defeat');
 assert(sectionGotoField, 'conditional section go-to should be exposed as an editable route field');
+assert(sectionGotoField.condition === 'total_defeat = 1', 'conditional section go-to should expose its predicate as field condition context');
+assert(sectionGotoField.conditions && sectionGotoField.conditions.includes('total_defeat = 1'), 'conditional section go-to should surface route predicates to Object Editor condition rows');
 const complexProposal = existingEdit.buildProposal(complexModel, {
   [sectionGotoField.id]: 'stalemate'
 });
@@ -967,6 +1008,9 @@ assert(inlineModel.title.includes('Conference'), 'metadata title with inline con
 const inlineOpening = inlineModel.textBlocks.find((block) => block.semanticRole === 'opening_text');
 assert(inlineOpening && String(inlineOpening.original || '').trim() === inlineConditionalLine, 'mixed inline conditionals should stay as one source-line-aware opening block');
 assert(inlineOpening.hasInlineConditionals && inlineOpening.inlineConditions.length === 2, 'mixed inline block should carry inline conditional metadata');
+assert(inlineOpening.conditionalAlternatives && inlineOpening.conditionalAlternatives.length === 2, 'mixed inline block should expose conditional text alternatives for Object Editor display');
+assert(inlineOpening.conditionalAlternatives.some((item) => item.condition === 'party_name != "CVP"' && item.text.includes('Center Party')), 'mixed inline alternatives should preserve condition text and conditional prose');
+assert(inlineOpening.logicContext && inlineOpening.logicContext.conditionalAlternatives.length === 2, 'mixed inline logic context should include conditional alternatives');
 assert(!inlineModel.textBlocks.some((block) => block.semanticRole === 'conditional_text' && String(block.original || '').includes('Center Party')), 'mixed inline conditionals should not become standalone branch cards');
 
 const menuPath = 'source/scenes/events/menu_branch_fixture.scene.dry';

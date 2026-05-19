@@ -3,6 +3,7 @@
 'use strict';
 
 const routeState = require('./authoring/route_state_model.js');
+const predicateCondition = require('./authoring/predicate_condition_model.js');
 
 function fail(message, detail) {
   process.stderr.write('FAIL: ' + message + (detail ? '\n' + JSON.stringify(detail, null, 2) : '') + '\n');
@@ -16,7 +17,10 @@ function assert(condition, message, detail) {
 }
 
 function summary(raw) {
-  return routeState.summarizePredicate(raw);
+  const direct = predicateCondition.summarizePredicate(raw);
+  const wrapped = routeState.summarizePredicate(raw);
+  assert(JSON.stringify(direct) === JSON.stringify(wrapped), 'route-state predicate wrapper should match predicate condition model', {direct, wrapped});
+  return direct;
 }
 
 function includesAll(values, expected) {

@@ -20,6 +20,52 @@ export interface DiagnosticRow {
   [extension: string]: unknown;
 }
 
+export interface AssetSlotDefinition {
+  role: string;
+  type: 'image' | 'audio' | 'asset' | string;
+  label: string;
+  roleLabel: string;
+}
+
+export interface AssetInstallRequest {
+  sourceName: string;
+  sourcePath: string;
+  targetPath: string;
+  type: 'image' | 'audio' | 'asset' | string;
+  label: string;
+  role: string;
+  directive: string;
+  placementId: string;
+  placementKind: string;
+  displayLocation: string;
+  operationCapability: string;
+  sectionId: string;
+  optionId: string;
+  branchKind: string;
+  relatedOptionIds: string[];
+  roleLabel: string;
+  sourceSize?: number;
+  sourceLastModified?: number;
+  status: 'ready_for_review' | 'needs_source_file' | string;
+}
+
+export interface AssetContractModelApi {
+  normalizeTarget(value: unknown): 'event' | 'card';
+  normalizeAssetDirective(value: unknown): string;
+  roleForAssetDirective(directive: unknown, target: unknown): string;
+  assetRoleLabel(role: unknown): string;
+  assetSlotDefinitions(target: unknown): AssetSlotDefinition[];
+  normalizeAssetPlacementKind(value: unknown): string;
+  isFlowPlacementKind(kind: unknown): boolean;
+  assetTypeForExtension(extension: unknown): string;
+  extensionForPath(path: unknown): string;
+  fileName(path: unknown): string;
+  safeId(value: unknown): string;
+  safeAssetFileName(value: unknown, type?: unknown): string;
+  suggestAssetTargetPath(asset: unknown, options?: Record<string, unknown>): string;
+  assetInstallRequest(input: unknown, options?: Record<string, unknown>): AssetInstallRequest;
+}
+
 export interface PredicateComparison {
   left: string;
   op: string;
@@ -67,6 +113,75 @@ export interface RouteCandidate {
   source: SourceRef;
 }
 
+export interface RouteRuntimeSemantics {
+  selectionMode: string;
+  exclusivity: string;
+  possibleRandomization: boolean;
+  multiValidRisk: boolean;
+  unconditionalCandidateCount: number;
+  conditionalCandidateCount: number;
+  dynamicTargetCount: number;
+  unresolvedTargetCount: number;
+  reason: string;
+  warnings: string[];
+  preRouteScript: RoutePreRouteScriptSummary;
+  collisionSummary: RouteCollisionSummary;
+}
+
+export interface RoutePreRouteScriptEffect {
+  variable: string;
+  op: string;
+  value: string;
+  condition: string;
+  source: SourceRef;
+}
+
+export interface RoutePreRouteScriptSummary {
+  ownerId: string;
+  hook: string;
+  rawPresent: boolean;
+  effectCount: number;
+  safeEffectCount: number;
+  opaqueBlockCount: number;
+  writes: string[];
+  directDependencyWrites: string[];
+  routeDependencyWriteCount: number;
+  opaque: boolean;
+  opaqueReasons: string[];
+  status: string;
+  effects: RoutePreRouteScriptEffect[];
+}
+
+export interface RouteCollisionCountBucket {
+  zeroValidCount: number;
+  oneValidCount: number;
+  multiValidCount: number;
+}
+
+export interface RouteCollisionExample {
+  state?: Record<string, unknown>;
+  before?: Record<string, unknown>;
+  after?: Record<string, unknown>;
+  validTargets?: string[];
+}
+
+export interface RouteCollisionSummary {
+  tested: boolean;
+  sampleCount: number;
+  dependencyCount: number;
+  before: RouteCollisionCountBucket;
+  after: RouteCollisionCountBucket;
+  preRouteMutationCount: number;
+  verdict: string;
+  reason: string;
+  examples: {
+    multiValidBefore: RouteCollisionExample[];
+    multiValidAfter: RouteCollisionExample[];
+    zeroValidAfter: RouteCollisionExample[];
+    preRouteMutation: RouteCollisionExample[];
+  };
+}
+
 export interface RouteState {
   id: string;
   sceneId: string;
@@ -89,6 +204,8 @@ export interface RouteState {
   predicateDependencyCount: number;
   dynamicTargetCount: number;
   unresolvedTargetCount: number;
+  preRouteScript: RoutePreRouteScriptSummary;
+  runtimeSemantics: RouteRuntimeSemantics;
   status: string;
   summaryLabel: string;
 }
@@ -115,6 +232,14 @@ export interface RouteStateSummary {
   fallbackCount: number;
   dynamicTargetCount: number;
   unresolvedTargetCount: number;
+  possibleRandomRouteCount: number;
+  unconditionalMixedRouteCount: number;
+  explicitExclusiveRouteCount: number;
+  preRouteScriptCount: number;
+  preRouteRouteDependencyWriteCount: number;
+  preRouteOpaqueScriptCount: number;
+  collisionTestedRouteCount: number;
+  collisionProvenMultiValidCount: number;
   setJumpCount: number;
   goToRefCount: number;
   conditionStateCount: number;
@@ -206,6 +331,242 @@ export interface ProjectIndexSection {
   options?: unknown[];
   metadata?: Record<string, unknown>;
   [extension: string]: unknown;
+}
+
+export interface ExistingSceneTextBlockRow {
+  id?: string;
+  role?: string;
+  text?: string;
+  originalText?: string;
+  sectionId?: string;
+  semanticRole?: string;
+  branchKind?: string;
+  label?: string;
+  sectionLabel?: string;
+  conditions?: unknown[];
+  source?: SourceRef;
+  hasInlineConditionals?: boolean;
+  [extension: string]: unknown;
+}
+
+export interface ExistingSceneOptionRow {
+  id?: string;
+  label?: string;
+  targetId?: string;
+  rawTargetId?: string;
+  sectionId?: string;
+  source?: SourceRef;
+  [extension: string]: unknown;
+}
+
+export interface ExistingSceneConditionalAlternative {
+  condition: string;
+  text: string;
+  source: SourceRef;
+}
+
+export interface ExistingSceneTextBlockSemantics {
+  semanticRole: string;
+  branchKind: string;
+  label: string;
+  sectionLabel: string;
+  conditions: string[];
+  relatedOptionIds: string[];
+  relatedOptionLabels: string[];
+  ownedOptionIds: string[];
+  ownedOptionLabels: string[];
+  hasConditionalRows: boolean;
+}
+
+export interface ExistingSceneLogicalTextRun {
+  kind: string;
+  rows: ExistingSceneTextBlockRow[];
+}
+
+export interface ExistingSceneTextBlockHelperDeps {
+  sourceRef?: (source: unknown) => SourceRef;
+  humanSectionId?: (sectionId: string) => string;
+}
+
+export interface ExistingSceneTextBlockHelpersApi {
+  textBlockSemantics(
+    scene: ProjectIndexScene,
+    sectionId: string,
+    rows: ExistingSceneTextBlockRow[],
+    optionRows: ExistingSceneOptionRow[]
+  ): ExistingSceneTextBlockSemantics;
+  detectVisualKinds(value: unknown): string[];
+  conditionalAlternativesForRows(rows: ExistingSceneTextBlockRow[]): ExistingSceneConditionalAlternative[];
+  lastMeaningfulCondition(values: unknown[]): string;
+  isBlockTextRole(role: unknown): boolean;
+  logicalTextRuns(rows: ExistingSceneTextBlockRow[]): ExistingSceneLogicalTextRun[];
+  isMixedInlineConditionalSource(value: unknown): boolean;
+  isStructuralSceneLine(value: unknown): boolean;
+  findSceneSection(scene: ProjectIndexScene, sectionId: string): ProjectIndexSection | null;
+  sectionTargetedByOption(sceneId: string, sectionId: string, option: ExistingSceneOptionRow): boolean;
+  sectionOwnsOption(sceneId: string, sectionId: string, option: ExistingSceneOptionRow): boolean;
+  sectionIdVariants(sceneId: string, sectionId: string): string[];
+  optionTargetVariants(sceneId: string, option: ExistingSceneOptionRow): string[];
+  optionOwnerVariants(sceneId: string, option: ExistingSceneOptionRow): string[];
+  optionIdVariants(sceneId: string, option: ExistingSceneOptionRow): string[];
+  endpointVariants(sceneId: string, values: unknown[] | unknown): string[];
+  isOpeningSectionId(sceneId: string, sectionId: string): boolean;
+  sectionDisplayLabel(sceneId: string, section: ProjectIndexSection | null | undefined, sectionId: string): string;
+}
+
+export interface ExistingSceneTextBlockHelpersFactory {
+  create(deps?: ExistingSceneTextBlockHelperDeps): ExistingSceneTextBlockHelpersApi;
+}
+
+export interface ExistingSceneLogicFieldOwner {
+  sceneId?: string;
+  sectionId?: string;
+  itemId?: string;
+  kind?: string;
+  [extension: string]: unknown;
+}
+
+export interface ExistingSceneLogicField {
+  id: string;
+  role: string;
+  label: string;
+  original: string;
+  value: string;
+  source: SourceRef;
+  sourcePath: string;
+  editability: string;
+  owner: ExistingSceneLogicFieldOwner;
+  sectionId: string;
+  optionId: string;
+  inputType: string;
+  transform: string;
+  searchText: string;
+  confidence: string;
+  reason: string;
+  [extension: string]: unknown;
+}
+
+export interface ExistingSceneLogicFieldChange {
+  fieldId: string;
+  role: string;
+  label: string;
+  sectionId: string;
+  optionId: string;
+  source: SourceRef;
+  editability: string;
+  before: string;
+  after: string;
+  [extension: string]: unknown;
+}
+
+export interface ExistingSceneLogicFieldsApi {
+  buildRouteFields(scene: ProjectIndexScene, options: unknown[]): ExistingSceneLogicField[];
+  buildEffectFields(scene: ProjectIndexScene, effects: unknown[], options: unknown[]): ExistingSceneLogicField[];
+  changeForLogicField(
+    field: ExistingSceneLogicField,
+    afterValue: unknown,
+    fallback?: (field: ExistingSceneLogicField, before: string, after: string) => ExistingSceneLogicFieldChange
+  ): ExistingSceneLogicFieldChange | null;
+  effectExpression(effect: unknown): string;
+  routeSearchToken(anchorText: unknown, target: unknown): string;
+  routeReplacementToken(beforeToken: unknown, afterTarget: unknown): string;
+  isSimpleEffectExpression(value: unknown): boolean;
+}
+
+export interface ExistingSceneStructureOperationsApi {
+  advancedRemoveLayerChange(field: Record<string, unknown>): unknown[] | Record<string, unknown> | null;
+  advancedRerouteLayerChanges(field: Record<string, unknown>, afterText: string): unknown[] | null;
+  classifyChange(change: unknown): ExistingSceneStructureOperationSummary;
+  normalizeStructureAction(value: unknown): string;
+  sourceSupportsAdvancedOptionDelete(sourceInput: unknown): boolean;
+  sourceSupportsAdvancedSectionDelete(sourceInput: unknown): boolean;
+  sourceSupportsAdvancedRouteDelete(sourceInput: unknown): boolean;
+  sourceSupportsAdvancedRouteReroute(sourceInput: unknown): boolean;
+  structureActionFallbackText(field: Record<string, unknown>, afterText: string): string;
+  structureActionReviewPolicy(field: Record<string, unknown>): ExistingSceneStructureOperationSummary;
+  routeLineReplacement(anchorText: string, nextTarget: string): string;
+  routeClauseDeleteReplacement(anchorText: string, target: string, condition?: string): {ok: boolean; line: string};
+}
+
+export interface ExistingSceneStructureOperationSummary {
+  status: 'guarded_apply' | 'advanced_apply' | 'manual_review' | 'refused' | string;
+  operationType?: string;
+  editability?: string;
+  sourceBacked?: boolean;
+  reason: string;
+}
+
+export interface ExistingSceneStructureOperationsFactory {
+  create(deps?: {
+    sourceRef?: (input: unknown) => SourceRef;
+    baseFieldChange?: (field: Record<string, unknown>, before: string, after: string) => Record<string, unknown>;
+    isProtectedRouterPath?: (relPath: string) => boolean;
+    normalizeStructuralEffect?: (value: unknown) => string;
+  }): ExistingSceneStructureOperationsApi;
+}
+
+export interface EventStructureEffect {
+  variable: string;
+  op: '=' | '+=' | '-=' | string;
+  value: unknown;
+  condition: string;
+  hook?: string;
+  [extension: string]: unknown;
+}
+
+export interface EventStructureEffectConditionSplit {
+  value: string;
+  condition: string;
+}
+
+export interface EventStructureEffectModelApi {
+  effectFromDraft(effect: unknown): EventStructureEffect;
+  effectToDraft(effect: unknown): EventStructureEffect;
+  parseEffect(value: unknown): EventStructureEffect;
+  splitEffectCondition(value: unknown): EventStructureEffectConditionSplit;
+  effectLabel(effect: unknown): string;
+  effectLabelForSource(effect: unknown): string;
+  effectValue(value: unknown, op?: unknown): string | number;
+  normalizeEffectOp(value: unknown): '=' | '+=' | '-=';
+  rawEffectLines(value: unknown): string[];
+  joinRawEffectLines(value: unknown): string;
+}
+
+export interface EventStructureEffectSourceRemoval {
+  ok: boolean;
+  nextLine: string;
+}
+
+export interface EventStructureEffectSourceHelpersApi {
+  isOnArrivalEffectLine(value: unknown): boolean;
+  looksLikeStandaloneEffectAnchor(anchor: unknown): boolean;
+  effectRemovalFromSourceLine(anchor: unknown, candidates?: unknown[]): EventStructureEffectSourceRemoval;
+  splitEffectClauses(text: unknown): string[];
+  normalizeEffectClause(value: unknown): string;
+}
+
+export interface EventStructureCommand {
+  type: string;
+  action?: string;
+  id?: string;
+  fieldId?: string;
+  optionId?: string;
+  sectionId?: string;
+  targetId?: string;
+  targetLabel?: string;
+  effectIndex?: number | null;
+  value?: string;
+  sourceContext?: Record<string, unknown> | null;
+  mode?: string;
+  [extension: string]: unknown;
+}
+
+export interface EventStructureCommandModelApi {
+  applyCommand(structure: unknown, command: unknown): Record<string, unknown>;
+  commandsFromValues(values: unknown, structure?: unknown): EventStructureCommand[];
+  parseAddOption(value: unknown): Record<string, unknown>;
+  parseBranch(value: unknown): Record<string, unknown>;
+  isEventStructureField(key: unknown): boolean;
 }
 
 export interface RouteEvidenceItem {
@@ -623,9 +984,50 @@ export interface RouteStateApi {
   conditionStatesForScene(projectIndex: ProjectIndex, sceneOrId: ProjectIndexScene | string): ConditionState[];
 }
 
+export interface PredicateConditionModelApi {
+  summarizePredicate(rawInput: string): PredicateSummary;
+  predicateDependencies(raw: string): string[];
+}
+
+export interface RouteRuntimeTrialModelApi {
+  enrichRuntimeSemantics(
+    semantics: RouteRuntimeSemantics | Record<string, unknown>,
+    preRouteScript: RoutePreRouteScriptSummary | Record<string, unknown>,
+    collisionSummary: RouteCollisionSummary | Record<string, unknown>
+  ): RouteRuntimeSemantics;
+  preRouteScriptSummary(input: Record<string, unknown>): RoutePreRouteScriptSummary;
+  emptyPreRouteScriptSummary(ownerId: string): RoutePreRouteScriptSummary;
+  routeCollisionSummary(
+    state: Record<string, unknown>,
+    candidates: RouteCandidate[],
+    preRouteScript: RoutePreRouteScriptSummary | Record<string, unknown>,
+    options?: Record<string, unknown>
+  ): RouteCollisionSummary;
+  emptyCollisionSummary(): RouteCollisionSummary;
+}
+
+export interface RouteRuntimeSemanticsApi {
+  routeRuntimeSemantics(
+    state: Record<string, unknown>,
+    candidates: RouteCandidate[],
+    fallbackCandidate: RouteCandidate | null,
+    dynamicTargetCount: number,
+    unresolvedTargetCount: number
+  ): RouteRuntimeSemantics;
+  emptyPreRouteScriptSummary(ownerId: string): RoutePreRouteScriptSummary;
+  emptyCollisionSummary(): RouteCollisionSummary;
+}
+
 declare global {
   interface Window {
     ProjectMapRouteStateModel?: RouteStateApi;
+    ProjectMapPredicateConditionModel?: PredicateConditionModelApi;
+    ProjectMapRouteRuntimeTrialModel?: RouteRuntimeTrialModelApi;
+    ProjectMapRouteRuntimeSemanticsModel?: RouteRuntimeSemanticsApi;
+    ProjectMapExistingSceneStructureOperations?: ExistingSceneStructureOperationsFactory;
+    ProjectMapEventStructureEffectModel?: EventStructureEffectModelApi;
+    ProjectMapEventStructureEffectSourceHelpers?: EventStructureEffectSourceHelpersApi;
+    ProjectMapEventStructureCommandModel?: EventStructureCommandModelApi;
     ProjectMapRouteScriptIntelligenceModel?: unknown;
     ProjectMapSemanticLogicEditor?: unknown;
     ProjectMapEventWorkbenchModel?: unknown;

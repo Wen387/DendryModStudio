@@ -17,6 +17,13 @@
     noRouteState: 'No structured route state was found.',
     routeDependencies: 'State dependencies',
     routeFallback: 'fallback',
+    routeRuntime: 'Runtime selection',
+    routeRandom: 'possible random split',
+    routeExclusive: 'mutually exclusive',
+    routeSampledMulti: 'sampled multi-valid',
+    routeSampledZero: 'sampled no-valid',
+    routePreRouteWrite: 'on-arrival writes route state',
+    routePreRouteOpaque: 'script before route',
     actions: 'What you can do here',
     advanced: 'Advanced details',
     noText: 'No body text was extracted into this index.',
@@ -139,15 +146,54 @@
       const dependencies = (row.dependencies || []).length
         ? '<small>' + escapeHtml(label(locale, 'routeDependencies') + ': ' + row.dependencies.join(', ')) + '</small>'
         : '';
+      const semantics = row.runtimeSemantics || {};
+      const semanticsText = routeRuntimeLabel(semantics, locale);
       return '<article class="event-workbench-route-state-row" data-event-workbench-route-state="' + escapeAttr(row.id || '') + '">' +
         '<strong>' + escapeHtml([row.routeField || row.routeKind || 'route', row.chainContext || row.status || ''].filter(Boolean).join(' · ')) + '</strong>' +
         '<span>' + escapeHtml(row.summaryLabel || row.routePurpose || '') + '</span>' +
+        (semanticsText ? '<small>' + escapeHtml(semanticsText) + '</small>' : '') +
         (candidates ? '<ul>' + candidates + '</ul>' : '') +
         dependencies +
       '</article>';
     }).join('');
     const count = routeState && routeState.summary && routeState.summary.routeStateCount || rows.length;
     return section('routeState', label(locale, 'routeState'), content || empty(label(locale, 'noRouteState')), sectionCount(count));
+  }
+
+  function routeRuntimeLabel(semantics, locale) {
+    const selectionMode = String(semantics && semantics.selectionMode || '');
+    if (!selectionMode) {
+      return '';
+    }
+    const prefix = label(locale, 'routeRuntime') + ': ';
+    const suffixes = routeRuntimeEvidenceLabels(semantics, locale);
+    const suffix = suffixes.length ? ' · ' + suffixes.join(' · ') : '';
+    if (semantics && semantics.possibleRandomization) {
+      return prefix + label(locale, 'routeRandom') + (semantics.exclusivity ? ' · ' + semantics.exclusivity : '') + suffix;
+    }
+    if (['explicit_complement', 'simple_equality_partition'].includes(String(semantics && semantics.exclusivity || ''))) {
+      return prefix + label(locale, 'routeExclusive') + ' · ' + semantics.exclusivity + suffix;
+    }
+    return prefix + selectionMode + suffix;
+  }
+
+  function routeRuntimeEvidenceLabels(semantics, locale) {
+    const rows = [];
+    const collision = semantics && semantics.collisionSummary || {};
+    const after = collision && collision.after || {};
+    const preRoute = semantics && semantics.preRouteScript || {};
+    if (collision && collision.tested && Number(after.multiValidCount || 0) > 0) {
+      rows.push(label(locale, 'routeSampledMulti'));
+    }
+    if (collision && collision.tested && Number(after.zeroValidCount || 0) > 0) {
+      rows.push(label(locale, 'routeSampledZero'));
+    }
+    if (preRoute && Number(preRoute.routeDependencyWriteCount || 0) > 0) {
+      rows.push(label(locale, 'routePreRouteWrite'));
+    } else if (preRoute && preRoute.opaque) {
+      rows.push(label(locale, 'routePreRouteOpaque'));
+    }
+    return rows;
   }
 
   function renderEffects(rows, locale) {

@@ -260,6 +260,7 @@ const eventAssetRows = assetModel.buildAssetRows({
 assert(eventAssetRows.some((row) => row.rowKind === 'asset_ref' && row.directive === 'set-bg' && row.role === 'event_background'), 'asset rows should map source directives into role-aware Object Canvas rows');
 assert(eventAssetRows.some((row) => row.rowKind === 'asset_ref' && row.referenceState.key === 'missing'), 'asset rows should preserve missing reference state');
 assert(eventAssetRows.some((row) => row.rowKind === 'asset_install_request' && row.status === 'pending_install' && row.installRequest.targetPath.includes('portrait-hero.png')), 'asset rows should include pending install requests');
+assert(eventAssetRows.some((row) => row.rowKind === 'asset_install_request' && row.referenceState.key === 'pending_install' && !/missing/i.test(row.previewCapability.message || '')), 'pending local asset install requests should not be misreported as missing ProjectIndex assets');
 const flowAssetRows = assetModel.buildAssetRows({
   assetRefs: [{path: 'assets/radio/radio-icon.svg', type: 'image', label: 'Radio icon', directive: 'set-bg'}],
   assetPlacements: [{

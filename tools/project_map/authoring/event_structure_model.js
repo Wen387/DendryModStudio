@@ -32,6 +32,50 @@
     return null;
   }
 
+  function eventStructureEffectApi() {
+    if (global && global.ProjectMapEventStructureEffectModel) {
+      return global.ProjectMapEventStructureEffectModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./event_structure_effect_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function eventEffectModel() {
+    const api = eventStructureEffectApi();
+    if (!api) {
+      throw new Error('ProjectMapEventStructureEffectModel is required before ProjectMapEventStructureModel.');
+    }
+    return api;
+  }
+
+  function eventStructureCommandApi() {
+    if (global && global.ProjectMapEventStructureCommandModel) {
+      return global.ProjectMapEventStructureCommandModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./event_structure_command_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function eventCommandModel() {
+    const api = eventStructureCommandApi();
+    if (!api) {
+      throw new Error('ProjectMapEventStructureCommandModel is required before ProjectMapEventStructureModel.');
+    }
+    return api;
+  }
+
   function complexEventAuthoringApi() {
     if (global && global.ProjectMapComplexEventAuthoringModel) {
       return global.ProjectMapComplexEventAuthoringModel;
@@ -157,44 +201,7 @@
   }
 
   function applyCommand(structure, command) {
-    const next = clone(isObject(structure) ? structure : {});
-    const cmd = isObject(command) ? command : {};
-    const type = stringValue(cmd.type || cmd.action);
-    if (type === 'add_option') {
-      addOption(next, parseAddOption(cmd.value || cmd.raw || cmd.text), cmd);
-    } else if (type === 'remove_option') {
-      removeOption(next, cmd.optionId || cmd.targetId || cmd.id);
-    } else if (type === 'remove_option_condition') {
-      updateOption(next, cmd.optionId || cmd.targetId || cmd.id, (option) => {
-        option.chooseIf = '';
-        option.unavailableText = '';
-      });
-    } else if (type === 'add_section' || type === 'add_branch') {
-      addSection(next, parseBranch(cmd.value || cmd.raw || cmd.text), cmd);
-    } else if (type === 'remove_section' || type === 'remove_layer') {
-      removeSection(next, cmd.sectionId || cmd.targetId || cmd.id);
-    } else if (type === 'add_trigger_effect') {
-      const effect = parseEffect(cmd.value || cmd.raw || cmd.text);
-      if (effect.variable) {
-        next.triggerEffects = ensureArray(next.triggerEffects).concat(effect);
-      }
-    } else if (type === 'remove_trigger_effect') {
-      removeEffectAt(next.triggerEffects, cmd.effectIndex);
-    } else if (type === 'add_option_effect') {
-      const effect = parseEffect(cmd.value || cmd.raw || cmd.text);
-      if (effect.variable) {
-        updateOption(next, cmd.optionId || cmd.targetId || cmd.id, (option) => {
-          option.effects = ensureArray(option.effects).concat(effect);
-        });
-      }
-    } else if (type === 'remove_option_effect') {
-      updateOption(next, cmd.optionId || cmd.targetId || cmd.id, (option) => {
-        removeEffectAt(option.effects, cmd.effectIndex);
-      });
-    } else if (type === 'update_field') {
-      updateField(next, cmd.fieldId || cmd.id, cmd.value);
-    }
-    return next;
+    return eventCommandModel().applyCommand(structure, command);
   }
 
   function toDraft(structure, previousDraft) {
@@ -238,77 +245,7 @@
   }
 
   function commandsFromValues(values, structure) {
-    const data = isObject(values) ? values : {};
-    const current = isObject(structure) ? structure : {};
-    const commands = [];
-    const queuedCommands = queuedCommandsFromValues(data);
-    pushFieldUpdateCommands(commands, data);
-    queuedCommands.forEach((command) => commands.push(command));
-    pushTextCommand(commands, data, 'structure_add_option', 'add_option');
-    pushTextCommand(commands, data, 'structure_add_branch', 'add_section');
-    pushTextCommand(commands, data, 'structure_add_trigger_effect', 'add_trigger_effect');
-    Object.keys(data).forEach((key) => {
-      const text = stringValue(data[key]).trim();
-      if (!text) {
-        return;
-      }
-      if (key.indexOf('structure_add_option_section_') === 0) {
-        commands.push({type: 'add_option', sectionId: key.slice('structure_add_option_section_'.length), value: text});
-      } else if (key.indexOf('structure_add_option_effect_') === 0) {
-        commands.push({type: 'add_option_effect', optionId: key.slice('structure_add_option_effect_'.length), value: text});
-      } else if (key.indexOf('structure_remove_option_condition_') === 0 && truthy(text)) {
-        commands.push({type: 'remove_option_condition', optionId: key.slice('structure_remove_option_condition_'.length)});
-      } else if (key.indexOf('structure_remove_option_effect_') === 0 && truthy(text)) {
-        commands.push(removeOptionEffectCommand(key, current));
-      } else if (key.indexOf('structure_remove_option_') === 0 && truthy(text)) {
-        commands.push({type: 'remove_option', optionId: key.slice('structure_remove_option_'.length)});
-      } else if (key.indexOf('structure_remove_trigger_effect_') === 0 && truthy(text)) {
-        commands.push({type: 'remove_trigger_effect', effectIndex: Number(key.slice('structure_remove_trigger_effect_'.length))});
-      } else if (key.indexOf('structure_remove_layer_') === 0 && truthy(text)) {
-        commands.push({type: 'remove_section', sectionId: key.slice('structure_remove_layer_'.length)});
-      }
-    });
-    return commands.filter(Boolean);
-  }
-
-  function queuedCommandsFromValues(data) {
-    const raw = data && (data.__structureCommands || data.structure_commands || data.structureCommands);
-    const rows = Array.isArray(raw) ? raw : parseJsonArray(raw);
-    return rows.map(normalizeQueuedCommand).filter(Boolean);
-  }
-
-  function normalizeQueuedCommand(input) {
-    const value = isObject(input) ? input : {};
-    const type = stringValue(value.type || value.action);
-    if (!type) {
-      return null;
-    }
-    return {
-      id: stringValue(value.id),
-      type: type === 'add_branch' ? 'add_section' : type,
-      action: type,
-      fieldId: stringValue(value.fieldId),
-      optionId: stringValue(value.optionId),
-      sectionId: stringValue(value.sectionId),
-      targetId: stringValue(value.targetId),
-      targetLabel: stringValue(value.targetLabel),
-      effectIndex: value.effectIndex === undefined || value.effectIndex === null || value.effectIndex === '' ? null : Number(value.effectIndex),
-      value: stringValue(value.value),
-      sourceContext: isObject(value.sourceContext) ? clone(value.sourceContext) : null,
-      mode: stringValue(value.mode)
-    };
-  }
-
-  function parseJsonArray(value) {
-    if (typeof value !== 'string' || !value.trim()) {
-      return [];
-    }
-    try {
-      const parsed = JSON.parse(value);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch (err) {
-      return [];
-    }
+    return eventCommandModel().commandsFromValues(values, structure);
   }
 
   function draftEventBody(structure) {
@@ -828,13 +765,19 @@
     const sections = ensureArray(value.sections);
     const opaqueJsBlocks = ensureArray(value.opaqueJsBlocks);
     const sourceGraph = isObject(value.sourceGraph) ? value.sourceGraph : null;
+    const sceneMetadata = isObject(value.metadata || value.sceneMetadata) ? (value.metadata || value.sceneMetadata) : {};
+    const topLevelSpan = sourceRef(value.topLevelSpan || {});
     const removeOptionHints = removeOptionHintsByOptionId(sourceGraph);
     const removeLayerHints = removeLayerHintsBySectionId(sourceGraph);
     const rerouteHints = incomingRouteRerouteHints(sourceGraph);
     const existingIds = structureExistingIds(sceneId, options, textBlocks);
     const rootAddOptionSource = sourceForAddOptionInSection(options, '', textBlocks);
     const branchInsertSource = sourceForAddBranch(sourceGraph, textBlocks, sceneSource);
-    const triggerEffectSource = sourceForAddTriggerEffect(effects, opaqueJsBlocks, sections, '');
+    const triggerEffectSource = sourceForAddTriggerEffect(effects, opaqueJsBlocks, sections, '', {
+      sceneMetadata,
+      sceneSource,
+      topLevelSpan
+    });
     const fields = [
       structuralField({
         id: 'structure_add_option',
@@ -1253,10 +1196,26 @@
           fallout: isObject(hint.fallout) ? clone(hint.fallout) : null
         };
       }
+      const inferredSource = inferredStandaloneLayerDeleteSource(sectionId, source, block, hint);
+      if (inferredSource) {
+        return {
+          kind: 'layer_section_delete',
+          sectionId,
+          sectionSource: inferredSource,
+          safetyCandidate: 'advanced_layer_delete',
+          riskLevel: 'advanced',
+          reason: 'Standalone layer source header is inferred from the section id and checked against exact body text during dry-run.',
+          fallout: isObject(hint.fallout) ? clone(hint.fallout) : null
+        };
+      }
+      const inferredBundle = inferredLeafLayerBundleDeleteBlock(sectionId, source, block, hint);
+      if (inferredBundle) {
+        return inferredBundle;
+      }
       if (hint && layerBundleDeleteCandidate(hint) && sourceSupportsLayerDelete(source)) {
         const fallout = isObject(hint.fallout) ? clone(hint.fallout) : {};
         const incomingOptionSources = ensureArray(fallout.incomingOptionSources).map(sourceRef).filter(sourceSupportsOptionLineDelete);
-        const incomingRouteSources = ensureArray(fallout.incomingRouteSources).map(sourceRef).filter(sourceSupportsRouteLineDelete);
+        const incomingRouteSources = incomingRouteDeleteSources(fallout);
         const childSectionSources = ensureArray(fallout.childSectionSources).map(sourceRef).filter(sourceSupportsSectionDelete);
         const expectedIncoming = Number(fallout.incomingOptionCount || 0) || 0;
         const expectedRoutes = Number(fallout.incomingRouteCount || 0) || 0;
@@ -1296,6 +1255,130 @@
       };
     }
     return null;
+  }
+
+  function inferredStandaloneLayerDeleteSource(sectionId, sectionSourceInput, block, hint) {
+    if (!isObject(hint) || !standaloneLayerDeleteFallout(hint.fallout)) {
+      return null;
+    }
+    return inferredLayerDeleteSourceFromBlock(sectionId, sectionSourceInput, block);
+  }
+
+  function inferredLeafLayerBundleDeleteBlock(sectionId, sectionSourceInput, block, hint) {
+    if (!isObject(hint) || !referencedLeafLayerDeleteFallout(hint.fallout)) {
+      return null;
+    }
+    const sectionSource = inferredLayerDeleteSourceFromBlock(sectionId, sectionSourceInput, block);
+    if (!sectionSource) {
+      return null;
+    }
+    const fallout = isObject(hint.fallout) ? clone(hint.fallout) : {};
+    const incomingOptionSources = ensureArray(fallout.incomingOptionSources).map(sourceRef).filter(sourceSupportsOptionLineDelete);
+    const incomingRouteSources = incomingRouteDeleteSources(fallout);
+    const expectedIncoming = Number(fallout.incomingOptionCount || 0) || 0;
+    const expectedRoutes = Number(fallout.incomingRouteCount || 0) || 0;
+    if (incomingOptionSources.length !== expectedIncoming || incomingRouteSources.length !== expectedRoutes) {
+      return null;
+    }
+    const safetyCandidate = inferredLeafLayerBundleSafety(fallout);
+    if (!safetyCandidate) {
+      return null;
+    }
+    return {
+      kind: 'layer_bundle_delete',
+      sectionId,
+      sectionSource,
+      incomingOptionSources,
+      incomingRouteSources,
+      childSectionSources: [],
+      incomingOptionIds: ensureArray(fallout.incomingOptionIds).map(stringValue).filter(Boolean),
+      incomingRouteNodeIds: ensureArray(fallout.incomingRouteNodeIds).map(stringValue).filter(Boolean),
+      childSectionIds: [],
+      ownedOptionIds: [],
+      safetyCandidate,
+      riskLevel: safetyCandidate.indexOf('aggressive') === 0 ? 'aggressive' : 'advanced',
+      reason: 'Leaf layer source header is inferred from the section id and checked with exact incoming references plus exact body text during dry-run.',
+      fallout
+    };
+  }
+
+  function inferredLayerDeleteSourceFromBlock(sectionId, sectionSourceInput, block) {
+    const sectionSource = sourceRef(sectionSourceInput || {});
+    if (sourceSupportsLayerDelete(sectionSource)) {
+      return null;
+    }
+    const blockSource = sourceRef(block && block.source || {});
+    if (stringValue(block && block.confidence) !== 'exact' || !sourceSupportsLayerTextDelete(blockSource)) {
+      return null;
+    }
+    const path = stringValue(sectionSource.path).replace(/\\/g, '/');
+    if (!path || path !== stringValue(blockSource.path).replace(/\\/g, '/')) {
+      return null;
+    }
+    const sectionLine = Number(sectionSource.line || sectionSource.startLine || 0);
+    const sectionEndLine = Number(sectionSource.endLine || 0);
+    const blockLine = Number(blockSource.line || blockSource.startLine || 0);
+    const blockEndLine = Number(blockSource.endLine || blockSource.line || blockSource.startLine || 0);
+    if (!Number.isInteger(sectionLine) || sectionLine <= 0 ||
+        !Number.isInteger(blockLine) || blockLine <= 0 ||
+        !Number.isInteger(blockEndLine) || blockEndLine < blockLine ||
+        blockLine < sectionLine) {
+      return null;
+    }
+    if (Number.isInteger(sectionEndLine) && sectionEndLine > 0 && blockEndLine > sectionEndLine) {
+      return null;
+    }
+    const anchorText = inferredLayerSectionAnchor(sectionId);
+    const endAnchorText = stringValue(blockSource.endAnchorText || blockSource.anchorText).trim();
+    const endLine = Number.isInteger(sectionEndLine) && sectionEndLine >= sectionLine ? sectionEndLine : blockEndLine;
+    const inferred = sourceRef({
+      path,
+      line: sectionLine,
+      startLine: sectionLine,
+      endLine,
+      anchorText,
+      endAnchorText
+    });
+    return sourceSupportsLayerDelete(inferred) ? inferred : null;
+  }
+
+  function standaloneLayerDeleteFallout(falloutInput) {
+    const fallout = isObject(falloutInput) ? falloutInput : {};
+    return !Number(fallout.incomingOptionCount || 0) &&
+      !Number(fallout.incomingRouteCount || 0) &&
+      !Number(fallout.ownedOptionCount || 0) &&
+      !Number(fallout.childSectionCount || 0) &&
+      !Number(fallout.effectCount || 0);
+  }
+
+  function referencedLeafLayerDeleteFallout(falloutInput) {
+    const fallout = isObject(falloutInput) ? falloutInput : {};
+    const incomingOptionCount = Number(fallout.incomingOptionCount || 0) || 0;
+    const incomingRouteCount = Number(fallout.incomingRouteCount || 0) || 0;
+    return Boolean(
+      (incomingOptionCount || incomingRouteCount) &&
+      !Number(fallout.ownedOptionCount || 0) &&
+      !Number(fallout.childSectionCount || 0) &&
+      !Number(fallout.effectCount || 0)
+    );
+  }
+
+  function inferredLeafLayerBundleSafety(falloutInput) {
+    const fallout = isObject(falloutInput) ? falloutInput : {};
+    const incomingOptionCount = Number(fallout.incomingOptionCount || 0) || 0;
+    const incomingRouteCount = Number(fallout.incomingRouteCount || 0) || 0;
+    if (incomingOptionCount > 1) {
+      return 'aggressive_multi_referenced_layer_bundle_delete';
+    }
+    if (incomingOptionCount) {
+      return incomingRouteCount ? 'aggressive_referenced_layer_bundle_delete' : 'advanced_referenced_layer_bundle_delete';
+    }
+    return incomingRouteCount ? 'aggressive_routed_layer_bundle_delete' : '';
+  }
+
+  function inferredLayerSectionAnchor(sectionId) {
+    const local = stringValue(sectionId).trim().replace(/^[@#]/, '').split('.').filter(Boolean).pop() || '';
+    return /^[A-Za-z_][A-Za-z0-9_.-]*$/.test(local) ? '@' + local : '';
   }
 
   function layerBundleDeleteCandidate(hint) {
@@ -1390,6 +1473,65 @@
     );
   }
 
+  function incomingRouteDeleteSources(falloutInput) {
+    const fallout = isObject(falloutInput) ? falloutInput : {};
+    const rows = ensureArray(fallout.incomingRouteRefs).length
+      ? ensureArray(fallout.incomingRouteRefs)
+      : ensureArray(fallout.incomingRouteSources);
+    return rows.map(routeSourceRef).filter(sourceSupportsRouteDelete);
+  }
+
+  function routeSourceRef(sourceInput) {
+    const raw = isObject(sourceInput) ? sourceInput : {};
+    return Object.assign(sourceRef(raw), {
+      routeNodeId: stringValue(raw.routeNodeId),
+      target: stringValue(raw.target || raw.localId),
+      condition: stringValue(raw.condition)
+    });
+  }
+
+  function sourceSupportsRouteDelete(sourceInput) {
+    const source = routeSourceRef(sourceInput || {});
+    return sourceSupportsRouteLineDelete(source) || Boolean(routeClauseReplacement(source.anchorText, source.target, source.condition).ok);
+  }
+
+  function routeClauseReplacement(anchorText, target, condition) {
+    const line = stringValue(anchorText).trim();
+    const match = line.match(/^(go-to\s*:\s*)([\s\S]+)$/i);
+    const wanted = stringValue(target).trim().replace(/^[@#]/, '');
+    if (!match || !wanted) {
+      return {ok: false, line: ''};
+    }
+    const expectedCondition = normalizeCondition(condition);
+    const clauses = match[2].split(';').map((clause) => clause.trim()).filter(Boolean);
+    let removed = 0;
+    const remaining = clauses.filter((clause) => {
+      const parsed = parseGoToClause(clause);
+      const matched = parsed.target === wanted && (!expectedCondition || normalizeCondition(parsed.condition) === expectedCondition);
+      if (matched) {
+        removed += 1;
+        return false;
+      }
+      return true;
+    });
+    if (removed !== 1 || remaining.length === clauses.length) {
+      return {ok: false, line: ''};
+    }
+    return {ok: true, line: remaining.length ? match[1] + remaining.join('; ') : ''};
+  }
+
+  function parseGoToClause(value) {
+    const match = stringValue(value).trim().match(/^([A-Za-z_][A-Za-z0-9_.-]*)(?:\s+if\s+([\s\S]+))?$/i);
+    return {
+      target: match ? match[1] : '',
+      condition: match ? stringValue(match[2]).trim() : ''
+    };
+  }
+
+  function normalizeCondition(value) {
+    return stringValue(value).replace(/\s+/g, ' ').trim();
+  }
+
   function simpleGoToLineTarget(value) {
     const match = stringValue(value).trim().match(/^go-to\s*:\s*([A-Za-z_][A-Za-z0-9_.-]*)\s*$/i);
     return match ? match[1] : '';
@@ -1445,7 +1587,8 @@
     };
   }
 
-  function sourceForAddTriggerEffect(effects, opaqueJsBlocks, sections, sectionId) {
+  function sourceForAddTriggerEffect(effects, opaqueJsBlocks, sections, sectionId, options) {
+    const opts = isObject(options) ? options : {};
     const matches = ensureArray(effects).filter((effect) => {
       return !stringValue(effect && effect.sectionId);
     }).map((effect) => {
@@ -1455,8 +1598,9 @@
       }) : null;
     }).filter(Boolean);
     const fallback = sourceForOpaqueJsInsert(opaqueJsBlocks, sections, sectionId, '');
+    const rootInsert = !sectionId ? sourceForRootOnArrivalInsert(opts.sceneMetadata, opts.topLevelSpan, opts.sceneSource) : null;
     if (!matches.length) {
-      return fallback || null;
+      return fallback || rootInsert || null;
     }
     matches.sort((a, b) => {
       const aOrder = Number(a.sourceOrder || 0) || 0;
@@ -1475,6 +1619,89 @@
       anchorText: last.anchorText,
       endAnchorText: last.endAnchorText || last.anchorText
     };
+  }
+
+  function sourceForRootOnArrivalInsert(metadataInput, topLevelSpanInput, sceneSourceInput) {
+    const metadata = isObject(metadataInput) ? metadataInput : {};
+    const preferredKeys = ['maxVisits', 'viewIf', 'tags', 'newPage', 'subtitle', 'title'];
+    const candidates = preferredKeys.map((key) => {
+      const ref = metadataSourceRef(metadata[key], key);
+      return rootMetadataInsertCandidate(ref);
+    }).filter(Boolean);
+    const topLevel = rootMetadataInsertCandidate(insertionSourceBeforeTopLevelBody(topLevelSpanInput, sceneSourceInput));
+    if (topLevel) {
+      candidates.push(topLevel);
+    }
+    candidates.sort((left, right) => Number(left.line || 0) - Number(right.line || 0));
+    const source = candidates[candidates.length - 1] || null;
+    return source ? Object.assign({}, source, {structureKind: 'root_on_arrival_insert_anchor'}) : null;
+  }
+
+  function metadataSourceRef(value, key) {
+    const raw = isObject(value) ? value : {};
+    const source = sourceRef(raw);
+    if (!source.path || !Number(source.line || source.startLine || 0)) {
+      return source;
+    }
+    const line = Number(source.line || source.startLine || 0);
+    const anchor = source.anchorText || sourceLineFromExcerpt(raw.excerpt, line);
+    return sourceRef(Object.assign({}, source, {
+      line,
+      startLine: line,
+      endLine: line,
+      anchorText: anchor,
+      endAnchorText: source.endAnchorText || anchor
+    }));
+  }
+
+  function rootMetadataInsertCandidate(sourceInput) {
+    const source = sourceRef(sourceInput || {});
+    const path = stringValue(source.path).replace(/\\/g, '/');
+    const line = Number(source.line || source.startLine || 0);
+    const endLine = Number(source.endLine || source.line || source.startLine || line || 0);
+    const anchor = stringValue(source.anchorText).trim();
+    if (!path.startsWith('source/scenes/') || !path.endsWith('.scene.dry') || isProtectedRouterPath(path) ||
+      !Number.isInteger(line) || line <= 0 || (Number.isInteger(endLine) && endLine > 0 && endLine !== line) ||
+      !rootMetadataDirectiveLine(anchor)) {
+      return null;
+    }
+    return sourceRef(Object.assign({}, source, {
+      line,
+      startLine: line,
+      endLine: line,
+      endAnchorText: source.endAnchorText || anchor
+    }));
+  }
+
+  function insertionSourceBeforeTopLevelBody(topLevelSpanInput, sceneSourceInput) {
+    const top = sourceRef(topLevelSpanInput || {});
+    const source = top.path ? top : sourceRef(sceneSourceInput || {});
+    const line = Number(source.line || source.startLine || 0);
+    const anchor = stringValue(source.anchorText).trim();
+    if (line > 0 && rootMetadataDirectiveLine(anchor)) {
+      return sourceRef(Object.assign({}, source, {
+        endLine: line,
+        endAnchorText: source.endAnchorText || anchor
+      }));
+    }
+    return sourceRef({});
+  }
+
+  function sourceLineFromExcerpt(excerpt, lineNumber) {
+    const line = Number(lineNumber || 0);
+    if (!Number.isInteger(line) || line <= 0) {
+      return '';
+    }
+    const prefix = new RegExp('^\\s*' + line + '\\s*:\\s?([\\s\\S]*)$');
+    const hit = stringValue(excerpt).split(/\r?\n/).map((row) => {
+      const match = row.match(prefix);
+      return match ? match[1] : '';
+    }).find(Boolean);
+    return stringValue(hit).trim();
+  }
+
+  function rootMetadataDirectiveLine(value) {
+    return /^(?:title|subtitle|new-page|tags|view-if|max-visits|is-card|is-special|audio|set-bg|face-image|card-image)\s*:/i.test(stringValue(value).trim());
   }
 
   function sourceForOpaqueJsInsert(opaqueJsBlocks, sections, sectionId, sceneId) {
@@ -1986,14 +2213,7 @@
   }
 
   function effectFromDraft(effect) {
-    const value = isObject(effect) ? effect : {};
-    return {
-      variable: safeId(value.variable || ''),
-      op: normalizeEffectOp(value.op || '+='),
-      value: value.value,
-      condition: stringValue(value.condition),
-      hook: stringValue(value.hook)
-    };
+    return eventEffectModel().effectFromDraft(effect);
   }
 
   function effectFromField(fieldValue, index) {
@@ -2004,19 +2224,7 @@
   }
 
   function effectToDraft(effect) {
-    const value = isObject(effect) ? effect : {};
-    const out = {
-      variable: safeId(value.variable || ''),
-      op: normalizeEffectOp(value.op || '+='),
-      value: effectValue(value.value, value.op)
-    };
-    if (value.condition) {
-      out.condition = stringValue(value.condition);
-    }
-    if (value.hook) {
-      out.hook = stringValue(value.hook);
-    }
-    return out;
+    return eventEffectModel().effectToDraft(effect);
   }
 
   function sectionToDraft(section) {
@@ -2172,373 +2380,8 @@
     };
   }
 
-  function addOption(structure, draft, command) {
-    const ownerSection = sectionById(structure, command && command.sectionId);
-    const options = ensureArray(structure.options).filter((option) => !option.ownerSectionId);
-    if (!ownerSection && options.length >= 4) {
-      return;
-    }
-    const id = uniqueId(structure, safeId(draft.target || draft.id || draft.label || 'new_option'));
-    const resultMode = normalizeResultMode(draft.resultMode || (draft.gotoAfter ? 'continue' : 'native'), draft.gotoAfter);
-    const option = {
-      id,
-      ownerSectionId: ownerSection ? ownerSection.id : '',
-      label: draft.label || 'New option',
-      subtitle: '',
-      chooseIf: draft.chooseIf || '',
-      unavailableText: draft.unavailableText || '',
-      resultMode,
-      gotoAfter: resultMode === 'continue'
-        ? uniqueId(structure, draft.gotoAfter || 'continue_' + id)
-        : optionalSafeId(draft.gotoAfter),
-      returnTarget: optionalSafeId(draft.returnTarget || (resultMode === 'continue' ? 'root' : '')),
-      body: draft.result || 'Result prose.',
-      effects: [],
-      rawEffects: rawEffectLines(draft.rawEffects),
-      variants: []
-    };
-    structure.options = ensureArray(structure.options).concat(option);
-    if (ownerSection) {
-      ownerSection.options = ensureArray(ownerSection.options).concat(option);
-    }
-    if (command && command.select) {
-      structure.selectedId = id;
-    }
-  }
-
-  function removeOption(structure, optionId) {
-    const id = safeId(optionId);
-    const rootOptions = ensureArray(structure.options).filter((option) => !option.ownerSectionId);
-    const target = ensureArray(structure.options).find((option) => safeId(option.id) === id);
-    if (target && !target.ownerSectionId && rootOptions.length <= 2) {
-      return;
-    }
-    structure.options = ensureArray(structure.options).filter((option) => safeId(option.id) !== id);
-    ensureArray(structure.sections).forEach((section) => {
-      section.options = ensureArray(section.options).filter((option) => safeId(option.id) !== id);
-    });
-  }
-
-  function addSection(structure, draft) {
-    const id = uniqueId(structure, safeId(draft.section || draft.id || 'follow_up'));
-    structure.sections = ensureArray(structure.sections).concat({
-      id,
-      title: humanize(id),
-      text: draft.text || 'Follow-up prose.',
-      condition: draft.condition || '',
-      exitTarget: 'root',
-      options: [],
-      effects: []
-    });
-  }
-
-  function removeSection(structure, sectionId) {
-    const id = safeId(sectionId);
-    structure.sections = ensureArray(structure.sections).filter((section) => safeId(section.id) !== id);
-    structure.options = ensureArray(structure.options).filter((option) => safeId(option.ownerSectionId) !== id);
-  }
-
-  function updateOption(structure, optionId, callback) {
-    const id = safeId(optionId);
-    const seen = new Set();
-    ensureArray(structure.options).forEach((option) => {
-      const optionKey = safeId(option.id);
-      if (optionKey === id && typeof callback === 'function' && !seen.has(option)) {
-        seen.add(option);
-        callback(option);
-      }
-    });
-    ensureArray(structure.sections).forEach((section) => {
-      ensureArray(section.options).forEach((option) => {
-        const optionKey = safeId(option.id);
-        if (optionKey === id && typeof callback === 'function' && !seen.has(option)) {
-          seen.add(option);
-          callback(option);
-        }
-      });
-    });
-  }
-
-  function removeEffectAt(effects, index) {
-    const rows = ensureArray(effects);
-    const numeric = Number(index);
-    if (Number.isFinite(numeric) && numeric >= 0 && numeric < rows.length) {
-      rows.splice(numeric, 1);
-    }
-  }
-
-  function updateField(structure, fieldId, value) {
-    const id = stringValue(fieldId);
-    if (id === 'event.title') {
-      structure.title = stringValue(value);
-    } else if (id === 'event.subtitle') {
-      structure.subtitle = stringValue(value);
-    } else if (id === 'event.heading') {
-      structure.heading = stringValue(value);
-    } else if (id === 'event.intro') {
-      structure.openingText = stringValue(value);
-    } else if (id === 'event.id') {
-      structure.id = safeId(value || structure.id || 'new_world_event');
-    } else if (id === 'event.rawEffects') {
-      structure.rawTriggerEffects = rawEffectLines(value);
-    } else if (id.indexOf('event.section.') === 0) {
-      updateSectionField(structure, id, value);
-    } else if (id.indexOf('event.effect.') === 0) {
-      updateTriggerEffectField(structure, id, value);
-    } else if (id.indexOf('event.') === 0) {
-      updateEventMetaField(structure, id, value);
-    } else if (id.indexOf('option.') === 0) {
-      updateOptionField(structure, id, value);
-    }
-  }
-
-  function updateEventMetaField(structure, fieldId, value) {
-    const key = fieldId.slice('event.'.length);
-    structure.when = isObject(structure.when) ? structure.when : {};
-    if (key === 'eventShape') {
-      structure.eventShape = normalizeEventShape(value, ensureArray(structure.options).filter((option) => !option.ownerSectionId).length);
-    } else if (key === 'tags') {
-      structure.tags = stringValue(value).split(',').map((item) => item.trim()).filter(Boolean);
-    } else if (key === 'newPage') {
-      structure.newPage = truthy(value);
-    } else if (key === 'useSeenFlag') {
-      structure.useSeenFlag = truthy(value);
-    } else if (key === 'year' || key === 'monthStart' || key === 'monthEnd' || key === 'priority') {
-      const number = Number(value);
-      if (Number.isFinite(number)) {
-        structure.when[key] = number;
-      }
-    } else if (key === 'requires') {
-      if (normalizeEventShape(structure.eventShape, ensureArray(structure.options).length) === 'pure_event') {
-        structure.rawViewIf = stringValue(value);
-      } else {
-        structure.when.requires = stringValue(value);
-      }
-    }
-  }
-
-  function updateSectionField(structure, fieldId, value) {
-    const match = fieldId.match(/^event\.section\.(\d+)\.(body|title|condition|exitTarget)$/);
-    if (!match) {
-      return;
-    }
-    const section = ensureArray(structure.sections)[Number(match[1])];
-    if (!section) {
-      return;
-    }
-    if (match[2] === 'body') {
-      section.text = stringValue(value);
-    } else if (match[2] === 'title') {
-      section.title = stringValue(value);
-    } else if (match[2] === 'condition') {
-      section.condition = stringValue(value);
-    } else if (match[2] === 'exitTarget') {
-      section.exitTarget = safeId(value || 'root');
-    }
-  }
-
-  function updateTriggerEffectField(structure, fieldId, value) {
-    const match = fieldId.match(/^event\.effect\.(\d+)\.(variable|op|value|condition|hook)$/);
-    if (!match) {
-      return;
-    }
-    const effect = ensureArray(structure.triggerEffects)[Number(match[1])];
-    if (effect) {
-      setEffectPart(effect, match[2], value);
-    }
-  }
-
-  function updateOptionField(structure, fieldId, value) {
-    const effectMatch = fieldId.match(/^option\.(\d+)\.effect\.(\d+)\.(variable|op|value|condition|hook)$/);
-    if (effectMatch) {
-      const option = ensureArray(structure.options)[Number(effectMatch[1])];
-      if (!option) {
-        return;
-      }
-      updateOption(structure, option.id, (targetOption) => {
-        const effect = ensureArray(targetOption.effects)[Number(effectMatch[2])];
-        if (effect) {
-          setEffectPart(effect, effectMatch[3], value);
-        }
-      });
-      return;
-    }
-    const match = fieldId.match(/^option\.(\d+)\.(label|subtitle|body|chooseIf|unavailableText|resultMode|gotoAfter|returnTarget|rawEffects)$/);
-    if (!match) {
-      return;
-    }
-    const option = ensureArray(structure.options)[Number(match[1])];
-    if (!option) {
-      return;
-    }
-    const key = match[2];
-    updateOption(structure, option.id, (targetOption) => {
-      if (key === 'rawEffects') {
-        targetOption.rawEffects = rawEffectLines(value);
-        return;
-      }
-      if (key === 'resultMode') {
-        targetOption.resultMode = normalizeResultMode(value, targetOption.gotoAfter);
-        if (targetOption.resultMode === 'native' && /^continue_/.test(stringValue(targetOption.gotoAfter))) {
-          targetOption.gotoAfter = '';
-          targetOption.returnTarget = '';
-        } else if (targetOption.resultMode === 'continue' && !targetOption.gotoAfter) {
-          targetOption.gotoAfter = 'continue_' + targetOption.id;
-          targetOption.returnTarget = targetOption.returnTarget || 'root';
-        }
-        return;
-      }
-      targetOption[key] = key === 'gotoAfter' || key === 'returnTarget'
-        ? optionalSafeId(value || (key === 'returnTarget' && targetOption.resultMode !== 'native' ? 'root' : ''))
-        : stringValue(value);
-    });
-  }
-
-  function setEffectPart(effect, key, value) {
-    if (key === 'variable') {
-      effect.variable = safeId(value);
-    } else if (key === 'op') {
-      effect.op = normalizeEffectOp(value || '+=');
-    } else if (key === 'value') {
-      effect.value = effectValue(value, effect.op);
-    } else if (key === 'condition') {
-      effect.condition = stringValue(value);
-    } else if (key === 'hook') {
-      effect.hook = stringValue(value);
-    }
-  }
-
-  function parseAddOption(value) {
-    const lines = stringValue(value).split(/\r?\n/);
-    const first = lines.find((line) => /^\s*-\s*@[^:]+:/.test(line)) || '';
-    const match = first.match(/^\s*-\s*@([^:]+):\s*(.*)$/);
-    const section = lines.find((line) => /^\s*#\s*\S+/.test(line)) || '';
-    const chooseLine = lines.find((line) => /^\s*choose-if\s*:/i.test(line)) || '';
-    const unavailableLine = lines.find((line) => /^\s*unavailable-(?:subtitle|text)\s*:/i.test(line)) || '';
-    const resultModeLine = lines.find((line) => /^\s*result-mode\s*:/i.test(line)) || '';
-    const gotoLine = lines.find((line) => /^\s*goto-after\s*:/i.test(line)) || '';
-    const returnLine = lines.find((line) => /^\s*return-target\s*:/i.test(line)) || '';
-    const rawEffectLine = lines.find((line) => /^\s*raw-effects\s*:/i.test(line)) || '';
-    const target = match && match[1] || (section.match(/^\s*#\s*(\S+)/) || [])[1] || '';
-    const label = match && match[2] || '';
-    const chooseIf = chooseLine.replace(/^\s*choose-if\s*:\s*/i, '').trim();
-    const unavailableText = unavailableLine.replace(/^\s*unavailable-(?:subtitle|text)\s*:\s*/i, '').trim();
-    const resultMode = resultModeLine.replace(/^\s*result-mode\s*:\s*/i, '').trim();
-    const gotoAfter = gotoLine.replace(/^\s*goto-after\s*:\s*/i, '').trim();
-    const returnTarget = returnLine.replace(/^\s*return-target\s*:\s*/i, '').trim();
-    const rawEffects = rawEffectLine.replace(/^\s*raw-effects\s*:\s*/i, '').trim();
-    const result = lines.filter((line) => {
-      return line !== first && line !== section && line !== chooseLine && line !== unavailableLine &&
-        line !== resultModeLine && line !== gotoLine && line !== returnLine && line !== rawEffectLine;
-    }).join('\n').trim();
-    return {target, label, result, chooseIf, unavailableText, resultMode, gotoAfter, returnTarget, rawEffects};
-  }
-
-  function parseBranch(value) {
-    const text = stringValue(value);
-    const lines = text.split(/\r?\n/);
-    const sectionLine = lines.find((line) => /^\s*#\s*\S+/.test(line)) || '';
-    const section = (sectionLine.match(/^\s*#\s*(\S+)/) || [])[1] || '';
-    const body = lines.filter((line) => line !== sectionLine).join('\n').trim();
-    const conditional = body.match(/^\[\?\s*if\s+(.+?)\s*:\s*([\s\S]*?)\s*\?\]$/);
-    return {
-      section,
-      condition: conditional ? conditional[1].trim() : '',
-      text: conditional ? conditional[2].trim() : body
-    };
-  }
-
   function parseEffect(value) {
-    const text = stringValue(value).trim().replace(/^Q\./, '');
-    const match = text.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*(\+=|-=|=)\s*([\s\S]*)$/);
-    if (!match) {
-      return {variable: '', op: '+=', value: '', condition: ''};
-    }
-    const tail = splitEffectCondition(match[3]);
-    return {
-      variable: safeId(match[1]),
-      op: match[2],
-      value: effectValue(tail.value, match[2]),
-      condition: tail.condition,
-      hook: ''
-    };
-  }
-
-  function splitEffectCondition(value) {
-    const text = stringValue(value).trim();
-    const match = text.match(/^([\s\S]*?)\s+if\s+([\s\S]+)$/i);
-    return match ? {value: match[1].trim(), condition: match[2].trim()} : {value: text, condition: ''};
-  }
-
-  function removeOptionEffectCommand(key, structure) {
-    const suffix = key.slice('structure_remove_option_effect_'.length);
-    const match = suffix.match(/^(.+)_([0-9]+)$/);
-    if (!match) {
-      return null;
-    }
-    const optionId = match[1];
-    const index = Number(match[2]);
-    const option = ensureArray(structure && structure.options).find((item) => safeId(item.id) === safeId(optionId));
-    return {type: 'remove_option_effect', optionId: option && option.id || optionId, effectIndex: index};
-  }
-
-  function pushFieldUpdateCommands(commands, data) {
-    Object.keys(data || {}).forEach((key) => {
-      if (isStructureCommandField(key)) {
-        return;
-      }
-      if (isEventStructureField(key)) {
-        commands.push({type: 'update_field', fieldId: key, value: data[key]});
-      }
-    });
-  }
-
-  function isStructureCommandField(key) {
-    return /^structure_/.test(stringValue(key));
-  }
-
-  function isEventStructureField(key) {
-    const text = stringValue(key);
-    return text === 'event.title' ||
-      text === 'event.subtitle' ||
-      text === 'event.heading' ||
-      text === 'event.intro' ||
-      text === 'event.id' ||
-      text === 'event.rawEffects' ||
-      /^event\.(eventShape|tags|newPage|useSeenFlag|year|monthStart|monthEnd|requires|priority)$/.test(text) ||
-      /^event\.section\.\d+\.(body|title|condition|exitTarget)$/.test(text) ||
-      /^event\.effect\.\d+\.(variable|op|value|condition|hook)$/.test(text) ||
-      /^option\.\d+\.(label|subtitle|body|chooseIf|unavailableText|resultMode|gotoAfter|returnTarget|rawEffects)$/.test(text) ||
-      /^option\.\d+\.effect\.\d+\.(variable|op|value|condition|hook)$/.test(text);
-  }
-
-  function pushTextCommand(commands, data, key, type) {
-    const text = stringValue(data && data[key]).trim();
-    if (text) {
-      commands.push({type, value: text});
-    }
-  }
-
-  function uniqueId(structure, base) {
-    const safe = safeId(base || 'item');
-    const existing = new Set();
-    ensureArray(structure.options).forEach((option) => {
-      existing.add(safeId(option.id));
-      if (option.gotoAfter) {
-        existing.add(safeId(option.gotoAfter));
-      }
-    });
-    ensureArray(structure.sections).forEach((section) => existing.add(safeId(section.id)));
-    if (!existing.has(safe)) {
-      return safe;
-    }
-    let index = 2;
-    let next = safe + '_' + index;
-    while (existing.has(next)) {
-      index += 1;
-      next = safe + '_' + index;
-    }
-    return next;
+    return eventEffectModel().parseEffect(value);
   }
 
   function compactStructure(structure) {
@@ -2566,27 +2409,11 @@
   }
 
   function effectLabel(effect) {
-    const value = isObject(effect) ? effect : {};
-    const variable = value.variable ? 'Q.' + value.variable : 'Q.variable';
-    const op = value.op || '+=';
-    const tail = variable + ' ' + op + ' ' + stringValue(value.value === undefined ? 1 : value.value);
-    return value.condition ? tail + ' if ' + value.condition : tail;
+    return eventEffectModel().effectLabel(effect);
   }
 
   function effectLabelForSource(effect) {
-    const value = isObject(effect) ? effect : {};
-    const explicit = stringValue(value.displayExpression || value.expression || value.sourceExpression).trim();
-    if (explicit) {
-      return explicit;
-    }
-    const variable = stringValue(value.variable).trim();
-    if (!variable) {
-      return '';
-    }
-    const op = stringValue(value.op || value.operator || '+=').trim() || '+=';
-    const amount = stringValue(value.value === undefined || value.value === null ? 1 : value.value).trim();
-    const expression = (variable.indexOf('Q.') === 0 ? variable : 'Q.' + variable) + ' ' + op + ' ' + amount;
-    return value.condition ? expression + ' if ' + value.condition : expression;
+    return eventEffectModel().effectLabelForSource(effect);
   }
 
   function optionForSourceEffect(effect, options) {
@@ -2655,23 +2482,6 @@
     return uniqueStrings([text, local, safeId(text), safeId(local)]);
   }
 
-  function effectValue(value, op) {
-    const text = stringValue(value).trim();
-    if (op && op !== '=') {
-      const num = Number(text);
-      return Number.isFinite(num) ? num : text;
-    }
-    if (/^-?\d+(?:\.\d+)?$/.test(text)) {
-      return Number(text);
-    }
-    return text;
-  }
-
-  function normalizeEffectOp(value) {
-    const op = stringValue(value || '+=').trim();
-    return op === '=' || op === '+=' || op === '-=' ? op : '+=';
-  }
-
   function normalizeResultMode(value, gotoAfter) {
     const text = stringValue(value).trim();
     if (text === 'native' || text === 'direct' || text === 'inline' || text === 'section') {
@@ -2732,10 +2542,6 @@
     return '';
   }
 
-  function truthy(value) {
-    return /^(1|true|yes|on)$/i.test(stringValue(value).trim());
-  }
-
   function safeId(value) {
     const text = stringValue(value).trim()
       .replace(/^[@#]/, '')
@@ -2750,17 +2556,11 @@
   }
 
   function rawEffectLines(value) {
-    if (Array.isArray(value)) {
-      return value.reduce((rows, item) => rows.concat(rawEffectLines(item)), []);
-    }
-    return stringValue(value)
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean);
+    return eventEffectModel().rawEffectLines(value);
   }
 
   function joinRawEffectLines(value) {
-    return rawEffectLines(value).join('\n');
+    return eventEffectModel().joinRawEffectLines(value);
   }
 
   function stringValue(value) {

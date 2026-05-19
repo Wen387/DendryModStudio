@@ -1,5 +1,10 @@
+// @ts-check
 (function initProjectMapExistingSceneLogicFields(global) {
   'use strict';
+
+  /**
+   * @typedef {import('../types/project_map_contracts').ExistingSceneLogicFieldsApi} ExistingSceneLogicFieldsApi
+   */
 
   const ID_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
   const ROUTE_TARGET_RE = /^[A-Za-z_][A-Za-z0-9_.-]*$/;
@@ -76,6 +81,7 @@
             return;
           }
           const rawClause = String(route && (route.raw || route.id) || rawTarget).trim();
+          const predicate = String(route && (route.predicate || route.condition || route.if) || '').trim();
           const source = routeSource(owner.item, scene, fieldName);
           const search = rawClause || rawTarget;
           const guarded = canGuardField(source, search) && Boolean(search);
@@ -94,7 +100,9 @@
             inputType: 'text',
             transform: 'goto_route_target',
             routeKind: fieldName,
-            routePredicate: String(route && route.predicate || ''),
+            routePredicate: predicate,
+            condition: predicate,
+            conditions: predicate ? [predicate] : [],
             routeRaw: rawClause,
             searchText: search,
             confidence: guarded ? 'exact' : 'approximate',
@@ -139,13 +147,28 @@
     const metadata = isObject(item && item.metadata) ? item.metadata : {};
     const ref = isObject(metadata[fieldName]) ? metadata[fieldName] : {};
     const path = ref.path || scene && scene.path || '';
+    const line = ref.line || ref.startLine;
+    const anchor = ref.anchorText || sourceLineFromExcerpt(ref.excerpt, line);
     return sourceRef({
       path,
-      line: ref.line || ref.startLine,
+      line,
       endLine: ref.endLine || ref.line || ref.startLine,
-      anchorText: ref.anchorText || '',
-      endAnchorText: ref.endAnchorText || ref.anchorText || ''
+      anchorText: anchor,
+      endAnchorText: ref.endAnchorText || anchor
     });
+  }
+
+  function sourceLineFromExcerpt(excerpt, lineNumber) {
+    const line = Number(lineNumber || 0);
+    if (!Number.isInteger(line) || line <= 0) {
+      return '';
+    }
+    const prefix = new RegExp('^\\s*' + line + '\\s*:\\s?([\\s\\S]*)$');
+    const hit = String(excerpt || '').split(/\r?\n/).map((row) => {
+      const match = row.match(prefix);
+      return match ? match[1] : '';
+    }).find(Boolean);
+    return String(hit || '').trim();
   }
 
   function buildEffectFields(scene, effects, options) {
@@ -526,6 +549,7 @@
     return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
+  /** @type {ExistingSceneLogicFieldsApi} */
   const api = {
     buildRouteFields,
     buildEffectFields,

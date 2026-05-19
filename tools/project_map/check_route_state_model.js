@@ -25,6 +25,10 @@ function src(path, line) {
 
 const electionPath = 'source/scenes/events/election_1928.scene.dry';
 const centerPath = 'source/scenes/events/center_party_conference.scene.dry';
+const cabinetPath = 'source/scenes/events/cabinet_sacked.scene.dry';
+const dvpPath = 'source/scenes/events/dvp_party_congress.scene.dry';
+const austriaPath = 'source/scenes/events/austrian_civil_war.scene.dry';
+const zeroPath = 'source/scenes/events/zero_valid_route.scene.dry';
 
 const index = {
   schemaVersion: '0.1',
@@ -89,6 +93,92 @@ const index = {
         }
       ]
     },
+    {
+      id: 'cabinet_sacked',
+      title: 'Hindenburg Sacks Cabinet',
+      type: 'event',
+      path: cabinetPath,
+      sourceSpan: {path: cabinetPath, startLine: 1, endLine: 40},
+      routes: {goTo: []},
+      options: [],
+      sections: []
+    },
+    {
+      id: 'dvp_party_congress',
+      title: 'DVP Party Vote',
+      type: 'event',
+      path: dvpPath,
+      sourceSpan: {path: dvpPath, startLine: 1, endLine: 70},
+      routes: {goTo: []},
+      options: [],
+      sections: [
+        {
+          id: 'dvp_party_congress.resultsdvp',
+          title: 'Results',
+          onArrival: '{! if (Q.dvp_left > Q.dvp_right) Q.dvp_ideology = "Left"; !}',
+          sourceSpan: {path: dvpPath, startLine: 20, endLine: 36},
+          metadata: {onArrival: src(dvpPath, 23)},
+          routes: {},
+          options: []
+        }
+      ],
+      opaqueJsBlocks: [
+        {
+          id: 'opaque_dvp_results',
+          sectionId: 'dvp_party_congress.resultsdvp',
+          hook: 'on-arrival',
+          source: src(dvpPath, 23),
+          rawPreview: 'if (Q.dvp_left > Q.dvp_right) Q.dvp_ideology = "Left";',
+          reads: ['dvp_left', 'dvp_right'],
+          writes: ['dvp_ideology']
+        }
+      ]
+    },
+    {
+      id: 'austrian_civil_war',
+      title: 'Austrian Civil War',
+      type: 'event',
+      path: austriaPath,
+      sourceSpan: {path: austriaPath, startLine: 1, endLine: 90},
+      routes: {goTo: []},
+      options: [],
+      sections: [
+        {
+          id: 'austrian_civil_war.support_sdapo_govt',
+          title: 'Support the SDAPO government',
+          onArrival: 'sdapo_strength += 1',
+          sourceSpan: {path: austriaPath, startLine: 52, endLine: 66},
+          metadata: {onArrival: src(austriaPath, 59)},
+          routes: {},
+          options: []
+        }
+      ],
+      effects: [
+        {
+          id: 'effect_sdapo_strength',
+          variable: 'sdapo_strength',
+          op: '+=',
+          operator: '+=',
+          value: '1',
+          condition: '',
+          hook: 'on-arrival',
+          sectionId: 'austrian_civil_war.support_sdapo_govt',
+          sourceExpression: 'sdapo_strength += 1',
+          expression: 'Q.sdapo_strength += 1',
+          source: src(austriaPath, 59)
+        }
+      ]
+    },
+    {
+      id: 'zero_valid_route',
+      title: 'Zero Valid Route Fixture',
+      type: 'event',
+      path: zeroPath,
+      sourceSpan: {path: zeroPath, startLine: 1, endLine: 30},
+      routes: {goTo: []},
+      options: [],
+      sections: []
+    },
     {id: 'election_algorithm', title: 'Election Algorithm', type: 'event', path: 'source/scenes/election_algorithm.scene.dry', sections: [], options: []}
   ],
   edges: [
@@ -138,6 +228,83 @@ const index = {
           clauses: [
             {order: 1, raw: 'next_event_quality if Q.route_flag', rawTarget: 'next_event_quality', resolvedTarget: 'quality_ref:next_event_quality', targetResolved: true, predicate: 'Q.route_flag', isFallback: false, routeKind: 'conditional_go_to_ref', dynamicTarget: true, targetSource: 'quality'}
           ]
+        },
+        {
+          id: 'route_order_cabinet',
+          sceneId: 'cabinet_sacked',
+          ownerId: 'cabinet_sacked',
+          ownerKind: 'event',
+          routeField: 'goTo',
+          routeKind: 'go_to',
+          routeCount: 3,
+          chainContext: 'ordered_chain',
+          source: src(cabinetPath, 7),
+          sourceRaw: 'bruning_right if A; bruning_center_right if B; bruning_chain if not (A) and not (B)',
+          parserBacked: true,
+          confidence: 'exact',
+          installSafety: 'manual_review',
+          clauses: [
+            {order: 1, raw: 'bruning_right if right_coalition >= 50', rawTarget: 'bruning_right', resolvedTarget: 'cabinet_sacked.bruning_right', targetResolved: true, predicate: 'right_coalition >= 50', routeKind: 'conditional_go_to'},
+            {order: 2, raw: 'bruning_center_right if center_right_coalition >= 50 and right_coalition < 50', rawTarget: 'bruning_center_right', resolvedTarget: 'cabinet_sacked.bruning_center_right', targetResolved: true, predicate: 'center_right_coalition >= 50 and right_coalition < 50', routeKind: 'conditional_go_to'},
+            {order: 3, raw: 'bruning_chain if not (right_coalition >= 50) and not (center_right_coalition >= 50 and right_coalition < 50)', rawTarget: 'bruning_chain', resolvedTarget: 'cabinet_sacked.bruning_chain', targetResolved: true, predicate: 'not (right_coalition >= 50) and not (center_right_coalition >= 50 and right_coalition < 50)', routeKind: 'conditional_go_to'}
+          ]
+        },
+        {
+          id: 'route_order_dvp_overlap',
+          sceneId: 'dvp_party_congress',
+          ownerId: 'dvp_party_congress.resultsdvp',
+          ownerKind: 'section',
+          routeField: 'goTo',
+          routeKind: 'go_to',
+          routeCount: 2,
+          chainContext: 'ordered_chain',
+          source: src(dvpPath, 28),
+          sourceRaw: 'curtius if dvp_ideology = "Left"; luther if foreign_minister_party = "DVP" and dvp_ideology = "Left"',
+          parserBacked: true,
+          confidence: 'exact',
+          installSafety: 'manual_review',
+          clauses: [
+            {order: 1, raw: 'curtius if dvp_ideology = "Left"', rawTarget: 'curtius', resolvedTarget: 'dvp_party_congress.curtius', targetResolved: true, predicate: 'dvp_ideology = "Left"', routeKind: 'conditional_go_to'},
+            {order: 2, raw: 'luther if foreign_minister_party = "DVP" and dvp_ideology = "Left"', rawTarget: 'luther', resolvedTarget: 'dvp_party_congress.luther', targetResolved: true, predicate: 'foreign_minister_party = "DVP" and dvp_ideology = "Left"', routeKind: 'conditional_go_to'}
+          ]
+        },
+        {
+          id: 'route_order_austria_sdapo',
+          sceneId: 'austrian_civil_war',
+          ownerId: 'austrian_civil_war.support_sdapo_govt',
+          ownerKind: 'section',
+          routeField: 'goTo',
+          routeKind: 'go_to',
+          routeCount: 2,
+          chainContext: 'ordered_chain',
+          source: src(austriaPath, 60),
+          sourceRaw: 'sdapo_victory if sdapo_strength >= 6; long_war_2 if sdapo_strength < 6',
+          parserBacked: true,
+          confidence: 'exact',
+          installSafety: 'manual_review',
+          clauses: [
+            {order: 1, raw: 'sdapo_victory if sdapo_strength >= 6', rawTarget: 'sdapo_victory', resolvedTarget: 'austrian_civil_war.sdapo_victory', targetResolved: true, predicate: 'sdapo_strength >= 6', routeKind: 'conditional_go_to'},
+            {order: 2, raw: 'long_war_2 if sdapo_strength < 6', rawTarget: 'long_war_2', resolvedTarget: 'austrian_civil_war.long_war_2', targetResolved: true, predicate: 'sdapo_strength < 6', routeKind: 'conditional_go_to'}
+          ]
+        },
+        {
+          id: 'route_order_zero_valid',
+          sceneId: 'zero_valid_route',
+          ownerId: 'zero_valid_route',
+          ownerKind: 'event',
+          routeField: 'goTo',
+          routeKind: 'go_to',
+          routeCount: 2,
+          chainContext: 'ordered_chain',
+          source: src(zeroPath, 12),
+          sourceRaw: 'high_path if pressure > 10; low_path if pressure < 0',
+          parserBacked: true,
+          confidence: 'exact',
+          installSafety: 'manual_review',
+          clauses: [
+            {order: 1, raw: 'high_path if pressure > 10', rawTarget: 'high_path', resolvedTarget: 'zero_valid_route.high_path', targetResolved: true, predicate: 'pressure > 10', routeKind: 'conditional_go_to'},
+            {order: 2, raw: 'low_path if pressure < 0', rawTarget: 'low_path', resolvedTarget: 'zero_valid_route.low_path', targetResolved: true, predicate: 'pressure < 0', routeKind: 'conditional_go_to'}
+          ]
         }
       ]
     }
@@ -146,9 +313,12 @@ const index = {
 
 const model = routeState.buildRouteStateModel(index);
 assert(model.summary.routeStateCount >= 4, 'model should include route groups and direct edge states', model.summary);
-assert(model.summary.orderedChainCount === 1, 'model should count the ordered go-to chain', model.summary);
+assert(model.summary.orderedChainCount === 5, 'model should count the ordered go-to chains', model.summary);
 assert(model.summary.goToRefCount === 1, 'model should count go-to-ref quality-backed dynamic routes', model.summary);
 assert(model.summary.setJumpCount === 1, 'model should preserve set-jump route state', model.summary);
+assert(model.summary.possibleRandomRouteCount >= 2, 'summary should count possible random route groups', model.summary);
+assert(model.summary.unconditionalMixedRouteCount >= 1, 'summary should count unconditional plus conditional mixed route groups', model.summary);
+assert(model.summary.explicitExclusiveRouteCount >= 1, 'summary should count explicit mutually exclusive route groups', model.summary);
 
 const center = routeState.routeStatesForScene(index, 'center_party_conference');
 const chain = center.states.find((state) => state.id === 'route_order_center');
@@ -157,6 +327,36 @@ assert(chain.candidateCount === 2, 'chain should preserve both route candidates'
 assert(chain.fallbackCandidate && chain.fallbackCandidate.rawTarget === 'kaas', 'chain should mark the unconditional route as fallback', chain);
 assert(chain.dependencies.includes('z_relation'), 'chain should expose predicate dependency z_relation', chain);
 assert(chain.candidates[0].predicateSummary.comparisons[0].op === '>=', 'candidate should expose comparison operator', chain.candidates[0]);
+assert(chain.runtimeSemantics.possibleRandomization, 'mixed unconditional plus conditional go-to should be marked as possible runtime randomization', chain.runtimeSemantics);
+assert(chain.runtimeSemantics.selectionMode === 'random_among_valid', 'mixed route runtime selection should explain random valid-target behavior', chain.runtimeSemantics);
+
+const cabinet = routeState.routeStatesForScene(index, 'cabinet_sacked');
+const cabinetChain = cabinet.states.find((state) => state.id === 'route_order_cabinet');
+assert(cabinetChain && cabinetChain.runtimeSemantics.exclusivity === 'explicit_complement', 'explicit complement routes should be classified as mutually exclusive fallback', cabinetChain);
+assert(!cabinetChain.runtimeSemantics.possibleRandomization, 'explicit complement route should not be flagged as random', cabinetChain && cabinetChain.runtimeSemantics);
+
+const dvp = routeState.routeStatesForScene(index, 'dvp_party_congress');
+const dvpOverlap = dvp.states.find((state) => state.id === 'route_order_dvp_overlap');
+assert(dvpOverlap && dvpOverlap.runtimeSemantics.exclusivity === 'unknown_overlap', 'overlapping complex route predicates should stay marked as possible overlap', dvpOverlap);
+assert(dvpOverlap.runtimeSemantics.possibleRandomization, 'overlapping complex route predicates should be marked as possible random valid-target behavior', dvpOverlap && dvpOverlap.runtimeSemantics);
+assert(dvpOverlap.preRouteScript.opaque, 'opaque on-arrival script before a route should be preserved as route evidence', dvpOverlap && dvpOverlap.preRouteScript);
+assert(dvpOverlap.preRouteScript.directDependencyWrites.includes('dvp_ideology'), 'opaque pre-route script writes should intersect route dependencies when known', dvpOverlap && dvpOverlap.preRouteScript);
+assert(dvpOverlap.runtimeSemantics.collisionSummary.tested, 'route collision sampling should run for parsed overlapping predicates', dvpOverlap && dvpOverlap.runtimeSemantics.collisionSummary);
+assert(dvpOverlap.runtimeSemantics.collisionSummary.after.multiValidCount > 0, 'collision sampling should prove the DVP overlap can select multiple valid targets', dvpOverlap && dvpOverlap.runtimeSemantics.collisionSummary);
+
+const austrian = routeState.routeStatesForScene(index, 'austrian_civil_war');
+const austrianChain = austrian.states.find((state) => state.id === 'route_order_austria_sdapo');
+assert(austrianChain && austrianChain.preRouteScript.routeDependencyWriteCount === 1, 'safe on-arrival effects should be linked to immediate route dependency writes', austrianChain && austrianChain.preRouteScript);
+assert(austrianChain.preRouteScript.directDependencyWrites.includes('sdapo_strength'), 'pre-route dependency evidence should name the written route variable', austrianChain && austrianChain.preRouteScript);
+assert(austrianChain.runtimeSemantics.preRouteScript.status === 'direct_dependency_write', 'runtime semantics should embed pre-route script status', austrianChain && austrianChain.runtimeSemantics);
+assert(austrianChain.runtimeSemantics.collisionSummary.tested, 'route collision sampling should test safe pre-route effect chains', austrianChain && austrianChain.runtimeSemantics.collisionSummary);
+assert(austrianChain.runtimeSemantics.collisionSummary.preRouteMutationCount > 0, 'safe on-arrival effects should be applied during collision sampling', austrianChain && austrianChain.runtimeSemantics.collisionSummary);
+
+const zeroValid = routeState.routeStatesForScene(index, 'zero_valid_route');
+const zeroValidChain = zeroValid.states.find((state) => state.id === 'route_order_zero_valid');
+assert(zeroValidChain && zeroValidChain.runtimeSemantics.collisionSummary.after.zeroValidCount > 0, 'route collision sampling should preserve zero-valid route samples', zeroValidChain && zeroValidChain.runtimeSemantics.collisionSummary);
+const zeroValidRendered = eventWorkbenchUi.renderEventWorkbench(eventWorkbench.buildEventWorkbench(index, 'zero_valid_route'), {locale: 'en'});
+assert(zeroValidRendered.includes('sampled no-valid'), 'Event Workbench UI should surface sampled no-valid route states', zeroValidRendered);
 
 const goToRef = center.states.find((state) => state.routeField === 'goToRef');
 assert(goToRef && goToRef.routePurpose === 'quality_backed_dynamic_route', 'go-to-ref should be classified as quality-backed dynamic route', goToRef);
@@ -175,6 +375,7 @@ assert(workbench.routeState.summary.routeStateCount >= 1, 'Event Workbench shoul
 const rendered = eventWorkbenchUi.renderEventWorkbench(workbench, {locale: 'en'});
 assert(rendered.includes('data-event-workbench-section="routeState"'), 'Event Workbench UI should render route-state section', rendered);
 assert(rendered.includes('data-event-workbench-route-state='), 'Event Workbench UI should render route-state rows', rendered);
+assert(rendered.includes('possible random split'), 'Event Workbench UI should render runtime route semantics', rendered);
 const html = fs.readFileSync(path.join(__dirname, 'viewer', 'index.html'), 'utf8');
 const dependencyLoader = fs.readFileSync(path.join(__dirname, 'authoring', 'authoring_dependency_loader.js'), 'utf8');
 assert(html.indexOf('authoring_dependency_loader.js') >= 0 && html.indexOf('authoring_dependency_loader.js') < html.indexOf('event_workbench_model.js'), 'viewer should load authoring dependencies before Event Workbench');
@@ -184,6 +385,11 @@ process.stdout.write(JSON.stringify({
   ok: true,
   routeStates: model.summary.routeStateCount,
   orderedChains: model.summary.orderedChainCount,
+  possibleRandomRoutes: model.summary.possibleRandomRouteCount,
+  explicitExclusiveRoutes: model.summary.explicitExclusiveRouteCount,
+  preRouteScripts: model.summary.preRouteScriptCount,
+  preRouteDependencyWrites: model.summary.preRouteRouteDependencyWriteCount,
+  collisionTestedRoutes: model.summary.collisionTestedRouteCount,
   goToRef: model.summary.goToRefCount,
   setJump: model.summary.setJumpCount,
   centerDependencies: chain.dependencies

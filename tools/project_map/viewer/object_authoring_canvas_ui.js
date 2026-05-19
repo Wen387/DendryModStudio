@@ -3141,6 +3141,7 @@
     syncPreviewObjectEditorChrome();
     syncPreviewObjectEditorPane();
     syncObjectCanvasFieldValues();
+    syncObjectCanvasAssetActionState();
     syncSourceSliceAdvancedControls();
     syncSemanticLogicAdvancedControls();
     syncEventReadinessControls();
@@ -3322,6 +3323,10 @@
 
   function syncObjectCanvasFieldValues() {
     previewEditorSyncApi().syncObjectCanvasFieldValues(previewEditorSyncDeps());
+  }
+
+  function syncObjectCanvasAssetActionState() {
+    previewEditorSyncApi().syncObjectCanvasAssetActionState(previewEditorSyncDeps());
   }
 
   function defaultDraftForTemplate(template) {

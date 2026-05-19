@@ -2,6 +2,7 @@
 'use strict';
 
 const canvasModel = require('./authoring/object_authoring_canvas_model.js');
+const eventStructureEffectModel = require('./authoring/event_structure_effect_model.js');
 const previewEditor = require('./viewer/preview_object_editor.js');
 
 function fail(message, detail) {
@@ -61,6 +62,11 @@ assert(!html.includes('<option value="*="'), 'effect builder UI must not offer u
 assert(!html.includes('<option value="/="'), 'effect builder UI must not offer unsupported /= op');
 assert(html.includes('data-preview-object-structure-builder="add_trigger_effect"'), 'trigger effect builder should be visible');
 assert(html.includes('data-preview-object-variable-context="true"'), 'variable context workspace should be visible');
+
+const parsedEffect = eventStructureEffectModel.parseEffect('Q.public_order += 2 if year >= 1936');
+assert(parsedEffect.variable === 'public_order' && parsedEffect.op === '+=' && parsedEffect.value === 2 && parsedEffect.condition === 'year >= 1936', 'typed effect helper should parse conditional Q effects', parsedEffect);
+assert(eventStructureEffectModel.normalizeEffectOp('*=') === '+=', 'typed effect helper should normalize unsupported ops');
+assert(eventStructureEffectModel.effectLabelForSource({variable: 'public_order', op: '-=', value: 1}) === 'Q.public_order -= 1', 'typed effect helper should format source labels');
 
 process.stdout.write(JSON.stringify({
   ok: true,

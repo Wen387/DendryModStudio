@@ -301,6 +301,18 @@
       "gate": "focused",
       "when": "Route evidence classification, script impact mapping, guided script edits, or script-aware trial-run behavior changed."
     },
+    "route-semantics-audit": {
+      "path": "tools/project_map/check_route_semantics_audit_model.js",
+      "command": "node tools/project_map/check_route_semantics_audit_model.js",
+      "kind": "fast-model",
+      "domain": ["authoring", "routes", "parser-coverage", "runtime-semantics"],
+      "fixture": "synthetic",
+      "writes": "none",
+      "requires": ["node"],
+      "duration": "fast",
+      "gate": "focused",
+      "when": "Route semantics audit reporting, parser coverage reconciliation, or compiled/runtime route comparison changed."
+    },
     "effect-clause-workflow": {
       "path": "tools/project_map/check_effect_clause_editor_workflow_model.js",
       "command": "node tools/project_map/check_effect_clause_editor_workflow_model.js",
@@ -709,6 +721,18 @@
       "gate": "focused",
       "when": "Runtime visual asset draft behavior changed."
     },
+    "asset-contract": {
+      "path": "tools/project_map/check_asset_contract_model.js",
+      "command": "node tools/project_map/check_asset_contract_model.js",
+      "kind": "fast-model",
+      "domain": ["authoring", "assets", "object-canvas"],
+      "fixture": "synthetic",
+      "writes": "none",
+      "requires": ["node"],
+      "duration": "fast",
+      "gate": "focused",
+      "when": "Asset slot roles, directives, local file install requests, or Object Canvas asset contracts changed."
+    },
     "desktop-packaging": {
       "path": "tools/project_map/check_desktop_packaging.js",
       "command": "node tools/project_map/check_desktop_packaging.js",
@@ -856,6 +880,7 @@
   },
   "knownChecks": [
     "tools/project_map/check_archetype_authoring_coverage_model.js",
+    "tools/project_map/check_asset_contract_model.js",
     "tools/project_map/check_asset_model.js",
     "tools/project_map/check_asset_workflow_entry_model.js",
     "tools/project_map/check_authoring_context_lens_model.js",
@@ -928,6 +953,7 @@
     "tools/project_map/check_release_links_model.js",
     "tools/project_map/check_rendered_authoring_entry_model.js",
     "tools/project_map/check_route_editor_workflow_model.js",
+    "tools/project_map/check_route_semantics_audit_model.js",
     "tools/project_map/check_route_script_intelligence_model.js",
     "tools/project_map/check_runtime_dom_map_model.js",
     "tools/project_map/check_runtime_lens_model.js",

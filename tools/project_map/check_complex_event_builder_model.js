@@ -2,6 +2,7 @@
 'use strict';
 
 const canvasModel = require('./authoring/object_authoring_canvas_model.js');
+const eventCommandModel = require('./authoring/event_structure_command_model.js');
 const previewEditor = require('./viewer/preview_object_editor.js');
 
 function fail(message, detail) {
@@ -101,6 +102,27 @@ const html = previewEditor.render(model);
 assert(html.includes('data-preview-object-event-graph="true"'), 'UI should render the event graph summary');
 assert(html.includes('data-preview-object-readiness="true"'), 'UI should render install readiness');
 assert(html.includes('After result route'), 'UI should expose option return route fields');
+
+const commandRows = eventCommandModel.commandsFromValues({
+  'event.title': 'Edited complex event',
+  structure_add_option: '- @late_option: Late option\n# late_option\nLate option result.',
+  structure_remove_option_effect_organize_0: '1'
+}, {options: draft.options});
+assert(commandRows.some((command) => command.type === 'update_field' && command.fieldId === 'event.title'), 'typed command model should emit field update commands', commandRows);
+assert(commandRows.some((command) => command.type === 'add_option' && String(command.value).includes('@late_option')), 'typed command model should emit add-option commands', commandRows);
+assert(commandRows.some((command) => command.type === 'remove_option_effect' && command.optionId === 'organize' && command.effectIndex === 0), 'typed command model should map option effect removal fields', commandRows);
+
+const appliedStructure = eventCommandModel.applyCommand({
+  eventShape: 'choice_event',
+  title: 'Before command',
+  options: [
+    {id: 'first', label: 'First', effects: [{variable: 'public_order', op: '+=', value: 1}]},
+    {id: 'second', label: 'Second', effects: []}
+  ],
+  sections: [],
+  triggerEffects: []
+}, {type: 'add_option', value: '- @third: Third\n# third\nThird result.'});
+assert(appliedStructure.options.length === 3 && appliedStructure.options.some((option) => option.id === 'third' && option.body === 'Third result.'), 'typed command model should apply add-option commands', appliedStructure.options);
 
 process.stdout.write(JSON.stringify({
   ok: true,

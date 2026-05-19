@@ -1,5 +1,10 @@
+// @ts-check
 (function initProjectMapEventStructureEffectSourceHelpers(global) {
   'use strict';
+
+  /**
+   * @typedef {import('../types/project_map_contracts').EventStructureEffectSourceHelpersApi} EventStructureEffectSourceHelpersApi
+   */
 
   function isOnArrivalEffectLine(value) {
     return /^on-arrival\s*:/i.test(stringValue(value).trim()) && stringValue(value).indexOf('{!') < 0;
@@ -125,13 +130,13 @@
     return value === undefined || value === null ? '' : String(value);
   }
 
-  const api = {
+  const api = /** @type {EventStructureEffectSourceHelpersApi} */ ({
     isOnArrivalEffectLine,
     looksLikeStandaloneEffectAnchor,
     effectRemovalFromSourceLine,
     splitEffectClauses,
     normalizeEffectClause
-  };
+  });
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;

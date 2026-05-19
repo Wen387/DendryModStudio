@@ -3,7 +3,6 @@
   'use strict';
 
   const ROUTE_STATE_VERSION = '0.1';
-  const RESERVED_WORDS = new Set(['and', 'or', 'not', 'true', 'false', 'if']);
 
   /**
    * @typedef {import('../types/project_map_contracts').ConditionState} ConditionState
@@ -26,8 +25,50 @@
   if (global) {
     global.ProjectMapRouteStateModel = api;
   }
+
+  function predicateConditionApi() {
+    if (global && global.ProjectMapPredicateConditionModel) {
+      return global.ProjectMapPredicateConditionModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./predicate_condition_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;
+  }
+
+  function routeRuntimeTrialApi() {
+    if (global && global.ProjectMapRouteRuntimeTrialModel) {
+      return global.ProjectMapRouteRuntimeTrialModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./route_runtime_trial_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function routeRuntimeSemanticsApi() {
+    if (global && global.ProjectMapRouteRuntimeSemanticsModel) {
+      return global.ProjectMapRouteRuntimeSemanticsModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./route_runtime_semantics_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
   }
 
   /**
@@ -37,8 +78,9 @@
    */
   function buildRouteStateModel(projectIndex, options) {
     const index = isObject(projectIndex) ? projectIndex : {};
+    const opts = isObject(options) ? options : {};
     const lookup = buildLookup(index);
-    const states = routeStatesForLookup(lookup, '');
+    const states = routeStatesForLookup(lookup, '', opts);
 
     const conditionStates = [];
     lookup.scenes.forEach((scene) => {
@@ -65,13 +107,14 @@
    */
   function routeStatesForScene(projectIndex, sceneOrId, options) {
     const index = isObject(projectIndex) ? projectIndex : {};
+    const opts = isObject(options) ? options : {};
     const lookup = buildLookup(index);
     const scene = resolveScene(lookup, sceneOrId);
     if (!scene) {
       return emptySceneRouteState(sceneOrId);
     }
     const sceneId = String(scene.id || '');
-    const states = routeStatesForLookup(lookup, sceneId);
+    const states = routeStatesForLookup(lookup, sceneId, opts);
     const conditionStates = conditionStatesForScene(index, scene);
     const diagnostics = diagnosticsForStates(states, conditionStates);
     return {
@@ -146,7 +189,7 @@
     return rows;
   }
 
-  function routeStatesForLookup(lookup, sceneId) {
+  function routeStatesForLookup(lookup, sceneId, options) {
     const filterSceneId = String(sceneId || '');
     const groupSourceKeys = new Set();
     const states = [];
@@ -156,7 +199,7 @@
         ownerId: group && group.ownerId || ''
       }, filterSceneId);
     }).forEach((group) => {
-      const state = routeStateFromGroup(group, lookup);
+      const state = routeStateFromGroup(group, lookup, options);
       if (state) {
         states.push(state);
         groupSourceKeys.add(sourceKey(state.source) + '|' + state.ownerId + '|' + state.routeField);
@@ -172,7 +215,7 @@
       if (groupSourceKeys.has(key)) {
         return;
       }
-      const state = routeStateFromEdge(edge, lookup, index + 1);
+      const state = routeStateFromEdge(edge, lookup, index + 1, options);
       if (state) {
         states.push(state);
       }
@@ -201,7 +244,7 @@
     });
   }
 
-  function routeStateFromGroup(group, lookup) {
+  function routeStateFromGroup(group, lookup, options) {
     const clauses = ensureArray(group && group.clauses);
     if (!group || !clauses.length) {
       return null;
@@ -229,7 +272,7 @@
       sourceRaw: String(group.sourceRaw || candidates.map((candidate) => candidate.raw || candidate.rawTarget).join('; ')),
       candidates,
       predicateSummaries
-    });
+    }, lookup, options);
   }
 
   function routeCandidateFromClause(clause, group, lookup, order) {
@@ -264,7 +307,7 @@
     return candidate;
   }
 
-  function routeStateFromEdge(edge, lookup, order) {
+  function routeStateFromEdge(edge, lookup, order, options) {
     if (!edge || !edge.from) {
       return null;
     }
@@ -311,15 +354,38 @@
       sourceRaw: candidate.raw,
       candidates: [candidate],
       predicateSummaries: predicate ? [candidate.predicateSummary] : []
-    });
+    }, lookup, options);
   }
 
-  function finalizeRouteState(state) {
+  function finalizeRouteState(state, lookup, options) {
     const candidates = ensureArray(state.candidates);
     const dependencies = unique(candidates.flatMap((candidate) => ensureArray(candidate.predicateSummary && candidate.predicateSummary.dependencies)));
     const dynamicTargetCount = candidates.filter((candidate) => candidate.dynamicTarget).length;
     const unresolvedTargetCount = candidates.filter((candidate) => !candidate.targetResolved).length;
     const fallbackCandidate = candidates.find((candidate) => candidate.isFallback) || null;
+    const routeTrial = routeRuntimeTrialApi();
+    if (!routeTrial) {
+      throw new Error('route_runtime_trial_model.js is required before route_state_model.js');
+    }
+    const routeSemantics = routeRuntimeSemanticsApi();
+    if (!routeSemantics) {
+      throw new Error('route_runtime_semantics_model.js is required before route_state_model.js');
+    }
+    const owner = ownerForRoute(lookup, state.ownerId);
+    const preRouteScript = routeTrial.preRouteScriptSummary({
+      ownerId: state.ownerId,
+      raw: owner && owner.onArrival || '',
+      effects: preRouteEffectsForOwner(lookup, state.ownerId),
+      opaqueBlocks: preRouteOpaqueBlocksForOwner(lookup, state.ownerId),
+      dependencies,
+      summarizePredicate
+    });
+    const collisionSummary = routeTrial.routeCollisionSummary(state, candidates, preRouteScript, Object.assign({}, options || {}, {summarizePredicate}));
+    const runtimeSemantics = routeTrial.enrichRuntimeSemantics(
+      routeSemantics.routeRuntimeSemantics(state, candidates, fallbackCandidate, dynamicTargetCount, unresolvedTargetCount),
+      preRouteScript,
+      collisionSummary
+    );
     return Object.assign({}, state, {
       candidateCount: candidates.length,
       fallbackCandidate,
@@ -327,8 +393,42 @@
       predicateDependencyCount: dependencies.length,
       dynamicTargetCount,
       unresolvedTargetCount,
-      status: unresolvedTargetCount ? 'needs_review' : dynamicTargetCount ? 'dynamic' : state.chainContext === 'direct' ? 'direct' : 'reviewable',
+      preRouteScript,
+      runtimeSemantics,
+      status: unresolvedTargetCount ? 'needs_review' : runtimeSemantics.possibleRandomization ? 'runtime_ambiguous' : dynamicTargetCount ? 'dynamic' : state.chainContext === 'direct' ? 'direct' : 'reviewable',
       summaryLabel: routeStateLabel(state, candidates, fallbackCandidate)
+    });
+  }
+
+  function ownerForRoute(lookup, ownerId) {
+    const id = String(ownerId || '');
+    if (!lookup || !id) {
+      return null;
+    }
+    if (lookup.ownersById && lookup.ownersById.has(id)) {
+      return lookup.ownersById.get(id);
+    }
+    const sceneId = sceneIdForOwner(lookup, id);
+    return sceneId && lookup.scenesById ? lookup.scenesById.get(sceneId) || null : null;
+  }
+
+  function preRouteEffectsForOwner(lookup, ownerId) {
+    if (!lookup || !lookup.effectsByOwner) {
+      return [];
+    }
+    return ensureArray(lookup.effectsByOwner.get(String(ownerId || ''))).filter((effect) => {
+      const hook = String(effect && (effect.hook || effect.effectHook) || '').toLowerCase();
+      return hook === 'on-arrival';
+    });
+  }
+
+  function preRouteOpaqueBlocksForOwner(lookup, ownerId) {
+    if (!lookup || !lookup.opaqueBlocksByOwner) {
+      return [];
+    }
+    return ensureArray(lookup.opaqueBlocksByOwner.get(String(ownerId || ''))).filter((block) => {
+      const hook = String(block && (block.hook || block.effectHook || block.scriptKind) || '').toLowerCase();
+      return !hook || hook === 'on-arrival' || hook === 'opaque_js';
     });
   }
 
@@ -337,70 +437,11 @@
    * @returns {PredicateSummary}
    */
   function summarizePredicate(rawInput) {
-    const raw = String(rawInput || '').trim();
-    if (!raw) {
-      return {
-        schemaVersion: ROUTE_STATE_VERSION,
-        kind: 'predicate_summary',
-        raw,
-        status: 'empty',
-        dependencies: [],
-        operators: [],
-        comparisons: [],
-        dynamicRefs: [],
-        ast: null,
-        opaqueReasons: []
-      };
+    const predicateModel = predicateConditionApi();
+    if (!predicateModel) {
+      throw new Error('predicate_condition_model.js is required before route_state_model.js');
     }
-    const dynamicRefs = dynamicQRefs(raw);
-    const prepared = raw.replace(/Q\s*\[[^\]]+\]/g, 'dynamic_q_ref');
-    const tokenized = tokenizePredicate(prepared);
-    const fallbackDependencies = unique(variablesIn(raw));
-    if (tokenized.unsupported.length) {
-      return {
-        schemaVersion: ROUTE_STATE_VERSION,
-        kind: 'predicate_summary',
-        raw,
-        status: dynamicRefs.length ? 'dynamic' : 'opaque',
-        dependencies: unique(fallbackDependencies.concat(dynamicRefs.flatMap((ref) => ref.dependencies))),
-        operators: tokenized.tokens.filter((token) => token.type === 'operator').map((token) => String(token.value)),
-        comparisons: [],
-        dynamicRefs,
-        ast: null,
-        opaqueReasons: tokenized.unsupported
-      };
-    }
-    const parser = createPredicateParser(tokenized.tokens);
-    const parsed = parser.parseExpression();
-    if (!parsed || !astIsComplete(parsed) || parser.peek().type !== 'eof') {
-      return {
-        schemaVersion: ROUTE_STATE_VERSION,
-        kind: 'predicate_summary',
-        raw,
-        status: dynamicRefs.length ? 'dynamic' : 'opaque',
-        dependencies: unique(fallbackDependencies.concat(dynamicRefs.flatMap((ref) => ref.dependencies))),
-        operators: [],
-        comparisons: [],
-        dynamicRefs,
-        ast: null,
-        opaqueReasons: ['Could not parse the full predicate.']
-      };
-    }
-    const dependencies = unique(dependenciesForAst(parsed).concat(dynamicRefs.flatMap((ref) => ref.dependencies))).filter((item) => item !== 'dynamic_q_ref');
-    const operators = unique(operatorsForAst(parsed));
-    const comparisons = comparisonsForAst(parsed);
-    return {
-      schemaVersion: ROUTE_STATE_VERSION,
-      kind: 'predicate_summary',
-      raw,
-      status: dynamicRefs.length ? 'dynamic' : 'parsed',
-      dependencies,
-      operators,
-      comparisons,
-      dynamicRefs,
-      ast: parsed,
-      opaqueReasons: []
-    };
+    return predicateModel.summarizePredicate(rawInput);
   }
 
   /**
@@ -408,325 +449,11 @@
    * @returns {string[]}
    */
   function predicateDependencies(raw) {
-    return summarizePredicate(raw).dependencies;
-  }
-
-  function tokenizePredicate(raw) {
-    const text = String(raw || '');
-    const tokens = [];
-    const unsupported = [];
-    let index = 0;
-    while (index < text.length) {
-      const char = text.charAt(index);
-      if (/\s/.test(char)) {
-        index += 1;
-        continue;
-      }
-      const pair = text.slice(index, index + 2);
-      if (['>=', '<=', '==', '!=', '&&', '||'].includes(pair)) {
-        tokens.push({type: 'operator', value: pair === '&&' ? 'and' : pair === '||' ? 'or' : pair});
-        index += 2;
-        continue;
-      }
-      if (['(', ')', '+', '-', '*', '/', '=', '>', '<', '!'].includes(char)) {
-        tokens.push({type: char === '(' || char === ')' ? 'paren' : 'operator', value: char === '!' ? 'not' : char});
-        index += 1;
-        continue;
-      }
-      if (char === '"' || char === "'") {
-        const parsed = readQuoted(text, index);
-        if (!parsed) {
-          unsupported.push('Unterminated string literal.');
-          break;
-        }
-        tokens.push({type: 'literal', value: parsed.value, raw: parsed.raw});
-        index = parsed.next;
-        continue;
-      }
-      const numberMatch = text.slice(index).match(/^\d+(?:\.\d+)?/);
-      if (numberMatch) {
-        tokens.push({type: 'literal', value: Number(numberMatch[0]), raw: numberMatch[0]});
-        index += numberMatch[0].length;
-        continue;
-      }
-      const identMatch = text.slice(index).match(/^[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*/);
-      if (identMatch) {
-        const value = identMatch[0];
-        const lower = value.toLowerCase();
-        if (lower === 'and' || lower === 'or' || lower === 'not') {
-          tokens.push({type: 'operator', value: lower});
-        } else if (lower === 'true' || lower === 'false') {
-          tokens.push({type: 'literal', value: lower === 'true', raw: value});
-        } else {
-          tokens.push({type: 'identifier', value});
-        }
-        index += value.length;
-        continue;
-      }
-      unsupported.push('Unsupported token near "' + text.slice(index, index + 12) + '".');
-      index += 1;
+    const predicateModel = predicateConditionApi();
+    if (!predicateModel) {
+      throw new Error('predicate_condition_model.js is required before route_state_model.js');
     }
-    tokens.push({type: 'eof', value: ''});
-    return {tokens, unsupported};
-  }
-
-  function astIsComplete(ast) {
-    if (!ast) {
-      return false;
-    }
-    if (ast.type === 'identifier' || ast.type === 'literal') {
-      return true;
-    }
-    if (ast.type === 'group' || ast.type === 'unary') {
-      return astIsComplete(ast.value);
-    }
-    if (ast.type === 'logical' || ast.type === 'arithmetic' || ast.type === 'comparison') {
-      return astIsComplete(ast.left) && astIsComplete(ast.right);
-    }
-    return false;
-  }
-
-  function createPredicateParser(tokens) {
-    let index = 0;
-    return {
-      peek,
-      consume,
-      parseExpression: parseOr
-    };
-
-    function peek() {
-      return tokens[index] || {type: 'eof', value: ''};
-    }
-
-    function consume(value) {
-      const token = peek();
-      if (value && token.value !== value) {
-        return null;
-      }
-      index += 1;
-      return token;
-    }
-
-    function parseOr() {
-      let left = parseAnd();
-      while (peek().type === 'operator' && peek().value === 'or') {
-        consume();
-        left = {type: 'logical', op: 'or', left, right: parseAnd()};
-      }
-      return left;
-    }
-
-    function parseAnd() {
-      let left = parseNot();
-      while (peek().type === 'operator' && peek().value === 'and') {
-        consume();
-        left = {type: 'logical', op: 'and', left, right: parseNot()};
-      }
-      return left;
-    }
-
-    function parseNot() {
-      if (peek().type === 'operator' && peek().value === 'not') {
-        consume();
-        return {type: 'unary', op: 'not', value: parseNot()};
-      }
-      return parseComparison();
-    }
-
-    function parseComparison() {
-      const left = parseAdditive();
-      if (peek().type === 'operator' && ['=', '==', '!=', '>=', '<=', '>', '<'].includes(peek().value)) {
-        const op = consume().value;
-        return {type: 'comparison', op, left, right: parseAdditive()};
-      }
-      return left;
-    }
-
-    function parseAdditive() {
-      let left = parseMultiplicative();
-      while (peek().type === 'operator' && ['+', '-'].includes(peek().value)) {
-        const op = consume().value;
-        left = {type: 'arithmetic', op, left, right: parseMultiplicative()};
-      }
-      return left;
-    }
-
-    function parseMultiplicative() {
-      let left = parsePrimary();
-      while (peek().type === 'operator' && ['*', '/'].includes(peek().value)) {
-        const op = consume().value;
-        left = {type: 'arithmetic', op, left, right: parsePrimary()};
-      }
-      return left;
-    }
-
-    function parsePrimary() {
-      const token = peek();
-      if (token.type === 'identifier') {
-        consume();
-        return {type: 'identifier', name: normalizeVariable(token.value)};
-      }
-      if (token.type === 'literal') {
-        consume();
-        return {type: 'literal', value: token.value, raw: token.raw};
-      }
-      if (token.type === 'paren' && token.value === '(') {
-        consume('(');
-        const inner = parseOr();
-        if (peek().type === 'paren' && peek().value === ')') {
-          consume(')');
-          return {type: 'group', value: inner};
-        }
-        return null;
-      }
-      return null;
-    }
-  }
-
-  function readQuoted(text, start) {
-    const quote = text.charAt(start);
-    let value = '';
-    let escaped = false;
-    for (let index = start + 1; index < text.length; index += 1) {
-      const char = text.charAt(index);
-      if (escaped) {
-        value += char;
-        escaped = false;
-      } else if (char === '\\') {
-        escaped = true;
-      } else if (char === quote) {
-        return {value, raw: text.slice(start, index + 1), next: index + 1};
-      } else {
-        value += char;
-      }
-    }
-    return null;
-  }
-
-  function dependenciesForAst(ast) {
-    if (!ast) {
-      return [];
-    }
-    if (ast.type === 'identifier') {
-      return ast.name && !RESERVED_WORDS.has(ast.name) ? [ast.name] : [];
-    }
-    if (ast.type === 'literal') {
-      return [];
-    }
-    return unique([].concat(
-      dependenciesForAst(ast.left),
-      dependenciesForAst(ast.right),
-      dependenciesForAst(ast.value)
-    ));
-  }
-
-  function operatorsForAst(ast) {
-    if (!ast) {
-      return [];
-    }
-    return unique([ast.op || ''].filter(Boolean).concat(
-      operatorsForAst(ast.left),
-      operatorsForAst(ast.right),
-      operatorsForAst(ast.value)
-    ));
-  }
-
-  function comparisonsForAst(ast) {
-    if (!ast) {
-      return [];
-    }
-    const rows = [];
-    if (ast.type === 'comparison') {
-      rows.push({
-        left: expressionLabel(ast.left),
-        op: ast.op,
-        right: expressionLabel(ast.right),
-        dependencies: unique(dependenciesForAst(ast.left).concat(dependenciesForAst(ast.right)))
-      });
-    }
-    rows.push.apply(rows, comparisonsForAst(ast.left));
-    rows.push.apply(rows, comparisonsForAst(ast.right));
-    rows.push.apply(rows, comparisonsForAst(ast.value));
-    return rows;
-  }
-
-  function expressionLabel(ast) {
-    if (!ast) {
-      return '';
-    }
-    if (ast.type === 'identifier') {
-      return ast.name;
-    }
-    if (ast.type === 'literal') {
-      return ast.raw !== undefined ? String(ast.raw) : String(ast.value);
-    }
-    if (ast.type === 'group') {
-      return '(' + expressionLabel(ast.value) + ')';
-    }
-    if (ast.type === 'unary') {
-      return ast.op + ' ' + expressionLabel(ast.value);
-    }
-    if (ast.left || ast.right) {
-      return [expressionLabel(ast.left), ast.op, expressionLabel(ast.right)].filter(Boolean).join(' ');
-    }
-    return '';
-  }
-
-  function dynamicQRefs(raw) {
-    const refs = [];
-    const pattern = /Q\s*\[([^\]]+)\]/g;
-    let match = pattern.exec(String(raw || ''));
-    while (match) {
-      refs.push({
-        expression: match[1].trim(),
-        dependencies: variablesIn(match[1]),
-        raw: match[0]
-      });
-      match = pattern.exec(String(raw || ''));
-    }
-    return refs;
-  }
-
-  function variablesIn(raw) {
-    const text = stripQuotedStrings(String(raw || '').replace(/Q\s*\[[^\]]+\]/g, ' '));
-    const values = [];
-    const pattern = /\b(?:Q\.)?([A-Za-z_][A-Za-z0-9_]*)\b/g;
-    let match = pattern.exec(text);
-    while (match) {
-      const name = normalizeVariable(match[1]);
-      const lower = name.toLowerCase();
-      if (!RESERVED_WORDS.has(lower) && !['Q', 'NaN', 'Infinity'].includes(name) && !/^\d/.test(name)) {
-        values.push(name);
-      }
-      match = pattern.exec(text);
-    }
-    return unique(values);
-  }
-
-  function stripQuotedStrings(value) {
-    let out = '';
-    let quote = '';
-    let escaped = false;
-    String(value || '').split('').forEach((char) => {
-      if (escaped) {
-        escaped = false;
-        return;
-      }
-      if (quote) {
-        if (char === '\\') {
-          escaped = true;
-        } else if (char === quote) {
-          quote = '';
-        }
-        return;
-      }
-      if (char === '"' || char === "'") {
-        quote = char;
-        return;
-      }
-      out += char;
-    });
-    return out;
+    return predicateModel.predicateDependencies(raw);
   }
 
   function diagnosticsForStates(states, conditionStates) {
@@ -754,6 +481,35 @@
           });
         }
       });
+      if (state.runtimeSemantics && state.runtimeSemantics.possibleRandomization) {
+        diagnostics.push({
+          severity: 'info',
+          code: 'route_state.possible_random_selection',
+          sceneId: state.sceneId,
+          ownerId: state.ownerId,
+          message: state.runtimeSemantics.reason,
+          source: state.source
+        });
+      }
+      if (state.preRouteScript && state.preRouteScript.routeDependencyWriteCount > 0) {
+        diagnostics.push({
+          severity: 'info',
+          code: 'route_state.pre_route_dependency_write',
+          sceneId: state.sceneId,
+          ownerId: state.ownerId,
+          message: 'on-arrival writes variables used by immediate route predicates: ' + state.preRouteScript.directDependencyWrites.join(', '),
+          source: state.source
+        });
+      } else if (state.preRouteScript && state.preRouteScript.opaque) {
+        diagnostics.push({
+          severity: 'info',
+          code: 'route_state.opaque_pre_route_script',
+          sceneId: state.sceneId,
+          ownerId: state.ownerId,
+          message: 'on-arrival contains opaque script before route selection.',
+          source: state.source
+        });
+      }
     });
     ensureArray(conditionStates).forEach((condition) => {
       if (condition.summary && condition.summary.status === 'opaque') {
@@ -781,6 +537,14 @@
       fallbackCount: routeStates.filter((state) => state.fallbackCandidate).length,
       dynamicTargetCount: routeStates.reduce((sum, state) => sum + Number(state.dynamicTargetCount || 0), 0),
       unresolvedTargetCount: routeStates.reduce((sum, state) => sum + Number(state.unresolvedTargetCount || 0), 0),
+      possibleRandomRouteCount: routeStates.filter((state) => state.runtimeSemantics && state.runtimeSemantics.possibleRandomization).length,
+      unconditionalMixedRouteCount: routeStates.filter((state) => state.runtimeSemantics && state.runtimeSemantics.unconditionalCandidateCount > 0 && state.runtimeSemantics.conditionalCandidateCount > 0).length,
+      explicitExclusiveRouteCount: routeStates.filter((state) => state.runtimeSemantics && ['explicit_complement', 'simple_equality_partition'].includes(state.runtimeSemantics.exclusivity)).length,
+      preRouteScriptCount: routeStates.filter((state) => state.preRouteScript && state.preRouteScript.status !== 'none').length,
+      preRouteRouteDependencyWriteCount: routeStates.filter((state) => state.preRouteScript && state.preRouteScript.routeDependencyWriteCount > 0).length,
+      preRouteOpaqueScriptCount: routeStates.filter((state) => state.preRouteScript && state.preRouteScript.opaque).length,
+      collisionTestedRouteCount: routeStates.filter((state) => state.runtimeSemantics && state.runtimeSemantics.collisionSummary && state.runtimeSemantics.collisionSummary.tested).length,
+      collisionProvenMultiValidCount: routeStates.filter((state) => state.runtimeSemantics && state.runtimeSemantics.collisionSummary && state.runtimeSemantics.collisionSummary.after && state.runtimeSemantics.collisionSummary.after.multiValidCount > 0).length,
       setJumpCount: routeStates.filter((state) => String(state.routeKind || '').indexOf('set_jump') >= 0).length,
       goToRefCount: routeStates.filter((state) => ensureArray(state.candidates).some((candidate) => candidate.dynamicTarget && candidate.targetSource === 'quality')).length,
       conditionStateCount: conditions.length,
@@ -794,14 +558,33 @@
     const scenes = ensureArray(index.scenes);
     const scenesById = new Map();
     const sectionToScene = new Map();
+    const ownersById = new Map();
+    const effectsByOwner = new Map();
+    const opaqueBlocksByOwner = new Map();
     scenes.forEach((scene) => {
       if (scene && scene.id) {
         scenesById.set(String(scene.id), scene);
+        ownersById.set(String(scene.id), scene);
       }
       ensureArray(scene && scene.sections).forEach((section) => {
         if (section && section.id) {
           sectionToScene.set(String(section.id), String(scene.id || ''));
+          ownersById.set(String(section.id), section);
         }
+      });
+      ensureArray(scene && scene.effects).forEach((effect) => {
+        const ownerId = String(effect && effect.sectionId || scene && scene.id || '');
+        if (!ownerId) {
+          return;
+        }
+        pushMapRow(effectsByOwner, ownerId, effect);
+      });
+      ensureArray(scene && scene.opaqueJsBlocks).forEach((block) => {
+        const ownerId = opaqueBlockOwnerId(scene, block);
+        if (!ownerId) {
+          return;
+        }
+        pushMapRow(opaqueBlocksByOwner, ownerId, block);
       });
     });
     const parserEvidence = index.semantic && index.semantic.parserEvidence || {};
@@ -810,10 +593,42 @@
       scenes,
       scenesById,
       sectionToScene,
+      ownersById,
+      effectsByOwner,
+      opaqueBlocksByOwner,
       edges: ensureArray(index.edges),
       diagnostics: ensureArray(index.diagnostics),
       routeOrderGroups: parserEvidenceRows(parserEvidence, 'routeOrderGroups')
     };
+  }
+
+  function pushMapRow(map, key, row) {
+    const id = String(key || '');
+    if (!id) {
+      return;
+    }
+    if (!map.has(id)) {
+      map.set(id, []);
+    }
+    const rows = map.get(id);
+    if (rows) {
+      rows.push(row);
+    }
+  }
+
+  function opaqueBlockOwnerId(scene, block) {
+    const explicit = String(block && block.sectionId || block && block.ownerId || '');
+    if (explicit) {
+      return explicit;
+    }
+    const line = sourceLine(block && block.source || {});
+    const section = ensureArray(scene && scene.sections).find((item) => {
+      const span = item && item.sourceSpan || {};
+      const start = Number(span.startLine || span.line) || 0;
+      const end = Number(span.endLine || span.line || start) || start;
+      return line && start && line >= start && line <= end;
+    });
+    return String(section && section.id || scene && scene.id || '');
   }
 
   function parserEvidenceRows(parserEvidence, key) {
@@ -1037,10 +852,6 @@
       conditionStates: [],
       diagnostics: [{severity: 'warning', code: 'route_state.scene_not_found', message: 'No matching scene was found.'}]
     };
-  }
-
-  function normalizeVariable(value) {
-    return String(value || '').replace(/^Q\./, '');
   }
 
   function unique(values) {
