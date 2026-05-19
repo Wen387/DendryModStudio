@@ -25,7 +25,12 @@ The badges point to GitHub's latest non-draft Release. If a build is published o
 
 The Studio is developed and tested primarily on Linux. Windows builds are provided and actively maintained, but may have more rough edges — please report any Windows-specific issues you encounter.
 
-macOS is not currently supported. The app is built on Electron, so a macOS build is technically feasible, and may be considered if demand grows. In the meantime, contributions toward macOS support or community forks are welcome.
+### macOS
+
+Official macOS builds are not available yet. You can run the app from
+source by following the
+[macOS setup guide](docs/macos-from-source.md) — it walks you through
+each step, no prior experience with Terminal needed.
 
 This is a hobby-driven project maintained in limited personal time. Platform coverage reflects that reality.
 

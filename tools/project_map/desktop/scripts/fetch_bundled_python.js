@@ -122,6 +122,38 @@ function existingBundledPython(root) {
   };
 }
 
+function repairCopiedSymlinks(targetRoot, extractedRoot, currentRoot, extractedRealRoot) {
+  if (process.platform === 'win32') {
+    return;
+  }
+  const root = currentRoot || targetRoot;
+  const realExtractedRoot = extractedRealRoot || fs.realpathSync(extractedRoot);
+  const entries = fs.readdirSync(root, {withFileTypes: true});
+  entries.forEach((entry) => {
+    const entryPath = path.join(root, entry.name);
+    if (entry.isDirectory()) {
+      repairCopiedSymlinks(targetRoot, extractedRoot, entryPath, realExtractedRoot);
+      return;
+    }
+    if (!entry.isSymbolicLink()) {
+      return;
+    }
+    const linkTarget = fs.readlinkSync(entryPath);
+    if (!path.isAbsolute(linkTarget)) {
+      return;
+    }
+    const linkRealTarget = fs.realpathSync(linkTarget);
+    const relativeToExtracted = path.relative(realExtractedRoot, linkRealTarget);
+    if (relativeToExtracted.startsWith('..') || path.isAbsolute(relativeToExtracted)) {
+      return;
+    }
+    const copiedTarget = path.join(targetRoot, relativeToExtracted);
+    const relativeLink = path.relative(path.dirname(entryPath), copiedTarget) || path.basename(copiedTarget);
+    fs.rmSync(entryPath, {force: true});
+    fs.symlinkSync(relativeLink, entryPath);
+  });
+}
+
 async function main() {
   const url = process.env.DMS_BUNDLED_PYTHON_URL || defaultUrl();
   const targetRoot = path.join(desktopDir, 'runtime', 'python');
@@ -154,6 +186,7 @@ async function main() {
     }
     fs.rmSync(targetRoot, {recursive: true, force: true});
     fs.cpSync(extracted, targetRoot, {recursive: true, force: true, dereference: true});
+    repairCopiedSymlinks(targetRoot, extracted);
     const executable = bundledPythonExecutable(targetRoot);
     if (!executable) {
       fail('Bundled Python executable was not found after extraction.');
