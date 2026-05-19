@@ -114,6 +114,21 @@
           "!**/.npmignore",
           "!**/package-lock.json"
         ]
+      },
+      {
+        "from": "../../../node_modules/acorn-node/node_modules/acorn",
+        "to": "node_modules/acorn-node/node_modules/acorn",
+        "filter": [
+          "**/*",
+          "!**/.git/**",
+          "!**/.github/**",
+          "!**/test/**",
+          "!**/tests/**",
+          "!**/*.map",
+          "!**/*.md",
+          "!**/*.markdown",
+          "!**/package-lock.json"
+        ]
       }
     ],
     "extraResources": [
