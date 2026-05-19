@@ -6,6 +6,7 @@
 [![Windows EXE](https://img.shields.io/badge/Download-Windows%20EXE-2563eb?style=for-the-badge&logo=windows)](https://github.com/Wen387/DendryModStudio/releases/latest/download/DendryModStudio-win-x64.exe)
 [![Linux AppImage](https://img.shields.io/badge/Download-Linux%20AppImage-15803d?style=for-the-badge&logo=linux)](https://github.com/Wen387/DendryModStudio/releases/latest/download/DendryModStudio-linux-x64.AppImage)
 [![Linux Deb](https://img.shields.io/badge/Download-Linux%20Deb-b45309?style=for-the-badge&logo=debian)](https://github.com/Wen387/DendryModStudio/releases/latest/download/DendryModStudio-linux-x64.deb)
+[![macOS Setup](https://img.shields.io/badge/macOS-Run%20from%20source-6e6e6e?style=for-the-badge&logo=apple)](docs/macos-from-source.md)
 
 Dendry Mod Studio 是一款預覽版桌面工具，用於探索、檢視與安全編輯 Dendry / DendryNexus 專案。它協助作者在修改專案檔案前，先行檢查場景、事件、卡片、新聞、變數、素材、玩家可見文字與安裝計畫。
 

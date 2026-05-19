@@ -6,6 +6,7 @@
 [![Windows EXE](https://img.shields.io/badge/Download-Windows%20EXE-2563eb?style=for-the-badge&logo=windows)](https://github.com/Wen387/DendryModStudio/releases/latest/download/DendryModStudio-win-x64.exe)
 [![Linux AppImage](https://img.shields.io/badge/Download-Linux%20AppImage-15803d?style=for-the-badge&logo=linux)](https://github.com/Wen387/DendryModStudio/releases/latest/download/DendryModStudio-linux-x64.AppImage)
 [![Linux Deb](https://img.shields.io/badge/Download-Linux%20Deb-b45309?style=for-the-badge&logo=debian)](https://github.com/Wen387/DendryModStudio/releases/latest/download/DendryModStudio-linux-x64.deb)
+[![macOS Setup](https://img.shields.io/badge/macOS-Run%20from%20source-6e6e6e?style=for-the-badge&logo=apple)](docs/macos-from-source.md)
 
 Dendry Mod Studio is a preview desktop tool for exploring, reviewing, and safely editing Dendry / DendryNexus projects. It helps authors inspect scenes, events, cards, news, variables, assets, player-facing text, and install plans before changing project files.
 
