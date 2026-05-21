@@ -143,7 +143,7 @@
     if (locale === 'zh-Hant') {
       return [
         'Studio 目前用 source line 證據摘要效果，還不能完整復原任意 JavaScript 區塊。',
-        'Router、root init、migration、hand/deck/sidebar wiring 仍是審查項目，除非之後的 install plan 明確標成安全。'
+        'Router、root init、migration、hand/deck/sidebar wiring 仍是審查項目，除非之後的修改計畫明確標成安全。'
       ];
     }
     return [

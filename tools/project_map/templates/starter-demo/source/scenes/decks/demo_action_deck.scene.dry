@@ -1,5 +1,6 @@
-title: Starter Deck
-subtitle: A minimal action-card deck
+title: Monthly Action Deck
+subtitle: Reusable office cards; many choices advance the month
+card-image: img/cards/demo_action_deck.svg
 is-deck: true
 
 - #demo_action

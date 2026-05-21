@@ -63,6 +63,20 @@
     return null;
   }
 
+  function routeUnderstandingApi() {
+    if (global && global.ProjectMapRouteUnderstandingModel) {
+      return global.ProjectMapRouteUnderstandingModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./route_understanding_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   /**
    * @param {ProjectIndex|unknown} projectIndex
    * @param {Record<string, unknown>=} options
@@ -170,6 +184,7 @@
       sections: {
         playerText: playerTextSection(workbench, context.sampleLimit),
         routes: routesSection(workbench, routeGroups, routeDiagnostics, context.sampleLimit),
+        routeUnderstanding: routeUnderstandingSection(context, scene, workbench),
         conditions: conditionsSection(workbench, context.sampleLimit),
         effects: effectsSection(workbench, dynamicKeys, dynamicDiagnostics, effectClauses, context),
         variables: variablesSection(workbench, context),
@@ -214,6 +229,7 @@
           ownerScenes: sourceScenes.map((item) => item.owner),
           routeClass: 'variable_workspace'
         }),
+        routeUnderstanding: readySection({summary: {}, eventChain: {items: []}, schedulerContext: {items: []}, utilityCalls: [], stateDependencies: []}),
         conditions: readySection({
           readCount: provenance.reads.length,
           reads: provenance.reads.slice(0, context.sampleLimit)
@@ -284,6 +300,36 @@
         incoming: ensureArray(links.incoming).slice(0, sampleLimit).map(compactLink)
       }
     });
+  }
+
+  function routeUnderstandingSection(context, scene, workbench) {
+    const api = routeUnderstandingApi();
+    if (!api || typeof api.buildRouteUnderstanding !== 'function') {
+      return readySection({available: false, summary: {}, eventChain: {items: []}, schedulerContext: {items: []}, utilityCalls: [], stateDependencies: []});
+    }
+    try {
+      const model = api.buildRouteUnderstanding({
+        id: scene && scene.id,
+        projectIndex: context.index,
+        routeState: workbench && workbench.routeState,
+        flow: {edges: ensureArray(context.index && context.index.edges).filter((edge) => String(edge && edge.from || '') === String(scene && scene.id || ''))}
+      }, {
+        eventId: scene && scene.id,
+        projectIndex: context.index,
+        profileEvidence: context.lookup.profileEvidence
+      });
+      return readySection({
+        available: true,
+        summary: model.summary || {},
+        eventChain: model.eventChain || {items: []},
+        schedulerContext: model.schedulerContext || {items: []},
+        utilityCalls: ensureArray(model.utilityCalls).slice(0, context.sampleLimit),
+        stateDependencies: ensureArray(model.stateDependencies).slice(0, context.sampleLimit),
+        diagnostics: ensureArray(model.diagnostics).slice(0, context.sampleLimit)
+      });
+    } catch (_err) {
+      return readySection({available: false, summary: {}, eventChain: {items: []}, schedulerContext: {items: []}, utilityCalls: [], stateDependencies: []});
+    }
   }
 
   function compactRouteState(state) {
@@ -521,6 +567,7 @@
       sections: {
         playerText: readySection({count: 0, samples: []}),
         routes: readySection({outgoingCount: 0, incomingCount: 0, routeOrderSensitiveCount: 0}),
+        routeUnderstanding: readySection({available: false, summary: {}, eventChain: {items: []}, schedulerContext: {items: []}, utilityCalls: [], stateDependencies: []}),
         conditions: readySection({count: 0, samples: []}),
         effects: readySection({count: 0, samples: [], dynamicQ: {count: 0, samples: []}}),
         variables: readySection({count: 0, samples: []}),

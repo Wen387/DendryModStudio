@@ -92,6 +92,47 @@ assert(fallbackDeleteDraft.mode === 'delete_existing', 'Project State workspace 
 assert(fallbackDeleteDraft.id === 'delete_demo_resources', 'Project State workspace fallback delete draft should use a stable safe id');
 assert(projectStateWorkspace.selectedNodeForVariableDraft({variableName: 'demo_resources'}) === 'variable:demo_resources', 'Project State workspace should map variable drafts back to Canvas variable nodes');
 assert(projectStateWorkspace.safeDraftId('123 odd name') === 'variable_123_odd_name', 'Project State workspace should prefix unsafe draft ids');
+const fastSelectState = {
+  projectIndex: index,
+  model: {changeState: {draft: defaultAddDraft}},
+  baseDraft: defaultAddDraft,
+  selectedCanvasNode: 'variable:new_variable',
+  template: 'variables',
+  mode: 'variables',
+  view: 'variables',
+  workspace: 'project_state',
+  values: {stale: 'draft value'},
+  valueOriginals: {stale: 'draft value'}
+};
+let fastSelectRendered = false;
+const fastSelectDeps = {
+  currentSurface: () => ({key: 'project_state_board'}),
+  buildTemplateModel: ({values}) => ({
+    changeState: {draft: fastSelectState.baseDraft},
+    eventBody: {
+      title: {id: 'variables.title', label: 'Draft title', value: fastSelectState.baseDraft.title},
+      heading: {id: 'variables.label', label: 'Label', value: fastSelectState.baseDraft.label},
+      sections: [{id: 'variables.description', label: 'Description', value: fastSelectState.baseDraft.description}],
+      metaFields: [{id: 'variables.mode', label: 'Mode', value: fastSelectState.baseDraft.mode}]
+    },
+    values
+  }),
+  ensureArray: (value) => Array.isArray(value) ? value : [],
+  render: () => {
+    fastSelectRendered = true;
+  },
+  resetRuntimeLens: () => {},
+  resetStructureCommands: () => {},
+  showWorkspace: () => {},
+  t: (_key, fallback) => fallback,
+  variableEditorDraft: variableDraft
+};
+assert(projectStateWorkspace.fastSelectNode(fastSelectState, 'variable:demo_resources', fastSelectDeps), 'Project State row selection should handle existing variables');
+assert(fastSelectRendered, 'Project State row selection should rerender the editor pane');
+assert(fastSelectState.baseDraft.mode === 'edit_existing', 'Project State row selection should load an edit-existing draft');
+assert(fastSelectState.baseDraft.variableName === 'demo_resources', 'Project State row selection should target the selected variable');
+assert(fastSelectState.model.eventBody.title.value !== 'New Variable', 'Project State right editor should not keep the add-new placeholder after selecting an existing variable');
+assert(Object.keys(fastSelectState.values).length === 0, 'Project State row selection should clear stale add-new field values');
 
 const editDraft = Object.assign(variableDraft.draftFromVariable(index.variables[0], index), {initialValue: '5'});
 const editBundle = variableDraft.buildExportBundle(editDraft, index, {locale: 'en'});

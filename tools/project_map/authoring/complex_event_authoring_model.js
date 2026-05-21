@@ -167,8 +167,8 @@
         editActions: {
           labelFieldId: fieldIdByHint(fields, 'label'),
           conditionFieldId: fieldIdByHint(fields, 'chooseIf') || fieldIdByHint(fields, 'chooseCondition') || fieldIdByRole(fields, 'choose_condition') || fieldIdByRole(fields, 'choice_condition'),
-          unavailableFieldId: fieldIdByHint(fields, 'unavailableText'),
-          routeFieldId: fieldIdByHint(fields, 'returnTarget') || fieldIdByHint(fields, 'gotoAfter')
+          unavailableFieldId: fieldIdByHint(fields, 'unavailableText') || fieldIdByRole(fields, 'unavailable_text'),
+          routeFieldId: fieldIdByHint(fields, 'returnTarget') || fieldIdByHint(fields, 'gotoAfter') || fieldIdByRole(fields, 'route')
         },
         completeness: choiceCompleteness(displayCondition, chooseCondition, unavailableText, effects, continuation, source)
       };
@@ -759,7 +759,7 @@
     const label = {
       direct_route: 'Direct route',
       conditional_route: 'Conditional route',
-      ordered_conditional_route: 'Ordered conditional route',
+      ordered_conditional_route: 'Conditional route group',
       menu_return: 'Menu return',
       terminal_branch: 'Terminal branch',
       script_or_external_boundary: 'Script or external boundary'

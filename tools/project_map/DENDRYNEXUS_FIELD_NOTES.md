@@ -237,6 +237,10 @@ Lessons for Studio:
 - `is-hand`, `is-deck`, and `is-card` are structural evidence, not just labels.
 - `max-cards` should be retained in ProjectIndex as part of hand behavior.
 - Tags can drive deck membership and bulk option routing.
+- Hand scene deck/card/advisor display still uses ordinary choice filtering,
+  including priority. If one always-visible pinned/control choice has a higher
+  `priority` than the deck or advisor choices, DendryNexus can render only that
+  highest-priority group and hide the rest of the hand surface.
 - A deck may be a section-owned anchor such as `hand.deck1`, not only an
   independent top-level scene. In build output, DendryNexus fully qualifies
   that section id and keeps `isDeck: true` on the section scene.
@@ -265,7 +269,10 @@ Engine-facing lessons:
   Route analysis should treat those writes as possible pre-route state changes
   instead of evaluating the `go-to` predicates in isolation.
 - `on-departure` runs when leaving a scene and can be gameplay-significant.
-- `on-display` runs when the scene text is rendered.
+- `on-display` runs after the scene text is rendered but before immediate
+  `go-to` / `go-to-ref` resolution and choice compilation. It can therefore
+  affect route predicates and choice availability, but it has already occurred
+  after the current scene content was displayed.
 - Hook values may be shorthand expressions or `{! ... !}` JavaScript blocks.
 
 Studio lessons:
@@ -345,6 +352,10 @@ Important lessons:
   chooses randomly among them. A mixed line such as
   `go-to: main_rally; sa_disrupt if sa_force > 25` can therefore be a random
   split when the condition is true, not a fallback chain.
+- A trailing unconditional clause is always valid. It is not an ordered
+  fallback. To express fallback behavior, route predicates must be mutually
+  exclusive, such as `a if flag = 1; b if flag != 1`, or the author must first
+  compute one route code and route through mutually exclusive cases.
 - A local section such as `@right` may be reached only through one clause in a
   multi-clause `go-to:` line. That still makes it a referenced layer.
 - Removing or retargeting that layer should update only the matching clause
@@ -355,13 +366,31 @@ Important lessons:
 - When an index has a line number and source excerpt but no clean anchor text,
   recover the exact directive line from the excerpt before treating the route as
   editable evidence.
+- In section-like option result blocks, keep `go-to:` before the result prose.
+  Runtime Preview verified that placing `go-to:` after prose can compile as
+  visible paragraph text instead of a route.
+- For generated single-file event drafts, an authoring route target named
+  `root` means the event opening node. Render it as the generated scene id;
+  literal `go-to: root` jumps to the project's global root scene.
 
 Studio lessons:
 
 - `go-to` and option targets can usually be resolved against scene ids and
   local section anchors.
+- Resolve route ids from parser/compiler facts instead of guessing from raw
+  strings. Bare local names, section-qualified ids, absolute/global ids, and
+  project conventions such as `root` can shadow one another. If Studio cannot
+  prove which compiled scene id a token names, show ambiguous route evidence
+  rather than silently choosing a target.
 - `go-to-ref` points at a quality whose runtime value is a scene id. Index it
   as dynamic route evidence, not as a missing static scene target.
+- Multiple valid `go-to-ref` entries follow the same multi-valid behavior as
+  `go-to`: one valid ref jumps through that quality value, while multiple valid
+  refs are randomly selected before dereferencing the chosen quality.
+- Direct `go-to` bypasses normal choice compilation and does not use target
+  `view-if` as a filter. Choice compilation filters option visibility using the
+  option `view-if` and target scene `view-if`, then determines clickability from
+  option `choose-if` and target scene `choose-if`.
 - Chained or conditional routes preserve source order for editing, and should
   also expose possible multi-valid randomization when predicates can overlap.
   They can be parser-backed while still requiring manual review before source
@@ -378,10 +407,33 @@ Studio lessons:
   conservative because runtime handling is more nuanced than ordinary `go-to`.
 - `set-jump` records a runtime jump/return target used by subroutine-like flows
   such as election algorithms. Show it as route evidence, but do not present it
-  as a normal immediate `go-to`.
+  as a normal immediate `go-to`. Treat it as a single-slot return target rather
+  than a call stack; nested jump patterns should remain advanced/manual unless
+  runtime/profile evidence proves the intended behavior.
 
 When a route field is dynamic, the useful Studio output is often "this scene
 depends on a runtime value" rather than "this target is broken."
+
+Dynamic route support should be tiered:
+
+- Safe structured edit: parser/compiler-backed routes whose target exists,
+  predicates are known to be mutually exclusive, and relevant pre-route effects
+  are limited to static assignments Studio can evaluate conservatively.
+- Guided advanced edit: finite route tables, literal route-quality writes,
+  ternary or object-map route assignments, `set-jump` metadata, or
+  profile-declared helper functions where a project adapter can name the
+  candidate target set and protected boundaries.
+- Runtime-observed evidence: repeatable preview or smoke-test paths that record
+  the engine/build version, seed, entry mode, Q-state snapshot or diff, click
+  path, and observed scene ids. This can explain behavior and catch regressions,
+  but it should not be relabeled as exact static proof.
+- Manual boundary: opaque JavaScript, dynamic keys, loops over state,
+  randomness, external helper calls without profile evidence, protected system
+  routers, missing/external targets, and overlapping route predicates that can
+  intentionally randomize.
+
+This tiering lets the Route Map show more dynamic behavior without implying
+that every dynamic route is safely editable inline.
 
 ## Checks And Runtime Display Fields
 
@@ -425,6 +477,13 @@ All three matter, and they can disagree. For example, a source scene can contain
 `face-image: img/portraits/AufhauserSiegfried.jpg`, the file can exist, and a
 custom runtime layout can still fail to display it.
 
+One stock DendryNexus browser-runtime mismatch is worth checking explicitly:
+the engine creates scene portrait elements with class `.face-img`, while some
+generated CSS templates style `.face-image`. In that case the directive and file
+are correct, but the runtime image appears incorrectly styled. Studio Runtime
+Preview should patch or diagnose that generated HTML/CSS compatibility layer
+rather than blaming the source asset.
+
 Asset edit rules:
 
 - Index directive variants such as `face-image`, `faceImage`, `card-image`,
@@ -454,9 +513,21 @@ Studio should be conservative here:
 - It should not pretend arbitrary router JavaScript is safely editable.
 - It should report manual review when event insertion, dedupe, or source span
   evidence is weak.
+- Profile adapters should mark central scheduler/router scenes as protected
+  system boundaries instead of folding project-specific scheduling rules into
+  the generic Dendry parser. The editor should consume parser/compiler facts
+  plus profile evidence; it should not hard-code one project's scheduler into
+  Dendry core behavior.
 
 The goal is not to make `post_event` invisible. The goal is to avoid offering a
 button that looks safe while making a hidden monthly-router bug.
+
+Runtime observations are useful evidence, but they are not static proof. A
+ledger should record at least the engine/build version, seed, entry mode
+(`goToScene`/Focused Entry versus normal player path), Q-state snapshot or diff,
+click path, and observed scene ids. Focused Entry can prove a scene path is
+playable, but it may bypass normal scheduler, migration, view-if, visit-count,
+deck priority/frequency, or saved-state behavior.
 
 ## Runtime HTML Is Real, But Not The Main Edit Target
 

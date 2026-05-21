@@ -294,6 +294,31 @@ function createQuickSession(options) {
   const copyStarted = Date.now();
   copyGeneratedHtml(htmlRoot, modifiedHtmlRoot);
   markTiming(timing, 'copy_existing_html', copyStarted);
+  const assetCopyStarted = Date.now();
+  const assetCopy = copySourceRuntimeAssets(project.root, modifiedHtmlRoot);
+  markTiming(timing, 'copy_source_runtime_assets', assetCopyStarted);
+  if (!assetCopy.ok) {
+    return {
+      ok: false,
+      diagnostics: [diagnostic('error', 'runtime_preview.asset_copy_failed', 'Quick Runtime Lens could not copy source/img assets into the preview session: ' + assetCopy.message, {
+        source: assetCopy.source,
+        target: assetCopy.target
+      })],
+      runtimeReadiness: readiness
+    };
+  }
+  const patchStarted = Date.now();
+  const htmlPatch = patchRuntimeHtmlCompatibility(modifiedHtmlRoot);
+  markTiming(timing, 'patch_runtime_html', patchStarted);
+  if (!htmlPatch.ok) {
+    return {
+      ok: false,
+      diagnostics: [diagnostic('error', 'runtime_preview.html_patch_failed', 'Quick Runtime Lens could not patch runtime HTML compatibility: ' + htmlPatch.message, {
+        target: htmlPatch.target
+      })],
+      runtimeReadiness: readiness
+    };
+  }
   const metadata = {
     schemaVersion: '0.1',
     kind: 'dendry_mod_studio_runtime_preview',
@@ -313,6 +338,7 @@ function createQuickSession(options) {
     sessionId,
     metadata,
     paths: {root, modifiedRoot, metadataPath},
+    assetCopy,
     diagnostics: []
   };
 }
@@ -457,6 +483,7 @@ function finalizeQuickRuntimePreview(context) {
     command: 'reuse existing out/html',
     htmlRoot: path.join(session.paths.modifiedRoot, 'out', 'html'),
     skippedBuild: true,
+    assetCopy: session.assetCopy || {ok: true, copied: false},
     diagnostics: []
   };
   const debug = createDebugSession(session, {
@@ -520,6 +547,65 @@ function copyGeneratedHtml(sourceHtmlRoot, targetHtmlRoot) {
     errorOnExist: false,
     force: true
   });
+}
+
+function copySourceRuntimeAssets(root, htmlRoot) {
+  const sourceImgRoot = path.join(root, 'source', 'img');
+  const targetImgRoot = path.join(htmlRoot, 'img');
+  if (!fs.existsSync(sourceImgRoot)) {
+    return {ok: true, copied: false, source: sourceImgRoot, target: targetImgRoot};
+  }
+  try {
+    fs.mkdirSync(path.dirname(targetImgRoot), {recursive: true});
+    fs.cpSync(sourceImgRoot, targetImgRoot, {
+      recursive: true,
+      errorOnExist: false,
+      force: true
+    });
+    return {ok: true, copied: true, source: sourceImgRoot, target: targetImgRoot};
+  } catch (err) {
+    return {
+      ok: false,
+      copied: false,
+      source: sourceImgRoot,
+      target: targetImgRoot,
+      message: err && err.message ? err.message : String(err)
+    };
+  }
+}
+
+function patchRuntimeHtmlCompatibility(htmlRoot) {
+  const cssPath = path.join(htmlRoot, 'game.css');
+  if (!fs.existsSync(cssPath)) {
+    return {ok: true, patched: false, target: cssPath};
+  }
+  const marker = 'Dendry Mod Studio runtime compatibility';
+  try {
+    const original = fs.readFileSync(cssPath, 'utf8');
+    if (original.includes(marker) || /\.face-img\s*\{/.test(original)) {
+      return {ok: true, patched: false, target: cssPath};
+    }
+    const patch = [
+      '',
+      '/* ' + marker + ': DendryNexus emits .face-img while some stock templates style .face-image. */',
+      '.face-img {',
+      '  width: 140px;',
+      '  max-width: 100%;',
+      '  height: auto;',
+      '  object-fit: contain;',
+      '  display: block;',
+      '}'
+    ].join('\n') + '\n';
+    fs.writeFileSync(cssPath, original.replace(/\s*$/, '\n') + patch, 'utf8');
+    return {ok: true, patched: true, target: cssPath};
+  } catch (err) {
+    return {
+      ok: false,
+      patched: false,
+      target: cssPath,
+      message: err && err.message ? err.message : String(err)
+    };
+  }
 }
 
 function cleanRuntimeDependencyRef(value) {
@@ -704,9 +790,29 @@ function runBuild(root, meta) {
     windowsHide: true
   });
   const htmlRoot = path.join(root, 'out', 'html');
-  const ok = result.status === 0 && fs.existsSync(path.join(htmlRoot, 'index.html'));
+  let ok = result.status === 0 && fs.existsSync(path.join(htmlRoot, 'index.html'));
+  const assetCopy = ok ? copySourceRuntimeAssets(root, htmlRoot) : {ok: true, copied: false};
+  if (!assetCopy.ok) {
+    ok = false;
+  }
+  const htmlPatch = ok ? patchRuntimeHtmlCompatibility(htmlRoot) : {ok: true, patched: false};
+  if (!htmlPatch.ok) {
+    ok = false;
+  }
   const stdout = clipLog(result.stdout);
   const stderr = clipLog(result.stderr || (result.error && result.error.message) || '');
+  const diagnostics = ok
+    ? []
+    : buildFailureDiagnostics(result, stdout, stderr).concat(assetCopy && !assetCopy.ok
+      ? [diagnostic('error', 'runtime_preview.asset_copy_failed', 'Runtime preview build could not copy source/img assets into out/html/img: ' + assetCopy.message, {
+        source: assetCopy.source,
+        target: assetCopy.target
+      })]
+      : []).concat(htmlPatch && !htmlPatch.ok
+      ? [diagnostic('error', 'runtime_preview.html_patch_failed', 'Runtime preview build could not patch generated HTML compatibility: ' + htmlPatch.message, {
+        target: htmlPatch.target
+      })]
+      : []);
   return {
     ok,
     root,
@@ -715,7 +821,9 @@ function runBuild(root, meta) {
     htmlRoot,
     stdout,
     stderr,
-    diagnostics: ok ? [] : buildFailureDiagnostics(result, stdout, stderr)
+    assetCopy,
+    htmlPatch,
+    diagnostics
   };
 }
 
@@ -821,7 +929,7 @@ function buildFailureDiagnostics(result, stdout, stderr) {
   const diagnostics = [
     diagnostic('error', 'runtime_preview.build_failed', 'Runtime preview build failed or out/html/index.html was not produced.')
   ];
-  const detail = firstBuildFailureLine(stderr || stdout || (result && result.error && result.error.message));
+  const detail = firstBuildFailureLine([stdout, stderr, result && result.error && result.error.message].filter(Boolean).join('\n'));
   if (detail) {
     diagnostics.push(diagnostic('error', 'runtime_preview.build_output', detail));
   }
@@ -830,9 +938,19 @@ function buildFailureDiagnostics(result, stdout, stderr) {
 
 function firstBuildFailureLine(value) {
   const text = String(value || '').replace(/\u001b\[[0-9;]*m/g, '');
-  return text.split(/\r?\n/)
+  const lines = text.split(/\r?\n/)
     .map((line) => line.trim())
-    .find((line) => line && !/^\(node:\d+\)\s+Warning:/.test(line)) || '';
+    .filter(Boolean);
+  const errorLine = lines.find((line) => /^Error:/.test(line));
+  if (errorLine) {
+    return errorLine;
+  }
+  return lines
+    .find((line) =>
+      !/^\(node:\d+\)\s+Warning:/.test(line) &&
+      !/^Use `electron --trace-warnings/.test(line) &&
+      !/^Game file is out of date/.test(line)
+    ) || '';
 }
 
 function writeComparePage(session, report) {
@@ -1640,6 +1758,8 @@ module.exports = {
   createQuickRuntimePreview,
   copyProject,
   copyGeneratedHtml,
+  copySourceRuntimeAssets,
+  patchRuntimeHtmlCompatibility,
   runtimeDependencyReadiness,
   resolvePreviewSessionRoot,
   validateProjectRoot,

@@ -301,6 +301,30 @@
       "gate": "focused",
       "when": "Route evidence classification, script impact mapping, guided script edits, or script-aware trial-run behavior changed."
     },
+    "route-understanding": {
+      "path": "tools/project_map/check_route_understanding_model.js",
+      "command": "node tools/project_map/check_route_understanding_model.js",
+      "kind": "fast-model",
+      "domain": ["authoring", "routes", "scripts", "semantic-workbench"],
+      "fixture": "synthetic",
+      "writes": "none",
+      "requires": ["node"],
+      "duration": "fast",
+      "gate": "focused",
+      "when": "Route Understanding event-chain, scheduler, utility call, or state-dependency evidence changed."
+    },
+    "guided-route-edit": {
+      "path": "tools/project_map/check_guided_route_edit_model.js",
+      "command": "node tools/project_map/check_guided_route_edit_model.js",
+      "kind": "fast-model",
+      "domain": ["authoring", "routes", "semantic-workbench"],
+      "fixture": "synthetic",
+      "writes": "none",
+      "requires": ["node"],
+      "duration": "fast",
+      "gate": "focused",
+      "when": "Guided route editors, utility call pairs, route table bindings, or explicit fallback helpers changed."
+    },
     "route-semantics-audit": {
       "path": "tools/project_map/check_route_semantics_audit_model.js",
       "command": "node tools/project_map/check_route_semantics_audit_model.js",
@@ -953,8 +977,10 @@
     "tools/project_map/check_release_links_model.js",
     "tools/project_map/check_rendered_authoring_entry_model.js",
     "tools/project_map/check_route_editor_workflow_model.js",
+    "tools/project_map/check_guided_route_edit_model.js",
     "tools/project_map/check_route_semantics_audit_model.js",
     "tools/project_map/check_route_script_intelligence_model.js",
+    "tools/project_map/check_route_understanding_model.js",
     "tools/project_map/check_runtime_dom_map_model.js",
     "tools/project_map/check_runtime_lens_model.js",
     "tools/project_map/check_runtime_lens_ui_model.js",

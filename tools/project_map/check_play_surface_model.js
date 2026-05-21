@@ -164,8 +164,8 @@ async function main() {
   assert(deckText.includes('title: Party Affairs Deck'), 'deck title should be updated');
   assert(deckText.includes('subtitle: A minimal deck for organizing weeks'), 'deck subtitle should be updated');
   assert(cardText.includes('= Plan the party week'), 'card heading should be updated');
-  assert(cardText.includes('- @spend_resources: Fund worker outreach'), 'card option A should be updated');
-  assert(cardText.includes('- @save_capacity: Hold capacity'), 'card option B should be updated');
+  assert(cardText.includes('- @mobilize_volunteers: Fund worker outreach'), 'card option A should be updated');
+  assert(cardText.includes('- @prepare_case_file: Hold capacity'), 'card option B should be updated');
   assert(advisorText.includes('subtitle: A standing ally for workplace strategy'), 'advisor subtitle should be updated');
   assert(advisorText.includes('- @ask_for_help: Ask about workplace visits'), 'advisor option should be updated');
 

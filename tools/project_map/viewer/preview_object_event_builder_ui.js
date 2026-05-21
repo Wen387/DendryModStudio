@@ -43,25 +43,335 @@
     ].join('');
   }
 
-  function renderEventGraphSummary(graph) {
+  function renderEventGraphSummary(graph, model) {
     if (!graph || !ensureArray(graph.nodes).length) {
       return '';
     }
     const nodes = ensureArray(graph.nodes);
     const edges = ensureArray(graph.edges);
+    const reviewChips = routeMapReviewChips(model, graph);
     return [
-      '<section class="preview-object-event-graph" data-preview-object-event-graph="true">',
-      '<div class="preview-object-section-title">' + escapeHtml(t('previewObjectEditor.eventGraph', 'Event graph')) + '</div>',
+      '<section class="preview-object-event-graph preview-object-route-map" data-preview-object-event-graph="true" data-preview-object-route-map="true">',
+      '<div class="preview-object-section-title">' + escapeHtml(t('previewObjectEditor.routeMap', 'Route Map')) + '</div>',
       '<div class="preview-object-event-graph-row">',
       '<strong>' + escapeHtml(String(graph.nodeCount || nodes.length)) + '</strong><span>' + escapeHtml(t('previewObjectEditor.graphNodes', 'nodes')) + '</span>',
       '<strong>' + escapeHtml(String(graph.edgeCount || edges.length)) + '</strong><span>' + escapeHtml(t('previewObjectEditor.graphRoutes', 'routes')) + '</span>',
       '</div>',
+      reviewChips.length ? '<div class="preview-object-route-map-chips" data-preview-object-route-map-review="true">' + reviewChips.map((chip) => renderRouteMapChip(chip, 'b', 'data-route-map-review-chip="' + escapeAttr(chip && (chip.key || chip.label) || '') + '"')).join('') + '</div>' : '',
+      renderRouteCausalFlow(edges, model && model.routeUnderstanding),
+      renderRouteUnderstandingContext(model && model.routeUnderstanding),
+      renderRouteGuidedEditTools(model && model.routeGuidedEdits),
       '<div class="preview-object-event-graph-grid" data-workflow-entry="event_graph_node">',
       nodes.map(renderEventGraphNode).join(''),
       '</div>',
-      edges.length ? '<div class="preview-object-event-graph-routes" data-workflow-entry="event_graph_edge">' + edges.map(renderEventGraphEdge).join('') + '</div>' : '',
+      edges.length ? '<div class="preview-object-event-graph-routes" data-workflow-entry="event_graph_edge"><h4>' + escapeHtml(t('previewObjectEditor.routeMapRoutes', 'Routes')) + '</h4>' + edges.map(renderEventGraphEdge).join('') + '</div>' : '',
       '</section>'
     ].join('');
+  }
+
+  function renderRouteCausalFlow(edges, understanding) {
+    const rows = routeCausalRows(edges, understanding).slice(0, 8);
+    if (!rows.length) {
+      return '';
+    }
+    return [
+      '<section class="preview-object-route-causal-flow" data-preview-object-route-causal-flow="true">',
+      '<div class="preview-object-route-causal-header">',
+      '<h4>' + escapeHtml(t('previewObjectEditor.routeCausalFlow', 'Causal flow')) + '</h4>',
+      '<span>' + escapeHtml(t('previewObjectEditor.routeCausalFlowCount', '{count} routes').replace('{count}', String(rows.length))) + '</span>',
+      '</div>',
+      '<div class="preview-object-route-causal-grid">',
+      rows.map(renderRouteCausalRow).join(''),
+      '</div>',
+      '</section>'
+    ].join('');
+  }
+
+  function routeCausalRows(edges, understanding) {
+    const dependencies = ensureArray(understanding && understanding.stateDependencies);
+    return ensureArray(edges)
+      .filter((edge) => edge && (edge.from || edge.to || edge.targetId) && !String(edge.kind || '').includes('effect'))
+      .map((edge) => {
+        const dependency = dependencies.find((item) => item && (item.ownerId === edge.from || item.ownerId === edge.sourceId || item.ownerId === edge.id));
+        return {
+          edge,
+          dependency,
+          cause: routeCausalCause(edge),
+          gate: routeCausalGate(edge, dependency),
+          result: routeCausalResult(edge)
+        };
+      });
+  }
+
+  function renderRouteCausalRow(row) {
+    const value = row || {};
+    const edge = value.edge || {};
+    const chips = [
+      edge.semanticTier ? routeSemanticTierChip(edge.semanticTier) : '',
+      edge.safeEditEligible ? {label: t('previewObjectEditor.routeSafeStructured', 'safe structured'), tone: 'safe'} : '',
+      edge.targetResolution ? routeTargetResolutionChip(edge.targetResolution) : '',
+      edge.installSafety ? safetyChip(edge.installSafety) : ''
+    ].filter(Boolean);
+    return [
+      '<article class="preview-object-route-causal-row" data-route-causal-edge="' + escapeAttr(edge.id || '') + '">',
+      '<div class="preview-object-route-causal-step">',
+      '<span>' + escapeHtml(t('previewObjectEditor.routeCausalCause', 'Cause')) + '</span>',
+      '<strong>' + escapeHtml(value.cause.title) + '</strong>',
+      value.cause.detail ? '<small>' + escapeHtml(value.cause.detail) + '</small>' : '',
+      '</div>',
+      '<div class="preview-object-route-causal-arrow" aria-hidden="true">&rarr;</div>',
+      '<div class="preview-object-route-causal-step">',
+      '<span>' + escapeHtml(t('previewObjectEditor.routeCausalGate', 'Gate')) + '</span>',
+      '<strong>' + escapeHtml(value.gate.title) + '</strong>',
+      value.gate.detail ? '<small>' + escapeHtml(value.gate.detail) + '</small>' : '',
+      '</div>',
+      '<div class="preview-object-route-causal-arrow" aria-hidden="true">&rarr;</div>',
+      '<div class="preview-object-route-causal-step">',
+      '<span>' + escapeHtml(t('previewObjectEditor.routeCausalResult', 'Result')) + '</span>',
+      '<strong>' + escapeHtml(value.result.title) + '</strong>',
+      value.result.detail ? '<small>' + escapeHtml(value.result.detail) + '</small>' : '',
+      '</div>',
+      chips.length ? '<div class="preview-object-route-map-edge-chips preview-object-route-causal-chips">' + chips.map((chip) => renderRouteMapChip(chip, 'i')).join('') + '</div>' : '',
+      '</article>'
+    ].join('');
+  }
+
+  function routeCausalCause(edge) {
+    const value = edge || {};
+    const kind = graphKindLabel(value.kind || 'route');
+    const from = String(value.from || value.sourceId || '').trim();
+    return {
+      title: from || kind,
+      detail: from ? kind : ''
+    };
+  }
+
+  function routeCausalGate(edge, dependency) {
+    const value = edge || {};
+    if (value.condition) {
+      return {
+        title: t('previewObjectEditor.routeCausalCondition', 'Condition'),
+        detail: value.condition
+      };
+    }
+    if (value.dynamicBinding && value.dynamicBinding.kind) {
+      return {
+        title: t('previewObjectEditor.routeCausalDynamicBinding', 'Dynamic binding'),
+        detail: dynamicBindingLabel(value.dynamicBinding)
+      };
+    }
+    if (dependency) {
+      const reads = ensureArray(dependency.predicateReads).slice(0, 3);
+      const writes = ensureArray(dependency.directDependencyWrites).concat(ensureArray(dependency.preRouteWrites)).slice(0, 3);
+      const detail = [
+        writes.length ? t('previewObjectEditor.routeUnderstandingWrites', 'writes') + ': ' + writes.join(', ') : '',
+        reads.length ? t('previewObjectEditor.routeUnderstandingReads', 'reads') + ': ' + reads.join(', ') : ''
+      ].filter(Boolean).join(' / ');
+      return {
+        title: dependency.opaque ? t('previewObjectEditor.routeUnderstandingOpaque', 'manual JS boundary') : t('previewObjectEditor.routeCausalStateDependency', 'State dependency'),
+        detail
+      };
+    }
+    if (routeMapEdgeNeedsReview(value)) {
+      return {
+        title: t('previewObjectEditor.routeCausalReviewGate', 'Review evidence'),
+        detail: value.evidenceClass ? routeEvidenceClassLabel(value.evidenceClass) : ''
+      };
+    }
+    return {
+      title: t('previewObjectEditor.routeCausalAlways', 'Always valid'),
+      detail: ''
+    };
+  }
+
+  function routeCausalResult(edge) {
+    const value = edge || {};
+    const target = String(value.targetId || value.to || value.target || '').trim();
+    const resolution = value.targetResolution ? routeTargetResolutionLabel(value.targetResolution) : '';
+    return {
+      title: target || resolution || t('previewObjectEditor.routeCausalUnknownTarget', 'Unknown target'),
+      detail: target && resolution ? resolution : ''
+    };
+  }
+
+  function renderRouteGuidedEditTools(model) {
+    const entries = ensureArray(model && model.entries).slice(0, 8).sort(routeGuidedEditRank);
+    if (!entries.length) {
+      return '';
+    }
+    return [
+      '<div class="preview-object-route-guided-edits" data-preview-object-route-guided-edits="true">',
+      '<section class="preview-object-route-understanding-group preview-object-route-guided-panel" data-route-guided-edit-section="tools">',
+      '<div class="preview-object-route-guided-header">',
+      '<h4>' + escapeHtml(t('previewObjectEditor.routeRecommendedEdits', 'Recommended next edits')) + '</h4>',
+      '<span>' + escapeHtml(t('previewObjectEditor.routeRecommendedEditsCount', '{count} available').replace('{count}', String(entries.length))) + '</span>',
+      '</div>',
+      '<div class="preview-object-route-understanding-grid">',
+      entries.map(renderRouteGuidedEditItem).join(''),
+      '</div>',
+      '</section>',
+      '</div>'
+    ].join('');
+  }
+
+  function renderRouteGuidedEditItem(entry) {
+    const value = entry || {};
+    const action = graphAction(value.editAction);
+    const actionAttrs = action ? ' data-visible-edit-action="' + escapeAttr(encodeAction(action)) + '"' : '';
+    const chips = [
+      routeGuidedEditKindChip(value.kind),
+      value.semanticTier ? routeSemanticTierChip(value.semanticTier) : '',
+      value.safeEditEligible ? {label: t('previewObjectEditor.routeGuidedSafe', 'guided edit'), tone: 'safe'} : {label: t('previewObjectEditor.routeGuidedManual', 'manual boundary'), tone: 'manual'},
+      value.installSafety ? safetyChip(value.installSafety) : ''
+    ].filter(Boolean);
+    const cardTone = value.safeEditEligible ? ' is-safe' : ' is-manual';
+    return [
+      '<article class="preview-object-route-guided-card' + cardTone + '" data-route-guided-edit-kind="' + escapeAttr(value.kind || '') + '" data-route-guided-edit-safe="' + (value.safeEditEligible ? 'true' : 'false') + '">',
+      '<strong>' + escapeHtml(value.label || routeGuidedEditKindLabel(value.kind)) + '</strong>',
+      value.routeTable && value.routeTable.variable ? '<span>' + escapeHtml(value.routeTable.variable) + '</span>' : '',
+      value.utilityPair && value.utilityPair.utilitySceneId ? '<span>' + escapeHtml([value.utilityPair.utilitySceneId, value.utilityPair.setJumpTarget].filter(Boolean).join(' / ')) + '</span>' : '',
+      value.fallbackSuggestion && value.fallbackSuggestion.complementPredicate ? '<code>' + escapeHtml(value.fallbackSuggestion.complementPredicate) + '</code>' : '',
+      chips.length ? '<div class="preview-object-route-map-edge-chips">' + chips.map((chip) => renderRouteMapChip(chip, 'i')).join('') + '</div>' : '',
+      ensureArray(value.manualReasons).length ? '<small>' + escapeHtml(ensureArray(value.manualReasons).slice(0, 2).join(', ')) + '</small>' : '',
+      action ? '<button type="button" class="preview-object-route-map-action preview-object-route-guided-action" data-route-guided-edit-action="' + escapeAttr(value.kind || '') + '" data-route-guided-edit-safe="' + (value.safeEditEligible ? 'true' : 'false') + '"' + actionAttrs + '>' + escapeHtml(value.safeEditEligible ? t('previewObjectEditor.routeGuidedOpen', 'Open guided editor') : t('previewObjectEditor.routeGuidedReview', 'Review source')) + '</button>' : '',
+      '</article>'
+    ].join('');
+  }
+
+  function renderRouteUnderstandingContext(model) {
+    if (!model) {
+      return '';
+    }
+    const eventChain = ensureArray(model.eventChain && model.eventChain.items).slice(0, 6);
+    const scheduler = ensureArray(model.schedulerContext && model.schedulerContext.items).slice(0, 5);
+    const utilities = ensureArray(model.utilityCalls).slice(0, 5);
+    const dependencies = ensureArray(model.stateDependencies).slice(0, 5);
+    if (!eventChain.length && !scheduler.length && !utilities.length && !dependencies.length) {
+      return '';
+    }
+    return [
+      '<div class="preview-object-route-understanding" data-preview-object-route-understanding="true">',
+      eventChain.length ? renderRouteUnderstandingGroup('event_chain', t('previewObjectEditor.routeUnderstandingEventChain', 'Event chain'), eventChain.map(renderEventChainItem).join(''), eventChain.length, true) : '',
+      scheduler.length ? renderRouteUnderstandingGroup('scheduler', t('previewObjectEditor.routeUnderstandingScheduler', 'Scheduler context'), scheduler.map(renderSchedulerContextItem).join(''), scheduler.length, false) : '',
+      utilities.length ? renderRouteUnderstandingGroup('utility', t('previewObjectEditor.routeUnderstandingUtility', 'Utility calls'), utilities.map(renderUtilityCallItem).join(''), utilities.length, false) : '',
+      dependencies.length ? renderRouteUnderstandingGroup('state_dependency', t('previewObjectEditor.routeUnderstandingState', 'State dependencies'), dependencies.map(renderStateDependencyItem).join(''), dependencies.length, false) : '',
+      '</div>'
+    ].join('');
+  }
+
+  function renderRouteUnderstandingGroup(key, title, content, count, open) {
+    return [
+      '<details class="preview-object-route-understanding-group" data-route-understanding-section="' + escapeAttr(key) + '"' + (open ? ' open' : '') + '>',
+      '<summary>',
+      '<h4>' + escapeHtml(title) + '</h4>',
+      '<span>' + escapeHtml(t('previewObjectEditor.routeUnderstandingCount', '{count} items').replace('{count}', String(count || 0))) + '</span>',
+      '</summary>',
+      '<div class="preview-object-route-understanding-grid">',
+      content,
+      '</div>',
+      '</details>'
+    ].join('');
+  }
+
+  function renderEventChainItem(item) {
+    const chips = [
+      item && item.semanticTier ? routeSemanticTierChip(item.semanticTier) : '',
+      item && item.evidenceClass ? evidenceClassChip(item.evidenceClass) : '',
+      item && item.entryGuard ? {label: t('previewObjectEditor.routeUnderstandingGuarded', 'guarded'), tone: 'guided'} : ''
+    ].filter(Boolean);
+    return [
+      '<article data-route-understanding-item="event_chain">',
+      '<strong>' + escapeHtml(item && (item.stageLabel || item.sceneId) || '') + '</strong>',
+      '<span>' + escapeHtml(item && item.sceneId || '') + '</span>',
+      item && item.entryGuard ? '<code>' + escapeHtml(item.entryGuard) + '</code>' : '',
+      chips.length ? '<div class="preview-object-route-map-edge-chips">' + chips.map((chip) => renderRouteMapChip(chip, 'i')).join('') + '</div>' : '',
+      '</article>'
+    ].join('');
+  }
+
+  function renderSchedulerContextItem(item) {
+    const chips = [
+      item && item.readiness ? schedulerReadinessChip(item.readiness) : '',
+      item && item.semanticTier ? routeSemanticTierChip(item.semanticTier) : '',
+      item && item.protected ? {label: t('previewObjectEditor.routeUnderstandingProtected', 'protected'), tone: 'manual'} : ''
+    ].filter(Boolean);
+    return [
+      '<article data-route-understanding-item="scheduler">',
+      '<strong>' + escapeHtml(item && (item.sceneId || item.entryMode) || '') + '</strong>',
+      '<span>' + escapeHtml([item && item.tag ? '#' + item.tag : '', item && item.deckRoute || ''].filter(Boolean).join(' / ')) + '</span>',
+      chips.length ? '<div class="preview-object-route-map-edge-chips">' + chips.map((chip) => renderRouteMapChip(chip, 'i')).join('') + '</div>' : '',
+      '</article>'
+    ].join('');
+  }
+
+  function renderUtilityCallItem(item) {
+    const label = [item && item.from, item && item.utilitySceneId].filter(Boolean).join(' -> ');
+    const chips = [
+      item && item.utilityKind ? {label: item.utilityKind, tone: 'guided'} : '',
+      item && item.returnBinding ? {label: t('previewObjectEditor.routeUnderstandingReturnBinding', 'return') + ': ' + item.returnBinding, tone: 'guided'} : '',
+      item && item.semanticTier ? routeSemanticTierChip(item.semanticTier) : ''
+    ].filter(Boolean);
+    return [
+      '<article data-route-understanding-item="utility">',
+      '<strong>' + escapeHtml(label || item && item.utilitySceneId || '') + '</strong>',
+      item && item.setJumpTarget ? '<span>' + escapeHtml(t('previewObjectEditor.routeUnderstandingSetJump', 'set-jump') + ': ' + item.setJumpTarget) + '</span>' : '',
+      chips.length ? '<div class="preview-object-route-map-edge-chips">' + chips.map((chip) => renderRouteMapChip(chip, 'i')).join('') + '</div>' : '',
+      '</article>'
+    ].join('');
+  }
+
+  function renderStateDependencyItem(item) {
+    const direct = ensureArray(item && item.directDependencyWrites);
+    const chips = [
+      item && item.opaque ? {label: t('previewObjectEditor.routeUnderstandingOpaque', 'manual JS boundary'), tone: 'manual'} : '',
+      direct.length ? {label: t('previewObjectEditor.routeUnderstandingDirectWrite', 'direct pre-route write'), tone: 'warning'} : ''
+    ].filter(Boolean);
+    return [
+      '<article data-route-understanding-item="state_dependency">',
+      '<strong>' + escapeHtml(item && item.ownerId || '') + '</strong>',
+      ensureArray(item && item.predicateReads).length ? '<span>' + escapeHtml(t('previewObjectEditor.routeUnderstandingReads', 'reads') + ': ' + ensureArray(item.predicateReads).slice(0, 6).join(', ')) + '</span>' : '',
+      ensureArray(item && item.preRouteWrites).length ? '<span>' + escapeHtml(t('previewObjectEditor.routeUnderstandingWrites', 'writes') + ': ' + ensureArray(item.preRouteWrites).slice(0, 6).join(', ')) + '</span>' : '',
+      chips.length ? '<div class="preview-object-route-map-edge-chips">' + chips.map((chip) => renderRouteMapChip(chip, 'i')).join('') + '</div>' : '',
+      '</article>'
+    ].join('');
+  }
+
+  function schedulerReadinessLabel(value) {
+    return {
+      scheduler_proven: t('previewObjectEditor.routeReadinessSchedulerProven', 'scheduler proven'),
+      profile_guided: t('previewObjectEditor.routeReadinessProfileGuided', 'profile guided'),
+      focused_entry_only: t('previewObjectEditor.routeReadinessFocusedEntry', 'Focused Entry only'),
+      unknown_wiring: t('previewObjectEditor.routeReadinessUnknown', 'unknown wiring')
+    }[String(value || '')] || String(value || '');
+  }
+
+  function routeMapReviewChips(model, graph) {
+    const modelHints = graph && (graph.reviewHints || graph.routeMapReviewHints);
+    if (Array.isArray(modelHints)) {
+      const graphHints = ensureArray(modelHints);
+      return graphHints.map((hint) => ({
+        key: hint && hint.key || '',
+        label: routeMapHintLabel(hint && hint.key) + ': ' + String(hint && hint.count || 0),
+        tone: routeMapHintTone(hint && hint.key)
+      }));
+    }
+    return [];
+  }
+
+  function routeMapHintLabel(key) {
+    return {
+      fuzzy: routeEvidenceClassLabel('fuzzy'),
+      script_derived: routeEvidenceClassLabel('script_derived'),
+      missing_target: routeEvidenceClassLabel('missing_target'),
+      manual_boundary: scriptSafetyLabel('manual_boundary'),
+      opaque_js: t('previewObjectEditor.routeMapOpaqueJs', 'Manual JS boundary'),
+      route_collision: t('previewObjectEditor.routeMapCollision', 'Route collision'),
+      zero_valid: t('previewObjectEditor.routeMapZeroValid', 'Zero-valid gap'),
+      multi_valid_randomization: t('previewObjectEditor.routeMapMultiValid', 'Multi-valid randomization'),
+      unconditional_not_fallback: t('previewObjectEditor.routeMapUnconditionalFallback', 'Unconditional is not fallback'),
+      partial_blocker: t('previewObjectEditor.routeMapPartialBlocker', 'Parity repair needed'),
+      diagnostics: t('previewObjectEditor.routeMapDiagnostics', 'Route diagnostics')
+    }[String(key || '')] || String(key || '');
   }
 
   function renderEventReadiness(items) {
@@ -298,11 +608,15 @@
     const actionAttrs = action ? ' data-visible-edit-action="' + escapeAttr(encodeAction(action)) + '"' : '';
     const title = t('previewObjectEditor.graphNodeAria', 'Edit event graph node: {label}').replace('{label}', label);
     return [
+      '<article class="preview-object-event-graph-node-card is-' + escapeAttr(safeClass(value.kind || 'node')) + '">',
       '<button type="button" class="preview-object-event-graph-node is-' + escapeAttr(safeClass(value.kind || 'node')) + '" data-preview-object-event-graph-node="' + escapeAttr(value.id || '') + '" data-event-graph-clickable="node"' + actionAttrs + ' aria-label="' + escapeAttr(title) + '" title="' + escapeAttr(title) + '">',
       '<small>' + escapeHtml(kind) + '</small>',
       '<strong>' + escapeHtml(label) + '</strong>',
       value.condition ? '<span>' + escapeHtml(value.condition) + '</span>' : '',
-      '</button>'
+      value.evidenceClass ? '<em>' + escapeHtml(routeEvidenceClassLabel(value.evidenceClass)) + '</em>' : '',
+      '</button>',
+      renderRouteMapActions(value.secondaryActions),
+      '</article>'
     ].join('');
   }
 
@@ -315,13 +629,234 @@
     const action = graphAction(value.editAction);
     const actionAttrs = action ? ' data-visible-edit-action="' + escapeAttr(encodeAction(action)) + '"' : '';
     const title = t('previewObjectEditor.graphRouteAria', 'Edit event graph route: {label}').replace('{label}', label || value.kind || 'route');
+    const chips = routeMapEdgeChips(value);
+    const reviewClass = routeMapEdgeNeedsReview(value) ? ' is-review' : '';
     return [
-      '<button type="button" class="preview-object-event-graph-edge" data-preview-object-event-graph-edge="' + escapeAttr([value.from, value.to, value.kind].filter(Boolean).join('|')) + '" data-event-graph-clickable="edge"' + actionAttrs + ' aria-label="' + escapeAttr(title) + '" title="' + escapeAttr(title) + '">',
+      '<article class="preview-object-event-graph-edge-card">',
+      '<button type="button" class="preview-object-event-graph-edge' + reviewClass + '" data-preview-object-event-graph-edge="' + escapeAttr([value.from, value.to, value.kind].filter(Boolean).join('|')) + '" data-preview-object-route-edge-id="' + escapeAttr(value.id || '') + '" data-route-map-field="' + escapeAttr(value.fieldId || '') + '" data-event-graph-clickable="edge"' + actionAttrs + ' aria-label="' + escapeAttr(title) + '" title="' + escapeAttr(title) + '">',
       '<span>' + escapeHtml(value.from || '') + '</span>',
       '<b>' + escapeHtml(graphKindLabel(value.kind)) + '</b>',
-      '<span>' + escapeHtml(value.to || value.targetId || '') + '</span>',
-      '</button>'
+      '<strong>' + escapeHtml(value.to || value.targetId || '') + '</strong>',
+      value.targetId ? '<span>' + escapeHtml(t('previewObjectEditor.routeMapTarget', 'Target') + ': ' + value.targetId) + '</span>' : '',
+      value.condition ? '<code>' + escapeHtml(t('previewObjectEditor.routeMapCondition', 'Condition') + ': ' + value.condition) + '</code>' : '',
+      chips.length ? '<small class="preview-object-route-map-edge-chips">' + chips.map((chip) => renderRouteMapChip(chip, 'i')).join('') + '</small>' : '',
+      '</button>',
+      renderRouteMapActions(value.secondaryActions),
+      '</article>'
     ].join('');
+  }
+
+  function renderRouteMapActions(actions) {
+    const rows = ensureArray(actions).filter((action) => action && action.editable && action.editAction && action.fieldId);
+    if (!rows.length) {
+      return '';
+    }
+    return '<div class="preview-object-route-map-actions">' + rows.map((action) => {
+      const edit = graphAction(action.editAction);
+      const actionAttrs = edit ? ' data-visible-edit-action="' + escapeAttr(encodeAction(edit)) + '"' : '';
+      const label = action.label || graphKindLabel(action.kind || 'field');
+      const value = action.value ? '<code>' + escapeHtml(action.value) + '</code>' : '';
+      const title = t('previewObjectEditor.routeMapEditFieldAria', 'Edit Route Map field: {label}').replace('{label}', label);
+      return [
+        '<button type="button" class="preview-object-route-map-action" data-route-map-action-kind="' + escapeAttr(action.kind || '') + '" data-route-map-field="' + escapeAttr(action.fieldId || '') + '"' + actionAttrs + ' aria-label="' + escapeAttr(title) + '" title="' + escapeAttr(title) + '">',
+        '<span>' + escapeHtml(label) + '</span>',
+        value,
+        '</button>'
+      ].join('');
+    }).join('') + '</div>';
+  }
+
+  function routeMapEdgeChips(edge) {
+    const value = edge || {};
+    return [
+      value.order ? {label: t('previewObjectEditor.routeMapOrder', 'Order') + ' ' + String(value.order), tone: 'muted'} : '',
+      value.evidenceClass ? evidenceClassChip(value.evidenceClass) : '',
+      value.semanticTier ? routeSemanticTierChip(value.semanticTier) : '',
+      value.targetResolution ? routeTargetResolutionChip(value.targetResolution) : '',
+      value.dynamicBinding && value.dynamicBinding.kind ? {label: dynamicBindingLabel(value.dynamicBinding), tone: 'guided'} : '',
+      value.safeEditEligible ? {label: t('previewObjectEditor.routeSafeStructured', 'safe structured'), tone: 'safe'} : '',
+      value.sourceKind ? {label: sourceKindLabel(value.sourceKind), tone: 'muted'} : '',
+      value.installSafety ? safetyChip(value.installSafety) : ''
+    ].filter(Boolean);
+  }
+
+  function routeMapEdgeNeedsReview(edge) {
+    const evidence = String(edge && edge.evidenceClass || '');
+    const safety = String(edge && edge.installSafety || '');
+    const tier = String(edge && edge.semanticTier || '');
+    return Boolean(evidence && !['draft', 'exact', 'parser_backed', 'terminal', 'source_backed'].includes(evidence)) ||
+      Boolean(tier && tier !== 'static_exact') ||
+      safety === 'manual_review';
+  }
+
+  function routeSemanticTierLabel(value) {
+    return {
+      static_exact: t('previewObjectEditor.routeTierStatic', 'static exact'),
+      guided_profile: t('previewObjectEditor.routeTierGuided', 'guided/profile'),
+      runtime_observed: t('previewObjectEditor.routeTierRuntime', 'runtime observed'),
+      manual_boundary: t('previewObjectEditor.routeTierManual', 'manual boundary')
+    }[String(value || '')] || String(value || '');
+  }
+
+  function routeSemanticTierChip(value) {
+    const tier = String(value || '');
+    return {
+      label: routeSemanticTierLabel(tier),
+      tone: tier === 'static_exact' ? 'safe' : tier === 'runtime_observed' ? 'runtime' : tier === 'manual_boundary' ? 'manual' : 'guided'
+    };
+  }
+
+  function routeTargetResolutionLabel(resolution) {
+    const value = resolution || {};
+    const status = String(value.status || '');
+    if (!status) {
+      return '';
+    }
+    if (value.shadowed) {
+      return t('previewObjectEditor.routeTargetShadowed', 'target: shadowed');
+    }
+    if (value.ambiguous || status === 'ambiguous') {
+      return t('previewObjectEditor.routeTargetAmbiguous', 'target: ambiguous');
+    }
+    if (status === 'missing') {
+      return t('previewObjectEditor.routeTargetMissing', 'target: missing');
+    }
+    if (status === 'resolved') {
+      const scope = String(value.scope || '').replace(/_/g, ' ');
+      return t('previewObjectEditor.routeTargetResolved', 'target: {scope}').replace('{scope}', scope || 'resolved');
+    }
+    if (/^dynamic/.test(status)) {
+      return t('previewObjectEditor.routeTargetDynamic', 'target: dynamic');
+    }
+    if (/jump|return/.test(status)) {
+      return t('previewObjectEditor.routeTargetReturn', 'target: return');
+    }
+    return t('previewObjectEditor.routeTargetStatus', 'target: {status}').replace('{status}', status.replace(/_/g, ' '));
+  }
+
+  function routeTargetResolutionChip(resolution) {
+    const value = resolution || {};
+    const status = String(value.status || '');
+    let tone = 'muted';
+    if (value.shadowed || value.ambiguous || status === 'ambiguous' || status === 'missing') {
+      tone = 'warning';
+    } else if (status === 'resolved') {
+      tone = 'safe';
+    } else if (/^dynamic/.test(status) || /jump|return|profile/.test(status)) {
+      tone = 'guided';
+    }
+    return {label: routeTargetResolutionLabel(value), tone};
+  }
+
+  function routeGuidedEditKindLabel(value) {
+    return {
+      utility_pair: t('previewObjectEditor.routeGuidedUtilityPair', 'Utility pair'),
+      route_table_binding: t('previewObjectEditor.routeGuidedRouteTable', 'Route table'),
+      explicit_fallback_helper: t('previewObjectEditor.routeGuidedFallback', 'Explicit fallback')
+    }[String(value || '')] || String(value || '');
+  }
+
+  function routeGuidedEditKindChip(value) {
+    return {label: routeGuidedEditKindLabel(value), tone: 'accent'};
+  }
+
+  function routeGuidedEditRank(left, right) {
+    const rank = (entry) => {
+      if (!entry) {
+        return 99;
+      }
+      if (entry.safeEditEligible && entry.kind === 'explicit_fallback_helper') {
+        return 0;
+      }
+      if (entry.safeEditEligible) {
+        return 1;
+      }
+      if (entry.semanticTier === 'guided_profile') {
+        return 2;
+      }
+      if (entry.semanticTier === 'runtime_observed') {
+        return 3;
+      }
+      return 4;
+    };
+    return rank(left) - rank(right);
+  }
+
+  function dynamicBindingLabel(binding) {
+    const value = binding || {};
+    const count = ensureArray(value.candidateTargets).length;
+    const base = {
+      go_to_ref: t('previewObjectEditor.routeBindingGoToRef', 'go-to-ref'),
+      route_quality_write: t('previewObjectEditor.routeBindingQualityWrite', 'Q route write'),
+      profile_route_table: t('previewObjectEditor.routeBindingProfileTable', 'profile route table'),
+      script_route_hint: t('previewObjectEditor.routeBindingScriptHint', 'script route hint'),
+      set_jump: t('previewObjectEditor.routeBindingSetJump', 'set-jump')
+    }[String(value.kind || '')] || String(value.kind || '');
+    return count ? base + ' ' + String(count) : base;
+  }
+
+  function evidenceClassChip(value) {
+    const evidence = String(value || '');
+    return {
+      label: routeEvidenceClassLabel(evidence),
+      tone: /missing|fuzzy|manual|opaque|collision/.test(evidence) ? 'warning' : /script|profile|guided/.test(evidence) ? 'guided' : 'muted'
+    };
+  }
+
+  function schedulerReadinessChip(value) {
+    const readiness = String(value || '');
+    return {
+      label: schedulerReadinessLabel(readiness),
+      tone: readiness === 'scheduler_proven' ? 'safe' : readiness === 'profile_guided' ? 'guided' : readiness === 'focused_entry_only' ? 'runtime' : 'warning'
+    };
+  }
+
+  function safetyChip(value) {
+    const safety = String(value || '');
+    return {
+      label: safetyLabel(safety),
+      tone: /guarded|safe/.test(safety) ? 'safe' : /advanced|guided/.test(safety) ? 'guided' : /manual|blocked|review/.test(safety) ? 'manual' : 'muted'
+    };
+  }
+
+  function routeMapHintTone(key) {
+    const value = String(key || '');
+    if (/zero|collision|multi_valid|unconditional|diagnostic|missing|fuzzy|opaque|manual|partial/.test(value)) {
+      return 'warning';
+    }
+    if (/script|guided|profile/.test(value)) {
+      return 'guided';
+    }
+    return 'muted';
+  }
+
+  function renderRouteMapChip(chip, tag, attrs) {
+    const value = chip && typeof chip === 'object' ? chip : {label: chip};
+    const label = String(value && value.label || '');
+    if (!label) {
+      return '';
+    }
+    const tone = String(value && value.tone || chipToneFromLabel(label) || 'muted').replace(/[^a-z0-9_-]/gi, '');
+    const element = tag || 'i';
+    const extra = attrs ? ' ' + attrs : '';
+    return '<' + element + ' class="preview-object-route-chip is-' + escapeAttr(tone) + '"' + extra + '>' + escapeHtml(label) + '</' + element + '>';
+  }
+
+  function chipToneFromLabel(label) {
+    const value = String(label || '').toLowerCase();
+    if (/safe|static exact|guarded|scheduler proven|靜態|安全|精確/.test(value)) {
+      return 'safe';
+    }
+    if (/runtime|focused entry|observed|觀察/.test(value)) {
+      return 'runtime';
+    }
+    if (/manual|missing|ambiguous|shadowed|collision|zero|not fallback|opaque|protected|手動|歧義|遮蔽|缺失|受保護/.test(value)) {
+      return 'warning';
+    }
+    if (/guided|profile|dynamic|return|utility|route table|引導|動態|返回/.test(value)) {
+      return 'guided';
+    }
+    return 'muted';
   }
 
   function graphAction(action) {
@@ -341,10 +876,21 @@
       option_effect: t('previewObjectEditor.graphOptionEffect', 'Option effect'),
       section_effect: t('previewObjectEditor.graphSectionEffect', 'Section effect'),
       variable: t('previewObjectEditor.graphVariable', 'Variable'),
+      route_source: t('previewObjectEditor.graphRouteSource', 'Route source'),
+      route_target: t('previewObjectEditor.graphRouteTarget', 'Route target'),
+      missing_route_target: t('previewObjectEditor.graphMissingRouteTarget', 'Missing route target'),
       choice: t('previewObjectEditor.graphChoice', 'Choice'),
       result_route: t('previewObjectEditor.graphResultRoute', 'Result route'),
       return_route: t('previewObjectEditor.graphReturnRoute', 'Return route'),
-      exit_route: t('previewObjectEditor.graphExitRoute', 'Exit route')
+      exit_route: t('previewObjectEditor.graphExitRoute', 'Exit route'),
+      evidence_route: t('previewObjectEditor.graphEvidenceRoute', 'Evidence route'),
+      fuzzy_route: t('previewObjectEditor.graphFuzzyRoute', 'Approximate route'),
+      script_route: t('previewObjectEditor.graphScriptRoute', 'Script-derived route'),
+      dynamic_route: t('previewObjectEditor.graphDynamicRoute', 'Dynamic route'),
+      jump_route: t('previewObjectEditor.graphJumpRoute', 'Jump/return target'),
+      missing_route: t('previewObjectEditor.graphMissingRoute', 'Missing-target route'),
+      external_route: t('previewObjectEditor.graphExternalRoute', 'External route'),
+      terminal_route: t('previewObjectEditor.graphTerminalRoute', 'Terminal route')
     }[value] || value.replace(/_/g, ' ') || t('previewObjectEditor.graphNode', 'Node');
   }
 
@@ -352,7 +898,7 @@
     return {
       direct_route: t('previewObjectEditor.directRoute', 'Direct route'),
       conditional_route: t('previewObjectEditor.conditionalRoute', 'Conditional route'),
-      ordered_conditional_route: t('previewObjectEditor.orderedConditionalRoute', 'Ordered conditional route'),
+      ordered_conditional_route: t('previewObjectEditor.orderedConditionalRoute', 'Conditional route group'),
       menu_return: t('previewObjectEditor.menuReturn', 'Menu return'),
       terminal_branch: t('previewObjectEditor.terminalBranch', 'Terminal branch'),
       script_or_external_boundary: t('previewObjectEditor.scriptBoundary', 'Script or external boundary')
@@ -381,6 +927,8 @@
 
   function routeEvidenceClassLabel(value) {
     return {
+      draft: t('previewObjectEditor.routeDraft', 'Draft'),
+      source_backed: t('previewObjectEditor.routeSourceBacked', 'Source-backed'),
       exact: t('previewObjectEditor.routeExact', 'Exact'),
       parser_backed: t('previewObjectEditor.routeParserBacked', 'Parser-backed'),
       fuzzy: t('previewObjectEditor.routeFuzzy', 'Approximate'),
@@ -429,11 +977,22 @@
 
   function sourceKindLabel(value) {
     return {
+      draft: t('previewObjectEditor.routeSourceDraft', 'draft'),
+      source: t('previewObjectEditor.routeSourceSource', 'source'),
+      manual: t('previewObjectEditor.routeSourceManual', 'manual'),
       flow: t('previewObjectEditor.routeSourceFlow', 'flow'),
       field: t('previewObjectEditor.routeSourceField', 'field'),
       continuation: t('previewObjectEditor.routeSourceContinuation', 'continuation'),
       script: t('previewObjectEditor.routeSourceScript', 'script'),
       explicit: t('previewObjectEditor.routeSourceExplicit', 'explicit')
+    }[String(value || '')] || String(value || '');
+  }
+
+  function safetyLabel(value) {
+    return {
+      guarded_apply: t('previewObjectEditor.routeSafetyGuarded', 'guarded'),
+      advanced_apply: t('previewObjectEditor.routeSafetyAdvanced', 'advanced'),
+      manual_review: t('previewObjectEditor.routeSafetyManual', 'manual')
     }[String(value || '')] || String(value || '');
   }
 

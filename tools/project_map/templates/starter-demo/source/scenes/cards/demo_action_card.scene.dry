@@ -1,46 +1,42 @@
 title: Starter Action Card
 new-page: true
 is-card: true
+card-image: img/cards/demo_action_card.svg
 tags: demo_action
 frequency: 100
-priority: 0
+priority: 1
 
 = Starter Action Card
 
-This card is intentionally small. It demonstrates the action-card lane without
-copying an existing game system.
+This action card is a reusable monthly tool from the hand. Most options finish
+by routing to `post_event`, so players see how a card can consume a month,
+rotate news, and surface event popups.
 
-- @spend_resources: Spend resources
-- @save_capacity: Save capacity
+- @mobilize_volunteers: Mobilize volunteers
 - @prepare_case_file: Prepare a case file
+- @save_capacity: Save capacity
 
-@spend_resources
-title: Spend resources
-subtitle: Convert capacity into visible progress.
+@mobilize_volunteers
+title: Mobilize volunteers
+subtitle: Spend capacity for public support.
 choose-if: demo_resources >= 1
 unavailable-subtitle: Resources are too low.
-on-arrival: {!
-Q.demo_resources = (Q.demo_resources || 0) - 1;
-Q.demo_card_progress = (Q.demo_card_progress || 0) + 1;
-!}
+on-arrival: demo_resources -= 1; demo_support += 1; demo_public_attention += 1; demo_card_progress += 1
 
-The organization spends a small amount of capacity to move the project forward.
+The office spends capacity to build a volunteer phone bank. The status sidebar
+will show support and public attention rising.
 
-- @return_spend_resources: Continue
+- @return_mobilize_volunteers: Continue
 
-@return_spend_resources
-go-to: main
+@return_mobilize_volunteers
+go-to: post_event
 
 @prepare_case_file
 title: Prepare a case file
 subtitle: Spend capacity before the complex event chain.
 choose-if: demo_resources >= 1
 unavailable-subtitle: Resources are too low.
-on-arrival: {!
-Q.demo_resources = (Q.demo_resources || 0) - 1;
-Q.demo_case_strength = (Q.demo_case_strength || 0) + 1;
-Q.demo_cabinet_balance = (Q.demo_cabinet_balance || 0) + 1;
-!}
+on-arrival: demo_resources -= 1; demo_case_strength += 2; demo_cabinet_balance += 1; demo_card_progress += 1
 
 The team converts spare capacity into a case file. The complex event chain can
 read that state later.
@@ -48,18 +44,17 @@ read that state later.
 - @return_prepare_case_file: Continue
 
 @return_prepare_case_file
-go-to: main
+go-to: post_event
 
 @save_capacity
 title: Save capacity
 subtitle: Keep resources for later.
-on-arrival: {!
-Q.demo_resources = (Q.demo_resources || 0) + 1;
-!}
+on-arrival: demo_resources += 1
 
-The organization keeps its limited capacity available for another moment.
+The office keeps its limited capacity available for a later hearing or field
+push.
 
 - @return_save_capacity: Continue
 
 @return_save_capacity
-go-to: main
+go-to: post_event

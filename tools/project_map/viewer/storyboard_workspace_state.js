@@ -678,6 +678,7 @@
     state.storyPaletteRowHeight = clampPaletteRowHeight(state.storyPaletteRowHeight || STORY_PALETTE_DEFAULT_ROW_HEIGHT);
     const root = state.__storyPaletteRoot;
     const current = root && root.querySelector && root.querySelector('[data-storyboard-palette]');
+    const currentOpen = current && current.getAttribute && current.getAttribute('data-storyboard-palette-open') === 'true';
     const surface = global.ProjectMapContentStoryboardSurface;
     if (!root || !current || !surface || typeof surface.renderPaletteOnly !== 'function' || !state.model) {
       deps.render();
@@ -700,6 +701,9 @@
     if (!next) {
       deps.render();
       return true;
+    }
+    if (currentOpen && next.getAttribute && next.getAttribute('data-storyboard-palette-open') === 'true' && next.classList) {
+      next.classList.add('is-refreshing');
     }
     current.replaceWith(next);
     bindPalette(root, state, deps);

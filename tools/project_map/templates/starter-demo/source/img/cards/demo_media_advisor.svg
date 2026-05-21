@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="480" viewBox="0 0 360 480">
+  <rect width="360" height="480" rx="20" fill="#e5ecf0"/>
+  <rect x="26" y="26" width="308" height="428" rx="18" fill="#f8fcff" stroke="#5b788c" stroke-width="7"/>
+  <text x="180" y="88" text-anchor="middle" font-family="Georgia, serif" font-size="28" fill="#243342">Media Desk</text>
+  <path d="M96 214h150l34-38v150l-34-38H96z" fill="#d5e2ea" stroke="#567083" stroke-width="8"/>
+  <path d="M90 352c70-18 112-18 180 0" stroke="#9b4e3a" stroke-width="14" stroke-linecap="round"/>
+  <text x="180" y="420" text-anchor="middle" font-family="Georgia, serif" font-size="22" fill="#314b5f">manage attention</text>
+</svg>

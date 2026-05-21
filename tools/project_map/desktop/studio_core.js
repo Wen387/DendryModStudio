@@ -3,6 +3,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const crypto = require('crypto');
 const {spawnSync} = require('child_process');
 
 function requireInstallPlan() {
@@ -22,8 +23,56 @@ const installPlan = requireInstallPlan();
 const runtimePreview = require('./runtime_preview');
 const runtimeLens = require('./runtime_lens');
 const STARTER_DEMO_ID = 'starter-demo';
+const STARTER_DEMO_TEMPLATE_MARKER = '.dendry-studio-template.json';
 const PYTHON_CHECK_TIMEOUT_MS = 10 * 1000;
 const PROJECT_INDEX_TIMEOUT_MS = 10 * 60 * 1000;
+const STARTER_DEMO_SIGNATURE_FILES = [
+  'README.md',
+  'package.json',
+  'source/info.dry',
+  'source/img/cards/demo_action_deck.svg',
+  'source/img/cards/demo_action_card.svg',
+  'source/img/cards/demo_field_operation_card.svg',
+  'source/img/cards/demo_civic_wire_card.svg',
+  'source/img/cards/demo_office_overview_card.svg',
+  'source/img/cards/demo_advisor.svg',
+  'source/img/cards/demo_media_advisor.svg',
+  'source/img/cards/demo_budget_advisor.svg',
+  'source/img/events/demo_campaign_pressure.svg',
+  'source/img/events/demo_monthly_docket.svg',
+  'source/img/events/demo_budget_leak.svg',
+  'source/img/events/demo_polling_shock.svg',
+  'source/img/events/demo_council_deadlock.svg',
+  'source/qdisplays/qdemo_level.qdisplay.dry',
+  'source/scenes/root.scene.dry',
+  'source/scenes/main.scene.dry',
+  'source/scenes/status.scene.dry',
+  'source/scenes/demo_opening.scene.dry',
+  'source/scenes/decks/demo_action_deck.scene.dry',
+  'source/scenes/cards/demo_action_card.scene.dry',
+  'source/scenes/cards/demo_office_overview_card.scene.dry',
+  'source/scenes/cards/demo_field_operation_card.scene.dry',
+  'source/scenes/cards/demo_civic_wire_card.scene.dry',
+  'source/scenes/advisors/demo_advisor.scene.dry',
+  'source/scenes/advisors/demo_media_advisor.scene.dry',
+  'source/scenes/advisors/demo_budget_advisor.scene.dry',
+  'source/scenes/events/demo_campaign_pressure.scene.dry',
+  'source/scenes/events/demo_case_hearing.scene.dry',
+  'source/scenes/events/demo_back_room_talks.scene.dry',
+  'source/scenes/events/demo_resolution_week.scene.dry',
+  'source/scenes/events/demo_monthly_report.scene.dry',
+  'source/scenes/events/demo_budget_leak.scene.dry',
+  'source/scenes/events/demo_polling_shock.scene.dry',
+  'source/scenes/events/demo_council_deadlock.scene.dry',
+  'project-index.json',
+  'project-index-excerpts.json'
+];
+const STARTER_DEMO_FRESH_SENTINELS = [
+  ['source/scenes/demo_opening.scene.dry', 'Civic Reform Office Briefing'],
+  ['source/scenes/events/demo_campaign_pressure.scene.dry', 'Civic Reform Campaign'],
+  ['source/scenes/events/demo_monthly_report.scene.dry', 'Monthly Civic Docket'],
+  ['source/scenes/status.scene.dry', 'Civic Reform Dashboard']
+];
 
 function resolveResourcePaths(options) {
   const desktopDir = path.resolve((options && options.desktopDir) || __dirname);
@@ -109,6 +158,91 @@ function copyPath(src, dest) {
   });
 }
 
+function readFileIfExists(filePath) {
+  try {
+    return fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : '';
+  } catch (_err) {
+    return '';
+  }
+}
+
+function starterDemoTemplateSignature(root) {
+  const hash = crypto.createHash('sha256');
+  STARTER_DEMO_SIGNATURE_FILES.forEach((relativePath) => {
+    const filePath = path.join(root, relativePath);
+    hash.update(relativePath);
+    hash.update('\0');
+    hash.update(readFileIfExists(filePath));
+    hash.update('\0');
+  });
+  return hash.digest('hex');
+}
+
+function readStarterDemoTemplateMarker(root) {
+  const markerPath = path.join(root, STARTER_DEMO_TEMPLATE_MARKER);
+  try {
+    return JSON.parse(fs.readFileSync(markerPath, 'utf8'));
+  } catch (_err) {
+    return null;
+  }
+}
+
+function writeStarterDemoTemplateMarker(sourceRoot, targetRoot) {
+  const markerPath = path.join(targetRoot, STARTER_DEMO_TEMPLATE_MARKER);
+  try {
+    fs.writeFileSync(markerPath, JSON.stringify({
+      id: STARTER_DEMO_ID,
+      source: 'bundled_starter_demo',
+      signature: starterDemoTemplateSignature(sourceRoot),
+      refreshedAt: new Date().toISOString()
+    }, null, 2) + '\n', 'utf8');
+  } catch (_err) {
+    // The marker is a convenience for future refresh checks; the project copy
+    // itself remains usable even if this write fails.
+  }
+}
+
+function starterDemoLooksFresh(root) {
+  return STARTER_DEMO_FRESH_SENTINELS.every(([relativePath, expected]) => {
+    return readFileIfExists(path.join(root, relativePath)).includes(expected);
+  });
+}
+
+function backupPathForStarterDemo(targetRoot) {
+  const parent = path.dirname(targetRoot);
+  const stamp = new Date().toISOString().replace(/[^0-9A-Za-z]+/g, '-').replace(/^-|-$/g, '');
+  for (let index = 0; index < 20; index += 1) {
+    const suffix = index ? '-' + index : '';
+    const candidate = path.join(parent, STARTER_DEMO_ID + '-backup-' + stamp + suffix);
+    if (!fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  return path.join(parent, STARTER_DEMO_ID + '-backup-' + stamp + '-' + process.pid);
+}
+
+function shouldRefreshStarterDemoCopy(sourceRoot, targetRoot, options) {
+  if (!fs.existsSync(path.join(targetRoot, 'source', 'info.dry'))) {
+    return false;
+  }
+  if (options && options.forceRefresh) {
+    return true;
+  }
+  if (!options || !options.refreshIfStale) {
+    return false;
+  }
+  const sourceSignature = starterDemoTemplateSignature(sourceRoot);
+  const marker = readStarterDemoTemplateMarker(targetRoot);
+  const looksFresh = starterDemoLooksFresh(targetRoot);
+  if (marker && marker.signature === sourceSignature && looksFresh) {
+    return false;
+  }
+  if (!looksFresh) {
+    return true;
+  }
+  return false;
+}
+
 function prepareStarterDemo(options) {
   const paths = resolveResourcePaths(options);
   const sourceRoot = paths.starterDemoTemplate;
@@ -128,13 +262,23 @@ function prepareStarterDemo(options) {
       message: 'The bundled starter demo template is missing from this Dendry Mod Studio package.'
     };
   }
-  const alreadyPresent = fs.existsSync(path.join(targetRoot, 'source', 'info.dry'));
+  let alreadyPresent = fs.existsSync(path.join(targetRoot, 'source', 'info.dry'));
+  let refreshed = false;
+  let backupRoot = '';
+  if (alreadyPresent && shouldRefreshStarterDemoCopy(sourceRoot, targetRoot, options || {})) {
+    fs.mkdirSync(workspaceRoot, {recursive: true});
+    backupRoot = backupPathForStarterDemo(targetRoot);
+    fs.renameSync(targetRoot, backupRoot);
+    alreadyPresent = false;
+    refreshed = true;
+  }
   if (!alreadyPresent) {
     fs.mkdirSync(workspaceRoot, {recursive: true});
     copyPath(sourceRoot, targetRoot);
   } else {
     repairStarterDemoSupportFiles(sourceRoot, targetRoot);
   }
+  writeStarterDemoTemplateMarker(sourceRoot, targetRoot);
   const validation = validateProjectRoot(targetRoot);
   return Object.assign({
     ok: validation.ok,
@@ -144,8 +288,10 @@ function prepareStarterDemo(options) {
     targetRoot,
     root: validation.root || targetRoot,
     reused: alreadyPresent,
+    refreshed,
+    backupRoot,
     message: validation.ok
-      ? (alreadyPresent ? 'Starter demo workspace opened.' : 'Starter demo workspace created.')
+      ? (refreshed ? 'Starter demo workspace refreshed from the bundled template.' : alreadyPresent ? 'Starter demo workspace opened.' : 'Starter demo workspace created.')
       : validation.message
   }, validation.ok ? {} : {error: validation});
 }
@@ -156,14 +302,58 @@ function repairStarterDemoSupportFiles(sourceRoot, targetRoot) {
     'source/scenes/main.scene.dry',
     'source/scenes/decks/demo_action_deck.scene.dry',
     'source/scenes/cards/demo_action_card.scene.dry',
+    'source/scenes/cards/demo_office_overview_card.scene.dry',
+    'source/scenes/cards/demo_field_operation_card.scene.dry',
+    'source/scenes/cards/demo_civic_wire_card.scene.dry',
     'source/scenes/advisors/demo_advisor.scene.dry',
+    'source/scenes/advisors/demo_media_advisor.scene.dry',
+    'source/scenes/advisors/demo_budget_advisor.scene.dry',
+    'source/img/cards/demo_action_deck.svg',
+    'source/img/cards/demo_action_card.svg',
+    'source/img/cards/demo_field_operation_card.svg',
+    'source/img/cards/demo_civic_wire_card.svg',
+    'source/img/cards/demo_office_overview_card.svg',
+    'source/img/cards/demo_advisor.svg',
+    'source/img/cards/demo_media_advisor.svg',
+    'source/img/cards/demo_budget_advisor.svg',
+    'source/img/events/demo_campaign_pressure.svg',
+    'source/img/events/demo_monthly_docket.svg',
+    'source/img/events/demo_budget_leak.svg',
+    'source/img/events/demo_polling_shock.svg',
+    'source/img/events/demo_council_deadlock.svg',
     'source/qdisplays/qdemo_level.qdisplay.dry',
     'source/qualities/demo_support.quality.dry',
     'source/qualities/demo_conflict.quality.dry',
     'source/qualities/demo_resources.quality.dry',
     'source/qualities/demo_advisor_trust.quality.dry',
     'source/qualities/demo_card_progress.quality.dry',
-    'source/qualities/demo_event_seen.quality.dry'
+    'source/qualities/demo_event_seen.quality.dry',
+    'source/qualities/demo_chain_seen.quality.dry',
+    'source/qualities/demo_hearing_seen.quality.dry',
+    'source/qualities/demo_resolution_seen.quality.dry',
+    'source/qualities/demo_pressure.quality.dry',
+    'source/qualities/demo_public_attention.quality.dry',
+    'source/qualities/demo_case_strength.quality.dry',
+    'source/qualities/demo_cabinet_balance.quality.dry',
+    'source/qualities/demo_reform_mandate.quality.dry',
+    'source/qualities/demo_opposition_heat.quality.dry',
+    'source/qualities/demo_resolution_result.quality.dry',
+    'source/qualities/demo_year.quality.dry',
+    'source/qualities/demo_month.quality.dry',
+    'source/qualities/demo_monthly_tick.quality.dry',
+    'source/qualities/demo_press_risk.quality.dry',
+    'source/qualities/demo_legislative_path.quality.dry',
+    'source/qualities/demo_budget_leak_seen.quality.dry',
+    'source/qualities/demo_polling_shock_seen.quality.dry',
+    'source/qualities/demo_council_deadlock_seen.quality.dry',
+    'source/scenes/events/demo_campaign_pressure.scene.dry',
+    'source/scenes/events/demo_case_hearing.scene.dry',
+    'source/scenes/events/demo_back_room_talks.scene.dry',
+    'source/scenes/events/demo_resolution_week.scene.dry',
+    'source/scenes/events/demo_monthly_report.scene.dry',
+    'source/scenes/events/demo_budget_leak.scene.dry',
+    'source/scenes/events/demo_polling_shock.scene.dry',
+    'source/scenes/events/demo_council_deadlock.scene.dry'
   ].forEach((relativePath) => {
     const sourcePath = path.join(sourceRoot, relativePath);
     const targetPath = path.join(targetRoot, relativePath);
@@ -174,6 +364,146 @@ function repairStarterDemoSupportFiles(sourceRoot, targetRoot) {
     fs.copyFileSync(sourcePath, targetPath);
   });
   repairStarterDemoSourceCompatibility(targetRoot);
+  repairStarterDemoTemplateCompatibility(targetRoot);
+}
+
+function patchFileIfChanged(filePath, updater) {
+  if (!fs.existsSync(filePath)) {
+    return false;
+  }
+  const before = fs.readFileSync(filePath, 'utf8');
+  const after = updater(before);
+  if (after === before) {
+    return false;
+  }
+  fs.writeFileSync(filePath, after, 'utf8');
+  return true;
+}
+
+function insertLineAfter(text, anchor, insertedLine) {
+  if (!text.includes(anchor) || text.includes(insertedLine)) {
+    return text;
+  }
+  return text.replace(anchor, anchor + '\n' + insertedLine);
+}
+
+function insertMetadataLine(text, insertedLine) {
+  if (text.includes(insertedLine)) {
+    return text;
+  }
+  if (/^subtitle:/m.test(text)) {
+    return text.replace(/^(subtitle:[^\n]*)/m, '$1\n' + insertedLine);
+  }
+  if (/^title:/m.test(text)) {
+    return text.replace(/^(title:[^\n]*)/m, '$1\n' + insertedLine);
+  }
+  return insertedLine + '\n' + text;
+}
+
+function ensureBlankLineBeforeFirstHeading(text) {
+  return String(text || '').replace(/^([A-Za-z][A-Za-z0-9-]*:\s*[^\n]+)\n(= )/m, '$1\n\n$2');
+}
+
+function repairStarterDemoTemplateCompatibility(targetRoot) {
+  patchFileIfChanged(path.join(targetRoot, 'source', 'scenes', 'main.scene.dry'), (text) => {
+    const replacement = [
+      'Monthly office workspace.',
+      '',
+      'Click the monthly deck to draw reusable action cards. Pinned briefing and',
+      'advisor cards stay available, while drawn cards fill the hand slots below.',
+      'This is the simplified SDAAH-like loop: prepare, advance the month, then let',
+      'events read the changed Q variables.'
+    ].join('\n');
+    let next = text.replace(
+      [
+        'This hand scene is the repeatable workspace. Card-style DendryNexus',
+        'projects often use a hand like this for monthly actions, standing advisors,',
+        'circles, or other tools the player can revisit.',
+        '',
+        'Use the action deck to spend resources and build a case. Use the advisor to',
+        'shape support and compromise. The civic reform chain reads those variables.'
+      ].join('\n'),
+      replacement
+    );
+    next = next.replace(
+      /This hand scene is the repeatable workspace\.[\s\S]*?The civic reform chain reads those variables\./,
+      replacement
+    );
+    return next;
+  });
+
+  patchFileIfChanged(path.join(targetRoot, 'source', 'qdisplays', 'qdemo_level.qdisplay.dry'), (text) => {
+    return text
+      .replace(/\(--0\)\s+:\s+none/g, '(--0) none')
+      .replace(/\(1\.\.2\)\s+:\s+low/g, '(1..2) low')
+      .replace(/\(3\.\.5\)\s+:\s+medium/g, '(3..5) medium')
+      .replace(/\(6\.\.\)\s+:\s+high/g, '(6..) high');
+  });
+
+  patchFileIfChanged(path.join(targetRoot, 'source', 'scenes', 'decks', 'demo_action_deck.scene.dry'), (text) => {
+    if (!text.includes('is-deck: true')) {
+      return text;
+    }
+    let next = text
+      .replace(/^title:\s*Starter Deck\s*$/m, 'title: Monthly Action Deck')
+      .replace(/^subtitle:\s*A minimal action-card deck\s*$/m, 'subtitle: Reusable office cards; many choices advance the month');
+    next = insertMetadataLine(next, 'card-image: img/cards/demo_action_deck.svg');
+    return ensureBlankLineBeforeFirstHeading(next);
+  });
+
+  patchFileIfChanged(path.join(targetRoot, 'source', 'scenes', 'cards', 'demo_action_card.scene.dry'), (text) => {
+    if (!text.includes('title: Starter Action Card')) {
+      return text;
+    }
+    let next = insertLineAfter(text, 'is-card: true', 'card-image: img/cards/demo_action_card.svg');
+    next = next.replace(/^priority:\s*0\s*$/m, 'priority: 1');
+    return ensureBlankLineBeforeFirstHeading(next);
+  });
+
+  patchFileIfChanged(path.join(targetRoot, 'source', 'scenes', 'cards', 'demo_field_operation_card.scene.dry'), (text) => {
+    if (!text.includes('title: Field Operation Card')) {
+      return text;
+    }
+    return ensureBlankLineBeforeFirstHeading(insertLineAfter(text, 'is-card: true', 'card-image: img/cards/demo_field_operation_card.svg'));
+  });
+
+  patchFileIfChanged(path.join(targetRoot, 'source', 'scenes', 'cards', 'demo_civic_wire_card.scene.dry'), (text) => {
+    if (!text.includes('title: Civic Wire Card')) {
+      return text;
+    }
+    return ensureBlankLineBeforeFirstHeading(insertLineAfter(text, 'is-card: true', 'card-image: img/cards/demo_civic_wire_card.svg'));
+  });
+
+  patchFileIfChanged(path.join(targetRoot, 'source', 'scenes', 'cards', 'demo_office_overview_card.scene.dry'), (text) => {
+    if (!text.includes('title: Office Overview Card')) {
+      return text;
+    }
+    let next = insertLineAfter(text, 'is-card: true', 'is-pinned-card: true');
+    next = insertLineAfter(next, 'is-pinned-card: true', 'card-image: img/cards/demo_office_overview_card.svg');
+    next = next.replace(/^priority:\s*5\s*$/m, 'priority: 1');
+    return ensureBlankLineBeforeFirstHeading(next);
+  });
+
+  patchFileIfChanged(path.join(targetRoot, 'source', 'scenes', 'advisors', 'demo_advisor.scene.dry'), (text) => {
+    if (!text.includes('is-pinned-card: true')) {
+      return text;
+    }
+    return ensureBlankLineBeforeFirstHeading(insertMetadataLine(text, 'card-image: img/cards/demo_advisor.svg'));
+  });
+
+  patchFileIfChanged(path.join(targetRoot, 'source', 'scenes', 'advisors', 'demo_media_advisor.scene.dry'), (text) => {
+    if (!text.includes('is-pinned-card: true')) {
+      return text;
+    }
+    return ensureBlankLineBeforeFirstHeading(insertMetadataLine(text, 'card-image: img/cards/demo_media_advisor.svg'));
+  });
+
+  patchFileIfChanged(path.join(targetRoot, 'source', 'scenes', 'advisors', 'demo_budget_advisor.scene.dry'), (text) => {
+    if (!text.includes('is-pinned-card: true')) {
+      return text;
+    }
+    return ensureBlankLineBeforeFirstHeading(insertMetadataLine(text, 'card-image: img/cards/demo_budget_advisor.svg'));
+  });
 }
 
 function repairStarterDemoSourceCompatibility(targetRoot) {
@@ -184,9 +514,12 @@ function repairStarterDemoSourceCompatibility(targetRoot) {
   const before = fs.readFileSync(rootScenePath, 'utf8');
   let after = before
     .replace('- @.demo_opening.demo_status: Check demo state', '- @demo_opening.demo_status: Check demo state')
+    .replace('- @.demo_opening.demo_status: Check office state', '- @demo_opening.demo_status: Check office state')
     .replace('- @.demo_opening.support_followup: Follow up on support', '- @demo_opening.support_followup: Follow up on support')
     .replace('- @demo_status: Check demo state', '- @demo_opening.demo_status: Check demo state')
-    .replace('- @support_followup: Follow up on support', '- @demo_opening.support_followup: Follow up on support');
+    .replace('- @demo_status: Check office state', '- @demo_opening.demo_status: Check office state')
+    .replace('- @support_followup: Follow up on support', '- @demo_opening.support_followup: Follow up on support')
+    .replace('- @demo_campaign_pressure: Play the complex event chain', '- @demo_campaign_pressure: Play the civic reform chain');
   if (!after.includes('Q.demo_resources === undefined')) {
     after = after.replace(
       'if (Q.demo_event_seen === undefined) { Q.demo_event_seen = 0; }',
@@ -198,14 +531,53 @@ function repairStarterDemoSourceCompatibility(targetRoot) {
       ].join('\n')
     );
   }
-  if (!after.includes('- @main: Open the workspace hand')) {
+  if (!after.includes('Q.demo_year === undefined')) {
     after = after.replace(
-      '- @demo_opening: Start the demo event',
-      '- @main: Open the workspace hand\n- @demo_opening: Start the demo event'
+      'if (Q.demo_resolution_result === undefined) { Q.demo_resolution_result = 0; }',
+      [
+        'if (Q.demo_resolution_result === undefined) { Q.demo_resolution_result = 0; }',
+        'if (Q.demo_year === undefined) { Q.demo_year = 2032; }',
+        'if (Q.demo_month === undefined) { Q.demo_month = 9; }',
+        'if (Q.demo_monthly_tick === undefined) { Q.demo_monthly_tick = 0; }',
+        'if (Q.demo_press_risk === undefined) { Q.demo_press_risk = 0; }',
+        'if (Q.demo_legislative_path === undefined) { Q.demo_legislative_path = 0; }',
+        'if (Q.demo_budget_leak_seen === undefined) { Q.demo_budget_leak_seen = 0; }',
+        'if (Q.demo_polling_shock_seen === undefined) { Q.demo_polling_shock_seen = 0; }',
+        'if (Q.demo_council_deadlock_seen === undefined) { Q.demo_council_deadlock_seen = 0; }',
+        'if (Q.news_1 === undefined) { Q.news_1 = "Office calendar opens in September 2032."; }',
+        'if (Q.news_1_desc === undefined) { Q.news_1_desc = "The Civic Reform Office is ready for its first monthly docket."; }',
+        'if (Q.news_2 === undefined) { Q.news_2 = ""; }',
+        'if (Q.news_2_desc === undefined) { Q.news_2_desc = ""; }',
+        'if (Q.news_3 === undefined) { Q.news_3 = ""; }',
+        'if (Q.news_3_desc === undefined) { Q.news_3_desc = ""; }'
+      ].join('\n')
     );
+  }
+  if (!after.includes('- @main: Open the workspace hand')) {
+    after = after.replace(/- @demo_opening: [^\n]+/, (line) => '- @main: Open the workspace hand\n' + line);
+  }
+  if (!after.includes('- @demo_office_overview_card: Open the office overview card')) {
+    after = after.replace(/- @main: [^\n]+/, (line) => '- @demo_office_overview_card: Open the office overview card\n' + line);
+  }
+  if (!after.includes('- @demo_campaign_pressure: Play the civic reform chain')) {
+    after = after.replace(/- @demo_opening: [^\n]+/, (line) => '- @demo_campaign_pressure: Play the civic reform chain\n' + line);
+  }
+  if (!after.includes('- @post_event: Advance one month')) {
+    after = after.replace(/- @demo_opening: [^\n]+/, (line) => '- @post_event: Advance one month\n' + line);
   }
   if (after !== before) {
     fs.writeFileSync(rootScenePath, after, 'utf8');
+  }
+  const mainScenePath = path.join(targetRoot, 'source', 'scenes', 'main.scene.dry');
+  if (fs.existsSync(mainScenePath)) {
+    const mainBefore = fs.readFileSync(mainScenePath, 'utf8');
+    let mainAfter = mainBefore;
+    if (!mainAfter.includes('- @demo_office_overview_card: Review office overview card')) {
+      mainAfter = mainAfter.replace(/- @demo_action_deck: [^\n]+/, (line) => '- @demo_office_overview_card: Review office overview card\n' + line);
+    }
+    if (mainAfter !== mainBefore) {
+      fs.writeFileSync(mainScenePath, mainAfter, 'utf8');
+    }
   }
   const postEventPath = path.join(targetRoot, 'source', 'scenes', 'post_event.scene.dry');
   if (fs.existsSync(postEventPath)) {
@@ -219,6 +591,28 @@ function repairStarterDemoSourceCompatibility(targetRoot) {
           'if (Q.demo_advisor_trust === undefined) { Q.demo_advisor_trust = 0; }',
           'if (Q.demo_card_progress === undefined) { Q.demo_card_progress = 0; }',
           'if (Q.demo_event_seen === undefined) { Q.demo_event_seen = 0; }'
+        ].join('\n')
+      );
+    }
+    if (!postAfter.includes('Q.demo_year === undefined')) {
+      postAfter = postAfter.replace(
+        'if (Q.demo_resolution_result === undefined) { Q.demo_resolution_result = 0; }',
+        [
+          'if (Q.demo_resolution_result === undefined) { Q.demo_resolution_result = 0; }',
+          'if (Q.demo_year === undefined) { Q.demo_year = 2032; }',
+          'if (Q.demo_month === undefined) { Q.demo_month = 9; }',
+          'if (Q.demo_monthly_tick === undefined) { Q.demo_monthly_tick = 0; }',
+          'if (Q.demo_press_risk === undefined) { Q.demo_press_risk = 0; }',
+          'if (Q.demo_legislative_path === undefined) { Q.demo_legislative_path = 0; }',
+          'if (Q.demo_budget_leak_seen === undefined) { Q.demo_budget_leak_seen = 0; }',
+          'if (Q.demo_polling_shock_seen === undefined) { Q.demo_polling_shock_seen = 0; }',
+          'if (Q.demo_council_deadlock_seen === undefined) { Q.demo_council_deadlock_seen = 0; }',
+          'if (Q.news_1 === undefined) { Q.news_1 = "Office calendar opens in September 2032."; }',
+          'if (Q.news_1_desc === undefined) { Q.news_1_desc = "The Civic Reform Office is ready for its first monthly docket."; }',
+          'if (Q.news_2 === undefined) { Q.news_2 = ""; }',
+          'if (Q.news_2_desc === undefined) { Q.news_2_desc = ""; }',
+          'if (Q.news_3 === undefined) { Q.news_3 = ""; }',
+          'if (Q.news_3_desc === undefined) { Q.news_3_desc = ""; }'
         ].join('\n')
       );
     }

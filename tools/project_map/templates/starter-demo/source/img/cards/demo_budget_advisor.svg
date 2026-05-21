@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="480" viewBox="0 0 360 480">
+  <rect width="360" height="480" rx="20" fill="#eef0df"/>
+  <rect x="26" y="26" width="308" height="428" rx="18" fill="#fefff6" stroke="#78815a" stroke-width="7"/>
+  <text x="180" y="88" text-anchor="middle" font-family="Georgia, serif" font-size="28" fill="#30351f">Budget Desk</text>
+  <rect x="98" y="152" width="164" height="220" rx="12" fill="#f2ecd1" stroke="#87905f" stroke-width="7"/>
+  <path d="M128 204h104M128 248h104M128 292h104" stroke="#5a633f" stroke-width="10" stroke-linecap="round"/>
+  <path d="M150 338h60" stroke="#a55b36" stroke-width="14" stroke-linecap="round"/>
+  <text x="180" y="420" text-anchor="middle" font-family="Georgia, serif" font-size="22" fill="#56603d">count votes</text>
+</svg>

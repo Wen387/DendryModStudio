@@ -801,12 +801,15 @@ assert(structureBundle.proposalText.includes('Add trigger effect'), 'structural 
 const addSectionOptionField = eventModel.fields.find((field) => field.structureAction === 'add_option' && field.structureSourceBlock && field.structureSourceBlock.kind === 'section_text_option_insert_anchor');
 assert(addSectionOptionField, 'existing editor should expose a source-backed add-option control for a selected result section');
 const complexSectionOptionProposal = existingEdit.buildProposal(eventModel, {
-  [addSectionOptionField.id]: '- @republican_concordat: What next?\n# republican_concordat\nresult-mode: native\nchoose-if: resources >= 1\nunavailable-subtitle: We need at least one resource.\nA complex result can be created without falling back to a fake manual snippet.'
+  [addSectionOptionField.id]: '- @republican_concordat: What next?\n# republican_concordat\nresult-mode: native\nchoose-if: resources >= 1\nunavailable-subtitle: We need at least one resource.\non-arrival: resources -= 1 if public_order >= 0\nA complex result can be created without falling back to a fake manual snippet.'
 });
 const complexSectionOptionChange = complexSectionOptionProposal.changes.find((change) => change.fieldId === addSectionOptionField.id);
 assert(complexSectionOptionChange && complexSectionOptionChange.editability === 'guarded_apply' && complexSectionOptionChange.operationType === 'insert_text', 'conditioned add-option result proposals should remain source-backed and installable');
 assert(complexSectionOptionChange.after.includes('choose-if: resources >= 1'), 'conditioned add-option insert should preserve choose-if evidence');
 assert(complexSectionOptionChange.after.includes('unavailable-subtitle: We need at least one resource.'), 'conditioned add-option insert should preserve unavailable text');
+assert(complexSectionOptionChange.after.includes('on-arrival: resources -= 1 if public_order >= 0'), 'conditioned add-option insert should preserve simple choice effects inside the new result section');
+const complexSectionOptionBundle = existingEdit.buildExportBundle(complexSectionOptionProposal, index);
+assert(complexSectionOptionBundle.installPlan.operations.some((op) => op.type === 'insert_text' && op.content.includes('on-arrival: resources -= 1 if public_order >= 0')), 'conditioned add-option effects should reach the install plan');
 const unsafeBranchProposal = existingEdit.buildProposal(eventModel, {
   [addBranchField.id]: '# q_prefixed_branch\n[? if Q.public_order >= 2 : This source-invalid branch should not auto-apply. ?]'
 });
@@ -1217,13 +1220,15 @@ const starterDemoIndex = JSON.parse(fs.readFileSync(path.join(__dirname, 'templa
 const starterCardModel = existingEdit.buildEditModel(starterDemoIndex, 'cards', 'demo_action_card');
 assert(starterCardModel.ok, 'starter demo card edit model should build: ' + JSON.stringify(starterCardModel.diagnostics));
 const starterRemoveEffectField = starterCardModel.fields.find((field) => field.id === 'structure_remove_effect_demo_resources_1');
-assert(starterRemoveEffectField && starterRemoveEffectField.editability === 'guarded_apply', 'starter demo card JS-block effects should expose guarded effect deletion');
-assert(starterRemoveEffectField.source && starterRemoveEffectField.source.anchorText === 'Q.demo_resources = (Q.demo_resources || 0) - 1;', 'starter demo card effect deletion should recover the exact JS line anchor');
+const starterNativeEffectLine = 'on-arrival: demo_resources -= 1; demo_support += 1; demo_public_attention += 1; demo_card_progress += 1';
+const starterNativeEffectLineWithoutResourceSpend = 'on-arrival: demo_support += 1; demo_public_attention += 1; demo_card_progress += 1';
+assert(starterRemoveEffectField && starterRemoveEffectField.editability === 'guarded_apply', 'starter demo native card effects should expose guarded effect deletion');
+assert(starterRemoveEffectField.source && starterRemoveEffectField.source.anchorText === starterNativeEffectLine, 'starter demo card effect deletion should recover the exact native effect line anchor');
 const starterRemoveEffectProposal = existingEdit.buildProposal(starterCardModel, {
   [starterRemoveEffectField.id]: 'true'
 });
 const starterRemoveEffectBundle = existingEdit.buildExportBundle(starterRemoveEffectProposal, starterDemoIndex);
-assert(starterRemoveEffectBundle.installPlan.operations.some((operation) => operation.type === 'replace_text' && operation.safety === 'guarded_apply' && operation.search === 'Q.demo_resources = (Q.demo_resources || 0) - 1;' && operation.replace === ''), 'starter demo card effect deletion should export a guarded empty replace_text operation');
+assert(starterRemoveEffectBundle.installPlan.operations.some((operation) => operation.type === 'replace_text' && operation.safety === 'guarded_apply' && operation.search === starterNativeEffectLine && operation.replace === starterNativeEffectLineWithoutResourceSpend), 'starter demo card effect deletion should export a guarded native effect-line replacement');
 
 const advancedModel = existingEdit.buildEditModel({
   scenes: [{id: 'protected_router', title: 'Router Scene', sourceSpan: {path: 'source/scenes/post_event.scene.dry', startLine: 12, endLine: 20}}],

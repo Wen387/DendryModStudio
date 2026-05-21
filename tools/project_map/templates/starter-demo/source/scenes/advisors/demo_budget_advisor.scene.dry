@@ -1,0 +1,57 @@
+title: Budget Advisor
+new-page: true
+is-pinned-card: true
+card-image: img/cards/demo_budget_advisor.svg
+tags: demo_advisor
+subtitle: Standing advisor for resources and cabinet routes
+
+= Budget Advisor
+
+This advisor makes the office feel more like a small political machine. It
+changes resources, cabinet balance, and the legislative route that the monthly
+docket can later test.
+
+- @find_capacity: Find spare capacity
+- @write_fiscal_note: Write a fiscal note
+- @promise_amendment: Promise an amendment route
+
+@find_capacity
+title: Find spare capacity
+subtitle: Add resources, add a little scrutiny.
+on-arrival: demo_resources += 2; demo_press_risk += 1; demo_advisor_trust += 1
+
+The advisor finds a small line item that keeps the office moving. A larger
+paper trail also makes later leaks sharper.
+
+- @return_find_capacity: Continue
+
+@return_find_capacity
+go-to: main
+
+@write_fiscal_note
+title: Write a fiscal note
+subtitle: Build the case and cabinet balance.
+on-arrival: demo_case_strength += 1; demo_cabinet_balance += 1; demo_legislative_path += 1
+
+The fiscal note gives cautious cabinet allies a route they can defend in the
+hearing.
+
+- @return_write_fiscal_note: Continue
+
+@return_write_fiscal_note
+go-to: main
+
+@promise_amendment
+title: Promise an amendment route
+subtitle: Requires cabinet balance.
+choose-if: demo_cabinet_balance >= 1
+unavailable-subtitle: No cabinet ally is close enough to carry an amendment.
+on-arrival: demo_cabinet_balance -= 1; demo_legislative_path += 2; demo_opposition_heat += 1
+
+The advisor promises a narrower route. It gives the office a procedural path,
+but opponents can now say the plan is being rewritten.
+
+- @return_promise_amendment: Continue
+
+@return_promise_amendment
+go-to: main

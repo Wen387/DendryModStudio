@@ -10,7 +10,7 @@
 
 Dendry Mod Studio is a preview desktop tool for exploring, reviewing, and safely editing Dendry / DendryNexus projects. It helps authors inspect scenes, events, cards, news, variables, assets, player-facing text, and install plans before changing project files.
 
-The current preview version is `v0.97.6`. Release builds are unsigned, so Windows may show a SmartScreen warning. Desktop release artifacts include the Python runtime used by the project indexer.
+The current preview version is `v0.97.8`. Release builds are unsigned, so Windows may show a SmartScreen warning. Desktop release artifacts include the Python runtime used by the project indexer.
 
 ## Download
 
@@ -107,7 +107,7 @@ Open a GitHub Issue at [github.com/Wen387/DendryModStudio/issues](https://github
 
 A good report helps reproduce the problem. Try to cover as many of these as you can:
 
-1. **Studio version** — shown in the app's About or title bar (e.g. `v0.97.6`).
+1. **Studio version** — shown in the app's About or title bar (e.g. `v0.97.8`).
 2. **Operating system** — Windows 10, Windows 11, Ubuntu, etc.
 **Hardware specs** (if relevant) — CPU, RAM, and disk type (SSD/HDD). Particularly useful for performance-related reports such as slow loading or preview timeouts.
 3. **Desktop or browser mode.**
@@ -186,7 +186,7 @@ npm run smoke
 npm run doctor
 ```
 
-Additional engineering notes live in [tools/project_map/README.md](tools/project_map/README.md). Release preparation notes live in [docs/releases/v0.97.6-dev-preview.md](docs/releases/v0.97.6-dev-preview.md), and tester-facing preview notes live in [tools/project_map/RELEASE_NOTES_v0.97.6.md](tools/project_map/RELEASE_NOTES_v0.97.6.md).
+Additional engineering notes live in [tools/project_map/README.md](tools/project_map/README.md). Release preparation notes live in [docs/releases/v0.97.8-dev-preview.md](docs/releases/v0.97.8-dev-preview.md), and tester-facing preview notes live in [tools/project_map/RELEASE_NOTES_v0.97.8.md](tools/project_map/RELEASE_NOTES_v0.97.8.md).
 
 ## Release Builds
 

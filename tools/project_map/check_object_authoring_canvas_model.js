@@ -6,6 +6,7 @@ const os = require('os');
 const path = require('path');
 const canvasModel = require('./authoring/object_authoring_canvas_model.js');
 const eventStructureModel = require('./authoring/event_structure_model.js');
+const eventChoicePathModel = require('./authoring/event_choice_path_model.js');
 const eventWorkbench = require('./authoring/event_workbench_model.js');
 const ownershipMatching = require('./authoring/ownership_matching_model.js');
 const installPlanApi = require('./authoring/install_plan.js');
@@ -37,6 +38,10 @@ function assert(condition, message) {
   if (!condition) {
     fail(message);
   }
+}
+
+function occurrenceCount(text, needle) {
+  return String(text || '').split(String(needle || '')).length - 1;
 }
 
 assert(ownershipMatching.endpointMatches('deport_hitler.force_approach', 'force_approach'), 'ownership matching should bridge qualified and local section ids');
@@ -531,6 +536,20 @@ const index = {
           }
         },
         {
+          id: 'route_branch_right_effect',
+          text: 'on-arrival: right_result += 1',
+          role: 'script',
+          owner: {kind: 'scene', sceneId: 'route_branch_event', sectionId: 'route_branch_event.right'},
+          source: {
+            path: routeBranchEvent.path,
+            line: 23,
+            startLine: 23,
+            endLine: 23,
+            anchorText: 'on-arrival: right_result += 1',
+            endAnchorText: 'on-arrival: right_result += 1'
+          }
+        },
+        {
           id: 'generic_intro_followup_heading',
           text: 'Nice having you, Bruning.',
           role: 'heading',
@@ -663,6 +682,131 @@ index.semantic.textCorpus.items.push(
   }
 );
 
+const sharedMenuFlow = scene('shared_menu_flow', {
+  title: 'Shared Menu Flow',
+  options: [],
+  routes: {goTo: [{id: 'menu', raw: 'menu'}]},
+  sections: [{
+    id: 'shared_menu_flow.menu',
+    title: 'Choose a route.',
+    sourceSpan: {path: 'source/scenes/events/shared_menu_flow.scene.dry', startLine: 20, endLine: 28},
+    routes: {},
+    options: [{
+      target: {id: 'left'},
+      title: 'Take the left route.',
+      sourceSpan: {
+        path: 'source/scenes/events/shared_menu_flow.scene.dry',
+        line: 24,
+        startLine: 24,
+        endLine: 24,
+        anchorText: '- @left: Take the left route.',
+        endAnchorText: '- @left: Take the left route.'
+      }
+    }, {
+      target: {id: 'right'},
+      title: 'Take the right route.',
+      sourceSpan: {
+        path: 'source/scenes/events/shared_menu_flow.scene.dry',
+        line: 25,
+        startLine: 25,
+        endLine: 25,
+        anchorText: '- @right: Take the right route.',
+        endAnchorText: '- @right: Take the right route.'
+      }
+    }]
+  }, {
+    id: 'shared_menu_flow.left',
+    title: 'Left route.',
+    sourceSpan: {path: 'source/scenes/events/shared_menu_flow.scene.dry', startLine: 30, endLine: 36},
+    routes: {},
+    options: [{
+      target: {id: 'shared'},
+      title: 'Continue to the shared room.',
+      sourceSpan: {
+        path: 'source/scenes/events/shared_menu_flow.scene.dry',
+        line: 34,
+        startLine: 34,
+        endLine: 34,
+        anchorText: '- @shared: Continue to the shared room.',
+        endAnchorText: '- @shared: Continue to the shared room.'
+      }
+    }]
+  }, {
+    id: 'shared_menu_flow.right',
+    title: 'Right route.',
+    sourceSpan: {path: 'source/scenes/events/shared_menu_flow.scene.dry', startLine: 40, endLine: 46},
+    routes: {},
+    options: [{
+      target: {id: 'shared'},
+      title: 'Continue to the shared room.',
+      sourceSpan: {
+        path: 'source/scenes/events/shared_menu_flow.scene.dry',
+        line: 44,
+        startLine: 44,
+        endLine: 44,
+        anchorText: '- @shared: Continue to the shared room.',
+        endAnchorText: '- @shared: Continue to the shared room.'
+      }
+    }]
+  }, {
+    id: 'shared_menu_flow.shared',
+    title: 'Shared room.',
+    sourceSpan: {path: 'source/scenes/events/shared_menu_flow.scene.dry', startLine: 50, endLine: 56},
+    routes: {},
+    options: [{
+      target: {id: 'done'},
+      title: 'Finish.',
+      sourceSpan: {
+        path: 'source/scenes/events/shared_menu_flow.scene.dry',
+        line: 54,
+        startLine: 54,
+        endLine: 54,
+        anchorText: '- @done: Finish.',
+        endAnchorText: '- @done: Finish.'
+      }
+    }]
+  }]
+});
+index.scenes.push(sharedMenuFlow);
+index.semantic.events.push({id: sharedMenuFlow.id, title: sharedMenuFlow.title, path: sharedMenuFlow.path});
+index.semantic.textCorpus.items.push(
+  {
+    id: 'shared_menu_flow_title',
+    text: 'Shared Menu Flow',
+    role: 'title',
+    owner: {kind: 'scene', sceneId: 'shared_menu_flow'},
+    source: {path: sharedMenuFlow.path, line: 1}
+  },
+  {
+    id: 'shared_menu_flow_menu_body',
+    text: 'The player chooses one of two routes.',
+    role: 'body',
+    owner: {kind: 'scene', sceneId: 'shared_menu_flow', sectionId: 'shared_menu_flow.menu'},
+    source: {path: sharedMenuFlow.path, line: 22}
+  },
+  {
+    id: 'shared_menu_flow_left_body',
+    text: 'The left route has a distinct setup.',
+    role: 'body',
+    owner: {kind: 'scene', sceneId: 'shared_menu_flow', sectionId: 'shared_menu_flow.left'},
+    source: {path: sharedMenuFlow.path, line: 32}
+  },
+  {
+    id: 'shared_menu_flow_right_body',
+    text: 'The right route has a distinct setup.',
+    role: 'body',
+    owner: {kind: 'scene', sceneId: 'shared_menu_flow', sectionId: 'shared_menu_flow.right'},
+    source: {path: sharedMenuFlow.path, line: 42}
+  },
+  {
+    id: 'shared_menu_flow_shared_body',
+    text: 'Both routes now arrive at the same shared room.',
+    role: 'body',
+    owner: {kind: 'scene', sceneId: 'shared_menu_flow', sectionId: 'shared_menu_flow.shared'},
+    source: {path: sharedMenuFlow.path, line: 52}
+  }
+);
+
 const factoryResultText = 'If the capitalists are going to attack us, then we must hit them back.';
 const factoryControlsResultText = 'Enact capital controls to lessen the impact.';
 const factoryUnavailableText = 'The judiciary would never allow this.';
@@ -683,7 +827,6 @@ const factoryCrisis = scene('factory_crisis', {
   }, {
     target: {id: 'controls'},
     title: 'Enact capital controls to lessen the impact.',
-    chooseIf: 'judicial_reform >= 2',
     sourceSpan: {
       path: 'source/scenes/events/factory_crisis.scene.dry',
       line: 13,
@@ -702,6 +845,10 @@ const factoryCrisis = scene('factory_crisis', {
     },
     {
       id: 'factory_crisis.controls',
+      chooseIf: 'judicial_reform >= 2',
+      metadata: {
+        chooseIf: {path: 'source/scenes/events/factory_crisis.scene.dry', line: 25}
+      },
       sourceSpan: {path: 'source/scenes/events/factory_crisis.scene.dry', startLine: 25, endLine: 29},
       routes: {},
       options: []
@@ -782,6 +929,10 @@ assert(existing.eventBody.optionEffects[0].fields.some((field) => field.role ===
 assert(existing.eventBody.optionEffects[0].fields.some((field) => field.role === 'effect' && field.value === 'Q.stability += 2' && field.optionId === 'target_scene'), 'existing body should map fully-qualified section effects back to the matching option preview group');
 assert(existing.eventBody.structureActions.some((field) => field.id === 'structure_add_option_effect_target_scene'), 'existing body should expose option effect creation fields');
 assert(existing.eventBody.eventStructure && existing.eventBody.eventStructure.kind === 'event_structure', 'existing Event editor body should be derived through EventStructure');
+assert(existing.eventBody.eventGraph && existing.eventBody.eventGraph.kind === 'complex_event_graph', 'existing Event editor body should expose the shared route map graph');
+const existingRouteEdge = existing.eventBody.eventGraph.edges.find((edge) => edge.kind === 'result_route');
+assert(existingRouteEdge && existingRouteEdge.id && existingRouteEdge.editAction && existingRouteEdge.editAction.actionKind === 'open_route_editor', 'existing route map should expose route edges with edit actions', existing.eventBody.eventGraph.edges);
+assert(!existingRouteEdge.editAction.draftAction && existingRouteEdge.editAction.forceSemanticEditor && existingRouteEdge.editAction.semanticEditor && existingRouteEdge.editAction.semanticEditor.kind === 'route_order', 'existing route map route edits should open the Semantic Logic route editor rather than draft field rewrites', existingRouteEdge.editAction);
 const existingPreviewHtml = previewEditor.renderPreviewPane(existing);
 assert(existingPreviewHtml.includes('data-object-editing-preview-effects="true"'), 'left preview should render an effects and impact block');
 assert(existingPreviewHtml.includes('Q.budget += 1'), 'left preview should show trigger effect impact text');
@@ -796,6 +947,8 @@ assert(factoryOption.fields.some((field) => field.role === 'option_label' && fie
 assert(factoryOption.resultFields.length === 1 && String(factoryOption.resultFields[0].original || '').trim() === factoryResultText, 'option result prose should remain attached as after-choice text');
 const capitalControlsOption = factoryCanvas.eventBody.options.find((option) => option.id === 'controls');
 assert(capitalControlsOption && capitalControlsOption.unavailableText === factoryUnavailableText, 'unavailable option text should be attached to the owning player choice');
+assert(capitalControlsOption.sectionChooseIf === 'judicial_reform >= 2', 'target-section choose-if should be surfaced on the owning player choice');
+assert(capitalControlsOption.fields.some((field) => field.role === 'condition' && field.original === 'judicial_reform >= 2'), 'target-section choose-if should remain editable from the owning choice fields');
 assert(capitalControlsOption.fields.some((field) => field.role === 'unavailable_text' && field.original === factoryUnavailableText), 'unavailable option text should remain editable from the option fields');
 assert(capitalControlsOption.resultFields.length === 1 && String(capitalControlsOption.resultFields[0].original || '').trim() === factoryControlsResultText, 'conditional option result text should be attached to the owning player choice');
 assert(!factoryCanvas.eventBody.sections.concat(factoryCanvas.eventBody.branchSections).some((field) => String(field.original || '').includes(factoryUnavailableText)), 'unavailable option text should not render as a standalone page section');
@@ -813,14 +966,41 @@ assert(/<button[^>]*>Empower workers to seize the factories!<\/button>/.test(fac
 assert(!/<button[^>]*>If the capitalists are going to attack us/.test(factoryPreviewHtml), 'left preview must not promote after-choice prose into the option button title');
 assert(/data-object-editing-preview-choice="controls"[\s\S]*Unavailable text[\s\S]*The judiciary would never allow this\./.test(factoryPreviewHtml), 'left preview should show unavailable text inside the owning option card');
 const factoryEditorHtml = previewEditor.render(factoryCanvas);
-assert(/data-preview-object-choice="controls"[\s\S]*data-object-canvas-field="factory_crisis_controls_unavailable"[\s\S]*data-object-canvas-field="block:section_text_factory_crisis_controls"/.test(factoryEditorHtml), 'right editor should group option label, unavailable text, and result text inside the same choice editor');
-assert(!/data-preview-object-branches="true"[\s\S]*The judiciary would never allow this\./.test(factoryEditorHtml), 'right editor must not render unavailable text as a separate branch card');
+const factoryChoiceStart = factoryEditorHtml.indexOf('data-preview-object-choice="controls"');
+const factoryChoiceNext = factoryEditorHtml.indexOf('<article class="preview-object-choice"', factoryChoiceStart + 1);
+const factoryChoiceHtml = factoryChoiceStart >= 0
+  ? factoryEditorHtml.slice(factoryChoiceStart, factoryChoiceNext > factoryChoiceStart ? factoryChoiceNext : factoryEditorHtml.length)
+  : '';
+const factoryBranchStart = factoryEditorHtml.indexOf('data-preview-object-choice-branch="controls"');
+const factoryBranchNext = factoryEditorHtml.indexOf('data-preview-object-choice-branch="', factoryBranchStart + 1);
+const factoryBranchHtml = factoryBranchStart >= 0
+  ? factoryEditorHtml.slice(factoryBranchStart, factoryBranchNext > factoryBranchStart ? factoryBranchNext : factoryEditorHtml.length)
+  : '';
+assert(factoryChoiceHtml.includes('data-object-canvas-field="factory_crisis_controls_unavailable"'), 'right editor should keep unavailable text inside the owning choice editor');
+assert(factoryBranchHtml.includes('data-object-canvas-field="block:section_text_factory_crisis_controls"'), 'right editor should keep conditional result text in the same player-path branch');
+assert(factoryChoiceHtml.includes('data-object-canvas-field="metadata_factory_crisis_controls_chooseIf"'), 'right editor should place target-section choose-if editing inside the owning choice editor');
+assert(factoryBranchHtml.indexOf('data-object-canvas-field="metadata_factory_crisis_controls_chooseIf"') < factoryBranchHtml.indexOf('data-object-canvas-field="block:section_text_factory_crisis_controls"'), 'choice condition editing should appear before the after-choice result body in the player path');
+assert(occurrenceCount(factoryEditorHtml, 'data-object-canvas-field="metadata_factory_crisis_controls_chooseIf"') === 1, 'target-section choose-if should not be duplicated in the bottom logic editor after it is owned by a choice');
+assert(occurrenceCount(factoryEditorHtml, 'data-object-canvas-field="block:section_text_factory_crisis_controls"') === 1, 'conditional option result text should not be reclassified as a choice condition or duplicate route body');
+assert(!/data-preview-object-field-role="choice-condition"[\s\S]{0,900}Add image to conditional branch/.test(factoryChoiceHtml), 'flow asset controls whose labels mention conditional branches should not be misclassified as choice conditions');
+const factoryBranchEditorHtml = (factoryEditorHtml.match(/<section class="preview-object-branches"[\s\S]*?(?=<section class="object-editing-preview-assets|<details class="preview-object-logic-details|<details class="preview-object-review-details|<\/article>)/) || [''])[0];
+assert(!factoryBranchEditorHtml.includes('The judiciary would never allow this.'), 'right editor must not render unavailable text as a separate branch card');
 const menuFlowCanvas = canvasModel.buildExistingCanvas(index, 'events', 'menu_flow', {});
 assert(menuFlowCanvas.ok, 'menu-flow existing Event should open in Object Canvas: ' + JSON.stringify(menuFlowCanvas.changeState.diagnostics));
 const menuBranch = menuFlowCanvas.eventBody.branchSections.find((field) => field.sectionId === 'menu_flow.menu');
 assert(menuBranch && menuBranch.semanticRole === 'menu_section_text', 'follow-up menus should stay in branch sections instead of choice result fields');
 assert(menuBranch.ownedOptionIds.length === 2, 'follow-up menu branch sections should expose their owned choices');
 assert(menuFlowCanvas.eventBody.options.length === 2, 'follow-up menu choices should still be editable option rows');
+const standaloneMenuTree = eventChoicePathModel.choiceTreePlan(menuFlowCanvas.eventBody.options, menuFlowCanvas.eventBody);
+assert(standaloneMenuTree && standaloneMenuTree.rootSectionRows.length === 1, 'choice path model should build section-owned-only roots without viewer-provided section groups');
+assert(standaloneMenuTree.rootSectionRows[0].section.fields.some((field) => field.id === 'block:section_text_menu_flow_menu'), 'choice path model should carry section body fields when it derives section groups itself');
+assert(eventChoicePathModel.choiceTreeSectionIds(menuFlowCanvas.eventBody).includes('menu'), 'choice path model should identify consumed owned menu sections without viewer helpers');
+const menuGraphNodeIds = menuFlowCanvas.eventBody.eventGraph.nodes.map((node) => node.id);
+const menuGraphEdgeIds = menuFlowCanvas.eventBody.eventGraph.edges.map((edge) => edge.id);
+assert(new Set(menuGraphNodeIds).size === menuGraphNodeIds.length, 'event graph should not expose duplicate node ids after route evidence merge');
+assert(new Set(menuGraphEdgeIds).size === menuGraphEdgeIds.length, 'event graph should not expose duplicate edge ids after route evidence merge');
+const menuFlowSectionOptionNode = menuFlowCanvas.eventBody.eventGraph.nodes.find((node) => node.kind === 'section_option' && /First path/.test(String(node.label || '')));
+assert(menuFlowSectionOptionNode && /menu$/.test(String(menuFlowSectionOptionNode.ownerSectionId || '')), 'section-owned options should be represented as section options in the route map');
 const menuFlowFirstOption = menuFlowCanvas.eventBody.options.find((option) => option.rawTargetId === 'first');
 assert(menuFlowFirstOption && menuFlowFirstOption.fields.some((field) => field.role === 'option_label' && field.original === 'First path.' && field.editability !== 'read_only' && !field.readOnly), 'section-owned source-line option labels should stay editable instead of falling back to read-only');
 assert(menuFlowCanvas.eventBody.options.every((option) => !option.resultFields.some((field) => field.sectionId === 'menu_flow.menu')), 'owned menu text must not be duplicated under every owned option');
@@ -841,6 +1021,12 @@ const menuPreviewHtml = previewEditor.renderPreviewPane(menuFlowCanvas);
 assert(menuPreviewHtml.includes('Follow-up menu'), 'left preview should label owned-choice sections as follow-up menus');
 assert(menuPreviewHtml.includes('Contains choices'), 'left preview should explain which choices belong to a follow-up menu');
 const menuEditorHtml = previewEditor.render(menuFlowCanvas);
+const menuSectionRootStart = menuEditorHtml.indexOf('data-preview-object-choice-section-root="menu"');
+assert(menuSectionRootStart >= 0, 'right editor should render pure section-owned menus as a player-path section root instead of flat root choices');
+assert(menuEditorHtml.indexOf('data-object-canvas-field="block:section_text_menu_flow_menu"') > menuSectionRootStart, 'menu body should sit inside the player-path section root');
+assert(occurrenceCount(menuEditorHtml, 'data-object-canvas-field="block:section_text_menu_flow_menu"') === 1, 'menu body should not be duplicated in the bottom follow-up editor');
+const menuBottomBranchHtml = (menuEditorHtml.match(/<section class="preview-object-branches"[\s\S]*?(?=<section class="object-editing-preview-assets|<details class="preview-object-logic-details|<details class="preview-object-review-details|<\/article>)/) || [''])[0];
+assert(!menuBottomBranchHtml.includes('block:section_text_menu_flow_menu'), 'owned menu body should not remain in the bottom follow-up editor once it is rendered in the choice path');
 assert(menuEditorHtml.includes('New option in this section'), 'right editor should place a section-owned option creator inside follow-up sections');
 assert(menuEditorHtml.includes('Add to: @menu') && menuEditorHtml.includes('title="menu_flow.menu"'), 'section-owned option creator should show the target section context');
 assert(menuEditorHtml.includes('Simple source-backed options can be applied automatically after review.'), 'guarded section-owned option creators should clearly show guarded apply safety');
@@ -873,6 +1059,16 @@ assert(menuComplexAddOption.changeState.installPlan.operations.some((operation) 
   !String(operation.content || '').includes('result-mode: native')
 ), 'complex source-backed option insertion should stay guarded and source-backed instead of a manual snippet');
 assert(!menuComplexAddOption.changeState.installPlan.operations.some((operation) => operation.type === 'manual_snippet'), 'complex source-backed option insertion should not fall back to manual review');
+const sharedMenuCanvas = canvasModel.buildExistingCanvas(index, 'events', 'shared_menu_flow', {});
+assert(sharedMenuCanvas.ok, 'shared menu flow existing Event should open in Object Canvas: ' + JSON.stringify(sharedMenuCanvas.changeState.diagnostics));
+const sharedMenuTree = eventChoicePathModel.choiceTreePlan(sharedMenuCanvas.eventBody.options, sharedMenuCanvas.eventBody);
+assert(sharedMenuTree && sharedMenuTree.rootSectionRows.length === 1 && sharedMenuTree.rootSectionRows[0].id === 'menu', 'multi-step section-owned trees should expose only the entry menu as the root');
+assert(!sharedMenuTree.rootSectionRows.some((row) => ['left', 'right', 'shared'].includes(row.id)), 'later section-owned steps should not become parallel top-level roots');
+const sharedMenuEditorHtml = previewEditor.render(sharedMenuCanvas);
+assert(occurrenceCount(sharedMenuEditorHtml, 'data-preview-object-choice-section-root="menu"') === 1, 'shared menu editor should render a single entry menu root');
+const sharedMenuSharedTextCount = occurrenceCount(sharedMenuEditorHtml, 'data-object-canvas-field="block:section_text_shared_menu_flow_shared"');
+assert(sharedMenuSharedTextCount === 1, 'shared target sections should expose one full editor instead of duplicating under every incoming option: ' + sharedMenuSharedTextCount);
+assert(sharedMenuEditorHtml.includes('data-preview-object-choice-shared-section="shared"'), 'shared target sections should show a compact shared-step reference on later paths');
 const conditionalOptionEffect = canvasModel.buildExistingCanvas(index, 'events', 'generic_intro', {
   values: {
     __structureCommands: [{
@@ -912,6 +1108,12 @@ assert(rootEffectlessTriggerField.structureSourceBlock && rootEffectlessTriggerF
 assert(rootEffectlessTriggerField.source && rootEffectlessTriggerField.source.anchorText === 'max-visits: 1', 'root trigger insertion should anchor after the last exact root metadata line');
 const rootEffectlessEditorHtml = previewEditor.render(rootEffectlessExisting);
 assert(!/data-preview-object-structure-builder="add_trigger_effect"[\s\S]{0,1600}Manual review only/.test(rootEffectlessEditorHtml), 'root trigger insertion builders should not show manual review when metadata anchors are exact');
+assert(rootEffectlessEditorHtml.includes('data-preview-object-opening-context="true"'), 'existing event editor should place appearance/schedule fields near the opening');
+const rootOpeningContextStart = rootEffectlessEditorHtml.indexOf('data-preview-object-opening-context="true"');
+const rootOpeningContextEnd = rootEffectlessEditorHtml.indexOf('</section>', rootOpeningContextStart);
+const rootAppearanceField = rootEffectlessEditorHtml.indexOf('data-object-canvas-field="metadata_viewIf"');
+assert(rootAppearanceField > rootOpeningContextStart && rootAppearanceField < rootOpeningContextEnd, 'appearance condition should render inside the opening context section');
+assert(occurrenceCount(rootEffectlessEditorHtml, 'data-object-canvas-field="metadata_viewIf"') === 1, 'appearance condition should not be duplicated again in the bottom logic editor');
 const rootEffectlessChanged = canvasModel.buildExistingCanvas(index, 'events', 'root_effectless_event', {
   values: {structure_add_trigger_effect: 'Q.public_order += 1'}
 });
@@ -919,6 +1121,36 @@ const rootEffectlessTriggerOp = rootEffectlessChanged.changeState.installPlan.op
 assert(rootEffectlessTriggerOp && rootEffectlessTriggerOp.safety === 'guarded_apply' && String(rootEffectlessTriggerOp.content || '').includes('on-arrival: public_order += 1'), 'root trigger insertion should create a guarded on-arrival insert instead of a manual snippet');
 assert(!rootEffectlessChanged.changeState.installPlan.operations.some((operation) => operation.type === 'manual_snippet'), 'root trigger insertion should not fall back to manual review');
 const routeBranchExisting = canvasModel.buildExistingCanvas(index, 'events', 'route_branch_event', {});
+const routeBranchEditorHtml = previewEditor.render(routeBranchExisting);
+const routeBranchPreviewHtml = previewEditor.renderPreviewPane(routeBranchExisting);
+const routeBranchRightTextField = routeBranchExisting.eventBody.branchSections.find((field) => field.sectionId === 'route_branch_event.right');
+const routeBranchPredicateField = routeBranchExisting.eventBody.metaFields.find((field) => field.transform === 'goto_route_predicate' && field.routePredicate === 'reform_loses');
+const routeBranchRightEffectField = routeBranchExisting.eventBody.sectionEffects.find((field) => field.sectionId === 'route_branch_event.right' && field.value === 'Q.right_result += 1');
+const routeBranchRightEffectRemoveField = routeBranchExisting.eventBody.structureActions.find((field) => field.structureAction === 'remove_effect' && field.sectionId === 'route_branch_event.right' && field.structureBefore === 'Q.right_result += 1');
+assert(routeBranchPredicateField && routeBranchPredicateField.original === 'reform_loses', 'conditional route predicates should be source-backed editable fields');
+assert(routeBranchRightEffectField, 'route outcome target sections should keep their effect fields for the player-path editor');
+assert(routeBranchRightEffectRemoveField, 'route outcome target section effects should keep paired remove-effect controls');
+assert(routeBranchEditorHtml.includes('data-preview-object-route-outcomes="true"'), 'route-only result sections should render conditional outcomes in the player path');
+assert(routeBranchEditorHtml.includes('reform_loses') && routeBranchEditorHtml.includes('The right wins.'), 'conditional route outcomes should show predicates and target result text near the owning choice');
+assert(routeBranchPreviewHtml.includes('data-object-editing-preview-route-outcomes="true"'), 'left preview should also nest conditional route outcomes under the owning root choice');
+assert(routeBranchPreviewHtml.includes('reform_loses') && routeBranchPreviewHtml.includes('The right wins.'), 'left preview should keep conditional outcome text in the player path instead of a flat branch bucket');
+assert(!/data-object-editing-preview-branches="true"[\s\S]*The right wins\./.test(routeBranchPreviewHtml), 'left preview should not duplicate owned conditional outcome text in the bottom follow-up bucket');
+assert(routeBranchEditorHtml.includes('data-object-canvas-field="' + routeBranchPredicateField.id + '"'), 'conditional route outcome predicates should render as editable controls near the route outcome');
+assert(occurrenceCount(routeBranchEditorHtml, 'data-object-canvas-field="' + routeBranchPredicateField.id + '"') === 1, 'conditional route outcome predicates should not be duplicated in the bottom logic editor');
+assert(routeBranchEditorHtml.includes('data-object-canvas-field="' + routeBranchRightEffectField.id + '"'), 'conditional route outcome effects should render as editable controls near the route outcome');
+assert(occurrenceCount(routeBranchEditorHtml, 'data-object-canvas-field="' + routeBranchRightEffectField.id + '"') === 1, 'conditional route outcome effects should not be duplicated elsewhere');
+assert(occurrenceCount(routeBranchEditorHtml, 'data-object-canvas-field="' + routeBranchRightEffectRemoveField.id + '"') === 1, 'conditional route outcome effect delete controls should not be duplicated in the bottom trigger-effect editor');
+assert(routeBranchRightTextField && occurrenceCount(routeBranchEditorHtml, 'data-object-canvas-field="' + routeBranchRightTextField.id + '"') === 1, 'route outcome target text should not also appear in the legacy bottom branch section');
+const routeBranchPredicateEdit = canvasModel.buildExistingCanvas(index, 'events', 'route_branch_event', {
+  values: {[routeBranchPredicateField.id]: 'reform_loses and public_order >= 1'}
+});
+assert(routeBranchPredicateEdit.changeState.installPlan.operations.some((operation) =>
+  operation.type === 'replace_text' &&
+  operation.safety === 'guarded_apply' &&
+  operation.search === 'right if reform_loses' &&
+  operation.replace === 'right if reform_loses and public_order >= 1'
+), 'conditional route predicate edits should replace the source-backed go-to clause without changing the target');
+assert(!routeBranchPredicateEdit.changeState.installPlan.operations.some((operation) => operation.type === 'manual_snippet'), 'conditional route predicate edits should not fall back to manual snippets');
 const routeBranchRightLayer = routeBranchExisting.eventBody.structureActions.find((field) => field.structureAction === 'remove_layer' && field.sectionId === 'route_branch_event.right');
 assert(routeBranchRightLayer && routeBranchRightLayer.editability === 'advanced_source_patch', 'routed branch layers reached by a multi-clause go-to line should be advanced-deleteable');
 assert(routeBranchRightLayer.structureSourceBlock && routeBranchRightLayer.structureSourceBlock.kind === 'layer_bundle_delete', 'routed branch deletion should carry a bundle delete block');
@@ -1636,6 +1868,55 @@ assert(newEvent.changeState.draft.kind === 'world_event', 'new Event draft shoul
 assert(newEvent.changeState.output.installPlan, 'new Event should produce an install plan');
 assert(newEvent.changeState.operationSummary.total > 0, 'new Event install plan should summarize operations');
 assert(newEvent.changeState.output.scene.includes('max-visits: 1'), 'one-shot new Event should render a runtime-valid default max-visits value');
+
+const purePatternEvent = canvasModel.buildNewEventCanvas(index, {}, {
+  values: {'event.pattern': 'pure_text'}
+});
+assert(purePatternEvent.ok, 'pure text Event pattern should build as a valid draft', purePatternEvent.changeState.diagnostics);
+assert(purePatternEvent.changeState.draft.schemaVersion === '0.1' && purePatternEvent.changeState.draft.eventShape === 'pure_event', 'pure text pattern should produce EventDraft v0.1 pure_event', purePatternEvent.changeState.draft);
+assert(purePatternEvent.changeState.draft.options.length === 0, 'pure text pattern should not create root choices');
+assert(purePatternEvent.eventBody.eventStructure && purePatternEvent.eventBody.eventStructure.provenance === 'draft', 'pure text pattern should still use EventStructure draft provenance');
+assert(purePatternEvent.eventBody.eventGraph && purePatternEvent.eventBody.eventGraph.nodes.some((node) => node.id === 'root'), 'pure text pattern should expose a route map root node');
+assert(purePatternEvent.eventBody.metaFields.some((field) => field.id === 'event.pattern' && field.inputType === 'select'), 'Event pattern selector should live inside Event metadata');
+
+const branchingPatternEvent = canvasModel.buildNewEventCanvas(index, {}, {
+  values: {'event.pattern': 'branching_consequence'}
+});
+assert(branchingPatternEvent.ok && branchingPatternEvent.changeState.draft.schemaVersion === '0.1', 'branching consequence pattern should produce EventDraft v0.1');
+assert(branchingPatternEvent.changeState.draft.options.length >= 2 && branchingPatternEvent.changeState.draft.options.length <= 4, 'branching consequence pattern should create a compact root choice set');
+assert(branchingPatternEvent.eventBody.eventGraph.edges.some((edge) => edge.kind === 'return_route' && edge.sourceKind === 'draft'), 'branching consequence pattern should expose editable draft return routes');
+
+const conditionalPatternEvent = canvasModel.buildNewEventCanvas(index, {}, {
+  values: {'event.pattern': 'conditional_menu_loop'}
+});
+assert(conditionalPatternEvent.ok, 'conditional menu/loop Event pattern should build as a valid draft', conditionalPatternEvent.changeState.diagnostics);
+assert(conditionalPatternEvent.changeState.draft.schemaVersion === '0.1' && conditionalPatternEvent.changeState.draft.eventShape === 'choice_event', 'conditional menu/loop pattern should produce EventDraft v0.1 choice_event', conditionalPatternEvent.changeState.draft);
+assert(conditionalPatternEvent.changeState.draft.sections && conditionalPatternEvent.changeState.draft.sections.some((section) => section.options && section.options.length >= 2), 'conditional menu/loop pattern should include section-owned options');
+assert(conditionalPatternEvent.eventBody.eventGraph.edges.some((edge) => edge.kind === 'choice' && edge.from === 'section:menu_loop'), 'conditional menu/loop route map should show section-owned choices');
+assert(conditionalPatternEvent.eventBody.eventGraph.edges.some((edge) => edge.fieldId === 'option.2.returnTarget' && edge.targetId === 'menu_loop'), 'conditional menu/loop route map should show editable loop return routes');
+assert(conditionalPatternEvent.eventBody.eventGraph.nodes.some((node) => node.id === 'option:follow_up_action' && node.secondaryActions.some((action) => action.fieldId === 'option.2.chooseIf' && action.editAction && action.editAction.draftAction)), 'conditional menu/loop route map should expose section-owned option conditions as draft actions');
+assert(conditionalPatternEvent.eventBody.eventGraph.nodes.some((node) => node.id === 'option:follow_up_action' && node.secondaryActions.some((action) => action.fieldId === 'option.2.unavailableText' && action.editAction && action.editAction.draftAction)), 'conditional menu/loop route map should expose unavailable text as draft actions');
+assert(conditionalPatternEvent.eventBody.eventGraph.nodes.some((node) => node.id === 'section:menu_loop' && node.secondaryActions.some((action) => action.fieldId === 'event.section.0.condition' && action.editAction && action.editAction.draftAction)), 'conditional menu/loop route map should expose section condition as draft actions');
+assert(conditionalPatternEvent.changeState.output.sceneDry.includes('@open_menu\n' + 'title: Review the situation\n' + 'go-to: menu_loop\n\n' + 'The discussion moves into a focused menu.'), 'native menu-opening routes should render before result prose so Dendry treats them as routes');
+const conditionalRouteMapHtml = previewEditor.render(conditionalPatternEvent);
+assert(conditionalRouteMapHtml.includes('data-preview-object-route-map="true"'), 'conditional menu/loop editor should render the structured Route Map');
+assert(conditionalRouteMapHtml.includes('data-route-map-field="option.2.chooseIf"'), 'conditional menu/loop Route Map should render condition action chips');
+assert(conditionalRouteMapHtml.includes('data-route-map-field="option.2.unavailableText"'), 'conditional menu/loop Route Map should render unavailable-text action chips');
+assert(conditionalRouteMapHtml.includes('data-route-map-field="event.section.0.condition"'), 'conditional menu/loop Route Map should render section condition action chips');
+
+const customPatternBase = Object.assign({}, conditionalPatternEvent.changeState.draft, {
+  title: 'Already edited event',
+  heading: 'Already edited event',
+  introParagraphs: ['Custom authored prose.']
+});
+const patternWithoutReset = canvasModel.buildNewEventCanvas(index, customPatternBase, {
+  values: {'event.pattern': 'pure_text'}
+});
+assert(patternWithoutReset.changeState.draft.eventShape === 'choice_event' && patternWithoutReset.changeState.draft.title === 'Already edited event', 'pattern changes should not overwrite edited drafts without explicit reset');
+const patternWithReset = canvasModel.buildNewEventCanvas(index, customPatternBase, {
+  values: {'event.pattern': 'pure_text', 'event.patternReset': 'true'}
+});
+assert(patternWithReset.changeState.draft.eventShape === 'pure_event' && patternWithReset.changeState.draft.options.length === 0, 'explicit pattern reset should replace the draft with the selected core pattern');
 
 const largeNewEventAssetIndex = Object.assign({}, index, {
   semantic: Object.assign({}, index.semantic, {

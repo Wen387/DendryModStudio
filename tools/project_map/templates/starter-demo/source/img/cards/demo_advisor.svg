@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="480" viewBox="0 0 360 480">
+  <rect width="360" height="480" rx="20" fill="#efe6df"/>
+  <rect x="26" y="26" width="308" height="428" rx="18" fill="#fffaf6" stroke="#8d6758" stroke-width="7"/>
+  <text x="180" y="88" text-anchor="middle" font-family="Georgia, serif" font-size="28" fill="#3d2921">Organizer</text>
+  <circle cx="180" cy="178" r="54" fill="#c99b74"/>
+  <path d="M100 332c18-72 142-72 160 0" fill="#d8c4ad" stroke="#8d6758" stroke-width="7"/>
+  <path d="M138 270h84" stroke="#5e4034" stroke-width="12" stroke-linecap="round"/>
+  <text x="180" y="420" text-anchor="middle" font-family="Georgia, serif" font-size="22" fill="#5a3a2e">build trust</text>
+</svg>

@@ -3,6 +3,11 @@
 
   const EVENT_STRUCTURE_VERSION = '0.1';
   const STRUCTURE_KIND = 'event_structure';
+  const EVENT_PATTERN_OPTIONS = [
+    {value: 'branching_consequence', label: 'Branching Consequence Event'},
+    {value: 'pure_text', label: 'Pure Text Event'},
+    {value: 'conditional_menu_loop', label: 'Conditional Menu / Loop Event'}
+  ];
 
   function ownershipMatchingApi() {
     if (global && global.ProjectMapOwnershipMatching) {
@@ -166,6 +171,9 @@
     if (value.sourceBody) {
       const body = clone(value.sourceBody);
       body.eventStructure = compactStructure(value);
+      if (!body.eventGraph) {
+        body.eventGraph = eventGraph(value);
+      }
       return enrichEventBody(body, value, options);
     }
     return enrichEventBody(draftEventBody(value, options), value, options);
@@ -186,18 +194,18 @@
       }
     }
     const routeScript = routeScriptIntelligenceApi();
-    if (!routeScript || typeof routeScript.enrichEventBody !== 'function') {
-      return next;
+    if (routeScript && typeof routeScript.enrichEventBody === 'function') {
+      try {
+        next = routeScript.enrichEventBody(next, {
+          structure,
+          eventId: structure && structure.id,
+          options
+        });
+      } catch (_err) {
+        // Keep the authoring body usable even when optional route intelligence is unavailable.
+      }
     }
-    try {
-      return routeScript.enrichEventBody(next, {
-        structure,
-        eventId: structure && structure.id,
-        options
-      });
-    } catch (_err) {
-      return next;
-    }
+    return enrichRouteMap(next, structure);
   }
 
   function applyCommand(structure, command) {
@@ -280,6 +288,8 @@
           .concat(rawEffectField('option.' + index + '.rawEffects', 'Raw option effects', option.rawEffects))
       })),
       metaFields: [
+        field('event.pattern', 'Event pattern', eventPatternForStructure(structure), 'guarded', {inputType: 'select', options: EVENT_PATTERN_OPTIONS.map(clone)}),
+        field('event.patternReset', 'Reset draft to selected pattern', 'false', 'guarded', {inputType: 'checkbox'}),
         field('event.id', 'Event id', structure.id, 'guarded'),
         field('event.eventShape', 'Event type', eventShape, 'guarded', {inputType: 'select', options: ['choice_event', 'pure_event']}),
         field('event.tags', 'Tags', ensureArray(structure.tags).join(', '), 'guarded'),
@@ -295,8 +305,257 @@
       structureActions: actions,
       eventGraph: eventGraph(structure),
       readinessChecklist: readinessChecklist(structure, rootOptions),
-      eventStructure: compactStructure(structure)
+      eventStructure: compactStructure(structure),
+      authoringStatus: structure.rawDraft && structure.rawDraft.authoringStatus || '',
+      parsedToDraftParity: structure.rawDraft && structure.rawDraft.parsedToDraftParity || null
     };
+  }
+
+  function enrichRouteMap(body, structure) {
+    const next = isObject(body) ? body : {};
+    const graph = isObject(next.eventGraph) ? clone(next.eventGraph) : eventGraph(structure || {});
+    graph.nodes = ensureArray(graph.nodes).map(clone);
+    graph.edges = ensureArray(graph.edges).map(clone);
+    dedupeRouteGraph(graph);
+    mergeRouteEvidenceIntoGraph(graph, next, structure);
+    dedupeRouteGraph(graph);
+    graph.reviewHintCounts = routeMapReviewHintCounts(next, structure);
+    graph.reviewHints = routeMapReviewHintsFromCounts(graph.reviewHintCounts);
+    graph.nodeCount = graph.nodes.length;
+    graph.edgeCount = graph.edges.length;
+    next.eventGraph = graph;
+    return next;
+  }
+
+  function mergeRouteEvidenceIntoGraph(graph, body, structure) {
+    if (!structure || structure.provenance !== 'source') {
+      return graph;
+    }
+    const routes = ensureArray(body && body.routeEvidenceMap && body.routeEvidenceMap.items);
+    if (!routes.length) {
+      return graph;
+    }
+    const nodeIds = new Set(ensureArray(graph.nodes).map((node) => stringValue(node && node.id)));
+    routes.forEach((route, index) => {
+      const evidence = route && route.evidenceClass || '';
+      const match = matchingGraphRoute(graph.edges, route);
+      if (match) {
+        decorateGraphEdgeWithRouteEvidence(match, route);
+        return;
+      }
+      const from = routeEndpointNodeId(route && route.from || route && route.owner || 'route', nodeIds);
+      const to = routeEndpointNodeId(route && (route.target || route.rawTarget) || 'unknown', nodeIds);
+      ensureRouteEndpointNode(graph, nodeIds, from, route && (route.from || route.owner || 'Route source'), 'route_source', route, structure);
+      ensureRouteEndpointNode(graph, nodeIds, to, route && (route.target || route.rawTarget || 'Unknown target'), evidence === 'missing_target' ? 'missing_route_target' : 'route_target', route, structure);
+      graph.edges.push(routeEvidenceEdge(structure, route, index, from, to));
+    });
+    return graph;
+  }
+
+  function matchingGraphRoute(edges, route) {
+    const targetTokens = endpointMatchTokens(route && (route.target || route.rawTarget));
+    const fromTokens = endpointMatchTokens(route && route.from);
+    if (!targetTokens.length) {
+      return null;
+    }
+    return ensureArray(edges).find((edge) => {
+      const edgeTargetTokens = endpointMatchTokens(edge && (edge.targetId || edge.to || ''));
+      const edgeFromTokens = endpointMatchTokens(edge && edge.from || '');
+      const targetMatches = edgeTargetTokens.some((token) => targetTokens.includes(token));
+      const fromMatches = !fromTokens.length || !edgeFromTokens.length || edgeFromTokens.some((token) => fromTokens.includes(token));
+      return targetMatches && fromMatches;
+    }) || null;
+  }
+
+  function decorateGraphEdgeWithRouteEvidence(edge, route) {
+    if (!edge || !route) {
+      return;
+    }
+    edge.routeEvidenceIds = uniqueStrings(ensureArray(edge.routeEvidenceIds).concat(route.id));
+    edge.sourceKind = edge.sourceKind || stringValue(route.sourceKind);
+    edge.evidenceClass = strongestEvidenceClass(edge.evidenceClass, route.evidenceClass);
+    edge.condition = edge.condition || stringValue(route.predicate);
+    edge.routeEvidence = {
+      id: stringValue(route.id),
+      evidenceClass: stringValue(route.evidenceClass),
+      semanticTier: stringValue(route.semanticTier),
+      sourceKind: stringValue(route.sourceKind),
+      sourceLocated: Boolean(route.sourceLocated),
+      targetResolved: route.targetResolved !== false,
+      targetResolution: clone(route.targetResolution || {}),
+      dynamicBinding: clone(route.dynamicBinding || {}),
+      safeEditEligible: Boolean(route.safeEditEligible)
+    };
+    edge.semanticTier = edge.semanticTier || stringValue(route.semanticTier);
+    edge.targetResolution = edge.targetResolution || clone(route.targetResolution || {});
+    edge.dynamicBinding = edge.dynamicBinding || clone(route.dynamicBinding || {});
+    edge.safeEditEligible = edge.safeEditEligible || Boolean(route.safeEditEligible);
+  }
+
+  function routeEvidenceEdge(structure, route, index, from, to) {
+    const value = route || {};
+    const action = routeEvidenceEditAction(structure, value);
+    return {
+      id: 'edge:evidence:' + safeId(value.id || (value.sourceKind || 'route') + '_' + (index + 1)),
+      from,
+      to,
+      kind: routeEvidenceEdgeKind(value),
+      targetId: stringValue(value.target || value.rawTarget),
+      condition: stringValue(value.predicate),
+      order: index + 1,
+      fieldId: 'routeEvidence.' + safeId(value.id || index + 1),
+      sourceKind: stringValue(value.sourceKind || 'explicit'),
+      evidenceClass: stringValue(value.evidenceClass || 'fuzzy'),
+      semanticTier: stringValue(value.semanticTier || ''),
+      targetResolution: clone(value.targetResolution || {}),
+      dynamicBinding: clone(value.dynamicBinding || {}),
+      safeEditEligible: Boolean(value.safeEditEligible),
+      installSafety: action && action.installSafety || graphInstallSafety(structure, value.source),
+      editable: Boolean(action && action.actionKind),
+      editAction: action,
+      routeEvidenceId: stringValue(value.id),
+      source: sourceRef(value.source || {}),
+      targetResolved: value.targetResolved !== false,
+      sourceLocated: Boolean(value.sourceLocated)
+    };
+  }
+
+  function routeEvidenceEditAction(structure, route) {
+    const source = sourceRef(route && route.source || {});
+    if (!source.path) {
+      return null;
+    }
+    const evidence = stringValue(route && route.evidenceClass);
+    const sourceKind = stringValue(route && route.sourceKind);
+    const fieldId = 'routeEvidence.' + safeId(route && route.id || route && route.target || 'route');
+    if (evidence === 'script_derived' || sourceKind === 'script') {
+      return editAction('open_object_field', fieldId, route && (route.owner || route.from || route.target || 'script'), structure, source, {
+        routeEvidenceId: stringValue(route && route.id),
+        routeClass: 'source_slice_editor'
+      });
+    }
+    return editAction('open_route_editor', fieldId, route && (route.owner || route.from || route.target || 'route'), structure, source, {
+      routeEvidenceId: stringValue(route && route.id)
+    });
+  }
+
+  function routeEvidenceEdgeKind(route) {
+    const evidence = stringValue(route && route.evidenceClass);
+    if (evidence === 'missing_target') {
+      return 'missing_route';
+    }
+    if (evidence === 'script_derived') {
+      if (route && route.dynamicBinding && route.dynamicBinding.kind === 'set_jump') {
+        return 'jump_route';
+      }
+      if (route && route.dynamicTarget) {
+        return 'dynamic_route';
+      }
+      return 'script_route';
+    }
+    if (evidence === 'fuzzy') {
+      return 'fuzzy_route';
+    }
+    if (evidence === 'external') {
+      return 'external_route';
+    }
+    if (evidence === 'terminal') {
+      return 'terminal_route';
+    }
+    return 'evidence_route';
+  }
+
+  function ensureRouteEndpointNode(graph, nodeIds, nodeId, label, kind, route, structure) {
+    if (!nodeId || nodeIds.has(nodeId)) {
+      return;
+    }
+    nodeIds.add(nodeId);
+    graph.nodes.push({
+      id: nodeId,
+      kind,
+      label: stringValue(label || nodeId),
+      sourceKind: stringValue(route && route.sourceKind || 'explicit'),
+      evidenceClass: stringValue(route && route.evidenceClass || 'fuzzy'),
+      semanticTier: stringValue(route && route.semanticTier || ''),
+      targetResolution: clone(route && route.targetResolution || {}),
+      dynamicBinding: clone(route && route.dynamicBinding || {}),
+      safeEditEligible: Boolean(route && route.safeEditEligible),
+      editAction: routeEvidenceEditAction(structure, route)
+    });
+  }
+
+  function routeEndpointNodeId(value, nodeIds) {
+    const text = stringValue(value).trim().replace(/^[@#]/, '');
+    const local = text.split('.').pop() || text;
+    if (!text) {
+      return 'route_target:unknown';
+    }
+    if (text === 'root' || local === 'root') {
+      return 'root';
+    }
+    const candidates = [
+      'section:' + text,
+      'section:' + local,
+      'option:' + text,
+      'option:' + local,
+      'result:' + text,
+      'result:' + local
+    ];
+    const found = candidates.find((candidate) => nodeIds.has(candidate));
+    return found || 'route_target:' + safeId(local || text);
+  }
+
+  function routeMapReviewHintCounts(body, structure) {
+    const counts = {};
+    const add = (key, count, severity) => {
+      const value = Number(count || 0);
+      if (value) {
+        counts[key] = {key, count: value, severity: severity || 'warning'};
+      }
+    };
+    if (structure && structure.provenance === 'source') {
+      const routes = ensureArray(body && body.routeEvidenceMap && body.routeEvidenceMap.items);
+      add('fuzzy', routes.filter((route) => stringValue(route && route.evidenceClass) === 'fuzzy').length, 'warning');
+      add('script_derived', routes.filter((route) => stringValue(route && route.evidenceClass) === 'script_derived').length, 'info');
+      add('missing_target', routes.filter((route) => stringValue(route && route.evidenceClass) === 'missing_target').length, 'error');
+      const scripts = ensureArray(body && body.scriptImpactMap && body.scriptImpactMap.blocks);
+      add('manual_boundary', scripts.filter((block) => stringValue(block && block.safetyClass) === 'manual_boundary').length, 'warning');
+      add('opaque_js', scripts.filter((block) => stringValue(block && block.boundaryCategory) === 'opaque_js_block').length, 'warning');
+      const diagnostics = ensureArray(body && body.routeScriptIntelligence && body.routeScriptIntelligence.diagnostics)
+        .concat(ensureArray(body && body.diagnostics))
+        .concat(ensureArray(body && body.routeState && body.routeState.diagnostics));
+      add('route_collision', diagnostics.filter((item) => /collision|multi_valid|random/i.test(stringValue(item && (item.code || item.message)))).length, 'warning');
+      add('multi_valid_randomization', diagnostics.filter((item) => /multi_valid_randomization/i.test(stringValue(item && item.code))).length, 'warning');
+      add('zero_valid', diagnostics.filter((item) => /zero[_ -]?valid|no valid/i.test(stringValue(item && (item.code || item.message)))).length, 'warning');
+      add('unconditional_not_fallback', diagnostics.filter((item) => /unconditional_not_fallback/i.test(stringValue(item && item.code))).length, 'warning');
+    }
+    const roles = body && body.parsedToDraftParity && body.parsedToDraftParity.roles || {};
+    add('partial_blocker', Object.keys(roles).map((key) => roles[key]).filter((row) => row && row.blocking && Number(row.missing || 0) > 0).length, 'error');
+    return counts;
+  }
+
+  function routeMapReviewHintsFromCounts(counts) {
+    return Object.keys(counts || {}).map((key) => {
+      const value = counts[key] || {};
+      return {key, count: Number(value.count || 0), severity: value.severity || 'warning'};
+    }).filter((hint) => hint.count > 0);
+  }
+
+  function strongestEvidenceClass(left, right) {
+    const priority = {
+      draft: 0,
+      exact: 1,
+      parser_backed: 1,
+      source_backed: 1,
+      terminal: 1,
+      external: 1,
+      fuzzy: 2,
+      script_derived: 3,
+      missing_target: 4
+    };
+    const a = stringValue(left || '');
+    const b = stringValue(right || '');
+    return (priority[b] || 0) > (priority[a] || 0) ? b : a || b;
   }
 
   function eventGraph(structure) {
@@ -304,88 +563,128 @@
       id: 'root',
       kind: 'opening',
       label: structure.title || structure.id || 'Event opening',
-      editAction: editAction('open_object_section', 'event.intro', 'opening')
+      sourceKind: graphSourceKind(structure),
+      evidenceClass: graphEvidenceClass(structure, 'node'),
+      editAction: editAction('open_object_section', 'event.intro', 'opening', structure, structure && structure.source)
     }];
     const edges = [];
     const variables = new Set();
     ensureArray(structure.options).forEach((option, index) => {
       const optionId = option.id || 'option_' + (index + 1);
       const resultId = option.resultMode === 'native' ? (option.gotoAfter || optionId) : (option.gotoAfter || ('continue_' + optionId));
+      const ownerNodeId = option.ownerSectionId ? 'section:' + option.ownerSectionId : 'root';
+      const optionSource = option.source || option.targetSource || {};
       nodes.push({
         id: 'option:' + optionId,
         kind: option.ownerSectionId ? 'section_option' : 'root_option',
         label: option.label || optionId,
         ownerSectionId: option.ownerSectionId || '',
-        editAction: editAction('open_object_field', 'option.' + index + '.label', optionId)
+        condition: option.chooseIf || '',
+        sourceKind: graphSourceKind(structure, optionSource),
+        evidenceClass: graphEvidenceClass(structure, 'choice', optionSource),
+        secondaryActions: optionRouteMapActions(structure, option, index, optionId, optionSource),
+        editAction: editAction('open_object_field', 'option.' + index + '.label', optionId, structure, optionSource)
       });
       nodes.push({
         id: 'result:' + resultId,
         kind: 'result_section',
         label: resultId,
-        editAction: editAction('open_object_field', 'option.' + index + '.body', optionId)
+        sourceKind: graphSourceKind(structure, optionSource),
+        evidenceClass: graphEvidenceClass(structure, 'result', optionSource),
+        editAction: editAction('open_object_field', 'option.' + index + '.body', optionId, structure, optionSource)
       });
-      edges.push({
-        from: option.ownerSectionId ? 'section:' + option.ownerSectionId : 'root',
+      edges.push(routeEdge(structure, {
+        id: 'edge:choice:' + (option.ownerSectionId || 'root') + ':' + optionId,
+        from: ownerNodeId,
         to: 'option:' + optionId,
         kind: 'choice',
-        editAction: editAction('open_object_field', 'option.' + index + '.label', optionId)
-      });
-      edges.push({
+        order: index + 1,
+        fieldId: 'option.' + index + '.label',
+        targetId: optionId,
+        condition: option.chooseIf || '',
+        source: optionSource,
+        editAction: editAction('open_object_field', 'option.' + index + '.label', optionId, structure, optionSource)
+      }));
+      edges.push(routeEdge(structure, {
+        id: 'edge:result:' + optionId + ':' + resultId,
         from: 'option:' + optionId,
         to: 'result:' + resultId,
         kind: 'result_route',
         targetId: resultId || '',
-        editAction: editAction('open_route_editor', 'option.' + index + '.gotoAfter', optionId)
-      });
+        order: index + 1,
+        fieldId: 'option.' + index + '.gotoAfter',
+        condition: option.chooseIf || '',
+        source: optionSource,
+        editAction: editAction('open_route_editor', 'option.' + index + '.gotoAfter', optionId, structure, optionSource)
+      }));
       if (option.returnTarget) {
-        edges.push({
+        edges.push(routeEdge(structure, {
+          id: 'edge:return:' + optionId + ':' + option.returnTarget,
           from: 'result:' + resultId,
           to: option.returnTarget === 'root' ? 'root' : 'section:' + option.returnTarget,
           kind: 'return_route',
           targetId: option.returnTarget || 'root',
-          editAction: editAction('open_route_editor', 'option.' + index + '.returnTarget', optionId)
-        });
+          order: index + 1,
+          fieldId: 'option.' + index + '.returnTarget',
+          source: optionSource,
+          editAction: editAction('open_route_editor', 'option.' + index + '.returnTarget', optionId, structure, optionSource)
+        }));
       }
       ensureArray(option.effects).forEach((effect, effectIndex) => {
         if (effect && effect.variable) {
           variables.add(effect.variable);
         }
+        const effectSource = effect && effect.source || optionSource;
         nodes.push({
           id: 'effect:option:' + optionId + ':' + effectIndex,
           kind: 'option_effect',
           label: effectLabel(effect),
           ownerNodeId: 'option:' + optionId,
-          editAction: editAction('open_effect_editor', 'option.' + index + '.effect.' + effectIndex + '.value', optionId)
+          sourceKind: graphSourceKind(structure, effectSource),
+          evidenceClass: graphEvidenceClass(structure, 'effect', effectSource),
+          editAction: editAction('open_effect_editor', 'option.' + index + '.effect.' + effectIndex + '.value', optionId, structure, effectSource)
         });
       });
     });
     ensureArray(structure.sections).forEach((section, index) => {
+      const sectionSource = section.source || {};
       nodes.push({
         id: 'section:' + section.id,
         kind: section.condition ? 'conditional_section' : 'follow_up_section',
         label: section.title || section.id,
         condition: section.condition || '',
-        editAction: editAction('open_object_section', 'event.section.' + index + '.body', section.id)
+        sourceKind: graphSourceKind(structure, sectionSource),
+        evidenceClass: graphEvidenceClass(structure, 'section', sectionSource),
+        secondaryActions: sectionRouteMapActions(structure, section, index, sectionSource),
+        editAction: editAction('open_object_section', 'event.section.' + index + '.body', section.id, structure, sectionSource)
       });
       if (!ensureArray(section.options).length) {
-        edges.push({
+        edges.push(routeEdge(structure, {
+          id: 'edge:exit:' + section.id + ':' + (section.exitTarget || 'root'),
           from: 'section:' + section.id,
           to: section.exitTarget === 'root' ? 'root' : 'section:' + section.exitTarget,
           kind: 'exit_route',
           targetId: section.exitTarget || 'root',
-          editAction: editAction('open_route_editor', 'event.section.' + index + '.exitTarget', section.id)
-        });
+          order: index + 1,
+          fieldId: 'event.section.' + index + '.exitTarget',
+          condition: section.condition || '',
+          source: sectionSource,
+          editAction: editAction('open_route_editor', 'event.section.' + index + '.exitTarget', section.id, structure, sectionSource)
+        }));
       }
       ensureArray(section.effects).forEach((effect, effectIndex) => {
         if (effect && effect.variable) {
           variables.add(effect.variable);
         }
+        const effectSource = effect && effect.source || sectionSource;
         nodes.push({
           id: 'effect:section:' + section.id + ':' + effectIndex,
           kind: 'section_effect',
           label: effectLabel(effect),
           ownerNodeId: 'section:' + section.id,
-          editAction: editAction('open_effect_editor', 'event.section.' + index + '.effect.' + effectIndex + '.value', section.id)
+          sourceKind: graphSourceKind(structure, effectSource),
+          evidenceClass: graphEvidenceClass(structure, 'effect', effectSource),
+          editAction: editAction('open_effect_editor', 'event.section.' + index + '.effect.' + effectIndex + '.value', section.id, structure, effectSource)
         });
       });
     });
@@ -393,12 +692,15 @@
       if (effect && effect.variable) {
         variables.add(effect.variable);
       }
+      const effectSource = effect && effect.source || {};
       nodes.push({
         id: 'effect:trigger:' + index,
         kind: 'trigger_effect',
         label: effectLabel(effect),
         ownerNodeId: 'root',
-        editAction: editAction('open_effect_editor', 'event.effect.' + index + '.value', 'opening')
+        sourceKind: graphSourceKind(structure, effectSource),
+        evidenceClass: graphEvidenceClass(structure, 'effect', effectSource),
+        editAction: editAction('open_effect_editor', 'event.effect.' + index + '.value', 'opening', structure, effectSource)
       });
     });
     Array.from(variables).sort().forEach((name) => {
@@ -417,25 +719,237 @@
         }
       });
     });
-    return {
+    const graph = {
       kind: 'complex_event_graph',
+      schemaVersion: EVENT_STRUCTURE_VERSION,
       nodes,
       edges,
       nodeCount: nodes.length,
       edgeCount: edges.length
     };
+    dedupeRouteGraph(graph);
+    return graph;
   }
 
-  function editAction(actionKind, fieldId, targetId) {
+  function dedupeRouteGraph(graph) {
+    if (!isObject(graph)) {
+      return graph;
+    }
+    graph.nodes = mergeRouteGraphRows(ensureArray(graph.nodes), mergeGraphNode);
+    graph.edges = mergeRouteGraphRows(ensureArray(graph.edges), mergeGraphEdge);
+    graph.nodeCount = graph.nodes.length;
+    graph.edgeCount = graph.edges.length;
+    return graph;
+  }
+
+  function mergeRouteGraphRows(rows, merger) {
+    const byId = new Map();
+    ensureArray(rows).forEach((row, index) => {
+      const id = stringValue(row && row.id);
+      if (!id) {
+        byId.set('row:' + index, clone(row));
+        return;
+      }
+      if (!byId.has(id)) {
+        byId.set(id, clone(row));
+        return;
+      }
+      byId.set(id, merger(byId.get(id), row));
+    });
+    return Array.from(byId.values());
+  }
+
+  function mergeGraphNode(base, row) {
+    const next = clone(base || {});
+    const value = row || {};
+    next.label = next.label || value.label || '';
+    next.kind = next.kind || value.kind || '';
+    next.condition = next.condition || value.condition || '';
+    next.ownerSectionId = next.ownerSectionId || value.ownerSectionId || '';
+    next.sourceKind = next.sourceKind || value.sourceKind || '';
+    next.evidenceClass = strongestEvidenceClass(next.evidenceClass, value.evidenceClass);
+    next.semanticTier = next.semanticTier || value.semanticTier || '';
+    next.safeEditEligible = Boolean(next.safeEditEligible || value.safeEditEligible);
+    next.secondaryActions = mergeRouteMapActions(next.secondaryActions, value.secondaryActions);
+    next.editAction = next.editAction || value.editAction || null;
+    return next;
+  }
+
+  function mergeGraphEdge(base, row) {
+    const next = clone(base || {});
+    const value = row || {};
+    next.from = next.from || value.from || '';
+    next.to = next.to || value.to || '';
+    next.kind = next.kind || value.kind || '';
+    next.targetId = next.targetId || value.targetId || '';
+    next.condition = next.condition || value.condition || '';
+    next.order = Number(next.order || 0) || Number(value.order || 0) || 0;
+    next.fieldId = next.fieldId || value.fieldId || '';
+    next.sourceKind = next.sourceKind || value.sourceKind || '';
+    next.evidenceClass = strongestEvidenceClass(next.evidenceClass, value.evidenceClass);
+    next.semanticTier = next.semanticTier || value.semanticTier || '';
+    next.targetResolution = next.targetResolution || clone(value.targetResolution || {});
+    next.dynamicBinding = next.dynamicBinding || clone(value.dynamicBinding || {});
+    next.safeEditEligible = Boolean(next.safeEditEligible || value.safeEditEligible);
+    next.installSafety = next.installSafety || value.installSafety || '';
+    next.editable = Boolean(next.editable || value.editable);
+    next.editAction = next.editAction || value.editAction || null;
+    next.routeEvidenceIds = uniqueStrings(ensureArray(next.routeEvidenceIds).concat(ensureArray(value.routeEvidenceIds), value.routeEvidenceId));
+    return next;
+  }
+
+  function mergeRouteMapActions(left, right) {
+    const rows = ensureArray(left).concat(ensureArray(right));
+    const byKey = new Map();
+    rows.forEach((action, index) => {
+      if (!action) {
+        return;
+      }
+      const key = stringValue(action.fieldId || action.kind || 'action_' + index);
+      if (!byKey.has(key)) {
+        byKey.set(key, clone(action));
+      }
+    });
+    return Array.from(byKey.values());
+  }
+
+  function routeEdge(structure, spec) {
+    const value = isObject(spec) ? spec : {};
+    const action = value.editAction || editAction('open_route_editor', value.fieldId, value.targetId, structure, value.source);
+    const evidenceClass = graphEvidenceClass(structure, value.kind || 'route', value.source);
+    const semanticTier = graphSemanticTier(structure, evidenceClass);
     return {
+      id: stringValue(value.id || ['edge', value.from, value.to, value.kind].filter(Boolean).join(':')),
+      from: stringValue(value.from),
+      to: stringValue(value.to),
+      kind: stringValue(value.kind || 'route'),
+      targetId: stringValue(value.targetId || ''),
+      condition: stringValue(value.condition),
+      order: Number.isFinite(Number(value.order)) ? Number(value.order) : 0,
+      fieldId: stringValue(value.fieldId),
+      sourceKind: graphSourceKind(structure, value.source),
+      evidenceClass,
+      semanticTier,
+      targetResolution: {status: value.targetId ? 'resolved' : 'unknown', target: stringValue(value.targetId || ''), candidateTargets: []},
+      dynamicBinding: {},
+      safeEditEligible: graphSafeEditEligible(structure, semanticTier, action),
+      installSafety: action && action.installSafety || graphInstallSafety(structure, value.source),
+      editable: Boolean(action && action.actionKind),
+      editAction: action || null
+    };
+  }
+
+  function optionRouteMapActions(structure, option, index, optionId, source) {
+    const actions = [
+      routeMapFieldAction('condition', 'Condition', 'option.' + index + '.chooseIf', optionId, structure, source, option && option.chooseIf),
+      routeMapFieldAction('unavailable_text', 'Unavailable text', 'option.' + index + '.unavailableText', optionId, structure, source, option && option.unavailableText)
+    ];
+    return actions.filter(Boolean);
+  }
+
+  function sectionRouteMapActions(structure, section, index, source) {
+    const sectionId = section && section.id || '';
+    const actions = [
+      routeMapFieldAction('section_condition', 'Condition', 'event.section.' + index + '.condition', sectionId, structure, source, section && section.condition),
+      routeMapFieldAction('section_exit', 'Exit route', 'event.section.' + index + '.exitTarget', sectionId, structure, source, section && (section.exitTarget || 'root'))
+    ];
+    return actions.filter(Boolean);
+  }
+
+  function routeMapFieldAction(kind, label, fieldId, targetId, structure, source, value) {
+    const actionKind = String(kind || '').indexOf('exit') >= 0 ? 'open_route_editor' : 'open_object_field';
+    const action = editAction(actionKind, fieldId, targetId, structure, source);
+    return {
+      kind: stringValue(kind),
+      label: stringValue(label),
+      fieldId: stringValue(fieldId),
+      value: stringValue(value),
+      sourceKind: graphSourceKind(structure, source),
+      evidenceClass: graphEvidenceClass(structure, kind, source),
+      installSafety: action && action.installSafety || graphInstallSafety(structure, source),
+      editable: Boolean(action && action.actionKind),
+      editAction: action
+    };
+  }
+
+  function editAction(actionKind, fieldId, targetId, structure, source, extra) {
+    const sourceRefValue = sourceRef(source || {});
+    const draft = !structure || structure.provenance !== 'source';
+    const installSafety = draft ? 'guarded_apply' : graphInstallSafety(structure, sourceRefValue);
+    const out = {
       actionKind,
       routeClass: actionKind === 'open_route_editor' ? 'semantic_route' : 'object_field',
       targetView: 'events',
       targetId: stringValue(targetId),
       fieldId,
-      installSafety: 'guarded_apply',
-      draftAction: true
+      source: sourceRefValue,
+      installSafety
     };
+    if (draft) {
+      out.draftAction = true;
+      return Object.assign(out, extra || {});
+    }
+    if ((actionKind === 'open_object_field' || actionKind === 'open_object_section') && sourceRefValue.path) {
+      out.actionKind = 'open_source_slice';
+      out.routeClass = 'source_slice_editor';
+      return Object.assign(out, extra || {});
+    }
+    if (actionKind === 'open_route_editor' || actionKind === 'open_effect_editor') {
+      out.semanticEditor = {
+        kind: actionKind === 'open_effect_editor' ? 'effect_clause' : 'route_order',
+        sceneId: stringValue(structure && structure.id),
+        fieldId,
+        role: actionKind === 'open_effect_editor' ? 'effect' : 'route',
+        title: actionKind === 'open_effect_editor' ? 'Event effect' : 'Event route',
+        source: sourceRefValue
+      };
+      out.forceSemanticEditor = true;
+      out.routeClass = installSafety === 'advanced_apply' ? 'advanced_source_patch' : 'route_editor';
+    }
+    return Object.assign(out, extra || {});
+  }
+
+  function graphInstallSafety(structure, source) {
+    if (!structure || structure.provenance !== 'source') {
+      return 'guarded_apply';
+    }
+    const value = sourceRef(source || {});
+    return value.path ? 'advanced_apply' : 'manual_review';
+  }
+
+  function graphSourceKind(structure, source) {
+    if (!structure || structure.provenance !== 'source') {
+      return 'draft';
+    }
+    const value = sourceRef(source || {});
+    return value.path ? 'source' : 'manual';
+  }
+
+  function graphEvidenceClass(structure, kind, source) {
+    if (!structure || structure.provenance !== 'source') {
+      return 'draft';
+    }
+    const value = sourceRef(source || {});
+    if (value.path && (value.line || value.startLine)) {
+      return 'exact';
+    }
+    return String(kind || '').indexOf('route') >= 0 ? 'fuzzy' : 'source_backed';
+  }
+
+  function graphSemanticTier(structure, evidenceClass) {
+    if (!structure || structure.provenance !== 'source') {
+      return 'static_exact';
+    }
+    return ['exact', 'parser_backed', 'terminal', 'source_backed'].includes(stringValue(evidenceClass))
+      ? 'static_exact'
+      : 'manual_boundary';
+  }
+
+  function graphSafeEditEligible(structure, semanticTier, action) {
+    if (!structure || structure.provenance !== 'source') {
+      return true;
+    }
+    return semanticTier === 'static_exact' && action && action.installSafety !== 'manual_review';
   }
 
   function readinessChecklist(structure, rootOptions) {
@@ -2175,13 +2689,24 @@
 
   function optionFromBody(option, index) {
     const value = isObject(option) ? option : {};
+    const target = stringValue(value.targetId || value.rawTargetId || value.target && value.target.id || value.target && value.target.targetId);
+    const source = sourceRef(value.target && value.target.source || value.source || firstSource(ensureArray(value.fields).map((fieldValue) => fieldValue && fieldValue.source)));
+    const resultMode = normalizeResultMode(value.resultMode, target);
     return {
-      id: stringValue(value.id || 'option_' + (index + 1)),
+      id: stringValue(value.id || target || 'option_' + (index + 1)),
+      ownerSectionId: stringValue(value.ownerSectionId || value.sectionId),
       label: stringValue(value.label || value.title || value.id),
-      targetId: stringValue(value.targetId),
+      targetId: target,
+      rawTargetId: stringValue(value.rawTargetId || target),
       sectionId: stringValue(value.sectionId),
       chooseIf: stringValue(value.chooseIf || value.sectionChooseIf || value.sectionViewIf),
-      fields: ensureArray(value.fields)
+      unavailableText: stringValue(value.unavailableText),
+      resultMode,
+      gotoAfter: target,
+      returnTarget: optionalSafeId(value.returnTarget || value.afterReturnTarget || ''),
+      fields: ensureArray(value.fields),
+      source,
+      targetSource: source
     };
   }
 
@@ -2501,6 +3026,18 @@
     return Number(rootOptionCount || 0) > 0 ? 'choice_event' : 'pure_event';
   }
 
+  function eventPatternForStructure(structure) {
+    const value = isObject(structure) ? structure : {};
+    const rootOptions = ensureArray(value.options).filter((option) => !option.ownerSectionId);
+    if (ensureArray(value.sections).some((section) => ensureArray(section && section.options).length)) {
+      return 'conditional_menu_loop';
+    }
+    if (normalizeEventShape(value.eventShape, rootOptions.length) === 'pure_event') {
+      return 'pure_text';
+    }
+    return 'branching_consequence';
+  }
+
   function sourceRef(ref) {
     const value = isObject(ref) ? ref : {};
     const line = numberOrNull(value.line || value.startLine);
@@ -2512,6 +3049,10 @@
       anchorText: stringValue(value.anchorText),
       endAnchorText: stringValue(value.endAnchorText)
     };
+  }
+
+  function firstSource(values) {
+    return ensureArray(values).map(sourceRef).find((source) => source.path) || {};
   }
 
   function paragraphs(value) {

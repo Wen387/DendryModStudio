@@ -7,6 +7,9 @@
   const LARGE_EVENT_BRANCH_THRESHOLD = 48;
   const LARGE_EVENT_STRUCTURE_THRESHOLD = 360;
   let cachedStructureUi = null;
+  let cachedChoicePathModel = null;
+  let cachedMetadataUi = null;
+  let cachedOpeningContextUi = null;
 
   const api = {
     render,
@@ -194,7 +197,7 @@
       renderPreviewHeading(previewBody.title || previewBody.heading, model, 'title', fieldValue(previewBody.title || previewBody.heading) || model && model.title || t('objectPreview.event', 'World Event'), 'h4'),
       previewBody.subtitle && fieldValue(previewBody.subtitle) ? renderPreviewHeading(previewBody.subtitle, model, 'subtitle', fieldValue(previewBody.subtitle), 'em') : '',
       previewBody.heading && fieldId(previewBody.heading) !== fieldId(previewBody.title) ? renderPreviewHeading(previewBody.heading, model, 'heading', fieldValue(previewBody.heading), 'h5') : '',
-      renderPreviewMetadataChips(previewBody.metaFields, model),
+      metadataUi().renderChips(previewBody.metaFields, model),
       sections.length ? renderPreviewSections(sections, previewBody, model) : renderEmpty(t('objectPreview.noPreview', 'No preview text')),
       renderPreviewChoices(options, 'event', previewBody, model),
       renderFlowOverview(previewBody.flow, model, 'preview'),
@@ -238,7 +241,7 @@
       '<div class="object-editing-preview-kicker">' + escapeHtml(t('objectPreview.card', 'Card')) + '</div>',
       renderPreviewHeading(body.title || body.heading, model, 'title', fieldValue(body.title || body.heading) || model && model.title || t('objectPreview.card', 'Card'), 'h4'),
       subtitle ? renderPreviewHeading(subtitle, model, 'subtitle', fieldValue(subtitle), 'em') : '',
-      renderPreviewMetadataChips(body.metaFields, model),
+      metadataUi().renderChips(body.metaFields, model),
       mainSections.length ? '<div class="object-editing-preview-copy">' + mainSections.map((field) => [
         '<section class="object-editing-preview-section"' + renderedEntryAttrs(actionForField(field, 'text', model, {role: 'body'}), 'text', t('previewObjectEditor.editRenderedText', 'Edit preview text')) + '>',
         renderTextBlocks(fieldValue(field), {empty: false}),
@@ -265,68 +268,6 @@
     const name = /^(h4|h5|em)$/.test(String(tag || '')) ? tag : 'h4';
     const action = actionForField(field, 'text', model, {role});
     return '<' + name + renderedEntryAttrs(action, 'text', t('previewObjectEditor.editRenderedText', 'Edit preview text')) + '>' + renderTextInline(value || '') + renderActionContextLens(action, 'text') + '</' + name + '>';
-  }
-
-  function renderPreviewMetadataChips(fields, model) {
-    const rows = ensureArray(fields).filter((field) => field && fieldValue(field).trim());
-    if (!rows.length) {
-      return '';
-    }
-    return [
-      '<div class="object-editing-preview-metadata" data-object-editing-preview-metadata="true">',
-      rows.slice(0, 12).map((field) => {
-        const role = String(field && (field.role || field.semanticRole) || '').toLowerCase();
-        const labelText = String(field && field.label || field && field.id || '');
-        const metadataKind = role === 'route' ? 'route' : /condition|view|choose|if/i.test(labelText) ? 'condition' : 'metadata';
-        const entryKind = metadataKind === 'route' || metadataKind === 'condition' ? 'condition' : 'metadata';
-        const action = actionForField(field, entryKind, model, {role: metadataKind});
-        const labelParts = previewMetadataLabelParts(displayFieldLabel(field, field && field.label || fieldId(field)), metadataKind);
-        const rawValue = fieldValue(field);
-        const layout = previewMetadataLayout(metadataKind, labelParts, rawValue);
-        const displayValue = previewMetadataValue(rawValue, metadataKind, layout);
-        return [
-          '<span class="object-editing-preview-metadata-chip" data-metadata-kind="' + escapeAttr(metadataKind) + '" data-metadata-layout="' + escapeAttr(layout) + '"' + (labelParts.context ? ' data-metadata-has-context="true"' : '') + renderedEntryAttrs(action, entryKind, t('previewObjectEditor.editRenderedMetadata', 'Edit metadata')) + '>',
-          '<span class="object-editing-preview-metadata-label"><strong>' + escapeHtml(labelParts.label) + '</strong>' + (labelParts.context ? '<small>' + escapeHtml(labelParts.context) + '</small>' : '') + '</span>',
-          '<em>' + escapeHtml(displayValue) + '</em>',
-          renderActionContextLens(action, entryKind),
-          '</span>'
-        ].join('');
-      }).join(''),
-      '</div>'
-    ].join('');
-  }
-
-  function previewMetadataLabelParts(label, kind) {
-    const text = String(label || '').replace(/\s+/g, ' ').trim();
-    if ((kind === 'condition' || kind === 'route') && text.indexOf(':') > 0) {
-      const parts = text.split(':');
-      const head = parts.shift().trim();
-      const tail = parts.join(':').trim();
-      if (head && tail) {
-        return {label: head, context: tail};
-      }
-    }
-    return {label: text, context: ''};
-  }
-
-  function previewMetadataLayout(kind, labelParts, value) {
-    const context = String(labelParts && labelParts.context || '');
-    const text = String(value || '');
-    if (kind === 'condition') {
-      return 'block';
-    }
-    if (kind === 'route' && (context.length > 32 || text.length > 24)) {
-      return 'block';
-    }
-    return 'inline';
-  }
-
-  function previewMetadataValue(value, kind, layout) {
-    const text = String(value || '').replace(/\s+/g, ' ').trim();
-    if (kind !== 'condition' || layout !== 'block' || text.length < 48) {
-      return text;
-    }
-    return text.replace(/\s+(and|or)\s+/gi, '\n$1 ');
   }
 
   function renderPreviewVariables(variables, model) {
@@ -403,11 +344,184 @@
     if (!rows.length) {
       return '';
     }
+    const tree = owner === 'event' ? choiceTreePlan(rows, body) : null;
+    const sectionRootRows = tree && !tree.rootRows.length ? tree.rootSectionRows : [];
+    const renderRows = sectionRootRows.length ? sectionRootRows : (tree ? tree.rootRows : rows);
     return [
-      '<div class="object-editing-preview-options" data-object-editing-preview-options="true">',
+      '<div class="object-editing-preview-options' + (tree ? ' is-player-path-layout' : '') + '" data-object-editing-preview-options="true"' + (tree ? ' data-object-editing-preview-choice-layout="player_path"' : '') + '>',
       '<span class="object-editing-preview-group-label">' + escapeHtml(t('previewObjectEditor.playerChoices', 'Player choices')) + '</span>',
-      rows.map((option, index) => renderPreviewChoiceCard(option, index, owner, body, model)).join(''),
+      renderRows.map((item, index) => {
+        return item && item.__sectionRoot
+          ? renderPreviewChoiceSectionRoot(item, owner, body, model, tree, {depth: 0, visited: [], renderedSections: new Set()})
+          : renderPreviewChoiceBranch(item, index, owner, body, model, tree, {depth: 0, visited: [], renderedSections: new Set()});
+      }).join(''),
       '</div>'
+    ].join('');
+  }
+
+  function renderPreviewChoiceSectionRoot(item, owner, body, model, tree, context) {
+    const section = item && item.section || {};
+    const sectionId = normalizeEndpointToken(section && section.id || item && item.id);
+    return [
+      '<div class="object-editing-preview-choice-branch is-section-root" data-object-editing-preview-choice-section-root="' + escapeAttr(sectionId) + '" data-preview-object-choice-depth="' + escapeAttr(String(context && context.depth || 0)) + '">',
+      renderPreviewNestedSection(section, ensureArray(item && item.children), owner, body, model, tree, Object.assign({}, context || {}, {
+        visited: ensureArray(context && context.visited).concat(sectionId).filter(Boolean)
+      })),
+      '</div>'
+    ].join('');
+  }
+
+  function renderPreviewChoiceBranch(option, index, owner, body, model, tree, context) {
+    const ctx = context || {};
+    const sectionId = tree ? nextChoiceSectionId(option, body) : '';
+    const normalized = normalizeEndpointToken(sectionId);
+    const renderedSections = renderedChoiceSections(ctx);
+    const visited = ensureArray(ctx.visited).map(normalizeEndpointToken).filter(Boolean);
+    const repeated = Boolean(normalized && visited.includes(normalized)) || Number(ctx.depth || 0) >= 6;
+    const childRows = tree && normalized ? ensureArray(tree.childrenBySection && tree.childrenBySection[normalized]) : [];
+    const section = tree && normalized ? tree.sectionGroups && tree.sectionGroups[normalized] : null;
+    const sharedSectionRendered = Boolean(normalized && renderedSections.has(normalized));
+    const optionKey = normalizeEndpointToken(option && (option.id || option.optionId));
+    const optionRouteOutcomes = tree && !section && optionKey ? ensureArray(tree.routeOutcomesByOption && tree.routeOutcomesByOption[optionKey]) : [];
+    const nextVisited = normalized ? visited.concat([normalized]) : visited;
+    const choiceHtml = renderPreviewChoiceCard(option, index, owner, body, model, {
+      suppressResultSection: (section || sharedSectionRendered) ? normalized : ''
+    });
+    if (!section && !sharedSectionRendered && choiceHasResultForSection(option, normalized)) {
+      renderedSections.add(normalized);
+    }
+    return [
+      '<div class="object-editing-preview-choice-branch" data-object-editing-preview-choice-branch="' + escapeAttr(option && (option.id || option.optionId) || String(index + 1)) + '" data-preview-object-choice-depth="' + escapeAttr(String(ctx.depth || 0)) + '">',
+      choiceHtml,
+      optionRouteOutcomes.length ? renderPreviewRouteOutcomeBranches(optionRouteOutcomes, owner, body, model, tree, {
+        depth: Number(ctx.depth || 0) + 1,
+        visited: nextVisited,
+        renderedSections,
+        repeated
+      }) : '',
+      section ? (sharedSectionRendered
+        ? renderPreviewSharedSectionReference(section, normalized)
+        : renderPreviewNestedSection(section, childRows, owner, body, model, tree, {
+          depth: Number(ctx.depth || 0) + 1,
+          visited: nextVisited,
+          renderedSections,
+          repeated
+        })) : (sharedSectionRendered && childRows.length ? renderPreviewSharedSectionReference({id: normalized, label: normalized}, normalized) : ''),
+      !section && childRows.length && !repeated && !sharedSectionRendered ? renderPreviewChoiceChildren(childRows, owner, body, model, tree, {
+        depth: Number(ctx.depth || 0) + 1,
+        visited: nextVisited,
+        renderedSections
+      }) : '',
+      repeated ? '<small class="object-editing-preview-choice-loop">' + escapeHtml(t('previewObjectEditor.choiceLoopOrReturn', 'Loop or return route; nested choices stop here.')) + '</small>' : '',
+      '</div>'
+    ].join('');
+  }
+
+  function renderPreviewNestedSection(section, childRows, owner, body, model, tree, context) {
+    const ctx = context || {};
+    const renderedSections = renderedChoiceSections(ctx);
+    const sectionId = normalizeEndpointToken(section && section.id);
+    if (sectionId) {
+      renderedSections.add(sectionId);
+    }
+    const fields = ensureArray(section && section.fields);
+    const visibleFields = fields.filter((field) => !isSectionLogicField(field));
+    const routeOutcomes = tree && section && section.id ? ensureArray(tree.routeOutcomesBySection && tree.routeOutcomesBySection[normalizeEndpointToken(section.id)]) : [];
+    return [
+      '<section class="object-editing-preview-nested-section" data-object-editing-preview-nested-section="' + escapeAttr(section && section.id || '') + '">',
+      '<header>',
+      '<span>' + escapeHtml(t('previewObjectEditor.choiceResultStep', 'Result / next step')) + '</span>',
+      '<strong>' + escapeHtml(section && (section.label || section.id) || t('previewObjectEditor.sceneStep', 'Scene step')) + '</strong>',
+      section && section.condition ? '<code>' + escapeHtml(section.condition) + '</code>' : '',
+      '</header>',
+      visibleFields.map((field) => renderPreviewBranchField(field, body, model)).join(''),
+      routeOutcomes.length && !ctx.repeated ? renderPreviewRouteOutcomeBranches(routeOutcomes, owner, body, model, tree, ctx) : '',
+      ensureArray(childRows).length && !ctx.repeated ? renderPreviewChoiceChildren(childRows, owner, body, model, tree, ctx) : '',
+      '</section>'
+    ].join('');
+  }
+
+  function renderPreviewRouteOutcomeBranches(outcomes, owner, body, model, tree, context) {
+    const rows = ensureArray(outcomes).filter(Boolean);
+    if (!rows.length) {
+      return '';
+    }
+    return [
+      '<section class="object-editing-preview-route-outcomes" data-object-editing-preview-route-outcomes="true">',
+      '<div class="object-editing-preview-route-outcomes-title">' + escapeHtml(t('previewObjectEditor.routeOutcomes', 'Route outcomes')) + '</div>',
+      rows.map((outcome) => renderPreviewRouteOutcome(outcome, owner, body, model, tree, context)).join(''),
+      '</section>'
+    ].join('');
+  }
+
+  function renderPreviewRouteOutcome(outcome, owner, body, model, tree, context) {
+    const section = outcome && outcome.section || null;
+    const fields = ensureArray(section && section.fields);
+    const visibleFields = fields.filter((field) => !isSectionLogicField(field));
+    const childRows = tree && outcome && outcome.targetKey ? ensureArray(tree.childrenBySection && tree.childrenBySection[outcome.targetKey]) : [];
+    const predicateField = outcome && outcome.predicateField;
+    const ctx = context || {};
+    const renderedSections = renderedChoiceSections(ctx);
+    const visited = ensureArray(ctx.visited).map(normalizeEndpointToken).filter(Boolean);
+    const targetKey = normalizeEndpointToken(outcome && outcome.targetKey);
+    const sharedSectionRendered = Boolean(section && targetKey && renderedSections.has(targetKey));
+    const repeated = Boolean(targetKey && visited.includes(targetKey)) || Boolean(ctx.repeated);
+    const nextCtx = Object.assign({}, ctx, {
+      depth: Number(ctx.depth || 0) + 1,
+      visited: targetKey ? visited.concat([targetKey]) : visited,
+      renderedSections,
+      repeated
+    });
+    if (section && targetKey && !sharedSectionRendered && !repeated) {
+      renderedSections.add(targetKey);
+    }
+    return [
+      '<article class="object-editing-preview-route-outcome" data-object-editing-preview-route-outcome="' + escapeAttr(outcome && outcome.targetKey || '') + '">',
+      '<header>',
+      '<span>' + escapeHtml(t('previewObjectEditor.conditionalOutcome', 'Conditional outcome')) + '</span>',
+      '<strong>' + escapeHtml(section && (section.label || section.id) || outcome && (outcome.label || outcome.targetKey) || '') + '</strong>',
+      outcome && outcome.condition ? '<code' + renderedEntryAttrs(actionForField(predicateField, 'condition', model, {role: 'route-outcome-condition'}), 'condition', t('previewObjectEditor.editRenderedImpact', 'Edit impact')) + '>' + escapeHtml(t('previewObjectEditor.when', 'When') + ': ' + outcome.condition) + '</code>' : '',
+      '</header>',
+      sharedSectionRendered ? renderPreviewSharedSectionReference(section, targetKey) : '',
+      !sharedSectionRendered ? visibleFields.map((field) => renderPreviewBranchField(field, body, model)).join('') : '',
+      childRows.length && !repeated && !sharedSectionRendered ? renderPreviewChoiceChildren(childRows, owner, body, model, tree, nextCtx) : '',
+      repeated ? '<small class="object-editing-preview-choice-loop">' + escapeHtml(t('previewObjectEditor.choiceLoopOrReturn', 'Loop or return route; nested choices stop here.')) + '</small>' : '',
+      '</article>'
+    ].join('');
+  }
+
+  function renderPreviewChoiceChildren(rows, owner, body, model, tree, context) {
+    return [
+      '<div class="object-editing-preview-choice-children" data-object-editing-preview-choice-children="true">',
+      ensureArray(rows).map((option, index) => renderPreviewChoiceBranch(option, index, owner, body, model, tree, context || {})).join(''),
+      '</div>'
+    ].join('');
+  }
+
+  function renderPreviewSharedSectionReference(section, sectionId) {
+    const label = section && (section.label || section.id) || sectionId || '';
+    return [
+      '<aside class="object-editing-preview-shared-section" data-object-editing-preview-shared-section="' + escapeAttr(sectionId || '') + '">',
+      '<strong>' + escapeHtml(t('previewObjectEditor.sharedChoiceStep', 'Shared step')) + '</strong>',
+      '<span>' + escapeHtml(label) + '</span>',
+      '</aside>'
+    ].join('');
+  }
+
+  function renderPreviewBranchField(field, body, model) {
+    const opts = previewTextOptions(body, model);
+    return [
+      '<article class="object-editing-preview-nested-text" data-preview-branch-role="' + escapeAttr(field && (field.semanticRole || field.branchKind) || 'branch') + '"' + renderedEntryAttrs(actionForField(field, 'result', model, {role: 'branch'}), 'result', t('previewObjectEditor.editRenderedResult', 'Edit result text')) + '>',
+      renderStudioRoleLabel(branchLabel(field)),
+      branchConditionText(field) ? '<small>' + escapeHtml(branchConditionText(field)) + '</small>' : '',
+      renderTextBlocks(fieldValue(field), {empty: false, assetBaseUrl: opts.assetBaseUrl || ''}),
+      renderConditionalAlternatives(field, opts),
+      renderInlineAssetPlacements(assetsForBranch(field, body), assetAddFieldsForBranch(field, body), editorKind(model, body), body, model, {
+        showAddControls: false,
+        showReplacementControls: false
+      }),
+      renderActionContextLens(actionForField(field, 'result', model, {role: 'branch'}), 'result'),
+      '</article>'
     ].join('');
   }
 
@@ -507,10 +621,11 @@
     rows.push(row);
   }
 
-  function renderPreviewChoiceCard(option, index, owner, body, model) {
+  function renderPreviewChoiceCard(option, index, owner, body, model, renderOptions) {
     const fields = ensureArray(option && option.fields);
+    const opts = renderOptions || {};
     const label = choiceLabelField(option, fields, owner, index);
-    const resultFields = optionResultFields(option, fields);
+    const resultFields = choiceCardResultFields(option, fields, opts.suppressResultSection);
     const impacts = optionImpactRows(option, body, resultFields, model);
     const conditionRows = optionConditionSummaries(option, resultFields);
     const pendingRemoval = pendingRemovalForOption(option, body);
@@ -576,7 +691,9 @@
     if (explicit.length) {
       return explicit;
     }
-    const body = firstField(fields, /body|result|narrative/i);
+    const body = firstField(ensureArray(fields).filter((field) => {
+      return !isChoiceConditionField(field) && !isChoiceRouteField(field) && !isChoiceEffectField(field);
+    }), /body|result|narrative/i);
     return body && fieldValue(body).trim() ? [body] : [];
   }
 
@@ -716,13 +833,20 @@
   function dedupeSummaries(rows) {
     const seen = new Set();
     return ensureArray(rows).filter((row) => {
-      const key = [row.kind || '', row.label || '', row.value || ''].join('|');
+      const value = normalizeSummaryValue(row && row.value);
+      const key = row.kind === 'section'
+        ? [row.kind || '', row.label || '', value].join('|')
+        : value;
       if (seen.has(key)) {
         return false;
       }
       seen.add(key);
       return true;
     });
+  }
+
+  function normalizeSummaryValue(value) {
+    return String(value || '').replace(/\s+/g, ' ').trim().toLowerCase();
   }
 
   function optionEffectFields(option, body) {
@@ -732,6 +856,21 @@
       return normalizeEndpointToken(group && group.id) === optionId ||
         (optionLabel && String(group && group.label || '').trim() === optionLabel);
     }).flatMap((group) => ensureArray(group && group.fields));
+  }
+
+  function sectionEffectFields(sectionId, body) {
+    const target = normalizeEndpointToken(sectionId);
+    if (!target) {
+      return [];
+    }
+    const fields = ensureArray(body && body.sectionEffects).filter((field) => {
+      return normalizeEndpointToken(field && field.sectionId) === target;
+    });
+    const actions = ensureArray(body && body.structureActions).filter((field) => {
+      return String(field && field.structureAction || '') === 'remove_effect' &&
+        normalizeEndpointToken(field && field.sectionId) === target;
+    });
+    return fields.concat(actions);
   }
 
   function optionConsumedVariables(resultFields) {
@@ -1150,7 +1289,11 @@
   }
 
   function renderPreviewBranches(branches, options, model, body) {
-    const rows = ensureArray(branches).filter((field) => field && fieldValue(field).trim()).slice(0, 6);
+    const consumed = choiceTreeSectionIds(body);
+    const rows = ensureArray(branches).filter((field) => {
+      const section = normalizeEndpointToken(field && (field.sectionId || field.id));
+      return field && fieldValue(field).trim() && !(section && consumed.has(section));
+    }).slice(0, 6);
     if (!rows.length) {
       return '';
     }
@@ -1833,6 +1976,7 @@
         role: 'heading',
         element: 'input'
       }) : '',
+      openingContextUi().render(body, model),
       sections.length
         ? '<div class="preview-object-prose" data-preview-object-prose="true">' + sections.map((field, index) => [
           renderInlineField(field, {
@@ -1845,24 +1989,74 @@
         ].join('')).join('') + '</div>'
         : renderEmpty(t('objectCanvas.noBodyFields', 'No player-facing body fields are available yet.')),
       renderChoiceEditor(options, 'event', body, renderPlan, model),
-      renderFlowOverview(body.flow, model, 'editor'),
-      eventBuilderUi().renderChoiceUnitSummary(body.choiceUnits),
-      eventBuilderUi().renderConsequenceGroups(body.consequenceGroups),
-      eventBuilderUi().renderContinuationMap(body.continuationMap),
-      eventBuilderUi().renderPlayabilityChecks(body.playabilityChecks),
-      eventBuilderUi().renderRouteScriptIntelligence(body),
-      eventBuilderUi().renderEventGraphSummary(body.eventGraph),
-      eventBuilderUi().renderEventReadiness(body.readinessChecklist),
       renderBranchSectionEditor(branchSections, textOptions, body, renderPlan, model),
       renderAssetEditorPanel(body, 'event', model),
       renderLogicEditor(body, 'event'),
+      renderEventReviewDetails(body, model),
       '</article>'
     ].join('');
   }
 
+  function branchSectionGroups(body) {
+    const groups = {};
+    ensureArray(body && body.branchSections).forEach((field) => {
+      const id = normalizeEndpointToken(field && (field.sectionId || field.id));
+      if (!id) {
+        return;
+      }
+      if (!groups[id]) {
+        groups[id] = {
+          id,
+          label: branchLabel(field),
+          condition: branchConditionText(field) || '',
+          fields: []
+        };
+      }
+      groups[id].fields.push(field);
+      if (!groups[id].condition) {
+        groups[id].condition = branchConditionText(field) || '';
+      }
+      if (!groups[id].label || groups[id].label === t('previewObjectEditor.sceneStep', 'Scene step')) {
+        groups[id].label = branchLabel(field);
+      }
+    });
+    return groups;
+  }
+
+  function renderEventReviewDetails(body, model) {
+    const panels = [
+      renderFlowOverview(body && body.flow, model, 'editor'),
+      eventBuilderUi().renderChoiceUnitSummary(body && body.choiceUnits),
+      eventBuilderUi().renderConsequenceGroups(body && body.consequenceGroups),
+      eventBuilderUi().renderContinuationMap(body && body.continuationMap),
+      eventBuilderUi().renderPlayabilityChecks(body && body.playabilityChecks),
+      eventBuilderUi().renderRouteScriptIntelligence(body),
+      eventBuilderUi().renderEventGraphSummary(body && body.eventGraph, body),
+      eventBuilderUi().renderEventReadiness(body && body.readinessChecklist)
+    ].filter(Boolean);
+    if (!panels.length) {
+      return '';
+    }
+    return [
+      '<details class="preview-object-review-details" data-preview-object-review-details="true">',
+      '<summary>' + escapeHtml(t('previewObjectEditor.reviewDetails', 'Route and install review')) + '</summary>',
+      '<div class="preview-object-review-details-body">',
+      panels.join(''),
+      '</div>',
+      '</details>'
+    ].join('');
+  }
+
   function renderBranchSectionEditor(branches, options, body, renderPlan, model) {
-    const rows = ensureArray(branches).filter(Boolean);
-    const addBranch = structureUi().firstStructureAction(body, 'add_branch');
+    const consumed = choiceTreeSectionIds(body);
+    const rows = ensureArray(branches).filter((field) => {
+      const section = normalizeEndpointToken(field && (field.sectionId || field.id));
+      return Boolean(field) && !(section && consumed.has(section));
+    });
+    const mode = String(body && body.mode || model && model.mode || '');
+    const addBranch = rows.length || mode !== 'new_event'
+      ? structureUi().firstStructureAction(body, 'add_branch')
+      : null;
     if (!rows.length && !addBranch) {
       return '';
     }
@@ -1872,7 +2066,8 @@
     const deferredRows = rows.slice(limit);
     return [
       '<section class="preview-object-branches" data-preview-object-branches="true">',
-      '<div class="preview-object-section-title">' + escapeHtml(t('previewObjectEditor.branchText', 'Conditional and follow-up text')) + '</div>',
+      '<details class="preview-object-branch-details" data-preview-object-branch-details="true">',
+      '<summary><span class="preview-object-section-title">' + escapeHtml(t('previewObjectEditor.unownedFlowPages', 'Other flow pages')) + '</span></summary>',
       visibleRows.map((field) => [
         '<article class="preview-object-branch-group" data-preview-object-branch-role="' + escapeAttr(field.semanticRole || field.branchKind || 'branch') + '">',
         renderInlineField(field, {
@@ -1892,8 +2087,15 @@
       ].join('')).join(''),
       deferredRows.length ? renderDeferredBranchSummary(deferredRows) : '',
       addBranch ? structureUi().renderInlineAddAction(addBranch, body) : '',
+      '</details>',
       '</section>'
     ].join('');
+  }
+
+  function choiceTreeSectionIds(body) {
+    return new Set(choicePathModel().choiceTreeSectionIds(body, {
+      sectionGroups: branchSectionGroups(body)
+    }));
   }
 
   function renderNewsEditor(body, model) {
@@ -2002,17 +2204,244 @@
     if (!rows.length && !addOption) {
       return '<section class="preview-object-choices is-empty">' + renderEmpty(pureEvent ? t('previewObjectEditor.noChoiceEvent', 'This event has no player choices.') : t('objectCanvas.noOptions', 'No options found for this object.')) + '</section>';
     }
-    const limit = renderPlan && owner === 'event' && renderPlan.choiceLimit && rows.length > renderPlan.choiceLimit ? renderPlan.choiceLimit : rows.length;
-    const visibleRows = rows.slice(0, limit);
-    const deferredRows = rows.slice(limit);
+    const tree = owner === 'event' ? choiceTreePlan(rows, body) : null;
+    const sectionRootRows = tree && !tree.rootRows.length ? tree.rootSectionRows : [];
+    const renderRows = sectionRootRows.length ? sectionRootRows : (tree ? tree.rootRows : rows);
+    const limit = renderPlan && owner === 'event' && renderPlan.choiceLimit && renderRows.length > renderPlan.choiceLimit ? renderPlan.choiceLimit : renderRows.length;
+    const visibleRows = renderRows.slice(0, limit);
+    const deferredRows = renderRows.slice(limit);
     return [
-      '<section class="preview-object-choices" data-preview-object-choices="true">',
+      '<section class="preview-object-choices' + (tree ? ' is-player-path-layout' : '') + '" data-preview-object-choices="true"' + (tree ? ' data-preview-object-choice-layout="player_path"' : '') + '>',
       '<div class="preview-object-section-title">' + escapeHtml(t('objectPreview.choices', 'Choices')) + '</div>',
-      rows.length ? visibleRows.map((option, index) => renderChoice(option, index, owner, body, model)).join('') : renderEmpty(pureEvent ? t('previewObjectEditor.noChoiceEvent', 'This event has no player choices.') : t('objectCanvas.noOptions', 'No options found for this object.')),
+      renderRows.length ? visibleRows.map((item, index) => {
+        return item && item.__sectionRoot
+          ? renderChoiceSectionRoot(item, owner, body, model, tree, {depth: 0, visited: [], renderedSections: new Set()})
+          : renderChoiceBranch(item, index, owner, body, model, tree, {depth: 0, visited: [], renderedSections: new Set()});
+      }).join('') : renderEmpty(pureEvent ? t('previewObjectEditor.noChoiceEvent', 'This event has no player choices.') : t('objectCanvas.noOptions', 'No options found for this object.')),
       deferredRows.length ? renderDeferredChoiceSummary(deferredRows, visibleRows.length) : '',
       addOption ? structureUi().renderInlineAddAction(addOption, body) : '',
       '</section>'
     ].join('');
+  }
+
+  function choiceTreePlan(options, body) {
+    return choicePathModel().choiceTreePlan(options, body, {
+      sectionGroups: branchSectionGroups(body)
+    });
+  }
+
+  function renderChoiceSectionRoot(item, owner, body, model, tree, context) {
+    const section = item && item.section || {};
+    const sectionId = normalizeEndpointToken(section && section.id || item && item.id);
+    const childRows = ensureArray(item && item.children);
+    const renderedSections = renderedChoiceSections(context);
+    return [
+      '<div class="preview-object-choice-branch is-section-root" data-preview-object-choice-section-root="' + escapeAttr(sectionId) + '" data-preview-object-choice-depth="' + escapeAttr(String(context && context.depth || 0)) + '">',
+      renderChoiceNestedSection(section, childRows, owner, body, model, tree, Object.assign({}, context || {}, {
+        visited: ensureArray(context && context.visited).concat(sectionId).filter(Boolean),
+        renderedSections
+      })),
+      '</div>'
+    ].join('');
+  }
+
+  function renderChoiceBranch(option, index, owner, body, model, tree, context) {
+    const ctx = context || {};
+    const sectionId = tree ? nextChoiceSectionId(option, body) : '';
+    const normalized = normalizeEndpointToken(sectionId);
+    const renderedSections = renderedChoiceSections(ctx);
+    const visited = ensureArray(ctx.visited).map(normalizeEndpointToken).filter(Boolean);
+    const repeated = Boolean(normalized && visited.includes(normalized)) || Number(ctx.depth || 0) >= 6;
+    const childRows = tree && normalized ? ensureArray(tree.childrenBySection && tree.childrenBySection[normalized]) : [];
+    const section = tree && normalized ? tree.sectionGroups && tree.sectionGroups[normalized] : null;
+    const sharedSectionRendered = Boolean(normalized && renderedSections.has(normalized));
+    const optionKey = normalizeEndpointToken(option && (option.id || option.optionId));
+    const optionRouteOutcomes = tree && !section && optionKey ? ensureArray(tree.routeOutcomesByOption && tree.routeOutcomesByOption[optionKey]) : [];
+    const nextVisited = normalized ? visited.concat([normalized]) : visited;
+    const choiceHtml = renderChoice(option, index, owner, body, model, {
+      suppressResultSection: (section || sharedSectionRendered) ? normalized : ''
+    });
+    if (!section && !sharedSectionRendered && choiceHasResultForSection(option, normalized)) {
+      renderedSections.add(normalized);
+    }
+    return [
+      '<div class="preview-object-choice-branch" data-preview-object-choice-branch="' + escapeAttr(option && (option.id || option.optionId) || String(index + 1)) + '" data-preview-object-choice-depth="' + escapeAttr(String(ctx.depth || 0)) + '">',
+      choiceHtml,
+      optionRouteOutcomes.length ? renderRouteOutcomeBranches(optionRouteOutcomes, owner, body, model, tree, {
+        depth: Number(ctx.depth || 0) + 1,
+        visited: nextVisited,
+        renderedSections,
+        repeated
+      }) : '',
+      section ? (sharedSectionRendered
+        ? renderChoiceSharedSectionReference(section, normalized)
+        : renderChoiceNestedSection(section, childRows, owner, body, model, tree, {
+        depth: Number(ctx.depth || 0) + 1,
+        visited: nextVisited,
+        renderedSections,
+        repeated
+      })) : (sharedSectionRendered && childRows.length ? renderChoiceSharedSectionReference({id: normalized, label: normalized}, normalized) : ''),
+      !section && childRows.length && !repeated && !sharedSectionRendered ? renderChoiceChildren(childRows, owner, body, model, tree, {
+        depth: Number(ctx.depth || 0) + 1,
+        visited: nextVisited,
+        renderedSections
+      }) : '',
+      repeated ? '<small class="preview-object-choice-loop">' + escapeHtml(t('previewObjectEditor.choiceLoopOrReturn', 'Loop or return route; nested choices stop here.')) + '</small>' : '',
+      '</div>'
+    ].join('');
+  }
+
+  function renderChoiceNestedSection(section, childRows, owner, body, model, tree, context) {
+    const ctx = context || {};
+    const renderedSections = renderedChoiceSections(ctx);
+    const sectionId = normalizeEndpointToken(section && section.id);
+    if (sectionId) {
+      renderedSections.add(sectionId);
+    }
+    const fields = ensureArray(section && section.fields);
+    const visibleFields = fields.filter((field) => !isSectionLogicField(field)).slice(0, 3);
+    const addAction = firstAddOptionAction(body, section && section.id);
+    const routeOutcomes = tree && section && section.id ? ensureArray(tree.routeOutcomesBySection && tree.routeOutcomesBySection[normalizeEndpointToken(section.id)]) : [];
+    return [
+      '<section class="preview-object-choice-nested-section" data-preview-object-choice-nested-section="' + escapeAttr(section && section.id || '') + '">',
+      '<header>',
+      '<span>' + escapeHtml(t('previewObjectEditor.choiceResultStep', 'Result / next step')) + '</span>',
+      '<strong>' + escapeHtml(section && (section.label || section.id) || t('previewObjectEditor.sceneStep', 'Scene step')) + '</strong>',
+      section && section.condition ? '<code>' + escapeHtml(section.condition) + '</code>' : '',
+      '</header>',
+      visibleFields.map((field) => renderInlineField(field, {
+        role: branchFieldRole(field),
+        element: 'textarea',
+        fallbackLabel: branchLabel(field),
+        assetBaseUrl: previewTextOptions(body, model).assetBaseUrl
+      })).join(''),
+      renderSectionLogicPanel(section, fields, body, model, sectionEffectFields(section && section.id, body)),
+      addAction ? structureUi().renderInlineAddAction(addAction, body) : '',
+      routeOutcomes.length && !ctx.repeated ? renderRouteOutcomeBranches(routeOutcomes, owner, body, model, tree, ctx) : '',
+      ensureArray(childRows).length && !ctx.repeated ? renderChoiceChildren(childRows, owner, body, model, tree, ctx) : '',
+      '</section>'
+    ].join('');
+  }
+
+  function routeOutcomeIndex(body, sectionGroups) {
+    return choicePathModel().routeOutcomeIndex(body, sectionGroups || branchSectionGroups(body));
+  }
+
+  function renderRouteOutcomeBranches(outcomes, owner, body, model, tree, context) {
+    const rows = ensureArray(outcomes).filter(Boolean);
+    if (!rows.length) {
+      return '';
+    }
+    return [
+      '<section class="preview-object-route-outcomes" data-preview-object-route-outcomes="true">',
+      '<div class="preview-object-route-outcomes-title">' + escapeHtml(t('previewObjectEditor.routeOutcomes', 'Route outcomes')) + '</div>',
+      rows.map((outcome) => renderRouteOutcome(outcome, owner, body, model, tree, context)).join(''),
+      '</section>'
+    ].join('');
+  }
+
+  function renderRouteOutcome(outcome, owner, body, model, tree, context) {
+    const section = outcome && outcome.section || null;
+    const fields = ensureArray(section && section.fields);
+    const visibleFields = fields.filter((field) => !isSectionLogicField(field)).slice(0, 2);
+    const childRows = tree && outcome && outcome.targetKey ? ensureArray(tree.childrenBySection && tree.childrenBySection[outcome.targetKey]) : [];
+    const routeField = outcome && outcome.routeField;
+    const predicateField = outcome && outcome.predicateField;
+    const effectFields = sectionEffectFields(outcome && outcome.targetKey || section && section.id, body);
+    const ctx = context || {};
+    const renderedSections = renderedChoiceSections(ctx);
+    const visited = ensureArray(ctx.visited).map(normalizeEndpointToken).filter(Boolean);
+    const targetKey = normalizeEndpointToken(outcome && outcome.targetKey);
+    const sharedSectionRendered = Boolean(section && targetKey && renderedSections.has(targetKey));
+    const repeated = Boolean(targetKey && visited.includes(targetKey)) || Boolean(ctx.repeated);
+    const nextCtx = Object.assign({}, ctx, {
+      depth: Number(ctx.depth || 0) + 1,
+      visited: targetKey ? visited.concat([targetKey]) : visited,
+      renderedSections,
+      repeated
+    });
+    if (section && targetKey && !sharedSectionRendered && !repeated) {
+      renderedSections.add(targetKey);
+    }
+    return [
+      '<article class="preview-object-route-outcome" data-preview-object-route-outcome="' + escapeAttr(outcome && outcome.targetKey || '') + '">',
+      '<header>',
+      '<span>' + escapeHtml(t('previewObjectEditor.conditionalOutcome', 'Conditional outcome')) + '</span>',
+      '<strong>' + escapeHtml(section && (section.label || section.id) || outcome && (outcome.label || outcome.targetKey) || '') + '</strong>',
+      outcome && outcome.condition ? '<code>' + escapeHtml(t('previewObjectEditor.when', 'When') + ': ' + outcome.condition) + '</code>' : '',
+      '</header>',
+      predicateField ? '<div class="preview-object-route-outcome-target">' + renderInlineField(predicateField, {
+        role: 'route-outcome-condition',
+        element: logicFieldElement(predicateField),
+        fallbackLabel: t('previewObjectEditor.when', 'When')
+      }) + '</div>' : '',
+      routeField ? '<div class="preview-object-route-outcome-target">' + renderInlineField(routeField, {
+        role: 'route-outcome-target',
+        element: logicFieldElement(routeField),
+        fallbackLabel: t('previewObjectEditor.routeTarget', 'Route target')
+      }) + '</div>' : '',
+      sharedSectionRendered ? renderChoiceSharedSectionReference(section, targetKey) : '',
+      !sharedSectionRendered ? visibleFields.map((field) => renderInlineField(field, {
+        role: branchFieldRole(field),
+        element: 'textarea',
+        fallbackLabel: branchLabel(field),
+        assetBaseUrl: previewTextOptions(body, model).assetBaseUrl
+      })).join('') : '',
+      section && !sharedSectionRendered ? renderSectionLogicPanel(section, fields, body, model, effectFields) : '',
+      childRows.length && !repeated && !sharedSectionRendered ? renderChoiceChildren(childRows, owner, body, model, tree, nextCtx) : '',
+      repeated ? '<small class="preview-object-choice-loop">' + escapeHtml(t('previewObjectEditor.choiceLoopOrReturn', 'Loop or return route; nested choices stop here.')) + '</small>' : '',
+      '</article>'
+    ].join('');
+  }
+
+  function renderChoiceChildren(rows, owner, body, model, tree, context) {
+    const ctx = context || {};
+    return [
+      '<div class="preview-object-choice-children" data-preview-object-choice-children="true">',
+      ensureArray(rows).map((option, index) => renderChoiceBranch(option, index, owner, body, model, tree, ctx)).join(''),
+      '</div>'
+    ].join('');
+  }
+
+  function nextChoiceSectionId(option, body) {
+    return choicePathModel().nextChoiceSectionId(option, body);
+  }
+
+  function choiceHasResultForSection(option, sectionId) {
+    const target = normalizeEndpointToken(sectionId);
+    if (!target) {
+      return false;
+    }
+    return ensureArray(option && option.resultFields).some((field) => normalizeEndpointToken(field && field.sectionId) === target);
+  }
+
+  function renderedChoiceSections(context) {
+    const value = context && context.renderedSections;
+    return value && typeof value.add === 'function' && typeof value.has === 'function'
+      ? value
+      : new Set();
+  }
+
+  function renderChoiceSharedSectionReference(section, sectionId) {
+    const label = section && (section.label || section.id) || sectionId || '';
+    return [
+      '<aside class="preview-object-choice-shared-section" data-preview-object-choice-shared-section="' + escapeAttr(sectionId || '') + '">',
+      '<strong>' + escapeHtml(t('previewObjectEditor.sharedChoiceStep', 'Shared step')) + '</strong>',
+      '<span>' + escapeHtml(label) + '</span>',
+      '<small>' + escapeHtml(t('previewObjectEditor.sharedChoiceStepNote', 'Already editable above in this player path.')) + '</small>',
+      '</aside>'
+    ].join('');
+  }
+
+  function firstAddOptionAction(body, sectionId) {
+    const section = normalizeEndpointToken(sectionId || '');
+    return ensureArray(body && body.structureActions).find((field) => {
+      if (String(field && field.structureAction || '') !== 'add_option') {
+        return false;
+      }
+      const actionSection = normalizeEndpointToken(field && field.sectionId);
+      return section ? actionSection === section : !actionSection;
+    }) || null;
   }
 
   function renderAssetEditorPanel(body, target, model) {
@@ -2102,7 +2531,14 @@
   }
 
   function renderLogicEditor(body, owner) {
-    const meta = ensureArray(body && body.metaFields);
+    const consumed = choiceOwnedLogicFieldIds(body);
+    const meta = ensureArray(body && body.metaFields).filter((field) => {
+      if (owner === 'event' && openingContextUi().isOpeningContextField(field)) {
+        return false;
+      }
+      const id = fieldId(field);
+      return !(id && consumed.has(id));
+    });
     const variables = ensureArray(body && body.variables);
     const backgroundEffects = ensureArray(body && body.backgroundEffects);
     const triggerEffects = ensureArray(body && body.effects);
@@ -2153,6 +2589,30 @@
         : '',
       '</details>'
     ].join('');
+  }
+
+  function choiceOwnedLogicFieldIds(body) {
+    const ids = new Set();
+    ensureArray(body && body.options).forEach((option) => {
+      ensureArray(option && option.fields).forEach((field) => {
+        const id = fieldId(field);
+        if (id) {
+          ids.add(id);
+        }
+      });
+    });
+    const routeOutcomes = routeOutcomeIndex(body, branchSectionGroups(body));
+    Object.keys(routeOutcomes.byOption || {}).concat(Object.keys(routeOutcomes.bySection || {})).forEach((ownerKey) => {
+      ensureArray(routeOutcomes.byOption && routeOutcomes.byOption[ownerKey]).concat(ensureArray(routeOutcomes.bySection && routeOutcomes.bySection[ownerKey])).forEach((outcome) => {
+        [outcome && outcome.routeField, outcome && outcome.predicateField].forEach((field) => {
+          const id = fieldId(field);
+          if (id) {
+            ids.add(id);
+          }
+        });
+      });
+    });
+    return ids;
   }
 
   function renderVariableRows(variables) {
@@ -2364,21 +2824,24 @@
       : field && field.inputType === 'select' ? 'select' : field && field.inputType === 'textarea' ? 'textarea' : 'input';
   }
 
-  function renderChoice(option, index, owner, eventBody, model) {
-    const fields = ensureArray(option && option.fields);
+  function renderChoice(option, index, owner, eventBody, model, renderOptions) {
+    const rawFields = ensureArray(option && option.fields);
+    const opts = renderOptions || {};
+    const nextSection = owner === 'event' ? nextChoiceSectionId(option, eventBody) : '';
+    const fields = choiceCardFields(option, rawFields, owner, eventBody, nextSection);
     const label = choiceLabelField(option, fields, owner, index);
-    const resultFields = optionResultFields(option, fields);
-    const resultField = firstField(fields, /body|result|narrative/i) || resultFields[0] || null;
+    const resultFields = choiceCardResultFields(option, fields, opts.suppressResultSection);
+    const resultField = resultFields[0] || null;
     const subtitle = firstField(fields, /subtitle/i);
-    const unavailable = fields.find((field) => String(field && field.role || '') === 'unavailable_text') || null;
-    const target = option && (option.targetId || option.gotoAfter || '');
+    const optionAssets = assetsForOption(option, eventBody, resultFields);
+    const optionAssetAddFields = assetAddFieldsForOption(option, eventBody, resultFields);
     const choiceActions = structureUi().optionStructureActions(option, eventBody);
-    const effectGroup = structureUi().optionEffectGroup(option, eventBody);
+    const effectGroup = choiceCardEffectGroup(structureUi().optionEffectGroup(option, eventBody), option, nextSection, eventBody);
     const choiceDeleteActions = choiceActions.filter((field) => ['remove_option', 'remove_option_condition'].includes(String(field && field.structureAction || '')));
-    const choiceEffectActions = choiceActions.filter((field) => ['add_option_effect', 'remove_effect'].includes(String(field && field.structureAction || '')));
-    const resultActions = structureUi().resultSectionActions(ensureArray(option && option.resultFields), eventBody);
-    const conditionFields = resultFields;
-    const consumedFields = [label, resultField, subtitle, unavailable].concat(resultFields).filter(Boolean);
+    const choiceEffectActions = choiceActions.filter((field) => choiceEffectActionBelongsOnChoice(field, option, nextSection, eventBody));
+    const resultActions = structureUi().resultSectionActions(resultFields, eventBody);
+    const logicFields = choiceLogicFields(fields);
+    const consumedFields = [label, resultField, subtitle].concat(resultFields, logicFields.all, optionAssetAddFields).filter(Boolean);
     const consumedFieldRefs = new Set(consumedFields);
     const consumedFieldIds = new Set(consumedFields.map((field) => fieldId(field)).filter(Boolean));
     const rest = fields.filter((field) => !consumedFieldRefs.has(field) && !(fieldId(field) && consumedFieldIds.has(fieldId(field))));
@@ -2391,32 +2854,276 @@
         element: 'textarea',
         fallbackLabel: t('storyboard.option', 'Option') + ' ' + (index + 1)
       }),
-      target ? '<small>' + escapeHtml(t('objectCanvas.optionTarget', 'Target') + ': ' + target) + '</small>' : '',
-      renderOptionConditionChips(option, conditionFields),
       '</div>',
       choiceDeleteActions.length ? '<div class="preview-object-entry-actions">' + choiceDeleteActions.map((field) => structureUi().renderCompactStructureAction(field, eventBody)).join('') + '</div>' : '',
       subtitle ? renderInlineField(subtitle, {
         role: 'choice-subtitle',
         element: 'input'
       }) : '',
-      unavailable ? renderInlineField(unavailable, {
-        role: 'choice-unavailable',
-        element: 'textarea'
-      }) : '',
+      renderChoiceLogicPanel(option, fields, resultFields, effectGroup, choiceEffectActions, eventBody, model),
       resultField ? renderInlineField(resultField, {
         role: 'choice-body',
         element: 'textarea'
       }) : '',
-      renderInlineAssetPlacements(assetsForOption(option, eventBody, resultFields), assetAddFieldsForOption(option, eventBody, resultFields), owner, eventBody, model),
+      renderInlineAssetPlacements(optionAssets, optionAssetAddFields, owner, eventBody, model),
       resultActions.length ? '<div class="preview-object-entry-actions preview-object-section-actions">' + resultActions.map((field) => structureUi().renderInlineAddAction(field, eventBody)).join('') + '</div>' : '',
-      effectGroup || choiceEffectActions.length
-        ? '<section class="preview-object-choice-effects"><h5>' + escapeHtml(t('previewObjectEditor.choiceEffects', 'Choice effects')) + '</h5>' + renderEffectFields(ensureArray(effectGroup && effectGroup.fields).concat(choiceEffectActions), eventBody) + '</section>'
-        : '',
       rest.length ? '<details class="preview-object-choice-details"><summary>' + escapeHtml(t('objectCanvas.advancedFields', 'Timing and advanced fields')) + '</summary>' + rest.map((field) => renderInlineField(field, {
         role: 'choice-detail',
         element: field && field.id && /body|text/i.test(field.id) ? 'textarea' : 'input'
       })).join('') + '</details>' : '',
       '</article>'
+    ].join('');
+  }
+
+  function choiceLogicFields(fields) {
+    const rows = ensureArray(fields);
+    const conditions = rows.filter(isChoiceConditionField);
+    const routes = rows.filter(isChoiceRouteField);
+    const effects = rows.filter(isChoiceEffectField);
+    return {
+      conditions,
+      routes,
+      effects,
+      all: uniqueFieldRefs(conditions.concat(routes, effects))
+    };
+  }
+
+  function choiceCardResultFields(option, fields, suppressResultSection) {
+    const resultFields = optionResultFields(option, fields);
+    const suppressed = normalizeEndpointToken(suppressResultSection);
+    if (!suppressed) {
+      return resultFields;
+    }
+    return resultFields.filter((field) => normalizeEndpointToken(field && field.sectionId) !== suppressed);
+  }
+
+  function choiceCardFields(option, fields, owner, eventBody, nextSection) {
+    if (owner !== 'event') {
+      return ensureArray(fields);
+    }
+    const targetSection = normalizeEndpointToken(nextSection || nextChoiceSectionId(option, eventBody));
+    if (!targetSection) {
+      return ensureArray(fields);
+    }
+    return ensureArray(fields).filter((field) => {
+      const section = normalizeEndpointToken(field && field.sectionId);
+      if (!section || section !== targetSection) {
+        return true;
+      }
+      return isChoiceConditionField(field) ||
+        String(field && (field.role || field.semanticRole) || '') === 'option_label';
+    });
+  }
+
+  function choiceCardEffectGroup(group, option, nextSection, eventBody) {
+    const fields = ensureArray(group && group.fields);
+    const targetSection = normalizeEndpointToken(nextSection);
+    const ownerSection = normalizeEndpointToken(option && option.sectionId);
+    const renderableSections = branchSectionGroups(eventBody);
+    const sectionOwnedEffectIds = new Set((renderableSections[targetSection] ? sectionEffectFields(targetSection, eventBody) : [])
+      .concat(renderableSections[ownerSection] ? sectionEffectFields(ownerSection, eventBody) : [])
+      .map((field) => fieldId(field))
+      .filter(Boolean));
+    if (!group || (!targetSection && !ownerSection)) {
+      return group;
+    }
+    const filtered = fields.filter((field) => {
+      const id = fieldId(field);
+      if (id && sectionOwnedEffectIds.has(id)) {
+        return false;
+      }
+      const section = normalizeEndpointToken(field && field.sectionId);
+      const fieldOption = normalizeEndpointToken(field && field.optionId);
+      const currentOption = normalizeEndpointToken(option && option.id);
+      if (fieldOption && currentOption) {
+        return fieldOption === currentOption;
+      }
+      return !section || (section !== targetSection && section !== ownerSection);
+    });
+    return Object.assign({}, group, {fields: filtered});
+  }
+
+  function choiceEffectActionBelongsOnChoice(field, option, nextSection, eventBody) {
+    const action = String(field && field.structureAction || '');
+    if (!['add_option_effect', 'remove_effect'].includes(action)) {
+      return false;
+    }
+    if (action !== 'remove_effect') {
+      return true;
+    }
+    const targetSection = normalizeEndpointToken(nextSection);
+    const ownerSection = normalizeEndpointToken(option && option.sectionId);
+    const section = normalizeEndpointToken(field && field.sectionId);
+    const renderableSections = branchSectionGroups(eventBody);
+    const sectionOwnedEffectIds = new Set((renderableSections[targetSection] ? sectionEffectFields(targetSection, eventBody) : [])
+      .concat(renderableSections[ownerSection] ? sectionEffectFields(ownerSection, eventBody) : [])
+      .map((row) => fieldId(row))
+      .filter(Boolean));
+    const id = fieldId(field);
+    if (id && sectionOwnedEffectIds.has(id)) {
+      return false;
+    }
+    const fieldOption = normalizeEndpointToken(field && field.optionId);
+    const currentOption = normalizeEndpointToken(option && option.id);
+    if (fieldOption && currentOption) {
+      return fieldOption === currentOption;
+    }
+    return !section || (section !== targetSection && section !== ownerSection);
+  }
+
+  function uniqueFieldRefs(fields) {
+    const seenRefs = new Set();
+    const seenIds = new Set();
+    const out = [];
+    ensureArray(fields).forEach((field) => {
+      if (!field) {
+        return;
+      }
+      const id = fieldId(field);
+      if (seenRefs.has(field) || (id && seenIds.has(id))) {
+        return;
+      }
+      seenRefs.add(field);
+      if (id) {
+        seenIds.add(id);
+      }
+      out.push(field);
+    });
+    return out;
+  }
+
+  function isChoiceConditionField(field) {
+    const roleText = String(field && [field.role, field.semanticRole].filter(Boolean).join(' ') || '');
+    if (/\bunavailable_text\b/.test(roleText)) {
+      return true;
+    }
+    if (isChoiceResultField(field)) {
+      return false;
+    }
+    const text = fieldSearchText(field);
+    const role = String(field && (field.role || field.semanticRole) || '');
+    return /^(?:condition|unavailable_text|option_condition)$/.test(role) ||
+      /(?:chooseIf|viewIf|condition|unavailableText|unavailable[_ -]?text|unavailable-subtitle)/i.test(text);
+  }
+
+  function isChoiceRouteField(field) {
+    const text = fieldSearchText(field);
+    const role = String(field && (field.role || field.semanticRole) || '');
+    return role === 'route' || /(?:resultMode|gotoAfter|returnTarget|routeTarget|target|goTo|\broute\b)/i.test(text);
+  }
+
+  function isChoiceEffectField(field) {
+    const text = fieldSearchText(field);
+    const role = String(field && (field.role || field.semanticRole) || '');
+    return role === 'effect' || /(?:rawEffects|effect\.)/i.test(text);
+  }
+
+  function isSectionConditionField(field) {
+    const text = fieldSearchText(field);
+    const role = String(field && (field.role || field.semanticRole) || '');
+    return role === 'condition' || /(?:section_condition|\.condition$|viewIf|chooseIf)/i.test(text);
+  }
+
+  function isSectionRouteField(field) {
+    const text = fieldSearchText(field);
+    const role = String(field && (field.role || field.semanticRole) || '');
+    return role === 'route' || /(?:section_exit_route|exitTarget|returnTarget|routeTarget|goTo|\broute\b)/i.test(text);
+  }
+
+  function isSectionLogicField(field) {
+    return isSectionConditionField(field) || isSectionRouteField(field);
+  }
+
+  function fieldSearchText(field) {
+    return String(field && [field.id, field.key, field.role, field.semanticRole, field.branchKind, field.transform, field.structureAction].filter(Boolean).join(' ') || '');
+  }
+
+  function renderChoiceLogicPanel(option, fields, resultFields, effectGroup, choiceEffectActions, eventBody, model) {
+    const logic = choiceLogicFields(fields);
+    const conditionContent = [
+      renderOptionConditionChips(option, resultFields),
+      logic.conditions.length ? renderLogicFields(logic.conditions, 'choice-condition') : ''
+    ].join('');
+    const routeTarget = option && (option.targetId || option.gotoAfter || option.returnTarget || '');
+    const routeContent = [
+      routeTarget ? renderLogicSummaryChip(t('objectCanvas.optionTarget', 'Target'), endpointDisplay(routeTarget, model), 'route') : '',
+      logic.routes.length ? renderLogicFields(logic.routes, 'choice-route') : ''
+    ].join('');
+    const effectFields = uniqueFieldRefs(logic.effects.concat(ensureArray(effectGroup && effectGroup.fields), choiceEffectActions));
+    const effectContent = effectFields.length ? renderEffectFields(effectFields, eventBody) : '';
+    const groups = [
+      renderChoiceLogicGroup('gate', t('previewObjectEditor.choiceGate', 'Gate'), conditionContent),
+      renderChoiceLogicGroup('route', t('previewObjectEditor.choiceRoute', 'Route'), routeContent),
+      renderChoiceLogicGroup('effects', t('previewObjectEditor.choiceEffects', 'Choice effects'), effectContent)
+    ].filter(Boolean);
+    if (!groups.length) {
+      return '';
+    }
+    return [
+      '<section class="preview-object-choice-logic" data-preview-object-choice-logic="true">',
+      '<h5>' + escapeHtml(t('previewObjectEditor.choiceLogic', 'Choice logic')) + '</h5>',
+      groups.join(''),
+      '</section>'
+    ].join('');
+  }
+
+  function renderSectionLogicPanel(section, fields, body, model, effectFields) {
+    const conditionFields = ensureArray(fields).filter(isSectionConditionField);
+    const routeFields = ensureArray(fields).filter(isSectionRouteField);
+    const effects = uniqueFieldRefs(ensureArray(effectFields));
+    const conditionContent = conditionFields.length
+      ? renderLogicFields(conditionFields, 'section-condition')
+      : section && section.condition ? renderLogicSummaryChip(t('previewObjectEditor.when', 'When'), section.condition, 'gate') : '';
+    const routeContent = routeFields.length
+      ? renderLogicFields(routeFields, 'section-route')
+      : '';
+    const effectContent = effects.length ? renderEffectFields(effects, body) : '';
+    const groups = [
+      renderChoiceLogicGroup('gate', t('previewObjectEditor.choiceGate', 'Gate'), conditionContent),
+      renderChoiceLogicGroup('route', t('previewObjectEditor.choiceExitRoute', 'Exit route'), routeContent),
+      renderChoiceLogicGroup('effects', t('previewObjectEditor.stepEffects', 'Step effects'), effectContent)
+    ].filter(Boolean);
+    if (!groups.length) {
+      return '';
+    }
+    return [
+      '<section class="preview-object-choice-logic is-section-logic" data-preview-object-section-logic="' + escapeAttr(section && section.id || '') + '">',
+      '<h5>' + escapeHtml(t('previewObjectEditor.sectionLogic', 'Step logic')) + '</h5>',
+      groups.join(''),
+      '</section>'
+    ].join('');
+  }
+
+  function renderChoiceLogicGroup(kind, label, content) {
+    const html = String(content || '').trim();
+    if (!html) {
+      return '';
+    }
+    return [
+      '<div class="preview-object-choice-logic-group is-' + escapeAttr(safeClass(kind || 'logic')) + '" data-preview-object-choice-logic-group="' + escapeAttr(kind || 'logic') + '">',
+      '<strong>' + escapeHtml(label || '') + '</strong>',
+      html,
+      '</div>'
+    ].join('');
+  }
+
+  function renderLogicFields(fields, role) {
+    return ensureArray(fields).map((field) => renderInlineField(field, {
+      role,
+      element: logicFieldElement(field)
+    })).join('');
+  }
+
+  function renderLogicSummaryChip(label, value, kind) {
+    const text = String(value || '').trim();
+    if (!text) {
+      return '';
+    }
+    return [
+      '<span class="preview-object-choice-logic-chip" data-preview-object-choice-logic-chip="' + escapeAttr(kind || 'logic') + '">',
+      '<strong>' + escapeHtml(label || '') + '</strong>',
+      '<em>' + escapeHtml(text) + '</em>',
+      '</span>'
     ].join('');
   }
 
@@ -3015,8 +3722,8 @@
   }
 
   function isChoiceResultField(field) {
-    const role = String(field && (field.role || field.semanticRole) || '');
-    if (/^(?:option_result|option_result_text|conditional_option_result_text|unavailable_text)$/.test(role)) {
+    const role = String(field && [field.role, field.semanticRole].filter(Boolean).join(' ') || '');
+    if (/\b(?:option_result|option_result_text|conditional_option_result_text|unavailable_text)\b/.test(role)) {
       return true;
     }
     const branchKind = String(field && field.branchKind || '');
@@ -3241,6 +3948,77 @@
       }
     }
     return fallbackEventBuilderUi();
+  }
+
+  function choicePathModel() {
+    if (cachedChoicePathModel) {
+      return cachedChoicePathModel;
+    }
+    if (global && global.ProjectMapEventChoicePathModel) {
+      cachedChoicePathModel = global.ProjectMapEventChoicePathModel;
+      return cachedChoicePathModel;
+    }
+    if (typeof require === 'function') {
+      cachedChoicePathModel = require('../authoring/event_choice_path_model.js');
+      return cachedChoicePathModel;
+    }
+    throw new Error('ProjectMapEventChoicePathModel is required before preview_object_editor.js');
+  }
+
+  function openingContextUi() {
+    if (cachedOpeningContextUi) {
+      return cachedOpeningContextUi;
+    }
+    const factory = openingContextUiFactory();
+    cachedOpeningContextUi = factory.create({
+      t,
+      escapeHtml,
+      ensureArray,
+      fieldId,
+      renderInlineField,
+      logicFieldElement
+    });
+    return cachedOpeningContextUi;
+  }
+
+  function openingContextUiFactory() {
+    if (global && global.ProjectMapPreviewObjectOpeningContextUi) {
+      return global.ProjectMapPreviewObjectOpeningContextUi;
+    }
+    if (typeof require === 'function') {
+      return require('./preview_object_opening_context_ui.js');
+    }
+    throw new Error('ProjectMapPreviewObjectOpeningContextUi is required before preview_object_editor.js');
+  }
+
+  function metadataUi() {
+    if (cachedMetadataUi) {
+      return cachedMetadataUi;
+    }
+    const factory = metadataUiFactory();
+    cachedMetadataUi = factory.create({
+      t,
+      escapeHtml,
+      escapeAttr,
+      ensureArray,
+      fieldValue,
+      fieldId,
+      displayFieldLabel,
+      actionForField,
+      renderedEntryAttrs,
+      renderActionContextLens
+    });
+    return cachedMetadataUi;
+  }
+
+  function metadataUiFactory() {
+    if (global && global.ProjectMapPreviewObjectMetadataUi) {
+      return global.ProjectMapPreviewObjectMetadataUi;
+    }
+    if (typeof require === 'function') {
+      return require('./preview_object_metadata_ui.js');
+    }
+    throw new Error('ProjectMapPreviewObjectMetadataUi is required before preview_object_editor.js');
   }
 
   function fallbackEventBuilderUi() {

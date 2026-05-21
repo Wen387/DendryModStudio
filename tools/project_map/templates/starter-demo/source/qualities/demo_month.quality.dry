@@ -1,0 +1,6 @@
+name: Demo Month
+initial: 9
+min: 1
+max: 12
+
+Starter demo calendar month. The bundled playable loop begins in September.

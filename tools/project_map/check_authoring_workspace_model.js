@@ -204,15 +204,20 @@ assert(previewObjectStructureDraftApi.composeStructureValue('add_option', {
   option_label: 'Take the bridge',
   result_text: 'You cross safely.',
   choose_if: 'Q.bridge_open',
-  unavailable_text: 'The bridge is closed.'
+  unavailable_text: 'The bridge is closed.',
+  effect_variable: 'public_order',
+  effect_operation: '-=',
+  effect_value: '1',
+  effect_condition: 'Q.bridge_open'
 }) === [
   '- @take_the_bridge: Take the bridge',
   '# take_the_bridge',
   'result-mode: native',
   'choose-if: Q.bridge_open',
   'unavailable-subtitle: The bridge is closed.',
+  'on-arrival: public_order -= 1 if bridge_open',
   'You cross safely.'
-].join('\n'), 'Preview Object structure draft helpers should compose add-option drafts');
+].join('\n'), 'Preview Object structure draft helpers should compose add-option drafts with gates and choice effects');
 assert(previewObjectStructureDraftApi.composeStructureValue('add_option', {
   option_label: 'What next?',
   target_id: 'Aufhäuser_republican_concordat',
@@ -281,10 +286,16 @@ assert(html.includes('content_storyboard_surface.js'), 'viewer should load Conte
 assert(html.includes('content_storyboard_interactions.js'), 'viewer should load Content Storyboard interactions');
 assert(html.includes('visible_text_renderer.js'), 'viewer should load the shared visible text renderer before object previews');
 assert(html.includes('preview_object_structure_draft.js'), 'viewer should load Preview Object structure draft helpers');
+assert(html.includes('event_choice_path_model.js'), 'viewer should load event choice path model before object previews');
+assert(html.includes('preview_object_metadata_ui.js'), 'viewer should load Preview Object metadata UI');
+assert(html.includes('preview_object_opening_context_ui.js'), 'viewer should load Preview Object opening context UI');
 assertHtmlOrder('preview_object_structure_draft.js', 'preview_object_editor.js', 'Preview Object structure draft helpers should load before Preview Object Editor');
 assertHtmlOrder('preview_object_structure_draft.js', 'preview_object_structure_ui.js', 'Preview Object structure draft helpers should load before Preview Object structure UI');
+assertHtmlOrder('event_choice_path_model.js', 'preview_object_editor.js', 'Event choice path model should load before Preview Object Editor');
 assertHtmlOrder('preview_object_structure_ui.js', 'preview_object_event_builder_ui.js', 'Preview Object structure UI should load before Complex Event Builder UI');
 assertHtmlOrder('preview_object_event_builder_ui.js', 'preview_object_editor.js', 'Complex Event Builder UI should load before Preview Object Editor');
+assertHtmlOrder('preview_object_metadata_ui.js', 'preview_object_editor.js', 'Metadata UI should load before Preview Object Editor');
+assertHtmlOrder('preview_object_opening_context_ui.js', 'preview_object_editor.js', 'Opening context UI should load before Preview Object Editor');
 assertHtmlOrder('preview_object_structure_ui.js', 'preview_object_editor.js', 'Preview Object structure UI should load before Preview Object Editor');
 assert(html.includes('object_canvas_field_values.js'), 'viewer should load Object Canvas field value helpers');
 assertHtmlOrder('object_canvas_field_values.js', 'object_authoring_canvas_ui.js', 'Object Canvas field value helpers should load before Object Canvas UI');
@@ -642,6 +653,9 @@ assert(referenceIndex.includes('contentContext'), 'Reference index should expose
 assert(referenceIndex.includes('branchDraft'), 'Reference index should create related branch drafts');
 assert(contentInteractions.includes('pointerdown'), 'Content Graph interactions should bind pointer drag behavior');
 assert(contentInteractions.includes('onViewport'), 'Content Graph interactions should support background pan');
+assert(contentInteractions.includes("options.onZoom(event.deltaY < 0 ? 'in' : 'out', event)"), 'Content Graph interactions should pass wheel events into the shared viewport');
+assert(objectCanvasViewport.includes('ZOOM_TRANSITION_MS'), 'Object Canvas viewport helper should smooth zoom transitions');
+assert(objectCanvasViewport.includes('viewportCanvas(root, event)'), 'Object Canvas viewport helper should share pointer-centered zoom between graph and storyboard canvases');
 assert(canvasUi.includes('storyboardWorkspaceApi'), 'Object Canvas should delegate content templates to the Storyboard workspace state');
 assert(canvasUi.includes('openRelatedEventDraft'), 'Object Canvas should open Storyboard-created events as real event drafts');
 assert(canvasUi.includes('discardDraftCard'), 'Object Canvas should discard unsaved Storyboard draft cards');

@@ -362,7 +362,7 @@
     const dependencies = unique(candidates.flatMap((candidate) => ensureArray(candidate.predicateSummary && candidate.predicateSummary.dependencies)));
     const dynamicTargetCount = candidates.filter((candidate) => candidate.dynamicTarget).length;
     const unresolvedTargetCount = candidates.filter((candidate) => !candidate.targetResolved).length;
-    const fallbackCandidate = candidates.find((candidate) => candidate.isFallback) || null;
+    const sourceFallbackCandidate = candidates.find((candidate) => candidate.isFallback) || null;
     const routeTrial = routeRuntimeTrialApi();
     if (!routeTrial) {
       throw new Error('route_runtime_trial_model.js is required before route_state_model.js');
@@ -382,10 +382,12 @@
     });
     const collisionSummary = routeTrial.routeCollisionSummary(state, candidates, preRouteScript, Object.assign({}, options || {}, {summarizePredicate}));
     const runtimeSemantics = routeTrial.enrichRuntimeSemantics(
-      routeSemantics.routeRuntimeSemantics(state, candidates, fallbackCandidate, dynamicTargetCount, unresolvedTargetCount),
+      routeSemantics.routeRuntimeSemantics(state, candidates, sourceFallbackCandidate, dynamicTargetCount, unresolvedTargetCount),
       preRouteScript,
       collisionSummary
     );
+    const fallbackCandidate = runtimeSemantics.possibleRandomization ? null : sourceFallbackCandidate;
+    const safeEditEligible = routeSafeEditEligible(state, candidates, runtimeSemantics, preRouteScript);
     return Object.assign({}, state, {
       candidateCount: candidates.length,
       fallbackCandidate,
@@ -395,9 +397,46 @@
       unresolvedTargetCount,
       preRouteScript,
       runtimeSemantics,
+      safeEditEligible,
+      semanticTier: routeSemanticTier(state, candidates, runtimeSemantics, safeEditEligible),
       status: unresolvedTargetCount ? 'needs_review' : runtimeSemantics.possibleRandomization ? 'runtime_ambiguous' : dynamicTargetCount ? 'dynamic' : state.chainContext === 'direct' ? 'direct' : 'reviewable',
       summaryLabel: routeStateLabel(state, candidates, fallbackCandidate)
     });
+  }
+
+  function routeSafeEditEligible(state, candidates, runtimeSemantics, preRouteScript) {
+    const rows = ensureArray(candidates);
+    const collision = runtimeSemantics && runtimeSemantics.collisionSummary || {};
+    const hasZeroValid = collision.after && Number(collision.after.zeroValidCount || 0) > 0;
+    return Boolean(state && state.parserBacked) &&
+      rows.length > 0 &&
+      rows.every((candidate) => candidate && candidate.targetResolved && !candidate.dynamicTarget && predicateCanSupportSafeEdit(candidate.predicateSummary)) &&
+      runtimeSemantics &&
+      !runtimeSemantics.possibleRandomization &&
+      !hasZeroValid &&
+      preRouteScript &&
+      !preRouteScript.opaque;
+  }
+
+  function routeSemanticTier(state, candidates, runtimeSemantics, safeEditEligible) {
+    if (safeEditEligible) {
+      return 'static_exact';
+    }
+    if (ensureArray(candidates).some((candidate) => candidate && candidate.dynamicTarget && candidate.targetSource === 'quality')) {
+      return 'guided_profile';
+    }
+    if (runtimeSemantics && runtimeSemantics.possibleRandomization) {
+      return 'manual_boundary';
+    }
+    if (state && state.parserBacked && ensureArray(candidates).every((candidate) => candidate && candidate.targetResolved && !candidate.dynamicTarget)) {
+      return 'static_exact';
+    }
+    return 'manual_boundary';
+  }
+
+  function predicateCanSupportSafeEdit(summary) {
+    const value = summary || {};
+    return !value.raw || value.status === 'empty' || value.status === 'parsed';
   }
 
   function ownerForRoute(lookup, ownerId) {
@@ -484,10 +523,30 @@
       if (state.runtimeSemantics && state.runtimeSemantics.possibleRandomization) {
         diagnostics.push({
           severity: 'info',
-          code: 'route_state.possible_random_selection',
+          code: 'route_state.multi_valid_randomization',
           sceneId: state.sceneId,
           ownerId: state.ownerId,
           message: state.runtimeSemantics.reason,
+          source: state.source
+        });
+      }
+      if (state.runtimeSemantics && ensureArray(state.runtimeSemantics.warnings).some((warning) => String(warning).indexOf('unconditional') >= 0)) {
+        diagnostics.push({
+          severity: 'warning',
+          code: 'route_state.unconditional_not_fallback',
+          sceneId: state.sceneId,
+          ownerId: state.ownerId,
+          message: 'Unconditional route clauses are always valid and are not ordered fallbacks.',
+          source: state.source
+        });
+      }
+      if (state.runtimeSemantics && state.runtimeSemantics.collisionSummary && state.runtimeSemantics.collisionSummary.after && Number(state.runtimeSemantics.collisionSummary.after.zeroValidCount || 0) > 0) {
+        diagnostics.push({
+          severity: 'warning',
+          code: 'route_state.zero_valid_gap',
+          sceneId: state.sceneId,
+          ownerId: state.ownerId,
+          message: 'Route sampling found a state with no valid target.',
           source: state.source
         });
       }

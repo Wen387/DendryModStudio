@@ -3,6 +3,8 @@
 
 const parsedToDraft = require('./authoring/parsed_to_draft.js');
 const partialRepair = require('./authoring/partial_repair_workflow_model.js');
+const canvasModel = require('./authoring/object_authoring_canvas_model.js');
+const previewEditor = require('./viewer/preview_object_editor.js');
 const {syntheticIndex} = require('./fixtures/archetype_authoring_fixture.js');
 
 function fail(message, detail) {
@@ -78,6 +80,11 @@ const repairEntries = partialRepair.buildRepairEntries(lossyResult.parity, {
   }
 });
 assert(repairEntries.some((entry) => entry.role === 'body' && entry.repairAction && entry.repairAction.actionKind === 'open_object_section'), 'partial parsed-to-draft body blockers should expose a repair route without unblocking install', repairEntries);
+const lossyCanvas = canvasModel.buildCanvasModel(lossy, {template: 'event', draft: lossyResult.draft});
+assert(!lossyCanvas.ok && lossyCanvas.changeState.diagnostics.some((diag) => diag.code === 'parsed_to_draft.partial_blocked'), 'partial draft should remain blocked in Object Canvas', lossyCanvas.changeState.diagnostics);
+assert(lossyCanvas.eventBody.eventGraph && lossyCanvas.eventBody.eventGraph.reviewHints.some((hint) => hint.key === 'partial_blocker' && hint.count >= 1), 'partial draft Route Map should expose parity repair hints without unblocking install', lossyCanvas.eventBody.eventGraph);
+const lossyHtml = previewEditor.render(lossyCanvas);
+assert(lossyHtml.includes('data-preview-object-route-map-review="true"') && lossyHtml.includes('data-route-map-review-chip="partial_blocker"'), 'partial draft Route Map should render parity repair chips', lossyHtml);
 
 process.stdout.write(JSON.stringify({
   ok: true,

@@ -1,0 +1,28 @@
+title: Monthly Civic Docket
+face-image: img/events/demo_monthly_docket.svg
+tags: event, demo, monthly
+new-page: true
+priority: 2
+
+= Monthly Civic Docket
+
+The monthly docket is a small SDAAH-like bridge between ordinary workspace
+actions and event popups. It checks the current month, the news pressure built
+by advisors, and the multi-layer state created by the complex event chain.
+
+Calendar: [+ demo_year +] / [+ demo_month +]
+
+Latest civic wire: [+ news_1 +]
+
+[+ news_1_desc +]
+
+[? if demo_press_risk >= 2 : Press risk is high enough for leak-driven popups. ?]
+[? if demo_support >= 3 : Volunteer support is high enough for field polling news. ?]
+[? if demo_opposition_heat >= 2 : Opposition heat is high enough for a council deadlock. ?]
+
+- @demo_budget_leak: Respond to a budget leak.
+- @demo_polling_shock: Read the field polling shock.
+- @demo_council_deadlock: Handle the council deadlock.
+- @demo_campaign_pressure: Push the civic reform chain.
+- @main: Return to the workspace hand.
+- @root: Back to the starter menu.

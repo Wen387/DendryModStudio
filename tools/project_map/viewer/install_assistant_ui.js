@@ -312,8 +312,9 @@
   }
 
   function loadPlan(plan, meta) {
-    state.plan = plan && typeof plan === 'object' ? plan : null;
-    state.planFileName = state.plan ? planDisplayName(state.plan, meta) : '';
+    const loaded = normalizeLoadedPlan(plan, meta);
+    state.plan = loaded.plan;
+    state.planFileName = state.plan ? planDisplayName(state.plan, loaded.meta || meta) : '';
     const planRoot = installPlanProjectRoot(state.plan);
     if (planRoot) {
       state.projectRoot = planRoot;
@@ -324,11 +325,166 @@
     state.postApplyVerification = null;
     state.runtimePreviewResult = null;
     state.runtimePreviewSuspended = false;
-    setStatus(state.plan
-      ? t('install.loadedPlan', 'Loaded change plan') + ': ' + (state.planFileName || t('install.genericPlan', 'install plan'))
-      : t('install.noPlan', 'No change plan loaded.'), state.plan ? 'ready' : '');
+    setStatus(loadPlanStatusMessage(loaded), state.plan ? 'ready' : 'error');
     render();
     return renderInstallAssistantPlan(state.plan);
+  }
+
+  function normalizeLoadedPlan(input, meta) {
+    if (!input || typeof input !== 'object') {
+      return {plan: null, meta, errorKey: 'install.noPlan', errorFallback: 'No change plan loaded.'};
+    }
+    const directPlan = extractInstallPlan(input);
+    if (directPlan) {
+      return {plan: directPlan, meta};
+    }
+    const draftPlans = extractDraftExportInstallPlans(input);
+    if (!draftPlans.length && Array.isArray(input.items)) {
+      return {
+        plan: null,
+        meta,
+        errorKey: 'install.draftExportNoInstallPlans',
+        errorFallback: 'This Studio drafts export does not contain install plans. Open My Changes and send one draft to Review & Apply, or load a *.install-plan.json file.'
+      };
+    }
+    if (!draftPlans.length) {
+      return {
+        plan: null,
+        meta,
+        errorKey: 'install.invalidPlanShape',
+        errorFallback: 'This JSON does not contain an install plan or a Studio drafts export with install plans.'
+      };
+    }
+    if (draftPlans.length === 1) {
+      return {
+        plan: draftPlans[0].plan,
+        meta: Object.assign({}, meta || {}, {fileName: planFileNameFromDraft(meta, draftPlans[0])}),
+        importedDraftCount: 1
+      };
+    }
+    return {
+      plan: buildCombinedDraftExportPlan(input, draftPlans),
+      meta,
+      importedDraftCount: draftPlans.length
+    };
+  }
+
+  function loadPlanStatusMessage(loaded) {
+    const value = loaded || {};
+    if (!value.plan) {
+      return t(value.errorKey || 'install.noPlan', value.errorFallback || 'No change plan loaded.');
+    }
+    const name = state.planFileName || t('install.genericPlan', 'install plan');
+    if (value.importedDraftCount > 1) {
+      return t('install.loadedDraftExport', 'Loaded {count} saved draft plan(s) from Studio drafts export: {name}')
+        .replace('{count}', String(value.importedDraftCount))
+        .replace('{name}', name);
+    }
+    if (value.importedDraftCount === 1) {
+      return t('install.loadedSingleDraftExport', 'Loaded one saved draft plan from Studio drafts export: {name}')
+        .replace('{name}', name);
+    }
+    return t('install.loadedPlan', 'Loaded change plan') + ': ' + name;
+  }
+
+  function extractInstallPlan(value) {
+    if (isInstallPlanLike(value)) {
+      return value;
+    }
+    if (value && typeof value === 'object') {
+      if (isInstallPlanLike(value.installPlan)) {
+        return value.installPlan;
+      }
+      if (value.output && isInstallPlanLike(value.output.installPlan)) {
+        return value.output.installPlan;
+      }
+      if (value.draft && isInstallPlanLike(value.draft.installPlan)) {
+        return value.draft.installPlan;
+      }
+    }
+    return null;
+  }
+
+  function extractDraftExportInstallPlans(value) {
+    const items = value && Array.isArray(value.items) ? value.items : [];
+    return items.map((item) => {
+      const plan = extractInstallPlan(item);
+      return plan ? {plan, item} : null;
+    }).filter(Boolean);
+  }
+
+  function isInstallPlanLike(value) {
+    return Boolean(value && typeof value === 'object' && Array.isArray(value.operations));
+  }
+
+  function buildCombinedDraftExportPlan(exportPayload, draftPlans) {
+    const operations = [];
+    draftPlans.forEach((entry, planIndex) => {
+      const plan = entry.plan || {};
+      const item = entry.item || {};
+      const sourceId = String(item.draftId || plan.id || 'draft_' + (planIndex + 1)).trim();
+      const sourceTitle = String(item.title || plan.title || sourceId).trim();
+      const planOperations = Array.isArray(plan.operations) ? plan.operations : [];
+      planOperations.forEach((operation, operationIndex) => {
+        const next = cloneJsonObject(operation);
+        next.id = draftOperationId(planIndex, operationIndex, next.id);
+        next.description = sourceTitle
+          ? '[' + sourceTitle + '] ' + String(next.description || '').trim()
+          : String(next.description || '').trim();
+        next.sourceDraftId = sourceId;
+        operations.push(next);
+      });
+    });
+    const firstPlan = draftPlans[0] && draftPlans[0].plan || {};
+    return {
+      schemaVersion: '0.1',
+      kind: 'dendry_mod_studio_install_plan',
+      id: 'studio_drafts_export',
+      draftKind: 'studio_drafts_export',
+      title: t('install.combinedDraftExportTitle', 'Studio drafts export') + ' (' + draftPlans.length + ')',
+      status: 'proposal_only',
+      validationCommand: firstPlan.validationCommand || '',
+      project: commonDraftExportProject(draftPlans),
+      exportedAt: exportPayload && exportPayload.exportedAt || '',
+      operations
+    };
+  }
+
+  function commonDraftExportProject(draftPlans) {
+    const projects = draftPlans.map((entry) => entry && entry.plan && entry.plan.project).filter(Boolean);
+    if (!projects.length) {
+      return null;
+    }
+    const first = projects[0];
+    const firstRoot = first && typeof first.root === 'string' ? first.root : '';
+    const sameRoot = projects.every((project) => (project && typeof project.root === 'string' ? project.root : '') === firstRoot);
+    return sameRoot ? first : null;
+  }
+
+  function draftOperationId(planIndex, operationIndex, id) {
+    const stem = String(id || 'operation_' + (operationIndex + 1)).trim() || 'operation_' + (operationIndex + 1);
+    return 'draft_' + (planIndex + 1) + '_' + stem;
+  }
+
+  function planFileNameFromDraft(meta, entry) {
+    const fromMeta = meta && typeof meta.fileName === 'string' ? meta.fileName.trim() : '';
+    if (fromMeta && fromMeta !== 'dendry-studio-drafts.json') {
+      return fromMeta;
+    }
+    const item = entry && entry.item || {};
+    const draftId = String(item.draftId || (entry && entry.plan && entry.plan.id) || '').trim();
+    return draftId ? draftId + '.install-plan.json' : fromMeta;
+  }
+
+  function cloneJsonObject(value) {
+    if (!value || typeof value !== 'object') {
+      return {};
+    }
+    try {
+      return JSON.parse(JSON.stringify(value));
+    } catch (_err) {
+      return Object.assign({}, value);
+    }
   }
 
   function renderInstallAssistantPlan(plan) {
@@ -674,7 +830,9 @@
     }
     if (!state.lastResult) {
       elements.result.textContent = global.dendryDesktop
-        ? t('install.result.emptyDesktop', 'Load a change plan, then run a check before applying changes.')
+        ? (state.plan
+          ? t('install.result.emptyDesktop', 'Load a change plan, then run a check before applying changes.')
+          : t('install.result.emptyCurrentPreview', 'No change plan is loaded. You can still open Runtime Preview to run the current project in a temporary local sandbox.'))
         : browserReviewOnlyMessage();
     }
   }
@@ -820,6 +978,7 @@
       '</div>',
       '<div class="install-empty-options">',
       renderEmptyOption('save', t('install.empty.fromChanges.title', 'Review My Changes'), t('install.empty.fromChanges.body', 'Return to Create and open saved drafts that can be sent into Review & Apply.'), 'open-changes', t('install.empty.fromChanges.cta', 'Open My Changes'), true),
+      global.dendryDesktop ? renderEmptyOption('play', t('install.empty.runtimePreview.title', 'Preview current project'), t('install.empty.runtimePreview.body', 'Run the currently loaded local repo in a temporary sandbox without applying any Studio changes.'), 'runtime-preview', t('install.runtimePreview', 'Runtime Preview')) : '',
       renderEmptyOption('folder', t('install.empty.loadJson.title', 'Load install-plan JSON'), t('install.empty.loadJson.body', 'Use a plan exported from this Studio session or generated elsewhere.'), 'load-plan', t('install.loadPlan', 'Load change plan')),
       renderEmptyOption('book', t('install.empty.mode.title', 'Browser vs desktop'), t('install.empty.mode.body', 'Browser mode can review plans. Desktop mode can check current files, apply supported changes, and create runtime previews.'), 'tutorial', t('install.next.learnMode', 'Open Tutorial Library'), true),
       '</div>',
@@ -863,17 +1022,26 @@
     const hasPlan = Boolean(state.plan);
     toggleElement(elements.operationSection, hasPlan);
     toggleElement(elements.diffSection, hasPlan);
-    toggleElement(elements.runtimePreviewSection, hasPlan || Boolean(state.runtimePreviewResult));
+    toggleElement(elements.runtimePreviewSection, hasPlan || Boolean(state.runtimePreviewResult) || Boolean(global.dendryDesktop));
     toggleElement(elements.resultSection, hasPlan || Boolean(state.lastResult));
   }
 
   function syncActionLayout(summary, viewState) {
     const hasPlan = Boolean(state.plan);
-    toggleElement(elements.actions, hasPlan);
+    const hasDesktop = Boolean(global.dendryDesktop);
+    toggleElement(elements.actions, hasPlan || hasDesktop);
     if (!hasPlan) {
+      toggleElement(elements.dryRun, false);
+      toggleElement(elements.apply, false);
+      toggleElement(elements.runtimePreview, hasDesktop);
+      toggleElement(elements.downloadEvidence, false);
+      toggleElement(elements.downloadVerifiedDiff, false);
+      syncAdvancedToggle(summary || emptySummary(), false);
+      if (elements.runtimePreview && elements.runtimePreview.classList) {
+        elements.runtimePreview.classList.add('primary-action');
+      }
       return;
     }
-    const hasDesktop = Boolean(global.dendryDesktop);
     const canApply = Boolean(viewState && viewState.readiness && viewState.readiness.canApply);
     toggleElement(elements.dryRun, hasDesktop);
     toggleElement(elements.apply, hasDesktop);
@@ -881,7 +1049,7 @@
     toggleElement(elements.downloadEvidence, hasEvidenceBundle());
     toggleElement(elements.downloadVerifiedDiff, Boolean(currentVerifiedDiff()));
     syncAdvancedToggle(summary, hasDesktop);
-    [elements.dryRun, elements.apply].forEach((button) => {
+    [elements.dryRun, elements.apply, elements.runtimePreview].forEach((button) => {
       if (button && button.classList) {
         button.classList.remove('primary-action');
       }
@@ -1185,7 +1353,11 @@
       return '<div class="runtime-preview-empty">' + escapeHtml(t('install.runtimePreviewBrowserOnly', 'Runtime Preview is available in the desktop app because it needs a temporary project copy and a local preview server.')) + '</div>';
     }
     if (!result) {
-      return '<div class="runtime-preview-empty">' + escapeHtml(t('install.runtimePreviewEmpty', 'Create a runtime preview to compare the original project against this proposal in a temporary sandbox.')) + '</div>';
+      const key = state.plan ? 'install.runtimePreviewEmpty' : 'install.runtimePreviewEmptyCurrent';
+      const fallback = state.plan
+        ? 'Create a runtime preview to compare the original project against this proposal in a temporary sandbox.'
+        : 'Create a runtime preview to run the current project in a temporary sandbox without applying Studio changes.';
+      return '<div class="runtime-preview-empty">' + escapeHtml(t(key, fallback)) + '</div>';
     }
     const diagnostics = Array.isArray(result.diagnostics) ? result.diagnostics : [];
     const status = result.pending

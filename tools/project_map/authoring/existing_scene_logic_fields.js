@@ -110,6 +110,35 @@
               ? 'Go-to route clause has exact line evidence and can be checked before replacement.'
               : 'Go-to route needs the source slice editor and an advanced apply confirmation.'
           });
+          if (predicate) {
+            fields.push({
+              id: safeId('route_' + owner.id + '_' + fieldName + '_' + (index + 1) + '_predicate'),
+              role: 'condition',
+              semanticRole: 'route_predicate',
+              label: 'Go-to condition: ' + owner.label,
+              original: predicate,
+              value: predicate,
+              source,
+              sourcePath: source.path || '',
+              editability: guarded ? 'guarded_replace_text' : 'advanced_source_patch',
+              owner: {sceneId, sectionId: owner.sectionId, itemId: fieldName, kind: 'route'},
+              sectionId: owner.sectionId,
+              optionId: '',
+              inputType: 'text',
+              transform: 'goto_route_predicate',
+              routeKind: fieldName,
+              routeTarget: rawTarget,
+              routePredicate: predicate,
+              condition: predicate,
+              conditions: [predicate],
+              routeRaw: rawClause,
+              searchText: search,
+              confidence: guarded ? 'exact' : 'approximate',
+              reason: guarded
+                ? 'Go-to route predicate has exact line evidence and can be checked before replacement.'
+                : 'Go-to route predicate needs the source slice editor and an advanced apply confirmation.'
+            });
+          }
         });
       });
     });
@@ -305,6 +334,14 @@
       }
       return base(field, before, routeReplacementClause(field, before, afterText));
     }
+    if (transform === 'goto_route_predicate') {
+      const before = String(field.searchText || field.routeRaw || '');
+      const target = String(field.routeTarget || '').trim();
+      if (!before || !target) {
+        return manualFieldChange(field, before, afterText, base);
+      }
+      return base(field, before, routeReplacementPredicateClause(field, before, afterText));
+    }
     if (transform === 'effect_expression') {
       const normalized = normalizeEffectEdit(afterText);
       if (!isSimpleEffectExpression(normalized)) {
@@ -414,6 +451,15 @@
       return before.replace(original, bare);
     }
     return bare;
+  }
+
+  function routeReplacementPredicateClause(field, beforeClause, afterPredicate) {
+    const target = normalizeRouteTarget(field && field.routeTarget);
+    if (!target) {
+      return String(beforeClause || '').trim();
+    }
+    const predicate = String(afterPredicate === undefined || afterPredicate === null ? '' : afterPredicate).trim();
+    return target + (predicate ? ' if ' + predicate : '');
   }
 
   function normalizeRouteTarget(value) {

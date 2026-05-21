@@ -324,16 +324,20 @@ const center = routeState.routeStatesForScene(index, 'center_party_conference');
 const chain = center.states.find((state) => state.id === 'route_order_center');
 assert(chain, 'center route chain should be present', center);
 assert(chain.candidateCount === 2, 'chain should preserve both route candidates', chain);
-assert(chain.fallbackCandidate && chain.fallbackCandidate.rawTarget === 'kaas', 'chain should mark the unconditional route as fallback', chain);
+assert(!chain.fallbackCandidate, 'mixed conditional plus unconditional routes should not expose an ordered fallback candidate', chain);
 assert(chain.dependencies.includes('z_relation'), 'chain should expose predicate dependency z_relation', chain);
 assert(chain.candidates[0].predicateSummary.comparisons[0].op === '>=', 'candidate should expose comparison operator', chain.candidates[0]);
 assert(chain.runtimeSemantics.possibleRandomization, 'mixed unconditional plus conditional go-to should be marked as possible runtime randomization', chain.runtimeSemantics);
 assert(chain.runtimeSemantics.selectionMode === 'random_among_valid', 'mixed route runtime selection should explain random valid-target behavior', chain.runtimeSemantics);
+assert(chain.runtimeSemantics.warnings.includes('unconditional_and_conditional_routes_can_randomize'), 'unconditional mixed routes should warn that the unconditional clause is not fallback', chain.runtimeSemantics);
+assert(center.diagnostics.some((item) => item.code === 'route_state.unconditional_not_fallback'), 'scene diagnostics should expose unconditional-not-fallback evidence', center.diagnostics);
+assert(chain.semanticTier === 'manual_boundary' && chain.safeEditEligible === false, 'ambiguous random route groups should not be safe structured edits', chain);
 
 const cabinet = routeState.routeStatesForScene(index, 'cabinet_sacked');
 const cabinetChain = cabinet.states.find((state) => state.id === 'route_order_cabinet');
 assert(cabinetChain && cabinetChain.runtimeSemantics.exclusivity === 'explicit_complement', 'explicit complement routes should be classified as mutually exclusive fallback', cabinetChain);
 assert(!cabinetChain.runtimeSemantics.possibleRandomization, 'explicit complement route should not be flagged as random', cabinetChain && cabinetChain.runtimeSemantics);
+assert(cabinetChain.semanticTier === 'static_exact' && cabinetChain.safeEditEligible, 'explicit complement routes should qualify as safe structured static routes', cabinetChain);
 
 const dvp = routeState.routeStatesForScene(index, 'dvp_party_congress');
 const dvpOverlap = dvp.states.find((state) => state.id === 'route_order_dvp_overlap');
@@ -355,6 +359,7 @@ assert(austrianChain.runtimeSemantics.collisionSummary.preRouteMutationCount > 0
 const zeroValid = routeState.routeStatesForScene(index, 'zero_valid_route');
 const zeroValidChain = zeroValid.states.find((state) => state.id === 'route_order_zero_valid');
 assert(zeroValidChain && zeroValidChain.runtimeSemantics.collisionSummary.after.zeroValidCount > 0, 'route collision sampling should preserve zero-valid route samples', zeroValidChain && zeroValidChain.runtimeSemantics.collisionSummary);
+assert(zeroValid.diagnostics.some((item) => item.code === 'route_state.zero_valid_gap'), 'zero-valid route gaps should have a dedicated diagnostic code', zeroValid.diagnostics);
 const zeroValidRendered = eventWorkbenchUi.renderEventWorkbench(eventWorkbench.buildEventWorkbench(index, 'zero_valid_route'), {locale: 'en'});
 assert(zeroValidRendered.includes('sampled no-valid'), 'Event Workbench UI should surface sampled no-valid route states', zeroValidRendered);
 

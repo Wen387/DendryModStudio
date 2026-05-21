@@ -139,7 +139,7 @@ const optionBoard = cardBoardModel.buildBoard(index, existingCardModel, {
   cardBoardSelection: {kind: 'option', cardKey: 'card:demo_action_card', optionIndex: 0}
 });
 assert(optionBoard.selectedObject && optionBoard.selectedObject.kind === 'option', 'Card Board should expose selected option objects');
-assert(optionBoard.selectedObject.option && optionBoard.selectedObject.option.label === 'Spend resources', 'Selected option should retain its card choice label');
+assert(optionBoard.selectedObject.option && optionBoard.selectedObject.option.label === 'Mobilize volunteers', 'Selected option should retain its card choice label');
 
 const routeKey = lane(board, 'hand').cards[0] && lane(board, 'hand').cards[0].key;
 const routeBoard = cardBoardModel.buildBoard(index, draftModel, {

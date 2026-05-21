@@ -2,9 +2,7 @@ title: Demo Back-room Talks
 tags: event, demo, complex
 new-page: true
 priority: 1
-on-arrival: {!
-Q.demo_pressure = (Q.demo_pressure || 0) - 1;
-!}
+on-arrival: demo_pressure -= 1
 
 = Back-room Talks
 
@@ -22,10 +20,7 @@ preview shows the branch as a real playable step.
 
 @accept_press_leak
 title: Leak the compromise outline.
-on-arrival: {!
-Q.demo_public_attention = (Q.demo_public_attention || 0) + 1;
-Q.demo_reform_mandate = (Q.demo_reform_mandate || 0) + 1;
-!}
+on-arrival: demo_public_attention += 1; demo_reform_mandate += 1
 go-to: demo_resolution_week
 
 The leak gives the story momentum, but it also makes the compromise harder to
@@ -33,10 +28,7 @@ reshape.
 
 @keep_private
 title: Keep the bargain private.
-on-arrival: {!
-Q.demo_cabinet_balance = (Q.demo_cabinet_balance || 0) + 1;
-Q.demo_opposition_heat = (Q.demo_opposition_heat || 0) + 1;
-!}
+on-arrival: demo_cabinet_balance += 1; demo_opposition_heat += 1
 go-to: demo_resolution_week
 
 The private bargain survives the hour, though rumors make the opposition more
@@ -44,9 +36,7 @@ suspicious.
 
 @return_to_hearing
 title: Return to the hearing table.
-on-arrival: {!
-Q.demo_pressure = (Q.demo_pressure || 0) + 1;
-!}
+on-arrival: demo_pressure += 1
 go-to: demo_case_hearing
 
 The side room cannot settle the matter, so the committee returns to public

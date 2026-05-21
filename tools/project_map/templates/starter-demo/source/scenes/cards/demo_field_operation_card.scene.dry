@@ -1,0 +1,57 @@
+title: Field Operation Card
+new-page: true
+is-card: true
+card-image: img/cards/demo_field_operation_card.svg
+tags: demo_action
+frequency: 80
+priority: 1
+
+= Field Operation Card
+
+This card gives the demo a simple monthly-operation rhythm. Each choice changes
+state and then advances to `post_event`, where the calendar and news update.
+
+- @canvass_districts: Canvass the districts
+- @hold_office_hours: Hold office hours
+- @quiet_casework: Do quiet casework
+
+@canvass_districts
+title: Canvass the districts
+subtitle: Spend resources, build support, then advance the month.
+choose-if: demo_resources >= 1
+unavailable-subtitle: Resources are too low for a field canvass.
+on-arrival: demo_resources -= 1; demo_support += 2; demo_public_attention += 1; demo_opposition_heat += 1; demo_card_progress += 1
+
+Field volunteers spend the month knocking doors. The results are noisy, but the
+office finally has names and pressure to work with.
+
+- @return_canvass_districts: End the month
+
+@return_canvass_districts
+go-to: post_event
+
+@hold_office_hours
+title: Hold office hours
+subtitle: Build support without a loud public story.
+on-arrival: demo_support += 1; demo_advisor_trust += 1; demo_press_risk -= 1; demo_card_progress += 1
+
+The office keeps the door open and lets smaller concerns become usable
+political information.
+
+- @return_hold_office_hours: End the month
+
+@return_hold_office_hours
+go-to: post_event
+
+@quiet_casework
+title: Do quiet casework
+subtitle: Prepare the hearing file.
+on-arrival: demo_case_strength += 1; demo_legislative_path += 1; demo_resources += 1; demo_card_progress += 1
+
+Staff spend the month checking names, letters, and old promises. It is not
+dramatic, but it prepares later routes.
+
+- @return_quiet_casework: End the month
+
+@return_quiet_casework
+go-to: post_event

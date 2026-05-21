@@ -1,0 +1,69 @@
+title: Demo Council Deadlock
+face-image: img/events/demo_council_deadlock.svg
+tags: event, demo, monthly
+new-page: true
+priority: 3
+choose-if: demo_month >= 10 and demo_opposition_heat >= 2 and demo_council_deadlock_seen = 0
+unavailable-subtitle: Raise opposition heat to surface this deadlock in the monthly docket.
+on-arrival: demo_council_deadlock_seen = 1; demo_pressure += 1
+
+= Council Deadlock
+
+The council refuses to put the reform file on the floor unless the office picks
+a route. This is a nested event: one choice opens a follow-up section before
+returning to the monthly docket.
+
+[? if demo_legislative_path >= 2 : A legislative route is already sketched from advisor work. ?]
+[? if demo_cabinet_balance <= 0 : Cabinet allies are too thin to absorb many more concessions. ?]
+
+- @use_legislative_path: Use the legislative path.
+- @open_public_session: Open a public session.
+- @draft_side_letter: Draft a side letter.
+
+@use_legislative_path
+title: Use the legislative path.
+subtitle: Requires a prepared route.
+choose-if: demo_legislative_path >= 2
+unavailable-subtitle: Ask the budget advisor to prepare a legislative route first.
+on-arrival: demo_legislative_path -= 1; demo_reform_mandate += 1; demo_opposition_heat -= 1
+go-to: demo_monthly_report
+
+The office uses the prepared route and takes one pressure point off the board.
+
+@open_public_session
+title: Open a public session.
+subtitle: Makes the fight visible.
+on-arrival: demo_public_attention += 1; demo_opposition_heat += 1; demo_reform_mandate += 1
+go-to: demo_monthly_report
+
+The public session does not solve the conflict, but it forces every bloc to say
+what it wants.
+
+@draft_side_letter
+title: Draft a side letter.
+subtitle: Opens a nested follow-up.
+on-arrival: demo_cabinet_balance += 1; demo_press_risk += 1
+
+= Side Letter
+
+The side letter gives cabinet allies a way to interpret the reform without
+rewriting the public file. It is useful, but it creates another document that
+can leak later.
+
+- @seal_letter: Seal the letter.
+- @publish_letter: Publish the letter.
+
+@seal_letter
+title: Seal the letter.
+on-arrival: demo_cabinet_balance += 1; demo_public_attention -= 1
+go-to: demo_monthly_report
+
+The office seals the side letter and buys a quieter month.
+
+@publish_letter
+title: Publish the letter.
+on-arrival: demo_public_attention += 2; demo_press_risk -= 1; demo_reform_mandate += 1
+go-to: demo_monthly_report
+
+The office publishes the side letter and turns a private concession into a
+public route.

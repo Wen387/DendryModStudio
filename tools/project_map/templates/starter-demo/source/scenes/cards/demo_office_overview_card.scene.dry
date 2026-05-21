@@ -1,0 +1,32 @@
+title: Office Overview Card
+new-page: true
+is-card: true
+is-pinned-card: true
+card-image: img/cards/demo_office_overview_card.svg
+tags: demo_overview
+frequency: 100
+priority: 1
+
+= Dendry Mod Studio Starter Demo
+
+Welcome to the Civic Reform Office. This bundled project is a safe, writable
+place to learn how a Dendry mod is built before touching a real game.
+
+This card replaces the long start page. It can be opened repeatedly from the
+workspace hand, like a reusable briefing or tutorial card.
+
+Try the full loop: use a monthly action card or advisor to prepare the office,
+let the month advance, then play the civic reform chain and watch the sidebar
+change.
+
+Current calendar: [+ demo_year +] / [+ demo_month +]
+
+Latest civic wire: [+ news_1 +]
+
+- @main: Open the workspace hand
+- @demo_action_deck: Draw a monthly action card
+- @demo_campaign_pressure: Play the civic reform chain
+- @post_event: Advance one month
+- @demo_opening: Start the office briefing
+- @demo_opening.demo_status: Check office state
+- @demo_opening.support_followup: Follow up on support

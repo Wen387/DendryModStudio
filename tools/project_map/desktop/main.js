@@ -292,7 +292,9 @@ ipcMain.handle('dendry:open-starter-demo', async (_event, options) => {
   const target = _event.sender;
   const prepared = core.prepareStarterDemo({
     desktopDir: __dirname,
-    workspaceRoot: userDataTemplateDir()
+    workspaceRoot: userDataTemplateDir(),
+    refreshIfStale: true,
+    forceRefresh: Boolean(options && options.forceRefresh)
   });
   if (!prepared.ok) {
     return prepared;

@@ -60,6 +60,7 @@ fs.mkdirSync(path.join(sourceRoot, 'tools'), {recursive: true});
 fs.mkdirSync(path.join(sourceRoot, 'out', 'html'), {recursive: true});
 fs.writeFileSync(path.join(sourceRoot, 'out', 'html', 'index.html'), '<!doctype html><title>Old</title>\n', 'utf8');
 fs.writeFileSync(path.join(sourceRoot, 'out', 'html', 'game.js'), 'old generated game js\n', 'utf8');
+fs.writeFileSync(path.join(sourceRoot, 'out', 'html', 'game.css'), '.face-image { width: 140px; object-fit: cover; }\n', 'utf8');
 fs.writeFileSync(path.join(sourceRoot, 'tools', 'build_and_validate.sh'), [
   '#!/bin/bash',
   'set -e',
@@ -135,6 +136,26 @@ assert(commandWithoutConsent.ok && !commandWithoutConsent.args.includes('tools/b
 assert(runtimePreview.firstBuildFailureLine('\u001b[31mError: Cannot extract id or type from filename.\u001b[39m\n') === 'Error: Cannot extract id or type from filename.', 'build failure detail should strip ANSI color codes');
 const failureDiagnostics = runtimePreview.buildFailureDiagnostics({}, '', '(node:1) Warning: noisy\nError: useful build failure\n');
 assert(failureDiagnostics.some((diag) => diag.code === 'runtime_preview.build_output' && diag.message === 'Error: useful build failure'), 'build failure diagnostics should include the first useful stderr line');
+const mixedFailureDiagnostics = runtimePreview.buildFailureDiagnostics(
+  {},
+  'Game file is out of date, recompiling.\nError: source/scenes/cards/demo_action_card.scene.dry line 8: Invalid property definition.\n',
+  '(node:1) Warning: noisy\n(Use `electron --trace-warnings ...` to show where the warning was created)\n'
+);
+assert(mixedFailureDiagnostics.some((diag) => diag.code === 'runtime_preview.build_output' && diag.message.includes('demo_action_card.scene.dry line 8')), 'build failure diagnostics should prefer stdout parser errors over Electron trace-warning hints');
+
+const faceImageCssRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dms_runtime_preview_face_img_css_'));
+fs.mkdirSync(faceImageCssRoot, {recursive: true});
+fs.writeFileSync(path.join(faceImageCssRoot, 'game.css'), '.face-image { width: 140px; object-fit: cover; }\n', 'utf8');
+const browserUiSource = fs.readFileSync(require.resolve('dendrynexus/lib/ui/browser'), 'utf8');
+const stockCssSource = fs.readFileSync(path.join(path.dirname(require.resolve('dendrynexus/lib/ui/browser')), '..', 'templates', 'html', 'default', '+game.css'), 'utf8');
+assert(/className\s*=\s*["']face-img["']/.test(browserUiSource), 'field note check: bundled DendryNexus browser UI should emit scene portraits as .face-img');
+assert(/\.face-image\s*\{/.test(stockCssSource) && !/\.face-img\s*\{/.test(stockCssSource), 'field note check: bundled DendryNexus stock CSS should style .face-image but not .face-img');
+const faceImagePatch = runtimePreview.patchRuntimeHtmlCompatibility(faceImageCssRoot);
+assert(faceImagePatch.ok && faceImagePatch.patched, 'runtime preview should patch generated CSS for DendryNexus face-img output');
+const faceImageCss = fs.readFileSync(path.join(faceImageCssRoot, 'game.css'), 'utf8');
+assert(faceImageCss.includes('.face-img') && faceImageCss.includes('object-fit: contain'), 'runtime preview CSS patch should style .face-img without cropping event art');
+const faceImageSecondPatch = runtimePreview.patchRuntimeHtmlCompatibility(faceImageCssRoot);
+assert(faceImageSecondPatch.ok && !faceImageSecondPatch.patched, 'runtime preview CSS patch should be idempotent');
 
 const staleHtmlRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dms_runtime_preview_stale_html_'));
 fs.mkdirSync(path.join(staleHtmlRoot, 'out', 'html'), {recursive: true});
@@ -211,6 +232,8 @@ assert(!quickSession.baselineBuild, 'quick runtime preview should not create a b
 assert(fs.existsSync(path.join(quickSession.paths.modifiedRoot, 'out', 'html', 'index.html')), 'quick runtime preview should copy generated out/html');
 assert(fs.existsSync(path.join(quickSession.paths.modifiedRoot, 'out', 'html', 'dms-preview-bridge.js')), 'quick runtime preview should inject the debug bridge into the copied HTML');
 assert(!fs.existsSync(path.join(quickSession.paths.modifiedRoot, 'source', 'info.dry')), 'quick runtime preview should not copy the full project source tree');
+const quickCss = fs.readFileSync(path.join(quickSession.paths.modifiedRoot, 'out', 'html', 'game.css'), 'utf8');
+assert(quickCss.includes('.face-img'), 'quick runtime preview should patch copied HTML so event face images use the emitted runtime class');
 
 const applySession = runtimePreview.createRuntimePreview({
   projectRoot: sourceRoot,

@@ -1955,8 +1955,13 @@
     const chooseLine = lines.find((line) => /^\s*choose-if\s*:/i.test(line)) || '';
     const unavailableLine = lines.find((line) => /^\s*unavailable(?:-(?:subtitle|text)|subtitle|text)\s*:/i.test(line)) || '';
     const resultModeLine = lines.find((line) => /^\s*result-mode\s*:/i.test(line)) || '';
+    const effectLines = lines.filter((line) => /^\s*on-arrival\s*:/i.test(line));
+    const effects = parseStructuralAddOptionEffects(effectLines);
+    if (!effects.ok) {
+      return {ok: false};
+    }
     const result = lines.filter((line) => {
-      return line !== optionLine && line !== sectionLine && line !== chooseLine && line !== unavailableLine && line !== resultModeLine;
+      return line !== optionLine && line !== sectionLine && line !== chooseLine && line !== unavailableLine && line !== resultModeLine && !effectLines.includes(line);
     }).join('\n').trim();
     return {
       ok: true,
@@ -1965,8 +1970,28 @@
       result,
       chooseIf: chooseLine.replace(/^\s*choose-if\s*:\s*/i, '').trim(),
       unavailableText: unavailableLine.replace(/^\s*unavailable(?:-(?:subtitle|text)|subtitle|text)\s*:\s*/i, '').trim(),
-      resultMode: resultModeLine.replace(/^\s*result-mode\s*:\s*/i, '').trim() || 'native'
+      resultMode: resultModeLine.replace(/^\s*result-mode\s*:\s*/i, '').trim() || 'native',
+      effects: effects.items
     };
+  }
+
+  function parseStructuralAddOptionEffects(lines) {
+    const items = [];
+    for (const line of ensureArray(lines)) {
+      const body = String(line || '').replace(/^\s*on-arrival\s*:\s*/i, '').trim();
+      const clauses = splitEffectClauses(body);
+      if (!body || !clauses.length) {
+        return {ok: false, items: []};
+      }
+      for (const clause of clauses) {
+        const parsed = parseSimpleStructuralEffect(clause);
+        if (!parsed) {
+          return {ok: false, items: []};
+        }
+        items.push(parsed);
+      }
+    }
+    return {ok: true, items};
   }
 
   function safeNewStructureId(value) {
@@ -2016,10 +2041,18 @@
       option.chooseIf || option.unavailableText ? 'title: ' + option.label : '',
       option.chooseIf ? 'choose-if: ' + option.chooseIf : '',
       option.unavailableText ? 'unavailable-subtitle: ' + option.unavailableText : '',
-      option.chooseIf || option.unavailableText ? '' : null,
+      renderStructuralAddOptionEffects(option.effects),
+      option.chooseIf || option.unavailableText || ensureArray(option.effects).length ? '' : null,
       '',
       option.result
     ].filter((line) => line !== null).join('\n') + '\n';
+  }
+
+  function renderStructuralAddOptionEffects(effects) {
+    const lines = ensureArray(effects).map((effect) => {
+      return 'on-arrival: ' + structuralEffectSourceExpression(effect, {qPrefix: false});
+    });
+    return lines.length ? lines.join('\n') : null;
   }
 
   function advancedAddOptionChange(field, afterText) {
@@ -2064,6 +2097,7 @@
       'title: ' + option.label,
       option.chooseIf ? 'choose-if: ' + option.chooseIf : '',
       option.unavailableText ? 'unavailable-subtitle: ' + option.unavailableText : '',
+      renderStructuralAddOptionEffects(option.effects),
       '',
       option.result
     ].filter((line) => line !== null).join('\n') + '\n';

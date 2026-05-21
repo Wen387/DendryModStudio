@@ -16,13 +16,26 @@
     OPAQUE: 'opaque_js_block',
     UNKNOWN: 'unknown'
   });
+  const SEMANTIC_TIER = Object.freeze({
+    STATIC: 'static_exact',
+    GUIDED: 'guided_profile',
+    RUNTIME: 'runtime_observed',
+    MANUAL: 'manual_boundary'
+  });
 
   /**
    * @typedef {import('../types/project_map_contracts').DiagnosticRow} DiagnosticRow
    * @typedef {import('../types/project_map_contracts').GuidedScriptEdit} GuidedScriptEdit
+   * @typedef {import('../types/project_map_contracts').RouteDynamicBinding} RouteDynamicBinding
    * @typedef {import('../types/project_map_contracts').RouteEvidenceMap} RouteEvidenceMap
    * @typedef {import('../types/project_map_contracts').RouteEvidenceItem} RouteEvidenceItem
+   * @typedef {import('../types/project_map_contracts').RouteSemanticTier} RouteSemanticTier
+   * @typedef {import('../types/project_map_contracts').RouteGuidedEditModelApi} RouteGuidedEditModelApi
    * @typedef {import('../types/project_map_contracts').RouteScriptIntelligenceModel} RouteScriptIntelligenceModel
+   * @typedef {import('../types/project_map_contracts').RouteTargetResolution} RouteTargetResolution
+   * @typedef {import('../types/project_map_contracts').RouteUnderstandingModelApi} RouteUnderstandingModelApi
+   * @typedef {import('../types/project_map_contracts').RouteUnderstandingProfileEvidence} RouteUnderstandingProfileEvidence
+   * @typedef {import('../types/project_map_contracts').RouteUnderstandingUtilityRouteSceneEvidence} RouteUnderstandingUtilityRouteSceneEvidence
    * @typedef {import('../types/project_map_contracts').ScriptImpactMap} ScriptImpactMap
    * @typedef {import('../types/project_map_contracts').ScriptImpactBlock} ScriptImpactBlock
    * @typedef {import('../types/project_map_contracts').SourceRef} SourceRef
@@ -36,8 +49,16 @@
   function buildRouteScriptIntelligence(eventBody, options) {
     const body = isObject(eventBody) ? clone(eventBody) : {};
     const opts = isObject(options) ? options : {};
+    if (!body.profileEvidence && opts.profileEvidence) {
+      body.profileEvidence = opts.profileEvidence;
+    }
+    if (!body.projectIndex && opts.projectIndex) {
+      body.projectIndex = opts.projectIndex;
+    }
     const scriptBlocks = buildScriptImpactMap(body, opts);
     const routeEvidence = buildRouteEvidenceMap(body, scriptBlocks, opts);
+    const routeUnderstanding = buildRouteUnderstandingSection(body, routeEvidence, scriptBlocks, opts);
+    const routeGuidedEdits = buildRouteGuidedEditSection(body, routeEvidence, scriptBlocks, routeUnderstanding, opts);
     const guidedScriptEdits = scriptBlocks.blocks.reduce((rows, block) => rows.concat(ensureArray(block.guidedEdits)), []);
     const diagnostics = diagnosticsFor(routeEvidence, scriptBlocks);
     return {
@@ -47,13 +68,80 @@
       eventId: stringValue(opts.eventId || body.eventStructure && body.eventStructure.id || body.id || ''),
       routes: routeEvidence,
       scripts: scriptBlocks,
+      routeUnderstanding,
+      routeGuidedEdits,
       guidedScriptEdits,
       diagnostics,
-      summary: buildModelSummary(routeEvidence, scriptBlocks, guidedScriptEdits, diagnostics)
+      summary: buildModelSummary(routeEvidence, scriptBlocks, guidedScriptEdits, diagnostics, routeUnderstanding, routeGuidedEdits)
     };
   }
 
-  function buildModelSummary(routeEvidence, scriptBlocks, guidedScriptEdits, diagnostics) {
+  /**
+   * @returns {RouteUnderstandingModelApi | null}
+   */
+  function routeUnderstandingApi() {
+    if (global && global.ProjectMapRouteUnderstandingModel) {
+      return global.ProjectMapRouteUnderstandingModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./route_understanding_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function buildRouteUnderstandingSection(body, routeEvidence, scriptBlocks, opts) {
+    const api = routeUnderstandingApi();
+    if (!api || typeof api.buildRouteUnderstanding !== 'function') {
+      return null;
+    }
+    try {
+      return api.buildRouteUnderstanding(body, Object.assign({}, opts || {}, {
+        routeEvidence,
+        scriptImpactMap: scriptBlocks
+      }));
+    } catch (_err) {
+      return null;
+    }
+  }
+
+  /**
+   * @returns {RouteGuidedEditModelApi | null}
+   */
+  function routeGuidedEditApi() {
+    if (global && global.ProjectMapRouteGuidedEditModel) {
+      return global.ProjectMapRouteGuidedEditModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./route_guided_edit_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function buildRouteGuidedEditSection(body, routeEvidence, scriptBlocks, routeUnderstanding, opts) {
+    const api = routeGuidedEditApi();
+    if (!api || typeof api.buildRouteGuidedEditModel !== 'function') {
+      return null;
+    }
+    try {
+      return api.buildRouteGuidedEditModel(body, Object.assign({}, opts || {}, {
+        routeEvidence,
+        scriptImpactMap: scriptBlocks,
+        routeUnderstanding
+      }));
+    } catch (_err) {
+      return null;
+    }
+  }
+
+  function buildModelSummary(routeEvidence, scriptBlocks, guidedScriptEdits, diagnostics, routeUnderstanding, routeGuidedEdits) {
     return {
       routeCount: routeEvidence.items.length,
       scriptBlockCount: scriptBlocks.blocks.length,
@@ -63,13 +151,20 @@
       fuzzyRoutes: routeEvidence.summary.fuzzy || 0,
       scriptDerivedRoutes: routeEvidence.summary.script_derived || 0,
       missingRoutes: routeEvidence.summary.missing_target || 0,
+      safeEditableRoutes: routeEvidence.items.filter((item) => item.safeEditEligible).length,
+      semanticTierCounts: countBy(routeEvidence.items, (item) => item.semanticTier || SEMANTIC_TIER.MANUAL),
+      dynamicRouteBindingCount: routeEvidence.items.filter((item) => item.dynamicBinding && item.dynamicBinding.kind).length,
       manualScriptBlocks: scriptBlocks.summary[SCRIPT_SAFETY.MANUAL] || 0,
       advancedScriptBlocks: scriptBlocks.summary[SCRIPT_SAFETY.ADVANCED] || 0,
       guidedScriptBlocks: scriptBlocks.summary[SCRIPT_SAFETY.GUIDED] || 0,
+      guidedRouteEditCount: routeGuidedEdits && routeGuidedEdits.summary && routeGuidedEdits.summary.entryCount || 0,
+      safeGuidedRouteEditCount: routeGuidedEdits && routeGuidedEdits.summary && routeGuidedEdits.summary.safeEditCount || 0,
       opaqueJsBlocks: scriptBlocks.categorySummary[SCRIPT_CATEGORY.OPAQUE] || 0,
       scriptCategoryCounts: scriptBlocks.categorySummary,
       manualScriptCategories: scriptBlocks.manualCategorySummary,
       advancedScriptCategories: scriptBlocks.advancedCategorySummary,
+      routeUnderstanding: routeUnderstanding && routeUnderstanding.summary || {},
+      routeGuidedEdits: routeGuidedEdits && routeGuidedEdits.summary || {},
       warningCount: diagnostics.filter((item) => item.severity === 'warning').length,
       errorCount: diagnostics.filter((item) => item.severity === 'error').length
     };
@@ -87,6 +182,12 @@
     };
     body.routeEvidenceMap = model.routes;
     body.scriptImpactMap = model.scripts;
+    if (model.routeUnderstanding) {
+      body.routeUnderstanding = model.routeUnderstanding;
+    }
+    if (model.routeGuidedEdits) {
+      body.routeGuidedEdits = model.routeGuidedEdits;
+    }
     body.guidedScriptEdits = model.guidedScriptEdits;
     return body;
   }
@@ -113,6 +214,11 @@
         source: edge && edge.source,
         parserBacked: Boolean(edge && edge.parserBacked) || String(edge && edge.kind) === 'conditional_route',
         confidence: edge && edge.confidence,
+        routeKind: edge && edge.kind,
+        dynamicTarget: edge && edge.dynamicTarget,
+        targetSource: edge && edge.targetSource,
+        dynamicBinding: dynamicBindingFromRouteEdge(edge),
+        runtimeSemantics: edge && edge.runtimeSemantics,
         owner: edge && (edge.optionId || edge.from || edge.kind),
         body
       }));
@@ -153,6 +259,27 @@
       if (!block.routeInfluence) {
         return;
       }
+      const writes = ensureArray(block.dynamicRouteWrites);
+      if (writes.length) {
+        writes.forEach((write, writeIndex) => {
+          rows.push(routeItem({
+            id: 'script_route_' + (index + 1) + '_' + (writeIndex + 1),
+            sourceKind: 'script',
+            from: block.sectionId || block.hook || 'script',
+            target: write.primaryTarget || ('quality_ref:' + write.variable),
+            rawTarget: write.primaryTarget || '',
+            predicate: write.condition,
+            source: block.source,
+            confidence: write.profileBacked ? 'profile' : 'script',
+            owner: block.label || block.id,
+            dynamicTarget: true,
+            targetSource: 'quality',
+            dynamicBinding: write,
+            body
+          }));
+        });
+        return;
+      }
       rows.push(routeItem({
         id: 'script_route_' + (index + 1),
         sourceKind: 'script',
@@ -163,6 +290,10 @@
         source: block.source,
         confidence: 'script',
         owner: block.label || block.id,
+        dynamicBinding: block.routeTargets && block.routeTargets.length ? {
+          kind: 'script_route_hint',
+          candidateTargets: ensureArray(block.routeTargets)
+        } : null,
         body
       }));
     });
@@ -171,6 +302,20 @@
       rows.push(routeItem(Object.assign({}, row, {
         id: row.id || 'explicit_route_' + (index + 1),
         sourceKind: row.sourceKind || 'explicit',
+        body
+      })));
+    });
+    ensureArray(body && body.routeEvidenceMap && body.routeEvidenceMap.items).forEach((row, index) => {
+      rows.push(routeItem(Object.assign({}, row, {
+        id: row.id || 'existing_route_evidence_' + (index + 1),
+        sourceKind: row.sourceKind || 'existing_route_evidence',
+        body
+      })));
+    });
+    profileRouteEvidenceRows(options && options.profileEvidence || body && body.profileEvidence).forEach((row, index) => {
+      rows.push(routeItem(Object.assign({}, row, {
+        id: row.id || 'profile_route_' + (index + 1),
+        sourceKind: 'profile',
         body
       })));
     });
@@ -193,7 +338,8 @@
   function buildScriptImpactMap(body, options) {
     const conditionIndex = conditionVariables(body);
     const routePredicateIndex = routePredicateVariables(body);
-    const blocks = scriptRows(body, options).map((row, index) => scriptImpactBlock(row, index, conditionIndex, routePredicateIndex));
+    const routeQualityIndex = routeQualityVariables(body, options);
+    const blocks = scriptRows(body, options).map((row, index) => scriptImpactBlock(row, index, conditionIndex, routePredicateIndex, routeQualityIndex));
     return {
       blocks,
       summary: countBy(blocks, (block) => block.safetyClass || SCRIPT_CATEGORY.UNKNOWN),
@@ -203,17 +349,24 @@
     };
   }
 
-  function scriptImpactBlock(row, index, conditionIndex, routePredicateIndex) {
+  function scriptImpactBlock(row, index, conditionIndex, routePredicateIndex, routeQualityIndex) {
     const raw = stringValue(row && (row.text || row.value || row.original || row.sourceExpression || row.expression)).trim();
     if (stringValue(row && row.scriptKind) === 'opaque_js') {
-      return opaqueScriptImpactBlock(row, index, conditionIndex, routePredicateIndex, raw);
+      return opaqueScriptImpactBlock(row, index, conditionIndex, routePredicateIndex, routeQualityIndex, raw);
     }
     const hook = hookFor(raw, row);
     const bodyText = raw.replace(/^(on-arrival|on-departure|on-display)\s*:\s*/i, '').trim();
     const statements = splitStatements(bodyText).map((statement, statementIndex) => parseScriptStatement(statement, hook, row, statementIndex));
     const complexReasons = complexScriptReasons(bodyText, statements);
     const sets = scriptReadWriteSets(statements);
-    const influence = scriptInfluenceFor({hook, text: bodyText, writes: sets.writes}, conditionIndex, routePredicateIndex);
+    const dynamicRouteWrites = dynamicRouteWritesFromScript(bodyText, row, routeQualityIndex);
+    const routeTargets = routeTargetsForScript(bodyText, dynamicRouteWrites);
+    const influence = scriptInfluenceFor({
+      hook,
+      text: bodyText,
+      writes: sets.writes,
+      dynamicRouteWrites
+    }, conditionIndex, routePredicateIndex, routeQualityIndex);
     const safetyClass = scriptSafetyClass(complexReasons, statements);
     const statementCategories = unique(statements.map((statement) => statement.reviewCategory).filter(Boolean));
     const boundaryCategory = scriptBoundaryCategory(safetyClass, complexReasons, statementCategories);
@@ -233,7 +386,8 @@
       displayInfluence: influence.display,
       optionInfluence: influence.option,
       routeInfluence: influence.route,
-      routeTargets: routeTargetsFromScript(bodyText),
+      routeTargets,
+      dynamicRouteWrites,
       safetyClass,
       guidedEdits: safetyClass === SCRIPT_SAFETY.GUIDED ? statements.map((statement) => guidedEditFor(row, statement, index)) : [],
       boundaryReasons: complexReasons,
@@ -245,11 +399,18 @@
     };
   }
 
-  function opaqueScriptImpactBlock(row, index, conditionIndex, routePredicateIndex, raw) {
+  function opaqueScriptImpactBlock(row, index, conditionIndex, routePredicateIndex, routeQualityIndex, raw) {
     const hook = hookFor(raw, row);
     const reads = unique(ensureArray(row && row.reads).concat(variablesIn(raw)));
     const writes = unique(ensureArray(row && row.writes));
-    const influence = scriptInfluenceFor({hook, text: raw, writes}, conditionIndex, routePredicateIndex);
+    const dynamicRouteWrites = dynamicRouteWritesFromScript(raw, row, routeQualityIndex);
+    const routeTargets = routeTargetsForScript(raw, dynamicRouteWrites);
+    const influence = scriptInfluenceFor({
+      hook,
+      text: raw,
+      writes,
+      dynamicRouteWrites
+    }, conditionIndex, routePredicateIndex, routeQualityIndex);
     return {
       id: stringValue(row && row.id || 'opaque_js_' + (index + 1)),
       label: stringValue(row && row.label || (hook ? hook + ' JS block' : 'JS block')),
@@ -269,7 +430,8 @@
       displayInfluence: influence.display,
       optionInfluence: influence.option,
       routeInfluence: influence.route,
-      routeTargets: routeTargetsFromScript(raw),
+      routeTargets,
+      dynamicRouteWrites,
       safetyClass: SCRIPT_SAFETY.MANUAL,
       guidedEdits: [],
       boundaryReasons: [SCRIPT_CATEGORY.OPAQUE],
@@ -507,22 +669,59 @@
     const source = sourceRef(value.source || {});
     const sourceExact = hasExactSource(source);
     const sourceLocated = hasLocatedSource(source);
+    const dynamicBinding = utilityReturnBindingFromProfile(value, target, body.profileEvidence) || normalizeDynamicBinding(value.dynamicBinding);
+    const dynamicTarget = Boolean(value.dynamicTarget) ||
+      Boolean(dynamicBinding && (dynamicBinding.source === 'quality' || dynamicBinding.kind === 'set_jump' || dynamicBinding.kind === 'utility_return_binding')) ||
+      target.indexOf('quality_ref:') === 0 ||
+      stringValue(value.routeKind).indexOf('go_to_ref') >= 0 ||
+      stringValue(value.routeKind).indexOf('set_jump') >= 0;
     const external = isExternalTarget(target);
-    const terminal = !target || target === 'root' || target === 'end' || target === 'terminal';
-    const missing = Boolean(target && !external && !terminal && !targetResolves(body, target));
+    const terminal = !target || target === 'root' || target === 'end' || target === 'terminal' || target === 'script-controlled';
+    const staticResolution = resolveStaticTarget(body, target);
+    const ambiguous = staticResolution.status === 'ambiguous';
+    const missing = Boolean(target && !dynamicTarget && !external && !terminal && staticResolution.status === 'missing');
     const evidenceClass = missing
       ? 'missing_target'
       : external
       ? 'external'
       : terminal
       ? 'terminal'
-      : value.confidence === 'script'
+      : ambiguous
+      ? 'fuzzy'
+      : value.confidence === 'script' || dynamicTarget
       ? 'script_derived'
       : value.confidence === 'fuzzy' || value.confidence === 'approximate' || !sourceLocated && !value.parserBacked
       ? 'fuzzy'
       : value.parserBacked
       ? 'parser_backed'
       : 'exact';
+    const targetResolution = routeTargetResolution({
+      target,
+      dynamicTarget,
+      dynamicBinding,
+      external,
+      terminal,
+      missing,
+      staticResolution,
+      body
+    });
+    const semanticTier = routeSemanticTier({
+      evidenceClass,
+      confidence: value.confidence,
+      sourceKind: value.sourceKind,
+      dynamicTarget,
+      dynamicBinding,
+      targetResolution
+    });
+    const runtimeSemantics = isObject(value.runtimeSemantics) ? clone(value.runtimeSemantics) : null;
+    const safeEditEligible = routeSafeEditEligible({
+      evidenceClass,
+      semanticTier,
+      targetResolution,
+      runtimeSemantics,
+      sourceExact,
+      parserBacked: Boolean(value.parserBacked)
+    });
     return {
       id: stringValue(value.id),
       sourceKind: stringValue(value.sourceKind),
@@ -532,12 +731,189 @@
       predicate: stringValue(value.predicate),
       owner: stringValue(value.owner),
       evidenceClass,
+      semanticTier,
+      targetResolution,
+      dynamicBinding,
+      runtimeSemantics,
+      safeEditEligible,
+      dynamicTarget,
+      targetSource: stringValue(value.targetSource || (dynamicBinding && dynamicBinding.source) || (dynamicTarget ? 'quality' : 'scene')),
+      parserBacked: Boolean(value.parserBacked),
+      confidence: stringValue(value.confidence || (value.parserBacked ? 'parser_backed' : '')),
+      diagnostics: [],
       source,
       sourceExact,
       sourceLocated,
       targetResolved: !missing,
       label: routeEvidenceLabel(evidenceClass, target)
     };
+  }
+
+  /**
+   * @param {unknown} value
+   * @returns {RouteDynamicBinding | null}
+   */
+  function normalizeDynamicBinding(value) {
+    if (!isObject(value) || !value.kind) {
+      return null;
+    }
+    const kind = stringValue(value.kind);
+    const variable = cleanVariable(value.variable || value.quality || value.routeVar || '');
+    const candidateTargets = unique(ensureArray(value.candidateTargets || value.targets || value.candidates).map(cleanTarget));
+    return {
+      kind,
+      variable,
+      source: stringValue(value.source || value.targetSource || (kind === 'set_jump' || kind === 'utility_return_binding' ? 'jump' : 'quality')),
+      shape: stringValue(value.shape || value.kind),
+      condition: stringValue(value.condition),
+      selector: stringValue(value.selector),
+      candidateTargets,
+      primaryTarget: cleanTarget(value.primaryTarget || candidateTargets[0] || ''),
+      profileBacked: Boolean(value.profileBacked),
+      manualBoundary: Boolean(value.manualBoundary),
+      reason: stringValue(value.reason)
+    };
+  }
+
+  /**
+   * @param {unknown} value
+   * @param {unknown} target
+   * @param {RouteUnderstandingProfileEvidence[]=} profileEvidence
+   * @returns {RouteDynamicBinding | null}
+   */
+  function utilityReturnBindingFromProfile(value, target, profileEvidence) {
+    const clean = cleanTarget(target);
+    if (!clean) {
+      return null;
+    }
+    const route = isObject(value) ? value : {};
+    const from = cleanTarget(route.from || route.owner || route.sceneId);
+    const utility = utilityRouteScenes(profileEvidence).find((row) => {
+      return cleanTarget(row && (row.returnBinding || row.binding || 'jumpScene')) === clean &&
+        (!from || cleanTarget(row && (row.sceneId || row.id)) === from);
+    });
+    if (!utility) {
+      return null;
+    }
+    return {
+      kind: 'utility_return_binding',
+      variable: clean,
+      source: 'jump',
+      shape: 'single_slot_return',
+      condition: '',
+      selector: '',
+      candidateTargets: [],
+      primaryTarget: '',
+      profileBacked: true,
+      manualBoundary: false,
+      reason: 'Profile marks this target as a utility return binding.'
+    };
+  }
+
+  /**
+   * @param {RouteUnderstandingProfileEvidence[]=} profileEvidence
+   * @returns {RouteUnderstandingUtilityRouteSceneEvidence[]}
+   */
+  function utilityRouteScenes(profileEvidence) {
+    /** @type {RouteUnderstandingUtilityRouteSceneEvidence[]} */
+    const rows = [];
+    ensureArray(profileEvidence).forEach((profile) => {
+      ensureArray(profile && profile.utilityRouteScenes).forEach((row) => rows.push(row));
+      ensureArray(profile && profile.packages).forEach((pkg) => {
+        ensureArray(pkg && pkg.utilityRouteScenes).forEach((row) => rows.push(row));
+      });
+    });
+    return rows;
+  }
+
+  /**
+   * @param {unknown} input
+   * @returns {RouteTargetResolution}
+   */
+  function routeTargetResolution(input) {
+    const value = isObject(input) ? input : {};
+    const binding = value.dynamicBinding;
+    const candidates = binding && binding.candidateTargets || [];
+    if (binding && binding.kind === 'set_jump') {
+      return {
+        status: 'jump_target',
+        target: value.target,
+        candidateTargets: candidates,
+        quality: binding.variable || 'jumpScene',
+        reason: 'set-jump records a single-slot return target rather than an immediate scene route.'
+      };
+    }
+    if (binding && binding.kind === 'utility_return_binding') {
+      return {
+        status: 'dynamic_return_binding',
+        target: value.target,
+        candidateTargets: candidates,
+        quality: binding.variable || 'jumpScene',
+        reason: 'Profile marks this as the runtime return binding for a utility route scene.'
+      };
+    }
+    if (value.dynamicTarget) {
+      return {
+        status: candidates.length ? 'dynamic_finite' : 'dynamic_unknown',
+        target: value.target,
+        candidateTargets: candidates,
+        quality: binding && binding.variable || routeQualityName(value.target)[0] || '',
+        reason: candidates.length ? 'Dynamic route has a finite candidate target set.' : 'Route target is read from runtime state.'
+      };
+    }
+    if (value.missing) {
+      return {status: 'missing', target: value.target, candidateTargets: [], reason: 'Target is not known to this event or project index.'};
+    }
+    if (value.external) {
+      return {status: 'external', target: value.target, candidateTargets: [], reason: 'Target is external to normal scene resolution.'};
+    }
+    if (value.terminal) {
+      return {status: 'terminal', target: value.target, candidateTargets: [], reason: 'Target is root, terminal, or intentionally script-controlled.'};
+    }
+    if (isObject(value.staticResolution) && value.staticResolution.status) {
+      return clone(value.staticResolution);
+    }
+    return {status: 'resolved', target: value.target, candidateTargets: [], reason: 'Target resolves statically.'};
+  }
+
+  /**
+   * @param {unknown} input
+   * @returns {RouteSemanticTier}
+   */
+  function routeSemanticTier(input) {
+    const value = isObject(input) ? input : {};
+    if (value.confidence === 'runtime_observed' || value.sourceKind === 'runtime') {
+      return SEMANTIC_TIER.RUNTIME;
+    }
+    if (value.targetResolution && value.targetResolution.status === 'profile_alias') {
+      return SEMANTIC_TIER.GUIDED;
+    }
+    if (value.evidenceClass === 'exact' || value.evidenceClass === 'parser_backed' || value.evidenceClass === 'terminal') {
+      return value.dynamicTarget ? SEMANTIC_TIER.GUIDED : SEMANTIC_TIER.STATIC;
+    }
+    if (value.dynamicBinding && ensureArray(value.dynamicBinding.candidateTargets).length) {
+      return SEMANTIC_TIER.GUIDED;
+    }
+    if (value.confidence === 'profile') {
+      return SEMANTIC_TIER.GUIDED;
+    }
+    if (value.evidenceClass === 'script_derived' && value.dynamicBinding && !value.dynamicBinding.manualBoundary) {
+      return SEMANTIC_TIER.GUIDED;
+    }
+    return SEMANTIC_TIER.MANUAL;
+  }
+
+  function routeSafeEditEligible(input) {
+    const value = isObject(input) ? input : {};
+    const semantics = value.runtimeSemantics || {};
+    const collision = semantics.collisionSummary || {};
+    const hasZeroValid = collision.after && Number(collision.after.zeroValidCount || 0) > 0;
+    return value.semanticTier === SEMANTIC_TIER.STATIC &&
+      (value.evidenceClass === 'exact' || value.evidenceClass === 'parser_backed') &&
+      value.targetResolution && value.targetResolution.status === 'resolved' &&
+      !semantics.possibleRandomization &&
+      !hasZeroValid &&
+      Boolean(value.sourceExact || value.parserBacked);
   }
 
   function diagnosticsFor(routes, scripts) {
@@ -549,6 +925,18 @@
         diagnostics.push(diagnostic('warning', 'route_script.fuzzy_route', 'Route evidence is approximate and needs review: ' + (route.rawTarget || route.target)));
       } else if (route.evidenceClass === 'script_derived') {
         diagnostics.push(diagnostic('info', 'route_script.script_derived_route', 'Route may be controlled by script: ' + (route.owner || route.target)));
+      }
+      const semantics = route.runtimeSemantics || {};
+      const warnings = ensureArray(semantics && semantics.warnings);
+      const collision = semantics && semantics.collisionSummary || {};
+      if (semantics && (semantics.selectionMode === 'random_among_valid' || warnings.some((warning) => /multi|random|unconditional/i.test(warning)))) {
+        diagnostics.push(diagnostic('warning', 'route_script.multi_valid_randomization', 'Route can select randomly among multiple valid targets: ' + (route.owner || route.from || route.target)));
+      }
+      if (warnings.some((warning) => /unconditional/i.test(warning))) {
+        diagnostics.push(diagnostic('warning', 'route_script.unconditional_not_fallback', 'Unconditional route clauses are always valid; they are not ordered fallback clauses.'));
+      }
+      if (collision && collision.after && Number(collision.after.zeroValidCount || 0) > 0 || warnings.some((warning) => /zero/i.test(warning))) {
+        diagnostics.push(diagnostic('warning', 'route_script.zero_valid_gap', 'Route sampling found a state with no valid target.'));
       }
     });
     ensureArray(scripts && scripts.blocks).forEach((block) => {
@@ -563,19 +951,20 @@
     const display = new Set();
     const option = new Set();
     ensureArray(body && body.sections).concat(ensureArray(body && body.branchSections)).forEach((field) => {
-      variablesIn(field && (field.condition || field.value || field.original)).forEach((name) => display.add(name));
+      predicateVariablesIn(field && field.condition).forEach((name) => display.add(name));
+      variablesIn(field && (field.value || field.original)).forEach((name) => display.add(name));
     });
     ensureArray(body && body.choiceUnits).forEach((choice) => {
-      variablesIn(choice && choice.displayCondition).forEach((name) => display.add(name));
-      variablesIn(choice && choice.chooseCondition).forEach((name) => option.add(name));
+      predicateVariablesIn(choice && choice.displayCondition).forEach((name) => display.add(name));
+      predicateVariablesIn(choice && choice.chooseCondition).forEach((name) => option.add(name));
     });
     ensureArray(body && body.options).forEach((choice) => {
-      variablesIn(choice && (choice.displayCondition || choice.sectionViewIf)).forEach((name) => display.add(name));
-      variablesIn(choice && (choice.chooseIf || choice.sectionChooseIf)).forEach((name) => option.add(name));
+      predicateVariablesIn(choice && (choice.displayCondition || choice.sectionViewIf)).forEach((name) => display.add(name));
+      predicateVariablesIn(choice && (choice.chooseIf || choice.sectionChooseIf)).forEach((name) => option.add(name));
     });
     ensureArray(body && body.metaFields).forEach((field) => {
       if (/condition|view|when|if/i.test(stringValue(field && (field.label || field.id || field.role)))) {
-        variablesIn(field && (field.value || field.original)).forEach((name) => display.add(name));
+        predicateVariablesIn(field && (field.value || field.original)).forEach((name) => display.add(name));
       }
     });
     return {display, option};
@@ -583,15 +972,60 @@
 
   function routePredicateVariables(body) {
     const names = new Set();
+    ensureArray(body && body.eventGraph && body.eventGraph.edges).forEach((edge) => {
+      const kind = stringValue(edge && edge.kind);
+      if (/route/i.test(kind) && !/^(?:choice|result_route)$/i.test(kind)) {
+        predicateVariablesIn(edge && (edge.condition || edge.predicate)).forEach((name) => names.add(name));
+      }
+    });
     ensureArray(body && body.flow && body.flow.edges).forEach((edge) => {
-      variablesIn(edge && (edge.condition || edge.predicate)).forEach((name) => names.add(name));
+      predicateVariablesIn(edge && (edge.condition || edge.predicate)).forEach((name) => names.add(name));
+      const kind = stringValue(edge && edge.kind);
+      if (kind.indexOf('go_to_ref') >= 0 || edge && (edge.dynamicTarget || edge.targetSource === 'quality')) {
+        routeQualityName(edge && (edge.rawTarget || edge.to || edge.target || edge.targetId)).forEach((name) => names.add(name));
+      }
     });
     ensureArray(body && body.continuationMap && body.continuationMap.items).forEach((item) => {
       ensureArray(item && item.orderedRoutes).forEach((route) => {
-        variablesIn(route && route.predicate).forEach((name) => names.add(name));
+        predicateVariablesIn(route && route.predicate).forEach((name) => names.add(name));
+        const kind = stringValue(route && (route.routeKind || route.kind));
+        if (kind.indexOf('go_to_ref') >= 0 || route && (route.dynamicTarget || route.targetSource === 'quality')) {
+          routeQualityName(route && (route.rawTarget || route.target || route.resolvedTarget)).forEach((name) => names.add(name));
+        }
+      });
+    });
+    ensureArray(body && body.metaFields).forEach((field) => {
+      if (String(field && (field.role || field.semanticRole) || '').toLowerCase() === 'route') {
+        predicateVariablesIn(field && (field.routePredicate || field.condition)).forEach((name) => names.add(name));
+      }
+    });
+    return names;
+  }
+
+  function routeQualityVariables(body, options) {
+    const names = new Set();
+    routePredicateVariables(body).forEach((name) => names.add(name));
+    ensureArray(options && options.routeQualityVars || body && body.routeQualityVars).forEach((name) => {
+      const clean = cleanVariable(name);
+      if (clean) names.add(clean);
+    });
+    ensureArray(options && options.profileEvidence).forEach((profile) => {
+      ensureArray(profile && profile.routeQualityVars).forEach((name) => {
+        const clean = cleanVariable(name);
+        if (clean) names.add(clean);
+      });
+      ensureArray(profile && profile.routeHelperTables).forEach((table) => {
+        const routeVar = cleanVariable(table && (table.routeVar || table.quality || table.variable));
+        if (routeVar) names.add(routeVar);
       });
     });
     return names;
+  }
+
+  function routeQualityName(value) {
+    const text = cleanTarget(value).replace(/^quality_ref:/, '');
+    const clean = cleanVariable(text);
+    return clean ? [clean] : [];
   }
 
   function splitStatements(text) {
@@ -695,14 +1129,15 @@
     };
   }
 
-  function scriptInfluenceFor(input, conditionIndex, routePredicateIndex) {
+  function scriptInfluenceFor(input, conditionIndex, routePredicateIndex, routeQualityIndex) {
     const value = isObject(input) ? input : {};
     const writes = ensureArray(value.writes);
     const text = stringValue(value.text);
+    const quality = routeQualityIndex || new Set();
     return {
       display: value.hook === 'on-display' || writes.some((name) => conditionIndex.display.has(name)),
       option: writes.some((name) => conditionIndex.option.has(name)),
-      route: /\b(?:go-to|set-root|route|target)\b/i.test(text) || writes.some((name) => routePredicateIndex.has(name))
+      route: ensureArray(value.dynamicRouteWrites).length > 0 || /\b(?:go-to|set-root|route|target)\b/i.test(text) || writes.some((name) => routePredicateIndex.has(name) || quality.has(name))
     };
   }
 
@@ -759,6 +1194,158 @@
     const assignment = stringValue(text).match(/\b(?:route|target|next|set[-_]root)\s*=\s*['"]([A-Za-z_][A-Za-z0-9_.-]*)['"]/i);
     if (assignment) targets.push(assignment[1]);
     return unique(targets);
+  }
+
+  function routeTargetsForScript(text, dynamicRouteWrites) {
+    return unique(routeTargetsFromScript(text).concat(
+      ensureArray(dynamicRouteWrites).reduce((targets, write) => targets.concat(ensureArray(write && write.candidateTargets)), [])
+    ));
+  }
+
+  function profileRouteEvidenceRows(profileEvidence) {
+    const rows = [];
+    ensureArray(profileEvidence).forEach((profile) => {
+      const profileId = stringValue(profile && (profile.profileId || profile.id));
+      ensureArray(profile && profile.routeHelperTables).forEach((table, tableIndex) => {
+        const variable = cleanVariable(table && (table.routeVar || table.quality || table.variable));
+        const targets = unique(ensureArray(table && (table.targets || table.candidateTargets || table.scenes)).map(cleanTarget));
+        if (!variable || !targets.length) {
+          return;
+        }
+        rows.push({
+          id: 'profile_route_table_' + safeProfileId(profileId || tableIndex + 1) + '_' + safeProfileId(variable),
+          from: profileId ? 'profile:' + profileId : 'profile',
+          target: 'quality_ref:' + variable,
+          rawTarget: variable,
+          predicate: '',
+          confidence: 'profile',
+          targetSource: 'quality',
+          dynamicTarget: true,
+          owner: stringValue(table && (table.label || table.id || variable)),
+          source: table && table.source,
+          dynamicBinding: {
+            kind: 'profile_route_table',
+            variable,
+            source: 'quality',
+            shape: 'profile_declared_table',
+            candidateTargets: targets,
+            profileBacked: true
+          }
+        });
+      });
+    });
+    return rows;
+  }
+
+  function dynamicRouteWritesFromScript(text, row, routeQualityIndex) {
+    const raw = stringValue(text);
+    const routeVars = routeQualityIndex || new Set();
+    const writes = [];
+    const push = (shape, variable, targets, extra) => {
+      const clean = cleanVariable(variable);
+      const candidateTargets = unique(ensureArray(targets).map(cleanTarget));
+      const condition = stringValue(extra && extra.condition);
+      if (!clean || !candidateTargets.length || !routeVariableLooksRouteLike(clean, routeVars)) {
+        return;
+      }
+      if (!isConservativeRouteCondition(condition)) {
+        return;
+      }
+      writes.push(Object.assign({
+        kind: 'route_quality_write',
+        shape,
+        variable: clean,
+        source: 'quality',
+        candidateTargets,
+        primaryTarget: candidateTargets[0],
+        condition,
+        selector: '',
+        profileBacked: routeVars.has(clean),
+        manualBoundary: false,
+        sourceId: stringValue(row && row.id)
+      }, extra || {}));
+    };
+
+    replaceAll(raw, /\b(?:Q\.)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*([^?;{}]+?)\?\s*['"]([A-Za-z_][A-Za-z0-9_.-]*)['"]\s*:\s*['"]([A-Za-z_][A-Za-z0-9_.-]*)['"]/g, (match) => {
+      push('ternary_literal', match[1], [match[3], match[4]], {condition: stringValue(match[2]).trim()});
+    });
+
+    replaceAll(raw, /\b(?:Q\.)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*\{([^{}]+)\}\s*\[\s*(?:Q\.)?([A-Za-z_][A-Za-z0-9_]*)\s*\]/g, (match) => {
+      const targets = [];
+      replaceAll(match[2], /:\s*['"]([A-Za-z_][A-Za-z0-9_.-]*)['"]/g, (targetMatch) => {
+        targets.push(targetMatch[1]);
+      });
+      push('finite_object_map', match[1], targets, {selector: match[3]});
+    });
+
+    replaceAll(raw, /\bif\s*\(([^)]*)\)\s*\{?\s*(?:Q\.)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*['"]([A-Za-z_][A-Za-z0-9_.-]*)['"]\s*;?\s*\}?\s*else\s*\{?\s*(?:Q\.)?\2\s*=\s*['"]([A-Za-z_][A-Za-z0-9_.-]*)['"]\s*;?\s*\}?/g, (match) => {
+      push('if_else_literal', match[2], [match[3], match[4]], {condition: stringValue(match[1]).trim()});
+    });
+
+    replaceAll(raw, /\b(?:Q\.)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*['"]([A-Za-z_][A-Za-z0-9_.-]*)['"]/g, (match) => {
+      push('literal_assignment', match[1], [match[2]], {});
+    });
+
+    return uniqueRouteWrites(writes);
+  }
+
+  function dynamicBindingFromRouteEdge(edge) {
+    const kind = stringValue(edge && edge.kind);
+    if (kind.indexOf('go_to_ref') >= 0 || edge && (edge.dynamicTarget || edge.targetSource === 'quality')) {
+      const variable = routeQualityName(edge && (edge.rawTarget || edge.to || edge.target || edge.targetId))[0] || cleanVariable(edge && (edge.routeVar || edge.quality || edge.variable));
+      return {
+        kind: 'go_to_ref',
+        variable,
+        source: 'quality',
+        shape: 'runtime_quality_ref',
+        candidateTargets: unique(ensureArray(edge && (edge.candidateTargets || edge.targets)).map(cleanTarget)),
+        primaryTarget: '',
+        profileBacked: Boolean(edge && edge.profileBacked)
+      };
+    }
+    if (kind.indexOf('set_jump') >= 0) {
+      return {
+        kind: 'set_jump',
+        variable: 'jumpScene',
+        source: 'jump',
+        shape: 'single_slot_return',
+        candidateTargets: [cleanTarget(edge && (edge.to || edge.target || edge.rawTarget))].filter(Boolean),
+        primaryTarget: cleanTarget(edge && (edge.to || edge.target || edge.rawTarget))
+      };
+    }
+    return null;
+  }
+
+  function routeVariableLooksRouteLike(variable, routeVars) {
+    const clean = cleanVariable(variable);
+    return routeVars && routeVars.has(clean) || /(?:route|target|next|scene|root|jump)$/i.test(clean) || /(?:^|_)(?:route|target|next|scene|root|jump)(?:_|$)/i.test(clean);
+  }
+
+  function isConservativeRouteCondition(condition) {
+    const text = stringValue(condition).trim();
+    if (!text) {
+      return true;
+    }
+    return isSimpleCondition(text) && !hasFunctionCall(text) && !/\b(?:Math\.random|random|this\.|window\.|document\.)\b/.test(text);
+  }
+
+  function uniqueRouteWrites(writes) {
+    const seen = new Set();
+    return ensureArray(writes).filter((write) => {
+      const key = [write.shape, write.variable, ensureArray(write.candidateTargets).join(','), write.condition, write.selector].join('|');
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+  }
+
+  function replaceAll(text, regex, callback) {
+    String(text || '').replace(regex, function replaceMatch() {
+      callback(Array.prototype.slice.call(arguments, 0, -2));
+      return arguments[0];
+    });
   }
 
   function shouldApplyScriptOncePerTrial(block, sectionId) {
@@ -880,9 +1467,27 @@
     return unique(names);
   }
 
+  function predicateVariablesIn(value) {
+    const text = stringValue(value).replace(/(['"])(?:\\.|(?!\1)[\s\S])*\1/g, ' ');
+    const names = [];
+    text.replace(/\b(?:Q\.)?([A-Za-z_][A-Za-z0-9_]*)\b/g, (_match, name) => {
+      const clean = cleanVariable(name);
+      if (clean && !isPredicateKeyword(clean)) {
+        names.push(clean);
+      }
+      return '';
+    });
+    return unique(names);
+  }
+
+  function isPredicateKeyword(value) {
+    return /^(?:and|or|not|if|true|false|null|undefined)$/i.test(stringValue(value));
+  }
+
   function isRouteEdge(edge) {
     const kind = stringValue(edge && edge.kind);
-    return kind === 'route' || kind === 'conditional_route' || kind === 'return_route' || kind === 'exit_route';
+    return kind === 'route' || kind === 'conditional_route' || kind === 'return_route' || kind === 'exit_route' ||
+      kind.indexOf('go_to_ref') >= 0 || kind.indexOf('set_jump') >= 0;
   }
 
   function firstPredicate(routes) {
@@ -903,38 +1508,214 @@
   }
 
   function targetResolves(body, target) {
+    return resolveStaticTarget(body, target).status !== 'missing';
+  }
+
+  function resolveStaticTarget(body, target) {
     const clean = cleanTarget(target);
     if (!clean || clean === 'root') {
-      return true;
+      return {
+        status: 'resolved',
+        target: clean,
+        resolvedId: clean || 'root',
+        scope: 'terminal',
+        candidateTargets: [clean || 'root'],
+        reason: 'Target is the project root or empty terminal target.'
+      };
     }
-    const ids = new Set(['root']);
+    if (/^\.\./.test(clean)) {
+      return {
+        status: 'ambiguous',
+        target: clean,
+        scope: 'parent_relative',
+        candidateTargets: [],
+        ambiguous: true,
+        reason: 'Parent-relative target requires compiler resolution proof before safe editing.'
+      };
+    }
+    const absolute = clean[0] === '.';
+    const wanted = absolute ? clean.replace(/^\.+/, '') : clean;
+    const rows = routeTargetRows(body);
+    const localMatches = rows.filter((row) => row.local && targetRowMatches(row, wanted, absolute));
+    const globalMatches = rows.filter((row) => row.global && targetRowMatches(row, wanted, absolute));
+    const graphMatches = rows.filter((row) => row.graph && targetRowMatches(row, wanted, absolute));
+    const allMatches = localMatches.concat(globalMatches, graphMatches);
+    const uniqueMatches = uniqueRowsById(allMatches);
+    if (!uniqueMatches.length) {
+      return {
+        status: 'missing',
+        target: clean,
+        scope: 'unresolved',
+        candidateTargets: [],
+        reason: 'Target is not known to this event or project index.'
+      };
+    }
+    const unqualified = clean.indexOf('.') < 0 && !absolute;
+    if (unqualified && localMatches.length && globalMatches.length) {
+      return ambiguousResolution(clean, localMatches.concat(globalMatches), 'Local route target shadows a global scene id; compiler proof is required before safe structured editing.');
+    }
+    if (uniqueMatches.length > 1) {
+      return ambiguousResolution(clean, uniqueMatches, 'Route target has multiple possible static matches.');
+    }
+    const match = uniqueMatches[0];
+    if (match.scope === 'profile_static_alias') {
+      return {
+        status: 'profile_alias',
+        target: clean,
+        resolvedId: match.resolvedId || match.id,
+        scope: match.scope,
+        candidateTargets: [match.resolvedId || match.id].filter(Boolean),
+        proof: match.proof,
+        shadowed: false,
+        reason: 'Profile declares this route target as a static alias.'
+      };
+    }
+    return {
+      status: 'resolved',
+      target: clean,
+      resolvedId: match.resolvedId || match.id,
+      scope: match.scope,
+      candidateTargets: [match.resolvedId || match.id].filter(Boolean),
+      proof: match.proof,
+      shadowed: false,
+      reason: 'Target resolves statically as ' + match.scope + '.'
+    };
+  }
+
+  function routeTargetRows(body) {
+    /** @type {Array<Record<string, any>>} */
+    const rows = [];
     const structureId = stringValue(body && body.eventStructure && body.eventStructure.id || body && body.id);
     if (structureId) {
-      ids.add(structureId);
+      rows.push(targetRow(structureId, 'local_scene', {local: true, proof: 'eventStructure.id'}));
     }
-    ensureArray(body && body.branchSections).forEach((field) => {
-      [field && field.sectionId, field && field.targetId].map(stringValue).filter(Boolean).forEach((id) => ids.add(cleanTarget(id)));
+    ensureArray(body && body.branchSections).forEach((field, index) => {
+      [field && field.sectionId, field && field.targetId, field && field.id].map(stringValue).filter(Boolean).forEach((id) => {
+        rows.push(targetRow(id, 'local_section', {local: true, eventId: structureId, proof: 'branchSections[' + index + ']'}));
+      });
     });
-    ensureArray(body && body.sections).forEach((field) => {
-      [field && field.sectionId, field && field.targetId, field && field.id].map(stringValue).filter(Boolean).forEach((id) => ids.add(cleanTarget(id)));
+    ensureArray(body && body.sections).forEach((field, index) => {
+      [field && field.sectionId, field && field.targetId, field && field.id].map(stringValue).filter(Boolean).forEach((id) => {
+        rows.push(targetRow(id, 'local_section', {local: true, eventId: structureId, proof: 'sections[' + index + ']'}));
+      });
     });
-    ensureArray(body && body.options).forEach((option) => {
-      [option && option.targetId, option && option.rawTargetId, option && option.id].map(stringValue).filter(Boolean).forEach((id) => ids.add(cleanTarget(id)));
+    ensureArray(body && body.options).forEach((option, index) => {
+      [option && option.targetId, option && option.rawTargetId].map(stringValue).filter(Boolean).forEach((id) => {
+        rows.push(targetRow(id, 'option_target', {local: true, eventId: structureId, proof: 'options[' + index + ']'}));
+      });
     });
-    ensureArray(body && body.flow && body.flow.nodes).forEach((node) => {
-      [node && node.id, node && node.sectionId, node && node.targetId].map(stringValue).filter(Boolean).forEach((id) => ids.add(cleanTarget(id)));
+    ensureArray(body && body.flow && body.flow.nodes).forEach((node, index) => {
+      [node && node.id, node && node.sectionId, node && node.targetId].map(stringValue).filter(Boolean).forEach((id) => {
+        rows.push(targetRow(id, 'graph_node', {graph: true, local: true, eventId: structureId, proof: 'flow.nodes[' + index + ']'}));
+      });
     });
-    ensureArray(body && body.sourceStructureGraph && body.sourceStructureGraph.nodes).forEach((node) => {
-      [node && node.id, node && node.sectionId, node && node.targetId].map(stringValue).filter(Boolean).forEach((id) => ids.add(cleanTarget(id)));
+    ensureArray(body && body.sourceStructureGraph && body.sourceStructureGraph.nodes).forEach((node, index) => {
+      [node && node.id, node && node.sectionId, node && node.targetId].map(stringValue).filter(Boolean).forEach((id) => {
+        rows.push(targetRow(id, 'source_graph_node', {graph: true, local: true, eventId: structureId, proof: 'sourceStructureGraph.nodes[' + index + ']'}));
+      });
     });
-    ensureArray(body && (body.projectSceneIds || body.knownSceneIds || body.globalSceneIds)).forEach((id) => {
-      if (id) ids.add(cleanTarget(id));
+    ensureArray(body && (body.projectSceneIds || body.knownSceneIds || body.globalSceneIds)).forEach((id, index) => {
+      if (id) rows.push(targetRow(id, 'global_scene', {global: true, proof: 'projectSceneIds[' + index + ']'}));
     });
-    if (ids.has(clean)) {
-      return true;
+    staticAliasRows(body && body.profileEvidence).forEach((row) => rows.push(row));
+    return uniqueRowsById(rows);
+  }
+
+  function targetRow(id, scope, options) {
+    const value = cleanTarget(id);
+    const eventId = cleanTarget(options && options.eventId);
+    const shortId = value.split('.').pop() || value;
+    const qualifiedId = value.indexOf('.') >= 0 || !eventId ? value : eventId + '.' + value;
+    return {
+      id: value,
+      shortId,
+      qualifiedId,
+      resolvedId: cleanTarget(options && options.resolvedId) || (scope === 'local_section' || scope === 'option_target' || scope === 'graph_node' || scope === 'source_graph_node' ? qualifiedId : value),
+      scope,
+      local: Boolean(options && options.local),
+      global: Boolean(options && options.global),
+      graph: Boolean(options && options.graph),
+      proof: stringValue(options && options.proof)
+    };
+  }
+
+  function targetRowMatches(row, wanted, absolute) {
+    if (!row || !wanted) {
+      return false;
     }
-    const local = clean.split('.').pop();
-    return Array.from(ids).some((id) => id === local || id.split('.').pop() === local);
+    if (absolute) {
+      return row.global && row.id === wanted;
+    }
+    if (row.scope === 'profile_static_alias') {
+      return row.id === wanted || row.shortId === wanted;
+    }
+    return row.id === wanted || row.qualifiedId === wanted || row.resolvedId === wanted || row.shortId === wanted;
+  }
+
+  function uniqueRowsById(rows) {
+    const seen = new Set();
+    return ensureArray(rows).filter((row) => {
+      const key = [row.id, row.resolvedId || row.id].join('|');
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return Boolean(row && row.id);
+    });
+  }
+
+  function ambiguousResolution(target, matches, reason) {
+    const rows = uniqueRowsById(matches);
+    return {
+      status: 'ambiguous',
+      target,
+      scope: 'ambiguous',
+      candidateTargets: unique(rows.map((row) => row.resolvedId || row.id)),
+      candidates: rows.map((row) => ({
+        id: row.id,
+        resolvedId: row.resolvedId || row.id,
+        scope: row.scope,
+        proof: row.proof
+      })),
+      ambiguous: true,
+      shadowed: rows.some((row) => row.local) && rows.some((row) => row.global),
+      reason
+    };
+  }
+
+  function staticAliasRows(profileEvidence) {
+    /** @type {Array<Record<string, any>>} */
+    const rows = [];
+    ensureArray(profileEvidence).forEach((profile, profileIndex) => {
+      const profileId = safeProfileId(profile && (profile.profileId || profile.id || profileIndex + 1));
+      const aliases = profile && profile.staticAliases;
+      if (Array.isArray(aliases)) {
+        aliases.forEach((entry, index) => {
+          const alias = cleanTarget(entry && (entry.alias || entry.from || entry.id || entry.name));
+          const target = cleanTarget(entry && (entry.target || entry.to || entry.sceneId || entry.value));
+          if (alias && target) {
+            rows.push(targetRow(alias, 'profile_static_alias', {
+              global: true,
+              resolvedId: target,
+              proof: 'profile.staticAliases[' + profileId + ':' + index + ']'
+            }));
+          }
+        });
+      } else if (isObject(aliases)) {
+        Object.keys(aliases).forEach((alias) => {
+          const target = cleanTarget(aliases[alias]);
+          if (alias && target) {
+            rows.push(targetRow(alias, 'profile_static_alias', {
+              global: true,
+              resolvedId: target,
+              proof: 'profile.staticAliases[' + profileId + ':' + alias + ']'
+            }));
+          }
+        });
+      }
+      rows.push.apply(rows, staticAliasRows(profile && profile.packages));
+    });
+    return rows;
   }
 
   function guidedEditFor(row, statement, blockIndex) {
@@ -1054,6 +1835,10 @@
     return stringValue(value).trim().replace(/^[@#]+/, '').replace(/^(?:scene|section|result|option):/, '');
   }
 
+  function safeProfileId(value) {
+    return stringValue(value).trim().toLowerCase().replace(/[^a-z0-9_.-]+/g, '_').replace(/^_+|_+$/g, '') || 'profile';
+  }
+
   function isExternalTarget(target) {
     return /^(?:runtime:|tag:|http:|https:|external:)/i.test(stringValue(target));
   }
@@ -1078,6 +1863,10 @@
     return Array.isArray(value) ? value : [];
   }
 
+  /**
+   * @param {unknown} value
+   * @returns {value is Record<string, any>}
+   */
   function isObject(value) {
     return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
   }

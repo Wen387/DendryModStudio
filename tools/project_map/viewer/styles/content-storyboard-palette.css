@@ -67,6 +67,10 @@
   transform-origin: left center;
 }
 
+.storyboard-palette.is-open.is-refreshing:not(.is-closing) .storyboard-palette-drawer {
+  animation: none;
+}
+
 .storyboard-palette.is-closing {
   pointer-events: none;
 }

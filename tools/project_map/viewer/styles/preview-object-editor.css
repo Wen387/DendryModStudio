@@ -430,9 +430,40 @@ input.preview-object-control[type="checkbox"] {
   gap: 10px;
 }
 
+.preview-object-opening-context {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--studio-accent) 18%, var(--border-soft));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-alt) 76%, #ffffff);
+}
+
+.preview-object-opening-context-fields {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.preview-object-opening-context .preview-object-field {
+  background: color-mix(in srgb, var(--surface) 86%, #ffffff);
+}
+
 .preview-object-branches {
   border-top: 1px solid var(--border-soft);
   padding-top: 10px;
+}
+
+.preview-object-branch-details {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.preview-object-branch-details > summary {
+  cursor: pointer;
+  list-style-position: inside;
 }
 
 .preview-object-flow-overview {
@@ -745,6 +776,164 @@ input.preview-object-control[type="checkbox"] {
   background: color-mix(in srgb, var(--surface-alt) 78%, #ffffff);
 }
 
+.preview-object-choices.is-player-path-layout {
+  --preview-choice-indent: 12px;
+  --preview-choice-rail-gap: 6px;
+  gap: 9px;
+}
+
+.preview-object-choice-branch {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.preview-object-choice-branch.is-section-root .preview-object-choice-nested-section {
+  margin-left: 0;
+}
+
+.preview-object-choice-children {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin-left: var(--preview-choice-indent, 12px);
+  padding-left: var(--preview-choice-rail-gap, 6px);
+  border-left: 2px solid color-mix(in srgb, var(--studio-accent) 30%, var(--border-soft));
+}
+
+.preview-object-choice-nested-section {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin-left: var(--preview-choice-indent, 12px);
+  padding: 9px;
+  border: 1px solid color-mix(in srgb, var(--warning) 22%, var(--border-soft));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-alt) 74%, #ffffff);
+}
+
+.preview-object-choice-nested-section > header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.preview-object-choice-nested-section > header span {
+  border: 1px solid color-mix(in srgb, var(--warning) 24%, var(--border-soft));
+  border-radius: 7px;
+  padding: 2px 6px;
+  background: color-mix(in srgb, var(--warning) 8%, var(--surface));
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.preview-object-choice-nested-section > header strong,
+.preview-object-choice-nested-section > header code {
+  overflow-wrap: anywhere;
+}
+
+.preview-object-choice-nested-section > header code {
+  color: var(--muted);
+  font-size: 11px;
+  white-space: normal;
+}
+
+.preview-object-choice-loop {
+  margin-left: var(--preview-choice-indent, 12px);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 760;
+}
+
+.preview-object-choice-shared-section {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-left: var(--preview-choice-indent, 12px);
+  padding: 7px 9px;
+  border: 1px dashed color-mix(in srgb, var(--studio-accent) 34%, var(--border-soft));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-alt) 72%, #ffffff);
+  color: var(--muted);
+}
+
+.preview-object-choice-shared-section strong {
+  color: var(--text);
+}
+
+.preview-object-choice-shared-section span,
+.preview-object-choice-shared-section small {
+  overflow-wrap: anywhere;
+}
+
+.preview-object-route-outcomes {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin-left: var(--preview-choice-indent, 12px);
+  padding-left: var(--preview-choice-rail-gap, 6px);
+  border-left: 2px solid color-mix(in srgb, var(--warning) 36%, var(--border-soft));
+}
+
+.preview-object-route-outcomes-title {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.preview-object-route-outcome {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 9px;
+  border: 1px solid color-mix(in srgb, var(--warning) 24%, var(--border-soft));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-alt) 72%, #ffffff);
+}
+
+.preview-object-route-outcome > header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+}
+
+.preview-object-route-outcome > header span {
+  border: 1px solid color-mix(in srgb, var(--warning) 28%, var(--border-soft));
+  border-radius: 7px;
+  padding: 2px 6px;
+  background: color-mix(in srgb, var(--warning) 10%, var(--surface));
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.preview-object-route-outcome > header strong,
+.preview-object-route-outcome > header code {
+  overflow-wrap: anywhere;
+}
+
+.preview-object-route-outcome > header code {
+  color: var(--muted);
+  font-size: 11px;
+  white-space: normal;
+}
+
+.preview-object-route-outcome-target .preview-object-field {
+  padding: 7px 8px;
+  border-color: var(--border-soft);
+  background: color-mix(in srgb, var(--surface) 86%, #ffffff);
+}
+
 .preview-object-choice-main {
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr);
@@ -811,6 +1000,103 @@ input.preview-object-control[type="checkbox"] {
   overflow-wrap: anywhere;
 }
 
+.preview-object-choice-logic {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.preview-object-choice-logic h5 {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.preview-object-choice-logic-group {
+  display: grid;
+  grid-template-columns: minmax(76px, 104px) minmax(0, 1fr);
+  gap: 6px 8px;
+  align-items: start;
+  min-width: 0;
+}
+
+.preview-object-choice-logic-group > strong {
+  grid-column: 1;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.3;
+}
+
+.preview-object-choice-logic-group > .preview-object-field,
+.preview-object-choice-logic-group > .preview-object-condition-chips,
+.preview-object-choice-logic-group > .preview-object-effect-fields,
+.preview-object-choice-logic-group > .preview-object-choice-logic-chip {
+  grid-column: 2;
+}
+
+.preview-object-choice-logic-group .preview-object-field {
+  padding: 7px 8px;
+  border-color: var(--border-soft);
+  background: color-mix(in srgb, var(--surface) 86%, #ffffff);
+}
+
+.preview-object-choice-logic-group .preview-object-field-label em {
+  display: none;
+}
+
+.preview-object-choice-logic-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  justify-self: start;
+  padding: 4px 7px;
+  border: 1px solid color-mix(in srgb, var(--studio-accent) 24%, var(--border-soft));
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--surface-alt) 76%, #ffffff);
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.preview-object-choice-logic-chip strong {
+  color: var(--studio-accent-strong);
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.preview-object-choice-logic-chip em {
+  min-width: 0;
+  color: var(--text);
+  font-style: normal;
+  overflow-wrap: anywhere;
+}
+
+.preview-object-choice-logic.is-section-logic {
+  padding: 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface) 82%, #ffffff);
+}
+
+@media (max-width: 719px) {
+  .preview-object-choice-logic-group {
+    grid-template-columns: 1fr;
+  }
+
+  .preview-object-choice-logic-group > strong,
+  .preview-object-choice-logic-group > .preview-object-field,
+  .preview-object-choice-logic-group > .preview-object-condition-chips,
+  .preview-object-choice-logic-group > .preview-object-effect-fields,
+  .preview-object-choice-logic-group > .preview-object-choice-logic-chip {
+    grid-column: 1;
+  }
+}
+
 .preview-object-choice-details {
   border-top: 1px solid var(--border-soft);
   padding-top: 8px;
@@ -836,6 +1122,26 @@ input.preview-object-control[type="checkbox"] {
   font-size: 12px;
   font-weight: 850;
   text-transform: uppercase;
+}
+
+.preview-object-review-details {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid var(--border-soft);
+  padding-top: 10px;
+}
+
+.preview-object-review-details > summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.preview-object-review-details-body {
+  display: grid;
+  gap: 10px;
 }
 
 .preview-object-logic-section,

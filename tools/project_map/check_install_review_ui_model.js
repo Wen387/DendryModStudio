@@ -148,6 +148,69 @@ assert(reviewHtml.includes('matched_current_file'), 'review cards should show th
 assert(reviewHtml.includes('1234567890ab...'), 'review cards should shorten evidence hashes');
 
 const assistant = loadAssistant();
+const draftExport = {
+  schemaVersion: '0.1',
+  exportedAt: '2026-05-20T03:56:48.321Z',
+  items: [
+    {
+      draftId: 'first_saved_draft',
+      title: 'First saved draft',
+      installPlan: installPlan.buildInstallPlan({
+        id: 'first_saved_draft',
+        draftKind: 'existing_scene_edit',
+        title: 'First saved draft',
+        project: {root: '/tmp/dms-draft-project'},
+        operations: [
+          {
+            id: 'replace_first',
+            type: 'replace_text',
+            path: 'source/scenes/events/first.scene.dry',
+            line: 1,
+            search: 'First',
+            replace: 'First changed',
+            safety: 'guarded_apply'
+          }
+        ]
+      })
+    },
+    {
+      draftId: 'second_saved_draft',
+      title: 'Second saved draft',
+      installPlan: installPlan.buildInstallPlan({
+        id: 'second_saved_draft',
+        draftKind: 'world_event',
+        title: 'Second saved draft',
+        project: {root: '/tmp/dms-draft-project'},
+        operations: [
+          {
+            id: 'create_second',
+            type: 'create_file',
+            path: 'source/scenes/events/second.scene.dry',
+            content: '* second\n',
+            safety: 'safe_apply'
+          }
+        ]
+      })
+    }
+  ]
+};
+assistant.loadPlan(draftExport, {fileName: 'dendry-studio-drafts.json'});
+const importedDraftExport = assistant.getState().plan;
+assert(importedDraftExport && importedDraftExport.draftKind === 'studio_drafts_export', 'assistant should import Studio drafts export as a combined install plan');
+assert(importedDraftExport.operations.length === 2, 'combined Studio drafts export should include every saved draft operation');
+assert(importedDraftExport.operations[0].id === 'draft_1_replace_first', 'combined draft export operation ids should stay unique');
+assert(importedDraftExport.operations[1].sourceDraftId === 'second_saved_draft', 'combined draft export operations should preserve source draft provenance');
+assert(importedDraftExport.project && importedDraftExport.project.root === '/tmp/dms-draft-project', 'combined draft export should preserve common project root');
+assistant.loadPlan({
+  schemaVersion: '0.1',
+  exportedAt: '2026-05-20T03:56:48.321Z',
+  items: [draftExport.items[0]]
+}, {fileName: 'dendry-studio-drafts.json'});
+const singleDraftExport = assistant.getState();
+assert(singleDraftExport.plan && singleDraftExport.plan.id === 'first_saved_draft', 'single-item Studio drafts export should load its install plan directly');
+assert(singleDraftExport.planFileName === 'first_saved_draft.install-plan.json', 'single-item Studio drafts export should use the draft install-plan filename');
+assistant.loadPlan({schemaVersion: '0.1', items: []}, {fileName: 'dendry-studio-drafts.json'});
+assert(assistant.getState().plan === null, 'Studio drafts export without install plans should not masquerade as an empty plan');
 const readiness = assistant.buildReviewApplyReadiness(plan, {checked: true, allowAdvanced: false});
 assert(readiness.canApply === true, 'assistant readiness should allow applying checked automatic operations while manual review remains');
 assert(readiness.manualReviewCount === 1, 'assistant readiness should preserve manual review count from the shared classifier');
@@ -171,6 +234,10 @@ assert(reviewStateSource.includes('classifyReviewApplyReadiness'), 'review state
 assert(assistantSource.includes('buildReviewApplyUiState'), 'assistant should route rendered readiness through the shared UI state model');
 assert(resultReportSource.includes('rollbackNotes'), 'result report model should own rollback note construction');
 assert(assistantSource.includes('buildInstallResultReport'), 'assistant should route result reports through the shared report model');
+assert(assistantSource.includes('install.empty.runtimePreview.title'), 'assistant first stage should expose current-project runtime preview copy');
+assert(assistantSource.includes('install.result.emptyCurrentPreview'), 'assistant should explain no-plan Runtime Preview instead of asking for a plan only');
+assert(assistantSource.includes('install.runtimePreviewEmptyCurrent'), 'assistant runtime preview panel should use no-plan copy for current-project previews');
+assert(assistantSource.includes('toggleElement(elements.runtimePreview, hasDesktop)'), 'assistant should keep Runtime Preview visible before a change plan is loaded');
 assert(!assistantSource.includes('function hasAutoApplyOperations'), 'assistant should not keep a local auto-apply operation classifier');
 assert(!assistantSource.includes('eligibleAutomatic = safe + guarded'), 'assistant should not keep a local readiness classifier fallback');
 assert(!assistantSource.includes('refused && !autoApplyAvailable'), 'assistant should not keep local blocked/apply priority rules');

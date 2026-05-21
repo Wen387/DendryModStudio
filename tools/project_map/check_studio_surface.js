@@ -235,7 +235,7 @@ const previewObjectStructureUi = fs.readFileSync(PREVIEW_OBJECT_STRUCTURE_UI, 'u
 assert(html.includes('data-studio-surface="direction-b"'), 'viewer should mark Direction B Studio as the active surface');
 assert(html.includes('brand-mark branch-mark'), 'viewer should expose a Branch brand mark');
 assert(html.includes('Dendry <span>Mod Studio</span>'), 'viewer should emphasize Mod Studio in the wordmark');
-assert(html.includes('Dendry Mod Studio v0.97.6 dev preview'), 'topbar should expose the Studio version for testers');
+assert(html.includes('Dendry Mod Studio v0.97.8 dev preview'), 'topbar should expose the Studio version for testers');
 assert(html.includes('https://github.com/Wen387'), 'topbar should link the author GitHub profile');
 assert(html.includes('nav-group-title'), 'Explore navigation should be grouped by authoring purpose');
 assert(html.includes('Story content'), 'Explore navigation should include a Story content group');
@@ -439,6 +439,7 @@ assert(storyboardWorkspaceState.includes('STORY_PALETTE_RECENT_STORAGE_KEY'), 'S
 assert(contentStoryboardInteractions.includes('ProjectMapContentStoryboardInteractions'), 'Content Storyboard interactions should expose a browser API');
 assert(contentStoryboardInteractions.includes('onPaletteDrop'), 'Content Storyboard interactions should support Palette drops');
 assert(contentGraphInteractions.includes('ProjectMapContentGraphInteractions'), 'Content Graph interactions should expose a browser API');
+assert(contentGraphInteractions.includes("options.onZoom(event.deltaY < 0 ? 'in' : 'out', event)"), 'Content Graph interactions should share pointer-centered wheel zoom with the viewport helper');
 assert(projectStateSurface.includes('ProjectMapProjectStateSurface'), 'Project State surface should expose a browser API');
 assert(systemUiFixtureState.includes('ProjectMapSystemUiFixtureState'), 'System UI fixture state helper should expose a browser API');
 assert(systemUiFixtureState.includes('status_heavy') && systemUiFixtureState.includes('interactive'), 'System UI fixture states should include status-heavy and interactive modes');

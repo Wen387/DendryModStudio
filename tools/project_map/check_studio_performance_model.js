@@ -14,6 +14,7 @@ const storyPaletteSidebar = require('./viewer/storyboard_palette_sidebar.js');
 const DESIGN_UI = path.join(__dirname, 'viewer', 'design_ui.js');
 const OBJECT_CANVAS_UI = path.join(__dirname, 'viewer', 'object_authoring_canvas_ui.js');
 const PROJECT_STATE_SURFACE = path.join(__dirname, 'viewer', 'project_state_surface.js');
+const PROJECT_STATE_WORKSPACE = path.join(__dirname, 'viewer', 'object_canvas_project_state_workspace.js');
 const STORYBOARD_WORKSPACE_STATE = path.join(__dirname, 'viewer', 'storyboard_workspace_state.js');
 const VARIABLE_EDITOR_UI = path.join(__dirname, 'viewer', 'variable_editor_ui.js');
 
@@ -274,6 +275,7 @@ const appUi = readExploreBundle(path.join(__dirname, 'viewer'));
 const designUi = fs.readFileSync(DESIGN_UI, 'utf8');
 const objectCanvasUi = fs.readFileSync(OBJECT_CANVAS_UI, 'utf8');
 const projectStateUi = fs.readFileSync(PROJECT_STATE_SURFACE, 'utf8');
+const projectStateWorkspaceUi = fs.readFileSync(PROJECT_STATE_WORKSPACE, 'utf8');
 const storyboardWorkspaceStateUi = fs.readFileSync(STORYBOARD_WORKSPACE_STATE, 'utf8');
 const variableEditorUi = fs.readFileSync(VARIABLE_EDITOR_UI, 'utf8');
 assert(appUi.includes('SORT_COLLATOR'), 'Explore sorting should reuse one collator instead of rebuilding localeCompare options per comparison');
@@ -292,7 +294,8 @@ assert(designUi.includes('renderInspectorContent'), 'Design inspector heavy HTML
 assert(projectStateUi.includes('rowCache'), 'Project State variable rows should be cached per ProjectIndex object');
 assert(projectStateUi.includes('renderInspectorCard'), 'Project State should expose a narrow inspector render path for variable selection');
 assert(objectCanvasUi.includes('fastSelectProjectStateNode'), 'Project State variable clicks should avoid rebuilding the full authoring model');
-assert(objectCanvasUi.includes('syncProjectStateVariableSelection'), 'Project State variable selection should update only row highlight and inspector card');
+assert(projectStateWorkspaceUi.includes('editVariableDraft(state, variable, deps)'), 'Project State variable selection should rebuild the right editor from the selected variable draft');
+assert(objectCanvasUi.includes('syncProjectStateVariableSelection'), 'Project State should keep a narrow inspector sync fallback for non-source variable nodes');
 assert(storyboardWorkspaceStateUi.includes('refreshPaletteOnly'), 'Storyboard Palette filtering should use a narrow refresh path');
 assert(storyboardWorkspaceStateUi.includes('STORY_PALETTE_PIN_STORAGE_KEY'), 'Storyboard Palette pins should round-trip through localStorage');
 assert(storyboardWorkspaceStateUi.includes('STORY_PALETTE_RECENT_STORAGE_KEY'), 'Storyboard Palette recents should round-trip through localStorage');

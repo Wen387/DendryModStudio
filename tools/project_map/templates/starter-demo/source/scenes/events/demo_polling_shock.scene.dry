@@ -1,0 +1,50 @@
+title: Demo Polling Shock
+face-image: img/events/demo_polling_shock.svg
+tags: event, demo, monthly
+new-page: true
+priority: 3
+choose-if: demo_month >= 10 and demo_support >= 3 and demo_polling_shock_seen = 0
+unavailable-subtitle: Build at least three volunteer support before the monthly docket can surface this poll.
+on-arrival: demo_polling_shock_seen = 1; demo_public_attention += 1
+
+= Polling Shock
+
+The volunteer canvass returns with numbers better than the office expected.
+Support exists, but it is uneven and can still collapse if the next route is
+too clever.
+
+[? if demo_case_strength >= 2 : The case file can turn the poll into a formal mandate. ?]
+[? if demo_resources < 1 : The office has no spare capacity to exploit the news. ?]
+
+- @field_rally: Call a field rally.
+- @bank_the_poll: Bank the poll quietly.
+- @send_to_hearing: Send the poll into the hearing file.
+
+@field_rally
+title: Call a field rally.
+subtitle: High attention, higher heat.
+on-arrival: demo_support += 1; demo_public_attention += 2; demo_opposition_heat += 1
+go-to: demo_monthly_report
+
+The office turns the polling shock into a visible rally. The field looks alive,
+and the opposition finally pays attention.
+
+@bank_the_poll
+title: Bank the poll quietly.
+subtitle: Store mandate for the reform chain.
+on-arrival: demo_reform_mandate += 1; demo_resources += 1
+go-to: demo_monthly_report
+
+The office keeps the poll for internal persuasion. It gains a cleaner mandate
+route without giving every opponent a clear target.
+
+@send_to_hearing
+title: Send the poll into the hearing file.
+subtitle: Requires case strength.
+choose-if: demo_case_strength >= 2
+unavailable-subtitle: The case file is not strong enough to carry polling data.
+on-arrival: demo_case_strength += 1; demo_legislative_path += 1; demo_press_risk += 1
+go-to: demo_case_hearing
+
+The poll moves into the hearing file, where it can support a later vote or a
+cabinet amendment.

@@ -8,6 +8,31 @@
     if (!state.model || currentSurface(state, deps).key !== 'project_state_board') {
       return false;
     }
+    const name = String(next).slice('variable:'.length);
+    const variable = findVariable(state, name, deps);
+    if (variable) {
+      state.values = {};
+      state.valueOriginals = {};
+      state.deleteProposal = null;
+      state.baseDraft = editVariableDraft(state, variable, deps);
+      state.template = 'variables';
+      state.mode = 'variables';
+      state.view = 'variables';
+      state.workspace = 'project_state';
+      state.selectedCanvasNode = 'variable:' + name;
+      state.proposalOptions = null;
+      state.sourceSliceModel = null;
+      state.sourceSliceAdvancedConfirmed = false;
+      state.semanticLogicModel = null;
+      state.semanticLogicAdvancedConfirmed = false;
+      call(deps && deps.resetStructureCommands);
+      call(deps && deps.resetRuntimeLens);
+      state.model = call(deps && deps.buildTemplateModel, {values: {}, entry: {source: 'Project State'}});
+      state.status = translate(deps, 'projectState.status.editSelected', 'Selected variable loaded for editing.');
+      call(deps && deps.showWorkspace, 'variables');
+      call(deps && deps.render);
+      return true;
+    }
     state.selectedCanvasNode = next;
     if (!syncVariableSelection(state, deps)) {
       call(deps && deps.render);

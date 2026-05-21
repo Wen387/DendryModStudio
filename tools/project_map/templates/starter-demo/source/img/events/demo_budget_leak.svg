@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" role="img" aria-label="Budget leak placeholder">
+  <rect width="960" height="540" fill="#efeae0"/>
+  <rect x="170" y="72" width="440" height="396" rx="12" fill="#fffaf0" stroke="#a54f2a" stroke-width="8"/>
+  <path d="M230 150h320M230 212h320M230 274h230M230 336h288M230 398h220" stroke="#8a7a64" stroke-width="16" stroke-linecap="round"/>
+  <path d="M660 150l108 108-184 184-110 24 24-110z" fill="#3e88b3" opacity="0.9"/>
+  <path d="M650 160l98 98" stroke="#fffaf0" stroke-width="10" stroke-linecap="round"/>
+  <text x="390" y="126" text-anchor="middle" font-family="serif" font-size="42" fill="#2b2b2b">Budget Leak</text>
+</svg>

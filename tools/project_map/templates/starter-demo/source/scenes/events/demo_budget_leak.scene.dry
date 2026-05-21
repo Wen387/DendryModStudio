@@ -1,0 +1,53 @@
+title: Demo Budget Leak
+face-image: img/events/demo_budget_leak.svg
+tags: event, demo, monthly
+new-page: true
+priority: 3
+choose-if: demo_month >= 10 and demo_public_attention >= 2 and demo_press_risk >= 2 and demo_budget_leak_seen = 0
+unavailable-subtitle: Build public attention and press risk first, then advance to October or later.
+on-arrival: demo_budget_leak_seen = 1; demo_press_risk += 1; demo_opposition_heat += 1
+
+= Budget Leak
+
+A spreadsheet leaves the office and reaches two desks before lunch. The story
+is not fatal, but it turns abstract reform language into numbers everyone can
+argue about.
+
+[? if demo_resources >= 2 : The office still has enough capacity to answer with documents. ?]
+[? if demo_cabinet_balance >= 1 : Cabinet allies can help keep the answer procedural. ?]
+[? if demo_press_risk >= 3 : The leak is now large enough to shape the whole month. ?]
+
+- @publish_memo: Publish the full memo.
+- @quiet_correction: Make a quiet correction.
+- @blame_old_file: Blame an old file.
+
+@publish_memo
+title: Publish the full memo.
+subtitle: Requires resources, builds mandate.
+choose-if: demo_resources >= 1
+unavailable-subtitle: The office needs at least one resource to publish the memo.
+on-arrival: demo_resources -= 1; demo_reform_mandate += 1; demo_public_attention += 1; demo_press_risk -= 1
+go-to: demo_monthly_report
+
+The office publishes the full note and lets reporters compare the numbers. The
+story stays loud, but it becomes easier to defend.
+
+@quiet_correction
+title: Make a quiet correction.
+subtitle: Requires cabinet balance.
+choose-if: demo_cabinet_balance >= 1
+unavailable-subtitle: No cabinet ally is ready to carry the correction.
+on-arrival: demo_cabinet_balance -= 1; demo_opposition_heat -= 1; demo_legislative_path += 1
+go-to: demo_monthly_report
+
+The correction travels through cabinet channels. It does not win headlines, but
+it keeps the procedural route alive.
+
+@blame_old_file
+title: Blame an old file.
+subtitle: Fast answer, worse trust.
+on-arrival: demo_advisor_trust -= 1; demo_opposition_heat += 1; demo_press_risk += 1
+go-to: demo_monthly_report
+
+The office names the leak as old paperwork. The line is quick, but everyone in
+the building hears the uncertainty.

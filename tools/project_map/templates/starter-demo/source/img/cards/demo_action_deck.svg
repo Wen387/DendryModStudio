@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="480" viewBox="0 0 360 480">
+  <rect width="360" height="480" rx="20" fill="#f2ead8"/>
+  <rect x="28" y="28" width="304" height="424" rx="16" fill="#fffaf0" stroke="#8f7350" stroke-width="8"/>
+  <text x="180" y="92" text-anchor="middle" font-family="Georgia, serif" font-size="30" fill="#3d321c">Monthly</text>
+  <text x="180" y="130" text-anchor="middle" font-family="Georgia, serif" font-size="30" fill="#3d321c">Action Deck</text>
+  <path d="M112 236h136M180 168v136M136 196l88 80M224 196l-88 80" stroke="#a55b36" stroke-width="14" stroke-linecap="round"/>
+  <text x="180" y="378" text-anchor="middle" font-family="Georgia, serif" font-size="24" fill="#5f4a2a">draw a card</text>
+</svg>

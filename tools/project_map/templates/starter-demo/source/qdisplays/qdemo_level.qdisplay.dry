@@ -1,6 +1,6 @@
 # demo level
 
-(--0) : none
-(1..2) : low
-(3..5) : medium
-(6..) : high
+(--0) none
+(1..2) low
+(3..5) medium
+(6..) high

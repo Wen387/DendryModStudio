@@ -102,6 +102,7 @@
           const target = draft.target || structureDraftApi().slugForStructurePreview(draft.label) || 'new_option';
           const label = draft.label || t('previewObjectEditor.structureOptionTextPlaceholder', 'What the player clicks');
           const result = draft.result || '';
+          const effect = draft.effect || {};
           const ownerSectionId = String(field && field.sectionId || '').trim();
           pending.options.push({
             id: 'draft_' + safeClass(fieldId(field) || target),
@@ -120,7 +121,15 @@
               original: label,
               readOnly: true,
               status: 'manual'
-            }],
+            }].concat(effect && effect.variable ? [{
+              id: (fieldId(field) || target) + '_preview_effect',
+              role: 'effect',
+              label: t('previewObjectEditor.structureChoiceEffectTitle', 'New choice effect'),
+              value: 'Q.' + effect.variable + ' ' + (effect.op || '+=') + ' ' + effect.value + (effect.condition ? ' if ' + effect.condition : ''),
+              original: 'Q.' + effect.variable + ' ' + (effect.op || '+=') + ' ' + effect.value + (effect.condition ? ' if ' + effect.condition : ''),
+              readOnly: true,
+              status: 'manual'
+            }] : []),
             resultFields: result ? [{
               id: (fieldId(field) || target) + '_preview_result',
               label: t('previewObjectEditor.optionResult', 'Option result'),
@@ -254,7 +263,9 @@
         if (action === 'add_trigger_effect') {
           return true;
         }
-        return action === 'remove_effect' && !String(field && field.optionId || '').trim();
+        return action === 'remove_effect' &&
+          !String(field && field.optionId || '').trim() &&
+          !String(field && field.sectionId || '').trim();
       });
     }
 
@@ -437,6 +448,10 @@
         builderSelect('result_mode', t('previewObjectEditor.structureResultMode', 'Result routing'), draft.resultMode || 'native', ['native', 'continue']),
         builderInput('choose_if', t('previewObjectEditor.chooseIf', 'Choose if'), draft.chooseIf, 'Q.variable >= 1'),
         builderInput('unavailable_text', t('previewObjectEditor.unavailableText', 'Unavailable text'), draft.unavailableText, t('previewObjectEditor.unavailableTextPlaceholder', 'Requirement not met')),
+        builderInput('effect_variable', t('previewObjectEditor.structureVariable', 'Variable'), draft.effect && draft.effect.variable || '', 'public_order'),
+        builderSelect('effect_operation', t('previewObjectEditor.structureOperation', 'Operation'), draft.effect && draft.effect.op || '+=', ['=', '+=', '-=']),
+        builderInput('effect_value', t('previewObjectEditor.structureValue', 'Value'), draft.effect && draft.effect.value || '', '1'),
+        builderInput('effect_condition', t('previewObjectEditor.structureConditionOptional', 'Condition (optional)'), draft.effect && draft.effect.condition || '', 'Q.flag'),
         builderTextarea('result_text', t('previewObjectEditor.structureResultText', 'Result text'), draft.result, t('previewObjectEditor.structureResultTextPlaceholder', 'What happens after this choice'))
       ], body);
     }
@@ -488,7 +503,7 @@
 
     function structureActionHelp(action) {
       return {
-        add_option: t('previewObjectEditor.structureHelpAddOption', 'Adds an option and result section to the current draft.'),
+        add_option: t('previewObjectEditor.structureHelpAddOption', 'Adds an option, gate, result section, and optional choice effect to the current draft.'),
         add_branch: t('previewObjectEditor.structureHelpAddBranch', 'Adds a conditional or follow-up section to the current draft.'),
         add_trigger_effect: t('previewObjectEditor.structureHelpTriggerEffect', 'Adds a Q effect to the on-arrival logic that runs when this object opens.'),
         add_option_effect: t('previewObjectEditor.structureHelpChoiceEffect', 'Adds a Q effect for this choice or result.')

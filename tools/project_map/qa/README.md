@@ -84,14 +84,14 @@ Each run contains:
 1. Quick Start offers the bundled Demo Template action.
 2. The demo opens without a native folder picker.
 3. Studio scans a writable app-data copy of the template.
-4. Explore lists the demo event `A Small Campaign Office`.
+4. Explore lists the demo event `Civic Reform Office Briefing`.
 5. The event inspector shows source-backed player text and demo variables.
 6. The Variables view can find `demo_support`, the state changed by one option.
 
 `justice_party_template_mod` covers a fuller player-authored mod prototype:
 
 1. Quick Start loads the bundled Demo Template as a writable project copy.
-2. Explore inspects `A Small Campaign Office` as the player's template example.
+2. Explore inspects `Civic Reform Office Briefing` as the player's template example.
 3. Entry & Sidebar changes the start menu, welcome text, status sidebar, and
    first playable route.
 4. Create first event seeds the World Event Wizard from that first playable

@@ -315,6 +315,15 @@ assert(blutmaiDraft.status === 'draft', 'small section-owned event should remain
 assert(blutmaiDraft.archetypeHint === 'section_event', 'blutmai should expose its section-event shape');
 assert(blutmaiDraft.parity.parsed.sectionOptions === 2 && blutmaiDraft.parity.draft.sectionOptions === 2, 'section-owned option parity should be preserved');
 assert(blutmaiDraft.draft.sections[0].paragraphs[0].includes('police prepare'), 'qualified section text should map back into the draft section');
+assert(blutmaiDraft.draft.sections[0].condition === 'police_ready', 'Create Similar should preserve section conditions in the draft');
+assert(blutmaiDraft.draft.sections[0].options.length === 2, 'Create Similar should preserve section-owned choices in the draft');
+const blutmaiCanvas = canvasModel.buildCanvasModel(index, {template: 'event', draft: blutmaiDraft.draft});
+assert(blutmaiCanvas.ok, 'Create Similar section event should stay installable through Object Canvas');
+assert(blutmaiCanvas.eventBody.eventStructure && blutmaiCanvas.eventBody.eventStructure.provenance === 'draft', 'Create Similar section event should use the shared draft EventStructure pipeline');
+assert(blutmaiCanvas.eventBody.metaFields.some((field) => field.id === 'event.pattern' && field.value === 'conditional_menu_loop'), 'section-owned Create Similar drafts should be classified as the conditional menu/loop pattern');
+assert(blutmaiCanvas.eventBody.eventGraph.nodes.some((node) => node.id === 'section:police_response' && node.secondaryActions.some((action) => action.fieldId === 'event.section.0.condition')), 'Create Similar Route Map should expose preserved section conditions as editable draft fields');
+assert(blutmaiCanvas.eventBody.eventGraph.edges.some((edge) => edge.kind === 'choice' && edge.from === 'section:police_response'), 'Create Similar Route Map should preserve section-owned option routes');
+assert(blutmaiCanvas.changeState.installPlan && blutmaiCanvas.changeState.installPlan.operations.some((operation) => operation.type === 'create_file'), 'Create Similar section event should keep Review & Apply available for full parity drafts');
 
 const popup = parsedToDraft.buildDraftFromParsed(index, {view: 'news', itemId: 'popup_1929'});
 assert(popup.template === 'event', 'monthly popup copy-as-new should route to linked event draft');

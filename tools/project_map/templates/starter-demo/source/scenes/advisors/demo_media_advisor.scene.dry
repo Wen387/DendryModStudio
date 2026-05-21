@@ -1,0 +1,59 @@
+title: Media Advisor
+new-page: true
+is-pinned-card: true
+card-image: img/cards/demo_media_advisor.svg
+tags: demo_advisor
+subtitle: Standing advisor for public attention and news pressure
+
+= Media Advisor
+
+This advisor shows how a persistent card can prepare a later event without
+being part of the event chain itself. The monthly docket reads the press risk
+and public attention created here.
+
+- @shape_headline: Shape tomorrow's headline
+- @brief_reporters: Brief trusted reporters
+- @cool_the_room: Cool the room
+
+@shape_headline
+title: Shape tomorrow's headline
+subtitle: Build attention, raise press risk.
+on-arrival: demo_public_attention += 2; demo_press_risk += 1; demo_advisor_trust += 1
+
+The advisor turns a procedural reform into something the city desk can explain.
+That helps the office, but it also makes leaks matter more.
+
+- @return_shape_headline: Continue
+
+@return_shape_headline
+go-to: main
+
+@brief_reporters
+title: Brief trusted reporters
+subtitle: Gain support if the office has a case.
+choose-if: demo_case_strength >= 1
+unavailable-subtitle: Prepare at least one case file before briefing reporters.
+on-arrival: demo_support += 1; demo_public_attention += 1; demo_press_risk += 1
+
+The trusted reporters understand the file well enough to avoid turning every
+sentence into a scandal.
+
+- @return_brief_reporters: Continue
+
+@return_brief_reporters
+go-to: main
+
+@cool_the_room
+title: Cool the room
+subtitle: Lower risk by spending attention.
+choose-if: demo_public_attention >= 1
+unavailable-subtitle: There is not enough attention to redirect yet.
+on-arrival: demo_public_attention -= 1; demo_press_risk -= 1; demo_opposition_heat -= 1
+
+The advisor lets a smaller story pass without comment so the office can lower
+the heat before the next monthly docket.
+
+- @return_cool_the_room: Continue
+
+@return_cool_the_room
+go-to: main

@@ -21,9 +21,12 @@ const eventStructurePath = path.join(ROOT, 'authoring', 'event_structure_model.j
 const eventStructureEffectPath = path.join(ROOT, 'authoring', 'event_structure_effect_model.js');
 const eventStructureCommandPath = path.join(ROOT, 'authoring', 'event_structure_command_model.js');
 const eventStructureEffectSourceHelpersPath = path.join(ROOT, 'authoring', 'event_structure_effect_source_helpers.js');
+const eventChoicePathPath = path.join(ROOT, 'authoring', 'event_choice_path_model.js');
 const predicateConditionPath = path.join(ROOT, 'authoring', 'predicate_condition_model.js');
 const routeRuntimeTrialPath = path.join(ROOT, 'authoring', 'route_runtime_trial_model.js');
 const routeRuntimeSemanticsPath = path.join(ROOT, 'authoring', 'route_runtime_semantics_model.js');
+const routeUnderstandingPath = path.join(ROOT, 'authoring', 'route_understanding_model.js');
+const routeGuidedEditPath = path.join(ROOT, 'authoring', 'route_guided_edit_model.js');
 const routeSemanticsAuditPath = path.join(ROOT, 'qa', 'route_semantics_audit.js');
 const authoringDependencyLoaderPath = path.join(ROOT, 'authoring', 'authoring_dependency_loader.js');
 const installReviewStatePath = path.join(ROOT, 'viewer', 'install_review_state_model.js');
@@ -61,9 +64,12 @@ const eventStructure = fs.readFileSync(eventStructurePath, 'utf8');
 const eventStructureEffect = fs.readFileSync(eventStructureEffectPath, 'utf8');
 const eventStructureCommand = fs.readFileSync(eventStructureCommandPath, 'utf8');
 const eventStructureEffectSourceHelpers = fs.readFileSync(eventStructureEffectSourceHelpersPath, 'utf8');
+const eventChoicePath = fs.readFileSync(eventChoicePathPath, 'utf8');
 const predicateCondition = fs.readFileSync(predicateConditionPath, 'utf8');
 const routeRuntimeTrial = fs.readFileSync(routeRuntimeTrialPath, 'utf8');
 const routeRuntimeSemantics = fs.readFileSync(routeRuntimeSemanticsPath, 'utf8');
+const routeUnderstanding = fs.readFileSync(routeUnderstandingPath, 'utf8');
+const routeGuidedEdit = fs.readFileSync(routeGuidedEditPath, 'utf8');
 const routeSemanticsAudit = fs.readFileSync(routeSemanticsAuditPath, 'utf8');
 const authoringDependencyLoader = fs.readFileSync(authoringDependencyLoaderPath, 'utf8');
 const installReviewState = fs.readFileSync(installReviewStatePath, 'utf8');
@@ -129,9 +135,12 @@ const runtimeTypedLoadStrategy = Object.freeze({
   'authoring/event_structure_effect_model.js': 'loader',
   'authoring/event_structure_command_model.js': 'loader',
   'authoring/event_structure_effect_source_helpers.js': 'direct',
+  'authoring/event_choice_path_model.js': 'direct',
   'authoring/predicate_condition_model.js': 'loader',
   'authoring/route_runtime_trial_model.js': 'loader',
   'authoring/route_runtime_semantics_model.js': 'loader',
+  'authoring/route_understanding_model.js': 'loader',
+  'authoring/route_guided_edit_model.js': 'loader',
   'authoring/route_state_model.js': 'loader',
   'authoring/route_script_intelligence_model.js': 'loader',
   'viewer/install_review_state_model.js': 'loader',
@@ -207,7 +216,25 @@ const runtimeTypedLoadStrategy = Object.freeze({
   'EditAction',
   'PredicateConditionModelApi',
   'RouteRuntimeTrialModelApi',
-  'RouteRuntimeSemanticsApi'
+  'RouteRuntimeSemanticsApi',
+  'RouteSemanticTier',
+  'RouteTargetResolution',
+  'RouteDynamicBinding',
+  'RouteUnderstandingBuildOptions',
+  'RouteUnderstandingProfileEvidence',
+  'RouteUnderstandingEventChainItem',
+  'RouteUnderstandingSchedulerContextItem',
+  'RouteUnderstandingUtilityCall',
+  'RouteUnderstandingStateDependency',
+  'RouteUnderstandingModel',
+  'RouteUnderstandingModelApi',
+  'RouteGuidedEditKind',
+  'RouteGuidedEditEntry',
+  'UtilityPairEdit',
+  'RouteBindingTableEdit',
+  'ExplicitFallbackSuggestion',
+  'RouteGuidedEditModel',
+  'RouteGuidedEditModelApi'
 ].forEach((name) => {
   assert(hasTypeBoundary(name), 'typed boundary should define ' + name);
 });
@@ -235,6 +262,7 @@ assert(eventStructureEffect.includes("import('../types/project_map_contracts').E
 assert(eventStructureCommand.includes("import('../types/project_map_contracts').EventStructureCommandModelApi"), 'event_structure_command_model should reference EventStructureCommandModelApi typedef');
 assert(eventStructure.includes('eventCommandModel().applyCommand') && eventStructure.includes('eventCommandModel().commandsFromValues'), 'event_structure_model should delegate command application and parsing to typed command model');
 assert(eventStructureEffectSourceHelpers.includes("import('../types/project_map_contracts').EventStructureEffectSourceHelpersApi"), 'event_structure_effect_source_helpers should reference EventStructureEffectSourceHelpersApi typedef');
+assert(eventChoicePath.includes('choiceTreePlan') && eventChoicePath.includes('routeOutcomeIndex'), 'event_choice_path_model should own player-path choice tree planning');
 assert(installReviewState.includes("import('../types/project_map_contracts').ReviewApplyUiState"), 'install_review_state_model should reference ReviewApplyUiState typedef');
 assert(installResultReport.includes("import('../types/project_map_contracts').InstallResultReportOptions"), 'install_result_report_model should reference InstallResultReportOptions typedef');
 assert(predicateCondition.includes("import('../types/project_map_contracts').PredicateSummary"), 'predicate_condition_model should reference PredicateSummary typedef');
@@ -242,16 +270,24 @@ assert(routeState.includes('predicateModel.summarizePredicate') && routeState.in
 assert(routeRuntimeTrial.includes("import('../types/project_map_contracts').RouteRuntimeSemantics"), 'route_runtime_trial_model should reference RouteRuntimeSemantics typedef');
 assert(routeRuntimeTrial.includes("import('../types/project_map_contracts').RouteCollisionSummary"), 'route_runtime_trial_model should reference RouteCollisionSummary typedef');
 assert(routeRuntimeSemantics.includes("import('../types/project_map_contracts').RouteRuntimeSemantics"), 'route_runtime_semantics_model should reference RouteRuntimeSemantics typedef');
+assert(routeUnderstanding.includes("import('../types/project_map_contracts').RouteUnderstandingModel"), 'route_understanding_model should reference RouteUnderstandingModel typedef');
+assert(routeUnderstanding.includes("import('../types/project_map_contracts').RouteUnderstandingBuildOptions"), 'route_understanding_model should reference RouteUnderstandingBuildOptions typedef');
+assert(routeUnderstanding.includes("import('../types/project_map_contracts').RouteUnderstandingProfileEvidence"), 'route_understanding_model should reference RouteUnderstandingProfileEvidence typedef');
+assert(routeGuidedEdit.includes("import('../types/project_map_contracts').RouteGuidedEditModel"), 'route_guided_edit_model should reference RouteGuidedEditModel typedef');
+assert(routeGuidedEdit.includes("import('../types/project_map_contracts').RouteGuidedEditBuildOptions"), 'route_guided_edit_model should reference RouteGuidedEditBuildOptions typedef');
+assert(routeGuidedEdit.includes("import('../types/project_map_contracts').RouteGuidedEditEntry"), 'route_guided_edit_model should reference RouteGuidedEditEntry typedef');
 assert(routeState.includes('.routeRuntimeSemantics(state, candidates'), 'route_state_model should delegate runtime route selection semantics to focused helper');
 assert(routeSemanticsAudit.includes('modelCollisionCoverageFor'), 'route semantics audit should expose model collision coverage reconciliation');
 assert(routeSemanticsAudit.includes('Missing Compiled Route Groups'), 'route semantics audit report should show missing compiled route groups explicitly');
-assert(authoringDependencyLoader.includes('asset_contract_model.js') && authoringDependencyLoader.includes('install_operation_contracts.js') && authoringDependencyLoader.includes('existing_scene_line_coalescer.js') && authoringDependencyLoader.includes('existing_scene_structure_operations.js') && authoringDependencyLoader.includes('event_structure_effect_model.js') && authoringDependencyLoader.includes('event_structure_command_model.js') && authoringDependencyLoader.includes('predicate_condition_model.js') && authoringDependencyLoader.includes('route_runtime_trial_model.js') && authoringDependencyLoader.includes('route_runtime_semantics_model.js') && authoringDependencyLoader.includes('route_state_model.js') && authoringDependencyLoader.includes('route_script_intelligence_model.js') && authoringDependencyLoader.includes('install_review_state_model.js') && authoringDependencyLoader.includes('install_result_report_model.js'), 'authoring dependency loader should list typed island dependencies');
+assert(authoringDependencyLoader.includes('asset_contract_model.js') && authoringDependencyLoader.includes('install_operation_contracts.js') && authoringDependencyLoader.includes('existing_scene_line_coalescer.js') && authoringDependencyLoader.includes('existing_scene_structure_operations.js') && authoringDependencyLoader.includes('event_structure_effect_model.js') && authoringDependencyLoader.includes('event_structure_command_model.js') && authoringDependencyLoader.includes('predicate_condition_model.js') && authoringDependencyLoader.includes('route_runtime_trial_model.js') && authoringDependencyLoader.includes('route_runtime_semantics_model.js') && authoringDependencyLoader.includes('route_understanding_model.js') && authoringDependencyLoader.includes('route_guided_edit_model.js') && authoringDependencyLoader.includes('route_state_model.js') && authoringDependencyLoader.includes('route_script_intelligence_model.js') && authoringDependencyLoader.includes('install_review_state_model.js') && authoringDependencyLoader.includes('install_result_report_model.js'), 'authoring dependency loader should list loader-managed typed island dependencies');
 assert(authoringDependencyLoader.indexOf('asset_contract_model.js') < authoringDependencyLoader.indexOf('install_operation_contracts.js'), 'asset contracts should load before authoring models that consume asset install shapes');
 assert(authoringDependencyLoader.indexOf('existing_scene_structure_operations.js') < authoringDependencyLoader.indexOf('route_state_model.js'), 'existing scene structure operations should load with early authoring helpers');
 assert(authoringDependencyLoader.indexOf('event_structure_effect_model.js') < authoringDependencyLoader.indexOf('route_state_model.js'), 'event structure effect helper should load with early authoring helpers');
 assert(authoringDependencyLoader.indexOf('event_structure_effect_model.js') < authoringDependencyLoader.indexOf('event_structure_command_model.js'), 'event structure effect helper should load before command model');
 assert(authoringDependencyLoader.indexOf('predicate_condition_model.js') < authoringDependencyLoader.indexOf('route_state_model.js'), 'predicate helper should load before route_state_model');
 assert(authoringDependencyLoader.indexOf('route_runtime_semantics_model.js') < authoringDependencyLoader.indexOf('route_state_model.js'), 'route runtime semantics helper should load before route_state_model');
+assert(authoringDependencyLoader.indexOf('route_understanding_model.js') < authoringDependencyLoader.indexOf('route_script_intelligence_model.js'), 'route understanding helper should load before route script intelligence consumes it');
+assert(authoringDependencyLoader.indexOf('route_guided_edit_model.js') < authoringDependencyLoader.indexOf('route_script_intelligence_model.js'), 'route guided edit helper should load before route script intelligence consumes it');
 assert(viewerIndex.indexOf('authoring_dependency_loader.js') >= 0 && viewerIndex.indexOf('authoring_dependency_loader.js') < viewerIndex.indexOf('install_plan.js'), 'viewer should load authoring dependencies before install_plan');
 const indexScriptPaths = scriptPathsFromHtml(viewerIndex);
 const loaderScriptPaths = scriptPathsFromLoader(authoringDependencyLoader);
@@ -282,7 +318,7 @@ const accidentalDirectTypedLoads = tsconfigRuntimeTypedIncludes.filter((relPath)
   return indexScriptSet.has(relPath) && runtimeTypedLoadStrategy[relPath] === 'loader';
 });
 assert(!accidentalDirectTypedLoads.length, 'loader-managed typed islands should not regress into scattered script tags: ' + accidentalDirectTypedLoads.join(', '));
-[routeState, routeScript, semanticLogic, eventWorkbench, dynamicWorkbench, assetContracts, installContracts, existingSceneLineCoalescer, existingSceneLogicFields, existingSceneStructureOperations, existingSceneTextBlockHelpers, eventStructureEffect, eventStructureCommand, eventStructureEffectSourceHelpers, predicateCondition, routeRuntimeTrial, routeRuntimeSemantics, authoringDependencyLoader, installReviewState, installResultReport].forEach((content) => {
+[routeState, routeScript, semanticLogic, eventWorkbench, dynamicWorkbench, assetContracts, installContracts, existingSceneLineCoalescer, existingSceneLogicFields, existingSceneStructureOperations, existingSceneTextBlockHelpers, eventStructureEffect, eventStructureCommand, eventStructureEffectSourceHelpers, eventChoicePath, predicateCondition, routeRuntimeTrial, routeRuntimeSemantics, routeUnderstanding, routeGuidedEdit, authoringDependencyLoader, installReviewState, installResultReport].forEach((content) => {
   assert(content.startsWith('// @ts-check'), 'typed island files should opt in to @ts-check');
 });
 assert(String(packageJson.scripts && packageJson.scripts['check:types'] || '').includes('tsc -p tools/project_map/tsconfig.json'), 'check:types should run the TypeScript compiler');
@@ -307,9 +343,12 @@ assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('authoring/e
 assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('authoring/event_structure_effect_model.js'), 'tsconfig should include event structure effect model');
 assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('authoring/event_structure_command_model.js'), 'tsconfig should include event structure command model');
 assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('authoring/event_structure_effect_source_helpers.js'), 'tsconfig should include event structure effect source helpers');
+assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('authoring/event_choice_path_model.js'), 'tsconfig should include event choice path model');
 assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('authoring/predicate_condition_model.js'), 'tsconfig should include predicate condition model');
 assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('authoring/route_runtime_trial_model.js'), 'tsconfig should include route runtime trial model');
 assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('authoring/route_runtime_semantics_model.js'), 'tsconfig should include route runtime semantics model');
+assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('authoring/route_understanding_model.js'), 'tsconfig should include route understanding model');
+assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('authoring/route_guided_edit_model.js'), 'tsconfig should include route guided edit model');
 assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('qa/route_semantics_audit.js'), 'tsconfig should include route semantics audit');
 assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('authoring/authoring_dependency_loader.js'), 'tsconfig should include authoring dependency loader');
 assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('viewer/install_review_state_model.js'), 'tsconfig should include install review state model');
@@ -320,6 +359,8 @@ assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('check_route
 assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('check_route_semantics_audit_model.js'), 'tsconfig should include route semantics audit focused check');
 assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('check_predicate_dependency_model.js'), 'tsconfig should include predicate focused check');
 assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('check_route_script_intelligence_model.js'), 'tsconfig should include route-script focused check');
+assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('check_route_understanding_model.js'), 'tsconfig should include route understanding focused check');
+assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('check_guided_route_edit_model.js'), 'tsconfig should include route guided edit focused check');
 assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('check_semantic_logic_editor_model.js'), 'tsconfig should include semantic-logic focused check');
 assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('check_dynamic_semantic_workbench_model.js'), 'tsconfig should include dynamic semantic focused check');
 assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('check_install_operation_contracts_model.js'), 'tsconfig should include install operation contracts focused check');
@@ -329,7 +370,7 @@ assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('types/**/*.
 
 process.stdout.write(JSON.stringify({
   ok: true,
-  contracts: 56,
+  contracts: 75,
   typeCheckPath: 'tools/project_map/tsconfig.json',
   note: 'check:types now runs tsc --noEmit before this contract sanity check.'
 }, null, 2) + '\n');

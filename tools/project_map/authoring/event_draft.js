@@ -664,10 +664,10 @@
         if (index > 0) {
           lines.push('');
         }
-        appendOption(lines, option, continueLabel);
+        appendOption(lines, option, continueLabel, draft);
       });
     }
-    ensureArray(draft.sections).forEach((section) => appendSection(lines, section, continueLabel));
+    ensureArray(draft.sections).forEach((section) => appendSection(lines, section, continueLabel, draft));
     return lines.join('\n') + '\n';
   }
 
@@ -738,7 +738,7 @@
     return parts.join(' and ');
   }
 
-  function appendOption(lines, option, continueLabel) {
+  function appendOption(lines, option, continueLabel, draft) {
     const nativeResult = option.resultMode === 'native';
     lines.push('@' + option.id);
     if (option.label) {
@@ -759,6 +759,9 @@
       option.rawEffects.forEach((line) => lines.push(renderRawEffect(line)));
       lines.push('!}');
     }
+    if (nativeResult && option.returnTarget) {
+      lines.push('go-to: ' + renderRouteTarget(draft, option.returnTarget));
+    }
     lines.push('');
     if (!nativeResult && option.label) {
       lines.push('= ' + option.label);
@@ -771,18 +774,15 @@
       lines.push('');
     });
     if (nativeResult) {
-      if (option.returnTarget) {
-        lines.push('go-to: ' + option.returnTarget);
-      }
       return;
     }
     lines.push('- @' + option.gotoAfter + ': ' + continueLabel);
     lines.push('');
     lines.push('@' + option.gotoAfter);
-    lines.push('go-to: ' + (option.returnTarget || 'root'));
+    lines.push('go-to: ' + renderRouteTarget(draft, option.returnTarget || 'root'));
   }
 
-  function appendSection(lines, section, continueLabel) {
+  function appendSection(lines, section, continueLabel, draft) {
     lines.push('');
     lines.push('@' + section.id);
     if (section.title) {
@@ -813,11 +813,19 @@
       if (index > 0) {
         lines.push('');
       }
-      appendOption(lines, option, continueLabel);
+      appendOption(lines, option, continueLabel, draft);
     });
     if (!section.options.length && section.exitTarget) {
-      lines.push('go-to: ' + section.exitTarget);
+      lines.push('go-to: ' + renderRouteTarget(draft, section.exitTarget));
     }
+  }
+
+  function renderRouteTarget(draft, target) {
+    const text = String(target || '').trim();
+    if (text === 'root') {
+      return String(draft && draft.id || 'root').trim() || 'root';
+    }
+    return text || 'root';
   }
 
   function appendParagraphs(lines, paragraphs) {

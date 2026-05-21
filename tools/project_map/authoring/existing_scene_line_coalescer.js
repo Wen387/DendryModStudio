@@ -5,11 +5,13 @@
   /**
    * @typedef {Record<string, any>} ExistingSceneLineChange
    * @typedef {{change: ExistingSceneLineChange, index: number}} IndexedExistingSceneLineChange
+   * @typedef {{isProtectedRouterPath?: (path: string) => boolean}} ExistingSceneCoalescerOptions
    * @typedef {{ok: boolean, line?: string}} LineApplyResult
    * @typedef {{ok: boolean, hook?: string, prefix?: string, clauses?: string[]}} ParsedHookLine
    */
 
   const api = {
+    coalesceExistingSceneChanges,
     coalesceExistingSceneLineReplacements
   };
 
@@ -18,6 +20,21 @@
   }
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;
+  }
+
+  /**
+   * Merge safe operation-ready change groups before install-plan generation.
+   * This keeps the install plan ordinary while avoiding same-source-unit
+   * insert/replace fragments that would otherwise shift each other's anchors.
+   * @param {unknown[]} changes
+   * @param {ExistingSceneCoalescerOptions=} options
+   * @returns {ExistingSceneLineChange[]}
+   */
+  function coalesceExistingSceneChanges(changes, options) {
+    return coalesceExistingSceneSourceUnits(
+      coalesceExistingSceneLineReplacements(changes),
+      isObject(options) ? options : {}
+    );
   }
 
   /**
@@ -66,6 +83,315 @@
       }
       return next;
     }, []);
+  }
+
+  /**
+   * @param {ExistingSceneLineChange[]} changes
+   * @param {ExistingSceneCoalescerOptions} options
+   * @returns {ExistingSceneLineChange[]}
+   */
+  function coalesceExistingSceneSourceUnits(changes, options) {
+    const rows = ensureArray(changes);
+    const groups = new Map();
+    rows.forEach((change, index) => {
+      const key = coalescibleSourceUnitKey(change, options);
+      if (!key) {
+        return;
+      }
+      if (!groups.has(key)) {
+        groups.set(key, []);
+      }
+      groups.get(key).push({change, index});
+    });
+    const replacementsByFirstIndex = new Map();
+    const skippedIndexes = new Set();
+    groups.forEach((group) => {
+      const primaries = group.filter((item) => isSourceUnitPrimaryChange(item.change, options));
+      if (primaries.length !== 1) {
+        return;
+      }
+      const primary = primaries[0];
+      const insertItems = group
+        .filter((item) => item.index !== primary.index && isSourceUnitInsertChange(item.change, primary.change, options))
+        .sort((left, right) => left.index - right.index);
+      const replaceItems = group
+        .filter((item) => item.index !== primary.index && isSourceUnitReplaceTextChange(item.change, primary.change, options))
+        .sort((left, right) => left.index - right.index);
+      if (!insertItems.length && !replaceItems.length) {
+        return;
+      }
+      const merged = mergeExistingSceneSourceUnit(primary.change, insertItems.map((item) => item.change), replaceItems.map((item) => item.change));
+      if (!merged) {
+        return;
+      }
+      const firstIndex = Math.min(primary.index, ...insertItems.map((item) => item.index), ...replaceItems.map((item) => item.index));
+      replacementsByFirstIndex.set(firstIndex, merged);
+      [primary].concat(insertItems, replaceItems).forEach((item) => {
+        if (item.index !== firstIndex) {
+          skippedIndexes.add(item.index);
+        }
+      });
+    });
+    return rows.reduce((next, change, index) => {
+      if (replacementsByFirstIndex.has(index)) {
+        next.push(replacementsByFirstIndex.get(index));
+        return next;
+      }
+      if (!skippedIndexes.has(index)) {
+        next.push(change);
+      }
+      return next;
+    }, []);
+  }
+
+  /**
+   * @param {unknown} change
+   * @param {ExistingSceneCoalescerOptions} options
+   * @returns {string}
+   */
+  function coalescibleSourceUnitKey(change, options) {
+    const value = isObject(change) ? change : {};
+    const source = isObject(value.source) ? value.source : {};
+    const path = normalizedPath(source.path || value.sourcePath);
+    if (!path || sourcePathProtected(path, options)) {
+      return '';
+    }
+    const sectionId = String(value.sectionId || '').trim();
+    const optionId = String(value.optionId || '').trim();
+    if (sectionId) {
+      return path + '|section:' + sectionId;
+    }
+    if (optionId) {
+      return path + '|option:' + optionId;
+    }
+    const line = numberOrNull(value.startLine || source.startLine || source.line);
+    const endLine = numberOrNull(value.endLine || source.endLine || source.line || source.startLine || line);
+    if (!line || !endLine) {
+      return '';
+    }
+    return path + '|range:' + line + ':' + endLine;
+  }
+
+  /**
+   * @param {ExistingSceneLineChange} change
+   * @param {ExistingSceneCoalescerOptions} options
+   * @returns {boolean}
+   */
+  function isSourceUnitPrimaryChange(change, options) {
+    const value = isObject(change) ? change : {};
+    const source = isObject(value.source) ? value.source : {};
+    const path = normalizedPath(source.path || value.sourcePath);
+    const startLine = numberOrNull(value.startLine || source.startLine || source.line);
+    const endLine = numberOrNull(value.endLine || source.endLine || source.line || source.startLine);
+    return String(value.operationType || '') === 'replace_section' &&
+      !sourcePathProtected(path, options) &&
+      !isManualOrDeleteChange(value) &&
+      Boolean(path && startLine && endLine && endLine >= startLine) &&
+      Boolean(String(value.anchorText || source.anchorText || '').trim()) &&
+      Boolean(String(value.endAnchorText || source.endAnchorText || '').trim()) &&
+      Boolean(String(value.after || '').trim());
+  }
+
+  /**
+   * @param {ExistingSceneLineChange} change
+   * @param {ExistingSceneLineChange} primary
+   * @param {ExistingSceneCoalescerOptions} options
+   * @returns {boolean}
+   */
+  function isSourceUnitInsertChange(change, primary, options) {
+    const value = isObject(change) ? change : {};
+    const source = isObject(value.source) ? value.source : {};
+    const primarySource = isObject(primary.source) ? primary.source : {};
+    const path = normalizedPath(source.path || value.sourcePath);
+    const primaryPath = normalizedPath(primarySource.path || primary.sourcePath);
+    if (String(value.operationType || '') !== 'insert_text' || !path || path !== primaryPath || sourcePathProtected(path, options)) {
+      return false;
+    }
+    if (isManualOrDeleteChange(value)) {
+      return false;
+    }
+    if (!String(value.after || '').trim()) {
+      return false;
+    }
+    if (!sourceUnitIdentityCompatible(primary, value)) {
+      return false;
+    }
+    const anchor = String(value.anchorText || source.anchorText || '').trim();
+    const primaryAnchor = String(primary.anchorText || primarySource.anchorText || '').trim();
+    const primaryEndAnchor = String(primary.endAnchorText || primarySource.endAnchorText || '').trim();
+    if (!anchor || (anchor !== primaryAnchor && anchor !== primaryEndAnchor)) {
+      return false;
+    }
+    const line = numberOrNull(source.line || source.startLine || value.startLine || value.line);
+    const primaryStart = numberOrNull(primary.startLine || primarySource.startLine || primarySource.line);
+    const primaryEnd = numberOrNull(primary.endLine || primarySource.endLine || primarySource.line || primarySource.startLine || primaryStart);
+    return !line || line === primaryStart || line === primaryEnd;
+  }
+
+  /**
+   * @param {ExistingSceneLineChange} change
+   * @param {ExistingSceneLineChange} primary
+   * @param {ExistingSceneCoalescerOptions} options
+   * @returns {boolean}
+   */
+  function isSourceUnitReplaceTextChange(change, primary, options) {
+    const value = isObject(change) ? change : {};
+    const source = isObject(value.source) ? value.source : {};
+    const primarySource = isObject(primary.source) ? primary.source : {};
+    const path = normalizedPath(source.path || value.sourcePath);
+    const primaryPath = normalizedPath(primarySource.path || primary.sourcePath);
+    if (String(value.operationType || '') !== 'replace_text' || !path || path !== primaryPath || sourcePathProtected(path, options)) {
+      return false;
+    }
+    if (isManualOrDeleteChange(value) || !sourceUnitIdentityCompatible(primary, value)) {
+      return false;
+    }
+    const before = String(value.before || '').trim();
+    const after = String(value.after || '').trim();
+    if (!before || !after || before === after) {
+      return false;
+    }
+    const line = numberOrNull(value.line || value.startLine || source.line || source.startLine);
+    const primaryStart = numberOrNull(primary.startLine || primarySource.startLine || primarySource.line);
+    const primaryEnd = numberOrNull(primary.endLine || primarySource.endLine || primarySource.line || primarySource.startLine || primaryStart);
+    return Boolean(line && primaryStart && primaryEnd && line >= primaryStart && line <= primaryEnd);
+  }
+
+  /**
+   * @param {ExistingSceneLineChange} primary
+   * @param {ExistingSceneLineChange[]} inserts
+   * @param {ExistingSceneLineChange[]=} replacements
+   * @returns {ExistingSceneLineChange|null}
+   */
+  function mergeExistingSceneSourceUnit(primary, inserts, replacements) {
+    const insertRows = ensureArray(inserts).filter(Boolean);
+    const replaceRows = ensureArray(replacements).filter(Boolean);
+    const beforeInserts = insertRows.filter((change) => String(change.position || 'after') === 'before');
+    const afterInserts = insertRows.filter((change) => String(change.position || 'after') !== 'before');
+    const primaryContent = applySourceUnitTextReplacements(sourceUnitContentFragment(primary.after), replaceRows);
+    if (primaryContent === null) {
+      return null;
+    }
+    const content = beforeInserts.map((change) => sourceUnitContentFragment(change.after))
+      .concat(primaryContent)
+      .concat(afterInserts.map((change) => sourceUnitContentFragment(change.after)))
+      .join('');
+    if (!content.trim()) {
+      return null;
+    }
+    const editability = [primary].concat(insertRows, replaceRows).some((change) => existingSceneAdvancedRequested(change))
+      ? 'advanced_source_patch'
+      : (primary.editability || 'guarded_replace_section');
+    const roles = [primary].concat(insertRows, replaceRows).map((change) => String(change.role || '').trim()).filter(Boolean);
+    const fieldIds = [primary].concat(insertRows, replaceRows).map((change) => String(change.fieldId || '').trim()).filter(Boolean);
+    return Object.assign({}, primary, {
+      fieldId: primary.fieldId || 'coalesced_source_unit',
+      label: primary.label || primary.role || 'section',
+      editability,
+      operationType: 'replace_section',
+      after: content,
+      dedupeSearch: coalescedDedupeSearch(content),
+      coalescedSourceUnit: true,
+      coalescedChangeIds: fieldIds,
+      coalescedSourceRoles: roles
+    });
+  }
+
+  /**
+   * @param {string} content
+   * @param {ExistingSceneLineChange[]} replacements
+   * @returns {string|null}
+   */
+  function applySourceUnitTextReplacements(content, replacements) {
+    let next = String(content || '');
+    for (const change of ensureArray(replacements)) {
+      const before = String(change && change.before || '');
+      const after = String(change && change.after || '');
+      if (!before || before === after) {
+        return null;
+      }
+      if (occurrenceCount(next, before) !== 1) {
+        return null;
+      }
+      next = next.replace(before, after);
+    }
+    return next;
+  }
+
+  /**
+   * @param {ExistingSceneLineChange} left
+   * @param {ExistingSceneLineChange} right
+   * @returns {boolean}
+   */
+  function sourceUnitIdentityCompatible(left, right) {
+    const leftSection = String(left.sectionId || '').trim();
+    const rightSection = String(right.sectionId || '').trim();
+    const leftOption = String(left.optionId || '').trim();
+    const rightOption = String(right.optionId || '').trim();
+    if (leftSection && rightSection && leftSection !== rightSection) {
+      return false;
+    }
+    if (leftOption && rightOption && leftOption !== rightOption) {
+      return false;
+    }
+    return Boolean(leftSection || rightSection || leftOption || rightOption || coalescibleSourceUnitKey(left, {}) === coalescibleSourceUnitKey(right, {}));
+  }
+
+  /**
+   * @param {ExistingSceneLineChange} value
+   * @returns {boolean}
+   */
+  function isManualOrDeleteChange(value) {
+    const editability = String(value.editability || '');
+    const operationType = String(value.operationType || '');
+    return editability === 'manual_review' ||
+      operationType === 'manual_snippet' ||
+      Boolean(value.allowEmptyReplace || value.deletesSourceLine || value.deleteMode === 'line');
+  }
+
+  /**
+   * @param {unknown} value
+   * @returns {string}
+   */
+  function sourceUnitContentFragment(value) {
+    const text = String(value === undefined || value === null ? '' : value);
+    return text && !text.endsWith('\n') ? text + '\n' : text;
+  }
+
+  /**
+   * @param {string} text
+   * @param {string} needle
+   * @returns {number}
+   */
+  function occurrenceCount(text, needle) {
+    const value = String(text || '');
+    const target = String(needle || '');
+    return target ? value.split(target).length - 1 : 0;
+  }
+
+  /**
+   * @param {unknown} value
+   * @returns {string}
+   */
+  function coalescedDedupeSearch(value) {
+    return String(value || '').trim().slice(0, 200);
+  }
+
+  /**
+   * @param {unknown} path
+   * @returns {string}
+   */
+  function normalizedPath(path) {
+    return String(path || '').replace(/\\/g, '/').trim();
+  }
+
+  /**
+   * @param {string} path
+   * @param {ExistingSceneCoalescerOptions} options
+   * @returns {boolean}
+   */
+  function sourcePathProtected(path, options) {
+    return Boolean(options && typeof options.isProtectedRouterPath === 'function' && options.isProtectedRouterPath(path));
   }
 
   /**

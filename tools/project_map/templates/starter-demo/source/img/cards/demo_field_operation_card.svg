@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="480" viewBox="0 0 360 480">
+  <rect width="360" height="480" rx="20" fill="#e8efe2"/>
+  <rect x="26" y="26" width="308" height="428" rx="18" fill="#fbfff7" stroke="#67865d" stroke-width="7"/>
+  <text x="180" y="88" text-anchor="middle" font-family="Georgia, serif" font-size="28" fill="#27351f">Field Office</text>
+  <path d="M88 330c44-86 136-86 184 0" fill="none" stroke="#79976e" stroke-width="16" stroke-linecap="round"/>
+  <circle cx="124" cy="192" r="36" fill="#b48c5a"/>
+  <circle cx="236" cy="192" r="36" fill="#b48c5a"/>
+  <path d="M124 232v74M236 232v74M104 268h152" stroke="#4f5d3d" stroke-width="12" stroke-linecap="round"/>
+  <text x="180" y="420" text-anchor="middle" font-family="Georgia, serif" font-size="22" fill="#3f5636">canvass districts</text>
+</svg>

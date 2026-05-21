@@ -119,7 +119,7 @@ const postEvent = read(path.join(QA_FIXTURE, 'source', 'scenes', 'post_event.sce
   'dendry:open-starter-demo',
   'dendry:update-notice-check',
   'guided_ui_qa_offline',
-  'A Small Campaign Office',
+  'Civic Reform Office Briefing',
   'qa_persistent_event',
   'install_plan.project_mismatch',
   'openProjectViaDialog',

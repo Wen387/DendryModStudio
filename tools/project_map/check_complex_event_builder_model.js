@@ -99,6 +99,19 @@ assert(model.changeState.installPlan.operations.some((op) => op.id.indexOf('even
 assert(!model.changeState.installPlan.operations.some((op) => op.type === 'manual_snippet'), 'known-profile complex event path should not fall back to manual snippets');
 
 const html = previewEditor.render(model);
+assert(!html.includes('data-preview-object-path-tree="true"'), 'UI should not add a separate path-tree panel above the normal choice editor');
+assert(html.includes('data-preview-object-choice-layout="player_path"'), 'UI should render choices in a player-path layout instead of a flat option list');
+assert(html.includes('data-preview-object-choice-nested-section="follow_up"') && html.includes('data-preview-object-inline-add="add_option"'), 'choice editor should show follow-up sections with nested add-choice entry points');
+assert(html.includes('data-preview-object-choice-logic="true"') && html.includes('data-preview-object-choice-logic-group="gate"') && html.includes('data-preview-object-choice-logic-group="route"'), 'choice editor should keep gate and route controls inside each choice');
+assert(html.includes('data-object-canvas-field="option.0.chooseIf"') && html.includes('data-object-canvas-field="option.0.returnTarget"'), 'choice-owned condition and route fields should render in the owning choice');
+assert(html.includes('data-preview-object-section-logic="follow_up"') && html.includes('data-object-canvas-field="event.section.0.exitTarget"'), 'choice-owned follow-up sections should keep section conditions and exit routes inline');
+const branchPanelStart = html.indexOf('data-preview-object-branches="true"');
+if (branchPanelStart >= 0) {
+  const branchPanelEnd = html.indexOf('</section>', branchPanelStart);
+  const branchPanel = html.slice(branchPanelStart, branchPanelEnd > branchPanelStart ? branchPanelEnd : html.length);
+  assert(!branchPanel.includes('event.section.0.body') && !branchPanel.includes('follow_up'), 'choice-owned follow-up sections should not be duplicated in the bottom branch editor');
+}
+assert(html.includes('data-preview-object-review-details="true"'), 'route graph and diagnostics should live in the review details section');
 assert(html.includes('data-preview-object-event-graph="true"'), 'UI should render the event graph summary');
 assert(html.includes('data-preview-object-readiness="true"'), 'UI should render install readiness');
 assert(html.includes('After result route'), 'UI should expose option return route fields');

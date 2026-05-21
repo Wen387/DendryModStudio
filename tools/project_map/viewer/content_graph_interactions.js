@@ -102,7 +102,7 @@
       }
       event.preventDefault();
       if (options.onZoom) {
-        options.onZoom(event.deltaY < 0 ? 'in' : 'out');
+        options.onZoom(event.deltaY < 0 ? 'in' : 'out', event);
       }
     }, {passive: false});
   }

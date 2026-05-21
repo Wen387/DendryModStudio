@@ -40,6 +40,20 @@
     return null;
   }
 
+  function installPlanApi() {
+    if (global && global.ProjectMapInstallPlan) {
+      return global.ProjectMapInstallPlan;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./install_plan.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   /**
    * @param {ProjectIndex|unknown} projectIndex
    * @param {Record<string, unknown>|unknown} input
@@ -120,6 +134,10 @@
     const replacements = first.kind === MODEL_KIND
       ? (isObject(input) ? input : {})
       : (isObject(values) ? values : {});
+    const guidedProposal = buildGuidedProposal(model, replacements, first.kind === MODEL_KIND ? null : projectIndex);
+    if (guidedProposal) {
+      return guidedProposal;
+    }
     const replacementText = composeFieldReplacement(model, replacements);
     const sourceApi = sourceSliceApi();
     if (!model || !model.ok || !model.canCreateOperation || !sourceApi || typeof sourceApi.buildProposal !== 'function') {
@@ -172,6 +190,15 @@
     if (controls.mode === 'effect') {
       return composeEffectReplacement(editor, replacements);
     }
+    if (controls.mode === 'utility_pair') {
+      return composeUtilityPairReplacement(editor, replacements);
+    }
+    if (controls.mode === 'route_table_binding') {
+      return composeRouteTableReplacement(editor, replacements);
+    }
+    if (controls.mode === 'explicit_fallback_helper') {
+      return composeExplicitFallbackReplacement(editor, replacements);
+    }
     return String(editor.currentText || '');
   }
 
@@ -182,6 +209,15 @@
     }
     if (kind === 'effect_clause') {
       return effectFieldControls(semanticEditor, evidence, currentText);
+    }
+    if (kind === 'utility_pair') {
+      return utilityPairControls(semanticEditor, currentText);
+    }
+    if (kind === 'route_table_binding') {
+      return routeTableControls(semanticEditor, currentText);
+    }
+    if (kind === 'explicit_fallback_helper') {
+      return explicitFallbackControls(semanticEditor, currentText);
     }
     return null;
   }
@@ -256,6 +292,63 @@
     };
   }
 
+  function utilityPairControls(semanticEditor, currentText) {
+    const pair = isObject(semanticEditor && semanticEditor.utilityPair) ? semanticEditor.utilityPair : {};
+    return {
+      mode: 'utility_pair',
+      editorKind: 'utility_pair',
+      originalText: String(currentText || pair.callText || ''),
+      utilityPair: pair,
+      utilitySceneId: cleanRouteTarget(pair.utilitySceneId || ''),
+      setJumpTarget: cleanRouteTarget(pair.setJumpTarget || ''),
+      returnBinding: String(pair.returnBinding || 'jumpScene'),
+      fields: [
+        {id: 'utilitySceneId', valueKey: 'semantic_logic.utilitySceneId', label: 'Utility scene', value: cleanRouteTarget(pair.utilitySceneId || '')},
+        {id: 'setJumpTarget', valueKey: 'semantic_logic.setJumpTarget', label: 'Return target', value: cleanRouteTarget(pair.setJumpTarget || '')},
+        {id: 'returnBinding', valueKey: 'semantic_logic.returnBinding', label: 'Return binding', value: String(pair.returnBinding || 'jumpScene')}
+      ],
+      source: semanticEditor && semanticEditor.source || null
+    };
+  }
+
+  function routeTableControls(semanticEditor, currentText) {
+    const table = isObject(semanticEditor && semanticEditor.routeTable) ? semanticEditor.routeTable : {};
+    return {
+      mode: 'route_table_binding',
+      editorKind: 'route_table_binding',
+      originalText: String(currentText || table.sourceText || ''),
+      routeTable: table,
+      variable: String(table.variable || ''),
+      shape: String(table.shape || ''),
+      rows: ensureArray(table.rows),
+      fields: ensureArray(table.rows).map((row, index) => ({
+        id: 'routeTableTarget' + (index + 1),
+        valueKey: 'semantic_logic.routeTable.' + index + '.target',
+        label: row && row.label || 'Target ' + (index + 1),
+        value: row && row.target || ''
+      })),
+      source: semanticEditor && semanticEditor.source || null
+    };
+  }
+
+  function explicitFallbackControls(semanticEditor, currentText) {
+    const suggestion = isObject(semanticEditor && semanticEditor.fallbackSuggestion) ? semanticEditor.fallbackSuggestion : {};
+    return {
+      mode: 'explicit_fallback_helper',
+      editorKind: 'explicit_fallback_helper',
+      originalText: String(currentText || suggestion.sourceText || ''),
+      fallbackSuggestion: suggestion,
+      sourceText: String(suggestion.sourceText || currentText || ''),
+      suggestedText: String(suggestion.suggestedText || currentText || ''),
+      predicate: String(suggestion.predicate || ''),
+      complementPredicate: String(suggestion.complementPredicate || ''),
+      fields: [
+        {id: 'fallbackSuggestedText', valueKey: 'semantic_logic.fallbackSuggestedText', label: 'Explicit fallback line', value: String(suggestion.suggestedText || currentText || '')}
+      ],
+      source: semanticEditor && semanticEditor.source || null
+    };
+  }
+
   function composeRouteReplacement(model, values) {
     const controls = model && model.fieldControls || {};
     const current = String(model && model.currentText || controls.originalText || '');
@@ -309,6 +402,190 @@
       return current.replace(segment, expression);
     }
     return expression;
+  }
+
+  function composeUtilityPairReplacement(model, values) {
+    const controls = model && model.fieldControls || {};
+    const pair = controls.utilityPair || {};
+    const utilitySceneId = cleanRouteTarget(valueFor(values, 'semantic_logic.utilitySceneId', controls.utilitySceneId || pair.utilitySceneId));
+    const setJumpTarget = cleanRouteTarget(valueFor(values, 'semantic_logic.setJumpTarget', controls.setJumpTarget || pair.setJumpTarget));
+    const callLine = replaceDirectiveTarget(String(pair.callText || model.currentText || ''), 'go-to', utilitySceneId);
+    const setJumpLine = replaceDirectiveTarget(String(pair.setJumpText || ''), 'set-jump', setJumpTarget);
+    return [callLine, setJumpLine].filter(Boolean).join('\n');
+  }
+
+  function composeRouteTableReplacement(model, values) {
+    const controls = model && model.fieldControls || {};
+    return rewriteRouteTableText(controls.routeTable || {}, values);
+  }
+
+  function composeExplicitFallbackReplacement(model, values) {
+    const controls = model && model.fieldControls || {};
+    return String(valueFor(values, 'semantic_logic.fallbackSuggestedText', controls.suggestedText || model.currentText || ''));
+  }
+
+  function buildGuidedProposal(model, values, projectIndex) {
+    const controls = model && model.fieldControls || {};
+    if (!controls || !['utility_pair', 'route_table_binding', 'explicit_fallback_helper'].includes(String(controls.mode || ''))) {
+      return null;
+    }
+    const diagnostics = ensureArray(model && model.diagnostics);
+    if (!model || !model.ok) {
+      return failedGuidedProposal(model, diagnostics.concat(diagnostic('error', 'semantic_logic.guided_unavailable', 'Guided route editing needs exact source evidence before it can build an operation.')));
+    }
+    if (controls.mode === 'utility_pair') {
+      return buildUtilityPairProposal(model, values, projectIndex);
+    }
+    if (controls.mode === 'route_table_binding') {
+      return buildRouteTableProposal(model, values, projectIndex);
+    }
+    return buildExplicitFallbackProposal(model, values, projectIndex);
+  }
+
+  function buildUtilityPairProposal(model, values, projectIndex) {
+    const pair = model && model.fieldControls && model.fieldControls.utilityPair || {};
+    const utilitySceneId = cleanRouteTarget(valueFor(values, 'semantic_logic.utilitySceneId', pair.utilitySceneId));
+    const setJumpTarget = cleanRouteTarget(valueFor(values, 'semantic_logic.setJumpTarget', pair.setJumpTarget));
+    const callText = replaceDirectiveTarget(String(pair.callText || ''), 'go-to', utilitySceneId);
+    const setJumpText = replaceDirectiveTarget(String(pair.setJumpText || ''), 'set-jump', setJumpTarget);
+    const operations = [
+      operationForSource(pair.callSource, pair.callText, callText, model.installSafety, 'utility_call'),
+      operationForSource(pair.setJumpSource, pair.setJumpText, setJumpText, model.installSafety, 'utility_return')
+    ].filter(Boolean);
+    if (operations.length !== 2) {
+      return failedGuidedProposal(model, [diagnostic('error', 'semantic_logic.utility_pair_incomplete', 'Utility pair editing requires exact source evidence for both go-to and set-jump.')]);
+    }
+    return guidedPlanProposal(model, projectIndex, operations, [callText, setJumpText].join('\n'));
+  }
+
+  function buildRouteTableProposal(model, values, projectIndex) {
+    const table = model && model.fieldControls && model.fieldControls.routeTable || {};
+    const replacementText = rewriteRouteTableText(table, values);
+    const operation = operationForSource(table.source || model.source, table.sourceText || model.currentText, replacementText, model.installSafety, 'route_table');
+    if (!operation) {
+      return failedGuidedProposal(model, [diagnostic('error', 'semantic_logic.route_table_source_missing', 'Route table editing requires exact source text for the literal target table.')]);
+    }
+    return guidedPlanProposal(model, projectIndex, [operation], replacementText);
+  }
+
+  function buildExplicitFallbackProposal(model, values, projectIndex) {
+    const suggestion = model && model.fieldControls && model.fieldControls.fallbackSuggestion || {};
+    const replacementText = String(valueFor(values, 'semantic_logic.fallbackSuggestedText', suggestion.suggestedText || model.currentText || ''));
+    const operation = operationForSource(suggestion.source || model.source, suggestion.sourceText || model.currentText, replacementText, model.installSafety, 'explicit_fallback');
+    if (!operation) {
+      return failedGuidedProposal(model, [diagnostic('error', 'semantic_logic.explicit_fallback_source_missing', 'Explicit fallback editing requires exact route source evidence.')]);
+    }
+    return guidedPlanProposal(model, projectIndex, [operation], replacementText);
+  }
+
+  function guidedPlanProposal(model, projectIndex, operations, replacementText) {
+    const installApi = installPlanApi();
+    const plan = installApi && typeof installApi.buildInstallPlan === 'function'
+      ? installApi.buildInstallPlan({
+        id: safeId('semantic_logic_' + (model.targetId || model.fieldId || model.sourcePath || 'guided_edit')),
+        draftKind: 'semantic_logic_editor',
+        title: model.title || 'Semantic logic edit',
+        project: projectProvenance(projectIndex || {}),
+        operations
+      })
+      : {
+        schemaVersion: '0.1',
+        kind: 'dendry_mod_studio_install_plan',
+        id: safeId('semantic_logic_' + (model.targetId || model.fieldId || model.sourcePath || 'guided_edit')),
+        draftKind: 'semantic_logic_editor',
+        title: model.title || 'Semantic logic edit',
+        project: projectProvenance(projectIndex || {}),
+        operations
+      };
+    return {
+      schemaVersion: SEMANTIC_LOGIC_EDITOR_VERSION,
+      kind: PROPOSAL_KIND,
+      ok: true,
+      mappingBug: false,
+      playerLimit: false,
+      title: model.title,
+      editorKind: model.editorKind,
+      semanticEditor: model.semanticEditor,
+      evidence: model.evidence,
+      source: model.source,
+      replacementText,
+      operations: plan.operations || operations,
+      installPlan: plan,
+      diagnostics: []
+    };
+  }
+
+  function failedGuidedProposal(model, diagnostics) {
+    return {
+      schemaVersion: SEMANTIC_LOGIC_EDITOR_VERSION,
+      kind: PROPOSAL_KIND,
+      ok: false,
+      mappingBug: Boolean(model && model.mappingBug),
+      playerLimit: false,
+      semanticEditor: model && model.semanticEditor || null,
+      installPlan: null,
+      operations: [],
+      diagnostics: ensureArray(diagnostics)
+    };
+  }
+
+  function operationForSource(sourceInput, currentText, replacementText, safety, suffix) {
+    const source = sourceRef(sourceInput || {});
+    const search = String(currentText || source.anchorText || '');
+    if (!source.path || !source.line || !search) {
+      return null;
+    }
+    return {
+      id: safeId('semantic_logic_' + (suffix || 'edit') + '_' + source.path + '_' + source.line),
+      type: 'replace_text',
+      path: source.path,
+      line: source.line || null,
+      startLine: source.startLine || source.line || null,
+      endLine: source.endLine || source.line || null,
+      anchorText: source.anchorText || search,
+      endAnchorText: source.endAnchorText || source.anchorText || search,
+      rawAnchorText: source.rawAnchorText || '',
+      rawEndAnchorText: source.rawEndAnchorText || source.rawAnchorText || '',
+      expectedRangeHash: source.expectedRangeHash || '',
+      search,
+      replace: String(replacementText || ''),
+      content: '',
+      dedupeSearch: '',
+      safety: safety || 'guarded_apply',
+      description: 'Guided semantic route edit from source-backed evidence.'
+    };
+  }
+
+  function rewriteRouteTableText(table, values) {
+    const sourceText = String(table && table.sourceText || '');
+    const rows = ensureArray(table && table.rows);
+    let cursor = 0;
+    const next = sourceText.replace(/(['"])([A-Za-z_][A-Za-z0-9_.-]*)\1/g, (match, quote, literal) => {
+      for (let index = cursor; index < rows.length; index += 1) {
+        const before = cleanRouteTarget(rows[index] && rows[index].target);
+        if (before !== literal) {
+          continue;
+        }
+        cursor = index + 1;
+        const after = cleanRouteTarget(valueFor(values, 'semantic_logic.routeTable.' + index + '.target', before));
+        return quote + (after || before) + quote;
+      }
+      return match;
+    });
+    return next || String(table && table.source && table.source.anchorText || '');
+  }
+
+  function replaceDirectiveTarget(text, directive, target) {
+    const clean = cleanRouteTarget(target);
+    const raw = String(text || '').trim();
+    if (!clean) {
+      return raw;
+    }
+    const pattern = new RegExp('^(\\s*' + escapeRegex(directive) + '\\s*:\\s*)([^\\s;]+)([\\s\\S]*)$', 'i');
+    if (pattern.test(raw)) {
+      return raw.replace(pattern, '$1' + clean + '$3');
+    }
+    return directive + ': ' + clean;
   }
 
   function valueFor(values, key, fallback) {
@@ -603,14 +880,19 @@
       title: String(value.title || ''),
       installSafety: String(value.installSafety || normalized.installSafety || ''),
       evidenceId: String(value.evidenceId || ''),
-      source: sourceRef(value.source || normalized.source || {})
+      guidedEditId: String(value.guidedEditId || ''),
+      source: sourceRef(value.source || normalized.source || {}),
+      utilityPair: isObject(value.utilityPair) ? value.utilityPair : null,
+      routeTable: isObject(value.routeTable) ? value.routeTable : null,
+      fallbackSuggestion: isObject(value.fallbackSuggestion) ? value.fallbackSuggestion : null
     };
   }
 
   function evidenceFor(index, semanticEditor, source, normalized) {
     const lookup = parserEvidenceLookup(index);
     const sceneId = String(semanticEditor.sceneId || normalized.sceneId || '');
-    const routeEvidence = semanticEditor.kind === 'route_order'
+    const isRouteLike = ['route_order', 'utility_pair', 'route_table_binding', 'explicit_fallback_helper'].includes(String(semanticEditor.kind || ''));
+    const routeEvidence = isRouteLike
       ? selectEvidenceRows(lookup.routeOrderGroups, sceneId, source, true).slice(0, 4)
       : [];
     const effectEvidence = semanticEditor.kind === 'effect_clause'
@@ -619,7 +901,7 @@
     const dynamicKeyEvidence = semanticEditor.kind === 'effect_clause'
       ? selectEvidenceRows(lookup.dynamicKeyEvidence, sceneId, source, false).slice(0, 6)
       : [];
-    const routerEvidence = semanticEditor.kind === 'route_order'
+    const routerEvidence = isRouteLike
       ? lookup.routerRows.filter((row) => routerMatches(row, sceneId, source)).slice(0, 4)
       : [];
     return {
@@ -710,6 +992,15 @@
     if (kind === 'effect_clause') {
       return 'Effect Clause Editor';
     }
+    if (kind === 'utility_pair') {
+      return 'Utility Pair Editor';
+    }
+    if (kind === 'route_table_binding') {
+      return 'Route Table Editor';
+    }
+    if (kind === 'explicit_fallback_helper') {
+      return 'Explicit Fallback Helper';
+    }
     if (kind === 'variable_provenance') {
       return 'Variable Workspace';
     }
@@ -731,8 +1022,42 @@
       startLine: line,
       endLine,
       anchorText: String(value.anchorText || ''),
-      endAnchorText: String(value.endAnchorText || '')
+      endAnchorText: String(value.endAnchorText || ''),
+      rawAnchorText: String(value.rawAnchorText || ''),
+      rawEndAnchorText: String(value.rawEndAnchorText || ''),
+      expectedRangeHash: String(value.expectedRangeHash || '')
     };
+  }
+
+  function projectProvenance(index) {
+    const installApi = installPlanApi();
+    if (installApi && typeof installApi.projectProvenanceFromIndex === 'function') {
+      return installApi.projectProvenanceFromIndex(index);
+    }
+    const project = isObject(index && index.project) ? index.project : {};
+    if (!project.name && !project.root) {
+      return null;
+    }
+    return {
+      name: String(project.name || ''),
+      root: String(project.root || ''),
+      schemaVersion: String(index && index.schemaVersion || ''),
+      profileIds: ensureArray(project.profileIds).map(String)
+    };
+  }
+
+  function safeId(value) {
+    let text = String(value || 'semantic_logic')
+      .replace(/[^A-Za-z0-9_]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+    if (!text) {
+      text = 'semantic_logic';
+    }
+    return text.slice(0, 96);
+  }
+
+  function escapeRegex(value) {
+    return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   function numberOrNull(value) {

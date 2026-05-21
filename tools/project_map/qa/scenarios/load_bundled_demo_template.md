@@ -11,7 +11,7 @@ Required checkpoints:
 - The demo opens without using a native folder picker.
 - The opened project is a writable copy under Electron app data, not the
   packaged template source.
-- Explore lists `A Small Campaign Office` as an event-like player-facing scene.
+- Explore lists `Civic Reform Office Briefing` as an event-like player-facing scene.
 - The event inspector shows source-backed text and demo variables.
 - The Variables view can find `demo_support`, the state changed by one option.
 

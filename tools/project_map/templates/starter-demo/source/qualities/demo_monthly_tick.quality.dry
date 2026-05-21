@@ -1,0 +1,5 @@
+name: Demo Monthly Tick
+initial: 0
+min: 0
+
+Counts how many times the starter demo monthly router has advanced.

@@ -44,7 +44,7 @@
       none: '- 沒有',
       safety: '安全邊界：',
       safetyInfo: '- 遊戲資訊修改僅限 source/info.dry 的 title、author 與 ifid 行。',
-      safetyRuntime: '- Runtime Preview 必須重新建置 generated out/html 檔案；install plan 不會編輯 generated output。',
+      safetyRuntime: '- Runtime Preview 必須重新建置 generated out/html 檔案；修改計畫不會編輯 generated output。',
       safetySave: '- 修改 title 或 author 會改變 Dendry 本地存檔前綴。'
     }
   };

@@ -1,0 +1,5 @@
+name: Demo Legislative Path
+initial: 0
+min: 0
+
+Prepared route state used by advisor work and council deadlock choices.

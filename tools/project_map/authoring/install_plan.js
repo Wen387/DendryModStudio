@@ -471,7 +471,9 @@
     const opts = isObject(options) ? options : {};
     const draft = isObject(proposal) ? proposal : {};
     const id = String(draft.id || 'existing_scene_edit').trim();
-    const changes = existingSceneLineCoalescer.coalesceExistingSceneLineReplacements(ensureArray(draft.changes));
+    const changes = typeof existingSceneLineCoalescer.coalesceExistingSceneChanges === 'function'
+      ? existingSceneLineCoalescer.coalesceExistingSceneChanges(ensureArray(draft.changes), {isProtectedRouterPath})
+      : existingSceneLineCoalescer.coalesceExistingSceneLineReplacements(ensureArray(draft.changes));
     const operations = changes.map((change, index) => existingSceneChangeOperation(change, index))
       .concat(assetInstallOperations(draft.assetInstallRequests));
     return buildInstallPlan({
@@ -545,7 +547,9 @@
         deletesSourceLine: Boolean(value.deletesSourceLine),
         safety: 'guarded_apply',
         role: 'existing_scene.section_text',
-        description: 'Replace existing ' + label + ' section text after confirming exact source anchors still match.'
+        coalescedChangeIds: ensureArray(value.coalescedChangeIds),
+        coalescedSourceRoles: ensureArray(value.coalescedSourceRoles),
+        description: existingSceneSectionDescription(label, value, 'after confirming exact source anchors still match.')
       };
     }
     if (value.operationType !== 'manual_snippet' && existingSceneSectionCanAdvanced(value, path, line, endLine, after)) {
@@ -567,7 +571,9 @@
         deletesSourceLine: Boolean(value.deletesSourceLine),
         safety: 'advanced_apply',
         role: 'existing_scene.section_text',
-        description: 'Replace existing ' + label + ' section text through an advanced source-backed operation.'
+        coalescedChangeIds: ensureArray(value.coalescedChangeIds),
+        coalescedSourceRoles: ensureArray(value.coalescedSourceRoles),
+        description: existingSceneSectionDescription(label, value, 'through an advanced source-backed operation.')
       };
     }
     if (!advancedRequested && value.operationType !== 'manual_snippet' && existingSceneChangeCanGuard(path, line, source.endLine || source.line || source.startLine, before, after, value)) {
@@ -635,6 +641,13 @@
       return '';
     }
     return text.endsWith('\n') ? text : text + '\n';
+  }
+
+  function existingSceneSectionDescription(label, change, suffix) {
+    const prefix = change && change.coalescedSourceUnit
+      ? 'Replace existing coalesced source-unit edit for '
+      : 'Replace existing ';
+    return prefix + label + ' section text ' + suffix;
   }
 
   function existingSceneChangeCanGuard(path, line, endLine, before, after, change) {
@@ -1003,6 +1016,7 @@
     operations.forEach((operation) => {
       results.push(preflightOperation(context, operation, allowAdvanced, diagnostics));
     });
+    validateFinalOperationEffects(context, operations, results, diagnostics);
     const hasFailed = results.some((result) => result && result.status === 'failed');
     if (!dryRun && !hasFailed) {
       commitApplyContext(context);
@@ -1074,6 +1088,36 @@
     }
     diagnostics.push(diagnostic('error', 'install_plan.unsupported_operation', 'Unsupported safe operation: ' + operation.type, operation));
     return failedPreflightResult(context, operation, 'unsupported_operation', 'Unsupported safe operation: ' + operation.type);
+  }
+
+  function validateFinalOperationEffects(context, operations, results, diagnostics) {
+    ensureArray(operations).forEach((operation, index) => {
+      const result = results[index];
+      if (!result || (result.status !== 'would_apply' && result.status !== 'already_applied')) {
+        return;
+      }
+      if (String(operation && operation.type || '') !== 'insert_text') {
+        return;
+      }
+      const dedupe = String(operation && (operation.dedupeSearch || operation.content) || '').trim();
+      if (!dedupe) {
+        return;
+      }
+      const target = resolveSafeTarget(context.projectRoot, operation.path, context.path);
+      if (!target.ok) {
+        return;
+      }
+      const state = context.textFiles.get(target.path);
+      if (!state || !state.exists) {
+        return;
+      }
+      if (String(state.text || '').includes(dedupe)) {
+        return;
+      }
+      const message = 'Insert operation passed its local anchor check, but later same-file operations removed the inserted content.';
+      diagnostics.push(diagnostic('error', 'install_plan.final_insert_missing', message, operation));
+      results[index] = failedPreflightResult(context, operation, 'final_insert_missing', message);
+    });
   }
 
   function failedPreflightResult(context, operation, match, message) {
@@ -1756,9 +1800,27 @@
         if (aLine > 0 && bLine > 0 && aLine !== bLine) {
           return bLine - aLine;
         }
+        if (aLine > 0 && bLine > 0 && aLine === bLine) {
+          const aPriority = sameLineMutationPriority(a);
+          const bPriority = sameLineMutationPriority(b);
+          if (aPriority !== bPriority) {
+            return aPriority - bPriority;
+          }
+        }
       }
       return left.index - right.index;
     }).map((item) => item.operation);
+  }
+
+  function sameLineMutationPriority(operation) {
+    const type = String(operation && operation.type || '');
+    if (type === 'insert_text') {
+      return 0;
+    }
+    if (type === 'replace_text') {
+      return 1;
+    }
+    return 2;
   }
 
   function sameSourceMutationPath(a, b) {
@@ -1818,9 +1880,12 @@
     return String(value || '').replace(/\r\n|\r/g, '\n');
   }
 
-  function containsNormalizedBlock(text, content) {
+  function containsUniqueNormalizedBlock(text, content) {
     const block = normalizeNewlines(content).replace(/\n$/, '');
-    return Boolean(block) && normalizeNewlines(text).includes(block);
+    if (!block) {
+      return false;
+    }
+    return normalizeNewlines(text).split(block).length - 1 === 1;
   }
 
   function hasDedupeNearInsert(lines, insertAt, insertLineCount, dedupe, position) {
@@ -1921,6 +1986,10 @@
     if (shifted.ok) {
       return shifted;
     }
+    const alreadyApplied = resolveAlreadyAppliedReplaceLineIndex(lines, lineIndex, replacement, deleteLine);
+    if (alreadyApplied.ok) {
+      return alreadyApplied;
+    }
     if (!sourceEvidence.ok) {
       return sourceEvidence;
     }
@@ -1934,6 +2003,26 @@
   function lineSatisfiesReplaceTarget(line, search, replacement, deleteLine) {
     const value = String(line === undefined || line === null ? '' : line);
     return value.includes(search) || Boolean(replacement && value.includes(replacement)) || Boolean(deleteLine && search);
+  }
+
+  function resolveAlreadyAppliedReplaceLineIndex(lines, lineIndex, replacement, deleteLine) {
+    const target = String(replacement || '');
+    if (!target || deleteLine) {
+      return {ok: false};
+    }
+    if (lineIndex >= 0 && lineIndex < lines.length && String(lines[lineIndex] || '').includes(target)) {
+      return {ok: true, index: lineIndex, matchKind: 'already_applied_line'};
+    }
+    const replacementMatches = [];
+    lines.forEach((line, index) => {
+      if (String(line || '').includes(target)) {
+        replacementMatches.push(index);
+      }
+    });
+    if (replacementMatches.length === 1) {
+      return {ok: true, index: replacementMatches[0], matchKind: 'already_applied_unique'};
+    }
+    return {ok: false};
   }
 
   function resolveShiftedReplaceLineIndex(lines, originalText, lineIndex, operation, crypto, search, replacement, deleteLine) {
@@ -2139,7 +2228,7 @@
     const lines = parts.lines;
     const startMatch = resolveSectionAnchor(lines, anchor, operation.rawAnchorText || '', operation.startLine || operation.line || null, 0, 'start', originalText);
     if (!startMatch.ok) {
-      if (startMatch.count === 0 && containsNormalizedBlock(text, content)) {
+      if (containsUniqueNormalizedBlock(text, content)) {
         return {ok: true, alreadyApplied: true, text, beforeSnippet: content, afterSnippet: content};
       }
       return {
@@ -2167,6 +2256,9 @@
     }
     const endMatch = resolveSectionAnchor(lines, endAnchor, operation.rawEndAnchorText || '', operation.endLine || null, start, 'end', originalText);
     if (!endMatch.ok) {
+      if (containsUniqueNormalizedBlock(text, content)) {
+        return {ok: true, alreadyApplied: true, text, beforeSnippet: content, afterSnippet: content};
+      }
       return {
         ok: false,
         code: endMatch.code,
@@ -2230,6 +2322,10 @@
       const index = lineNumber - 1;
       const line = lines[index];
       if (line === undefined || index < minimumIndex) {
+        const shifted = resolveShiftedSectionAnchorLine(lines, originalText, index, anchor, rawAnchor, minimumIndex, kind);
+        if (shifted.ok) {
+          return shifted;
+        }
         return {
           ok: false,
           code: missingCode,

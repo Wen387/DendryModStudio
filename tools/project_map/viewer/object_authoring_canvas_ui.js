@@ -671,9 +671,27 @@
     if (state.structureCommands && state.structureCommands.length) {
       return true;
     }
+    if (values && Object.prototype.hasOwnProperty.call(values, 'event.pattern') && eventPatternChangeShouldMaterialize(values)) {
+      return true;
+    }
     return Object.keys(values || {}).some((key) => {
       return /^structure_remove_/.test(String(key || '')) && truthyStructureValue(values[key]);
     });
+  }
+
+  function eventPatternChangeShouldMaterialize(values) {
+    if (!values || !Object.prototype.hasOwnProperty.call(values, 'event.pattern')) {
+      return false;
+    }
+    if (truthyStructureValue(values.eventPatternReset || values['event.patternReset'])) {
+      return true;
+    }
+    const adapters = contentAdaptersApi();
+    if (!adapters || typeof adapters.eventPatternForDraft !== 'function') {
+      return true;
+    }
+    const current = adapters.eventPatternForDraft(state.baseDraft || {});
+    return String(values['event.pattern'] || '') !== String(current || '');
   }
 
   function materializeNewEventDraft(model) {
@@ -864,14 +882,25 @@
     if (!field) {
       return false;
     }
-    if (typeof field.scrollIntoView === 'function') {
+    const details = field.closest && field.closest('details');
+    if (details) {
+      details.open = true;
+    }
+    const focusRoot = field.closest && field.closest('[data-preview-object-inline-add], [data-preview-object-structure-builder], .preview-object-frame');
+    const focusTarget = field.matches && field.matches('input[type="hidden"]') && focusRoot
+      ? focusRoot.querySelector('input:not([type="hidden"]), textarea, select, button')
+      : field;
+    const target = focusTarget || field;
+    if (typeof target.scrollIntoView === 'function') {
+      target.scrollIntoView({block: 'center', inline: 'nearest'});
+    } else if (typeof field.scrollIntoView === 'function') {
       field.scrollIntoView({block: 'center', inline: 'nearest'});
     }
-    if (typeof field.focus === 'function') {
-      field.focus();
+    if (typeof target.focus === 'function') {
+      target.focus();
     }
-    if (typeof field.select === 'function' && /input|textarea/i.test(field.tagName || '')) {
-      field.select();
+    if (typeof target.select === 'function' && /input|textarea/i.test(target.tagName || '')) {
+      target.select();
     }
     return true;
   }
@@ -3466,6 +3495,10 @@
 
   function surfaceAdapterApi() {
     return global.ProjectMapObjectCanvasSurfaceAdapter;
+  }
+
+  function contentAdaptersApi() {
+    return global.ProjectMapObjectCanvasContentAdapters || null;
   }
 
   function modelBuilderApi() {

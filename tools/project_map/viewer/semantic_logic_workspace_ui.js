@@ -30,8 +30,9 @@
     const replacement = replacementText(values, editor);
     const changed = replacement !== current;
     const semanticApi = options.semanticLogicApi || semanticLogicApi();
+    const proposalValues = Object.assign({}, values && typeof values === 'object' ? values : {}, {replacementText: replacement});
     const proposal = changed && semanticApi && typeof semanticApi.buildProposal === 'function'
-      ? semanticApi.buildProposal(editor, {replacementText: replacement})
+      ? semanticApi.buildProposal(editor, proposalValues)
       : {ok: Boolean(editor && editor.ok), installPlan: null, operations: [], diagnostics: []};
     const plan = changed ? proposal && proposal.installPlan || null : null;
     const operations = ensureArray(plan && plan.operations || proposal && proposal.operations);
@@ -117,7 +118,7 @@
       '</div>',
       '</div>',
       '<div class="source-slice-grid semantic-logic-grid">',
-      '<section class="editing-panel source-slice-main semantic-logic-main">',
+      '<section class="editing-panel source-slice-main semantic-logic-main" data-semantic-logic-kind="' + attr(options, editor.editorKind || '') + '">',
       renderSemanticSummary(editor, options),
       renderFieldControls(editor, viewState.values || {}, options),
       '<div class="editing-field editing-field-' + attr(options, advancedRequired ? 'manual' : 'guarded') + '">',
@@ -209,15 +210,65 @@
     if (!controls || !controls.mode) {
       return '';
     }
-    const title = controls.mode === 'effect'
-      ? tr(deps, 'semanticLogic.guidedEffectFields', 'Guided effect fields')
-      : tr(deps, 'semanticLogic.guidedRouteFields', 'Guided route fields');
+    const title = controlTitle(controls.mode, deps);
+    const mode = String(controls.mode || '');
     return [
-      '<div class="semantic-logic-field-controls" data-semantic-logic-field-controls="true" data-semantic-logic-field-mode="' + attr(deps, controls.mode) + '">',
+      '<div class="semantic-logic-field-controls is-' + attr(deps, mode.replace(/_/g, '-')) + '" data-semantic-logic-field-controls="true" data-semantic-logic-field-mode="' + attr(deps, controls.mode) + '">',
+      '<div class="semantic-logic-field-controls-header">',
       '<h4>' + esc(deps, title) + '</h4>',
-      controls.mode === 'effect' ? renderEffectControls(controls, values, deps) : renderRouteControls(controls, values, deps),
+      '<span>' + esc(deps, guidedModeBadge(mode, deps)) + '</span>',
+      '</div>',
+      renderControlsByMode(controls, values, deps),
       '</div>'
     ].join('');
+  }
+
+  function renderControlsByMode(controls, values, deps) {
+    if (controls.mode === 'effect') {
+      return renderEffectControls(controls, values, deps);
+    }
+    if (controls.mode === 'utility_pair') {
+      return renderUtilityPairControls(controls, values, deps);
+    }
+    if (controls.mode === 'route_table_binding') {
+      return renderRouteTableControls(controls, values, deps);
+    }
+    if (controls.mode === 'explicit_fallback_helper') {
+      return renderFallbackControls(controls, values, deps);
+    }
+    return renderRouteControls(controls, values, deps);
+  }
+
+  function controlTitle(mode, deps) {
+    if (mode === 'effect') {
+      return tr(deps, 'semanticLogic.guidedEffectFields', 'Guided effect fields');
+    }
+    if (mode === 'utility_pair') {
+      return tr(deps, 'semanticLogic.guidedUtilityPairFields', 'Utility call and return');
+    }
+    if (mode === 'route_table_binding') {
+      return tr(deps, 'semanticLogic.guidedRouteTableFields', 'Route target table');
+    }
+    if (mode === 'explicit_fallback_helper') {
+      return tr(deps, 'semanticLogic.guidedFallbackFields', 'Explicit fallback helper');
+    }
+    return tr(deps, 'semanticLogic.guidedRouteFields', 'Guided route fields');
+  }
+
+  function guidedModeBadge(mode, deps) {
+    if (mode === 'utility_pair') {
+      return tr(deps, 'semanticLogic.guidedBadgePaired', 'paired edit');
+    }
+    if (mode === 'route_table_binding') {
+      return tr(deps, 'semanticLogic.guidedBadgeLiteralTargets', 'literal targets');
+    }
+    if (mode === 'explicit_fallback_helper') {
+      return tr(deps, 'semanticLogic.guidedBadgeExplicit', 'explicit condition');
+    }
+    if (mode === 'effect') {
+      return tr(deps, 'semanticLogic.guidedBadgeStructured', 'structured');
+    }
+    return tr(deps, 'semanticLogic.guidedBadgeStructured', 'structured');
   }
 
   function renderRouteControls(controls, values, deps) {
@@ -242,11 +293,50 @@
     ].join('');
   }
 
+  function renderUtilityPairControls(controls, values, deps) {
+    return [
+      '<div class="semantic-logic-control-grid">',
+      renderTextControl('semantic_logic.utilitySceneId', valueFor(values, 'semantic_logic.utilitySceneId', controls.utilitySceneId), controls.utilitySceneId, tr(deps, 'semanticLogic.utilityScene', 'Utility scene'), deps, 'utility-scene'),
+      renderTextControl('semantic_logic.setJumpTarget', valueFor(values, 'semantic_logic.setJumpTarget', controls.setJumpTarget), controls.setJumpTarget, tr(deps, 'semanticLogic.setJumpTarget', 'Return target'), deps, 'set-jump-target'),
+      renderReadonlyControl(tr(deps, 'semanticLogic.returnBinding', 'Return binding'), controls.returnBinding, deps, 'return-binding'),
+      '</div>',
+      '<p class="semantic-logic-control-note">' + esc(deps, tr(deps, 'semanticLogic.utilityPairNote', 'Both source lines are reviewed together so the utility call and return target stay paired.')) + '</p>'
+    ].join('');
+  }
+
+  function renderRouteTableControls(controls, values, deps) {
+    const rows = ensureArray(controls.rows);
+    return [
+      '<div class="semantic-logic-control-grid semantic-logic-route-table-grid">',
+      rows.map((row, index) => renderTextControl('semantic_logic.routeTable.' + index + '.target', valueFor(values, 'semantic_logic.routeTable.' + index + '.target', row && row.target), row && row.target, row && row.label || tr(deps, 'semanticLogic.routeTableTarget', 'Target'), deps, 'route-table-target')).join(''),
+      '</div>',
+      '<p class="semantic-logic-control-note">' + esc(deps, tr(deps, 'semanticLogic.routeTableNote', 'Only literal target values are editable here; route variable names, conditions, and keys stay in Source Slice/manual review.')) + '</p>'
+    ].join('');
+  }
+
+  function renderFallbackControls(controls, values, deps) {
+    return [
+      '<div class="semantic-logic-control-grid">',
+      renderTextControl('semantic_logic.fallbackSuggestedText', valueFor(values, 'semantic_logic.fallbackSuggestedText', controls.suggestedText), controls.suggestedText, tr(deps, 'semanticLogic.fallbackSuggestedText', 'Explicit fallback line'), deps, 'fallback-suggested-text'),
+      '</div>',
+      controls.predicate ? '<p class="semantic-logic-control-note">' + esc(deps, tr(deps, 'semanticLogic.fallbackNote', 'Trailing unconditional clauses are not fallback in Dendry; this helper makes the fallback condition explicit.')) + '</p>' : ''
+    ].join('');
+  }
+
   function renderTextControl(key, value, original, label, deps, marker) {
     return [
       '<label class="semantic-logic-control" data-semantic-logic-control="' + attr(deps, marker) + '">',
       '<span>' + esc(deps, label) + '</span>',
       '<input type="text" data-object-canvas-field="' + attr(deps, key) + '" data-object-canvas-original="' + attr(deps, original || '') + '" value="' + attr(deps, value || '') + '">',
+      '</label>'
+    ].join('');
+  }
+
+  function renderReadonlyControl(label, value, deps, marker) {
+    return [
+      '<label class="semantic-logic-control is-readonly" data-semantic-logic-control="' + attr(deps, marker) + '">',
+      '<span>' + esc(deps, label) + '</span>',
+      '<input type="text" value="' + attr(deps, value || '') + '" readonly>',
       '</label>'
     ].join('');
   }
@@ -434,6 +524,15 @@
     if (kind === 'effect_clause') {
       return tr(deps, 'semanticLogic.effectTitle', 'Effect Clause Editor');
     }
+    if (kind === 'utility_pair') {
+      return tr(deps, 'semanticLogic.utilityPairTitle', 'Utility Pair Editor');
+    }
+    if (kind === 'route_table_binding') {
+      return tr(deps, 'semanticLogic.routeTableTitle', 'Route Table Editor');
+    }
+    if (kind === 'explicit_fallback_helper') {
+      return tr(deps, 'semanticLogic.fallbackHelperTitle', 'Explicit Fallback Helper');
+    }
     if (kind === 'variable_provenance') {
       return tr(deps, 'semanticLogic.variableTitle', 'Variable Workspace');
     }
@@ -447,6 +546,15 @@
     if (kind === 'variable_provenance') {
       return tr(deps, 'semanticLogic.kind.variable', 'Variable');
     }
+    if (kind === 'utility_pair') {
+      return tr(deps, 'semanticLogic.kind.utilityPair', 'Utility pair');
+    }
+    if (kind === 'route_table_binding') {
+      return tr(deps, 'semanticLogic.kind.routeTable', 'Route table');
+    }
+    if (kind === 'explicit_fallback_helper') {
+      return tr(deps, 'semanticLogic.kind.fallback', 'Fallback');
+    }
     return tr(deps, 'semanticLogic.kind.route', 'Route');
   }
 
@@ -454,12 +562,30 @@
     if (kind === 'effect_clause') {
       return tr(deps, 'semanticLogic.effectBody', 'Edit the effect clause with parser evidence visible beside the source-backed operation.');
     }
+    if (kind === 'utility_pair') {
+      return tr(deps, 'semanticLogic.utilityPairBody', 'Edit the utility call and set-jump return as one reviewed pair.');
+    }
+    if (kind === 'route_table_binding') {
+      return tr(deps, 'semanticLogic.routeTableBody', 'Edit source-backed literal route targets without changing route variables, keys, or conditions.');
+    }
+    if (kind === 'explicit_fallback_helper') {
+      return tr(deps, 'semanticLogic.fallbackBody', 'Convert a trailing unconditional route into an explicit mutually exclusive condition.');
+    }
     return tr(deps, 'semanticLogic.routeBody', 'Edit route target, predicate, or fallback text with route-order evidence visible beside the operation.');
   }
 
   function fallbackEditLabel(kind, deps) {
     if (kind === 'effect_clause') {
       return tr(deps, 'semanticLogic.sourceFallbackEffect', 'Effect source fallback');
+    }
+    if (kind === 'utility_pair') {
+      return tr(deps, 'semanticLogic.sourceFallbackUtilityPair', 'Utility pair source preview');
+    }
+    if (kind === 'route_table_binding') {
+      return tr(deps, 'semanticLogic.sourceFallbackRouteTable', 'Route table source preview');
+    }
+    if (kind === 'explicit_fallback_helper') {
+      return tr(deps, 'semanticLogic.sourceFallbackExplicitFallback', 'Explicit fallback source preview');
     }
     return tr(deps, 'semanticLogic.sourceFallbackRoute', 'Route source fallback');
   }

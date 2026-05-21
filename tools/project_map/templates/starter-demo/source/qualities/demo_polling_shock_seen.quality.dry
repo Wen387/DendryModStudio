@@ -1,0 +1,6 @@
+name: Demo Polling Shock Seen
+initial: 0
+min: 0
+max: 1
+
+Flag for the starter demo polling shock monthly popup.

@@ -1,45 +1,53 @@
-title: A Small Campaign Office
+title: Civic Reform Office Briefing
 tags: event
-on-arrival: {!
-Q.demo_event_seen = 1;
-!}
+on-arrival: demo_event_seen = 1
 
-= A Small Campaign Office
+= Civic Reform Office Briefing
 
-This paragraph is the event body. In Studio, it is the kind of text players edit
-when they change an Event or Scene body.
+This is a small event. In Studio, the Object Editor lets mod authors edit this
+body text, the choices below, and the result pages each choice opens.
 
-The two choices below show how option text becomes a button. Each result writes
-a small variable so you can see how effects shape later conditions.
+The choices demonstrate effects. One builds volunteer support, one strengthens
+the case file, and one records conflict. The status scene shows those Q
+variables after the player clicks.
 
-- @organize_volunteers: Organize volunteers
-- @observe_quietly: Wait and observe
+- @organize_volunteers: Organize volunteers.
+- @review_case_file: Review the case file.
+- @observe_quietly: Watch the opposition quietly.
 
 @organize_volunteers
-title: Organize volunteers
-subtitle: Option result text
-on-arrival: {!
-Q.demo_support = (Q.demo_support || 0) + 1;
-!}
+title: Organize volunteers.
+subtitle: Effect demo: support rises.
+on-arrival: demo_support += 1; demo_public_attention += 1
 
 = Organize volunteers
 
-This is result text. It appears after the player clicks the option. The effect
-`demo_support += 1` also unlocks a follow-up option on the starter screen.
+Result text appears after a player clicks an option. This result raises
+`demo_support`, which also unlocks the support follow-up from the starter menu.
+
+- @demo_status: Continue
+
+@review_case_file
+title: Review the case file.
+subtitle: Effect demo: case strength rises.
+on-arrival: demo_case_strength += 1; demo_resources -= 1
+
+= Review the case file
+
+The office spends one resource to prepare evidence. Later, the complex reform
+chain can read `demo_case_strength` and unlock a stronger hearing choice.
 
 - @demo_status: Continue
 
 @observe_quietly
-title: Wait and observe
-subtitle: Option result text
-on-arrival: {!
-Q.demo_conflict = (Q.demo_conflict || 0) + 1;
-!}
+title: Watch the opposition quietly.
+subtitle: Effect demo: conflict rises.
+on-arrival: demo_conflict += 1; demo_opposition_heat += 1
 
-= Wait and observe
+= Watch the opposition quietly
 
-This is another result. The effect `demo_conflict += 1` changes the state
-summary, but it does not unlock the support follow-up.
+This result raises `demo_conflict`. It changes the state summary but does not
+unlock the support follow-up.
 
 - @demo_status: Continue
 
@@ -50,8 +58,9 @@ title: Demo State
 
 [? if demo_support > 0 : `demo_support` is above 0, so the support line can now appear. ?]
 [? if demo_conflict > 0 : `demo_conflict` is above 0, so the observation line can now appear. ?]
+[? if demo_case_strength > 0 : `demo_case_strength` is above 0, so the later hearing has a better starting point. ?]
 
-If neither line appears yet, choose one of the options in the demo event first.
+If no line appears yet, choose one of the office briefing options first.
 
 - @root: Back to start
 

@@ -15,6 +15,8 @@ const DEFAULT_PROJECT_ROOT = path.join(PROJECT_MAP_DIR, 'fixtures', 'qa-mini');
 const DEFAULT_WRONG_PROJECT_ROOT = path.join(PROJECT_MAP_DIR, 'fixtures', 'generic-mini');
 const DEFAULT_DYNAMIC_PROJECT_ROOT = path.join(REPO_ROOT, 'SDAAHdynamic', 'dynamic_social_democracy-main');
 const DEFAULT_ARTIFACT_ROOT = path.join(os.tmpdir(), 'dms-playtests');
+const WELCOME_SURFACE_SELECTORS = ['#studio-welcome', '#studio-onboarding'];
+const WELCOME_PRIMARY_SELECTORS = ['#welcome-primary', '#onboarding-primary'];
 
 const SCENARIOS = {
   first_time_user: {
@@ -143,6 +145,54 @@ const SCENARIOS = {
     ],
     shortcuts: [
       'uses the packaged starter template and Electron DOM automation instead of manual clicking'
+    ]
+  },
+  new_event_conditional_route_runtime_flow: {
+    title: 'Runtime Preview opens a newly created conditional menu event through Focused Entry and verifies loop routes.',
+    run: scenarioNewEventConditionalRouteRuntimeFlow,
+    artifactBase: path.join(DEFAULT_ARTIFACT_ROOT, 'new-event-conditional-route-runtime-flow'),
+    dialogRoots: [],
+    playerLike: [
+      'starts from the bundled demo template',
+      'creates a Conditional Menu / Loop event through the shared Object Canvas draft pipeline',
+      'builds a desktop Runtime Preview sandbox',
+      'uses Focused Entry for the install-plan-created event scene',
+      'clicks the root option into the follow-up menu',
+      'clicks a section-owned option to its result and returns to the menu',
+      'clicks the menu exit path and returns to the opening choice'
+    ],
+    shortcuts: [
+      'uses the packaged starter template and Electron DOM automation for the temporary Runtime Preview'
+    ]
+  },
+  route_understanding_workbench_flow: {
+    title: 'Route Understanding Workbench renders event-chain, scheduler, utility, and manual-boundary context.',
+    run: scenarioRouteUnderstandingWorkbenchFlow,
+    artifactBase: path.join(DEFAULT_ARTIFACT_ROOT, 'route-understanding-workbench-flow'),
+    dialogRoots: [],
+    playerLike: [
+      'opens the real Studio renderer',
+      'loads a minimized complex route fixture in the browser-safe model layer',
+      'renders the existing Route Map panel',
+      'verifies event-chain, scheduler, utility call, and manual JS boundary context chips'
+    ],
+    shortcuts: [
+      'uses a synthetic public fixture in renderer memory instead of copying private DynamicRepo content'
+    ]
+  },
+  guided_route_edit_workbench_flow: {
+    title: 'Guided Route Edit Workbench exposes utility-pair, route-table, and explicit-fallback editors.',
+    run: scenarioGuidedRouteEditWorkbenchFlow,
+    artifactBase: path.join(DEFAULT_ARTIFACT_ROOT, 'guided-route-edit-workbench-flow'),
+    dialogRoots: [],
+    playerLike: [
+      'opens the real Studio renderer',
+      'loads a minimized complex route fixture in the browser-safe model layer',
+      'renders guided Route Map actions for utility pair, route table, and explicit fallback',
+      'opens Semantic Logic model proposals for each guided edit and verifies replace_text operations'
+    ],
+    shortcuts: [
+      'uses a synthetic public fixture in renderer memory instead of copying private DynamicRepo content'
     ]
   },
   dynamic_mod_smoke: {
@@ -597,7 +647,7 @@ async function runScenario(id, win, args, artifactDir, log) {
 }
 
 async function scenarioFirstTimeUser(win, args, artifactDir, log) {
-  await expectVisible(win, '#studio-onboarding', 'Quick Start overlay should be visible on first launch');
+  await expectWelcomeSurfaceVisible(win, 'Quick Start overlay should be visible on first launch');
   await screenshot(win, artifactDir, '01-quick-start');
   log('Quick Start appears', 'PASS', '01-quick-start.png');
 
@@ -615,8 +665,8 @@ async function scenarioFirstTimeUser(win, args, artifactDir, log) {
 
   await click(win, '[data-tutorial-close="true"]');
   await waitForHidden(win, '#studio-tutorial-library', 'Tutorial Library should close');
-  await click(win, '#onboarding-primary');
-  await waitForHidden(win, '#studio-onboarding', 'Quick Start should close');
+  await clickWelcomePrimary(win);
+  await waitForWelcomeSurfaceHidden(win, 'Quick Start should close');
   log('Quick Start primary opens project picker', 'PASS', 'test dialog adapter selects project root');
 
   const loaded = await waitForProjectLoaded(win, args.projectRoot, args.timeoutMs);
@@ -692,12 +742,12 @@ async function scenarioFirstTimeUser(win, args, artifactDir, log) {
 }
 
 async function scenarioExploreDesignExistingEdit(win, args, artifactDir, log) {
-  await expectVisible(win, '#studio-onboarding', 'Quick Start overlay should be visible on first launch');
+  await expectWelcomeSurfaceVisible(win, 'Quick Start overlay should be visible on first launch');
   await screenshot(win, artifactDir, '01-quick-start');
   log('Quick Start appears', 'PASS', '01-quick-start.png');
 
-  await click(win, '#onboarding-primary');
-  await waitForHidden(win, '#studio-onboarding', 'Quick Start should close after opening a project');
+  await clickWelcomePrimary(win);
+  await waitForWelcomeSurfaceHidden(win, 'Quick Start should close after opening a project');
   const loaded = await waitForProjectLoaded(win, args.projectRoot, args.timeoutMs);
   await screenshot(win, artifactDir, '02-project-loaded');
   log('Project loads from Quick Start primary action', 'PASS', JSON.stringify(loaded.summary || {}));
@@ -774,9 +824,9 @@ async function scenarioExploreDesignExistingEdit(win, args, artifactDir, log) {
 }
 
 async function scenarioContentStoryboardCanvasSelection(win, args, artifactDir, log) {
-  await expectVisible(win, '#studio-onboarding', 'Quick Start overlay should be visible on first launch');
-  await click(win, '#onboarding-primary');
-  await waitForHidden(win, '#studio-onboarding', 'Quick Start should close after opening a project');
+  await expectWelcomeSurfaceVisible(win, 'Quick Start overlay should be visible on first launch');
+  await clickWelcomePrimary(win);
+  await waitForWelcomeSurfaceHidden(win, 'Quick Start should close after opening a project');
   const loaded = await waitForProjectLoaded(win, args.projectRoot, args.timeoutMs);
   log('Project loads from Quick Start primary action', 'PASS', JSON.stringify(loaded.summary || {}));
 
@@ -810,9 +860,9 @@ async function scenarioContentStoryboardCanvasSelection(win, args, artifactDir, 
 }
 
 async function scenarioWorkflowAccessRenderedEntries(win, args, artifactDir, log) {
-  await expectVisible(win, '#studio-onboarding', 'Quick Start overlay should be visible on first launch');
-  await click(win, '#onboarding-primary');
-  await waitForHidden(win, '#studio-onboarding', 'Quick Start should close after opening a project');
+  await expectWelcomeSurfaceVisible(win, 'Quick Start overlay should be visible on first launch');
+  await clickWelcomePrimary(win);
+  await waitForWelcomeSurfaceHidden(win, 'Quick Start should close after opening a project');
   const loaded = await waitForProjectLoaded(win, args.projectRoot, args.timeoutMs);
   log('Project loads from Quick Start primary action', 'PASS', JSON.stringify(loaded.summary || {}));
 
@@ -879,13 +929,258 @@ async function scenarioWorkflowAccessRenderedEntries(win, args, artifactDir, log
   log('Rendered workflow entries are present', 'PASS', JSON.stringify(rendered));
 }
 
+async function scenarioRouteUnderstandingWorkbenchFlow(win, _args, artifactDir, log) {
+  const result = await evalInPage(win, () => {
+    const routeScript = window.ProjectMapRouteScriptIntelligenceModel;
+    const previewEditor = window.ProjectMapPreviewObjectEditor;
+    const source = (path, line) => ({path, line, startLine: line, endLine: line, anchorText: ''});
+    const profileEvidence = [{
+      profileId: 'qa-route-understanding',
+      eventSeriesPatterns: [{
+        prefix: 'presidential_election_1932',
+        stages: [
+          {sceneId: 'presidential_election_1932_hindenburg', stageLabel: 'announcement'},
+          {sceneId: 'presidential_election_1932_candidate', stageLabel: 'candidate setup'},
+          {sceneId: 'presidential_election_1932_campaign', stageLabel: 'campaign'},
+          {sceneId: 'presidential_election_1932_round_1', stageLabel: 'round 1'},
+          {sceneId: 'presidential_election_1932_round_2', stageLabel: 'round 2'}
+        ]
+      }],
+      schedulerScenes: [{sceneId: 'post_event.events_choice', tag: 'event', deckRoute: '#event', protected: true}],
+      protectedRouterScenes: ['post_event', 'post_event.events_choice'],
+      utilityRouteScenes: [{sceneId: 'election_algorithm', utilityKind: 'single_slot_return_utility', returnBinding: 'jumpScene'}]
+    }];
+    const scenes = [
+      'presidential_election_1932_hindenburg',
+      'presidential_election_1932_candidate',
+      'presidential_election_1932_campaign',
+      'presidential_election_1932_round_1',
+      'presidential_election_1932_round_2',
+      'election_algorithm',
+      'post_event.events_choice'
+    ].map((id, index) => ({
+      id,
+      type: id.indexOf('presidential_election_1932') === 0 ? 'event' : 'system',
+      title: id,
+      path: id === 'election_algorithm' ? 'source/scenes/election_algorithm.scene.dry' : 'source/scenes/events/' + id + '.scene.dry',
+      tags: id.indexOf('presidential_election_1932') === 0 ? ['event'] : [],
+      viewIf: id.indexOf('round_') >= 0 ? 'year = 1932' : '',
+      sourceSpan: source('source/scenes/events/' + id + '.scene.dry', index + 1)
+    }));
+    const projectIndex = {
+      schemaVersion: '0.1',
+      project: {name: 'Route Understanding QA', root: '/tmp/route-understanding-qa', profileIds: ['qa-route-understanding']},
+      scenes,
+      edges: [{from: 'presidential_election_1932_round_1', to: 'election_algorithm', kind: 'go_to', source: source('source/scenes/events/presidential_election_1932_round_1.scene.dry', 16)}],
+      semantic: {
+        parserEvidence: {
+          core: {tagDeckRoutes: [{sceneId: 'post_event.events_choice', tag: 'event', deckRoute: '#event', source: source('source/scenes/post_event.scene.dry', 5205)}]},
+          profiles: profileEvidence
+        }
+      }
+    };
+    const body = {
+      id: 'presidential_election_1932_round_1',
+      projectIndex,
+      profileEvidence,
+      knownSceneIds: scenes.map((scene) => scene.id),
+      sections: [{id: 'pres_election'}, {id: 'calculation'}, {id: 'hindenburg_wins'}],
+      flow: {
+        nodes: [{id: 'presidential_election_1932_round_1'}, {id: 'election_algorithm'}, {id: 'calculation'}, {id: 'hindenburg_wins'}],
+        edges: [
+          {from: 'presidential_election_1932_round_1', to: 'election_algorithm', kind: 'route', parserBacked: true, source: source('source/scenes/events/presidential_election_1932_round_1.scene.dry', 16)},
+          {from: 'presidential_election_1932_round_1', to: 'pres_election', kind: 'set_jump', parserBacked: true, source: source('source/scenes/events/presidential_election_1932_round_1.scene.dry', 17)},
+          {from: 'election_algorithm', to: 'jumpScene', kind: 'route', parserBacked: true, source: source('source/scenes/election_algorithm.scene.dry', 104)},
+          {from: 'calculation', to: 'hindenburg_wins', kind: 'conditional_route', condition: 'hindenburg_majority == 1', parserBacked: true, source: source('source/scenes/events/presidential_election_1932_round_1.scene.dry', 670)}
+        ]
+      },
+      scriptRows: [{
+        id: 'qa_vote_math',
+        label: 'vote math',
+        scriptKind: 'opaque_js',
+        hook: 'on-arrival',
+        sectionId: 'calculation',
+        text: '{! Q.hindenburg_majority = Q.hindenburg_votes > 50; !}',
+        writes: ['hindenburg_majority'],
+        reads: ['hindenburg_votes'],
+        lineCount: 200,
+        source: source('source/scenes/events/presidential_election_1932_round_1.scene.dry', 33)
+      }],
+      eventGraph: {
+        kind: 'complex_event_graph',
+        nodes: [{id: 'root', kind: 'opening', label: 'Round 1'}, {id: 'section:calculation', kind: 'follow_up', label: 'calculation'}, {id: 'section:hindenburg_wins', kind: 'result', label: 'hindenburg_wins'}],
+        edges: [{id: 'edge:calculation:hindenburg', from: 'section:calculation', to: 'section:hindenburg_wins', kind: 'result_route', targetId: 'hindenburg_wins'}]
+      }
+    };
+    const model = routeScript.buildRouteScriptIntelligence(body, {eventId: body.id, projectIndex, profileEvidence});
+    const eventBody = Object.assign({}, body, {
+      routeScriptIntelligence: {summary: model.summary, diagnostics: model.diagnostics},
+      routeEvidenceMap: model.routes,
+      scriptImpactMap: model.scripts,
+      routeUnderstanding: model.routeUnderstanding
+    });
+    const html = previewEditor.render({kind: 'event', eventBody});
+    return {
+      eventChain: html.includes('data-route-understanding-section="event_chain"'),
+      scheduler: html.includes('data-route-understanding-section="scheduler"') && html.includes('#event'),
+      utility: html.includes('data-route-understanding-section="utility"') && html.includes('election_algorithm'),
+      stateDependency: html.includes('data-route-understanding-section="state_dependency"') &&
+        html.includes('data-route-understanding-item="state_dependency"') &&
+        html.includes('hindenburg_majority'),
+      jumpSceneMissing: model.routes.items.some((route) => route.target === 'jumpScene' && route.evidenceClass === 'missing_target'),
+      summary: model.routeUnderstanding && model.routeUnderstanding.summary
+    };
+  });
+  ['eventChain', 'scheduler', 'utility', 'stateDependency'].forEach((key) => {
+    if (!result[key]) {
+      throw new Error('Route Understanding Workbench missing marker: ' + key);
+    }
+  });
+  if (result.jumpSceneMissing) {
+    throw new Error('Utility return binding was treated as a missing jumpScene target.');
+  }
+  await screenshot(win, artifactDir, '01-route-understanding-workbench');
+  log('Route Understanding Workbench context renders', 'PASS', JSON.stringify(result.summary || {}));
+}
+
+async function scenarioGuidedRouteEditWorkbenchFlow(win, _args, artifactDir, log) {
+  const result = await evalInPage(win, () => {
+    const routeScript = window.ProjectMapRouteScriptIntelligenceModel;
+    const semanticLogic = window.ProjectMapSemanticLogicEditor;
+    const workspace = window.ProjectMapSemanticLogicWorkspace;
+    const previewEditor = window.ProjectMapPreviewObjectEditor;
+    const source = (path, line, anchorText) => ({path, line, startLine: line, endLine: line, anchorText, endAnchorText: anchorText});
+    const path = 'source/scenes/events/guided_route_qa.scene.dry';
+    const profileEvidence = [{
+      profileId: 'qa-guided-route-edit',
+      routeQualityVars: ['next_scene'],
+      utilityRouteScenes: [{sceneId: 'election_algorithm', utilityKind: 'single_slot_return_utility', returnBinding: 'jumpScene'}]
+    }];
+    const projectIndex = {
+      schemaVersion: '0.1',
+      project: {name: 'Guided Route Edit QA', root: '/tmp/guided-route-edit-qa', profileIds: ['qa-guided-route-edit']},
+      scenes: [
+        {id: 'guided_route_qa', path},
+        {id: 'election_algorithm', path: 'source/scenes/election_algorithm.scene.dry'},
+        {id: 'return_scene', path},
+        {id: 'alpha', path},
+        {id: 'omega', path}
+      ],
+      semantic: {
+        parserEvidence: {
+          profiles: profileEvidence,
+          core: {
+            routeOrderGroups: [{
+              id: 'qa_fallback',
+              sceneId: 'guided_route_qa',
+              ownerId: 'guided_route_qa',
+              routeField: 'goTo',
+              source: source(path, 18, 'go-to: alpha if Q.route_flag = 1; omega'),
+              sourceRaw: 'go-to: alpha if Q.route_flag = 1; omega',
+              clauses: [
+                {rawTarget: 'alpha', predicate: 'Q.route_flag = 1', isFallback: false},
+                {rawTarget: 'omega', predicate: '', isFallback: true}
+              ]
+            }]
+          }
+        }
+      }
+    };
+    const body = {
+      id: 'guided_route_qa',
+      projectIndex,
+      profileEvidence,
+      projectSceneIds: ['guided_route_qa', 'election_algorithm', 'return_scene', 'alpha', 'omega'],
+      flow: {
+        nodes: [{id: 'guided_route_qa'}, {id: 'election_algorithm'}, {id: 'return_scene'}, {id: 'alpha'}, {id: 'omega'}],
+        edges: [
+          {kind: 'route', from: 'guided_route_qa', to: 'election_algorithm', parserBacked: true, source: source(path, 10, 'go-to: election_algorithm')},
+          {kind: 'set_jump', from: 'guided_route_qa', to: 'return_scene', rawTarget: 'return_scene', parserBacked: true, source: source(path, 11, 'set-jump: return_scene')},
+          {kind: 'go_to_ref', from: 'guided_route_qa', to: 'quality_ref:next_scene', rawTarget: 'next_scene', dynamicTarget: true, targetSource: 'quality', candidateTargets: ['alpha', 'omega'], parserBacked: true, source: source(path, 12, 'go-to-ref: next_scene')}
+        ]
+      },
+      scriptRows: [{
+        id: 'qa_route_table',
+        label: 'QA route table',
+        text: 'on-arrival: Q.next_scene = Q.route_flag ? "alpha" : "omega"',
+        source: source(path, 16, 'on-arrival: Q.next_scene = Q.route_flag ? "alpha" : "omega"')
+      }],
+      eventGraph: {
+        kind: 'complex_event_graph',
+        nodes: [{id: 'root', kind: 'opening', label: 'Guided Route QA'}, {id: 'section:alpha', kind: 'result', label: 'alpha'}, {id: 'section:omega', kind: 'result', label: 'omega'}],
+        edges: [{id: 'edge:alpha', from: 'root', to: 'section:alpha', kind: 'result_route', targetId: 'alpha'}]
+      }
+    };
+    const model = routeScript.buildRouteScriptIntelligence(body, {eventId: body.id, projectIndex, profileEvidence});
+    const eventBody = Object.assign({}, body, {
+      routeScriptIntelligence: {summary: model.summary, diagnostics: model.diagnostics},
+      routeEvidenceMap: model.routes,
+      scriptImpactMap: model.scripts,
+      routeUnderstanding: model.routeUnderstanding,
+      routeGuidedEdits: model.routeGuidedEdits
+    });
+    const html = previewEditor.render({kind: 'event', eventBody});
+    const entries = model.routeGuidedEdits && model.routeGuidedEdits.entries || [];
+    const utility = entries.find((entry) => entry.kind === 'utility_pair' && entry.safeEditEligible);
+    const table = entries.find((entry) => entry.kind === 'route_table_binding' && entry.safeEditEligible && entry.routeTable && entry.routeTable.shape === 'ternary_literal');
+    const fallback = entries.find((entry) => entry.kind === 'explicit_fallback_helper' && entry.safeEditEligible);
+    const utilityEditor = semanticLogic.buildSemanticLogicEditor(projectIndex, {editAction: utility && utility.editAction});
+    const utilityProposal = semanticLogic.buildProposal(utilityEditor, {'semantic_logic.setJumpTarget': 'return_scene_2'});
+    const tableEditor = semanticLogic.buildSemanticLogicEditor(projectIndex, {editAction: table && table.editAction});
+    const tableProposal = semanticLogic.buildProposal(tableEditor, {'semantic_logic.routeTable.0.target': 'alpha_2'});
+    const fallbackEditor = semanticLogic.buildSemanticLogicEditor(projectIndex, {editAction: fallback && fallback.editAction});
+    const fallbackProposal = semanticLogic.buildProposal(fallbackEditor, {});
+    const workspaceHtml = workspace.render(workspace.buildCanvasModel(utilityEditor, {'semantic_logic.setJumpTarget': 'return_scene_2'}, {
+      translate: (_key, fallbackText) => fallbackText,
+      escapeHtml: (value) => String(value === undefined || value === null ? '' : value),
+      escapeAttr: (value) => String(value === undefined || value === null ? '' : value),
+      renderPlanPreview: () => '',
+      renderDiagnostics: () => '',
+      semanticLogicApi: semanticLogic
+    }), {semanticLogicModel: utilityEditor, values: {'semantic_logic.setJumpTarget': 'return_scene_2'}}, {
+      translate: (_key, fallbackText) => fallbackText,
+      escapeHtml: (value) => String(value === undefined || value === null ? '' : value),
+      escapeAttr: (value) => String(value === undefined || value === null ? '' : value),
+      renderPlanPreview: () => '',
+      renderDiagnostics: () => ''
+    });
+    return {
+      guidedTools: html.includes('data-preview-object-route-guided-edits="true"'),
+      utilityChip: html.includes('data-route-guided-edit-kind="utility_pair"'),
+      tableChip: html.includes('data-route-guided-edit-kind="route_table_binding"'),
+      fallbackChip: html.includes('data-route-guided-edit-kind="explicit_fallback_helper"'),
+      utilityOps: utilityProposal && utilityProposal.installPlan && utilityProposal.installPlan.operations.length,
+      tableReplace: tableProposal && tableProposal.installPlan && tableProposal.installPlan.operations[0] && tableProposal.installPlan.operations[0].replace,
+      fallbackReplace: fallbackProposal && fallbackProposal.installPlan && fallbackProposal.installPlan.operations[0] && fallbackProposal.installPlan.operations[0].replace,
+      workspaceMode: workspaceHtml.includes('data-semantic-logic-field-mode="utility_pair"'),
+      summary: model.routeGuidedEdits && model.routeGuidedEdits.summary
+    };
+  });
+  ['guidedTools', 'utilityChip', 'tableChip', 'fallbackChip', 'workspaceMode'].forEach((key) => {
+    if (!result[key]) {
+      throw new Error('Guided Route Edit Workbench missing marker: ' + key);
+    }
+  });
+  if (result.utilityOps !== 2) {
+    throw new Error('Utility pair proposal did not keep the call/return pair in one two-operation review plan.');
+  }
+  if (!String(result.tableReplace || '').includes('"alpha_2"')) {
+    throw new Error('Route table proposal did not replace the literal target value.');
+  }
+  if (!String(result.fallbackReplace || '').includes('omega if Q.route_flag != 1')) {
+    throw new Error('Explicit fallback helper did not generate the complement predicate.');
+  }
+  await screenshot(win, artifactDir, '01-guided-route-edit-workbench');
+  log('Guided Route Edit Workbench tools render and propose operations', 'PASS', JSON.stringify(result.summary || {}));
+}
+
 async function scenarioDraftPersistenceRestart(win, args, artifactDir, log) {
-  await expectVisible(win, '#studio-onboarding', 'Quick Start overlay should be visible on first launch');
+  await expectWelcomeSurfaceVisible(win, 'Quick Start overlay should be visible on first launch');
   await screenshot(win, artifactDir, '01-quick-start');
   log('Quick Start appears', 'PASS', '01-quick-start.png');
 
-  await click(win, '#onboarding-primary');
-  await waitForHidden(win, '#studio-onboarding', 'Quick Start should close after opening a project');
+  await clickWelcomePrimary(win);
+  await waitForWelcomeSurfaceHidden(win, 'Quick Start should close after opening a project');
   const loaded = await waitForProjectLoaded(win, args.projectRoot, args.timeoutMs);
   await screenshot(win, artifactDir, '02-project-loaded');
   log('Project loads from Quick Start primary action', 'PASS', JSON.stringify(loaded.summary || {}));
@@ -907,7 +1202,7 @@ async function scenarioDraftPersistenceRestart(win, args, artifactDir, log) {
   log('Draft saves before reload', 'PASS', '04-saved-before-reload.png');
 
   await reloadStudioWindow(win, args.timeoutMs);
-  await expectHiddenOrMissing(win, '#studio-onboarding', 'Quick Start should stay dismissed after reload');
+  await expectWelcomeSurfaceHiddenOrMissing(win, 'Quick Start should stay dismissed after reload');
   await screenshot(win, artifactDir, '05-after-reload');
   log('Studio window reloads with same user data', 'PASS', '05-after-reload.png');
 
@@ -954,13 +1249,13 @@ async function scenarioDraftPersistenceRestart(win, args, artifactDir, log) {
 }
 
 async function scenarioLoadBundledDemoTemplate(win, args, artifactDir, log) {
-  await expectVisible(win, '#studio-onboarding', 'Quick Start overlay should be visible on first launch');
+  await expectWelcomeSurfaceVisible(win, 'Quick Start overlay should be visible on first launch');
   await expectVisible(win, '#onboarding-load-demo', 'Quick Start should expose bundled demo template action');
   await screenshot(win, artifactDir, '01-quick-start-demo-action');
   log('Quick Start offers bundled demo template', 'PASS', '01-quick-start-demo-action.png');
 
   await click(win, '#onboarding-load-demo');
-  await waitForHidden(win, '#studio-onboarding', 'Quick Start should close after loading demo template');
+  await waitForWelcomeSurfaceHidden(win, 'Quick Start should close after loading demo template');
   const loaded = await waitForProjectNamed(win, 'Dendry Mod Studio Starter Demo', args.timeoutMs);
   if (!String(loaded.root || '').includes('starter-demo')) {
     throw new Error('Starter demo did not open from a starter-demo workspace: ' + JSON.stringify(loaded));
@@ -971,9 +1266,9 @@ async function scenarioLoadBundledDemoTemplate(win, args, artifactDir, log) {
 
   await click(win, '#mode-explore');
   await click(win, '[data-view="events"]');
-  await fill(win, '#search', 'Small Campaign');
-  await clickRowContaining(win, '#list [data-row-key]', 'A Small Campaign Office');
-  await expectText(win, '#inspector', 'A Small Campaign Office');
+  await fill(win, '#search', 'Civic Reform');
+  await clickRowContaining(win, '#list [data-row-key]', 'Civic Reform Office Briefing');
+  await expectText(win, '#inspector', 'Civic Reform Office Briefing');
   await expectText(win, '#inspector', 'demo_support');
   await screenshot(win, artifactDir, '03-demo-event-inspector');
   log('Explore shows game-like demo event mapping', 'PASS', '03-demo-event-inspector.png');
@@ -994,12 +1289,12 @@ async function scenarioDynamicModSmoke(win, args, artifactDir, log) {
   }
   const timeoutMs = Math.max(args.timeoutMs, 90000);
 
-  await expectVisible(win, '#studio-onboarding', 'Quick Start overlay should be visible on first launch');
+  await expectWelcomeSurfaceVisible(win, 'Quick Start overlay should be visible on first launch');
   await screenshot(win, artifactDir, '01-quick-start-dynamic');
   log('Quick Start appears for Dynamic smoke', 'PASS', '01-quick-start-dynamic.png');
 
-  await click(win, '#onboarding-primary');
-  await waitForHidden(win, '#studio-onboarding', 'Quick Start should close after opening Dynamic');
+  await clickWelcomePrimary(win);
+  await waitForWelcomeSurfaceHidden(win, 'Quick Start should close after opening Dynamic');
   const loaded = await waitForProjectLoaded(win, dynamicRoot, timeoutMs);
   if (!String(loaded.projectName || '').includes('Social Democracy')) {
     throw new Error('Dynamic project did not load with the expected project name: ' + JSON.stringify(loaded));
@@ -1154,7 +1449,7 @@ async function scenarioRuntimePreviewEntryFlow(_win, args, artifactDir, log) {
     log('Runtime Preview hand state after advisor click', 'INFO', JSON.stringify(await runtimeGameSnapshot(gameWin)));
     await waitForGameText(gameWin, 'Starter Advisor', args.timeoutMs);
     await clickGameText(gameWin, 'Ask for organizing help');
-    await waitForGameText(gameWin, 'The advisor helps the organization turn a loose idea into a modest first step.', args.timeoutMs);
+    await waitForGameText(gameWin, 'The advisor helps the office turn a loose idea into volunteer support.', args.timeoutMs);
     await clickGameText(gameWin, 'Continue');
     await waitForGameText(gameWin, 'Workspace Hand', args.timeoutMs);
     await waitForGameText(gameWin, 'Runtime preview support is visible.', args.timeoutMs);
@@ -1167,15 +1462,150 @@ async function scenarioRuntimePreviewEntryFlow(_win, args, artifactDir, log) {
   }
 }
 
+async function scenarioNewEventConditionalRouteRuntimeFlow(_win, args, artifactDir, log) {
+  const {BrowserWindow} = require('electron');
+  const core = require(path.join(DESKTOP_DIR, 'studio_core.js'));
+  const canvasModel = require(path.join(PROJECT_MAP_DIR, 'authoring', 'object_authoring_canvas_model.js'));
+  const workspaceRoot = ensureDir(path.join(artifactDir, 'starter-workspace'));
+  const scratchRoot = ensureDir(path.join(artifactDir, 'project-indexes'));
+  const sessionsRoot = ensureDir(path.join(artifactDir, 'runtime-sessions'));
+  const prepared = core.prepareStarterDemo({
+    desktopDir: DESKTOP_DIR,
+    workspaceRoot
+  });
+  if (!prepared.ok) {
+    throw new Error('Could not prepare starter demo: ' + JSON.stringify(prepared));
+  }
+  log('Prepared starter demo copy', 'PASS', prepared.root);
+
+  const indexed = await core.buildProjectIndex({
+    root: prepared.root,
+    outDir: scratchRoot,
+    includeExcerpts: false
+  });
+  if (!indexed.ok) {
+    throw new Error('Could not index starter demo for conditional event preview: ' + JSON.stringify(indexed.error || indexed));
+  }
+  log('Built starter demo ProjectIndex', 'PASS', JSON.stringify(indexed.summary || {}));
+
+  const model = canvasModel.buildNewEventCanvas(indexed.index, {}, {
+    values: {
+      'event.pattern': 'conditional_menu_loop',
+      'event.id': 'qa_conditional_menu_loop',
+      'event.title': 'QA Conditional Menu Loop',
+      'event.heading': 'QA Conditional Menu Loop'
+    }
+  });
+  if (!model.ok || !model.changeState || !model.changeState.installPlan) {
+    throw new Error('Conditional menu event draft was not reviewable: ' + JSON.stringify(model.changeState && model.changeState.diagnostics || model));
+  }
+  const graph = model.eventBody && model.eventBody.eventGraph || {};
+  if (!Array.isArray(graph.edges) || !graph.edges.some((edge) => edge.kind === 'choice' && edge.from === 'section:menu_loop')) {
+    throw new Error('Conditional menu Route Map did not preserve section-owned choices: ' + JSON.stringify(graph.edges || []));
+  }
+  if (!Array.isArray(graph.nodes) || !graph.nodes.some((node) => node.id === 'option:follow_up_action' && Array.isArray(node.secondaryActions) && node.secondaryActions.some((action) => action.fieldId === 'option.2.chooseIf'))) {
+    throw new Error('Conditional menu Route Map did not expose option condition editing.');
+  }
+  log('Built conditional menu event through Object Canvas draft pipeline', 'PASS', model.source && model.source.path || 'qa_conditional_menu_loop');
+
+  const preview = await core.createRuntimePreview({
+    projectRoot: prepared.root,
+    sessionsRoot,
+    plan: model.changeState.installPlan,
+    projectIndex: indexed.index
+  });
+  if (!preview.ok) {
+    throw new Error('Runtime Preview failed: ' + JSON.stringify(preview.diagnostics || preview));
+  }
+  if (!preview.installResult || preview.installResult.ok !== true) {
+    throw new Error('Runtime Preview conditional event install failed: ' + JSON.stringify(preview.installResult || {}));
+  }
+  if (!preview.debug || !preview.debug.enabled) {
+    throw new Error('Runtime Preview debug console is required for Focused Entry.');
+  }
+  if (!preview.compareUrl) {
+    throw new Error('Runtime Preview compare URL is missing.');
+  }
+  log('Runtime Preview sandbox created with Focused Entry controls', 'PASS', preview.compareUrl);
+
+  const gameWin = new BrowserWindow({
+    width: 1360,
+    height: 860,
+    show: Boolean(args.headed),
+    backgroundColor: '#f4f2ec'
+  });
+  try {
+    await gameWin.loadURL(preview.compareUrl);
+    await waitForModifiedRuntimeBridge(gameWin, args.timeoutMs);
+    const beforeFocusObservation = await modifiedRuntimeRouteObservation(gameWin, {
+      entryMode: 'focused_entry',
+      focusedEntry: true,
+      clickPath: []
+    });
+    const focused = await applyModifiedFocusPreset(gameWin, 'qa_conditional_menu_loop');
+    if (!focused || focused.ok !== true) {
+      throw new Error('Focused Entry could not open the created event: ' + JSON.stringify(focused || {}));
+    }
+    await waitForModifiedGameText(gameWin, 'QA Conditional Menu Loop', args.timeoutMs);
+    await waitForModifiedGameText(gameWin, 'Review the situation', args.timeoutMs);
+    await screenshot(gameWin, artifactDir, '01-focused-entry-created-event');
+    const focusObservation = await modifiedRuntimeRouteObservation(gameWin, {
+      entryMode: 'focused_entry',
+      focusedEntry: true,
+      clickPath: ['Focused Entry: qa_conditional_menu_loop']
+    });
+    focusObservation.qDiff = diffObjectSnapshots(beforeFocusObservation.qSnapshot, focusObservation.qSnapshot);
+    log('Focused Entry opened the install-plan-created event', 'PASS', JSON.stringify(Object.assign({focused}, focusObservation)));
+
+    await clickModifiedGameText(gameWin, 'Review the situation');
+    await advanceModifiedGameIfTextVisible(gameWin, 'Continue');
+    await waitForModifiedGameText(gameWin, 'Follow-up menu', args.timeoutMs);
+    await waitForModifiedGameText(gameWin, 'Take the follow-up action', args.timeoutMs);
+    await screenshot(gameWin, artifactDir, '02-follow-up-menu');
+    log('Root option reached the follow-up menu', 'PASS', JSON.stringify(await modifiedRuntimeRouteObservation(gameWin, {
+      entryMode: 'focused_entry',
+      focusedEntry: true,
+      clickPath: ['Focused Entry: qa_conditional_menu_loop', 'Review the situation']
+    })));
+
+    await clickModifiedGameText(gameWin, 'Take the follow-up action');
+    await waitForModifiedGameText(gameWin, 'The follow-up action changes the situation.', args.timeoutMs);
+    await advanceModifiedGameIfTextVisible(gameWin, 'Continue');
+    await waitForModifiedGameText(gameWin, 'Follow-up menu', args.timeoutMs);
+    await screenshot(gameWin, artifactDir, '03-section-option-loop-return');
+    log('Section-owned option reached its result and returned to the menu', 'PASS', JSON.stringify(await modifiedRuntimeRouteObservation(gameWin, {
+      entryMode: 'focused_entry',
+      focusedEntry: true,
+      clickPath: ['Focused Entry: qa_conditional_menu_loop', 'Review the situation', 'Take the follow-up action', 'Continue']
+    })));
+
+    await clickModifiedGameText(gameWin, 'Return to the opening question');
+    await advanceModifiedGameIfTextVisible(gameWin, 'Continue');
+    await waitForModifiedGameText(gameWin, 'Review the situation', args.timeoutMs);
+    await screenshot(gameWin, artifactDir, '04-returned-to-opening');
+    const finalObservation = await modifiedRuntimeRouteObservation(gameWin, {
+      entryMode: 'focused_entry',
+      focusedEntry: true,
+      clickPath: ['Focused Entry: qa_conditional_menu_loop', 'Review the situation', 'Take the follow-up action', 'Continue', 'Return to the opening question']
+    });
+    finalObservation.qDiff = diffObjectSnapshots(beforeFocusObservation.qSnapshot, finalObservation.qSnapshot);
+    log('Menu exit path returned to the opening choice', 'PASS', JSON.stringify(finalObservation));
+  } finally {
+    if (!gameWin.isDestroyed()) {
+      gameWin.destroy();
+    }
+  }
+}
+
 async function scenarioJusticePartyTemplateMod(win, args, artifactDir, log) {
-  await expectVisible(win, '#studio-onboarding', 'Quick Start overlay should be visible on first launch');
+  await expectWelcomeSurfaceVisible(win, 'Quick Start overlay should be visible on first launch');
   await expectVisible(win, '#onboarding-load-demo', 'Quick Start should expose bundled demo template action');
   await screenshot(win, artifactDir, '01-quick-start-template');
   log('Quick Start offers template start', 'PASS', '01-quick-start-template.png');
   await observeStep(args);
 
   await click(win, '#onboarding-load-demo');
-  await waitForHidden(win, '#studio-onboarding', 'Quick Start should close after loading demo template');
+  await waitForWelcomeSurfaceHidden(win, 'Quick Start should close after loading demo template');
   const loaded = await waitForProjectNamed(win, 'Dendry Mod Studio Starter Demo', args.timeoutMs);
   fs.accessSync(loaded.root, fs.constants.W_OK);
   await screenshot(win, artifactDir, '02-template-loaded');
@@ -1184,8 +1614,8 @@ async function scenarioJusticePartyTemplateMod(win, args, artifactDir, log) {
 
   await click(win, '#mode-explore');
   await click(win, '[data-view="events"]');
-  await fill(win, '#search', 'Small Campaign');
-  await clickRowContaining(win, '#list [data-row-key]', 'A Small Campaign Office');
+  await fill(win, '#search', 'Civic Reform');
+  await clickRowContaining(win, '#list [data-row-key]', 'Civic Reform Office Briefing');
   await expectText(win, '#inspector', 'demo_support');
   await screenshot(win, artifactDir, '03-template-event-reference');
   log('Player inspects the template event before drafting', 'PASS', '03-template-event-reference.png');
@@ -1456,7 +1886,7 @@ async function fillJusticeEntrySidebar(win) {
   await fill(win, '#entry-root-intro', 'A small Justice Party team opens the first month of organizing with labor, climate, and local democracy all competing for attention.');
   await fill(win, '#entry-first-option-title', 'Begin the Justice Party opening');
   await fill(win, '#entry-sidebar-title', 'Justice Party Status');
-  await fill(win, '#entry-sidebar-heading', 'Campaign Status');
+  await fill(win, '#entry-sidebar-heading', 'Civic Reform Dashboard');
   await fill(win, '#entry-sidebar-body', 'Track whether the new office has turned the template into a playable campaign route.');
   await fill(win, '#entry-sidebar-status-lines', '');
 }
@@ -2147,6 +2577,161 @@ async function waitForGameText(win, expectedText, timeoutMs) {
   }, expectedText), 'Runtime Preview game should show "' + expectedText + '"', timeoutMs);
 }
 
+async function waitForModifiedRuntimeBridge(win, timeoutMs) {
+  await waitFor(win, () => evalInPage(win, () => {
+    const frame = document.querySelector('iframe.modified');
+    const frameWindow = frame && frame.contentWindow;
+    const frameDocument = frame && (frame.contentDocument || frameWindow && frameWindow.document);
+    return Boolean(frameWindow && frameDocument && frameDocument.body && frameWindow.DendryModStudioPreview);
+  }), 'Runtime Preview modified frame should expose the Focused Entry bridge', timeoutMs);
+}
+
+async function applyModifiedFocusPreset(win, sceneId) {
+  return evalInPage(win, (targetSceneId) => {
+    const frame = document.querySelector('iframe.modified');
+    const frameWindow = frame && frame.contentWindow;
+    const api = frameWindow && frameWindow.DendryModStudioPreview;
+    const preset = document.querySelector('[data-debug-focus-scene="' + targetSceneId + '"]');
+    let variables = [];
+    try {
+      variables = JSON.parse(preset && preset.getAttribute('data-debug-focus-variables') || '[]');
+    } catch (_err) {
+      variables = [];
+    }
+    if (!api || typeof api.applyFocusPreset !== 'function') {
+      return {ok: false, message: 'Focused Entry bridge is unavailable.'};
+    }
+    return api.applyFocusPreset({sceneId: targetSceneId, variables});
+  }, sceneId);
+}
+
+async function waitForModifiedGameText(win, expectedText, timeoutMs) {
+  await waitFor(win, () => modifiedGameHasText(win, expectedText), 'Runtime Preview modified game should show "' + expectedText + '"', timeoutMs);
+}
+
+async function modifiedGameHasText(win, expectedText) {
+  return evalInPage(win, (text) => {
+    const frame = document.querySelector('iframe.modified');
+    const doc = frame && (frame.contentDocument || frame.contentWindow && frame.contentWindow.document);
+    const bodyText = String(doc && doc.body && (doc.body.textContent || doc.body.innerText) || '');
+    return bodyText.includes(text);
+  }, expectedText);
+}
+
+async function advanceModifiedGameIfTextVisible(win, expectedText) {
+  if (await modifiedGameHasText(win, expectedText)) {
+    await clickModifiedGameText(win, expectedText);
+  }
+}
+
+async function clickModifiedGameText(win, expectedText) {
+  const result = await evalInPage(win, (text) => {
+    const frame = document.querySelector('iframe.modified');
+    const doc = frame && (frame.contentDocument || frame.contentWindow && frame.contentWindow.document);
+    if (!doc) {
+      return {ok: false, reason: 'missing_frame'};
+    }
+    const actionableSelector = [
+      'a',
+      'button',
+      'input[type="button"]',
+      'input[type="submit"]',
+      '[role="button"]',
+      '[onclick]',
+      '.card',
+      '.deck',
+      '.choice'
+    ].join(',');
+    const isVisible = (element) => {
+      if (!element || element === doc.body || element === doc.documentElement) {
+        return false;
+      }
+      const tag = String(element.tagName || '').toLowerCase();
+      if (tag === 'script' || tag === 'style') {
+        return false;
+      }
+      const rect = element.getBoundingClientRect();
+      const style = doc.defaultView.getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+    };
+    const candidates = Array.from(doc.querySelectorAll(actionableSelector)).filter((element) => {
+      const label = element.value || element.textContent || '';
+      return String(label).includes(text) && isVisible(element);
+    }).sort((left, right) => {
+      const leftText = String(left.value || left.textContent || '').length;
+      const rightText = String(right.value || right.textContent || '').length;
+      return leftText - rightText;
+    });
+    const target = candidates[0] || null;
+    if (!target) {
+      return {ok: false, reason: 'missing'};
+    }
+    target.scrollIntoView({block: 'center', inline: 'center'});
+    const MouseEventCtor = doc.defaultView && doc.defaultView.MouseEvent || MouseEvent;
+    target.dispatchEvent(new MouseEventCtor('mouseover', {bubbles: true, cancelable: true, view: doc.defaultView}));
+    target.dispatchEvent(new MouseEventCtor('mousedown', {bubbles: true, cancelable: true, view: doc.defaultView}));
+    target.dispatchEvent(new MouseEventCtor('mouseup', {bubbles: true, cancelable: true, view: doc.defaultView}));
+    target.click();
+    return {
+      ok: true,
+      tag: String(target.tagName || '').toLowerCase(),
+      text: String(target.value || target.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 200)
+    };
+  }, expectedText);
+  if (!result || !result.ok) {
+    throw new Error('Runtime Preview modified frame could not click player option: ' + expectedText + (result && result.reason ? ' (' + result.reason + ')' : ''));
+  }
+  await new Promise((resolve) => setTimeout(resolve, 160));
+}
+
+async function modifiedRuntimeRouteObservation(win, meta) {
+  const input = meta || {};
+  return evalInPage(win, (details) => {
+    const frame = document.querySelector('iframe.modified');
+    const frameWindow = frame && frame.contentWindow;
+    const doc = frame && (frame.contentDocument || frameWindow && frameWindow.document);
+    const engine = frameWindow && frameWindow.dendryUI && frameWindow.dendryUI.dendryEngine;
+    const state = engine && engine.state || {};
+    const qualitySource = state.qualities || state.Q || frameWindow && frameWindow.Q || {};
+    const qSnapshot = {};
+    Object.keys(qualitySource || {}).sort().forEach((key) => {
+      if (/^(qa_|route|next|scene|jump|menu|follow|public_order)/i.test(key)) {
+        const value = qualitySource[key];
+        if (value === null || ['string', 'number', 'boolean'].includes(typeof value)) {
+          qSnapshot[key] = value;
+        }
+      }
+    });
+    const bodyText = String(doc && doc.body && (doc.body.textContent || doc.body.innerText) || '').replace(/\s+/g, ' ').trim();
+    return {
+      evidenceKind: 'runtime_observed',
+      entryMode: String(details && details.entryMode || ''),
+      focusedEntry: Boolean(details && details.focusedEntry),
+      engineVersion: String(engine && (engine.version || engine.engineVersion) || frameWindow && frameWindow.DENDRY_VERSION || ''),
+      buildHash: String(frameWindow && (frameWindow.__DENDRY_MOD_STUDIO_BUILD_HASH__ || frameWindow.__BUILD_HASH__) || ''),
+      seed: String(state.seed || state.randomSeed || qualitySource.seed || ''),
+      sceneId: String(state.sceneId || ''),
+      observedSceneIdsSinceGoTo: Array.isArray(state.sceneIdsSinceGoTo) ? state.sceneIdsSinceGoTo.map(String) : [],
+      clickPath: Array.isArray(details && details.clickPath) ? details.clickPath.map(String) : [],
+      qSnapshot,
+      qDiff: details && details.qDiff || {},
+      bodyPreview: bodyText.slice(0, 240)
+    };
+  }, input);
+}
+
+function diffObjectSnapshots(before, after) {
+  const left = before || {};
+  const right = after || {};
+  const keys = Array.from(new Set(Object.keys(left).concat(Object.keys(right)))).sort();
+  return keys.reduce((out, key) => {
+    if (JSON.stringify(left[key]) !== JSON.stringify(right[key])) {
+      out[key] = {before: left[key], after: right[key]};
+    }
+    return out;
+  }, {});
+}
+
 async function runtimeGameSnapshot(win) {
   return evalInPage(win, () => {
     const engine = window.dendryUI && window.dendryUI.dendryEngine;
@@ -2606,6 +3191,56 @@ async function expectVisible(win, selector, message) {
     const rect = element.getBoundingClientRect();
     return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0 && !element.hidden && !element.classList.contains('hidden');
   }, selector), message || ('Expected visible: ' + selector));
+}
+
+async function visibleSelector(win, selectors) {
+  return evalInPage(win, (targetSelectors) => {
+    const isVisible = (element) => {
+      if (!element) {
+        return false;
+      }
+      const style = window.getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0 && !element.hidden && !element.classList.contains('hidden');
+    };
+    return targetSelectors.find((selector) => isVisible(document.querySelector(selector))) || '';
+  }, selectors);
+}
+
+async function expectAnyVisible(win, selectors, message) {
+  await waitFor(win, async () => Boolean(await visibleSelector(win, selectors)), message || ('Expected visible: ' + selectors.join(', ')));
+  return visibleSelector(win, selectors);
+}
+
+async function waitForAllHidden(win, selectors, message) {
+  await waitFor(win, () => evalInPage(win, (targetSelectors) => {
+    const isHidden = (element) => {
+      if (!element) {
+        return true;
+      }
+      const style = window.getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.display === 'none' || style.visibility === 'hidden' || rect.width === 0 || rect.height === 0 || element.hidden || element.classList.contains('hidden');
+    };
+    return targetSelectors.every((selector) => isHidden(document.querySelector(selector)));
+  }, selectors), message || ('Expected hidden: ' + selectors.join(', ')));
+}
+
+async function expectWelcomeSurfaceVisible(win, message) {
+  return expectAnyVisible(win, WELCOME_SURFACE_SELECTORS, message);
+}
+
+async function waitForWelcomeSurfaceHidden(win, message) {
+  return waitForAllHidden(win, WELCOME_SURFACE_SELECTORS, message);
+}
+
+async function expectWelcomeSurfaceHiddenOrMissing(win, message) {
+  return waitForWelcomeSurfaceHidden(win, message);
+}
+
+async function clickWelcomePrimary(win) {
+  const selector = await expectAnyVisible(win, WELCOME_PRIMARY_SELECTORS, 'Welcome Hub should expose a primary project-open action');
+  await click(win, selector);
 }
 
 async function waitForHidden(win, selector, message) {

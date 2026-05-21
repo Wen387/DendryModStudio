@@ -376,6 +376,7 @@
       flow: context.flow || context.editModel && context.editModel.flow || {nodes: [], edges: [], summary: {}},
       sourceStructureGraph: context.sourceStructureGraph || context.editModel && context.editModel.sourceStructureGraph || null,
       effects: effectEditors.filter((editor) => !editor.optionId && !editor.sectionId),
+      sectionEffects: effectEditors.filter((editor) => editor.sectionId),
       optionEffects: optionRows.map((option) => ({
         id: option.id,
         label: option.label,
@@ -1080,6 +1081,8 @@
   function optionBodyRows(context, sectionEditors) {
     const editors = context.editors || {};
     const optionEditors = ensureArray(editors.optionText);
+    const conditionEditors = ensureArray(editors.conditions).filter(isOptionConditionEditor);
+    const routeEditors = ensureArray(editors.routes).filter(isOptionRouteEditor);
     const unavailableEditors = ensureArray(editors.all).filter((editor) => String(editor && editor.role || '') === 'unavailable_text');
     const resultEditors = ensureArray(sectionEditors).filter((editor) => {
       const role = String(editor && editor.semanticRole || '');
@@ -1097,9 +1100,11 @@
         if (!fields.some(isOptionLabelEditor)) {
           fields.unshift(optionLabelFallbackEditor(option, index));
         }
+        const conditionFields = conditionEditors.filter((editor) => optionConditionMatches(editor, option));
+        const routeFields = routeEditors.filter((editor) => optionRouteMatches(editor, option));
         const unavailableFields = unavailableEditors.filter((editor) => optionUnavailableMatches(editor, option));
         const resultFields = resultEditors.filter((editor) => sectionEditorMatchesOption(editor, option));
-        const allFields = uniqueEditors(fields.concat(unavailableFields, resultFields));
+        const allFields = uniqueEditors(fields.concat(conditionFields, routeFields, unavailableFields, resultFields));
         return {
           id: option.id || 'option_' + (index + 1),
           targetId: option.targetId || '',
@@ -1161,6 +1166,35 @@
       return false;
     }
     if (editor.optionId && option.id && String(editor.optionId) === String(option.id)) {
+      return true;
+    }
+    return sectionEditorMatchesOption(editor, option);
+  }
+
+  function isOptionConditionEditor(editor) {
+    return String(editor && editor.role || '') === 'condition' &&
+      String(editor && editor.transform || '') !== 'goto_route_predicate';
+  }
+
+  function optionConditionMatches(editor, option) {
+    if (!editor || !option) {
+      return false;
+    }
+    if (editor.optionId && optionTextFieldMatchesOption(editor, option)) {
+      return true;
+    }
+    return sectionEditorMatchesOption(editor, option);
+  }
+
+  function isOptionRouteEditor(editor) {
+    return String(editor && editor.role || '') === 'route';
+  }
+
+  function optionRouteMatches(editor, option) {
+    if (!editor || !option) {
+      return false;
+    }
+    if (editor.optionId && optionTextFieldMatchesOption(editor, option)) {
       return true;
     }
     return sectionEditorMatchesOption(editor, option);

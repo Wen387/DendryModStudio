@@ -42,8 +42,9 @@
       const chooseIf = String(values.choose_if || '').trim();
       const unavailableText = String(values.unavailable_text || '').trim();
       const resultMode = String(values.result_mode || 'native').trim() || 'native';
+      const effect = composeEffectExpression(values, {qPrefix: false});
       const target = slugForStructurePreview(values.target_id) || slugForStructurePreview(label) || 'new_option';
-      if (!label && !result && !String(values.target_id || '').trim() && !chooseIf && !unavailableText && resultMode === 'native') {
+      if (!label && !result && !String(values.target_id || '').trim() && !chooseIf && !unavailableText && !effect && resultMode === 'native') {
         return '';
       }
       return [
@@ -52,6 +53,7 @@
         'result-mode: ' + resultMode,
         chooseIf ? 'choose-if: ' + chooseIf : '',
         unavailableText ? 'unavailable-subtitle: ' + unavailableText : '',
+        effect ? 'on-arrival: ' + effect : '',
         result || 'Result prose.'
       ].filter(Boolean).join('\n');
     }
@@ -65,16 +67,26 @@
       return ['# ' + section, condition ? '[? if ' + condition + ' : ' + (text || 'Conditional prose.') + ' ?]' : (text || 'Follow-up prose.')].join('\n');
     }
     if (action === 'add_trigger_effect' || action === 'add_option_effect') {
-      const variable = String(values.variable || '').trim().replace(/^Q\./, '');
-      const op = String(values.operation || '+=').trim() || '+=';
-      const value = String(values.value || '').trim();
-      const condition = String(values.condition || '').trim();
-      if (!variable || !value) {
+      const effect = composeEffectExpression(values, {qPrefix: true});
+      if (!effect) {
         return '';
       }
-      return 'Q.' + variable + ' ' + op + ' ' + value + (condition ? ' if ' + condition : '');
+      return effect;
     }
     return '';
+  }
+
+  function composeEffectExpression(values, options) {
+    const opts = options || {};
+    const variable = String(values.variable || values.effect_variable || '').trim().replace(/^Q\./, '');
+    const op = String(values.operation || values.effect_operation || '+=').trim() || '+=';
+    const value = String(values.value || values.effect_value || '').trim();
+    const condition = String(values.condition || values.effect_condition || '').trim();
+    if (!variable || !value) {
+      return '';
+    }
+    const sourceCondition = opts.qPrefix === false ? condition.replace(/\bQ\./g, '') : condition;
+    return (opts.qPrefix === false ? '' : 'Q.') + variable + ' ' + op + ' ' + value + (sourceCondition ? ' if ' + sourceCondition : '');
   }
 
   function readBuilderCommand(builder, options) {
@@ -206,13 +218,15 @@
     const chooseLine = lines.find((line) => /^\s*choose-if\s*:/i.test(line)) || '';
     const unavailableLine = lines.find((line) => /^\s*unavailable-(?:subtitle|text)\s*:/i.test(line)) || '';
     const resultModeLine = lines.find((line) => /^\s*result-mode\s*:/i.test(line)) || '';
+    const effectLines = lines.filter((line) => /^\s*on-arrival\s*:/i.test(line));
+    const firstEffect = effectLines[0] ? parseEffectDraft(effectLines[0].replace(/^\s*on-arrival\s*:\s*/i, '').replace(/;+$/, '').trim()) : null;
     const target = match && match[1] || (section.match(/^\s*#\s*(\S+)/) || [])[1] || '';
     const label = match && match[2] || '';
     const chooseIf = chooseLine.replace(/^\s*choose-if\s*:\s*/i, '').trim();
     const unavailableText = unavailableLine.replace(/^\s*unavailable-(?:subtitle|text)\s*:\s*/i, '').trim();
     const resultMode = resultModeLine.replace(/^\s*result-mode\s*:\s*/i, '').trim();
-    const result = lines.filter((line) => line !== first && line !== section && line !== chooseLine && line !== unavailableLine && line !== resultModeLine).join('\n').trim();
-    return {target, label, result, chooseIf, unavailableText, resultMode};
+    const result = lines.filter((line) => line !== first && line !== section && line !== chooseLine && line !== unavailableLine && line !== resultModeLine && !effectLines.includes(line)).join('\n').trim();
+    return {target, label, result, chooseIf, unavailableText, resultMode, effect: firstEffect || {variable: '', op: '+=', value: '', condition: ''}};
   }
 
   function parseBranchDraft(value) {

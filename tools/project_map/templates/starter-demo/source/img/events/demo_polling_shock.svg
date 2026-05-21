@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" role="img" aria-label="Polling shock placeholder">
+  <rect width="960" height="540" fill="#eef0e8"/>
+  <rect x="120" y="86" width="720" height="368" rx="20" fill="#fffaf2" stroke="#6d7d46" stroke-width="8"/>
+  <path d="M210 384V204M340 384V282M470 384V170M600 384V244M730 384V134" stroke="#3e88b3" stroke-width="54" stroke-linecap="round"/>
+  <path d="M190 386h560" stroke="#2b2b2b" stroke-width="10" stroke-linecap="round"/>
+  <path d="M206 214c104 66 190 20 264-40 96-78 154-76 260-38" fill="none" stroke="#a54f2a" stroke-width="12" stroke-linecap="round"/>
+  <text x="480" y="132" text-anchor="middle" font-family="serif" font-size="42" fill="#2b2b2b">Polling Shock</text>
+</svg>

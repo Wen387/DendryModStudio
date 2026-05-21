@@ -94,6 +94,7 @@ function checkObjectCanvasContracts() {
   const eventBuilder = read('viewer/preview_object_event_builder_ui.js');
   const structureUi = read('viewer/preview_object_structure_ui.js');
   const viewport = read('viewer/object_canvas_viewport.js');
+  const graphInteractions = read('viewer/content_graph_interactions.js');
   const shell = read('viewer/object_canvas_shell_ui.js');
   const editingCss = read('viewer/styles/editing.css');
 
@@ -106,6 +107,10 @@ function checkObjectCanvasContracts() {
   contains(objectUi, 'button.addEventListener(\'click\', () => handleCanvasZoom', 'Object Canvas zoom binding');
   contains(viewport, 'label.textContent = Math.round(scale * 100) + \'%\'', 'Object Canvas viewport label update');
   contains(viewport, 'board.style.transform = transform', 'Object Canvas viewport transform update');
+  contains(viewport, 'ZOOM_TRANSITION_MS', 'Object Canvas viewport smooth zoom transition timing');
+  contains(viewport, 'nextZoom(previous, action, event)', 'Object Canvas viewport should centralize stepped and wheel zoom scaling');
+  contains(viewport, 'viewportCanvas(root, event)', 'Object Canvas viewport should share pointer-centered zoom across Canvas surfaces');
+  contains(graphInteractions, 'options.onZoom(event.deltaY < 0 ? \'in\' : \'out\', event)', 'Object Graph wheel zoom should pass the pointer event into the shared viewport');
   contains(shell, 'data-object-canvas-action="toggle_board_chrome"', 'Object Canvas chrome toggle');
   contains(shell, 'aria-expanded="', 'Object Canvas chrome toggle accessibility state');
   contains(shell, 'modalActive ? \'\' : opts.bodyHtml', 'Object Canvas modal should not duplicate the full editor body behind large object editors');
@@ -163,7 +168,7 @@ function checkObjectCanvasContracts() {
   contains(read('viewer/event_workbench_ui.js'), 'renderEditAction(row, locale)', 'Event Workbench edit affordance renderer');
   contains(read('viewer/card_board_surface.js'), 'data-visible-edit-affordance="card-board"', 'Card Board edit affordance marker');
   contains(read('viewer/preview_object_editor.js'), 'data-visible-edit-affordance="object-canvas-preview"', 'Object Canvas preview edit affordance marker');
-  contains(read('viewer/preview_object_editor.js'), 'data-metadata-kind="', 'Object Canvas preview metadata layout marker');
+  contains(read('viewer/preview_object_metadata_ui.js'), 'data-metadata-kind="', 'Object Canvas preview metadata layout marker');
   contains(read('viewer/preview_object_editor.js'), 'data-object-canvas-asset-replacement="true"', 'Object Canvas exact asset directive replacement marker');
   contains(read('viewer/preview_object_editor.js'), 'data-object-canvas-asset-filter="true"', 'Object Canvas asset selectors should expose an inline filter for large project catalogs');
   contains(read('viewer/preview_object_editor.js'), 'data-existing-asset-field="', 'Object Canvas asset replacement should preserve the existing source field id');
@@ -214,7 +219,10 @@ function checkStoryboardContracts() {
   contains(workspace, '? closePaletteWithMotion(state, deps)', 'Storyboard palette toggle should route closing through motion');
   contains(workspace, 'storyPaletteOpen: true', 'Storyboard palette toggle should still open through palette refresh');
   contains(workspace, 'closePaletteWithMotion', 'Storyboard palette close should allow the drawer to animate out');
+  contains(workspace, 'currentOpen && next.getAttribute', 'Storyboard palette should detect already-open refreshes');
+  contains(workspace, 'next.classList.add(\'is-refreshing\')', 'Storyboard palette should suppress open animation during search/filter refreshes');
   contains(paletteCss, '.storyboard-palette.is-closing', 'Storyboard palette closing animation state');
+  contains(paletteCss, '.storyboard-palette.is-open.is-refreshing:not(.is-closing) .storyboard-palette-drawer', 'Storyboard palette filtering should not replay the open animation');
   contains(paletteCss, '@keyframes storyboard-palette-enter', 'Storyboard palette open animation');
   contains(paletteCss, '@keyframes storyboard-palette-exit', 'Storyboard palette close animation');
   contains(objectUi, 'handleStoryboardAction(action, target)', 'Object Canvas storyboard action bridge');
@@ -284,16 +292,25 @@ function checkRenderedAndPureBehavior() {
   const board = elementStub();
   const edges = elementStub();
   const label = elementStub();
+  const canvas = elementStub();
+  canvas.dataset = {objectCanvasGraphCanvas: 'true'};
+  canvas.getBoundingClientRect = () => ({left: 0, top: 0, width: 700, height: 420});
   const root = rootStub({
     '[data-object-canvas-graph-board]': board,
     '[data-object-canvas-graph-edges]': edges,
-    '[data-object-canvas-zoom-label]': label
+    '[data-object-canvas-zoom-label]': label,
+    '[data-object-canvas-graph-canvas]': canvas
   });
   const state = {canvasZoom: 1, canvasPanX: 0, canvasPanY: 0};
   viewport.zoom(root, state, 'in');
   assert(state.canvasZoom > 1, 'Object Canvas viewport zoom should increase state');
   assert(label.textContent === '110%', 'Object Canvas viewport zoom should update the label');
   assert(board.style.transform.includes('scale(1.100)'), 'Object Canvas viewport zoom should update board transform');
+  assert(board.style.transition.includes('transform'), 'Object Canvas viewport zoom should apply a short transform transition');
+  const centeredState = {canvasZoom: 1, canvasPanX: 0, canvasPanY: 0};
+  viewport.zoom(root, centeredState, 'in', {deltaY: -120, clientX: 350, clientY: 210, currentTarget: canvas});
+  assert(centeredState.canvasZoom > 1.01, 'Object Canvas viewport wheel zoom should use continuous scaling');
+  assert(centeredState.canvasPanX < 0 && centeredState.canvasPanY < 0, 'Object Canvas viewport wheel zoom should keep the pointer as the zoom center');
 
   const visibleField = fieldStub('title', 'visible', {rects: [{}]});
   const activeField = fieldStub('title', 'active');

@@ -17,22 +17,40 @@ if (Q.demo_cabinet_balance === undefined) { Q.demo_cabinet_balance = 0; }
 if (Q.demo_reform_mandate === undefined) { Q.demo_reform_mandate = 0; }
 if (Q.demo_opposition_heat === undefined) { Q.demo_opposition_heat = 0; }
 if (Q.demo_resolution_result === undefined) { Q.demo_resolution_result = 0; }
+if (Q.demo_year === undefined) { Q.demo_year = 2032; }
+if (Q.demo_month === undefined) { Q.demo_month = 9; }
+if (Q.demo_monthly_tick === undefined) { Q.demo_monthly_tick = 0; }
+if (Q.demo_press_risk === undefined) { Q.demo_press_risk = 0; }
+if (Q.demo_legislative_path === undefined) { Q.demo_legislative_path = 0; }
+if (Q.demo_budget_leak_seen === undefined) { Q.demo_budget_leak_seen = 0; }
+if (Q.demo_polling_shock_seen === undefined) { Q.demo_polling_shock_seen = 0; }
+if (Q.demo_council_deadlock_seen === undefined) { Q.demo_council_deadlock_seen = 0; }
+if (Q.news_1 === undefined) { Q.news_1 = "Office calendar opens in September 2032."; }
+if (Q.news_1_desc === undefined) { Q.news_1_desc = "The Civic Reform Office is ready for its first monthly docket."; }
+if (Q.news_2 === undefined) { Q.news_2 = ""; }
+if (Q.news_2_desc === undefined) { Q.news_2_desc = ""; }
+if (Q.news_3 === undefined) { Q.news_3 = ""; }
+if (Q.news_3_desc === undefined) { Q.news_3_desc = ""; }
 // ====== U. EVENT SEEN FLAGS ======
 !}
 
-= Dendry Mod Studio Starter Demo
+= Starter Demo Entry
 
-This bundled project is a safe place to learn how a Dendry mod is built. The
-next scene acts like a tiny in-game event: it has a title, a body, two choices,
-result text, and effects that change simple variables.
+This root scene initializes the demo state and then hands the player to
+repeatable card surfaces. The longer tour now lives on the Office Overview Card,
+so it can be opened again from the workspace hand.
 
-In Studio, open Explore or Design after loading this template. Select
-**A Small Campaign Office** to see how the source-backed text maps to the
-player-facing event. Select **Open the workspace hand** to see the minimal
-hand/deck/advisor skeleton used by card-style DendryNexus projects.
+Try the simplified SDAAH-like loop: open the hand, use a monthly action card,
+let the month advance, then read the docket and events that appear.
 
+Current calendar: [+ demo_year +] / [+ demo_month +]
+
+Latest civic wire: [+ news_1 +]
+
+- @demo_office_overview_card: Open the office overview card
 - @main: Open the workspace hand
-- @demo_campaign_pressure: Play the complex event chain
-- @demo_opening: Start the demo event
-- @demo_opening.demo_status: Check demo state
+- @demo_campaign_pressure: Play the civic reform chain
+- @post_event: Advance one month
+- @demo_opening: Start the office briefing
+- @demo_opening.demo_status: Check office state
 - @demo_opening.support_followup: Follow up on support

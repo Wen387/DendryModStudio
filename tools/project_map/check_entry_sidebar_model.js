@@ -167,8 +167,9 @@ async function main() {
   const starterModel = entrySidebar.buildEntryModel(indexed.index);
   assert(starterModel.root && starterModel.root.id === 'root', 'starter demo model should detect root entry scene');
   assert(starterModel.sidebar && starterModel.sidebar.exists === true && starterModel.sidebar.id === 'status', 'starter demo model should detect status sidebar scene');
-  assert(starterModel.root.firstOption && starterModel.root.firstOption.targetId === 'main', 'starter demo model should detect the whiteboard hand as the first playable route');
-  assert(starterModel.playableScenes.some((scene) => scene.id === 'main'), 'starter demo model should offer the whiteboard hand as a first playable scene choice');
+  assert(starterModel.root.firstOption && starterModel.root.firstOption.targetId === 'demo_office_overview_card', 'starter demo model should detect the repeatable overview card as the first playable route');
+  assert(starterModel.playableScenes.some((scene) => scene.id === 'demo_office_overview_card'), 'starter demo model should offer the repeatable overview card as a first playable scene choice');
+  assert(starterModel.playableScenes.some((scene) => scene.id === 'main'), 'starter demo model should still offer the whiteboard hand as a playable workspace choice');
   assert(fs.existsSync(path.join(TEMPLATE_ROOT, 'source', 'scenes', 'status.scene.dry')), 'starter demo should include status.scene.dry');
   const starterDraft = entrySidebar.defaultDraft(indexed.index);
   starterDraft.id = 'starter_entry_sidebar_probe';
@@ -191,7 +192,8 @@ async function main() {
   const starterStatusText = fs.readFileSync(path.join(prepared.root, 'source', 'scenes', 'status.scene.dry'), 'utf8');
   assert(starterRootText.includes('= Changed Starter Entry'), 'starter root should contain changed entry heading after apply');
   assert(!starterRootText.includes('player-facing event.'), 'starter root replacement should not leave old opening fragments behind');
-  assert(starterRootText.includes('- @main: Begin changed starter event'), 'starter root should keep the first route with the changed label');
+  assert(starterRootText.includes('- @demo_office_overview_card: Begin changed starter event'), 'starter root should keep the overview card first route with the changed label');
+  assert(starterRootText.includes('- @main: Open the workspace hand'), 'starter root should keep the workspace hand route after editing the first route label');
   assert(starterStatusText.includes('Changed support status is visible.'), 'starter status should contain changed conditional sidebar line');
   fs.rmSync(preparedRoot, {recursive: true, force: true});
   fs.rmSync(scratchRoot, {recursive: true, force: true});

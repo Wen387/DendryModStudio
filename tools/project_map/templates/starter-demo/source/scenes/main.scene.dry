@@ -5,12 +5,22 @@ max-cards: 3
 
 = Workspace Hand
 
-This is a whiteboard hand scene. It gives the project a ready-made card surface:
-one deck lane for action cards and one pinned advisor lane.
+Monthly office workspace.
 
-In a larger mod, this can become the place where monthly actions, party work,
-advisors, circles, or other repeatable systems live.
+Click the monthly deck to draw reusable action cards. Pinned briefing and
+advisor cards stay available, while drawn cards fill the hand slots below.
+This is the simplified SDAAH-like loop: prepare, advance the month, then let
+events read the changed Q variables.
 
+Calendar: [+ demo_year +] / [+ demo_month +]
+
+Latest civic wire: [+ news_1 +]
+
+- @demo_office_overview_card: Review office overview card
 - @demo_action_deck: Draw from the starter deck
 - #demo_advisor: Review starter advisor
+- @demo_advisor: Review organizing advisor
+- @demo_media_advisor: Review media advisor
+- @demo_budget_advisor: Review budget advisor
+- @post_event: Advance one month
 - @root: Back to start

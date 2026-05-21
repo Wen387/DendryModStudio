@@ -3,6 +3,7 @@
 
 const coverage = require('./authoring/visible_object_coverage_model.js');
 const semanticLogic = require('./authoring/semantic_logic_editor_model.js');
+const routeGuided = require('./authoring/route_guided_edit_model.js');
 
 function fail(message, details) {
   process.stderr.write(JSON.stringify(Object.assign({ok: false, message}, details || {}), null, 2) + '\n');
@@ -192,6 +193,95 @@ const goToBundleReplacement = semanticLogic.composeFieldReplacement(goToModel, {
   ]
 });
 assert(goToBundleReplacement === 'go-to: new_target if Q.ready; fallback_target', 'guided route editor should preserve go-to syntax for route bundles', {goToBundleReplacement, controls: goToModel.fieldControls});
+
+const guidedBody = {
+  id: 'guided_workflow',
+  routeEvidenceMap: {
+    items: [
+      {id: 'utility_call', sourceKind: 'flow', from: 'guided_workflow', owner: 'guided_workflow', target: 'utility_scene', rawTarget: 'utility_scene', predicate: '', evidenceClass: 'parser_backed', parserBacked: true, confidence: 'exact', source: src(eventPath, 24, 'go-to: utility_scene'), diagnostics: []},
+      {id: 'utility_jump', sourceKind: 'flow', from: 'guided_workflow', owner: 'guided_workflow', target: 'return_scene', rawTarget: 'return_scene', predicate: '', evidenceClass: 'script_derived', parserBacked: true, confidence: 'exact', source: src(eventPath, 25, 'set-jump: return_scene'), dynamicBinding: {kind: 'set_jump', primaryTarget: 'return_scene', candidateTargets: ['return_scene']}, diagnostics: []}
+    ],
+    summary: {}
+  },
+  routeUnderstanding: {
+    utilityCalls: [{
+      from: 'guided_workflow',
+      utilitySceneId: 'utility_scene',
+      setJumpTarget: 'return_scene',
+      returnBinding: 'jumpScene',
+      utilityKind: 'single_slot_return_utility',
+      semanticTier: 'guided_profile',
+      evidenceClass: 'profile_utility',
+      safeEditEligible: false,
+      source: src(eventPath, 24, 'go-to: utility_scene')
+    }]
+  },
+  scriptImpactMap: {
+    blocks: [{
+      id: 'route_table',
+      label: 'Route table',
+      scriptKind: 'script',
+      rawText: 'Q.next_scene = "return_scene"',
+      source: src(eventPath, 26, 'Q.next_scene = "return_scene"'),
+      safetyClass: 'guided',
+      routeInfluence: true,
+      dynamicRouteWrites: [{shape: 'literal_assignment', variable: 'next_scene', candidateTargets: ['return_scene'], primaryTarget: 'return_scene'}],
+      reads: [],
+      writes: ['next_scene'],
+      guidedEdits: []
+    }, {
+      id: 'manual_route_table',
+      label: 'Manual route table',
+      scriptKind: 'opaque_js',
+      rawText: 'Q.next_scene = pickRoute()',
+      source: src(eventPath, 27, 'Q.next_scene = pickRoute()'),
+      safetyClass: 'manual_boundary',
+      routeInfluence: true,
+      dynamicRouteWrites: [],
+      boundaryReasons: ['runtime_or_function_side_effect'],
+      reads: [],
+      writes: ['next_scene'],
+      guidedEdits: []
+    }],
+    summary: {},
+    categorySummary: {},
+    manualCategorySummary: {},
+    advancedCategorySummary: {}
+  }
+};
+const guidedProfile = [{utilityRouteScenes: [{sceneId: 'utility_scene', utilityKind: 'single_slot_return_utility', returnBinding: 'jumpScene'}]}];
+const guidedEntries = routeGuided.buildRouteGuidedEditModel(guidedBody, {
+  profileEvidence: guidedProfile,
+  routeOrderGroups: [{
+    id: 'guided_fallback',
+    sceneId: 'guided_workflow',
+    ownerId: 'guided_workflow',
+    routeField: 'goTo',
+    source: src(eventPath, 28, 'go-to: alpha if Q.route_flag = 1; omega'),
+    sourceRaw: 'go-to: alpha if Q.route_flag = 1; omega',
+    clauses: [
+      {rawTarget: 'alpha', predicate: 'Q.route_flag = 1', isFallback: false},
+      {rawTarget: 'omega', predicate: '', isFallback: true}
+    ]
+  }, {
+    id: 'guided_compound_fallback',
+    sceneId: 'guided_workflow',
+    ownerId: 'guided_workflow',
+    routeField: 'goTo',
+    source: src(eventPath, 29, 'go-to: alpha if Q.route_flag = 1 and Q.mode = 2; omega'),
+    sourceRaw: 'go-to: alpha if Q.route_flag = 1 and Q.mode = 2; omega',
+    clauses: [
+      {rawTarget: 'alpha', predicate: 'Q.route_flag = 1 and Q.mode = 2', isFallback: false},
+      {rawTarget: 'omega', predicate: '', isFallback: true}
+    ]
+  }]
+}).entries;
+['utility_pair', 'route_table_binding', 'explicit_fallback_helper'].forEach((kind) => {
+  const entry = guidedEntries.find((item) => item.kind === kind && item.safeEditEligible);
+  assert(entry && entry.editAction && entry.editAction.actionKind === 'open_route_editor' && entry.editAction.semanticEditor && entry.editAction.semanticEditor.kind === kind && !entry.editAction.draftAction, kind + ' should open Semantic Logic without draft rewrite actions', entry);
+});
+const manualGuided = guidedEntries.find((item) => item.kind === 'route_table_binding' && item.manualReasons.includes('manual_script_boundary'));
+assert(manualGuided && manualGuided.editAction && manualGuided.editAction.actionKind === 'open_source_slice' && !manualGuided.editAction.semanticEditor && !manualGuided.editAction.draftAction, 'manual guided route table evidence should route to Source Slice without draft rewrite', manualGuided);
 
 process.stdout.write(JSON.stringify({
   ok: true,

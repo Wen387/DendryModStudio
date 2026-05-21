@@ -1,0 +1,57 @@
+title: Civic Wire Card
+new-page: true
+is-card: true
+card-image: img/cards/demo_civic_wire_card.svg
+tags: demo_action
+frequency: 70
+priority: 1
+
+= Civic Wire Card
+
+This monthly card teaches the news side of the demo. It changes attention,
+press risk, and cabinet balance, then routes through the same month-advance
+tick as the other cards.
+
+- @feed_the_wire: Feed the civic wire
+- @print_correction: Print a correction
+- @spotlight_coalition: Spotlight coalition work
+
+@feed_the_wire
+title: Feed the civic wire
+subtitle: Raise attention and risk, then advance the month.
+on-arrival: demo_public_attention += 2; demo_press_risk += 2; demo_support += 1; demo_card_progress += 1
+
+The office gives reporters a clean story. It creates momentum, but the next
+monthly docket may notice the higher press risk.
+
+- @return_feed_the_wire: End the month
+
+@return_feed_the_wire
+go-to: post_event
+
+@print_correction
+title: Print a correction
+subtitle: Lower press risk through a dry notice.
+choose-if: demo_press_risk >= 1
+unavailable-subtitle: There is no risky story to correct yet.
+on-arrival: demo_press_risk -= 1; demo_cabinet_balance += 1; demo_public_attention -= 1; demo_card_progress += 1
+
+The correction is dull, which is exactly why it works.
+
+- @return_print_correction: End the month
+
+@return_print_correction
+go-to: post_event
+
+@spotlight_coalition
+title: Spotlight coalition work
+subtitle: Help cabinet allies, but invite opposition.
+on-arrival: demo_cabinet_balance += 1; demo_reform_mandate += 1; demo_opposition_heat += 1; demo_card_progress += 1
+
+The office frames reform as coalition work. Cabinet allies appreciate it, and
+opponents start counting votes in public.
+
+- @return_spotlight_coalition: End the month
+
+@return_spotlight_coalition
+go-to: post_event

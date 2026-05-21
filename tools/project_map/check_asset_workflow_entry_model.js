@@ -91,7 +91,7 @@ assert(eventCopy && eventCopy.sourcePath === '/tmp/New Art.png', 'event install 
 assert(cardCopy && cardCopy.path.includes('assets/studio/cards/asset_workflow_card'), 'card install plan should include asset copy target', cardBundle.installPlan);
 assert(installPlan.classifyOperation(eventCopy).status === 'guarded_apply', 'source-backed asset copy should be guarded apply', eventCopy);
 assert(!/This slice still does not copy files automatically/.test(en + zh + html), 'stale no-copy asset install copy should be removed');
-assert(en.includes('guarded asset copy operations') && zh.includes('guarded 資產複製操作'), 'asset install helper should describe guarded copy operations');
+assert(en.includes('guarded asset copy operations') && zh.includes('受控資產複製操作'), 'asset install helper should describe guarded copy operations');
 
 process.stdout.write(JSON.stringify({
   ok: true,

@@ -206,6 +206,8 @@ export interface RouteState {
   unresolvedTargetCount: number;
   preRouteScript: RoutePreRouteScriptSummary;
   runtimeSemantics: RouteRuntimeSemantics;
+  semanticTier?: 'static_exact' | 'guided_profile' | 'runtime_observed' | 'manual_boundary' | string;
+  safeEditEligible?: boolean;
   status: string;
   summaryLabel: string;
 }
@@ -569,6 +571,38 @@ export interface EventStructureCommandModelApi {
   isEventStructureField(key: unknown): boolean;
 }
 
+export type RouteSemanticTier = 'static_exact' | 'guided_profile' | 'runtime_observed' | 'manual_boundary' | string;
+
+export interface RouteTargetResolution {
+  status: string;
+  target?: string;
+  resolvedId?: string;
+  scope?: string;
+  candidateTargets?: string[];
+  candidates?: Array<Record<string, unknown>>;
+  quality?: string;
+  reason?: string;
+  proof?: string;
+  ambiguous?: boolean;
+  shadowed?: boolean;
+  [extension: string]: unknown;
+}
+
+export interface RouteDynamicBinding {
+  kind: string;
+  variable?: string;
+  source?: string;
+  shape?: string;
+  condition?: string;
+  selector?: string;
+  candidateTargets?: string[];
+  primaryTarget?: string;
+  profileBacked?: boolean;
+  manualBoundary?: boolean;
+  reason?: string;
+  [extension: string]: unknown;
+}
+
 export interface RouteEvidenceItem {
   id: string;
   sourceKind: string;
@@ -577,6 +611,13 @@ export interface RouteEvidenceItem {
   rawTarget: string;
   predicate: string;
   evidenceClass: string;
+  semanticTier?: RouteSemanticTier;
+  targetResolution?: RouteTargetResolution;
+  dynamicBinding?: RouteDynamicBinding | null;
+  runtimeSemantics?: RouteRuntimeSemantics | null;
+  safeEditEligible?: boolean;
+  dynamicTarget?: boolean;
+  targetSource?: string;
   parserBacked: boolean;
   confidence: string;
   owner: string;
@@ -619,6 +660,7 @@ export interface ScriptImpactBlock {
   reads: string[];
   writes: string[];
   guidedEdits: GuidedScriptEdit[];
+  dynamicRouteWrites?: Array<Record<string, unknown>>;
   optionInfluence?: boolean;
   routeInfluence?: boolean;
   displayInfluence?: boolean;
@@ -636,6 +678,279 @@ export interface ScriptImpactMap {
   [extension: string]: unknown;
 }
 
+export interface RouteUnderstandingEventSeriesStage {
+  sceneId?: string;
+  id?: string;
+  stageLabel?: string;
+  label?: string;
+  [extension: string]: unknown;
+}
+
+export interface RouteUnderstandingEventSeriesPattern {
+  id?: string;
+  prefix?: string;
+  match?: string;
+  sceneIds?: string[];
+  stages?: RouteUnderstandingEventSeriesStage[];
+  [extension: string]: unknown;
+}
+
+export interface RouteUnderstandingSchedulerSceneEvidence {
+  sceneId?: string;
+  id?: string;
+  tag?: string;
+  deckRoute?: string;
+  route?: string;
+  target?: string;
+  protected?: boolean;
+  source?: SourceRef;
+  [extension: string]: unknown;
+}
+
+export interface RouteUnderstandingProtectedRouterSceneEvidence {
+  sceneId?: string;
+  id?: string;
+  reason?: string;
+  source?: SourceRef;
+  [extension: string]: unknown;
+}
+
+export interface RouteUnderstandingUtilityRouteSceneEvidence {
+  sceneId?: string;
+  id?: string;
+  utilityKind?: string;
+  kind?: string;
+  returnBinding?: string;
+  binding?: string;
+  source?: SourceRef;
+  [extension: string]: unknown;
+}
+
+export interface RouteUnderstandingProfileEvidence {
+  profileId?: string;
+  profileName?: string;
+  eventSeriesPatterns?: RouteUnderstandingEventSeriesPattern[];
+  schedulerScenes?: RouteUnderstandingSchedulerSceneEvidence[];
+  protectedRouterScenes?: Array<string | RouteUnderstandingProtectedRouterSceneEvidence>;
+  utilityRouteScenes?: RouteUnderstandingUtilityRouteSceneEvidence[];
+  routeQualityVars?: unknown[];
+  routeHelperTables?: unknown[];
+  staticAliases?: Record<string, string> | unknown[];
+  packages?: RouteUnderstandingProfileEvidence[];
+  [extension: string]: unknown;
+}
+
+export interface RouteUnderstandingBuildOptions {
+  eventId?: string;
+  structure?: Record<string, unknown>;
+  projectIndex?: ProjectIndex | Record<string, unknown>;
+  profileEvidence?: RouteUnderstandingProfileEvidence[];
+  routeEvidence?: RouteEvidenceMap;
+  scriptImpactMap?: ScriptImpactMap;
+  eventSeriesPatterns?: RouteUnderstandingEventSeriesPattern[];
+  schedulerScenes?: RouteUnderstandingSchedulerSceneEvidence[];
+  protectedRouterScenes?: Array<string | RouteUnderstandingProtectedRouterSceneEvidence>;
+  utilityRouteScenes?: RouteUnderstandingUtilityRouteSceneEvidence[];
+  options?: {
+    projectIndex?: ProjectIndex | Record<string, unknown>;
+    profileEvidence?: RouteUnderstandingProfileEvidence[];
+    [extension: string]: unknown;
+  };
+  [extension: string]: unknown;
+}
+
+export interface RouteUnderstandingOutgoingRef {
+  target: string;
+  kind: string;
+  condition?: string;
+  source: SourceRef;
+  [extension: string]: unknown;
+}
+
+export interface RouteUnderstandingEventChainItem {
+  sceneId: string;
+  sourcePath: string;
+  stageLabel: string;
+  entryGuard: string;
+  metadata: {
+    tags?: string[];
+    priority?: string;
+    frequency?: string;
+    maxVisits?: string;
+    [extension: string]: unknown;
+  };
+  outgoingRefs: RouteUnderstandingOutgoingRef[];
+  semanticTier: RouteSemanticTier;
+  evidenceClass: string;
+  order?: number;
+  [extension: string]: unknown;
+}
+
+export interface RouteUnderstandingEventChainSection {
+  items: RouteUnderstandingEventChainItem[];
+  summary?: Record<string, unknown>;
+  [extension: string]: unknown;
+}
+
+export interface RouteUnderstandingSchedulerContextItem {
+  sceneId: string;
+  tag: string;
+  deckRoute: string;
+  entryMode: string;
+  readiness: 'scheduler_proven' | 'profile_guided' | 'focused_entry_only' | 'unknown_wiring' | string;
+  protected: boolean;
+  semanticTier: RouteSemanticTier;
+  source?: SourceRef;
+  [extension: string]: unknown;
+}
+
+export interface RouteUnderstandingSchedulerContextSection {
+  items: RouteUnderstandingSchedulerContextItem[];
+  summary?: Record<string, unknown>;
+  [extension: string]: unknown;
+}
+
+export interface RouteUnderstandingUtilityCall {
+  from: string;
+  utilitySceneId: string;
+  setJumpTarget: string;
+  returnBinding: string;
+  utilityKind: string;
+  semanticTier: RouteSemanticTier;
+  evidenceClass?: string;
+  safeEditEligible: boolean;
+  source?: SourceRef;
+  [extension: string]: unknown;
+}
+
+export interface RouteUnderstandingStateDependency {
+  ownerId: string;
+  predicateReads: string[];
+  preRouteWrites: string[];
+  directDependencyWrites: string[];
+  opaque: boolean;
+  manualReasons: string[];
+  [extension: string]: unknown;
+}
+
+export interface RouteUnderstandingModel {
+  schemaVersion: string;
+  kind: 'route_understanding';
+  eventId: string;
+  summary: Record<string, unknown>;
+  eventChain: RouteUnderstandingEventChainSection;
+  schedulerContext: RouteUnderstandingSchedulerContextSection;
+  utilityCalls: RouteUnderstandingUtilityCall[];
+  stateDependencies: RouteUnderstandingStateDependency[];
+  diagnostics?: DiagnosticRow[];
+  [extension: string]: unknown;
+}
+
+export interface RouteUnderstandingModelApi {
+  buildRouteUnderstanding(eventBody: unknown, options?: RouteUnderstandingBuildOptions): RouteUnderstandingModel;
+}
+
+export type RouteGuidedEditKind =
+  | 'utility_pair'
+  | 'route_table_binding'
+  | 'explicit_fallback_helper'
+  | string;
+
+export interface UtilityPairEdit {
+  from: string;
+  utilitySceneId: string;
+  setJumpTarget: string;
+  returnBinding: string;
+  utilityKind: string;
+  callSource: SourceRef;
+  setJumpSource: SourceRef;
+  callText: string;
+  setJumpText: string;
+  exactSource: boolean;
+  profileBacked: boolean;
+  [extension: string]: unknown;
+}
+
+export interface RouteBindingTableRowEdit {
+  id: string;
+  label: string;
+  key?: string;
+  condition?: string;
+  target: string;
+  source: SourceRef;
+  sourceText: string;
+  editable: boolean;
+  manualReason?: string;
+  [extension: string]: unknown;
+}
+
+export interface RouteBindingTableEdit {
+  variable: string;
+  shape: string;
+  sourceKind: string;
+  source: SourceRef;
+  sourceText: string;
+  candidateTargets: string[];
+  rows: RouteBindingTableRowEdit[];
+  [extension: string]: unknown;
+}
+
+export interface ExplicitFallbackSuggestion {
+  sourceText: string;
+  suggestedText: string;
+  conditionalTarget: string;
+  fallbackTarget: string;
+  predicate: string;
+  complementPredicate: string;
+  source: SourceRef;
+  editable: boolean;
+  manualReason?: string;
+  [extension: string]: unknown;
+}
+
+export interface RouteGuidedEditEntry {
+  id: string;
+  kind: RouteGuidedEditKind;
+  label: string;
+  semanticTier: RouteSemanticTier;
+  safeEditEligible: boolean;
+  installSafety: InstallSafety | string;
+  evidenceClass?: string;
+  source?: SourceRef;
+  sourceEvidence?: Record<string, unknown>;
+  manualReasons: string[];
+  editAction?: EditAction | Record<string, unknown>;
+  utilityPair?: UtilityPairEdit;
+  routeTable?: RouteBindingTableEdit;
+  fallbackSuggestion?: ExplicitFallbackSuggestion;
+  [extension: string]: unknown;
+}
+
+export interface RouteGuidedEditModel {
+  schemaVersion: string;
+  kind: 'route_guided_edit_model';
+  eventId: string;
+  entries: RouteGuidedEditEntry[];
+  summary: Record<string, unknown>;
+  diagnostics: DiagnosticRow[];
+}
+
+export interface RouteGuidedEditBuildOptions {
+  eventId?: string;
+  projectIndex?: ProjectIndex | Record<string, unknown>;
+  profileEvidence?: RouteUnderstandingProfileEvidence[];
+  routeEvidence?: RouteEvidenceMap;
+  scriptImpactMap?: ScriptImpactMap;
+  routeUnderstanding?: RouteUnderstandingModel;
+  routeOrderGroups?: unknown[];
+  [extension: string]: unknown;
+}
+
+export interface RouteGuidedEditModelApi {
+  buildRouteGuidedEditModel(eventBody: unknown, options?: RouteGuidedEditBuildOptions): RouteGuidedEditModel;
+  build?: (eventBody: unknown, options?: RouteGuidedEditBuildOptions) => RouteGuidedEditModel;
+}
+
 export interface RouteScriptIntelligenceModel {
   schemaVersion: string;
   kind: 'route_script_intelligence_model';
@@ -643,6 +958,8 @@ export interface RouteScriptIntelligenceModel {
   eventId: string;
   routes: RouteEvidenceMap;
   scripts: ScriptImpactMap;
+  routeUnderstanding?: RouteUnderstandingModel | null;
+  routeGuidedEdits?: RouteGuidedEditModel | null;
   guidedScriptEdits: GuidedScriptEdit[];
   diagnostics: DiagnosticRow[];
   summary: Record<string, unknown>;

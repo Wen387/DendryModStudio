@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 540" role="img" aria-label="Monthly docket placeholder">
+  <rect width="960" height="540" fill="#ebe8df"/>
+  <rect x="120" y="72" width="720" height="396" rx="18" fill="#fffaf2" stroke="#9e7754" stroke-width="8"/>
+  <rect x="160" y="132" width="640" height="54" fill="#d7c8ad"/>
+  <g fill="#f5efe3" stroke="#c7ad86" stroke-width="4">
+    <rect x="160" y="214" width="140" height="92"/>
+    <rect x="324" y="214" width="140" height="92"/>
+    <rect x="488" y="214" width="140" height="92"/>
+    <rect x="652" y="214" width="148" height="92"/>
+    <rect x="160" y="330" width="140" height="92"/>
+    <rect x="324" y="330" width="140" height="92"/>
+    <rect x="488" y="330" width="140" height="92"/>
+    <rect x="652" y="330" width="148" height="92"/>
+  </g>
+  <text x="480" y="118" text-anchor="middle" font-family="serif" font-size="42" fill="#2b2b2b">September 2032</text>
+  <text x="480" y="170" text-anchor="middle" font-family="serif" font-size="28" fill="#6f5a45">Monthly Docket</text>
+</svg>

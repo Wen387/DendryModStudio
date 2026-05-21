@@ -3,6 +3,7 @@
 
 const eventDraft = require('./authoring/event_draft.js');
 const canvasModel = require('./authoring/object_authoring_canvas_model.js');
+const previewEditor = require('./viewer/preview_object_editor.js');
 
 function fail(message, detail) {
   process.stderr.write('FAIL: ' + message + (detail ? '\n' + JSON.stringify(detail, null, 2) : '') + '\n');
@@ -52,7 +53,8 @@ assert(valid.ok, 'returnTarget should resolve to a same-event section', valid.di
 const scene = eventDraft.renderSceneDry(baseDraft, index);
 assert(scene.includes('@continue_first\n' + 'go-to: follow_up'), 'rendered result route should go to follow_up', scene);
 assert(scene.includes('@follow_up'), 'rendered scene should include follow-up section anchor', scene);
-assert(scene.includes('go-to: root'), 'rendered section exit route should return to root', scene);
+assert(scene.includes('@continue_second\n' + 'go-to: route_authoring_event'), 'root return routes should target the generated event opening scene id', scene);
+assert(scene.includes('@follow_up\n' + 'title: Follow-up') && scene.includes('go-to: route_authoring_event'), 'rendered section exit route should return to the event opening scene id', scene);
 
 const nativeDraft = JSON.parse(JSON.stringify(baseDraft));
 nativeDraft.id = 'capital_strike_like';
@@ -99,16 +101,46 @@ assert(!invalid.ok && codes(invalid).includes('event_draft.missing_route_target'
 
 const updated = canvasModel.buildNewEventCanvas(index, baseDraft, {
   values: {
+    'option.0.gotoAfter': 'continue_first_edit',
     'option.0.returnTarget': 'root',
+    'option.0.chooseIf': 'public_order >= 2',
+    'option.0.unavailableText': 'Order must be stronger.',
+    'event.section.0.condition': 'public_order >= 1',
     'event.section.0.exitTarget': 'follow_up'
   }
 });
 assert(updated.ok, 'route field edits should keep the draft valid', updated.changeState.diagnostics);
+assert(updated.changeState.draft.options[0].gotoAfter === 'continue_first_edit', 'option target route field should write back to EventDraft');
 assert(updated.changeState.draft.options[0].returnTarget === 'root', 'option return route field should write back to EventDraft');
+assert(updated.changeState.draft.options[0].chooseIf === 'public_order >= 2', 'option condition field should write back to EventDraft');
+assert(updated.changeState.draft.options[0].unavailableText === 'Order must be stronger.', 'option unavailable text field should write back to EventDraft');
+assert(updated.changeState.draft.sections[0].condition === 'public_order >= 1', 'section condition field should write back to EventDraft');
 assert(updated.changeState.draft.sections[0].exitTarget === 'follow_up', 'section exit route field should write back to EventDraft');
+assert(updated.changeState.output.sceneDry.includes('@first\n' + 'title: First path\n' + 'choose-if: public_order >= 2\n' + 'unavailable-subtitle: Order must be stronger.'), 'option condition and unavailable text should render into the install preview');
+assert(updated.changeState.output.sceneDry.includes('@follow_up\n' + 'title: Follow-up\n' + 'view-if: public_order >= 1'), 'section condition should render into the install preview');
 assert(updated.eventBody.options[0].fields.some((field) => field.id === 'option.0.returnTarget' && field.role === 'route'), 'route editor field should be exposed on options');
+assert(updated.eventBody.options[0].fields.some((field) => field.id === 'option.0.chooseIf' && field.value === 'public_order >= 2'), 'condition editor field should be exposed on options');
+assert(updated.eventBody.options[0].fields.some((field) => field.id === 'option.0.unavailableText' && field.value === 'Order must be stronger.'), 'unavailable text editor field should be exposed on options');
+assert(updated.eventBody.branchSections.some((field) => field.id === 'event.section.0.condition' && field.value === 'public_order >= 1'), 'section condition editor field should be exposed on follow-up sections');
 assert(updated.eventBody.branchSections.some((field) => field.id === 'event.section.0.exitTarget' && field.role === 'route'), 'route editor field should be exposed on follow-up sections');
 assert(updated.eventBody.eventGraph.edges.some((edge) => edge.kind === 'exit_route' && edge.targetId === 'follow_up'), 'event graph should reflect edited section exit route');
+assert(updated.eventBody.eventGraph.edges.every((edge) => edge.id && edge.sourceKind === 'draft' && edge.evidenceClass === 'draft' && edge.fieldId), 'route map edges should carry stable ids, draft evidence, and editable fields', updated.eventBody.eventGraph.edges);
+assert(updated.eventBody.eventGraph.edges.every((edge) => edge.semanticTier === 'static_exact' && edge.safeEditEligible === true && edge.targetResolution && edge.dynamicBinding), 'draft Route Map edges should expose semantic tier, target resolution, dynamic binding placeholder, and safe edit eligibility', updated.eventBody.eventGraph.edges);
+assert(updated.eventBody.eventGraph.edges.some((edge) => edge.kind === 'return_route' && edge.fieldId === 'option.0.returnTarget' && edge.installSafety === 'guarded_apply'), 'return route edge should point at the EventDraft returnTarget field');
+assert(updated.eventBody.eventGraph.nodes.some((node) => node.id === 'option:first' && node.secondaryActions.some((action) => action.fieldId === 'option.0.chooseIf' && action.editAction && action.editAction.draftAction)), 'Route Map option node should expose a draft condition edit action');
+assert(updated.eventBody.eventGraph.nodes.some((node) => node.id === 'option:first' && node.secondaryActions.some((action) => action.fieldId === 'option.0.unavailableText' && action.editAction && action.editAction.draftAction)), 'Route Map option node should expose a draft unavailable-text edit action');
+assert(updated.eventBody.eventGraph.nodes.some((node) => node.id === 'section:follow_up' && node.secondaryActions.some((action) => action.fieldId === 'event.section.0.condition' && action.editAction && action.editAction.draftAction)), 'Route Map section node should expose a draft condition edit action');
+const routeMapHtml = previewEditor.render(updated);
+assert(routeMapHtml.includes('data-preview-object-choice-logic="true"'), 'choice editor should render route/condition controls inside the owning choice');
+assert(routeMapHtml.includes('data-object-canvas-field="option.0.chooseIf"') && routeMapHtml.includes('data-object-canvas-field="option.0.returnTarget"'), 'choice editor should expose draft condition and return route fields on the choice row');
+assert(routeMapHtml.includes('data-preview-object-route-map="true"'), 'UI should render the structured Route Map panel');
+assert(routeMapHtml.includes('data-preview-object-route-causal-flow="true"') && routeMapHtml.includes('data-route-causal-edge="'), 'Route Map should render a cause/gate/result causal flow before raw route rows');
+assert(routeMapHtml.includes('data-route-map-field="option.0.gotoAfter"'), 'Route Map should expose editable target route field handles');
+assert(routeMapHtml.includes('data-route-map-field="option.0.returnTarget"'), 'Route Map should expose editable return route field handles');
+assert(routeMapHtml.includes('data-route-map-field="option.0.chooseIf"'), 'Route Map should expose editable condition field handles');
+assert(routeMapHtml.includes('data-route-map-field="option.0.unavailableText"'), 'Route Map should expose editable unavailable-text field handles');
+assert(routeMapHtml.includes('data-route-map-field="event.section.0.condition"'), 'Route Map should expose editable section condition field handles');
+assert(routeMapHtml.includes('data-route-map-field="event.section.0.exitTarget"'), 'Route Map should expose editable section exit field handles');
 
 const createdWithNativeOption = canvasModel.buildNewEventCanvas(index, nativeDraft, {
   values: {

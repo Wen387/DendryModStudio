@@ -1,14 +1,15 @@
 title: Starter Advisor
 new-page: true
 is-pinned-card: true
+card-image: img/cards/demo_advisor.svg
 tags: demo_advisor
 subtitle: A minimal persistent advisor lane
 
 = Starter Advisor
 
 This pinned card acts like a tiny advisor, Circle, or standing organization
-surface. It stays available from the hand and can be replaced with the user's
-own persistent actor.
+surface. It stays available from the hand, so players can return to it before
+entering the event chain.
 
 - @ask_for_help: Ask for organizing help
 - @private_counsel: Request private counsel
@@ -17,12 +18,9 @@ own persistent actor.
 @ask_for_help
 title: Ask for organizing help
 subtitle: Gain a little trust.
-on-arrival: {!
-Q.demo_advisor_trust = (Q.demo_advisor_trust || 0) + 1;
-Q.demo_support = (Q.demo_support || 0) + 1;
-!}
+on-arrival: demo_advisor_trust += 1; demo_support += 1
 
-The advisor helps the organization turn a loose idea into a modest first step.
+The advisor helps the office turn a loose idea into volunteer support.
 
 - @return_ask_for_help: Continue
 
@@ -32,10 +30,7 @@ go-to: main
 @private_counsel
 title: Request private counsel
 subtitle: Prepare a compromise path.
-on-arrival: {!
-Q.demo_advisor_trust = (Q.demo_advisor_trust || 0) + 1;
-Q.demo_cabinet_balance = (Q.demo_cabinet_balance || 0) + 1;
-!}
+on-arrival: demo_advisor_trust += 1; demo_cabinet_balance += 2
 
 The advisor drafts a compromise note that can matter during the complex event
 chain.
@@ -48,7 +43,8 @@ go-to: main
 @wait_for_now
 title: Wait for now
 
-The advisor remains available while the organization keeps listening.
+The advisor remains available. This option has no effect, which is useful when
+testing how Studio distinguishes text-only choices from state-changing choices.
 
 - @return_wait_for_now: Continue
 

@@ -29,6 +29,13 @@
     variable_editor: 'variables'
   };
 
+  const EVENT_PATTERNS = [
+    {value: 'branching_consequence', label: 'Branching Consequence Event'},
+    {value: 'pure_text', label: 'Pure Text Event'},
+    {value: 'conditional_menu_loop', label: 'Conditional Menu / Loop Event'}
+  ];
+  const DEFAULT_EVENT_PATTERN = 'branching_consequence';
+
   const BODIES = contentBodiesApi();
   const variableMapCache = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
 
@@ -458,27 +465,230 @@
     };
   }
 
-  function defaultEventDraft() {
-    return {
+  function defaultEventDraft(pattern) {
+    return eventDraftForPattern(typeof pattern === 'string' ? pattern : DEFAULT_EVENT_PATTERN);
+  }
+
+  function eventPatternOptions() {
+    return EVENT_PATTERNS.map((item) => Object.assign({}, item));
+  }
+
+  function normalizeEventPattern(value) {
+    const text = String(value || '').trim();
+    return EVENT_PATTERNS.some((item) => item.value === text) ? text : '';
+  }
+
+  function eventPatternForDraft(draft) {
+    const value = isObject(draft) ? draft : {};
+    if (ensureArray(value.sections).some((section) => ensureArray(section && section.options).length)) {
+      return 'conditional_menu_loop';
+    }
+    if (String(value.eventShape || '').trim() === 'pure_event' || ensureArray(value.options).length === 0) {
+      return 'pure_text';
+    }
+    return 'branching_consequence';
+  }
+
+  function eventDraftForPattern(pattern, baseDraft) {
+    const normalized = normalizeEventPattern(pattern) || DEFAULT_EVENT_PATTERN;
+    const base = isObject(baseDraft) ? baseDraft : {};
+    if (normalized === 'pure_text') {
+      return pureTextEventDraft(base);
+    }
+    if (normalized === 'conditional_menu_loop') {
+      return conditionalMenuLoopEventDraft(base);
+    }
+    return branchingConsequenceEventDraft(base);
+  }
+
+  function sharedEventDraftFields(baseDraft, defaults) {
+    const base = isObject(baseDraft) ? baseDraft : {};
+    const id = safeId(base.id || defaults.id || 'new_world_event');
+    const title = String(defaults.title || base.title || 'New World Event').trim();
+    const out = {
       schemaVersion: '0.1',
       kind: 'world_event',
-      eventShape: 'choice_event',
+      id,
+      title,
+      subtitle: String(defaults.subtitle || '').trim(),
+      heading: String(defaults.heading || title).trim(),
+      tags: ensureArray(defaults.tags).length ? ensureArray(defaults.tags).slice() : ['event', 'world'],
+      newPage: defaults.newPage === undefined ? true : Boolean(defaults.newPage),
+      when: isObject(base.when) ? clone(base.when) : {year: 1936, monthStart: 1, monthEnd: 3, requires: '', priority: 0},
+      introParagraphs: paragraphs(defaults.introParagraphs || defaults.intro || 'Write the opening event text here.'),
+      effectsOnTrigger: [],
+      rawEffectsOnTrigger: []
+    };
+    ['assetRefs', 'assetInstallRequests', 'assetPlacements'].forEach((key) => {
+      if (Array.isArray(base[key]) && base[key].length) {
+        out[key] = clone(base[key]);
+      }
+    });
+    return out;
+  }
+
+  function branchingConsequenceEventDraft(baseDraft) {
+    const draft = sharedEventDraftFields(baseDraft, {
       id: 'new_world_event',
       title: 'New World Event',
-      subtitle: '',
       heading: 'New World Event',
-      seenFlag: 'new_world_event_seen',
-      useSeenFlag: true,
       tags: ['event', 'world'],
-      newPage: true,
-      when: {year: 1936, monthStart: 1, monthEnd: 3, requires: '', priority: 0},
-      introParagraphs: ['Write the opening event text here.'],
-      effectsOnTrigger: [],
-      rawEffectsOnTrigger: [],
+      introParagraphs: ['Write the opening event text here.']
+    });
+    draft.eventShape = 'choice_event';
+    draft.seenFlag = draft.id + '_seen';
+    draft.useSeenFlag = true;
+    draft.options = [
+      {id: 'option_1', label: 'Take the first path', narrativeParagraphs: ['The first consequence appears.'], effects: [], resultMode: 'continue', gotoAfter: 'continue_option_1', returnTarget: 'root'},
+      {id: 'option_2', label: 'Choose another path', narrativeParagraphs: ['The second consequence appears.'], effects: [], resultMode: 'continue', gotoAfter: 'continue_option_2', returnTarget: 'root'}
+    ];
+    return draft;
+  }
+
+  function pureTextEventDraft(baseDraft) {
+    const draft = sharedEventDraftFields(baseDraft, {
+      id: 'new_world_event',
+      title: 'New Text Event',
+      heading: 'New Text Event',
+      tags: ['event'],
+      introParagraphs: ['Write the event text here.']
+    });
+    draft.eventShape = 'pure_event';
+    draft.useSeenFlag = false;
+    draft.seenFlag = '';
+    draft.rawViewIf = '';
+    draft.options = [];
+    return draft;
+  }
+
+  function conditionalMenuLoopEventDraft(baseDraft) {
+    const draft = sharedEventDraftFields(baseDraft, {
+      id: 'new_world_event',
+      title: 'New Menu Event',
+      heading: 'New Menu Event',
+      tags: ['event', 'world'],
+      introParagraphs: ['A situation opens into a follow-up menu.']
+    });
+    draft.eventShape = 'choice_event';
+    draft.seenFlag = draft.id + '_seen';
+    draft.useSeenFlag = true;
+    draft.options = [
+      {
+        id: 'open_menu',
+        label: 'Review the situation',
+        narrativeParagraphs: ['The discussion moves into a focused menu.'],
+        effects: [],
+        resultMode: 'native',
+        returnTarget: 'menu_loop'
+      },
+      {
+        id: 'quick_exit',
+        label: 'Leave it for now',
+        narrativeParagraphs: ['The matter is left alone for the moment.'],
+        effects: [],
+        resultMode: 'continue',
+        gotoAfter: 'continue_quick_exit',
+        returnTarget: 'root'
+      }
+    ];
+    draft.sections = [{
+      id: 'menu_loop',
+      title: 'Follow-up menu',
+      condition: 'year >= 1936',
+      paragraphs: ['Choose a follow-up action or return to the opening question.'],
+      exitTarget: 'root',
       options: [
-        {id: 'option_1', label: 'Take the first path', narrativeParagraphs: ['The first consequence appears.'], effects: [], gotoAfter: 'continue_option_1'},
-        {id: 'option_2', label: 'Choose another path', narrativeParagraphs: ['The second consequence appears.'], effects: [], gotoAfter: 'continue_option_2'}
+        {
+          id: 'follow_up_action',
+          label: 'Take the follow-up action',
+          chooseIf: 'year >= 1936',
+          unavailableText: 'The situation is not ready yet.',
+          narrativeParagraphs: ['The follow-up action changes the situation.'],
+          effects: [],
+          resultMode: 'continue',
+          gotoAfter: 'continue_follow_up_action',
+          returnTarget: 'menu_loop'
+        },
+        {
+          id: 'return_to_opening',
+          label: 'Return to the opening question',
+          narrativeParagraphs: ['The discussion circles back to the first choice.'],
+          effects: [],
+          resultMode: 'native',
+          returnTarget: 'root'
+        }
       ]
+    }];
+    return draft;
+  }
+
+  function shouldApplyEventPattern(draft, data) {
+    if (!has(data, 'event.pattern')) {
+      return false;
+    }
+    const pattern = normalizeEventPattern(data['event.pattern']);
+    if (!pattern) {
+      return false;
+    }
+    if (booleanValue(data['event.patternReset'])) {
+      return true;
+    }
+    return isPristineEventPatternDraft(draft);
+  }
+
+  function isPristineEventPatternDraft(draft) {
+    const value = isObject(draft) ? draft : {};
+    const signature = eventDraftPatternSignature(value);
+    return EVENT_PATTERNS.some((item) => signature === eventDraftPatternSignature(eventDraftForPattern(item.value, value)));
+  }
+
+  function eventDraftPatternSignature(draft) {
+    const value = isObject(draft) ? draft : {};
+    return JSON.stringify({
+      eventShape: String(value.eventShape || ''),
+      title: String(value.title || ''),
+      subtitle: String(value.subtitle || ''),
+      heading: String(value.heading || ''),
+      tags: ensureArray(value.tags).map(String),
+      newPage: value.newPage === false ? false : true,
+      useSeenFlag: Boolean(value.useSeenFlag),
+      rawViewIf: String(value.rawViewIf || ''),
+      when: isObject(value.when) ? value.when : {},
+      introParagraphs: ensureArray(value.introParagraphs).map(String),
+      effectsOnTrigger: ensureArray(value.effectsOnTrigger),
+      rawEffectsOnTrigger: ensureArray(value.rawEffectsOnTrigger),
+      options: ensureArray(value.options).map(eventOptionPatternSignature),
+      sections: ensureArray(value.sections).map(eventSectionPatternSignature)
+    });
+  }
+
+  function eventOptionPatternSignature(option) {
+    const value = isObject(option) ? option : {};
+    return {
+      id: String(value.id || ''),
+      label: String(value.label || value.title || ''),
+      subtitle: String(value.subtitle || ''),
+      chooseIf: String(value.chooseIf || ''),
+      unavailableText: String(value.unavailableText || ''),
+      resultMode: String(value.resultMode || ''),
+      gotoAfter: String(value.gotoAfter || value.afterResultTarget || ''),
+      returnTarget: String(value.returnTarget || value.afterReturnTarget || ''),
+      narrativeParagraphs: ensureArray(value.narrativeParagraphs).map(String),
+      effects: ensureArray(value.effects),
+      rawEffects: ensureArray(value.rawEffects)
+    };
+  }
+
+  function eventSectionPatternSignature(section) {
+    const value = isObject(section) ? section : {};
+    return {
+      id: String(value.id || ''),
+      title: String(value.title || value.heading || ''),
+      condition: String(value.condition || value.viewIf || value.chooseIf || ''),
+      paragraphs: ensureArray(value.paragraphs || value.narrativeParagraphs).map(String),
+      exitTarget: String(value.exitTarget || value.returnTarget || ''),
+      effects: ensureArray(value.effects),
+      options: ensureArray(value.options).map(eventOptionPatternSignature)
     };
   }
 
@@ -800,6 +1010,9 @@
   function applyEventValues(baseDraft, values) {
     let draft = clone(baseDraft);
     const data = isObject(values) ? values : {};
+    if (shouldApplyEventPattern(draft, data)) {
+      draft = eventDraftForPattern(data['event.pattern'], draft);
+    }
     if (!draft.when) {
       draft.when = {};
     }
@@ -2217,9 +2430,13 @@
   const api = {
     SUPPORTED_TEMPLATES,
     TEMPLATE_BY_KIND,
+    EVENT_PATTERNS,
     isSupportedTemplate,
     templateFromDraft,
     defaultDraftForTemplate,
+    eventPatternOptions,
+    eventPatternForDraft,
+    eventDraftForPattern,
     buildTemplateCanvas
   };
 

@@ -105,6 +105,88 @@ function sameList(left, right) {
   return left.every((value, index) => value === right[index]);
 }
 
+const roughZhTermRules = [
+  {
+    pattern: /本刀/,
+    reason: 'use neutral product wording instead of stray debug phrasing'
+  },
+  {
+    pattern: /\binstall plan(?:\s+JSON)?\b|\binstall-plan JSON\b/i,
+    reason: 'use 修改計畫 or 審查與套用 wording'
+  },
+  {
+    pattern: /\bguarded(?: replacement| apply| install| copy| insert)?\b/i,
+    reason: 'use 受控, 受保護, or 精確核對 wording'
+  },
+  {
+    pattern: /\bsource evidence\b/i,
+    reason: 'use 來源證據'
+  },
+  {
+    pattern: /\bmanual boundary\b/i,
+    reason: 'use 手動邊界'
+  },
+  {
+    pattern: /\bfallback(?:\s+到)?\b/i,
+    reason: 'use 備援路由 or 明確備援'
+  },
+  {
+    pattern: /\bprofile\b/i,
+    reason: 'use 設定檔'
+  },
+  {
+    pattern: /\bruntime\b/i,
+    reason: 'use 實機, 實機預覽, or 執行環境'
+  },
+  {
+    pattern: /\bliteral\b/i,
+    reason: 'use 字面值'
+  },
+  {
+    pattern: /高級確認/,
+    reason: 'use 進階確認'
+  },
+  {
+    pattern: /零有效|多有效/,
+    reason: 'describe the route validity problem in user-facing language'
+  },
+  {
+    pattern: /parity 修復/i,
+    reason: 'use 保留度修復'
+  },
+  {
+    pattern: /路由地圖/,
+    reason: 'use Route Map consistently as the feature name'
+  },
+  {
+    pattern: /Utility scene/i,
+    reason: 'use 工具場景'
+  },
+  {
+    pattern: /Focused Entry/i,
+    reason: 'use 聚焦入口'
+  },
+  {
+    pattern: /menu 段落/i,
+    reason: 'use 選單段落'
+  }
+];
+
+function roughZhTermViolations(entries) {
+  const violations = [];
+  entries.forEach((value, key) => {
+    if (!cjkPattern.test(value)) {
+      return;
+    }
+    roughZhTermRules.forEach((rule) => {
+      if (rule.pattern.test(value)) {
+        violations.push(key + ' contains "' + rule.pattern + '": ' + rule.reason);
+      }
+    });
+  });
+  return violations.sort();
+}
+
 const html = fs.readFileSync(VIEWER_HTML, 'utf8');
 const welcomeUiSource = fs.readFileSync(path.join(VIEWER_DIR, 'welcome_surface_ui.js'), 'utf8');
 const htmlAndInjectedSurfaces = html + '\n' + welcomeUiSource;
@@ -134,6 +216,9 @@ const englishValuesWithCjk = Array.from(dictionaries.en.entries())
   .map(([key]) => key)
   .sort();
 assert(englishValuesWithCjk.length === 0, 'en dictionary values should not contain CJK text: ' + englishValuesWithCjk.join(', '));
+
+const roughZhTerms = roughZhTermViolations(dictionaries['zh-Hant']);
+assert(roughZhTerms.length === 0, 'zh-Hant dictionary contains rough engineering terms:\n' + roughZhTerms.join('\n'));
 
 const tokenMismatches = Array.from(enKeys)
   .filter((key) => zhKeys.has(key))
@@ -364,5 +449,6 @@ process.stdout.write(JSON.stringify({
   ok: true,
   checkedKeys: zhKeys.size,
   enKeys: enKeys.size,
-  concreteViewerKeys: concreteViewerKeys.size
+  concreteViewerKeys: concreteViewerKeys.size,
+  roughZhTermRules: roughZhTermRules.length
 }, null, 2) + '\n');

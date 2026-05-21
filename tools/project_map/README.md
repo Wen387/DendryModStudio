@@ -128,7 +128,7 @@ The desktop shell:
   temporary copies are built separately, the install plan is applied only to the
   modified copy, and a `127.0.0.1` compare page shows original versus modified.
 
-Current v0.97.6 limits:
+Current v0.97.8 limits:
 
 - release builds include the Python runtime used by the desktop indexer;
 - public release installers are unsigned and still need clean-machine QA,
@@ -189,7 +189,7 @@ Current v0.97.6 limits:
   asset files. Preview readiness is exposed by
   `ProjectMapPreviewModel` as `ready_to_review`, `needs_review`, or
   `manual_review`; it is an authoring confidence signal, not runtime proof.
-- v0.97.6 keeps the faster Windows installer layout from the previous preview and
+- v0.97.8 keeps the faster Windows installer layout from the previous preview and
   carries the newer authoring surface: Object Canvas / Story Palette draft paths,
   safer existing-content proposals, Runtime Preview evidence, Runtime Lens
   wiring, and stronger governance checks. The authoring model remains heuristic:
@@ -231,8 +231,8 @@ cover the bundled Demo Template path from Quick Start into a writable starter
 project. They write screenshots and a `QA_LEDGER.md` under `/tmp/dendry_mod_studio_qa/`. See
 `tools/project_map/qa/README.md`.
 
-See `tools/project_map/desktop/PACKAGING_NOTES.md` for the v0.97.6 packaging
-boundary and `tools/project_map/RELEASE_NOTES_v0.97.6.md` for the tester-facing
+See `tools/project_map/desktop/PACKAGING_NOTES.md` for the v0.97.8 packaging
+boundary and `tools/project_map/RELEASE_NOTES_v0.97.8.md` for the tester-facing
 dev preview notes and known limits. Do not commit `tools/project_map/desktop/dist/`
 or `node_modules/`. Before any public release claim, run `npm run check:ci`,
 attach the release notes, and record the exact package artifact tested.

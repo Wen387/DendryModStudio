@@ -235,6 +235,38 @@ fs.writeFileSync(
   'utf8'
 );
 fs.writeFileSync(
+  path.join(tmpRoot, 'source', 'scenes', 'events', 'source_unit_coalesce.scene.dry'),
+  [
+    'title: Source Unit Coalesce',
+    '',
+    '@taxes',
+    'on-arrival: upper_tax_rates -= 1',
+    '',
+    'Cutting taxes improves our relationship with the capitalists.',
+    '',
+    '@welfare',
+    'Welfare body.',
+    ''
+  ].join('\n'),
+  'utf8'
+);
+fs.writeFileSync(
+  path.join(tmpRoot, 'source', 'scenes', 'events', 'source_unit_logic_coalesce.scene.dry'),
+  [
+    'title: Source Unit Logic Coalesce',
+    '',
+    '@decision',
+    'view-if: public_order >= 1',
+    'Decision body.',
+    'go-to: root',
+    '',
+    '@next_scene',
+    'Next body.',
+    ''
+  ].join('\n'),
+  'utf8'
+);
+fs.writeFileSync(
   path.join(tmpRoot, 'source', 'scenes', 'events', 'insert_dedupe.scene.dry'),
   'title: Insert Dedupe\r\nMention @sample_route elsewhere.\r\nANCHOR ROUTES\r\nTail stays put.\r\n',
   'utf8'
@@ -274,6 +306,17 @@ fs.writeFileSync(
   'utf8'
 );
 fs.writeFileSync(
+  path.join(tmpRoot, 'source', 'scenes', 'events', 'same_line_insert_then_replace.scene.dry'),
+  [
+    'title: Original Event Title',
+    '',
+    'Choice anchor text.',
+    'Tail stays put.',
+    ''
+  ].join('\n'),
+  'utf8'
+);
+fs.writeFileSync(
   path.join(tmpRoot, 'source', 'scenes', 'events', 'same_section_shift_replace.scene.dry'),
   [
     'title: Same Section Shift Replace',
@@ -281,6 +324,32 @@ fs.writeFileSync(
     '= Shared Section',
     '',
     'Shared section body.',
+    'Tail stays put.',
+    ''
+  ].join('\n'),
+  'utf8'
+);
+fs.writeFileSync(
+  path.join(tmpRoot, 'source', 'scenes', 'events', 'same_line_section_shift_replace.scene.dry'),
+  [
+    'title: Same Line Section Shift Replace',
+    '',
+    'Shared one-line section body.',
+    '',
+    '@next',
+    'Next body.',
+    ''
+  ].join('\n'),
+  'utf8'
+);
+fs.writeFileSync(
+  path.join(tmpRoot, 'source', 'scenes', 'events', 'swallowed_insert.scene.dry'),
+  [
+    'title: Swallowed Insert',
+    '',
+    '= Swallow Section',
+    '',
+    'Original section body.',
     'Tail stays put.',
     ''
   ].join('\n'),
@@ -877,6 +946,223 @@ assert(
 const sameLineEffectDryRun = installPlan.applyInstallPlan(sameLineEffectPlan, {projectRoot: tmpRoot, dryRun: true, includeEvidence: true});
 assert(sameLineEffectDryRun.ok && sameLineEffectDryRun.results[0].status === 'would_apply', 'coalesced same-line effect dry-run should verify against current source: ' + JSON.stringify(sameLineEffectDryRun));
 
+const sourceUnitSource = {
+  path: 'source/scenes/events/source_unit_coalesce.scene.dry',
+  line: 6,
+  startLine: 6,
+  endLine: 6,
+  anchorText: 'Cutting taxes improves our relationship with the capitalists.',
+  endAnchorText: 'Cutting taxes improves our relationship with the capitalists.',
+  rawAnchorText: 'Cutting taxes improves our relationship with the capitalists.',
+  rawEndAnchorText: 'Cutting taxes improves our relationship with the capitalists.'
+};
+const sourceUnitCoalescePlan = installPlan.existingSceneEditInstallPlan({
+  id: 'source_unit_coalesce',
+  draftKind: 'existing_scene_edit',
+  title: 'Source Unit Coalesce',
+  changes: [
+    {
+      fieldId: 'taxes_body',
+      role: 'section_text',
+      label: 'Option result: Taxes',
+      sectionId: 'source_unit.taxes',
+      source: sourceUnitSource,
+      operationType: 'replace_section',
+      anchorText: sourceUnitSource.anchorText,
+      endAnchorText: sourceUnitSource.endAnchorText,
+      rawAnchorText: sourceUnitSource.rawAnchorText,
+      rawEndAnchorText: sourceUnitSource.rawEndAnchorText,
+      startLine: 6,
+      endLine: 6,
+      dedupeSearch: 'Cutting taxes improves our relationship with capitalists.',
+      before: 'Cutting taxes improves our relationship with the capitalists.\n',
+      after: 'Cutting taxes improves our relationship with capitalists.\n',
+      editability: 'guarded_replace_section'
+    },
+    {
+      fieldId: 'taxes_image',
+      role: 'asset_reference',
+      label: 'Add image to option result',
+      sectionId: 'source_unit.taxes',
+      optionId: 'taxes',
+      source: sourceUnitSource,
+      operationType: 'insert_text',
+      anchorText: sourceUnitSource.anchorText,
+      position: 'before',
+      before: '',
+      after: 'face-image: img/achievement/ankurbelung.png',
+      editability: 'guarded_apply'
+    },
+    {
+      fieldId: 'taxes_child_option',
+      role: 'structure',
+      label: 'Add option to section: Taxes',
+      sectionId: 'source_unit.taxes',
+      source: sourceUnitSource,
+      operationType: 'insert_text',
+      anchorText: sourceUnitSource.anchorText,
+      position: 'after',
+      dedupeSearch: '@newsadop',
+      before: '(not present yet)',
+      after: '\n- @newsadop: Sad\n\n@newsadop\n\nFine.\n',
+      editability: 'guarded_apply'
+    }
+  ]
+});
+assert(sourceUnitCoalescePlan.operations.length === 1, 'same-source-unit result edits should coalesce into one replace_section operation');
+assert(sourceUnitCoalescePlan.operations[0].type === 'replace_section', 'same-source-unit coalescing should keep the existing replace_section operation shape');
+assert(sourceUnitCoalescePlan.operations[0].description.includes('coalesced source-unit edit'), 'coalesced source-unit operation should explain why multiple edits became one patch');
+assert(sourceUnitCoalescePlan.operations[0].content === [
+  'face-image: img/achievement/ankurbelung.png',
+  'Cutting taxes improves our relationship with capitalists.',
+  '',
+  '- @newsadop: Sad',
+  '',
+  '@newsadop',
+  '',
+  'Fine.',
+  ''
+].join('\n'), 'coalesced source-unit content should preserve before insert, edited body, then after insert ordering');
+const sourceUnitDryRun = installPlan.applyInstallPlan(sourceUnitCoalescePlan, {projectRoot: tmpRoot, dryRun: true, includeEvidence: true});
+assert(sourceUnitDryRun.ok && sourceUnitDryRun.results[0].status === 'would_apply', 'coalesced source-unit dry-run should verify against current source: ' + JSON.stringify(sourceUnitDryRun));
+const sourceUnitApply = installPlan.applyInstallPlan(sourceUnitCoalescePlan, {projectRoot: tmpRoot, dryRun: false, includeEvidence: true});
+assert(sourceUnitApply.ok && sourceUnitApply.results[0].status === 'applied', 'coalesced source-unit apply should commit as one source-backed operation: ' + JSON.stringify(sourceUnitApply));
+const sourceUnitText = fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'events', 'source_unit_coalesce.scene.dry'), 'utf8');
+assert(sourceUnitText.includes('face-image: img/achievement/ankurbelung.png\nCutting taxes improves our relationship with capitalists.\n\n- @newsadop: Sad'), 'coalesced source-unit apply should write image, result text, and child option together');
+
+const sourceUnitLogicSource = {
+  path: 'source/scenes/events/source_unit_logic_coalesce.scene.dry',
+  line: 3,
+  startLine: 3,
+  endLine: 6,
+  anchorText: '@decision',
+  endAnchorText: 'go-to: root',
+  rawAnchorText: '@decision',
+  rawEndAnchorText: 'go-to: root'
+};
+const sourceUnitLogicPlan = installPlan.existingSceneEditInstallPlan({
+  id: 'source_unit_logic_coalesce',
+  draftKind: 'existing_scene_edit',
+  title: 'Source Unit Logic Coalesce',
+  changes: [
+    {
+      fieldId: 'decision_body',
+      role: 'section_text',
+      label: 'Decision body',
+      sectionId: 'source_unit_logic.decision',
+      source: sourceUnitLogicSource,
+      operationType: 'replace_section',
+      anchorText: sourceUnitLogicSource.anchorText,
+      endAnchorText: sourceUnitLogicSource.endAnchorText,
+      rawAnchorText: sourceUnitLogicSource.rawAnchorText,
+      rawEndAnchorText: sourceUnitLogicSource.rawEndAnchorText,
+      startLine: 3,
+      endLine: 6,
+      dedupeSearch: 'Decision body revised.',
+      before: '@decision\nview-if: public_order >= 1\nDecision body.\ngo-to: root\n',
+      after: '@decision\nview-if: public_order >= 1\nDecision body revised.\ngo-to: root\n',
+      editability: 'guarded_replace_section'
+    },
+    {
+      fieldId: 'decision_condition',
+      role: 'condition',
+      label: 'Section condition',
+      sectionId: 'source_unit_logic.decision',
+      source: Object.assign({}, sourceUnitLogicSource, {
+        line: 4,
+        startLine: 4,
+        endLine: 4,
+        anchorText: 'view-if: public_order >= 1',
+        endAnchorText: 'view-if: public_order >= 1'
+      }),
+      operationType: 'replace_text',
+      before: 'view-if: public_order >= 1',
+      after: 'view-if: public_order >= 2',
+      editability: 'guarded_apply'
+    },
+    {
+      fieldId: 'decision_exit_route',
+      role: 'route',
+      label: 'Section exit route',
+      sectionId: 'source_unit_logic.decision',
+      source: Object.assign({}, sourceUnitLogicSource, {
+        line: 6,
+        startLine: 6,
+        endLine: 6,
+        anchorText: 'go-to: root',
+        endAnchorText: 'go-to: root'
+      }),
+      operationType: 'replace_text',
+      before: 'go-to: root',
+      after: 'go-to: next_scene',
+      editability: 'guarded_apply'
+    }
+  ]
+});
+assert(sourceUnitLogicPlan.operations.length === 1, 'section body, condition, and exit route changes should coalesce into one source-unit replace_section');
+assert(sourceUnitLogicPlan.operations[0].content === '@decision\nview-if: public_order >= 2\nDecision body revised.\ngo-to: next_scene\n', 'coalesced section-flow content should apply text replacements inside the primary section body');
+const sourceUnitLogicDryRun = installPlan.applyInstallPlan(sourceUnitLogicPlan, {projectRoot: tmpRoot, dryRun: true, includeEvidence: true});
+assert(sourceUnitLogicDryRun.ok && sourceUnitLogicDryRun.results[0].status === 'would_apply', 'coalesced section-flow dry-run should verify against current source: ' + JSON.stringify(sourceUnitLogicDryRun));
+
+const sourceUnitNoPrimaryPlan = installPlan.existingSceneEditInstallPlan({
+  id: 'source_unit_no_primary',
+  draftKind: 'existing_scene_edit',
+  title: 'Source Unit No Primary',
+  changes: [
+    {
+      fieldId: 'taxes_image_only',
+      role: 'asset_reference',
+      sectionId: 'source_unit.taxes',
+      source: sourceUnitSource,
+      operationType: 'insert_text',
+      anchorText: sourceUnitSource.anchorText,
+      position: 'before',
+      before: '',
+      after: 'face-image: img/achievement/only.png',
+      editability: 'guarded_apply'
+    }
+  ]
+});
+assert(sourceUnitNoPrimaryPlan.operations.length === 1 && sourceUnitNoPrimaryPlan.operations[0].type === 'insert_text', 'source-unit coalescer should not rewrite ordinary inserts when no primary section replacement exists');
+
+const sourceUnitMismatchedAnchorPlan = installPlan.existingSceneEditInstallPlan({
+  id: 'source_unit_mismatched_anchor',
+  draftKind: 'existing_scene_edit',
+  title: 'Source Unit Mismatched Anchor',
+  changes: [
+    {
+      fieldId: 'taxes_body_again',
+      role: 'section_text',
+      label: 'Option result: Taxes',
+      sectionId: 'source_unit.taxes',
+      source: sourceUnitSource,
+      operationType: 'replace_section',
+      anchorText: sourceUnitSource.anchorText,
+      endAnchorText: sourceUnitSource.endAnchorText,
+      rawAnchorText: sourceUnitSource.rawAnchorText,
+      rawEndAnchorText: sourceUnitSource.rawEndAnchorText,
+      startLine: 6,
+      endLine: 6,
+      before: 'Cutting taxes improves our relationship with the capitalists.\n',
+      after: 'Cutting taxes improves our relationship with capitalists.\n',
+      editability: 'guarded_replace_section'
+    },
+    {
+      fieldId: 'taxes_wrong_anchor',
+      role: 'asset_reference',
+      sectionId: 'source_unit.taxes',
+      source: Object.assign({}, sourceUnitSource, {anchorText: 'Different nearby body.'}),
+      operationType: 'insert_text',
+      anchorText: 'Different nearby body.',
+      position: 'before',
+      before: '',
+      after: 'face-image: img/achievement/wrong.png',
+      editability: 'guarded_apply'
+    }
+  ]
+});
+assert(sourceUnitMismatchedAnchorPlan.operations.length === 2, 'source-unit coalescer should leave inserts separate when their anchor is not the primary section anchor');
+
 const insertScopedDedupePlan = installPlan.buildInstallPlan({
   id: 'insert_scoped_dedupe',
   draftKind: 'test',
@@ -994,6 +1280,55 @@ assert(sameLineShiftReplaceDryRun.ok && sameLineShiftReplaceDryRun.results.every
 const sameLineShiftReplaceResult = sameLineShiftReplaceDryRun.results.find((result) => result.id === 'same_line_shift_replace');
 assert(sameLineShiftReplaceResult && sameLineShiftReplaceResult.evidence && sameLineShiftReplaceResult.evidence.line === 4, 'shifted replace_text evidence should report the current in-memory line');
 
+const sameLineInsertThenReplacePlan = installPlan.buildInstallPlan({
+  id: 'same_line_insert_then_replace',
+  draftKind: 'test',
+  operations: [
+    {
+      id: 'same_line_replace_title',
+      type: 'replace_text',
+      path: 'source/scenes/events/same_line_insert_then_replace.scene.dry',
+      line: 1,
+      search: 'title: Original Event Title',
+      replace: 'title: Revised Event Title',
+      safety: 'guarded_apply'
+    },
+    {
+      id: 'same_line_insert_audio',
+      type: 'insert_text',
+      path: 'source/scenes/events/same_line_insert_then_replace.scene.dry',
+      line: 1,
+      anchorText: 'title: Original Event Title',
+      content: 'audio: music/revised-theme.ogg\n',
+      dedupeSearch: 'audio: music/revised-theme.ogg',
+      safety: 'guarded_apply'
+    },
+    {
+      id: 'same_line_replace_choice',
+      type: 'replace_text',
+      path: 'source/scenes/events/same_line_insert_then_replace.scene.dry',
+      line: 3,
+      search: 'Choice anchor text.',
+      replace: 'Choice anchor text updated.',
+      safety: 'guarded_apply'
+    },
+    {
+      id: 'same_line_insert_branch',
+      type: 'insert_text',
+      path: 'source/scenes/events/same_line_insert_then_replace.scene.dry',
+      line: 3,
+      anchorText: 'Choice anchor text.',
+      content: '\n- @extra_choice: Extra choice\n\n@extra_choice\nExtra result.\n',
+      dedupeSearch: '@extra_choice',
+      safety: 'guarded_apply'
+    }
+  ]
+});
+const sameLineInsertThenReplaceDryRun = installPlan.applyInstallPlan(sameLineInsertThenReplacePlan, {projectRoot: tmpRoot, dryRun: true, includeEvidence: true});
+assert(sameLineInsertThenReplaceDryRun.ok && sameLineInsertThenReplaceDryRun.results.every((result) => result.status === 'would_apply'), 'same-line inserts should preflight before same-line replacements so anchors are not invalidated by the plan itself: ' + JSON.stringify(sameLineInsertThenReplaceDryRun));
+const sameLineInsertTitle = sameLineInsertThenReplaceDryRun.results.find((result) => result.id === 'same_line_insert_audio');
+assert(sameLineInsertTitle && sameLineInsertTitle.evidence && sameLineInsertTitle.evidence.line === 1, 'same-line insert evidence should stay attached to the original anchor line');
+
 const sameSectionShiftReplacePlan = installPlan.buildInstallPlan({
   id: 'same_section_shift_replace',
   draftKind: 'test',
@@ -1027,6 +1362,73 @@ const sameSectionShiftReplaceDryRun = installPlan.applyInstallPlan(sameSectionSh
 assert(sameSectionShiftReplaceDryRun.ok && sameSectionShiftReplaceDryRun.results.every((result) => result.status === 'would_apply'), 'line-backed replace_section should tolerate prior same-file insert shifts: ' + JSON.stringify(sameSectionShiftReplaceDryRun));
 const sameSectionShiftReplaceResult = sameSectionShiftReplaceDryRun.results.find((result) => result.id === 'same_section_shift_replace');
 assert(sameSectionShiftReplaceResult && sameSectionShiftReplaceResult.evidence && sameSectionShiftReplaceResult.evidence.startLine === 4 && sameSectionShiftReplaceResult.evidence.endLine === 6, 'shifted replace_section evidence should report the current in-memory section lines');
+
+const sameLineSectionShiftReplacePlan = installPlan.buildInstallPlan({
+  id: 'same_line_section_shift_replace',
+  draftKind: 'test',
+  operations: [
+    {
+      id: 'same_line_section_insert_before',
+      type: 'insert_text',
+      path: 'source/scenes/events/same_line_section_shift_replace.scene.dry',
+      line: 3,
+      position: 'before',
+      anchorText: 'Shared one-line section body.',
+      content: 'face-image: img/events/one-line-section.png\n',
+      dedupeSearch: 'face-image: img/events/one-line-section.png',
+      safety: 'guarded_apply'
+    },
+    {
+      id: 'same_line_section_replace',
+      type: 'replace_section',
+      path: 'source/scenes/events/same_line_section_shift_replace.scene.dry',
+      startLine: 3,
+      endLine: 3,
+      anchorText: 'Shared one-line section body.',
+      endAnchorText: 'Shared one-line section body.',
+      content: 'Shared one-line section body changed.\n',
+      dedupeSearch: 'Shared one-line section body changed.',
+      safety: 'guarded_apply'
+    }
+  ]
+});
+const sameLineSectionShiftReplaceDryRun = installPlan.applyInstallPlan(sameLineSectionShiftReplacePlan, {projectRoot: tmpRoot, dryRun: true, includeEvidence: true});
+assert(sameLineSectionShiftReplaceDryRun.ok && sameLineSectionShiftReplaceDryRun.results.every((result) => result.status === 'would_apply'), 'single-line replace_section should tolerate a prior same-file insert before its shared start/end anchor: ' + JSON.stringify(sameLineSectionShiftReplaceDryRun));
+const sameLineSectionShiftReplaceResult = sameLineSectionShiftReplaceDryRun.results.find((result) => result.id === 'same_line_section_replace');
+assert(sameLineSectionShiftReplaceResult && sameLineSectionShiftReplaceResult.evidence && sameLineSectionShiftReplaceResult.evidence.startLine === 4 && sameLineSectionShiftReplaceResult.evidence.endLine === 4, 'shifted single-line replace_section evidence should report the current in-memory body line');
+
+const swallowedInsertPlan = installPlan.buildInstallPlan({
+  id: 'swallowed_insert',
+  draftKind: 'test',
+  operations: [
+    {
+      id: 'swallowed_insert_after_section_header',
+      type: 'insert_text',
+      path: 'source/scenes/events/swallowed_insert.scene.dry',
+      line: 3,
+      position: 'after',
+      anchorText: '= Swallow Section',
+      content: 'face-image: img/events/swallowed.png\n',
+      dedupeSearch: 'face-image: img/events/swallowed.png',
+      safety: 'guarded_apply'
+    },
+    {
+      id: 'swallowed_replace_section',
+      type: 'replace_section',
+      path: 'source/scenes/events/swallowed_insert.scene.dry',
+      startLine: 3,
+      endLine: 5,
+      anchorText: '= Swallow Section',
+      endAnchorText: 'Original section body.',
+      content: '= Swallow Section\n\nReplacement section body.\n',
+      dedupeSearch: 'Replacement section body.',
+      safety: 'guarded_apply'
+    }
+  ]
+});
+const swallowedInsertDryRun = installPlan.applyInstallPlan(swallowedInsertPlan, {projectRoot: tmpRoot, dryRun: true});
+assert(!swallowedInsertDryRun.ok, 'same-file section replacement must not silently swallow a preceding insert operation');
+assert(swallowedInsertDryRun.diagnostics.some((diag) => diag.code === 'install_plan.final_insert_missing'), 'swallowed inserts should report final_insert_missing');
 
 const staleInsertLinePlan = installPlan.buildInstallPlan({
   id: 'insert_line_stale',
@@ -1318,6 +1720,55 @@ assert(
   fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'events', 'event_text.scene.dry'), 'utf8').includes('Rewritten existing paragraph.'),
   'existing scene edit apply should modify the existing source file'
 );
+
+fs.writeFileSync(
+  path.join(tmpRoot, 'source', 'scenes', 'events', 'raw_anchor_idempotent.scene.dry'),
+  [
+    'title: Raw Anchor Idempotent',
+    '',
+    '= Raw Anchor Idempotent',
+    '',
+    'Original branch body.',
+    ''
+  ].join('\n'),
+  'utf8'
+);
+const rawAnchorIdempotentPlan = installPlan.buildInstallPlan({
+  id: 'raw_anchor_idempotent',
+  draftKind: 'existing_scene_edit',
+  project: installPlan.projectProvenanceFromIndex(index),
+  operations: [
+    {
+      id: 'raw_title',
+      type: 'replace_text',
+      path: 'source/scenes/events/raw_anchor_idempotent.scene.dry',
+      line: 1,
+      search: 'title: Raw Anchor Idempotent',
+      replace: 'title: Raw Anchor Idempotent Revised',
+      rawAnchorText: 'title: Raw Anchor Idempotent',
+      safety: 'guarded_apply'
+    },
+    {
+      id: 'raw_section',
+      type: 'replace_section',
+      path: 'source/scenes/events/raw_anchor_idempotent.scene.dry',
+      startLine: 3,
+      endLine: 5,
+      anchorText: '= Raw Anchor Idempotent',
+      endAnchorText: 'Original branch body.',
+      rawAnchorText: '= Raw Anchor Idempotent',
+      rawEndAnchorText: 'Original branch body.',
+      content: '= Raw Anchor Idempotent Revised\n\nRewritten branch body.\n',
+      dedupeSearch: 'Rewritten branch body.',
+      safety: 'guarded_apply'
+    }
+  ]
+});
+const rawAnchorApply = installPlan.applyInstallPlan(rawAnchorIdempotentPlan, {projectRoot: tmpRoot, dryRun: false, includeEvidence: true});
+assert(rawAnchorApply.ok && rawAnchorApply.results.every((result) => result.status === 'applied'), 'raw anchored replacements should apply once: ' + JSON.stringify(rawAnchorApply));
+const rawAnchorPostApply = installPlan.applyInstallPlan(rawAnchorIdempotentPlan, {projectRoot: tmpRoot, dryRun: true, includeEvidence: true});
+assert(rawAnchorPostApply.ok, 'raw anchored replacements should remain checkable after apply: ' + JSON.stringify(rawAnchorPostApply));
+assert(rawAnchorPostApply.results.every((result) => result.status === 'already_applied'), 'raw anchored replacements should report already_applied instead of raw-anchor mismatch after apply');
 
 const centerPartyPlan = installPlan.existingSceneEditInstallPlan({
   id: 'center_party_conference_reliability',

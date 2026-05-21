@@ -193,6 +193,7 @@ assert(workspace.reviewAllowed({model: changed, semanticLogicModel: routeModel})
 const html = workspace.render(changed, {semanticLogicModel: routeModel, values: {'semantic_logic.routeTarget': 'branch_c'}}, deps);
 assert(html.includes('data-semantic-logic-editor="true"'), 'semantic workspace should render editor marker');
 assert(html.includes('data-semantic-logic-field-controls="true"'), 'semantic workspace should render guided field controls');
+assert(html.includes('semantic-logic-field-controls-header'), 'semantic workspace should render a global-style guided form header');
 assert(html.includes('data-semantic-logic-control="route-target"'), 'semantic workspace should render route target control');
 assert(html.includes('data-route-editor-evidence="true"'), 'semantic workspace should render route evidence marker');
 const effectChanged = workspace.buildCanvasModel(effectModel, {'semantic_logic.effectValue': '2'}, deps);
