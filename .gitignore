@@ -10,6 +10,7 @@ tools/project_map/desktop/dist/
 tools/project_map/desktop/dist-builder/
 tools/project_map/desktop/runtime/python/
 tools/project_map/desktop/runtime/python-manifest.json
+tools/project_map/exports/
 tools/project_map/templates/starter-demo/out/
 
 # Python / local caches
