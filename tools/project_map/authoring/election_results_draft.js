@@ -150,35 +150,195 @@
   function buildInstallPlan(input, projectIndex) {
     const draft = normalizeDraft(input, projectIndex);
     const installApi = installPlanApi();
+    const selected = selectElectionEvent(draft.targetSceneId, draft.electionEvents);
+    const operations = electionSourceBackedOperations(draft, selected);
+    operations.push(electionManualReviewOperation(draft, operations.length));
     return installApi.buildInstallPlan({
       id: draft.id,
       draftKind: KIND,
       title: draft.title || draft.id,
       project: installApi.projectProvenanceFromIndex ? installApi.projectProvenanceFromIndex(projectIndex) : null,
-      operations: [{
-        id: 'election_results_manual_review',
-        type: 'manual_snippet',
-        path: draft.sourcePath || 'source/scenes/events/election_results.scene.dry',
-        content: JSON.stringify({
-          targetSceneId: draft.targetSceneId,
-          electionKind: draft.electionKind,
-          viewIf: draft.viewIf,
-          chartElementId: draft.chartElementId,
-          useD3Parliament: draft.useD3Parliament,
-          title: draft.title,
-          subtitle: draft.subtitle,
-          resultText: draft.resultText,
-          conditionText: draft.conditionText,
-          parties: draft.parties,
-          coalitions: draft.coalitions,
-          choices: draft.choices,
-          effects: draft.effects
-        }, null, 2) + '\n',
-        safety: 'manual_review',
-        role: 'election_results',
-        description: 'Review how this election-results UI is wired into the project-specific event renderer.'
-      }]
+      operations
     });
+  }
+
+  function electionSourceBackedOperations(draft, selected) {
+    const operations = [];
+    const source = isObject(selected) ? selected : {};
+    const evidence = Object.assign({}, source.evidence || {}, draft.evidence || {});
+    pushGuardedReplace(operations, {
+      id: 'election_results_title',
+      source: evidence.title,
+      original: source.screenTitle || source.title || '',
+      replacement: draft.title,
+      role: 'election_results.title',
+      description: 'Replace the source-backed election results title after exact line evidence matches.'
+    });
+    pushGuardedReplace(operations, {
+      id: 'election_results_subtitle',
+      source: evidence.subtitle,
+      original: source.subtitle || '',
+      replacement: draft.subtitle,
+      role: 'election_results.subtitle',
+      description: 'Replace the source-backed election results subtitle after exact line evidence matches.'
+    });
+    pushGuardedReplace(operations, {
+      id: 'election_results_intro',
+      source: evidence.intro,
+      original: source.intro || '',
+      replacement: draft.intro,
+      role: 'election_results.intro',
+      description: 'Replace the source-backed election results intro after exact line evidence matches.'
+    });
+    pushGuardedReplace(operations, {
+      id: 'election_results_result_text',
+      source: evidence.resultText,
+      original: source.resultText || '',
+      replacement: draft.resultText,
+      role: 'election_results.result_text',
+      description: 'Replace the source-backed election consequence text after exact line evidence matches.'
+    });
+    pushGuardedReplace(operations, {
+      id: 'election_results_condition_text',
+      source: evidence.conditionText,
+      original: source.conditionText || '',
+      replacement: draft.conditionText,
+      role: 'election_results.condition_text',
+      description: 'Replace the source-backed election condition text after exact line evidence matches.'
+    });
+    sourceBackedChoiceOperations(draft, source).forEach((operation) => operations.push(operation));
+    sourceBackedEffectOperations(draft, source).forEach((operation) => operations.push(operation));
+    return operations;
+  }
+
+  function sourceBackedChoiceOperations(draft, selected) {
+    const operations = [];
+    const originals = ensureArray(selected && selected.choices);
+    ensureArray(draft.choices).forEach((choiceRow, index) => {
+      const original = originals.find((row) => row && row.key === choiceRow.key) || originals[index] || {};
+      const id = safeId(choiceRow.key || original.key || 'choice_' + (index + 1)).toLowerCase();
+      pushGuardedReplace(operations, {
+        id: 'election_choice_' + id + '_label',
+        source: original.labelSource,
+        original: original.label || '',
+        replacement: choiceRow.label,
+        role: 'election_results.choice_label',
+        description: 'Replace a source-backed election choice label after exact line evidence matches.'
+      });
+      pushGuardedReplace(operations, {
+        id: 'election_choice_' + id + '_detail',
+        source: original.detailSource,
+        original: original.detail || '',
+        replacement: choiceRow.detail,
+        role: 'election_results.choice_detail',
+        description: 'Replace a source-backed election choice detail after exact line evidence matches.'
+      });
+      pushGuardedReplace(operations, {
+        id: 'election_choice_' + id + '_condition',
+        source: original.conditionSource,
+        original: original.condition || '',
+        replacement: choiceRow.condition,
+        role: 'election_results.choice_condition',
+        description: 'Replace a source-backed election choice condition after exact line evidence matches.'
+      });
+      pushGuardedReplace(operations, {
+        id: 'election_choice_' + id + '_result_text',
+        source: original.resultSource,
+        original: original.resultText || '',
+        replacement: choiceRow.resultText,
+        role: 'election_results.choice_result_text',
+        description: 'Replace a source-backed election choice result text after exact line evidence matches.'
+      });
+    });
+    return operations;
+  }
+
+  function sourceBackedEffectOperations(draft, selected) {
+    const operations = [];
+    const originals = ensureArray(selected && selected.effects);
+    ensureArray(draft.effects).forEach((effect, index) => {
+      const original = originals[index] || {};
+      pushGuardedReplace(operations, {
+        id: 'election_effect_' + (index + 1),
+        source: original.source,
+        original: effectLine(original),
+        replacement: effectLine(effect),
+        role: 'election_results.effect',
+        description: 'Replace a source-backed election effect line after exact line evidence matches.'
+      });
+    });
+    ensureArray(draft.choices).forEach((choiceRow, choiceIndex) => {
+      const originalChoice = ensureArray(selected && selected.choices).find((row) => row && row.key === choiceRow.key) || ensureArray(selected && selected.choices)[choiceIndex] || {};
+      ensureArray(choiceRow.effects).forEach((effect, effectIndex) => {
+        const original = ensureArray(originalChoice.effects)[effectIndex] || {};
+        pushGuardedReplace(operations, {
+          id: 'election_choice_' + safeId(choiceRow.key || 'choice_' + (choiceIndex + 1)).toLowerCase() + '_effect_' + (effectIndex + 1),
+          source: original.source,
+          original: effectLine(original),
+          replacement: effectLine(effect),
+          role: 'election_results.choice_effect',
+          description: 'Replace a source-backed election choice effect line after exact line evidence matches.'
+        });
+      });
+    });
+    return operations;
+  }
+
+  function pushGuardedReplace(operations, request) {
+    const source = sourceEvidence(request && request.source);
+    const search = String(request && (request.original || source.anchorText || source.text) || '').trim();
+    const replace = String(request && request.replacement || '').trim();
+    if (!source.path || !source.line || !search || !replace || search === replace || isGeneratedPath(source.path)) {
+      return;
+    }
+    operations.push({
+      id: safeId(request.id || 'election_results_text'),
+      type: 'replace_text',
+      path: source.path,
+      line: source.line,
+      startLine: source.startLine || source.line,
+      endLine: source.endLine || source.line,
+      search,
+      replace,
+      anchorText: source.anchorText || search,
+      safety: 'guarded_apply',
+      role: request.role || 'election_results.text',
+      description: request.description || 'Replace source-backed election results text after exact line evidence matches.'
+    });
+  }
+
+  function electionManualReviewOperation(draft, guardedCount) {
+    return {
+      id: guardedCount ? 'election_results_runtime_manual_review' : 'election_results_manual_review',
+      type: 'manual_snippet',
+      path: draft.sourcePath || 'source/scenes/events/election_results.scene.dry',
+      content: JSON.stringify({
+        targetSceneId: draft.targetSceneId,
+        electionKind: draft.electionKind,
+        viewIf: draft.viewIf,
+        chartElementId: draft.chartElementId,
+        useD3Parliament: draft.useD3Parliament,
+        title: draft.title,
+        subtitle: draft.subtitle,
+        resultText: draft.resultText,
+        conditionText: draft.conditionText,
+        parties: draft.parties,
+        coalitions: draft.coalitions,
+        choices: draft.choices,
+        effects: draft.effects,
+        guardedSourceOperations: guardedCount
+      }, null, 2) + '\n',
+      safety: 'manual_review',
+      role: 'election_results.runtime_renderer',
+      description: guardedCount
+        ? 'Review D3 chart target, party seat formula, custom renderer wiring, and any election fields without exact source evidence.'
+        : 'Review how this election-results UI is wired into the project-specific event renderer.'
+    };
+  }
+
+  function isGeneratedPath(path) {
+    const rel = String(path || '').replace(/\\/g, '/');
+    return rel === 'out/game.json' || rel.startsWith('out/html/') || rel.startsWith('out/');
   }
 
   function renderPlayerPreview(draft) {
@@ -230,7 +390,7 @@
       'Election Results UI draft: ' + draft.id,
       '',
       'This is a System UI authoring draft for a player-facing election-results event.',
-      'The current install plan is manual-review only because election-result renderers are project-specific.',
+      'Exact source-backed text fields can produce guarded replacements; D3/chart/custom renderer wiring remains manual review.',
       '',
       'Suggested source target:',
       draft.sourcePath || 'source/scenes/events/election_results.scene.dry',
@@ -286,7 +446,13 @@
       booleanValue(value.disabled !== undefined ? value.disabled : fallback.disabled),
       String(value.condition || fallback.condition || '').trim(),
       String(value.resultText || fallback.resultText || '').trim(),
-      normalizeEffects(value.effects || fallback.effects)
+      normalizeEffects(value.effects || fallback.effects),
+      {
+        labelSource: sourceEvidence(value.labelSource || fallback.labelSource),
+        detailSource: sourceEvidence(value.detailSource || fallback.detailSource),
+        resultSource: sourceEvidence(value.resultSource || fallback.resultSource),
+        conditionSource: sourceEvidence(value.conditionSource || fallback.conditionSource)
+      }
     );
   }
 
@@ -302,8 +468,8 @@
     return {key, name, parties, share, description: description || ''};
   }
 
-  function choice(key, label, detail, disabled, condition, resultText, effects) {
-    return {key, label, detail, disabled: Boolean(disabled), condition: condition || '', resultText: resultText || '', effects: ensureArray(effects)};
+  function choice(key, label, detail, disabled, condition, resultText, effects, extra) {
+    return Object.assign({key, label, detail, disabled: Boolean(disabled), condition: condition || '', resultText: resultText || '', effects: ensureArray(effects)}, extra || {});
   }
 
   function normalizeEffects(effects) {
@@ -317,7 +483,8 @@
         op,
         value: String(rawValue).trim(),
         condition: String(value.condition || '').trim(),
-        hook: String(value.hook || '').trim()
+        hook: String(value.hook || '').trim(),
+        source: sourceEvidence(value.source || value.sourceSpan || {})
       };
     }).filter((effect) => effect.variable || effect.value || effect.condition);
   }
@@ -347,16 +514,19 @@
     const scope = textScopeForElectionSource(allRows, scene, value);
     const rows = scope.rows;
     const openingRows = rows.filter((item) => isOpeningTextRow(item));
-    const heading = nearestHeadingText(rows, value.line) || firstRowText(openingRows, 'heading') || '';
-    const title = firstRowText(openingRows, 'title') || '';
-    const subtitle = firstRowText(openingRows, 'subtitle') || '';
-    const intro = bodyText(sourceBodyRows(rows, value.line, scope.sectionId)) || bodyText(openingRows);
+    const headingRow = nearestHeadingRow(rows, value.line);
+    const titleRow = firstRoleRow(openingRows, 'title');
+    const subtitleRow = firstRoleRow(openingRows, 'subtitle');
+    const introRows = sourceBodyRows(rows, value.line, scope.sectionId);
+    const heading = headingRow && headingRow.text ? singleLine(headingRow.text) : firstRowText(openingRows, 'heading') || '';
+    const title = titleRow && titleRow.text ? singleLine(titleRow.text) : '';
+    const subtitle = subtitleRow && subtitleRow.text ? singleLine(subtitleRow.text) : '';
+    const intro = bodyText(introRows) || bodyText(openingRows);
     const choices = sourceChoicesFromRows(scene, rows);
-    const fallbackResult = choices.length ? rows
+    const fallbackResultRows = choices.length ? rows
       .filter((item) => isElectionBodyRow(item) && String(item.owner && item.owner.sectionId || '').trim() && !choiceTargetsSection(choices, item.owner && item.owner.sectionId))
-      .map((item) => item.text)
-      .filter(Boolean)
-      .join('\n\n') : '';
+      : [];
+    const fallbackResult = fallbackResultRows.map((item) => item.text).filter(Boolean).join('\n\n');
     value.screenTitle = heading || title || value.screenTitle || value.title || '';
     if (subtitle && !value.subtitle) {
       value.subtitle = subtitle;
@@ -376,7 +546,11 @@
       textCorpusRows: rows.length,
       sourceText: 'text_corpus',
       sourceSectionId: scope.sectionId || '',
-      sourceChoices: choices.length
+      sourceChoices: choices.length,
+      title: sourceEvidenceFromRow(headingRow || titleRow),
+      subtitle: sourceEvidenceFromRow(subtitleRow),
+      intro: exactBodyEvidence(introRows),
+      resultText: exactBodyEvidence(fallbackResultRows)
     });
     return value;
   }
@@ -477,25 +651,25 @@
     return nearby.length ? nearby : bodyRows;
   }
 
-  function nearestHeadingText(rows, line) {
+  function nearestHeadingRow(rows, line) {
     const sourceLine = Number(line || 0);
     const headings = ensureArray(rows)
       .filter((item) => String(item && item.role || '') === 'heading' && String(item && item.text || '').trim())
       .map((item) => ({item, line: textRowLine(item)}));
     if (!headings.length) {
-      return '';
+      return null;
     }
     if (!sourceLine) {
-      return singleLine(headings[0].item.text);
+      return headings[0].item;
     }
     const after = headings
       .filter((entry) => entry.line && entry.line >= sourceLine - 4 && entry.line <= sourceLine + 120)
       .sort((a, b) => Math.abs(a.line - sourceLine) - Math.abs(b.line - sourceLine))[0];
     if (after) {
-      return singleLine(after.item.text);
+      return after.item;
     }
     headings.sort((a, b) => Math.abs((a.line || 0) - sourceLine) - Math.abs((b.line || 0) - sourceLine));
-    return singleLine(headings[0].item.text);
+    return headings[0].item;
   }
 
   function textRowLine(item) {
@@ -514,7 +688,8 @@
       const targetId = optionTargetId(option, optionId);
       const targetSection = sectionForId(scene, targetId);
       const sectionRows = rowsForSection(rows, scene && scene.id, targetId);
-      const subtitle = optionSubtitleFor(rows, row, optionId);
+      const subtitleRow = optionSubtitleRowFor(rows, row, optionId);
+      const subtitle = subtitleRow && subtitleRow.text ? singleLine(subtitleRow.text) : '';
       const resultText = bodyText(sectionRows);
       const condition = uniqueStrings([
         option && option.chooseIf,
@@ -531,7 +706,13 @@
         Boolean(condition),
         condition,
         resultText,
-        []
+        [],
+        {
+          labelSource: sourceEvidenceFromRow(row),
+          detailSource: sourceEvidenceFromRow(subtitleRow),
+          resultSource: exactBodyEvidence(sectionRows),
+          conditionSource: sourceEvidenceFromRow(row)
+        }
       );
     }).filter((item) => item.label);
   }
@@ -621,15 +802,14 @@
     });
   }
 
-  function optionSubtitleFor(rows, labelRow, optionId) {
+  function optionSubtitleRowFor(rows, labelRow, optionId) {
     const line = numberOr(labelRow && labelRow.source && labelRow.source.line, 0);
     const target = normalizeLocalId(optionId);
-    const found = ensureArray(rows).find((item) => {
+    return ensureArray(rows).find((item) => {
       return String(item && item.role || '') === 'option_subtitle' &&
         normalizeLocalId(item.optionId || item.owner && item.owner.itemId) === target &&
         (!line || numberOr(item && item.source && item.source.line, 0) === line);
-    });
-    return found && found.text ? singleLine(found.text) : '';
+    }) || null;
   }
 
   function isOpeningTextRow(item) {
@@ -662,9 +842,36 @@
       /\bd3\.parliament\b/i.test(value);
   }
 
+  function firstRoleRow(rows, role) {
+    return ensureArray(rows).find((item) => String(item && item.role || '') === role && String(item && item.text || '').trim()) || null;
+  }
+
   function firstRowText(rows, role) {
-    const found = ensureArray(rows).find((item) => String(item && item.role || '') === role && String(item && item.text || '').trim());
+    const found = firstRoleRow(rows, role);
     return found ? singleLine(found.text) : '';
+  }
+
+  function exactBodyEvidence(rows) {
+    const bodyRows = ensureArray(rows).filter(isElectionBodyRow);
+    return bodyRows.length === 1 ? sourceEvidenceFromRow(bodyRows[0]) : {};
+  }
+
+  function sourceEvidenceFromRow(row) {
+    const value = isObject(row) ? row : {};
+    const source = isObject(value.source) ? value.source : {};
+    const line = numberOr(source.line || source.startLine, 0);
+    if (!source.path || !line) {
+      return {};
+    }
+    return {
+      path: String(source.path || '').trim(),
+      line,
+      startLine: line,
+      endLine: numberOr(source.endLine || source.line || source.startLine, line),
+      anchorText: String(source.anchorText || value.text || '').trim(),
+      text: String(value.text || '').trim(),
+      role: String(value.role || '').trim()
+    };
   }
 
   function choiceTargetsSection(choices, sectionId) {
@@ -932,6 +1139,13 @@
         usesD3Parliament: booleanValue(value.usesD3Parliament !== undefined ? value.usesD3Parliament : false),
         seatsTotal: String(value.seatsTotal || '').trim(),
         parties: normalizeRows(value.parties, [], normalizeParty),
+        coalitions: normalizeRows(value.coalitions, [], normalizeCoalition),
+        choices: normalizeRows(value.choices, [], normalizeChoice),
+        screenTitle: singleLine(value.screenTitle || ''),
+        intro: String(value.intro || '').trim(),
+        resultText: String(value.resultText || '').trim(),
+        sourceBacked: booleanValue(value.sourceBacked),
+        evidence: isObject(value.evidence) ? value.evidence : {},
         reason: String(value.reason || '').trim()
       };
     }).filter((row) => row.id);
@@ -940,6 +1154,20 @@
   function selectElectionEvent(id, rows) {
     const key = String(id || '').trim();
     return ensureArray(rows).find((row) => row.id === key) || ensureArray(rows)[0] || null;
+  }
+
+  function sourceEvidence(value) {
+    const source = isObject(value) ? value : {};
+    const line = numberOr(source.line || source.startLine, 0);
+    return source.path && line ? {
+      path: String(source.path || '').trim(),
+      line,
+      startLine: line,
+      endLine: numberOr(source.endLine || source.line || source.startLine, line),
+      anchorText: String(source.anchorText || source.text || '').trim(),
+      text: String(source.text || '').trim(),
+      role: String(source.role || '').trim()
+    } : {};
   }
 
   function effectLine(effect) {

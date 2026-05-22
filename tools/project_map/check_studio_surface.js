@@ -38,6 +38,7 @@ const CONTENT_GRAPH_INTERACTIONS = path.join(ROOT, 'viewer', 'content_graph_inte
 const PROJECT_STATE_SURFACE = path.join(ROOT, 'viewer', 'project_state_surface.js');
 const SYSTEM_UI_FIXTURE_STATE = path.join(ROOT, 'viewer', 'system_ui_fixture_state.js');
 const SYSTEM_UI_REGION_CONTEXT = path.join(ROOT, 'viewer', 'system_ui_region_context.js');
+const SYSTEM_UI_CAPABILITY_MODEL = path.join(ROOT, 'viewer', 'system_ui_capability_model.js');
 const SYSTEM_UI_WORKSPACE_STATE = path.join(ROOT, 'viewer', 'system_ui_workspace_state.js');
 const SYSTEM_UI_SCREEN_MODEL = path.join(ROOT, 'viewer', 'system_ui_screen_model.js');
 const SYSTEM_UI_SCREEN_PREVIEW = path.join(ROOT, 'viewer', 'system_ui_screen_preview.js');
@@ -170,6 +171,7 @@ const contentGraphInteractions = fs.readFileSync(CONTENT_GRAPH_INTERACTIONS, 'ut
 const projectStateSurface = fs.readFileSync(PROJECT_STATE_SURFACE, 'utf8');
 const systemUiFixtureState = fs.readFileSync(SYSTEM_UI_FIXTURE_STATE, 'utf8');
 const systemUiRegionContext = fs.readFileSync(SYSTEM_UI_REGION_CONTEXT, 'utf8');
+const systemUiCapabilityModel = fs.readFileSync(SYSTEM_UI_CAPABILITY_MODEL, 'utf8');
 const systemUiWorkspaceState = fs.readFileSync(SYSTEM_UI_WORKSPACE_STATE, 'utf8');
 const systemUiScreenModel = fs.readFileSync(SYSTEM_UI_SCREEN_MODEL, 'utf8');
 const systemUiScreenPreview = fs.readFileSync(SYSTEM_UI_SCREEN_PREVIEW, 'utf8');
@@ -333,6 +335,7 @@ assert(html.includes('content_graph_interactions.js'), 'viewer should load Conte
 assert(html.includes('project_state_surface.js'), 'viewer should load Project State Dependency Board surface');
 assert(html.includes('system_ui_fixture_state.js'), 'viewer should load System UI fixture states');
 assert(html.includes('system_ui_region_context.js'), 'viewer should load System UI region context');
+assert(html.includes('system_ui_capability_model.js'), 'viewer should load System UI capability model');
 assert(html.includes('system_ui_workspace_state.js'), 'viewer should load System UI workspace state');
 assert(html.includes('system_ui_screen_model.js'), 'viewer should load System UI Screen model');
 assert(html.includes('system_ui_screen_preview.js'), 'viewer should load System UI Screen preview');
@@ -445,6 +448,15 @@ assert(systemUiFixtureState.includes('ProjectMapSystemUiFixtureState'), 'System 
 assert(systemUiFixtureState.includes('status_heavy') && systemUiFixtureState.includes('interactive'), 'System UI fixture states should include status-heavy and interactive modes');
 assert(systemUiRegionContext.includes('ProjectMapSystemUiRegionContext'), 'System UI region context helper should expose a browser API');
 assert(systemUiRegionContext.includes('REGION_OWNERS'), 'System UI region context should define region ownership');
+assert(systemUiCapabilityModel.includes('ProjectMapSystemUiCapabilityModel'), 'System UI capability model should expose a browser API');
+assert(systemUiCapabilityModel.includes('buildCapabilityMatrix'), 'System UI capability model should build a shared region capability matrix');
+assert(systemUiCapabilityModel.includes('runtimeEvidenceState'), 'System UI capability model should classify runtime evidence');
+assert(systemUiScreenModel.includes('capabilityMatrix'), 'System UI Screen model should attach region capabilities');
+assert(systemUiRegionEditor.includes('data-system-ui-capability'), 'System UI editor should render capability evidence cards');
+assert(systemUiRegionEditor.includes('data-system-ui-runtime-state'), 'System UI editor should expose runtime evidence markers');
+assert(systemUiRegionEditor.includes('data-system-ui-theme-layout-candidate'), 'System UI editor should expose limited theme/layout candidate markers');
+assert(systemUiScreenPreview.includes('data-system-ui-install-safety'), 'System UI preview should expose capability safety markers');
+assert(objectAuthoringCanvasUi.includes('focusFieldId') && objectAuthoringCanvasUi.includes('replacementText'), 'Object Canvas should preserve Visible Edit System UI focus and replacement text');
 assert(systemUiWorkspaceState.includes('ProjectMapSystemUiWorkspaceState'), 'System UI workspace state helper should expose a browser API');
 assert(systemUiWorkspaceState.includes('studioAuthoringContext'), 'System UI workspace state should preserve saved authoring context');
 assert(systemUiScreenModel.includes('ProjectMapSystemUiScreenModel'), 'System UI Screen model should expose a browser API');

@@ -65,7 +65,7 @@ const bundle = surfaceDraft.buildExportBundle(extracted.draft, index);
 assert(bundle.ok, 'source_patch surface draft should validate');
 assert(bundle.installPlan.operations.length === 1, 'source_patch draft should produce one install operation');
 assert(bundle.installPlan.operations[0].type === 'replace_text', 'source_patch draft should produce replace_text operation');
-assert(bundle.installPlan.operations[0].safety === 'advanced_apply', 'source_patch draft should use advanced_apply instead of manual review');
+assert(bundle.installPlan.operations[0].safety === 'guarded_apply', 'source_patch draft with exact source evidence should use guarded_apply instead of manual review');
 assert(bundle.installPlan.operations[0].type !== 'manual_snippet', 'source_patch draft should not become a manual snippet');
 
 const generatedOnly = surfaceDraft.buildExportBundle({

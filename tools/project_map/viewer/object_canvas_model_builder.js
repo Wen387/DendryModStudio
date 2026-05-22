@@ -22,7 +22,7 @@
   function buildTemplateModel(options, deps) {
     const apiModel = modelApi(deps);
     const template = currentTemplate(deps);
-    const nextOptions = withAuthoringContext(withStructureCommandValues(options, deps), deps);
+    const nextOptions = withStructureCommandValues(options, deps);
     try {
       if (apiModel && typeof apiModel.buildTemplateCanvas === 'function') {
         return apiModel.buildTemplateCanvas(projectIndex(deps), template, baseDraft(deps), nextOptions || {});
@@ -46,26 +46,6 @@
     return workspace && typeof workspace.buildCanvasModel === 'function'
       ? workspace.buildCanvasModel(editorModel, values || {}, semanticLogicWorkspaceDeps(deps))
       : diagnosticModel('semantic_logic', 'semantic_logic', editorModel && editorModel.targetId || '', new Error('Semantic Logic workspace is unavailable.'), {}, deps);
-  }
-
-  function withAuthoringContext(options, deps) {
-    const opts = Object.assign({}, options || {});
-    if (opts.authoringContext) {
-      return opts;
-    }
-    const state = deps && deps.state || {};
-    if (!state || !state.cardBoardDropContext && !state.cardBoardSelection && !state.cardBoardLane) {
-      return opts;
-    }
-    opts.authoringContext = {
-      surface: 'card_board',
-      selectedCardKey: state.cardBoardSelectedKey || state.selectedCanvasNode || '',
-      selectedLane: state.cardBoardLane || '',
-      cardBoardDropContext: state.cardBoardDropContext || null,
-      cardBoardSelection: state.cardBoardSelection || null,
-      editorOverlay: Boolean(state.editorOverlay)
-    };
-    return opts;
   }
 
   function withStructureCommandValues(options, deps) {

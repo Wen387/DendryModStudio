@@ -91,7 +91,7 @@
       value.selected ? 'is-selected' : ''
     ].filter(Boolean).join(' ');
     return [
-      '<section class="' + classes + '" data-card-board-lane="' + escapeAttr(value.key) + '" data-card-board-drop-target="' + escapeAttr(value.key) + '" data-card-board-lane-label="' + escapeAttr(laneLabel) + '" data-card-board-lane-tag="' + escapeAttr(value.tag || '') + '"' + renderLaneAnchorAttrs(value.sourceAnchor) + '>',
+      '<section class="' + classes + '" data-card-board-lane="' + escapeAttr(value.key) + '" data-card-board-drop-target="' + escapeAttr(value.key) + '" data-card-board-lane-label="' + escapeAttr(laneLabel) + '" data-card-board-lane-tag="' + escapeAttr(value.tag || '') + '">',
       '<header tabindex="0" role="button" data-card-board-lane-select="' + escapeAttr(value.key) + '" aria-pressed="' + (value.selected ? 'true' : 'false') + '">',
       '<span>' + escapeHtml(laneLabel) + '</span>',
       '<strong>' + escapeHtml(String(value.totalCount || cards.length || 0)) + '</strong>',
@@ -142,7 +142,7 @@
       card.body ? '<p>' + renderTextInline(card.body) + '</p>' : '',
       '<div class="card-board-card-options">',
       ensureArray(card.options).slice(0, 3).map((option, index) => [
-        '<button type="button" class="' + (Number(card.selectedOptionIndex) === index ? 'is-selected' : '') + '" data-card-board-option="' + escapeAttr(card.key + ':' + index) + '" data-card-board-option-card="' + escapeAttr(card.key || '') + '" data-card-board-option-index="' + escapeAttr(String(option.index !== undefined ? option.index : index)) + '" data-card-board-option-id="' + escapeAttr(option.id || '') + '" data-card-board-option-field="' + escapeAttr(option.fieldId || '') + '" data-card-board-option-path="' + escapeAttr(option.optionPath || '') + '" data-card-board-option-section="' + escapeAttr(option.sectionId || '') + '">',
+        '<button type="button" class="' + (Number(card.selectedOptionIndex) === index ? 'is-selected' : '') + '" data-card-board-option="' + escapeAttr(card.key + ':' + index) + '" data-card-board-option-card="' + escapeAttr(card.key || '') + '" data-card-board-option-index="' + escapeAttr(String(option.index !== undefined ? option.index : index)) + '" data-card-board-option-id="' + escapeAttr(option.id || '') + '">',
         renderTextInline(option.label || option.id || ''),
         '</button>'
       ].join('')).join(''),
@@ -154,15 +154,8 @@
     ].join('');
   }
 
-  function renderLaneAnchorAttrs(anchor) {
-    const value = anchor && typeof anchor === 'object' ? anchor : {};
-    return ' data-card-board-lane-source-path="' + escapeAttr(value.path || '') + '"' +
-      ' data-card-board-lane-source-line="' + escapeAttr(value.line || '') + '"' +
-      ' data-card-board-lane-anchor-text="' + escapeAttr(value.anchorText || '') + '"';
-  }
-
   function renderCreateButton(lane, label) {
-    return '<button type="button" class="card-board-create-in-lane" data-card-board-create-lane="' + escapeAttr(lane.key || '') + '" data-card-board-lane-label="' + escapeAttr(label || lane.key || '') + '" data-card-board-lane-tag="' + escapeAttr(lane.tag || '') + '"' + renderLaneAnchorAttrs(lane.sourceAnchor) + '>' + escapeHtml(t('cardBoard.createHere', 'New card here')) + '</button>';
+    return '<button type="button" class="card-board-create-in-lane" data-card-board-create-lane="' + escapeAttr(lane.key || '') + '" data-card-board-lane-label="' + escapeAttr(label || lane.key || '') + '" data-card-board-lane-tag="' + escapeAttr(lane.tag || '') + '">' + escapeHtml(t('cardBoard.createHere', 'New card here')) + '</button>';
   }
 
   function renderEditor(model, board, options) {

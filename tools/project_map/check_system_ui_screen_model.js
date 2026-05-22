@@ -4,6 +4,7 @@
 const objectCanvasModel = require('./authoring/object_authoring_canvas_model.js');
 global.ProjectMapSystemUiFixtureState = require('./viewer/system_ui_fixture_state.js');
 global.ProjectMapSystemUiRegionContext = require('./viewer/system_ui_region_context.js');
+global.ProjectMapSystemUiCapabilityModel = require('./viewer/system_ui_capability_model.js');
 const screenModel = require('./viewer/system_ui_screen_model.js');
 global.ProjectMapSystemUiScreenModel = screenModel;
 const screenPreview = require('./viewer/system_ui_screen_preview.js');
@@ -123,6 +124,9 @@ Object.keys(expected).forEach((template) => {
   assert(screen.fixtureState && screen.fixtureState.key, template + ' should expose fixture state');
   assert(screen.fixtures.some((fixture) => fixture.key === 'status_heavy'), template + ' should expose status-heavy fixture');
   assert(screen.regionContext && screen.regionContext.ownership, template + ' should expose selected-region ownership context');
+  assert(screen.capabilityMatrix && screen.capabilityMatrix.kind === 'system_ui_capability_matrix', template + ' should expose a System UI capability matrix');
+  assert(screen.regions.every((region) => region.capability && region.capability.regionKey === region.key), template + ' should attach deterministic capability to every region');
+  assert(screen.selected && screen.selected.capability, template + ' should expose selected-region capability');
   assert(screen.recipe.family === expected[template].family, template + ' should map to the expected recipe family');
   assert(screen.selectedKey === expected[template].selected, template + ' should select the expected default region');
   assert(screen.sidebarCategories.some((category) => category.id === 'politics'), template + ' should expose source-backed sidebar categories');
@@ -154,6 +158,9 @@ Object.keys(expected).forEach((template) => {
   assert(html.includes('data-system-screen-diagnostics="true"'), template + ' surface should explain recipe and selection intent');
   assert(html.includes('data-system-ui-region-context="true"'), template + ' surface should render selected-region context');
   assert(html.includes('data-system-ui-owner-template='), template + ' surface should render region owner evidence');
+  assert(html.includes('data-system-ui-capability="true"'), template + ' surface should render capability matrix summary');
+  assert(html.includes('data-system-ui-runtime-state='), template + ' surface should render runtime evidence markers');
+  assert(html.includes('data-system-ui-theme-layout-candidate='), template + ' surface should render theme/layout candidate marker');
   if (template !== 'election_results') {
     assert(html.includes('data-system-screen-sidebar-category="politics"'), template + ' surface should render source-backed sidebar category tabs');
     assert(html.includes('data-system-ui-template="workspace_layout"'), template + ' surface should expose Add category as a Workspace Layout action');
@@ -161,6 +168,28 @@ Object.keys(expected).forEach((template) => {
   assert(!html.includes('<span>Main</span><span>Politics</span><span>Defense</span><span>Polls</span>'), template + ' surface should not render the old hard-coded sidebar tabs');
   assert(!html.includes('system-ui-device'), template + ' should not render the old abstract device grid');
 });
+
+const runtimeEvidenceScreen = screenModel.buildScreen(
+  objectCanvasModel.buildTemplateCanvas(index, 'entry', {}, {values: {}}),
+  {
+    projectIndex: index,
+    selected: 'ui:main_content',
+    runtimeVisualSurface: {
+      status: 'ready',
+      candidates: [
+        {id: 'root_text', role: 'main_content text', text: 'Read.', source: {path: 'source/scenes/root.scene.dry', line: 8}, runtimeEvidenceState: 'source_backed', editability: 'draftable'},
+        {id: 'generated_css', role: 'style', selector: '.generated', source: {path: 'out/html/style.css', line: 1}, runtimeEvidenceState: 'generated_only', editability: 'generated_only'}
+      ]
+    }
+  }
+);
+assert(runtimeEvidenceScreen.capabilityMatrix.runtimeEvidenceState === 'source_backed', 'runtime evidence should prefer source-backed candidates over generated-only diagnostics');
+assert(runtimeEvidenceScreen.selected.capability.runtimeEvidenceState === 'source_backed', 'selected source-backed runtime evidence should be visible in System UI capability');
+const blockedScreen = screenModel.buildScreen(objectCanvasModel.buildTemplateCanvas(index, 'entry', {}, {values: {}}), {
+  projectIndex: index,
+  runtimeVisualSurface: {status: 'blocked', diagnostics: [{severity: 'error', code: 'blocked'}]}
+});
+assert(blockedScreen.capabilityMatrix.runtimeEvidenceState === 'blocked', 'blocked runtime evidence should mark the capability matrix blocked');
 
 const sourceCategoryScreen = screenModel.buildScreen(
   objectCanvasModel.buildTemplateCanvas(index, 'sidebar_status', {}, {values: {}}),

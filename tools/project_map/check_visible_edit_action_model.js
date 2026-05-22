@@ -194,6 +194,10 @@ visibleRows.forEach((row) => {
     assert(index.variables.some((variable) => variable.name === action.targetId), 'variable edit action should target an indexed variable', row);
   } else if (action.actionKind === 'open_system_ui_editor') {
     assert(action.targetView && action.targetId, 'System UI edit action should target a UI workspace', row);
+    assert(action.workspace === 'system_ui', 'System UI edit action should carry workspace payload', row);
+    assert(action.template && action.internalTemplate, 'System UI edit action should carry template/internalTemplate payload', row);
+    assert(action.selectedRegion && action.selectedRegion.indexOf('ui:') === 0, 'System UI edit action should carry selected region payload', row);
+    assert(action.target && action.target.source && action.target.source.path, 'System UI edit action should keep source evidence on the target', row);
   } else {
     fail('unsupported visible editAction kind', row);
   }

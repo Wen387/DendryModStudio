@@ -7,6 +7,7 @@
     return [
       '<aside class="system-ui-inspector" data-system-ui-inspector="true">',
       selected ? renderSelectedRegion(screen, selected) : '',
+      selected ? renderCapabilitySummary(selected.capability || screen && screen.regionContext && screen.regionContext.capability) : '',
       renderActions(model, opts),
       renderRuntimeLens(model, screen, opts),
       renderRegionFields(selected),
@@ -21,7 +22,7 @@
     const ownership = context.ownership || {};
     const family = ensureArray(screen.families).find((item) => item.key === region.family) || {};
     return [
-      '<section class="object-canvas-inspector-card" data-system-ui-selected-region="' + escapeAttr(region.key) + '" data-system-ui-selected-family="' + escapeAttr(region.family) + '" data-system-ui-owner-template="' + escapeAttr(ownership.ownerTemplate || region.ownerTemplate || '') + '">',
+      '<section class="object-canvas-inspector-card" data-system-ui-selected-region="' + escapeAttr(region.key) + '" data-system-ui-selected-family="' + escapeAttr(region.family) + '" data-system-ui-owner-template="' + escapeAttr(ownership.ownerTemplate || region.ownerTemplate || '') + '" data-system-ui-capability-region="' + escapeAttr(region.key || '') + '">',
       '<div class="template-eyebrow">' + escapeHtml(t('systemUi.selectedRegion', 'Selected UI region')) + '</div>',
       '<h3>' + escapeHtml(region.title) + '</h3>',
       '<p>' + escapeHtml(region.body) + '</p>',
@@ -33,6 +34,35 @@
       renderRegionMirror(region),
       renderCardBoardHandoff(region),
       '</section>'
+    ].join('');
+  }
+
+  function renderCapabilitySummary(capability) {
+    const value = isObject(capability) ? capability : {};
+    const theme = isObject(value.themeLayoutCandidate) ? value.themeLayoutCandidate : {};
+    const runtime = isObject(value.runtimeEvidenceSummary) ? value.runtimeEvidenceSummary : {};
+    const fields = ensureArray(value.supportedEditFields);
+    const state = String(value.runtimeEvidenceState || 'runtime_custom');
+    return [
+      '<section class="content-storyboard-detail system-ui-capability-card" data-system-ui-capability="true" data-system-ui-runtime-state="' + escapeAttr(state) + '" data-system-ui-install-safety="' + escapeAttr(value.installSafety || '') + '" data-system-ui-theme-layout-candidate="' + (theme.supported ? 'true' : 'false') + '">',
+      '<div class="template-eyebrow">' + escapeHtml(t('systemUi.capabilityMatrix', 'Capability matrix')) + '</div>',
+      '<dl class="system-screen-selection-meta">',
+      '<dt>' + escapeHtml(t('systemUi.installSafety', 'Install safety')) + '</dt><dd>' + escapeHtml(value.installSafety || 'manual_review') + '</dd>',
+      '<dt>' + escapeHtml(t('systemUi.runtimeEvidence', 'Runtime evidence')) + '</dt><dd>' + escapeHtml(state) + '</dd>',
+      '<dt>' + escapeHtml(t('systemUi.runtimeVisible', 'Runtime visible')) + '</dt><dd>' + escapeHtml(runtime.visible ? 'yes' : 'not matched') + '</dd>',
+      '<dt>' + escapeHtml(t('systemUi.themeLayoutCandidate', 'Theme/layout candidate')) + '</dt><dd>' + escapeHtml(theme.supported ? theme.scope || 'limited_source_backed' : theme.reason || 'manual') + '</dd>',
+      '</dl>',
+      fields.length ? '<div class="system-ui-supported-fields" data-system-ui-supported-fields="true">' + fields.map(renderCapabilityField).join('') + '</div>' : '',
+      value.manualReason ? '<p class="editing-empty" data-system-ui-manual-reason="true">' + escapeHtml(value.manualReason) + '</p>' : '',
+      '</section>'
+    ].join('');
+  }
+
+  function renderCapabilityField(field) {
+    return [
+      '<span data-system-ui-supported-field="' + escapeAttr(field && field.id || '') + '" data-system-ui-field-safety="' + escapeAttr(field && field.installSafety || '') + '">',
+      escapeHtml(field && (field.label || field.id) || ''),
+      '</span>'
     ].join('');
   }
 
@@ -103,7 +133,8 @@
   function renderRegionContext(screen) {
     const context = screen.regionContext || {};
     const nearby = ensureArray(context.nearbyRegions);
-    const evidence = ensureArray(context.sourceEvidence);
+    const capability = context.capability || screen && screen.selected && screen.selected.capability || {};
+    const evidence = ensureArray(capability.sourceEvidence).length ? ensureArray(capability.sourceEvidence) : ensureArray(context.sourceEvidence);
     return [
       '<section class="content-storyboard-detail system-ui-region-context" data-system-ui-region-context="true">',
       '<div class="template-eyebrow">' + escapeHtml(t('systemUi.context', 'Region context')) + '</div>',

@@ -183,6 +183,7 @@
     const selected = selectedKey === key;
     const focus = activeFamilies.includes(region.family);
     const owner = region.ownerTemplate || '';
+    const capability = region.capability || {};
     const className = [
       'system-screen-region',
       'system-screen-region-' + safeClass(key),
@@ -191,7 +192,7 @@
       focus ? 'is-recipe-focus' : '',
       extraClass || ''
     ].filter(Boolean).join(' ');
-    return '<button type="button" class="' + className + '" data-object-canvas-graph-node="ui:' + escapeAttr(key) + '" data-system-ui-region="' + escapeAttr(key) + '" data-system-screen-region="' + escapeAttr(key) + '" data-system-screen-family="' + escapeAttr(region.family || '') + '" data-system-screen-owner-template="' + escapeAttr(owner) + '" aria-pressed="' + (selected ? 'true' : 'false') + '">' + inner + '</button>';
+    return '<button type="button" class="' + className + '" data-object-canvas-graph-node="ui:' + escapeAttr(key) + '" data-system-ui-region="' + escapeAttr(key) + '" data-system-screen-region="' + escapeAttr(key) + '" data-system-screen-family="' + escapeAttr(region.family || '') + '" data-system-screen-owner-template="' + escapeAttr(owner) + '" data-system-ui-runtime-state="' + escapeAttr(capability.runtimeEvidenceState || '') + '" data-system-ui-install-safety="' + escapeAttr(capability.installSafety || '') + '" aria-pressed="' + (selected ? 'true' : 'false') + '">' + inner + '</button>';
   }
 
   function renderFixtureHint(model) {

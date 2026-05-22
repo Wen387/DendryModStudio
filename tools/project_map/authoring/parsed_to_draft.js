@@ -106,11 +106,10 @@
     const sceneId = String(scene.id || '');
     const textRows = textRowsForScene(lookup, sceneId);
     const rootRows = rootTextRows(textRows);
-    const rootConditionalRows = rootConditionalTextRows(textRows);
     const rootOptions = ensureArray(scene.options || scene.choices).map((option, index) => optionFromParsed(option, index, 'event'));
     const sections = ensureArray(scene.sections).map((section, index) => sectionFromParsed(section, index, textRows)).filter((section) => section.id);
     const sectionOptionCount = sections.reduce((sum, section) => sum + ensureArray(section.options).length, 0);
-    const eventShape = eventShapeForRootOptions(rootOptions);
+    const eventShape = rootOptions.length ? 'choice_event' : 'pure_event';
     const sourceId = safeId(options && (options.newId || options.id) || sceneId + '_copy');
     const windowInfo = parseEventWindow(scene.viewIf || scene.view_if);
     const draft = {
@@ -125,14 +124,8 @@
       newPage: scene.newPage === undefined ? true : Boolean(scene.newPage),
       rawViewIf: String(scene.viewIf || scene.view_if || '').trim(),
       maxVisits: numberOrNull(scene.maxVisits || scene.max_visits),
-      frequency: numberOrNull(scene.frequency),
-      calls: lineList(scene.calls || scene.callTargets),
-      setJump: String(scene.setJump || scene.set_jump || scene.jumpTarget || '').trim(),
-      rawRoutes: lineList(scene.rawRoutes || scene.routeClauses),
-      rawOnDisplay: lineList(scene.rawOnDisplay || scene.onDisplay),
-      rawOnDeparture: lineList(scene.rawOnDeparture || scene.onDeparture),
-      useSeenFlag: choiceLikeEventShape(eventShape),
-      seenFlag: choiceLikeEventShape(eventShape) ? sourceId + '_seen' : '',
+      useSeenFlag: eventShape === 'choice_event',
+      seenFlag: eventShape === 'choice_event' ? sourceId + '_seen' : '',
       when: {
         year: windowInfo.year || numberOrNull(scene.year) || 1936,
         monthStart: windowInfo.monthStart || numberOrNull(scene.monthStart || scene.month_start) || 1,
@@ -140,10 +133,8 @@
         requires: '',
         priority: numberOrNull(scene.priority) ?? 0
       },
-      introParagraphs: rootRows.length ? textValues(rootRows) : fallbackParagraphsExcludingConditionals(scene.body || scene.text || scene.description || scene.title || '', rootConditionalRows),
-      conditionalParagraphs: conditionalParagraphsFromRows(rootConditionalRows),
+      introParagraphs: rootRows.length ? textValues(rootRows) : normalizeTextList(scene.body || scene.text || scene.description || scene.title || ''),
       effectsOnTrigger: normalizeEffects(scene.effects || scene.effectsOnTrigger, 'on-arrival'),
-      rawEffectsOnTrigger: lineList(scene.rawEffectsOnTrigger || scene.rawOnArrival || scene.onArrival),
       assetRefs: assetRefsForScene(scene),
       sourceSceneId: sceneId,
       source: sourceRef(scene.sourceSpan || scene.topLevelSpan || {path: scene.path || ''}),
@@ -152,13 +143,10 @@
     if (sections.length) {
       draft.sections = sections;
     }
-    const anchorResolution = qualifyDuplicateDraftAnchors(draft, lookup);
     const parsed = parityCounts(scene, textRows);
     const drafted = draftParityCounts(draft);
     const roleParity = roleKeyedParity(scene, textRows, draft);
-    const blockers = eventBlockers(scene, rootOptions, sections, sectionOptionCount, eventShape)
-      .concat(anchorResolution.blockers)
-      .concat(roleParity.blockers);
+    const blockers = eventBlockers(rootOptions, sections, sectionOptionCount, eventShape).concat(roleParity.blockers);
     const status = blockers.length ? 'partial' : 'draft';
     decorateDraft(draft, status, archetypeForEvent(eventShape, rootOptions, sections, sectionOptionCount), blockers, parsed, drafted, roleParity);
     return resultForDraft({
@@ -320,14 +308,6 @@
     });
   }
 
-  function rootConditionalTextRows(rows) {
-    return ensureArray(rows).filter((row) => {
-      const role = roleOf(row);
-      const sectionId = String(row && row.owner && row.owner.sectionId || row && row.sectionId || '').trim();
-      return !sectionId && role === 'conditional_body';
-    });
-  }
-
   function textRowsForSection(rows, sectionId) {
     const wanted = new Set(idTokens(sectionId));
     return ensureArray(rows).filter((row) => {
@@ -348,22 +328,13 @@
     const value = isObject(section) ? section : {};
     const id = safeId(localId(value.id || value.sectionId || 'section_' + (index + 1)));
     const textRows = textRowsForSection(rows, value.id || id);
-    const bodyRows = textRows.filter((row) => roleOf(row) !== 'conditional_body');
-    const conditionalRows = textRows.filter((row) => roleOf(row) === 'conditional_body');
     return {
       id,
       title: String(value.title || '').trim(),
       condition: String(value.condition || value.viewIf || value.chooseIf || '').trim(),
-      paragraphs: bodyRows.length ? textValues(bodyRows) : fallbackParagraphsExcludingConditionals(value.paragraphs || value.body || value.text || '', conditionalRows),
-      conditionalParagraphs: conditionalParagraphsFromRows(conditionalRows),
+      paragraphs: textRows.length ? textValues(textRows) : normalizeTextList(value.paragraphs || value.body || value.text || ''),
       effects: normalizeEffects(value.effects, 'on-arrival'),
       options: ensureArray(value.options).map((option, optionIndex) => optionFromParsed(option, optionIndex, 'event', value)),
-      rawRoutes: lineList(value.rawRoutes || value.routeClauses),
-      calls: lineList(value.calls || value.callTargets),
-      setJump: String(value.setJump || value.set_jump || value.jumpTarget || '').trim(),
-      rawOnDisplay: lineList(value.rawOnDisplay || value.onDisplay),
-      rawOnDeparture: lineList(value.rawOnDeparture || value.onDeparture),
-      rawEffects: lineList(value.rawEffects || value.rawEffectsOnTrigger || value.rawOnArrival || value.onArrival),
       exitTarget: safeId(localId(value.exitTarget || value.returnTarget || 'root'))
     };
   }
@@ -383,12 +354,6 @@
       chooseIf: String(value.chooseIf || value.condition || '').trim(),
       unavailableText: String(value.unavailableText || value.unavailable || '').trim(),
       effects: normalizeEffects(value.effects, 'choice'),
-      rawRoutes: lineList(value.rawRoutes || value.routeClauses),
-      calls: lineList(value.calls || value.callTargets),
-      setJump: String(value.setJump || value.set_jump || value.jumpTarget || '').trim(),
-      rawOnDisplay: lineList(value.rawOnDisplay || value.onDisplay),
-      rawOnDeparture: lineList(value.rawOnDeparture || value.onDeparture),
-      rawEffects: lineList(value.rawEffects || value.rawEffectsOnTrigger || value.rawOnArrival || value.onArrival),
       narrativeParagraphs: normalizeTextList(value.narrativeParagraphs || value.body || value.resultText || value.textAfter || ''),
       variants: ensureArray(value.variants),
       gotoAfter: kind === 'card' ? safeId(localId(value.gotoAfter || value.returnTarget || 'root')) : safeId(localId(value.gotoAfter || 'continue_' + id)),
@@ -400,303 +365,12 @@
     return row;
   }
 
-  function qualifyDuplicateDraftAnchors(draft, lookup) {
-    const rewrites = [];
-    const unresolvedRoutes = [];
-    const linkTargetIds = new Set(['root']);
-    ensureArray(lookup && lookup.scenes).forEach((scene) => {
-      if (scene && scene.id) {
-        linkTargetIds.add(safeId(localId(scene.id)));
-      }
-    });
-    ensureArray(draft && draft.sections).forEach((section) => {
-      if (section && section.id) {
-        linkTargetIds.add(String(section.id));
-      }
-    });
-
-    const records = [];
-    const addRecord = (record) => {
-      const oldId = safeId(record.oldId || '');
-      if (oldId) {
-        records.push(Object.assign({}, record, {oldId}));
-      }
-    };
-    addRecord({kind: 'event', oldId: draft && draft.id, object: draft, prop: 'id', locked: true, owner: 'event'});
-    ensureArray(draft && draft.sections).forEach((section, sectionIndex) => {
-      const sectionOwner = 'section:' + (section && section.sourceAnchorId || section && section.id || sectionIndex + 1);
-      addRecord({kind: 'section', oldId: section && section.id, object: section, prop: 'id', owner: sectionOwner, ownerPrefix: section && section.id || 'section_' + (sectionIndex + 1)});
-      ensureArray(section && section.options).forEach((option, optionIndex) => {
-        collectOptionAnchorRecords(addRecord, option, optionIndex, section && section.id || '', linkTargetIds);
-      });
-    });
-    ensureArray(draft && draft.options).forEach((option, optionIndex) => {
-      collectOptionAnchorRecords(addRecord, option, optionIndex, '', linkTargetIds);
-    });
-
-    const countById = records.reduce((out, record) => {
-      out[record.oldId] = (out[record.oldId] || 0) + 1;
-      return out;
-    }, {});
-    const used = new Set(records.filter((record) => countById[record.oldId] <= 1 || record.locked).map((record) => record.oldId));
-    const scopedMap = new Map();
-    const allMappings = {};
-
-    records.forEach((record, index) => {
-      if (record.locked || countById[record.oldId] <= 1) {
-        return;
-      }
-      const ownerPrefix = safeId(localId(record.ownerPrefix || record.owner || 'root'));
-      const base = record.kind === 'goto'
-        ? 'continue_' + ownerPrefix + '_' + stripContinuePrefix(record.oldId)
-        : ownerPrefix + '_' + record.oldId;
-      const nextId = uniqueAnchorId(base, used);
-      used.add(nextId);
-      record.object[record.prop] = nextId;
-      if (record.kind === 'section') {
-        record.object.sourceAnchorId = record.object.sourceAnchorId || record.oldId;
-        record.object.renderAnchorId = nextId;
-      } else if (record.kind === 'option') {
-        record.object.sourceAnchorId = record.object.sourceAnchorId || record.oldId;
-        record.object.renderAnchorId = nextId;
-      }
-      const rewrite = {
-        source: record.oldId,
-        render: nextId,
-        owner: record.owner || '',
-        kind: record.kind || ''
-      };
-      rewrites.push(rewrite);
-      ensureArray(record.scopeKeys).concat(record.owner || '').filter(Boolean).forEach((key) => {
-        scopedMap.set(key + '::' + record.oldId, nextId);
-      });
-      if (!allMappings[record.oldId]) {
-        allMappings[record.oldId] = [];
-      }
-      allMappings[record.oldId].push(Object.assign({index}, rewrite));
-    });
-
-    ensureArray(draft && draft.sections).forEach((section) => {
-      ensureArray(section && section.options).forEach((option) => {
-        option.ownerSectionId = section.id || option.ownerSectionId || '';
-      });
-    });
-
-    const mapTarget = (target, ownerKeys, ownerLabel) => {
-      const normalized = safeId(localId(target));
-      if (!normalized || normalized === 'root') {
-        return target;
-      }
-      for (let index = 0; index < ownerKeys.length; index += 1) {
-        const mapped = scopedMap.get(ownerKeys[index] + '::' + normalized);
-        if (mapped) {
-          return mapped;
-        }
-      }
-      const matches = allMappings[normalized] || [];
-      if (matches.length === 1) {
-        return matches[0].render;
-      }
-      if (matches.length > 1) {
-        unresolvedRoutes.push({target: normalized, owner: ownerLabel || '', reason: 'ambiguous_duplicate_anchor'});
-      }
-      return target;
-    };
-
-    const rewriteRawRoutes = (lines, ownerKeys, ownerLabel) => ensureArray(lines).map((line) => {
-      return rewriteRawRouteTarget(line, (target) => mapTarget(target, ownerKeys, ownerLabel));
-    });
-
-    draft.rawRoutes = rewriteRawRoutes(draft.rawRoutes, ['event', 'root'], 'event');
-    if (draft.setJump) {
-      draft.setJump = mapTarget(draft.setJump, ['event', 'root'], 'event set-jump');
-    }
-    ensureArray(draft.options).forEach((option) => {
-      const keys = optionScopeKeys(option, '');
-      rewriteOptionTargets(option, keys, 'root option ' + (option.sourceAnchorId || option.id), mapTarget, rewriteRawRoutes);
-    });
-    ensureArray(draft.sections).forEach((section) => {
-      const sectionKeys = sectionScopeKeys(section);
-      section.rawRoutes = rewriteRawRoutes(section.rawRoutes, sectionKeys, 'section ' + (section.sourceAnchorId || section.id));
-      if (section.exitTarget) {
-        section.exitTarget = mapTarget(section.exitTarget, sectionKeys, 'section ' + (section.sourceAnchorId || section.id));
-      }
-      if (section.setJump) {
-        section.setJump = mapTarget(section.setJump, sectionKeys, 'section ' + (section.sourceAnchorId || section.id) + ' set-jump');
-      }
-      ensureArray(section.options).forEach((option) => {
-        rewriteOptionTargets(option, optionScopeKeys(option, section), 'section option ' + (option.sourceAnchorId || option.id), mapTarget, rewriteRawRoutes);
-      });
-    });
-
-    if (rewrites.length || unresolvedRoutes.length) {
-      draft.anchorResolution = {
-        version: '0.1',
-        rewrites,
-        unresolvedRoutes
-      };
-    }
-    return {
-      rewrites,
-      unresolvedRoutes,
-      blockers: unresolvedRoutes.map((item) => blocker('parsed_to_draft.unresolved_anchor_mapping', 'Anchor mapping could not safely resolve route target "' + item.target + '" from ' + item.owner + '.'))
-    };
-  }
-
-  function collectOptionAnchorRecords(addRecord, option, optionIndex, ownerSectionId, linkTargetIds) {
-    if (!option) {
-      return;
-    }
-    const optionId = safeId(option.id || 'option_' + (optionIndex + 1));
-    const ownerPrefix = ownerSectionId ? ownerSectionId + '_' + optionId : 'root_' + optionId;
-    const scopeKeys = optionScopeKeys(option, ownerSectionId);
-    const linkedTarget = linkTargetIds && linkTargetIds.has(optionId) && !optionHasInlineResultContent(option);
-    if (!linkedTarget) {
-      addRecord({kind: 'option', oldId: optionId, object: option, prop: 'id', owner: ownerSectionId ? 'section:' + ownerSectionId : 'root', ownerPrefix, scopeKeys});
-      if (option.gotoAfter) {
-        addRecord({kind: 'goto', oldId: option.gotoAfter, object: option, prop: 'gotoAfter', owner: ownerSectionId ? 'section:' + ownerSectionId : 'root', ownerPrefix, scopeKeys});
-      }
-    }
-  }
-
-  function optionHasInlineResultContent(option) {
-    const value = isObject(option) ? option : {};
-    return Boolean(
-      String(value.title || '').trim() ||
-      String(value.subtitle || '').trim() ||
-      String(value.chooseIf || '').trim() ||
-      String(value.unavailableText || '').trim() ||
-      String(value.setJump || '').trim() ||
-      ensureArray(value.effects).length ||
-      ensureArray(value.rawEffects).length ||
-      ensureArray(value.rawRoutes).length ||
-      ensureArray(value.calls).length ||
-      ensureArray(value.narrativeParagraphs).length ||
-      ensureArray(value.assetPlacements).length ||
-      ensureArray(value.variants).length
-    );
-  }
-
-  function sectionScopeKeys(section) {
-    const id = String(section && section.id || '').trim();
-    const source = String(section && section.sourceAnchorId || '').trim();
-    return uniqueStrings(['section:' + id, source ? 'section:' + source : '', id, source]).filter(Boolean);
-  }
-
-  function optionScopeKeys(option, ownerSection) {
-    const ownerId = isObject(ownerSection) ? String(ownerSection.id || '') : String(ownerSection || '');
-    const ownerSource = isObject(ownerSection) ? String(ownerSection.sourceAnchorId || '') : '';
-    const optionId = String(option && option.id || '').trim();
-    const optionSource = String(option && option.sourceAnchorId || '').trim();
-    return uniqueStrings([
-      ownerId ? 'section:' + ownerId : 'root',
-      ownerSource ? 'section:' + ownerSource : '',
-      optionId ? 'option:' + optionId : '',
-      optionSource ? 'option:' + optionSource : '',
-      ownerId,
-      ownerSource
-    ]).filter(Boolean);
-  }
-
-  function rewriteOptionTargets(option, ownerKeys, ownerLabel, mapTarget, rewriteRawRoutes) {
-    option.rawRoutes = rewriteRawRoutes(option.rawRoutes, ownerKeys, ownerLabel);
-    if (option.gotoAfter) {
-      option.gotoAfter = mapTarget(option.gotoAfter, ownerKeys, ownerLabel + ' goto');
-    }
-    if (option.returnTarget) {
-      option.returnTarget = mapTarget(option.returnTarget, ownerKeys, ownerLabel + ' return');
-    }
-    if (option.setJump) {
-      option.setJump = mapTarget(option.setJump, ownerKeys, ownerLabel + ' set-jump');
-    }
-  }
-
-  function rewriteRawRouteTarget(line, mapTarget) {
-    return String(line || '').replace(/^(\s*(?:go-to|check-success-go-to|check-failure-go-to)\s*:\s*[@#]?)([A-Za-z_][A-Za-z0-9_.-]*)/i, (full, prefix, target) => {
-      const mapped = mapTarget(target);
-      return prefix + mapped;
-    });
-  }
-
-  function uniqueAnchorId(base, used) {
-    const root = safeId(base || 'anchor');
-    if (!used.has(root)) {
-      return root;
-    }
-    let index = 2;
-    let next = root + '_' + index;
-    while (used.has(next)) {
-      index += 1;
-      next = root + '_' + index;
-    }
-    return next;
-  }
-
-  function stripContinuePrefix(value) {
-    return String(value || '').replace(/^continue_/, '');
-  }
-
-  function eventBlockers(scene, rootOptions, sections, sectionOptionCount, eventShape) {
+  function eventBlockers(rootOptions, sections, sectionOptionCount, eventShape) {
     const blockers = [];
-    if (hasDynamicStructure(scene)) {
-      blockers.push(blocker('parsed_to_draft.dynamic_structure_partial', 'This parsed event has dynamic/raw structure that still needs source-backed authoring support.'));
-    }
-    externalOptionTargetBlockers(scene, sections).forEach((item) => blockers.push(item));
     if (eventShape === 'choice_event' && rootOptions.length < 2) {
       blockers.push(blocker('parsed_to_draft.choice_event_too_few_options', 'This parsed event has fewer than 2 root choices; structured create-as-new support is partial.'));
     }
-    if (eventShape === 'pure_event' && !rootOptions.length && (ensureArray(sections).length || Number(sectionOptionCount || 0) > 0)) {
-      blockers.push(blocker('parsed_to_draft.root_choice_missing', 'This parsed event has follow-up structure but no root player choice; add a visible root option or convert the structure before install.'));
-    }
     return blockers;
-  }
-
-  function eventShapeForRootOptions(rootOptions) {
-    const count = ensureArray(rootOptions).length;
-    if (count === 0) {
-      return 'pure_event';
-    }
-    if (count === 1) {
-      return 'linear_choice_event';
-    }
-    return 'choice_event';
-  }
-
-  function choiceLikeEventShape(shape) {
-    return shape === 'choice_event' || shape === 'linear_choice_event';
-  }
-
-  function externalOptionTargetBlockers(scene, sections) {
-    const localTargets = new Set(['root']);
-    ensureArray(sections).forEach((section) => {
-      if (section && section.id) {
-        localTargets.add(String(section.id));
-      }
-    });
-    const blockers = [];
-    const rows = ensureArray(scene && (scene.options || scene.choices)).concat(ensureArray(scene && scene.sections).reduce((out, section) => {
-      return out.concat(ensureArray(section && section.options));
-    }, []));
-    rows.forEach((option) => {
-      const target = parsedOptionTargetId(option);
-      const ownResultId = safeId(localId(option && option.id || ''));
-      const normalizedTarget = safeId(localId(target));
-      if (target && ownResultId && normalizedTarget === ownResultId) {
-        return;
-      }
-      if (target && !localTargets.has(normalizedTarget)) {
-        blockers.push(blocker('parsed_to_draft.external_option_route_partial', 'Parsed option target "' + target + '" is outside the copied event structure; review route preservation before install.'));
-      }
-    });
-    return blockers;
-  }
-
-  function parsedOptionTargetId(option) {
-    const value = isObject(option) ? option : {};
-    const target = isObject(value.target) ? value.target : {};
-    const candidate = value.gotoAfter || value.returnTarget || value.afterResultTarget || value.targetId || value.rawTargetId || target.id || '';
-    const text = String(candidate || '').replace(/^[@#]/, '').trim();
-    return text && !/^continue_[A-Za-z0-9_]+$/.test(text) ? text : '';
   }
 
   function cardBlockers(scene, rootOptions, sectionOptions, allOptions, cardShape) {
@@ -714,7 +388,7 @@
   }
 
   function hasDynamicStructure(scene) {
-    return Boolean(scene && (scene.dynamicStructure || scene.dynamicMenu || ensureArray(scene.dynamicBlocks).length));
+    return Boolean(scene && (scene.dynamicStructure || scene.dynamicMenu || ensureArray(scene.opaqueJsBlocks).length || ensureArray(scene.dynamicBlocks).length));
   }
 
   function archetypeForEvent(eventShape, rootOptions, sections, sectionOptionCount) {
@@ -762,12 +436,9 @@
     const sectionOptions = sections.reduce((sum, section) => sum + ensureArray(section && section.options).length, 0);
     return {
       text: ensureArray(draft && draft.introParagraphs).filter(Boolean).length +
-        ensureArray(draft && draft.conditionalParagraphs).filter(conditionalParagraphHasText).length +
         (draft && draft.title ? 1 : 0) +
         (draft && draft.subtitle ? 1 : 0) +
-        sections.reduce((sum, section) => sum +
-          ensureArray(section && section.paragraphs).filter(Boolean).length +
-          ensureArray(section && section.conditionalParagraphs).filter(conditionalParagraphHasText).length, 0),
+        sections.reduce((sum, section) => sum + ensureArray(section && section.paragraphs).filter(Boolean).length, 0),
       effects: ensureArray(draft && draft.effectsOnTrigger).length +
         sections.reduce((sum, section) => sum + ensureArray(section && section.effects).length + ensureArray(section && section.options).reduce((optSum, option) => optSum + ensureArray(option && option.effects).length, 0), 0) +
         rootOptions.reduce((sum, option) => sum + ensureArray(option && option.effects).length, 0) +
@@ -829,11 +500,7 @@
       sections: sections.length,
       conditions: conditionCount(scene, rows),
       effects: collectEffects(scene).length,
-      assets: assetRefsForScene(scene).length,
-      routes: routeCount(scene),
-      calls: callCount(scene),
-      setJump: scene && (scene.setJump || scene.set_jump || scene.jumpTarget) ? 1 : 0,
-      lifecycleHooks: lifecycleHookCount(scene)
+      assets: assetRefsForScene(scene).length
     };
   }
 
@@ -846,10 +513,7 @@
       subtitle: draft && draft.subtitle ? 1 : 0,
       heading: draft && draft.heading ? 1 : 0,
       body: ensureArray(draft && draft.introParagraphs).filter(Boolean).length +
-        ensureArray(draft && draft.conditionalParagraphs).filter(conditionalParagraphHasText).length +
-        sections.reduce((sum, section) => sum +
-          ensureArray(section && section.paragraphs).filter(Boolean).length +
-          ensureArray(section && section.conditionalParagraphs).filter(conditionalParagraphHasText).length, 0),
+        sections.reduce((sum, section) => sum + ensureArray(section && section.paragraphs).filter(Boolean).length, 0),
       metadata: ensureArray(draft && draft.tags).length + (draft && draft.newPage !== undefined ? 1 : 0),
       viewIf: draft && (draft.rawViewIf || draft.viewIf || draft.when && draft.when.requires) ? 1 : 0,
       options: rootOptions.length,
@@ -857,23 +521,18 @@
       sections: sections.length || ensureArray(draft && draft.parsedSections).length,
       conditions: conditionCountFromDraft(draft),
       effects: draftParityCounts(draft).effects,
-      assets: ensureArray(draft && draft.assetRefs).length,
-      routes: routeCountFromDraft(draft),
-      calls: callCountFromDraft(draft),
-      setJump: draft && draft.setJump ? 1 : 0,
-      lifecycleHooks: lifecycleHookCountFromDraft(draft)
+      assets: ensureArray(draft && draft.assetRefs).length
     };
   }
 
   function parsedBodyTextCount(rows, scene) {
-    const bodyRoles = new Set(['body', 'content', 'visible_text', 'monthly_popup_excerpt']);
+    const bodyRoles = new Set(['body', 'content', 'visible_text', 'monthly_popup_excerpt', 'conditional_body']);
     const bodyRows = ensureArray(rows).filter((row) => {
       const role = roleOf(row);
       const text = String(row && (row.text || row.value || row.original) || '').trim();
       return text && bodyRoles.has(role);
     });
-    const count = textValues(bodyRows).length +
-      conditionalParagraphsFromRows(ensureArray(rows).filter((row) => roleOf(row) === 'conditional_body')).length;
+    const count = textValues(bodyRows).length;
     if (count) {
       return count;
     }
@@ -903,11 +562,7 @@
       'sections',
       'conditions',
       'effects',
-      'assets',
-      'routes',
-      'calls',
-      'setJump',
-      'lifecycleHooks'
+      'assets'
     ].includes(String(role || ''));
   }
 
@@ -924,20 +579,17 @@
       }
       ensureArray(section && section.options).forEach((option) => { if (option && (option.chooseIf || option.condition)) { count += 1; } });
     });
-    count += conditionalParagraphsFromRows(ensureArray(rows).filter((row) => roleOf(row) === 'conditional_body'))
-      .reduce((sum, row) => sum + conditionalParagraphConditionCount(row), 0);
+    ensureArray(rows).forEach((row) => { if (roleOf(row) === 'conditional_body') { count += 1; } });
     return count;
   }
 
   function conditionCountFromDraft(draft) {
-    let count = draft && (draft.rawViewIf || draft.viewIf || draft.when && draft.when.requires) ? 1 : 0;
-    count += ensureArray(draft && draft.conditionalParagraphs).reduce((sum, row) => sum + conditionalParagraphConditionCount(row), 0);
+    let count = draft && (draft.rawViewIf || draft.when && draft.when.requires) ? 1 : 0;
     ensureArray(draft && draft.options).forEach((option) => { if (option && option.chooseIf) { count += 1; } });
     ensureArray(draft && draft.sections).forEach((section) => {
       if (section && section.condition) {
         count += 1;
       }
-      count += ensureArray(section && section.conditionalParagraphs).reduce((sum, row) => sum + conditionalParagraphConditionCount(row), 0);
       ensureArray(section && section.options).forEach((option) => { if (option && option.chooseIf) { count += 1; } });
     });
     return count;
@@ -952,82 +604,6 @@
       ensureArray(section && section.options).forEach((option) => normalizeEffects(option && option.effects, 'choice').forEach((effect) => rows.push(effect)));
     });
     return rows;
-  }
-
-  function routeCount(scene) {
-    const value = isObject(scene) ? scene : {};
-    return lineList(value.rawRoutes || value.routeClauses).length +
-      ensureArray(value.sections).reduce((sum, section) => {
-        return sum + lineList(section && (section.rawRoutes || section.routeClauses)).length +
-          ensureArray(section && section.options).reduce((optSum, option) => optSum + lineList(option && (option.rawRoutes || option.routeClauses)).length, 0);
-      }, 0) +
-      ensureArray(value.options || value.choices).reduce((sum, option) => sum + lineList(option && (option.rawRoutes || option.routeClauses)).length, 0);
-  }
-
-  function routeCountFromDraft(draft) {
-    const value = isObject(draft) ? draft : {};
-    return lineList(value.rawRoutes).length +
-      ensureArray(value.sections).reduce((sum, section) => {
-        return sum + lineList(section && section.rawRoutes).length +
-          ensureArray(section && section.options).reduce((optSum, option) => optSum + lineList(option && option.rawRoutes).length, 0);
-      }, 0) +
-      ensureArray(value.options).reduce((sum, option) => sum + lineList(option && option.rawRoutes).length, 0);
-  }
-
-  function callCount(scene) {
-    const value = isObject(scene) ? scene : {};
-    return lineList(value.calls || value.callTargets).length +
-      ensureArray(value.sections).reduce((sum, section) => {
-        return sum + lineList(section && (section.calls || section.callTargets)).length +
-          ensureArray(section && section.options).reduce((optSum, option) => optSum + lineList(option && (option.calls || option.callTargets)).length, 0);
-      }, 0) +
-      ensureArray(value.options || value.choices).reduce((sum, option) => sum + lineList(option && (option.calls || option.callTargets)).length, 0);
-  }
-
-  function callCountFromDraft(draft) {
-    const value = isObject(draft) ? draft : {};
-    return lineList(value.calls).length +
-      ensureArray(value.sections).reduce((sum, section) => {
-        return sum + lineList(section && section.calls).length +
-          ensureArray(section && section.options).reduce((optSum, option) => optSum + lineList(option && option.calls).length, 0);
-      }, 0) +
-      ensureArray(value.options).reduce((sum, option) => sum + lineList(option && option.calls).length, 0);
-  }
-
-  function lifecycleHookCount(scene) {
-    const value = isObject(scene) ? scene : {};
-    return hookRows(value).length +
-      ensureArray(value.sections).reduce((sum, section) => {
-        return sum + hookRows(section).length +
-          ensureArray(section && section.options).reduce((optSum, option) => optSum + hookRows(option).length, 0);
-      }, 0) +
-      ensureArray(value.options || value.choices).reduce((sum, option) => sum + hookRows(option).length, 0);
-  }
-
-  function lifecycleHookCountFromDraft(draft) {
-    const value = isObject(draft) ? draft : {};
-    return hookRows(value).length +
-      ensureArray(value.sections).reduce((sum, section) => {
-        return sum + hookRows(section).length +
-          ensureArray(section && section.options).reduce((optSum, option) => optSum + hookRows(option).length, 0);
-      }, 0) +
-      ensureArray(value.options).reduce((sum, option) => sum + hookRows(option).length, 0);
-  }
-
-  function hookRows(value) {
-    const row = isObject(value) ? value : {};
-    return []
-      .concat(lineList(row.rawEffects || row.rawEffectsOnTrigger || row.rawOnArrival || row.onArrival))
-      .concat(lineList(row.rawOnDisplay || row.onDisplay))
-      .concat(lineList(row.rawOnDeparture || row.onDeparture));
-  }
-
-  function lineList(value) {
-    if (Array.isArray(value)) {
-      return value;
-    }
-    const text = String(value === undefined || value === null ? '' : value).trim();
-    return text ? [text] : [];
   }
 
   function normalizeEffects(effects, fallbackHook) {
@@ -1140,84 +716,6 @@
       out.push(text);
     });
     return out;
-  }
-
-  function conditionalParagraphsFromRows(rows) {
-    const seen = new Set();
-    return ensureArray(rows).map((row) => {
-      const raw = conditionalRawText(row);
-      const parsed = parseConditionalRaw(raw);
-      const condition = String(row && row.condition || ensureArray(row && row.conditions)[0] || parsed.condition || '').trim();
-      const text = String(row && (row.text || row.value || row.original) || parsed.text || '').trim();
-      const source = row && row.source || {};
-      const ownerSection = String(row && row.owner && row.owner.sectionId || row && row.sectionId || '').trim();
-      const sourceKey = [source.path || '', source.line || source.startLine || ''].join(':');
-      const scope = sourceKey !== ':' ? sourceKey : ownerSection;
-      const key = [scope, raw || [condition, text].join('|')].join('|');
-      if ((!raw && !condition && !text) || seen.has(key)) {
-        return null;
-      }
-      seen.add(key);
-      return {
-        condition,
-        text,
-        raw,
-        sourceRole: 'conditional_body',
-        source: sourceRef(row && row.source || {})
-      };
-    }).filter(Boolean);
-  }
-
-  function conditionalRawText(row) {
-    const source = row && row.source || {};
-    const anchor = String(source.anchorText || source.rawAnchorText || '').trim();
-    if (anchor && (anchor.includes('[?') || roleOf(row) === 'conditional_body')) {
-      return anchor;
-    }
-    const original = String(row && (row.original || '') || '').trim();
-    if (original && original.includes('[?')) {
-      return original;
-    }
-    const text = String(row && (row.text || row.value || '') || '').trim();
-    return text && text.includes('[?') ? text : '';
-  }
-
-  function parseConditionalRaw(raw) {
-    const match = String(raw || '').trim().match(/^\[\?\s*if\s+([\s\S]*?)\s*:\s*([\s\S]*?)\s*\?\]$/);
-    return match ? {condition: match[1].trim(), text: match[2].trim()} : {condition: '', text: ''};
-  }
-
-  function conditionalParagraphHasText(row) {
-    return Boolean(row && (String(row.raw || '').trim() || String(row.text || '').trim()));
-  }
-
-  function conditionalParagraphConditionCount(row) {
-    const raw = String(row && row.raw || '').trim();
-    if (raw) {
-      const matches = raw.match(/\[\?\s*if\b/g) || [];
-      return matches.length || 1;
-    }
-    return String(row && row.condition || '').trim() ? 1 : 0;
-  }
-
-  function fallbackParagraphsExcludingConditionals(value, conditionalRows) {
-    const paragraphs = normalizeTextList(value);
-    const conditionalTexts = new Set();
-    conditionalParagraphsFromRows(conditionalRows).forEach((row) => {
-      if (row.raw) {
-        conditionalTexts.add(row.raw);
-      }
-      if (row.text) {
-        conditionalTexts.add(row.text);
-      }
-    });
-    if (!conditionalTexts.size) {
-      return paragraphs;
-    }
-    return paragraphs.filter((paragraph) => {
-      const text = String(paragraph || '').trim();
-      return text && !conditionalTexts.has(text);
-    });
   }
 
   function roleOf(row) {

@@ -155,7 +155,7 @@ function checkObjectCanvasContracts() {
   contains(fieldValues, 'collectCanvasFieldEntries(host, options)', 'Object Canvas field collection should use de-duplicated visible field entries');
   contains(fieldValues, 'fieldIsVisibleForCollection(input, options)', 'Object Canvas field collection should ignore hidden duplicate editor controls');
   contains(fieldValues, 'isCollectableField', 'Object Canvas field collection should ignore non-control asset/list entries');
-  contains(fieldValues, 'const activeRow = rows.find((row) => row.active && row.visible)', 'Object Canvas field collection should prefer focused controls only when they are visible');
+  contains(fieldValues, 'const activeRow = rows.find((row) => row.active)', 'Object Canvas field collection should prefer the focused editor control');
   contains(storyboardDrafts, 'ProjectMapObjectCanvasStoryboardDrafts', 'Object Canvas Storyboard draft helper should expose a browser API');
   contains(storyboardDrafts, 'createRelatedDraft', 'Object Canvas Storyboard draft helper should own related draft creation');
   contains(objectUi, 'storyboardDraftsApi().createRelatedDraft', 'Object Canvas should delegate Storyboard draft creation to the extracted helper');
@@ -174,11 +174,6 @@ function checkObjectCanvasContracts() {
   contains(read('viewer/preview_object_editor.js'), 'data-existing-asset-field="', 'Object Canvas asset replacement should preserve the existing source field id');
   contains(objectUi, 'filterObjectCanvasAssetSelect', 'Object Canvas should filter large indexed asset selects without rebuilding the editor');
   contains(objectUi, 'input.dataset.existingAssetField', 'Object Canvas asset file handler should route existing source-backed asset replacements');
-  contains(objectUi, 'focusDraftField, render, showWorkspace', 'Object Canvas should export the field focus callback into Card Board deps');
-  contains(read('viewer/card_board_surface.js'), 'data-card-board-option-field', 'Card Board should surface stable option field ids');
-  contains(read('viewer/card_board_surface.js'), 'data-card-board-lane-anchor-text', 'Card Board lane targets should surface source-backed lane anchors');
-  contains(read('viewer/card_board_interactions.js'), 'fieldId: option.dataset.cardBoardOptionField', 'Card Board option selection should pass the Object Canvas field id');
-  contains(read('viewer/card_workspace_state.js'), 'deps.focusDraftField(fieldId)', 'Card Board option selection should focus Object Canvas fields after render');
   contains(objectUi, 'state.values[fieldId] = existingAssetReferenceLine', 'Object Canvas existing asset replacement should write directive or inline source replacement values');
   contains(objectUi, 'removeExistingAssetReference', 'Object Canvas existing asset references should expose a removal action');
   contains(objectUi, 'existingAssetReferenceLine', 'Object Canvas existing asset references should format directive and inline markdown edits through one helper');
@@ -318,7 +313,7 @@ function checkRenderedAndPureBehavior() {
   assert(centeredState.canvasPanX < 0 && centeredState.canvasPanY < 0, 'Object Canvas viewport wheel zoom should keep the pointer as the zoom center');
 
   const visibleField = fieldStub('title', 'visible', {rects: [{}]});
-  const activeField = fieldStub('title', 'active', {rects: [{}]});
+  const activeField = fieldStub('title', 'active');
   const structureField = fieldStub('body', 'structure', {
     previewObjectStructureOutput: 'true',
     value: 'Generated body'
@@ -333,13 +328,6 @@ function checkRenderedAndPureBehavior() {
   assert(collected[0] === activeField, 'Object Canvas field helper should prefer the active duplicate field');
   assert(collected[1] === structureField, 'Object Canvas field helper should prefer valued structure output before the first hidden duplicate');
   assert(!collected.includes(assetArticle), 'Object Canvas field helper should ignore non-control asset/list entries');
-  const hiddenActiveField = fieldStub('subtitle', 'stale hidden active');
-  const visibleDuplicateField = fieldStub('subtitle', 'visible duplicate', {rects: [{}]});
-  const visibleDuplicateCollected = fieldValues.collectCanvasFieldEntries(fieldHost([hiddenActiveField, visibleDuplicateField]), {
-    activeElement: hiddenActiveField,
-    getComputedStyle: () => ({display: 'block', visibility: 'visible'})
-  });
-  assert(visibleDuplicateCollected[0] === visibleDuplicateField, 'Object Canvas field helper should not let a hidden active duplicate override the visible editor field');
 
   const planHtml = installReview.renderPlanReview({
     plan: {operations: [{id: 'probe', type: 'replace_text', path: 'source/probe.scene.dry', safety: 'guarded_apply', search: 'before', replace: 'after'}]},

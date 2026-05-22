@@ -69,11 +69,8 @@
       label: String(option && (option.title || option.label) || optionLabels[index] || 'Choice ' + (index + 1)),
       targetId: String(option && option.target && option.target.id || ''),
       index,
-      optionIndex: index,
-      optionPath: 'root.' + index,
-      fieldId: 'card.option.' + index + '.label',
       source: sourceRef(option && option.sourceSpan || {})
-    })).concat(sectionOptionsFromScene(scene)).map((option, index) => Object.assign({}, option, {index}));
+    }));
     return {
       key: kind + ':' + scene.id,
       id: String(scene.id || ''),
@@ -115,11 +112,8 @@
         label: String(option && (option.label || option.title) || 'Choice ' + (index + 1)),
         targetId: String(option && option.gotoAfter || ''),
         index,
-        optionIndex: index,
-        optionPath: 'root.' + index,
-        fieldId: 'card.option.' + index + '.label',
         source: {path: 'draft workspace'}
-      })).concat(sectionOptionsFromDraft(draft)).map((option, index) => Object.assign({}, option, {index})),
+      })),
       tags: ensureArray(draft.tags).map(String).filter(Boolean),
       source: {path: 'draft workspace'},
       stateTags: ['draft'].concat(change.changedCount ? ['changed'] : []),
@@ -129,46 +123,6 @@
     };
   }
 
-  function sectionOptionsFromScene(scene) {
-    return ensureArray(scene && scene.sections).reduce((rows, section, sectionIndex) => {
-      const sectionId = localId(section && section.id) || 'section_' + (sectionIndex + 1);
-      const sectionLabel = String(section && (section.title || section.id) || 'Section ' + (sectionIndex + 1));
-      return rows.concat(ensureArray(section && section.options).map((option, optionIndex) => ({
-        id: String(option && option.target && option.target.id || option && option.id || sectionId + '_option_' + (optionIndex + 1)),
-        label: sectionLabel + ': ' + String(option && (option.title || option.label) || 'Choice ' + (optionIndex + 1)),
-        targetId: String(option && option.target && option.target.id || ''),
-        index: rows.length + optionIndex,
-        sectionIndex,
-        sectionId,
-        sectionLabel,
-        optionIndex,
-        optionPath: 'section.' + sectionIndex + '.' + optionIndex,
-        fieldId: 'card.section.' + sectionIndex + '.option.' + optionIndex + '.label',
-        source: sourceRef(option && option.sourceSpan || section && section.sourceSpan || {})
-      })));
-    }, []);
-  }
-
-  function sectionOptionsFromDraft(draft) {
-    return ensureArray(draft && draft.sections).reduce((rows, section, sectionIndex) => {
-      const sectionId = localId(section && section.id) || 'section_' + (sectionIndex + 1);
-      const sectionLabel = String(section && (section.title || section.id) || 'Section ' + (sectionIndex + 1));
-      return rows.concat(ensureArray(section && section.options).map((option, optionIndex) => ({
-        id: String(option && option.id || sectionId + '_option_' + (optionIndex + 1)),
-        label: sectionLabel + ': ' + String(option && (option.label || option.title) || 'Choice ' + (optionIndex + 1)),
-        targetId: String(option && option.gotoAfter || ''),
-        index: rows.length + optionIndex,
-        sectionIndex,
-        sectionId,
-        sectionLabel,
-        optionIndex,
-        optionPath: 'section.' + sectionIndex + '.' + optionIndex,
-        fieldId: 'card.section.' + sectionIndex + '.option.' + optionIndex + '.label',
-        source: {path: 'draft workspace'}
-      })));
-    }, []);
-  }
-
   function buildLanes(index, cards) {
     const scenesById = new Map(ensureArray(index.scenes).map((scene) => [String(scene && scene.id || ''), scene]));
     const handScenes = semanticOrSceneList(index, 'hands', (scene) => scene.type === 'hand' || scene.flags && scene.flags.isHand);
@@ -176,7 +130,7 @@
     const handEntries = [];
     const deckCards = [];
     const advisorCards = [];
-    const laneMeta = {hand: {tags: []}, deck: {tags: [], sourceAnchor: null}, advisor: {tags: [], sourceAnchor: null}};
+    const laneMeta = {hand: {tags: []}, deck: {tags: []}, advisor: {tags: []}};
     const cardById = new Map(cards.map((card) => [card.id, card]));
 
     deckScenes.forEach((deck) => {
@@ -185,9 +139,6 @@
         const target = option && option.target || {};
         if (target.kind === 'tag') {
           laneMeta.deck.tags.push(String(target.id || ''));
-          if (!laneMeta.deck.sourceAnchor) {
-            laneMeta.deck.sourceAnchor = laneAnchorRef(option && option.sourceSpan || scene && scene.sourceSpan || {}, scene && scene.path);
-          }
         }
         cards.forEach((card) => {
           if (targetMatchesCard(target, card)) {
@@ -211,9 +162,6 @@
         });
         if (target.kind === 'tag') {
           laneMeta.advisor.tags.push(String(target.id || ''));
-          if (!laneMeta.advisor.sourceAnchor) {
-            laneMeta.advisor.sourceAnchor = laneAnchorRef(option && option.sourceSpan || scene && scene.sourceSpan || {}, scene && scene.path);
-          }
         }
         handEntries.push({
           key: target.kind === 'scene' && linkedScene && linkedScene.type === 'deck' ? 'deck:' + linkedScene.id : matchedCards[0] && matchedCards[0].key || 'hand:' + (option.id || target.id || handEntries.length + 1),
@@ -424,7 +372,6 @@
       laneKey: String(ctx.laneKey || ''),
       laneLabel: String(ctx.laneLabel || ''),
       laneTag: String(ctx.laneTag || ''),
-      laneAnchor: laneAnchorRef(ctx.laneAnchor || ctx.sourceAnchor || {}, ''),
       action: String(ctx.action || '')
     };
   }
@@ -493,10 +440,7 @@
         title: option && (option.label || option.id) || 'Option',
         card,
         option,
-        optionIndex: option && option.optionIndex !== undefined ? option.optionIndex : option ? option.index : Number(value.optionIndex || 0),
-        sectionIndex: option && option.sectionIndex !== undefined ? option.sectionIndex : null,
-        optionPath: option && option.optionPath || '',
-        fieldId: option && option.fieldId || 'card.title',
+        optionIndex: option ? option.index : Number(value.optionIndex || 0),
         laneKey: value.laneKey || laneForCard(card),
         editability: editabilityForCard(card, model)
       };
@@ -625,25 +569,12 @@
     ].join(' ').toLowerCase();
   }
 
-  function localId(value) {
-    const match = String(value || '').split('.').filter(Boolean).pop() || '';
-    return match.trim();
-  }
-
   function sourceRef(source) {
     const value = isObject(source) ? source : {};
     return {
       path: String(value.path || ''),
       line: value.line || value.startLine || ''
     };
-  }
-
-  function laneAnchorRef(source, fallbackPath) {
-    const value = isObject(source) ? source : {};
-    const path = String(value.path || fallbackPath || '');
-    const line = value.line || value.startLine || value.endLine || '';
-    const anchorText = String(value.anchorText || value.endAnchorText || '');
-    return path && line ? {path, line, anchorText} : null;
   }
 
   function first() {

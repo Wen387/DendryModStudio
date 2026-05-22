@@ -421,7 +421,7 @@
       : editability === 'draft_extractable'
         ? 'guarded_apply'
         : editability === 'source_patch'
-          ? 'advanced_apply'
+          ? (sourcePatchCanGuard(draft) ? 'guarded_apply' : 'advanced_apply')
           : singleLineTextProposal
             ? 'guarded_apply'
             : 'manual_review';
@@ -445,7 +445,9 @@
               description: isTextProposal
                 ? 'Text proposal: replace player-facing prose after matching the indexed original text and exact line evidence.'
                 : isSourcePatch
-                ? 'Studio source patch: replace player-facing text through an advanced source-backed operation.'
+                ? (safety === 'guarded_apply'
+                  ? 'Studio source patch: replace player-facing text after matching exact source evidence.'
+                  : 'Studio source patch: replace player-facing text through an advanced source-backed operation.')
                 : safety === 'guarded_apply'
                 ? 'Replace source scene text after matching the indexed original text and line evidence.'
                 : 'Replace a source-backed surface label after matching the original text.'
@@ -755,6 +757,26 @@
       String(value.endAnchorText || (value.source && value.source.endAnchorText) || '').trim() &&
       (String(after || '').trim() || Boolean(value.allowEmptyReplace))
     );
+  }
+
+  function sourcePatchCanGuard(draft) {
+    const source = isObject(draft && draft.source) ? draft.source : {};
+    const path = String(source.path || '');
+    const line = Number(source.line || source.startLine || 0);
+    const endLine = Number(source.endLine || line || 0);
+    if (!path.startsWith('source/')) {
+      return false;
+    }
+    if (isProtectedRouterPath(path) && path !== 'source/scenes/root.scene.dry') {
+      return false;
+    }
+    if (!Number.isInteger(line) || line < 1) {
+      return false;
+    }
+    if (Number.isInteger(endLine) && endLine > 0 && endLine !== line) {
+      return false;
+    }
+    return Boolean(String(draft.originalLabel || '').trim() && String(draft.replacementLabel || '').trim());
   }
 
   function textProposalCanGuard(draft) {

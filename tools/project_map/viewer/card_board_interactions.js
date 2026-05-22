@@ -130,10 +130,7 @@
         key: option.dataset.cardBoardOption || '',
         cardKey: option.dataset.cardBoardOptionCard || '',
         optionIndex: Number(option.dataset.cardBoardOptionIndex || 0),
-        optionId: option.dataset.cardBoardOptionId || '',
-        fieldId: option.dataset.cardBoardOptionField || '',
-        optionPath: option.dataset.cardBoardOptionPath || '',
-        sectionId: option.dataset.cardBoardOptionSection || ''
+        optionId: option.dataset.cardBoardOptionId || ''
       });
       option.addEventListener('click', (event) => {
         event.stopPropagation();

@@ -272,7 +272,7 @@
     function optionStructureActions(option, body) {
       return ensureArray(body && body.structureActions).filter((field) => {
         const action = String(field && field.structureAction || '');
-        if (!['add_option_effect', 'remove_option', 'remove_option_condition', 'remove_effect', 'move_option_up', 'move_option_down'].includes(action)) {
+        if (!['add_option_effect', 'remove_option', 'remove_option_condition', 'remove_effect'].includes(action)) {
           return false;
         }
         return structureActionMatchesOption(field, option);

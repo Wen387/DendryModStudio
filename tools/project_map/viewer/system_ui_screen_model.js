@@ -107,6 +107,7 @@
     };
     screen.regionContext = buildRegionContext(screen, {recipe, fixture: fixtureState});
     screen.diagnostics = buildDiagnostics(template, recipe, selected, screen.regionContext, fixtureState);
+    attachCapabilityMatrix(screen, {runtimeVisualSurface: opts.runtimeVisualSurface});
     return screen;
   }
 
@@ -610,6 +611,29 @@
     return api && typeof api.buildContext === 'function' ? api.buildContext(screen, options || {}) : {};
   }
 
+  function attachCapabilityMatrix(screen, options) {
+    const api = capabilityApi();
+    if (!api || typeof api.buildCapabilityMatrix !== 'function') {
+      screen.capabilityMatrix = null;
+      return;
+    }
+    const matrix = api.buildCapabilityMatrix(screen, options || {});
+    screen.capabilityMatrix = matrix;
+    const byRegion = matrix && matrix.byRegion || {};
+    screen.regions = ensureArray(screen.regions).map((region) => Object.assign({}, region, {
+      capability: byRegion[region.key] || null
+    }));
+    screen.selected = screen.selected
+      ? screen.regions.find((region) => region.key === screen.selected.key) || screen.selected
+      : null;
+    if (screen.regionContext && screen.selected) {
+      screen.regionContext = Object.assign({}, screen.regionContext, {
+        selectedRegion: screen.selected,
+        capability: screen.selected.capability || null
+      });
+    }
+  }
+
   function systemUiFixtures() {
     const api = fixtureApi();
     return api && typeof api.fixtureList === 'function' ? api.fixtureList() : [{key: 'default', labelKey: 'systemUi.fixture.default', fallback: 'Default'}];
@@ -648,6 +672,20 @@
     if (typeof require === 'function') {
       try {
         return require('./system_ui_region_context.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function capabilityApi() {
+    if (global && global.ProjectMapSystemUiCapabilityModel) {
+      return global.ProjectMapSystemUiCapabilityModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./system_ui_capability_model.js');
       } catch (_err) {
         return null;
       }

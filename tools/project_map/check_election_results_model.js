@@ -7,6 +7,7 @@ const os = require('os');
 const path = require('path');
 
 const objectCanvasModel = require('./authoring/object_authoring_canvas_model.js');
+const installPlan = require('./authoring/install_plan.js');
 
 function fail(message) {
   process.stderr.write('FAIL: ' + message + '\n');
@@ -167,6 +168,38 @@ assert(sourceTextDraft.choices.some((choice) => choice.resultText === 'The sourc
 assert(sourceTextDraft.choices.some((choice) => choice.condition === 'Q.spd_r >= 28' && choice.disabled), 'Election Results draft should preserve source option choose-if conditions');
 assert(!sourceTextDraft.choices.some((choice) => choice.label === 'We can form a Grand Coalition.'), 'Election Results draft should not keep fixed sample choices for a source-backed event');
 assert(sourceTextDraft.coalitions.some((coalition) => coalition.parties.includes('SPD + Z')), 'Election Results draft should derive coalition summary rows from source option details when available');
+
+const guardedTextModel = objectCanvasModel.buildTemplateCanvas(index, 'election_results', {}, {
+  values: {
+    'election.targetSceneId': 'election_reichstag',
+    'election.title': 'Updated Reichstag Results',
+    'election.choice.0.label': 'Accept the updated source grand coalition'
+  }
+});
+const guardedOps = guardedTextModel.changeState.installPlan.operations;
+assert(guardedOps.some((op) => op.id === 'election_results_title' && op.type === 'replace_text' && op.safety === 'guarded_apply'), 'Election Results install plan should guard exact source-backed title replacements');
+assert(guardedOps.some((op) => op.id === 'election_choice_grand_coalition_label' && op.type === 'replace_text' && op.safety === 'guarded_apply'), 'Election Results install plan should guard exact source-backed choice label replacements');
+assert(guardedOps.some((op) => op.type === 'manual_snippet' && op.role === 'election_results.runtime_renderer'), 'Election Results install plan should keep D3/chart/custom renderer wiring manual');
+assert(!guardedOps.some((op) => /chart|d3|party/i.test(op.id) && op.safety === 'guarded_apply'), 'Election Results install plan should not auto-guard D3 chart or party formula rewrites');
+const guardedDryRun = installPlan.applyInstallPlan(guardedTextModel.changeState.installPlan, {
+  projectRoot: tmpRoot,
+  dryRun: true,
+  includeEvidence: true
+});
+assert(guardedDryRun.ok, 'Election Results guarded source plan should pass installer dry-run', guardedDryRun);
+assert(guardedDryRun.results.some((result) => result.id === 'election_results_title' && result.status === 'would_apply'), 'Election Results title should be dry-run applyable', guardedDryRun);
+assert(guardedDryRun.results.some((result) => result.id === 'election_choice_grand_coalition_label' && result.status === 'would_apply'), 'Election Results choice label should be dry-run applyable', guardedDryRun);
+assert(guardedDryRun.results.some((result) => result.id === 'election_results_runtime_manual_review' && result.status === 'manual_review'), 'Election Results runtime renderer should remain manual in installer dry-run', guardedDryRun);
+const guardedApply = installPlan.applyInstallPlan(guardedTextModel.changeState.installPlan, {
+  projectRoot: tmpRoot,
+  dryRun: false,
+  includeEvidence: true
+});
+assert(guardedApply.ok, 'Election Results guarded source plan should apply through Studio installer', guardedApply);
+const appliedElectionSource = fs.readFileSync(path.join(eventsRoot, 'election_reichstag.scene.dry'), 'utf8');
+assert(appliedElectionSource.includes('Updated Reichstag Results'), 'Installer apply should update the source-backed Election Results title');
+assert(appliedElectionSource.includes('Accept the updated source grand coalition'), 'Installer apply should update the source-backed Election Results choice label');
+assert(!fs.existsSync(path.join(tmpRoot, 'out')), 'Election Results installer apply should not write generated runtime output');
 
 const splitGermanDraft = objectCanvasModel.buildTemplateCanvas(index, 'election_results', {}, {
   values: {'election.targetSceneId': 'split_election'}

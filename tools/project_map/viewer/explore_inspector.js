@@ -465,7 +465,7 @@
       return;
     }
     if (routeClass === 'system_ui_workspace') {
-      const opened = openRoutedSystemUiWorkspace(capability);
+      const opened = openRoutedSystemUiWorkspace(capability, changed ? replacementText : '');
       state.textActionMessage = opened
         ? t('editCapability.status.systemUiLoaded', 'System UI workspace opened for this text route.')
         : t('editCapability.status.systemUiOpenFailed', 'Could not open the System UI workspace.');
@@ -495,14 +495,28 @@
     });
   }
 
-  function openRoutedSystemUiWorkspace(capability) {
+  function openRoutedSystemUiWorkspace(capability, replacementText) {
     const target = capability && capability.target || {};
-    const template = target.template || 'entry';
+    const template = target.internalTemplate || target.template || 'entry';
+    const focusFieldId = target.focusFieldId || '';
+    const values = {};
+    if (focusFieldId && replacementText) {
+      values[focusFieldId] = replacementText;
+    }
     activateMode('create');
     activateCreateTemplate(template);
     const canvas = global.ProjectMapObjectAuthoringCanvas;
     if (canvas && typeof canvas.openTemplate === 'function') {
-      return canvas.openTemplate(template, null, {source: 'Text Corpus System UI route', route: capability});
+      return canvas.openTemplate(template, null, {
+        source: 'Text Corpus System UI route',
+        route: capability,
+        selectedRegion: target.selectedRegion || '',
+        selectedCanvasNode: target.selectedRegion || '',
+        focusFieldId,
+        replacementText: replacementText || '',
+        values,
+        manualReason: target.manualReason || ''
+      });
     }
     return Boolean(global.document && global.document.querySelector('[data-create-template="' + template + '"].is-active'));
   }

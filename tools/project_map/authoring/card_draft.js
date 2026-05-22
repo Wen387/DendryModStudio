@@ -589,16 +589,14 @@
     return "'" + String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
   }
 
-  function buildExportBundle(input, projectIndex, options) {
-    const opts = isObject(options) ? options : {};
+  function buildExportBundle(input, projectIndex) {
     const validation = validateDraft(input, projectIndex);
-    const authoringContext = normalizeAuthoringContext(opts.authoringContext || validation.draft.studioAuthoringContext || validation.draft.authoringContext || null);
-    const draft = draftWithAuthoringContext(validation.draft, authoringContext);
+    const draft = validation.draft;
     const scene = renderSceneDry(draft, projectIndex);
     const draftJson = JSON.stringify(draft, null, 2) + '\n';
     const lane = draft.cardKind === 'advisor_like' ? 'Advisor-like' : 'Action card';
     const suggestedPath = suggestedCardPath(draft, projectIndex);
-    const wiring = cardWiringProposal(draft, projectIndex, suggestedPath, authoringContext);
+    const wiring = cardWiringProposal(draft, projectIndex, suggestedPath);
     const installApi = installPlanApi();
     const plan = installApi.cardInstallPlan({
       id: draft.id,
@@ -684,18 +682,14 @@
     };
   }
 
-  function cardWiringProposal(draft, projectIndex, suggestedPath, authoringContext) {
+  function cardWiringProposal(draft, projectIndex, suggestedPath) {
     const hands = ensureArray(projectIndex && projectIndex.semantic && projectIndex.semantic.hands);
     const handPath = (hands[0] && hands[0].path) || 'source/scenes/main.scene.dry';
     const label = advisorLikeLabel(projectIndex);
-    const context = normalizeAuthoringContext(authoringContext);
-    const lane = context.cardBoardDropContext || {};
-    const laneTag = String(lane.laneTag || '').trim();
-    const laneKey = String(lane.laneKey || context.selectedLane || '').trim();
-    const primaryTag = laneTag || draft.tags[0] || (draft.cardKind === 'advisor_like' ? 'circle' : 'cards');
-    const route = laneKey === 'unwired' ? null : existingTagRoute(draft, projectIndex, primaryTag);
-    const operation = laneKey !== 'unwired' && !route && primaryTag
-      ? cardWiringOperation(draft, projectIndex, primaryTag, context)
+    const primaryTag = draft.tags[0] || (draft.cardKind === 'advisor_like' ? 'circle' : 'cards');
+    const route = existingTagRoute(draft, projectIndex, primaryTag);
+    const operation = !route && draft.tags.length
+      ? cardWiringOperation(draft, projectIndex, primaryTag)
       : null;
     const lines = [
       'Card wiring proposal',
@@ -704,17 +698,6 @@
       'Manual review path: ' + handPath,
       ''
     ];
-    if (laneKey === 'unwired') {
-      lines.push(
-        'Lane: unwired / manual review.',
-        'Card Board recorded an unwired intent, so Studio will not remove or rewrite existing routes automatically.',
-        'Review current hand/deck/advisor routes before changing how this card appears.'
-      );
-      return {path: handPath, content: lines.join('\n') + '\n', autoRouted: false, route: null};
-    }
-    if (laneTag) {
-      lines.push('Card Board lane tag: #' + laneTag);
-    }
     if (route) {
       lines.push(
         'Existing tag route found: #' + route.tag,
@@ -757,63 +740,15 @@
     return {path: handPath, content: lines.join('\n') + '\n', autoRouted: false, route: null};
   }
 
-  function normalizeAuthoringContext(value) {
-    const input = isObject(value) ? value : {};
-    const drop = isObject(input.cardBoardDropContext) ? input.cardBoardDropContext : {};
-    const laneAnchor = normalizeLaneAnchor(drop.laneAnchor || drop.sourceAnchor || input.laneAnchor || input.sourceAnchor);
-    return {
-      surface: String(input.surface || ''),
-      selectedLane: String(input.selectedLane || ''),
-      selectedCardKey: String(input.selectedCardKey || ''),
-      cardBoardDropContext: {
-        itemKey: String(drop.itemKey || ''),
-        itemTitle: String(drop.itemTitle || ''),
-        laneKey: String(drop.laneKey || ''),
-        laneLabel: String(drop.laneLabel || ''),
-        laneTag: String(drop.laneTag || ''),
-        action: String(drop.action || ''),
-        laneAnchor
-      }
-    };
-  }
-
-  function normalizeLaneAnchor(value) {
-    const input = isObject(value) ? value : {};
-    const path = String(input.path || '').trim();
-    const line = Number(input.line || input.startLine || input.endLine || 0);
-    const anchorText = String(input.anchorText || input.endAnchorText || '').trim();
-    return path && Number.isInteger(line) && line > 0 && anchorText ? {path, line, anchorText, position: input.position || 'after'} : null;
-  }
-
-  function draftWithAuthoringContext(draft, authoringContext) {
-    const lane = authoringContext && authoringContext.cardBoardDropContext || {};
-    const laneTag = String(lane.laneTag || '').trim();
-    const laneKey = String(lane.laneKey || authoringContext && authoringContext.selectedLane || '').trim();
-    if (!laneTag || laneKey === 'unwired') {
-      return draft;
-    }
-    const tags = ensureArray(draft && draft.tags).map(String).filter(Boolean);
-    if (tags.includes(laneTag)) {
-      return draft;
-    }
-    return Object.assign({}, draft, {tags: [laneTag].concat(tags)});
-  }
-
-  function cardWiringOperation(draft, projectIndex, primaryTag, authoringContext) {
+  function cardWiringOperation(draft, projectIndex, primaryTag) {
     return draft.cardKind === 'advisor_like'
-      ? advisorTagRouteOperation(draft, projectIndex, primaryTag, authoringContext)
-      : deckTagRouteOperation(draft, projectIndex, primaryTag, authoringContext);
+      ? advisorTagRouteOperation(draft, projectIndex, primaryTag)
+      : deckTagRouteOperation(draft, projectIndex, primaryTag);
   }
 
-  function laneAnchorFromContext(authoringContext, expectedLane) {
-    const lane = authoringContext && authoringContext.cardBoardDropContext || {};
-    const laneKey = String(lane.laneKey || authoringContext && authoringContext.selectedLane || '').trim();
-    return (!expectedLane || !laneKey || laneKey === expectedLane) ? normalizeLaneAnchor(lane.laneAnchor) : null;
-  }
-
-  function deckTagRouteOperation(draft, projectIndex, primaryTag, authoringContext) {
+  function deckTagRouteOperation(draft, projectIndex, primaryTag) {
     const deck = firstSourceBackedDeck(projectIndex);
-    const anchor = laneAnchorFromContext(authoringContext, 'deck') || lastSourceBackedOption(deck) || sourceEndAnchor(deck);
+    const anchor = lastSourceBackedOption(deck) || sourceEndAnchor(deck);
     if (!deck || !anchor || !primaryTag) {
       return null;
     }
@@ -833,9 +768,9 @@
     };
   }
 
-  function advisorTagRouteOperation(draft, projectIndex, primaryTag, authoringContext) {
+  function advisorTagRouteOperation(draft, projectIndex, primaryTag) {
     const hand = firstSourceBackedHand(projectIndex);
-    const anchor = laneAnchorFromContext(authoringContext, 'advisor') || advisorHandAnchor(hand);
+    const anchor = advisorHandAnchor(hand);
     if (!hand || !anchor || !primaryTag) {
       return null;
     }
@@ -1003,7 +938,7 @@
   }
 
   function existingTagRoute(draft, projectIndex, fallbackTag) {
-    const tags = new Set([fallbackTag].concat(ensureArray(draft && draft.tags)).map(String).filter(Boolean));
+    const tags = new Set((draft.tags.length ? draft.tags : [fallbackTag]).map(String).filter(Boolean));
     const scenes = ensureArray(projectIndex && projectIndex.scenes);
     for (const scene of scenes) {
       const option = findTagOption(scene, tags);

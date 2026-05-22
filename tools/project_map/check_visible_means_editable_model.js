@@ -175,7 +175,7 @@ assert(visibleRows.some((row) => row.role === 'monthly_popup' && row.editable &&
 assert(visibleRows.some((row) => row.role === 'route' && row.editable && row.installOperationType), 'conditional route rows should generate source-backed edit operations', visibleRows);
 assert(visibleRows.some((row) => row.role === 'effect' && row.editable && row.installOperationType), 'effect rows should generate source-backed edit operations', visibleRows);
 assert(visibleRows.some((row) => row.objectType === 'variable' && row.editable && row.installSafety === 'advanced_apply'), 'existing variables should be editable with impact preview and advanced apply', visibleRows);
-assert(visibleRows.some((row) => row.source.path === 'source/scenes/root.scene.dry' && row.installSafety === 'advanced_apply'), 'protected source-backed visible rows should be advanced_apply', visibleRows);
+assert(visibleRows.some((row) => row.source.path === 'source/scenes/root.scene.dry' && row.installSafety === 'guarded_apply'), 'root source-backed visible rows with exact evidence should be guarded_apply', visibleRows);
 assert(visibleRows.some((row) => row.source.path === 'out/html/index.html' && row.routeClass === 'advanced_source_patch' && row.installSafety === 'advanced_apply'), 'generated visible evidence should be mapped to an advanced source route instead of refused', visibleRows);
 
 assertAdvancedOperation({

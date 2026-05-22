@@ -34,9 +34,9 @@ function syntheticIndex() {
     priority: '1',
     maxVisits: '1',
     options: [
-      {id: 'active', target: {id: 'active'}, title: '積極參與——提供支援。'},
-      {id: 'statement', target: {id: 'statement'}, title: '發表聲明支持。'},
-      {id: 'silent', target: {id: 'silent'}, title: '保持沉默。'}
+      {target: {id: 'active'}, title: '積極參與——提供支援。'},
+      {target: {id: 'statement'}, title: '發表聲明支持。'},
+      {target: {id: 'silent'}, title: '保持沉默。'}
     ],
     sourceSpan: {path: 'source/scenes/events/anti_curriculum.scene.dry', startLine: 1, endLine: 90}
   };

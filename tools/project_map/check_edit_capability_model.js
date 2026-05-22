@@ -134,7 +134,7 @@ assert(rootBody, 'fixture should expose root body text');
 const rootCapability = editCapability.buildEditCapability(index, 'textCorpus', rootBody);
 assert(rootCapability.routeClass === 'system_ui_workspace', 'root text should route to System UI workspace instead of generic text replacement', rootCapability);
 assert(rootCapability.target && rootCapability.target.template === 'entry', 'root text should open the Entry/System UI screen route', rootCapability);
-assert(rootCapability.installSafety === 'advanced_apply', 'protected root text should remain editable through advanced apply', rootCapability);
+assert(rootCapability.installSafety === 'guarded_apply', 'protected root text should use guarded apply when exact source evidence exists', rootCapability);
 
 const routerText = {
   id: 'router_copy',
@@ -158,12 +158,12 @@ const rootSurface = {
 };
 const surfaceCapability = editCapability.buildEditCapability(index, 'surfaceText', rootSurface);
 assert(surfaceCapability.routeClass === 'system_ui_workspace', 'protected root surface text should route to System UI', surfaceCapability);
-assert(surfaceCapability.installSafety === 'advanced_apply', 'protected root surface text should remain editable through advanced apply', surfaceCapability);
+assert(surfaceCapability.installSafety === 'guarded_apply', 'protected root surface text should use guarded apply when exact source evidence exists', surfaceCapability);
 const surfaceDraftResult = draftExtract.textReplacementDraftFromItem(index, 'surfaceText', rootSurface, {replacementText: 'New Root'});
 assert(surfaceDraftResult.ok, 'root surface text should still create a reviewable proposal', surfaceDraftResult);
 assert(surfaceDraftResult.draft.editability === 'source_patch', 'root surface text proposals should use Studio source patch instead of ordinary safe replacement', surfaceDraftResult.draft);
 const rootSurfaceBundle = surfaceDraft.buildExportBundle(surfaceDraftResult.draft, index);
-assert(rootSurfaceBundle.installPlan.operations[0].safety === 'advanced_apply', 'root surface source_patch should remain advanced apply', rootSurfaceBundle.installPlan.operations[0]);
+assert(rootSurfaceBundle.installPlan.operations[0].safety === 'guarded_apply', 'root surface source_patch should use guarded apply when exact source evidence exists', rootSurfaceBundle.installPlan.operations[0]);
 
 process.stdout.write(JSON.stringify({
   ok: true,
