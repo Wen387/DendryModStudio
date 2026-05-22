@@ -222,6 +222,15 @@
     if (!anchor || (anchor !== primaryAnchor && anchor !== primaryEndAnchor)) {
       return false;
     }
+    if (primaryAnchor && primaryEndAnchor && primaryAnchor !== primaryEndAnchor) {
+      const position = String(value.position || 'after') === 'before' ? 'before' : 'after';
+      if (anchor === primaryAnchor && position !== 'before') {
+        return false;
+      }
+      if (anchor === primaryEndAnchor && position === 'before') {
+        return false;
+      }
+    }
     const line = numberOrNull(source.line || source.startLine || value.startLine || value.line);
     const primaryStart = numberOrNull(primary.startLine || primarySource.startLine || primarySource.line);
     const primaryEnd = numberOrNull(primary.endLine || primarySource.endLine || primarySource.line || primarySource.startLine || primaryStart);

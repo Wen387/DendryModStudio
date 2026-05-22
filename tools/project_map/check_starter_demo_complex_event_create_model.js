@@ -258,6 +258,13 @@ async function runStarterDemoComplexEventCreate() {
     assert(createdSource.includes('@corridor_briefing'), 'created source should include the newly added branch');
     assert(!createdSource.includes('@press_room'), 'created source should not include the removed provisional branch');
     assert(createdSource.includes('Split the message for district organizers.'), 'created source should include the newly added nested option');
+    const postEventSource = fs.readFileSync(path.join(prepared.root, 'source', 'scenes', 'post_event.scene.dry'), 'utf8');
+    assert(
+      postEventSource.includes('- @main: Return to the workspace hand\n- #event: Monthly event popups\n- @root: Back to the starter menu'),
+      'router registration should keep the Dendry options block contiguous',
+      postEventSource
+    );
+    assert(!postEventSource.includes('\n\n- #event'), 'router registration should not insert a blank line before #event', postEventSource);
 
     const reindexed = await core.buildProjectIndex({
       root: prepared.root,

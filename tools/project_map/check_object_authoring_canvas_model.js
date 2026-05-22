@@ -55,6 +55,8 @@ const sectionObject = storyboardDrafts.storyObjectFromKey('section:event.section
 assert(sectionObject && sectionObject.kind === 'section' && sectionObject.parentId === 'event' && sectionObject.view === 'events', 'Storyboard draft helper should parse section keys back to event parents');
 assert(storyboardDrafts.draftBranchKeyMatches({draft: {id: 'followup'}}, 'draft:event:followup'), 'Storyboard draft helper should match event draft branch keys');
 assert(storyboardDrafts.draftBranchKeyMatches({id: 'card_branch'}, 'draft:card:card_branch'), 'Storyboard draft helper should match card draft branch keys');
+assert(!storyboardDrafts.draftBranchKeyMatches({template: 'event', id: 'shared_id'}, 'draft:card:shared_id'), 'Storyboard draft helper should not remove event drafts when a card draft has the same id');
+assert(!storyboardDrafts.draftBranchMatches({template: 'event', id: 'shared_id'}, {template: 'card', id: 'shared_id'}), 'Storyboard draft branch merge should keep same-id drafts for different templates separate');
 const storyboardDraftDeps = {
   ensureArray(value) { return Array.isArray(value) ? value : []; },
   normalizeTemplate(value) { return value === 'card' || value === 'news' ? value : 'event'; },
@@ -75,11 +77,124 @@ const relatedCard = storyboardDrafts.relatedCardDraft(
 );
 assert(relatedCard.kind === 'card' && relatedCard.id === 'branch_card', 'Storyboard draft helper should build related card drafts');
 assert(relatedCard.studioAuthoringContext.cardBoardDropContext.sourceKey === 'event:fixture', 'Related card draft should keep source selection context');
+const activeDraftBranch = storyboardDrafts.currentDraftBranch({
+  mode: 'new_event',
+  template: 'event',
+  baseDraft: {id: 'first_canvas_event', title: 'First canvas event'},
+  model: {
+    changeState: {
+      draft: {
+        id: 'first_canvas_event',
+        title: 'First canvas event edited',
+        introParagraphs: ['The first draft should stay visible while another event is created.']
+      }
+    }
+  },
+  draftBranches: [],
+  projectIndex: {scenes: []}
+}, storyboardDraftDeps);
+assert(activeDraftBranch && activeDraftBranch.id === 'first_canvas_event', 'Storyboard draft helper should snapshot the active new event draft as a branch');
+assert(activeDraftBranch.title === 'First canvas event edited', 'Active draft branch should use the current edited draft title');
+const mergedActiveBranches = storyboardDrafts.withCurrentDraftBranch({
+  mode: 'new_event',
+  template: 'event',
+  baseDraft: {id: 'first_canvas_event', title: 'Old title'},
+  model: {changeState: {draft: {id: 'first_canvas_event', title: 'Updated title'}}},
+  draftBranches: [{template: 'event', id: 'first_canvas_event', title: 'Old title'}],
+  projectIndex: {scenes: []}
+}, [{template: 'event', id: 'first_canvas_event', title: 'Old title'}], storyboardDraftDeps);
+assert(mergedActiveBranches.length === 1 && mergedActiveBranches[0].title === 'Updated title', 'Active draft branch snapshot should replace the stale branch for the same draft id');
+const transitionState = {
+  mode: 'new_event',
+  template: 'event',
+  baseDraft: {id: 'first_canvas_event', title: 'First canvas event'},
+  model: {changeState: {draft: {id: 'first_canvas_event', title: 'First canvas event'}}},
+  draftBranches: [],
+  projectIndex: {scenes: []}
+};
+const openedSecondDraft = storyboardDrafts.openStandaloneEventDraft(transitionState, {insertKey: 'time:1936'}, Object.assign({}, storyboardDraftDeps, {
+  openTemplate(_template, draft) {
+    transitionState.template = 'event';
+    transitionState.mode = 'new_event';
+    transitionState.baseDraft = draft;
+    transitionState.model = {changeState: {draft}};
+    transitionState.draftBranches = [];
+    return true;
+  },
+  buildTemplateModel() {
+    return {changeState: {draft: transitionState.baseDraft}};
+  },
+  render() {},
+  showWorkspace() {},
+  resetStructureCommands() {}
+}));
+assert(openedSecondDraft, 'Standalone Storyboard event creation should open the next draft');
+assert(transitionState.draftBranches.some((branch) => branch.id === 'first_canvas_event'), 'Creating another Canvas event should keep the previous active draft card visible');
 const commandValues = modelBuilder.withStructureCommandValues({values: {title: 'Draft'}}, {
   structureCommands: [{id: 'structure_command_1', value: 'Q.test += 1'}]
 });
 assert(commandValues.values.title === 'Draft', 'Object Canvas model builder should preserve existing values');
 assert(commandValues.values.__structureCommands.length === 1, 'Object Canvas model builder should inject structure commands into values');
+
+const cardCanvasIndex = {schemaVersion: '0.1', project: {root: '/tmp/card-canvas'}, scenes: [{id: 'root'}], variables: [{name: 'public_order'}], semantic: {events: [], cards: [], hands: [], decks: [], pinnedCards: [], news: {items: []}}, profiles: [], diagnostics: [], summary: {}};
+const largeCardDraft = {
+  schemaVersion: '0.1',
+  kind: 'card',
+  id: 'large_canvas_card',
+  title: 'Large Canvas Card',
+  cardKind: 'action_card',
+  cardShape: 'choice_card',
+  heading: 'Large Canvas Card',
+  tags: ['cards'],
+  introParagraphs: ['Choose.'],
+  options: Array.from({length: 5}, (_unused, index) => ({
+    id: 'choice_' + (index + 1),
+    label: 'Choice ' + (index + 1),
+    narrativeParagraphs: ['Result ' + (index + 1) + '.'],
+    gotoAfter: 'root'
+  }))
+};
+const largeCardModel = canvasModel.buildCanvasModel(cardCanvasIndex, {template: 'card', draft: largeCardDraft});
+assert(largeCardModel.ok, 'Object Canvas should accept large cards');
+assert(largeCardModel.eventBody.options.length === 5, 'Object Canvas should preserve more than four root card options');
+assert(largeCardModel.eventBody.options[4].fields.some((field) => field.id === 'card.option.4.label'), 'large card option fields should use stable card.option.N ids');
+assert(largeCardModel.eventBody.structureActions.some((field) => field.id === 'structure_add_option'), 'large card should expose add root option structure action');
+assert(largeCardModel.eventBody.structureActions.some((field) => field.id === 'structure_move_option_up_choice_3'), 'large card should expose root option reorder actions');
+const menuCardDraft = {
+  schemaVersion: '0.1',
+  kind: 'card',
+  id: 'menu_canvas_card',
+  title: 'Menu Canvas Card',
+  cardKind: 'action_card',
+  cardShape: 'menu_card',
+  heading: 'Menu Canvas Card',
+  tags: ['cards'],
+  introParagraphs: ['Choose a section.'],
+  options: [],
+  sections: [{
+    id: 'tax',
+    title: 'Tax',
+    paragraphs: ['Tax policy.'],
+    options: [{id: 'wealth_tax', label: 'Wealth tax', narrativeParagraphs: ['Raise it.'], gotoAfter: 'root'}]
+  }]
+};
+const menuCardModel = canvasModel.buildCanvasModel(cardCanvasIndex, {template: 'card', draft: menuCardDraft});
+assert(menuCardModel.ok, 'Object Canvas should accept menu cards');
+assert(menuCardModel.eventBody.branchSections.some((field) => field.id === 'card.section.0.option.0.label'), 'menu card section option fields should use stable card.section.S.option.N ids');
+assert(menuCardModel.eventBody.structureActions.some((field) => field.id === 'structure_add_option_section_tax'), 'menu card should expose add section option structure action');
+const addedRootOptionModel = canvasModel.buildCanvasModel(cardCanvasIndex, {template: 'card', draft: largeCardDraft}, {values: {__structureCommands: [{type: 'add_option', value: '- @sixth_choice: Sixth choice\n# sixth_choice\nResult text.'}]}});
+assert(addedRootOptionModel.ok && addedRootOptionModel.changeState.draft.options.length === 6, 'add root card option should update draft options');
+assert(addedRootOptionModel.changeState.draft.options[5].id === 'sixth_choice', 'add root card option should preserve parsed option id');
+const removedRootOptionModel = canvasModel.buildCanvasModel(cardCanvasIndex, {template: 'card', draft: largeCardDraft}, {values: {structure_remove_option_choice_2: '1'}});
+assert(!removedRootOptionModel.changeState.draft.options.some((option) => option.id === 'choice_2'), 'remove root card option should update draft options');
+const reorderedRootOptionModel = canvasModel.buildCanvasModel(cardCanvasIndex, {template: 'card', draft: largeCardDraft}, {values: {structure_move_option_up_choice_3: '1'}});
+assert(reorderedRootOptionModel.changeState.draft.options[1].id === 'choice_3', 'reorder root card option should update draft order');
+const addedSectionOptionModel = canvasModel.buildCanvasModel(cardCanvasIndex, {template: 'card', draft: menuCardDraft}, {values: {__structureCommands: [
+  {type: 'add_branch', value: '# labor\nLabor section body.'},
+  {type: 'add_option', sectionId: 'tax', value: '- @land_tax: Land tax\n# land_tax\nLand tax result.'}
+]}});
+assert(addedSectionOptionModel.changeState.draft.sections.some((section) => section.id === 'labor'), 'add menu section should update draft sections');
+assert(addedSectionOptionModel.changeState.draft.sections[0].options.some((option) => option.id === 'land_tax'), 'add section option should update section-owned options');
 const sourceSliceFallback = modelBuilder.buildSourceSliceCanvasModel({targetId: 'scene.source'}, {}, {
   baseDraft: {id: 'draft_source', title: 'Draft Source'},
   t(_key, fallback) { return fallback; }
@@ -1878,6 +1993,9 @@ assert(purePatternEvent.changeState.draft.options.length === 0, 'pure text patte
 assert(purePatternEvent.eventBody.eventStructure && purePatternEvent.eventBody.eventStructure.provenance === 'draft', 'pure text pattern should still use EventStructure draft provenance');
 assert(purePatternEvent.eventBody.eventGraph && purePatternEvent.eventBody.eventGraph.nodes.some((node) => node.id === 'root'), 'pure text pattern should expose a route map root node');
 assert(purePatternEvent.eventBody.metaFields.some((field) => field.id === 'event.pattern' && field.inputType === 'select'), 'Event pattern selector should live inside Event metadata');
+const purePatternHtml = previewEditor.render(purePatternEvent);
+assert(purePatternHtml.includes('Event template') && purePatternHtml.includes('Text / popup'), 'Event pattern selector should use understandable labels', purePatternHtml);
+assert(purePatternHtml.includes('Creates a no-choice event'), 'pure text Event pattern should explain what changes structurally', purePatternHtml);
 
 const branchingPatternEvent = canvasModel.buildNewEventCanvas(index, {}, {
   values: {'event.pattern': 'branching_consequence'}
@@ -1885,6 +2003,8 @@ const branchingPatternEvent = canvasModel.buildNewEventCanvas(index, {}, {
 assert(branchingPatternEvent.ok && branchingPatternEvent.changeState.draft.schemaVersion === '0.1', 'branching consequence pattern should produce EventDraft v0.1');
 assert(branchingPatternEvent.changeState.draft.options.length >= 2 && branchingPatternEvent.changeState.draft.options.length <= 4, 'branching consequence pattern should create a compact root choice set');
 assert(branchingPatternEvent.eventBody.eventGraph.edges.some((edge) => edge.kind === 'return_route' && edge.sourceKind === 'draft'), 'branching consequence pattern should expose editable draft return routes');
+const branchingPatternHtml = previewEditor.render(branchingPatternEvent);
+assert(branchingPatternHtml.includes('Branching choices') && branchingPatternHtml.includes('multiple player choices'), 'branching consequence Event pattern should explain the template difference', branchingPatternHtml);
 
 const conditionalPatternEvent = canvasModel.buildNewEventCanvas(index, {}, {
   values: {'event.pattern': 'conditional_menu_loop'}
@@ -1900,6 +2020,7 @@ assert(conditionalPatternEvent.eventBody.eventGraph.nodes.some((node) => node.id
 assert(conditionalPatternEvent.changeState.output.sceneDry.includes('@open_menu\n' + 'title: Review the situation\n' + 'go-to: menu_loop\n\n' + 'The discussion moves into a focused menu.'), 'native menu-opening routes should render before result prose so Dendry treats them as routes');
 const conditionalRouteMapHtml = previewEditor.render(conditionalPatternEvent);
 assert(conditionalRouteMapHtml.includes('data-preview-object-route-map="true"'), 'conditional menu/loop editor should render the structured Route Map');
+assert(conditionalRouteMapHtml.includes('Conditional menu / loop') && conditionalRouteMapHtml.includes('follow-up menu or section'), 'conditional menu/loop Event pattern should explain the template difference', conditionalRouteMapHtml);
 assert(conditionalRouteMapHtml.includes('data-route-map-field="option.2.chooseIf"'), 'conditional menu/loop Route Map should render condition action chips');
 assert(conditionalRouteMapHtml.includes('data-route-map-field="option.2.unavailableText"'), 'conditional menu/loop Route Map should render unavailable-text action chips');
 assert(conditionalRouteMapHtml.includes('data-route-map-field="event.section.0.condition"'), 'conditional menu/loop Route Map should render section condition action chips');

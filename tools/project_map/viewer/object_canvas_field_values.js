@@ -28,7 +28,7 @@
     });
     const entries = [];
     byKey.forEach((rows) => {
-      const activeRow = rows.find((row) => row.active);
+      const activeRow = rows.find((row) => row.active && row.visible);
       if (activeRow) {
         entries.push(activeRow.input);
         return;

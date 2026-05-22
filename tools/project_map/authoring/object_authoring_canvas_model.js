@@ -350,7 +350,7 @@
     const effectEditors = ensureArray(editors.effects);
     const body = {
       mode: 'existing',
-      eventShape: optionRows.length ? 'choice_event' : 'pure_event',
+      eventShape: optionRows.length > 1 ? 'choice_event' : optionRows.length === 1 ? 'linear_choice_event' : 'pure_event',
       title: titleEditor || {
         id: '',
         label: 'Title',
@@ -1282,7 +1282,7 @@
   function eventBodyForNewEvent(draft, projectIndex) {
     return {
       mode: 'new_event',
-      eventShape: draft.eventShape || (ensureArray(draft.options).length ? 'choice_event' : 'pure_event'),
+      eventShape: draft.eventShape || (ensureArray(draft.options).length > 1 ? 'choice_event' : ensureArray(draft.options).length === 1 ? 'linear_choice_event' : 'pure_event'),
       title: field('event.title', 'Title', draft.title, 'guarded'),
       subtitle: field('event.subtitle', 'Subtitle', draft.subtitle || '', 'guarded'),
       heading: field('event.heading', 'Heading', draft.heading || draft.title, 'guarded'),

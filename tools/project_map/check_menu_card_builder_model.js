@@ -39,6 +39,13 @@ assert(model.ok, 'Object Canvas should accept menu card');
 assert(model.eventBody.cardShape === 'menu_card', 'Object Canvas should expose menu card shape');
 assert(model.eventBody.branchSections.length >= 8, 'Object Canvas should expose section and section-option fields');
 assert(model.eventBody.optionEffects.some((group) => group.sectionId === 'taxes'), 'Object Canvas should expose section option effects');
+assert(model.eventBody.branchSections.some((field) => field.id === 'card.section.0.option.0.label'), 'Object Canvas should expose menu section option field ids');
+assert(model.eventBody.structureActions.some((field) => field.id === 'structure_add_option_section_taxes'), 'menu card should expose add section option structure actions');
+const editedMenuModel = canvasModel.buildCanvasModel(index, {template: 'card', draft: result.draft}, {values: {__structureCommands: [{type: 'add_option', sectionId: 'taxes', value: '- @land_value_tax: Introduce a land value tax.\n# land_value_tax\nThe proposal shifts the debate.'}]}});
+assert(editedMenuModel.ok, 'Object Canvas should accept menu section option structure edits');
+assert(editedMenuModel.changeState.draft.sections[0].options.some((option) => option.id === 'land_value_tax'), 'menu card section option structure edit should update the draft');
+const editedBundle = cardDraft.buildExportBundle(editedMenuModel.changeState.draft, index);
+assert(editedBundle.scene.includes('- @land_value_tax: Introduce a land value tax.'), 'menu card section option structure edit should render in the scene');
 
 console.log(JSON.stringify({
   ok: true,

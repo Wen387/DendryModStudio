@@ -167,6 +167,10 @@ Important Studio assumptions:
 - Do not put blank lines inside a single option block. In Dendry's parser, a
   blank line after options ends the option block; another `- @target` after
   that is invalid content.
+- Generated option/router inserts must follow the same rule when they are
+  added inside an existing option block. Insert content such as
+  `- #event: Monthly event popups` should stay contiguous with neighboring
+  option lines and should not include padding blank lines that split the block.
 - A line such as `@another_scene: Visible option text` in a community note may
   be missing the leading option marker because of chat formatting. Confirm
   before accepting it as syntax.

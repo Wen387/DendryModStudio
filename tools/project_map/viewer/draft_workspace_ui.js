@@ -17,7 +17,8 @@
   };
 
   const state = {
-    items: []
+    items: [],
+    activeDraftWorkspaceId: ''
   };
 
   let elements = null;
@@ -143,7 +144,12 @@
       return;
     }
     const output = typeof wizard.getOutput === 'function' ? wizard.getOutput() : {};
-    const existing = state.items.find((item) => item.template === template && item.draftId === String(draft.id));
+    const activeWorkspaceId = typeof wizard.getDraftWorkspaceId === 'function'
+      ? wizard.getDraftWorkspaceId()
+      : state.activeDraftWorkspaceId;
+    const existing = activeWorkspaceId
+      ? state.items.find((item) => item.workspaceId === activeWorkspaceId && item.template === template && item.draftId === String(draft.id))
+      : null;
     const item = api.makeDraftItem({
       template,
       draft,
@@ -154,6 +160,10 @@
       createdAt: existing && existing.createdAt
     });
     state.items = api.upsertDraftItem(state.items, item);
+    state.activeDraftWorkspaceId = item.workspaceId || '';
+    if (typeof wizard.setDraftWorkspaceId === 'function') {
+      wizard.setDraftWorkspaceId(state.activeDraftWorkspaceId, draft);
+    }
     persist();
     render();
     setStatus(t('draftWorkspace.saved', 'Draft saved in Studio.'), 'ready');
@@ -165,6 +175,7 @@
       setStatus(t('draftWorkspace.missingDraft', 'Saved draft was not found.'), 'warning');
       return;
     }
+    state.activeDraftWorkspaceId = item.workspaceId || '';
     const createButton = global.document.querySelector('[data-mode="create"]');
     if (createButton) {
       createButton.click();
@@ -176,12 +187,15 @@
     if (!templateButton && item.template) {
       const objectCanvas = global.ProjectMapObjectAuthoringCanvas;
       if (objectCanvas && typeof objectCanvas.openTemplate === 'function') {
-        objectCanvas.openTemplate(item.template, item.draft, {source: 'My Changes'});
+        objectCanvas.openTemplate(item.template, item.draft, {source: 'My Changes', workspaceId: item.workspaceId});
       }
     }
     const wizard = wizardForTemplate(item.template);
     if (wizard && typeof wizard.loadDraft === 'function') {
       wizard.loadDraft(item.draft, {fileName: item.title || item.draftId || 'Studio draft'});
+      if (typeof wizard.setDraftWorkspaceId === 'function') {
+        wizard.setDraftWorkspaceId(state.activeDraftWorkspaceId, item.draft);
+      }
       setStatus(t('draftWorkspace.loaded', 'Draft loaded into Create.'), 'ready');
     } else {
       setStatus(t('draftWorkspace.noWizard', 'This template cannot be loaded yet.'), 'warning');

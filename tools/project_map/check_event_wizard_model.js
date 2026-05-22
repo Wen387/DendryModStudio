@@ -175,6 +175,7 @@ bad.when.monthStart = 12;
 bad.when.monthEnd = 1;
 bad.when.priority = 4;
 bad.when.requires = "party_name = '社民黨'";
+bad.eventShape = 'choice_event';
 bad.options = bad.options.slice(0, 1);
 const badCodes = diagnosticCodes(eventDraft.validateDraft(bad, index));
 assert(badCodes.includes('event_draft.invalid_month_range'), 'invalid month range should be diagnosed');

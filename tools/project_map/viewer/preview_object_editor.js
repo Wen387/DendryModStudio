@@ -2837,7 +2837,7 @@
     const optionAssetAddFields = assetAddFieldsForOption(option, eventBody, resultFields);
     const choiceActions = structureUi().optionStructureActions(option, eventBody);
     const effectGroup = choiceCardEffectGroup(structureUi().optionEffectGroup(option, eventBody), option, nextSection, eventBody);
-    const choiceDeleteActions = choiceActions.filter((field) => ['remove_option', 'remove_option_condition'].includes(String(field && field.structureAction || '')));
+    const choiceDeleteActions = choiceActions.filter((field) => ['remove_option', 'remove_option_condition', 'move_option_up', 'move_option_down'].includes(String(field && field.structureAction || '')));
     const choiceEffectActions = choiceActions.filter((field) => choiceEffectActionBelongsOnChoice(field, option, nextSection, eventBody));
     const resultActions = structureUi().resultSectionActions(resultFields, eventBody);
     const logicFields = choiceLogicFields(fields);
@@ -3308,8 +3308,15 @@
 
   function displayFieldLabel(field, fallbackLabel) {
     const label = String(fallbackLabel || field && field.label || field && field.id || '').trim();
+    const id = String(field && field.id || '').trim();
     const role = String(field && (field.semanticRole || field.branchKind || field.role) || '').toLowerCase();
     const action = String(field && field.structureAction || '').toLowerCase();
+    if (id === 'event.pattern') {
+      return t('previewObjectEditor.field.eventPattern', 'Event template');
+    }
+    if (id === 'event.patternReset') {
+      return t('previewObjectEditor.field.patternReset', 'Apply selected template');
+    }
     if (action === 'add_option') {
       if (field && field.sectionId) {
         return t('previewObjectEditor.structureAddSectionOptionTitle', 'New option in this section');
@@ -3327,6 +3334,12 @@
     }
     if (action === 'remove_option') {
       return t('previewObjectEditor.structureRemoveOptionTitle', 'Remove choice');
+    }
+    if (action === 'move_option_up') {
+      return t('previewObjectEditor.structureMoveOptionUpTitle', 'Move choice up');
+    }
+    if (action === 'move_option_down') {
+      return t('previewObjectEditor.structureMoveOptionDownTitle', 'Move choice down');
     }
     if (action === 'remove_option_condition') {
       return t('previewObjectEditor.structureRemoveConditionTitle', 'Remove prerequisite');
@@ -3367,7 +3380,7 @@
       const optionsList = Array.isArray(opts.field && opts.field.options) ? opts.field.options : [];
       return [
         '<select class="' + escapeAttr(opts.controlClass) + '"' + opts.data + (opts.readOnly ? ' disabled' : '') + '>',
-        optionsList.map((option) => renderOption(option, opts.value)).join(''),
+        optionsList.map((option) => renderOption(option, opts.value, opts.field)).join(''),
         '</select>'
       ].join('');
     }
@@ -3456,6 +3469,14 @@
       return '';
     }
     const parts = [];
+    const id = String(field.id || '').trim();
+    if (id === 'event.pattern') {
+      parts.push(eventPatternDescription(fieldValue(field)));
+    } else if (id === 'event.patternReset') {
+      parts.push(t('previewObjectEditor.patternResetHelp', 'Changing the template alone keeps edited content. Check this to replace the draft with the selected template.'));
+    } else if (field.help) {
+      parts.push(String(field.help));
+    }
     if (field.derivedAlias) {
       parts.push(t('previewObjectEditor.derivedAlias', 'Derived from the source body'));
     }
@@ -3680,10 +3701,39 @@
     return null;
   }
 
-  function renderOption(option, current) {
+  function renderOption(option, current, field) {
     const value = typeof option === 'string' ? option : String(option && option.value || '');
-    const label = typeof option === 'string' ? option : String(option && (option.label || option.value) || '');
+    const label = optionLabel(option, value, field);
     return '<option value="' + escapeAttr(value) + '"' + (String(value) === String(current || '') ? ' selected' : '') + '>' + escapeHtml(label) + '</option>';
+  }
+
+  function optionLabel(option, value, field) {
+    if (String(field && field.id || '') === 'event.pattern') {
+      return eventPatternLabel(value);
+    }
+    return typeof option === 'string' ? option : String(option && (option.label || option.value) || '');
+  }
+
+  function eventPatternLabel(value) {
+    const text = String(value || '').trim();
+    if (text === 'pure_text') {
+      return t('previewObjectEditor.eventPattern.pure', 'Text / popup');
+    }
+    if (text === 'conditional_menu_loop') {
+      return t('previewObjectEditor.eventPattern.menu', 'Conditional menu / loop');
+    }
+    return t('previewObjectEditor.eventPattern.branching', 'Branching choices');
+  }
+
+  function eventPatternDescription(value) {
+    const text = String(value || '').trim();
+    if (text === 'pure_text') {
+      return t('previewObjectEditor.eventPattern.pureHelp', 'Creates a no-choice event: text, appearance conditions, and optional trigger effects only.');
+    }
+    if (text === 'conditional_menu_loop') {
+      return t('previewObjectEditor.eventPattern.menuHelp', 'Creates an event that opens a follow-up menu or section with conditional choices, unavailable text, and loop routes.');
+    }
+    return t('previewObjectEditor.eventPattern.branchingHelp', 'Creates a standard event with multiple player choices, each leading to its own consequence page, effects, and return route.');
   }
 
   function isChecked(value) {

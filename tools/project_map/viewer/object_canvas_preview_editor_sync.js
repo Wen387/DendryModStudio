@@ -26,11 +26,25 @@
     const fields = previewObjectFieldMap(ctx.model, ctx);
     ctx.host.querySelectorAll('[data-preview-object-rendered-for]').forEach((node) => {
       const key = node.dataset && node.dataset.previewObjectRenderedFor;
-      const input = key ? ctx.host.querySelector('[data-object-canvas-field="' + ctx.cssEscape(key) + '"]') : null;
+      const input = key ? selectedCanvasFieldInput(ctx, key) : null;
       const field = key ? fields.get(key) : null;
       const value = input ? input.value : field && field.value !== undefined ? field.value : field && field.original || '';
       node.innerHTML = ctx.editor.renderTextBlocks(value, {empty: false});
     });
+  }
+
+  function selectedCanvasFieldInput(ctx, key) {
+    const fieldValues = ctx.global && ctx.global.ProjectMapObjectCanvasFieldValues;
+    if (fieldValues && typeof fieldValues.collectCanvasFieldEntries === 'function') {
+      const entries = fieldValues.collectCanvasFieldEntries(ctx.host, {
+        activeElement: ctx.document && ctx.document.activeElement
+      });
+      const match = entries.find((input) => input && input.dataset && input.dataset.objectCanvasField === key);
+      if (match) {
+        return match;
+      }
+    }
+    return ctx.host.querySelector('[data-object-canvas-field="' + ctx.cssEscape(key) + '"]');
   }
 
   function previewObjectFieldMap(model, deps) {
@@ -304,6 +318,7 @@
     syncPreviewObjectEditorPane,
     syncPreviewObjectRenderedFields,
     previewObjectFieldMap,
+    selectedCanvasFieldInput,
     syncPreviewObjectEditorChrome,
     renderVisibleTextInline,
     renderPreviewObjectDraftSummary,
