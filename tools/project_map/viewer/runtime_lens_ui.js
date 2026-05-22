@@ -156,8 +156,30 @@
       '<div><span>' + escapeHtml(t('runtimeLens.focus', 'Focus')) + '</span><strong title="' + escapeAttr(focusTitle.raw) + '">' + escapeHtml(focusTitle.display) + '</strong></div>',
       '<div><span>' + escapeHtml(t('runtimeLens.target', 'Target')) + '</span><strong title="' + escapeAttr(targetTitle.raw) + '">' + escapeHtml(targetTitle.display) + '</strong></div>',
       '<p data-runtime-lens-message="true">' + escapeHtml(message) + '</p>',
+      renderFocusProof(value),
       '</div>'
     ].join('');
+  }
+
+  function renderFocusProof(focus) {
+    const proof = focus && focus.proof || null;
+    if (!proof || typeof proof !== 'object') {
+      return '';
+    }
+    const rows = [];
+    if (proof.kind === 'deck_pool') {
+      rows.push(t('runtimeLens.proof.deckPool', 'Deck proof'));
+      rows.push(ensureArray(proof.routeTags).map((tag) => '#' + tag).join(', ') || t('cardBoard.inspector.none', 'None'));
+      rows.push(String(ensureArray(proof.memberCardIds).length) + ' cards');
+    } else if (proof.kind === 'advisor_controller') {
+      rows.push(t('runtimeLens.proof.advisorController', 'Advisor proof'));
+      rows.push(String(ensureArray(proof.variables).length) + ' variables');
+      rows.push(proof.pinnedEntryId || t('cardBoard.inspector.none', 'None'));
+    }
+    if (!rows.length) {
+      return '';
+    }
+    return '<div class="runtime-lens-proof" data-runtime-lens-proof="' + escapeAttr(proof.kind || '') + '">' + rows.map((row) => '<span>' + escapeHtml(row) + '</span>').join('') + '</div>';
   }
 
   function renderBody(options) {
@@ -753,6 +775,32 @@
   function focusFromBoardLane(projectIndex, selectedObject, board) {
     const lane = selectedObject && selectedObject.lane || {};
     const laneKey = String(selectedObject && selectedObject.laneKey || lane.key || '');
+    if (lane.deckPool) {
+      const pool = lane.deckPool;
+      const memberIds = ensureArray(pool.memberCardIds);
+      const targetSceneId = firstNonEmpty(pool.ownerSceneId, memberIds[0]);
+      return {
+        kind: 'deck_pool',
+        id: String(pool.id || laneKey),
+        targetSceneId,
+        title: laneTitle(lane, pool.label || pool.id || 'Deck pool'),
+        source: sourceRef(pool.sourceAnchor || {}),
+        proof: {kind: 'deck_pool', routeTags: ensureArray(pool.routeTags), memberCardIds: memberIds, launcherRoutes: ensureArray(pool.launcherRoutes)},
+        key: focusKey('deck_pool', 'lane:' + laneKey + ':' + String(pool.id || ''))
+      };
+    }
+    if (lane.advisorController) {
+      const controller = lane.advisorController;
+      return {
+        kind: 'advisor_controller',
+        id: String(controller.id || laneKey),
+        targetSceneId: firstNonEmpty(controller.controllerSceneId, controller.id),
+        title: laneTitle(lane, controller.title || controller.id || 'Advisor controller'),
+        source: sourceRef(controller.sourceAnchor || {}),
+        proof: {kind: 'advisor_controller', pinnedEntryId: controller.pinnedEntry && controller.pinnedEntry.id || '', variables: ensureArray(controller.roster).map((item) => item && item.activeVariable).filter(Boolean), rosterItemCount: ensureArray(controller.roster).length},
+        key: focusKey('advisor_controller', 'lane:' + laneKey + ':' + String(controller.id || ''))
+      };
+    }
     if (laneKey === 'hand') {
       const handId = firstSemanticId(projectIndex, 'hands') || sceneIdByType(projectIndex, ['hand', 'main']);
       return handId ? {

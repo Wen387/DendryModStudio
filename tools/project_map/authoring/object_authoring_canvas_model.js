@@ -110,6 +110,34 @@
     return null;
   }
 
+  function fieldPresentationApi() {
+    if (global && global.ProjectMapObjectFieldPresentationModel) {
+      return global.ProjectMapObjectFieldPresentationModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./object_field_presentation_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function routeStateApi() {
+    if (global && global.ProjectMapRouteStateModel) {
+      return global.ProjectMapRouteStateModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./route_state_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   function isExistingProposal(value) {
     return isObject(value) && (value.kind === 'existing_scene_edit' || Boolean(value.sceneId && value.changes));
   }
@@ -387,7 +415,33 @@
     const modeledBody = structureApi && typeof structureApi.fromEditingContext === 'function' && typeof structureApi.toEventBody === 'function'
       ? structureApi.toEventBody(structureApi.fromEditingContext(context, projectIndex, {body}))
       : body;
-    return bodyWithQueuedStructurePreviews(regroupOptionOwnedText(modeledBody), values);
+    return enrichFieldPresentation(
+      bodyWithQueuedStructurePreviews(regroupOptionOwnedText(modeledBody), values),
+      projectIndex,
+      {routeState: routeStateForExisting(projectIndex, context)}
+    );
+  }
+
+  function enrichFieldPresentation(body, projectIndex, options) {
+    const presentation = fieldPresentationApi();
+    return presentation && typeof presentation.enrichEventBody === 'function'
+      ? presentation.enrichEventBody(body, projectIndex, options || {})
+      : body;
+  }
+
+  function routeStateForExisting(projectIndex, context) {
+    if (!context || String(context.sceneKind || 'event') === 'card') {
+      return null;
+    }
+    const api = routeStateApi();
+    if (!api || typeof api.routeStatesForScene !== 'function') {
+      return null;
+    }
+    try {
+      return api.routeStatesForScene(projectIndex, context.sceneId || '', {sampleLimit: 6});
+    } catch (_err) {
+      return null;
+    }
   }
 
   function regroupOptionOwnedText(body) {

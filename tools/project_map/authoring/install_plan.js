@@ -2306,6 +2306,9 @@
     const lines = parts.lines;
     const startMatch = resolveSectionAnchor(lines, anchor, operation.rawAnchorText || '', operation.startLine || operation.line || null, 0, 'start', originalText);
     if (!startMatch.ok) {
+      if (emptySectionDeleteAlreadyApplied(text, operation)) {
+        return {ok: true, alreadyApplied: true, text, beforeSnippet: '', afterSnippet: ''};
+      }
       if (containsUniqueNormalizedBlock(text, content)) {
         return {ok: true, alreadyApplied: true, text, beforeSnippet: content, afterSnippet: content};
       }
@@ -2334,6 +2337,9 @@
     }
     const endMatch = resolveSectionAnchor(lines, endAnchor, operation.rawEndAnchorText || '', operation.endLine || null, start, 'end', originalText);
     if (!endMatch.ok) {
+      if (emptySectionDeleteAlreadyApplied(text, operation)) {
+        return {ok: true, alreadyApplied: true, text, beforeSnippet: '', afterSnippet: ''};
+      }
       if (containsUniqueNormalizedBlock(text, content)) {
         return {ok: true, alreadyApplied: true, text, beforeSnippet: content, afterSnippet: content};
       }
@@ -2389,6 +2395,22 @@
 
   function normalizedReplacementBlock(value) {
     return normalizeNewlines(value).replace(/\n$/, '');
+  }
+
+  function emptySectionDeleteAlreadyApplied(text, operation) {
+    if (!operation || !operation.allowEmptyReplace || String(operation.content || '').trim()) {
+      return false;
+    }
+    const normalized = normalizeNewlines(text);
+    const anchor = String(operation.anchorText || '').trim();
+    const dedupe = String(operation.dedupeSearch || anchor || '').trim();
+    if (anchor && normalized.includes(anchor)) {
+      return false;
+    }
+    if (dedupe && normalized.includes(dedupe)) {
+      return false;
+    }
+    return Boolean(anchor || dedupe);
   }
 
   function resolveSectionAnchor(lines, anchor, rawAnchor, lineEvidence, minimumIndex, kind, originalText) {

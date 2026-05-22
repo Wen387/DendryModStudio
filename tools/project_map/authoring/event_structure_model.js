@@ -1512,11 +1512,13 @@
         source: effectSource || option && option.source || sceneSource,
         editability: effectSource && effectSource.structureKind === 'opaque_js_insert_anchor'
           ? 'advanced_source_patch'
-          : sourceSupportsGuardedEffectInsert(effectSource || option && option.source || sceneSource) ? 'guarded_apply' : 'manual_review',
+          : effectSource && effectSource.structureKind === 'section_on_arrival_insert_anchor' ||
+            sourceSupportsGuardedEffectInsert(effectSource || option && option.source || sceneSource) ? 'guarded_apply' : 'manual_review',
         sourceBlock: effectSource ? {
           kind: effectSource.structureKind || 'effect_insert_anchor',
           anchorText: effectSource.anchorText || '',
-          line: effectSource.line || effectSource.startLine || null
+          line: effectSource.line || effectSource.startLine || null,
+          sectionId: effectSource.sectionId || stringValue(option && (option.targetId || option.sectionId || option.rawTargetId || ''))
         } : null,
         inputType: 'text',
         placeholder: 'Q.variable += 1 if condition',
@@ -2166,9 +2168,11 @@
         sourceOrder: Number(effect && effect.sourceOrder || 0) || 0
       }) : null;
     }).filter(Boolean);
-    const fallback = sourceForOpaqueJsInsert(opaqueJsBlocks, sections, option && (option.sectionId || option.targetId || option.rawTargetId || option.id), sceneId);
+    const targetSectionId = option && (option.sectionId || option.targetId || option.rawTargetId || option.id);
+    const sectionFallback = sourceForSectionOnArrivalInsert(sections, targetSectionId, sceneId);
+    const fallback = sourceForOpaqueJsInsert(opaqueJsBlocks, sections, targetSectionId, sceneId);
     if (!matches.length) {
-      return fallback || null;
+      return sectionFallback || fallback || null;
     }
     matches.sort((a, b) => {
       const aOrder = Number(a.sourceOrder || 0) || 0;
@@ -2332,6 +2336,31 @@
     }
     candidates.sort((a, b) => Number(a.line || 0) - Number(b.line || 0));
     return candidates[candidates.length - 1];
+  }
+
+  function sourceForSectionOnArrivalInsert(sections, sectionId, sceneId) {
+    const wanted = normalizeEndpointLocalId(sectionId, sceneId);
+    if (!wanted) {
+      return null;
+    }
+    const section = ensureArray(sections).find((row) => normalizeEndpointLocalId(row && row.id, sceneId) === wanted) || null;
+    const source = sourceRef(section && (section.sourceSpan || section.source) || {});
+    const path = stringValue(source.path).replace(/\\/g, '/');
+    const line = Number(source.line || source.startLine || 0);
+    const anchor = stringValue(source.anchorText).trim();
+    if (!path.startsWith('source/scenes/') || !path.endsWith('.scene.dry') || isProtectedRouterPath(path) ||
+      !Number.isInteger(line) || line <= 0 || !/^[@#]\s*\S+/.test(anchor)) {
+      return null;
+    }
+    return Object.assign({}, source, {
+      line,
+      startLine: line,
+      endLine: line,
+      anchorText: anchor,
+      endAnchorText: anchor,
+      sectionId: stringValue(section && section.id || sectionId),
+      structureKind: 'section_on_arrival_insert_anchor'
+    });
   }
 
   function sectionForLine(sections, line) {

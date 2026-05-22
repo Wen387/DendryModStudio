@@ -2,18 +2,20 @@
   'use strict';
 
   function render(model, options) {
-    const opts = options && typeof options === 'object' ? options : {};
-    const board = buildBoard(model, opts);
-    return [
-      '<section class="object-canvas-stage card-board-surface" data-object-canvas-stage="true" data-card-board-surface="true" data-object-canvas-workspace="content" aria-label="' + escapeAttr(t('cardBoard.aria', 'Card Board Workspace')) + '">',
-      renderToolbar(board, opts),
-      '<div class="card-board-workspace">',
-      renderBoard(board),
-      renderSidebarResizer(),
-      renderEditor(model, board, opts),
-      '</div>',
-      '</section>'
-    ].join('');
+    return perfMeasure('surface.render', () => {
+      const opts = options && typeof options === 'object' ? options : {};
+      const board = perfMeasure('buildBoard', () => buildBoard(model, opts), {source: 'surface.render'});
+      return [
+        '<section class="object-canvas-stage card-board-surface" data-object-canvas-stage="true" data-card-board-surface="true" data-object-canvas-workspace="content" aria-label="' + escapeAttr(t('cardBoard.aria', 'Card Board Workspace')) + '">',
+        renderToolbar(board, opts),
+        '<div class="card-board-workspace">',
+        renderBoard(board),
+        renderSidebarResizer(),
+        renderEditor(model, board, opts),
+        '</div>',
+        '</section>'
+      ].join('');
+    }, {template: model && model.template || '', mode: model && model.mode || ''});
   }
 
   function renderToolbar(board, options) {
@@ -27,10 +29,27 @@
       renderMetrics(board),
       '</div>',
       '<div class="card-board-toolbar-actions">',
-      '<button type="button" data-object-canvas-action="toggle_overlay" data-visible-edit-affordance="card-board">' + escapeHtml(options && options.editorOverlay ? t('objectCanvas.editorDock', 'Close editor') : t('visibleEdit.action', 'Edit')) + '</button>',
+      renderToolbarEditorButton(board, options),
       '</div>',
       '</header>'
     ].join('');
+  }
+
+  function renderToolbarEditorButton(board, options) {
+    if (options && options.editorOverlay) {
+      return '<button type="button" data-object-canvas-action="toggle_overlay" data-visible-edit-affordance="card-board">' + escapeHtml(t('objectCanvas.editorDock', 'Close editor')) + '</button>';
+    }
+    const selectedObject = board && board.selectedObject || {};
+    const deckPool = selectedObject.deckPool || null;
+    if (deckPool && deckPool.id) {
+      return '<button type="button" data-card-board-action="open_deck_pool_editor" data-card-board-deck-pool="' + escapeAttr(deckPool.id || '') + '" data-visible-edit-affordance="card-board">' + escapeHtml(t('cardBoard.action.openDeckPoolEditor', 'Open deck pool editor')) + '</button>';
+    }
+    const advisorController = selectedObject.advisorController || null;
+    if (advisorController && advisorController.id) {
+      return '<button type="button" data-card-board-action="open_advisor_controller_editor" data-card-board-advisor-controller="' + escapeAttr(advisorController.id || '') + '" data-visible-edit-affordance="card-board">' + escapeHtml(t('cardBoard.action.openAdvisorControllerEditor', 'Open advisor controller editor')) + '</button>';
+    }
+    const card = selectedObject.card || board && board.selected || null;
+    return '<button type="button" data-card-board-action="open_card_editor" data-card-board-action-card="' + escapeAttr(card && card.key || '') + '" data-visible-edit-affordance="card-board">' + escapeHtml(t('objectCanvas.editorOverlay', 'Open object editor')) + '</button>';
   }
 
   function renderMetrics(board) {
@@ -50,6 +69,8 @@
 
   function renderBoard(board) {
     const lanes = laneMap(board.lanes);
+    const deckPools = laneGroup(board.lanes, 'deck_pool');
+    const advisorControllers = laneGroup(board.lanes, 'advisor_controller');
     return [
       '<section class="card-board-canvas" data-card-board-canvas="true">',
       renderFilters(board),
@@ -58,6 +79,8 @@
       renderLane(lanes.deck, {primary: true}),
       renderLane(lanes.advisor, {primary: true}),
       '</div>',
+      deckPools.length ? '<div class="card-board-lane-grid is-deck-pools" data-card-board-deck-pools="true">' + deckPools.map((lane) => renderLane(lane, {primary: true, deckPool: true})).join('') + '</div>' : '',
+      advisorControllers.length ? '<div class="card-board-lane-grid is-advisor-controllers" data-card-board-advisor-controllers="true">' + advisorControllers.map((lane) => renderLane(lane, {primary: true, advisorController: true})).join('') + '</div>' : '',
       '<div class="card-board-pool-grid">',
       renderLane(lanes.pool, {pool: true}),
       renderLane(lanes.unwired, {compact: true}),
@@ -91,13 +114,14 @@
       value.selected ? 'is-selected' : ''
     ].filter(Boolean).join(' ');
     return [
-      '<section class="' + classes + '" data-card-board-lane="' + escapeAttr(value.key) + '" data-card-board-drop-target="' + escapeAttr(value.key) + '" data-card-board-lane-label="' + escapeAttr(laneLabel) + '" data-card-board-lane-tag="' + escapeAttr(value.tag || '') + '"' + renderLaneAnchorAttrs(value.sourceAnchor) + '>',
+      '<section class="' + classes + '" data-card-board-lane="' + escapeAttr(value.key) + '" data-card-board-drop-target="' + escapeAttr(value.key) + '" data-card-board-lane-label="' + escapeAttr(laneLabel) + '" data-card-board-lane-group="' + escapeAttr(value.group || '') + '" data-card-board-deck-pool="' + escapeAttr(value.deckPool && value.deckPool.id || '') + '" data-card-board-advisor-controller="' + escapeAttr(value.advisorController && value.advisorController.id || '') + '" data-card-board-lane-tag="' + escapeAttr(value.tag || '') + '"' + renderLaneAnchorAttrs(value.sourceAnchor) + '>',
       '<header tabindex="0" role="button" data-card-board-lane-select="' + escapeAttr(value.key) + '" aria-pressed="' + (value.selected ? 'true' : 'false') + '">',
       '<span>' + escapeHtml(laneLabel) + '</span>',
       '<strong>' + escapeHtml(String(value.totalCount || cards.length || 0)) + '</strong>',
       '</header>',
       options && options.hand ? renderHandEntries(cards) : renderCardList(cards, options || {}),
-      value.key === 'deck' || value.key === 'advisor' ? renderCreateButton(value, laneLabel) : '',
+      renderLaneObjectButton(value),
+      canCreateInLane(value) ? renderCreateButton(value, laneLabel) : '',
       '</section>'
     ].join('');
   }
@@ -109,7 +133,7 @@
     return [
       '<div class="card-board-hand-routes">',
       entries.map((entry) => [
-        '<article class="card-board-hand-route' + (entry.selected ? ' is-selected' : '') + '" tabindex="0" role="button" data-card-board-hand-route="' + escapeAttr(entry.key || '') + '" data-card-board-hand-target-kind="' + escapeAttr(entry.targetKind || '') + '" data-card-board-hand-target-id="' + escapeAttr(entry.targetId || '') + '">',
+        '<article class="card-board-hand-route' + (entry.selected ? ' is-selected' : '') + '" tabindex="0" role="button" data-card-board-hand-route="' + escapeAttr(entry.key || '') + '" data-card-board-hand-target-kind="' + escapeAttr(entry.targetKind || '') + '" data-card-board-hand-target-id="' + escapeAttr(entry.targetId || '') + '" data-card-board-deck-pool="' + escapeAttr(entry.deckPoolId || '') + '"' + (entry.deckPoolId ? ' data-card-board-open-lane-object="deck_pool"' : '') + '>',
         '<span>' + escapeHtml(typeLabel(entry.kind)) + '</span>',
         '<strong>' + renderTextInline(entry.title || '') + '</strong>',
         '<small>' + renderTextInline(entry.detail || '') + '</small>',
@@ -136,7 +160,7 @@
   function renderCard(card) {
     return [
       '<article class="card-board-card card-board-card-' + safeClass(card.kind) + (card.selected ? ' is-selected' : '') + '" tabindex="0" draggable="true" role="button" data-card-board-card="' + escapeAttr(card.key || '') + '" data-card-board-card-kind="' + escapeAttr(card.kind || '') + '" data-card-board-card-title="' + escapeAttr(card.title || '') + '">',
-      '<div class="card-board-card-kicker"><span>' + escapeHtml(typeLabel(card.kind)) + '</span><em>' + escapeHtml(ensureArray(card.tags).slice(0, 2).map((tag) => '#' + tag).join(' ')) + '</em><b class="visible-edit-affordance" data-visible-edit-affordance="card-board-card">' + escapeHtml(t('visibleEdit.action', 'Edit')) + '</b></div>',
+      '<div class="card-board-card-kicker"><span>' + escapeHtml(typeLabel(card.kind)) + '</span><em>' + escapeHtml(ensureArray(card.tags).slice(0, 2).map((tag) => '#' + tag).join(' ')) + '</em><button type="button" class="visible-edit-affordance card-board-card-edit" data-card-board-action="open_card_editor" data-card-board-action-card="' + escapeAttr(card.key || '') + '" data-visible-edit-affordance="card-board-card">' + escapeHtml(t('visibleEdit.action', 'Edit')) + '</button></div>',
       '<strong>' + renderTextInline(card.heading || card.title || '') + '</strong>',
       card.subtitle ? '<small>' + renderTextInline(card.subtitle) + '</small>' : '',
       card.body ? '<p>' + renderTextInline(card.body) + '</p>' : '',
@@ -165,6 +189,17 @@
     return '<button type="button" class="card-board-create-in-lane" data-card-board-create-lane="' + escapeAttr(lane.key || '') + '" data-card-board-lane-label="' + escapeAttr(label || lane.key || '') + '" data-card-board-lane-tag="' + escapeAttr(lane.tag || '') + '"' + renderLaneAnchorAttrs(lane.sourceAnchor) + '>' + escapeHtml(t('cardBoard.createHere', 'New card here')) + '</button>';
   }
 
+  function renderLaneObjectButton(lane) {
+    const value = lane || {};
+    if (value.deckPool) {
+      return '<button type="button" class="card-board-open-lane-object" data-card-board-action="open_deck_pool_editor" data-card-board-deck-pool="' + escapeAttr(value.deckPool.id || '') + '">' + escapeHtml(t('cardBoard.action.openDeckPoolEditor', 'Open deck pool editor')) + '</button>';
+    }
+    if (value.advisorController) {
+      return '<button type="button" class="card-board-open-lane-object" data-card-board-action="open_advisor_controller_editor" data-card-board-advisor-controller="' + escapeAttr(value.advisorController.id || '') + '">' + escapeHtml(t('cardBoard.action.openAdvisorControllerEditor', 'Open advisor controller editor')) + '</button>';
+    }
+    return '';
+  }
+
   function renderEditor(model, board, options) {
     const editor = editorApi();
     return editor && typeof editor.render === 'function' ? editor.render(model, board, options || {}) : '';
@@ -183,6 +218,15 @@
       out[lane.key] = lane;
     });
     return out;
+  }
+
+  function laneGroup(lanes, group) {
+    return ensureArray(lanes).filter((lane) => String(lane && lane.group || '') === String(group || ''));
+  }
+
+  function canCreateInLane(lane) {
+    const value = lane || {};
+    return value.key === 'deck' || value.key === 'advisor' || value.group === 'deck_pool' || value.group === 'advisor_controller';
   }
 
   function typeLabel(type, board) {
@@ -218,6 +262,25 @@
       }
     }
     return null;
+  }
+
+  function perfApi() {
+    if (global && global.ProjectMapCardBoardPerf) {
+      return global.ProjectMapCardBoardPerf;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./card_board_perf.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function perfMeasure(name, fn, detail) {
+    const api = perfApi();
+    return api && typeof api.measure === 'function' ? api.measure(name, fn, detail || {}) : fn();
   }
 
   function editorApi() {

@@ -28,6 +28,8 @@
       event: true,
       news: true,
       card: true,
+      deck_pool: true,
+      advisor_controller: true,
       play_surface: true,
       workspace_layout: true,
       sidebar_status: true,

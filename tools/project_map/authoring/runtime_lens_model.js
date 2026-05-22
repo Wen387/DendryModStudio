@@ -10,6 +10,8 @@
     'card',
     'hand',
     'deck',
+    'deck_pool',
+    'advisor_controller',
     'route',
     'card_option',
     'system_region',
@@ -89,6 +91,7 @@
       optionIndex: numberOrBlank(value.optionIndex),
       regionId: firstNonEmpty(value.regionId, kind === 'system_region' ? id : ''),
       source,
+      proof: isObject(value.proof) ? JSON.parse(JSON.stringify(value.proof)) : null,
       diagnostics
     };
   }
@@ -267,7 +270,7 @@
     if (text === 'advisor') return 'card';
     if (text === 'surface_text' || text === 'text_patch' || text === 'text_replacement') return 'text_replacement';
     if (text === 'scene' || text === 'event' || text === 'news' || text === 'card' || text === 'hand' ||
-        text === 'deck' || text === 'route' || text === 'card_option' || text === 'system_region' ||
+        text === 'deck' || text === 'deck_pool' || text === 'advisor_controller' || text === 'route' || text === 'card_option' || text === 'system_region' ||
         text === 'text_replacement') {
       return text;
     }

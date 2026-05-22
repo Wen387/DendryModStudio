@@ -363,7 +363,9 @@
       metaFields: [
         field('sidebar.id', 'Draft id', draft.id, 'guarded'),
         field('sidebar.title', 'Draft title', draft.title, 'guarded'),
-        field('sidebar.sectionId', 'Section id', draft.sectionId, 'guarded')
+        field('sidebar.sectionId', 'Section id', draft.sectionId, 'guarded'),
+        field('sidebar.operationMode', 'Operation', draft.operationMode || 'edit', 'guarded'),
+        Object.assign(field('sidebar.deleteConfirm', 'Confirm delete', draft.deleteConfirm ? 'true' : 'false', 'guarded'), {inputType: 'checkbox'})
       ]
     };
   }
@@ -545,6 +547,82 @@
     return fields;
   }
 
+  function deckPoolBody(draft) {
+    const launchers = ensureArray(draft.launcherRoutes);
+    const members = ensureArray(draft.memberCards);
+    const candidates = ensureArray(draft.availableMemberCards);
+    const targetPools = ensureArray(draft.targetDeckPools);
+    const memberCandidateOptions = [{value: '', label: 'Select a card'}].concat(candidates.map((card) => ({
+      value: card.cardId,
+      label: (card.title || card.cardId) + (ensureArray(card.currentPoolIds).length ? ' (' + card.currentPoolIds.join(', ') + ')' : '')
+    })));
+    const targetPoolOptions = [{value: '', label: 'Keep in this pool'}].concat(targetPools.map((pool) => ({
+      value: pool.id,
+      label: pool.label || pool.id
+    })));
+    return {
+      mode: 'deck_pool',
+      bodyEyebrow: 'Deck pool',
+      optionsLabel: 'Pool members',
+      metaLabel: 'Pool routing',
+      title: field('deckPool.label', 'Deck label', draft.label, 'guarded'),
+      sections: [
+        field('deckPool.id', 'Deck pool id', draft.deckPoolId, 'read_only', {readOnly: true}),
+        field('deckPool.ownerSceneId', 'Owner scene', draft.ownerSceneId, 'read_only', {readOnly: true}),
+        field('deckPool.ownerSectionId', 'Owner section', draft.ownerSectionId, 'read_only', {readOnly: true})
+      ],
+      options: members.map((member) => optionRow({
+        id: member.cardId,
+        label: member.title || member.cardId,
+        targetId: member.membership
+      }, 0, [
+        field('deckPool.member.' + member.cardId + '.title', 'Card title', member.title, 'read_only', {readOnly: true, cardId: member.cardId}),
+        field('deckPool.member.' + member.cardId + '.id', 'Card id', member.cardId, 'read_only', {readOnly: true, cardId: member.cardId}),
+        field('deckPool.member.' + member.cardId + '.membership', 'Membership', member.membership, 'read_only', {readOnly: true, cardId: member.cardId}),
+        field('deckPool.member.' + member.cardId + '.editableReason', 'Evidence', member.editableReason || 'review', 'read_only', {readOnly: true, cardId: member.cardId}),
+        field('deckPool.member.' + member.cardId + '.remove', 'Remove from pool', 'false', 'guarded', {inputType: 'checkbox', cardId: member.cardId}),
+        field('deckPool.member.' + member.cardId + '.moveTargetDeckPoolId', 'Move to pool', '', 'guarded', {inputType: 'select', options: targetPoolOptions, cardId: member.cardId})
+      ])),
+      metaFields: launchers.map((route, index) => field('deckPool.launcher.' + index + '.label', 'Launcher ' + (index + 1), route.label, 'guarded')).concat(ensureArray(draft.routeTags).map((tag, index) => field('deckPool.routeTag.' + index, 'Route tag ' + (index + 1), tag, 'read_only', {readOnly: true, help: 'Routing evidence; rename route tags from source review.'}))).concat([
+        field('deckPool.add.memberCardId', 'Add card to pool', draft.addMemberCardId, 'guarded', {inputType: 'select', options: memberCandidateOptions})
+      ])
+    };
+  }
+
+  function advisorControllerBody(draft) {
+    const roster = ensureArray(draft.roster);
+    return {
+      mode: 'advisor_controller',
+      bodyEyebrow: 'Advisor controller',
+      optionsLabel: 'Advisor roster',
+      metaLabel: 'Controller routing',
+      title: field('advisorController.entry.label', 'Pinned entry label', draft.entryLabel, 'guarded'),
+      sections: [
+        field('advisorController.id', 'Controller id', draft.controllerId, 'read_only', {readOnly: true}),
+        field('advisorController.pinnedEntryId', 'Pinned entry scene', draft.pinnedEntryId, 'read_only', {readOnly: true}),
+        field('advisorController.entry.target', 'Controller route target', draft.pinnedEntryTargetSceneId, 'read_only', {readOnly: true})
+      ],
+      options: roster.map((item) => optionRow({
+        id: item.advisorId,
+        label: item.title || item.advisorId,
+        targetId: item.activeVariable
+      }, 0, [
+        field('advisorController.roster.' + item.advisorId + '.title', 'Advisor title', item.title, 'guarded'),
+        field('advisorController.roster.' + item.advisorId + '.activeVariable', 'Active variable', item.activeVariable, 'guarded'),
+        field('advisorController.roster.' + item.advisorId + '.category', 'Category / faction', item.category, 'guarded'),
+        field('advisorController.roster.' + item.advisorId + '.add.label', 'Add label', item.addLabel, 'guarded'),
+        field('advisorController.roster.' + item.advisorId + '.remove.label', 'Remove label', item.removeLabel, 'guarded'),
+        field('advisorController.roster.' + item.advisorId + '.add.effect', 'Add effect', item.addEffectText, 'guarded'),
+        field('advisorController.roster.' + item.advisorId + '.remove.effect', 'Remove effect', item.removeEffectText, 'guarded')
+      ])),
+      metaFields: [
+        field('advisorController.addAdvisorId', 'Add advisor candidate', draft.addAdvisorId, 'guarded'),
+        field('advisorController.removeAdvisorId', 'Remove advisor candidate', draft.removeAdvisorId, 'guarded'),
+        field('advisorController.capacityGate', 'Capacity gate', draft.capacityGate && draft.capacityGate.variable || '', 'read_only', {readOnly: true})
+      ]
+    };
+  }
+
   function joinParagraphs(value) {
     return ensureArray(value).map((item) => String(item || '').trim()).filter(Boolean).join('\n\n');
   }
@@ -571,6 +649,8 @@
     eventBody,
     newsBody,
     cardBody,
+    deckPoolBody,
+    advisorControllerBody,
     surfaceBody,
     entryBody,
     playSurfaceBody,

@@ -173,6 +173,10 @@
     const scenesById = new Map(ensureArray(index.scenes).map((scene) => [String(scene && scene.id || ''), scene]));
     const handScenes = semanticOrSceneList(index, 'hands', (scene) => scene.type === 'hand' || scene.flags && scene.flags.isHand);
     const deckScenes = semanticOrSceneList(index, 'decks', (scene) => scene.type === 'deck' || scene.flags && scene.flags.isDeck);
+    const deckPoolModel = buildDeckPoolModel(index);
+    const deckPools = ensureArray(deckPoolModel && deckPoolModel.deckPools);
+    const advisorControllerModel = buildAdvisorControllerModel(index);
+    const advisorControllers = ensureArray(advisorControllerModel && advisorControllerModel.advisorControllers);
     const handEntries = [];
     const deckCards = [];
     const advisorCards = [];
@@ -215,16 +219,55 @@
             laneMeta.advisor.sourceAnchor = laneAnchorRef(option && option.sourceSpan || scene && scene.sourceSpan || {}, scene && scene.path);
           }
         }
+        const deckPool = deckPoolForHandTarget(target, deckPools);
+        const routeKey = handRouteKey(target.kind === 'scene' && linkedScene && linkedScene.type === 'deck'
+          ? 'deck:' + linkedScene.id
+          : matchedCards[0] && matchedCards[0].key || 'hand:' + (option.id || target.id || handEntries.length + 1), handEntries);
         handEntries.push({
-          key: target.kind === 'scene' && linkedScene && linkedScene.type === 'deck' ? 'deck:' + linkedScene.id : matchedCards[0] && matchedCards[0].key || 'hand:' + (option.id || target.id || handEntries.length + 1),
+          key: routeKey,
           kind: target.kind === 'scene' && linkedScene && linkedScene.type === 'deck' ? 'deck' : matchedCards[0] && matchedCards[0].kind || 'route',
           title: option && option.title || linkedScene && linkedScene.title || target.id || 'Hand route',
           detail: target.kind === 'tag' ? '#' + target.id : '@' + target.id,
           targetKind: String(target.kind || ''),
           targetId: String(target.id || ''),
+          deckPoolId: deckPool && deckPool.id || '',
           source: sourceRef(option && option.sourceSpan || hand.sourceSpan || hand.source || {}),
           linkedCardKeys: matchedCards.map((card) => card.key)
         });
+      });
+    });
+
+    const deckPoolLanes = deckPools.map((pool) => {
+      const poolCards = uniqueCards(ensureArray(pool.memberCardIds).map((cardId) => cardById.get(String(cardId || ''))).filter(Boolean));
+      poolCards.forEach((card) => {
+        addLane(card, pool.key || 'deck_pool:' + pool.id);
+        addLane(card, 'deck');
+      });
+      return lane(pool.key || 'deck_pool:' + pool.id, '', pool.label || pool.id || 'Deck pool', poolCards, {
+        group: 'deck_pool',
+        objectKind: 'deck_pool',
+        deckPool: pool,
+        tags: ensureArray(pool.routeTags),
+        sourceAnchor: pool.sourceAnchor || null,
+        status: pool.status || 'ready',
+        manualBoundary: pool.manualBoundary || ''
+      });
+    });
+
+    const advisorControllerLanes = advisorControllers.map((controller) => {
+      const rosterCards = uniqueCards(ensureArray(controller.roster).map((item) => cardById.get(String(item && item.pinnedCardSceneId || ''))).filter(Boolean));
+      rosterCards.forEach((card) => {
+        addLane(card, controller.key || 'advisor_controller:' + controller.id);
+        addLane(card, 'advisor');
+      });
+      return lane(controller.key || 'advisor_controller:' + controller.id, '', controller.title || controller.id || 'Advisor controller', rosterCards, {
+        group: 'advisor_controller',
+        objectKind: 'advisor_controller',
+        advisorController: controller,
+        tags: unique(ensureArray(controller.roster).reduce((rows, item) => rows.concat(ensureArray(item && item.categoryTags)), [])),
+        sourceAnchor: controller.sourceAnchor || null,
+        status: controller.confidence || 'partial',
+        manualBoundary: controller.manualBoundary || ''
       });
     });
 
@@ -241,7 +284,9 @@
     return [
       lane('hand', 'cardBoard.lane.hand', 'Hand', handEntries, laneMeta.hand),
       lane('deck', 'cardBoard.lane.deck', 'Deck', uniqueCards(deckCards), laneMeta.deck),
+      ...deckPoolLanes,
       lane('advisor', 'cardBoard.lane.advisor', 'Advisor / pinned', uniqueCards(advisorCards), laneMeta.advisor),
+      ...advisorControllerLanes,
       lane('pool', 'cardBoard.lane.pool', 'All cards', cards, {}),
       lane('unwired', 'cardBoard.lane.unwired', 'Unwired', cards.filter((card) => card.laneKeys.includes('unwired')), {}),
       lane('drafts', 'cardBoard.lane.drafts', 'Drafts', cards.filter((card) => card.stateTags.includes('draft')), {})
@@ -361,6 +406,58 @@
       return semantic;
     }
     return ensureArray(index.scenes).filter(predicate);
+  }
+
+  function buildDeckPoolModel(index) {
+    const api = deckPoolModelApi();
+    if (!api || typeof api.buildDeckPoolModel !== 'function') {
+      return {deckPools: []};
+    }
+    try {
+      return api.buildDeckPoolModel(index);
+    } catch (_err) {
+      return {deckPools: []};
+    }
+  }
+
+  function buildAdvisorControllerModel(index) {
+    const api = advisorControllerModelApi();
+    if (!api || typeof api.buildAdvisorControllerModel !== 'function') {
+      return {advisorControllers: []};
+    }
+    try {
+      return api.buildAdvisorControllerModel(index);
+    } catch (_err) {
+      return {advisorControllers: []};
+    }
+  }
+
+  function deckPoolModelApi() {
+    if (global && global.ProjectMapDeckPoolModel) {
+      return global.ProjectMapDeckPoolModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./deck_pool_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function advisorControllerModelApi() {
+    if (global && global.ProjectMapAdvisorControllerModel) {
+      return global.ProjectMapAdvisorControllerModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./advisor_controller_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
   }
 
   function targetMatchesCard(target, card) {
@@ -503,22 +600,28 @@
     }
     if (value.kind === 'route') {
       const route = routeByKey(lanes, value.key);
+      const deckPool = deckPoolForRoute(lanes, route);
       return {
         kind: 'route',
         key: value.key,
         title: route && route.title || 'Hand route',
         route,
+        deckPool,
         laneKey: 'hand',
-        editability: {editable: false, reason: 'route_intent'}
+        editability: {editable: Boolean(deckPool), reason: deckPool ? 'deck_pool_route' : 'route_intent'}
       };
     }
     if (value.kind === 'lane') {
       const laneValue = laneByKey(lanes, value.laneKey);
+      const objectKind = laneValue && (laneValue.objectKind || laneValue.group) || 'lane';
       return {
         kind: 'lane',
         key: value.key,
         title: laneValue && (laneValue.fallback || laneValue.key) || value.laneKey,
         lane: laneValue,
+        objectKind,
+        deckPool: laneValue && laneValue.deckPool || null,
+        advisorController: laneValue && laneValue.advisorController || null,
         laneKey: value.laneKey,
         editability: {editable: true, reason: 'lane_intent'}
       };
@@ -539,11 +642,66 @@
     return {
       kind: 'card',
       key: card && card.key || value.key || '',
-      title: card && (card.title || card.heading) || '',
+      title: displayCardTitle(card),
       card,
       laneKey: value.laneKey || laneForCard(card),
       editability: editabilityForCard(card, model)
     };
+  }
+
+  function deckPoolForHandTarget(target, deckPools) {
+    if (!target || target.kind !== 'scene') {
+      return null;
+    }
+    const targetId = String(target.id || '');
+    return ensureArray(deckPools).find((pool) => deckPoolTargetsScene(pool, targetId)) || null;
+  }
+
+  function handRouteKey(baseKey, existingEntries) {
+    const base = String(baseKey || 'hand:route').trim() || 'hand:route';
+    const seen = new Set(ensureArray(existingEntries).map((entry) => String(entry && entry.key || '')));
+    if (!seen.has(base)) {
+      return base;
+    }
+    let index = 2;
+    let candidate = base + ':route_' + index;
+    while (seen.has(candidate)) {
+      index += 1;
+      candidate = base + ':route_' + index;
+    }
+    return candidate;
+  }
+
+  function deckPoolForRoute(lanes, route) {
+    const targetId = String(route && route.targetId || '');
+    const routePoolId = String(route && route.deckPoolId || '');
+    const pools = ensureArray(lanes).filter((laneValue) => laneValue && laneValue.deckPool).map((laneValue) => laneValue.deckPool);
+    if (routePoolId) {
+      return pools.find((pool) => String(pool && pool.id || '') === routePoolId) || null;
+    }
+    return pools.find((pool) => deckPoolTargetsScene(pool, targetId)) || null;
+  }
+
+  function deckPoolTargetsScene(pool, targetId) {
+    const value = pool || {};
+    const wanted = String(targetId || '');
+    if (!wanted) {
+      return false;
+    }
+    if ([value.id, value.ownerSceneId, value.ownerSectionId].map(String).includes(wanted)) {
+      return true;
+    }
+    if (ensureArray(value.directSceneIds).map(String).includes(wanted)) {
+      return true;
+    }
+    return ensureArray(value.launcherRoutes).some((route) => String(route && route.targetId || '') === wanted);
+  }
+
+  function displayCardTitle(card) {
+    if (!card) {
+      return '';
+    }
+    return String(card.heading || card.title || card.id || '');
   }
 
   function optionForSelection(card, selection) {
@@ -609,6 +767,10 @@
 
   function uniqueCards(cards) {
     return dedupeCards(cards);
+  }
+
+  function unique(values) {
+    return Array.from(new Set(ensureArray(values).map(String).filter(Boolean)));
   }
 
   function searchable(card) {

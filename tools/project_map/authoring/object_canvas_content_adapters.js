@@ -5,6 +5,8 @@
     'event',
     'news',
     'card',
+    'deck_pool',
+    'advisor_controller',
     'play_surface',
     'workspace_layout',
     'sidebar_status',
@@ -19,6 +21,8 @@
     world_event: 'event',
     news_item: 'news',
     card: 'card',
+    deck_pool: 'deck_pool',
+    advisor_controller: 'advisor_controller',
     play_surface: 'play_surface',
     workspace_layout: 'workspace_layout',
     sidebar_status: 'sidebar_status',
@@ -79,6 +83,32 @@
       body: BODIES.cardBody,
       source: (draft) => sourceRef({path: 'source/scenes/cards/' + (draft.id || 'new_card') + '.scene.dry'}),
       preview: (bundle) => bundle.scene || bundle.sceneDry || ''
+    },
+    deck_pool: {
+      label: 'Deck Pool',
+      objectKind: 'deck_pool',
+      mode: 'deck_pool',
+      globalName: 'ProjectMapDeckPoolDraft',
+      moduleName: 'deck_pool_draft.js',
+      defaultDraft: (projectIndex, api) => api && typeof api.defaultDraft === 'function' ? api.defaultDraft(projectIndex) : fallbackDraftForTemplate('deck_pool'),
+      normalize: (draft, api) => normalizeWithApi(api, draft),
+      applyValues: applyDeckPoolValues,
+      body: BODIES.deckPoolBody,
+      source: (draft) => sourceRef(draft.evidence && draft.evidence.sourceAnchor || {path: draft.path || ''}),
+      preview: (bundle) => bundle.proposal || bundle.previewText || ''
+    },
+    advisor_controller: {
+      label: 'Advisor Controller',
+      objectKind: 'advisor_controller',
+      mode: 'advisor_controller',
+      globalName: 'ProjectMapAdvisorControllerDraft',
+      moduleName: 'advisor_controller_draft.js',
+      defaultDraft: (projectIndex, api) => api && typeof api.defaultDraft === 'function' ? api.defaultDraft(projectIndex) : fallbackDraftForTemplate('advisor_controller'),
+      normalize: (draft, api) => normalizeWithApi(api, draft),
+      applyValues: applyAdvisorControllerValues,
+      body: BODIES.advisorControllerBody,
+      source: (draft) => sourceRef(draft.evidence && draft.evidence.sourceAnchor || {}),
+      preview: (bundle) => bundle.proposal || bundle.previewText || ''
     },
     surface: {
       label: 'Text Replacement',
@@ -318,6 +348,12 @@
     if (text === 'world_event') {
       return 'event';
     }
+    if (text === 'deckPool' || text === 'deck-pool' || text === 'deck_pool') {
+      return 'deck_pool';
+    }
+    if (text === 'advisorController' || text === 'advisor-controller' || text === 'advisor_controller') {
+      return 'advisor_controller';
+    }
     if (text === 'news_item') {
       return 'news';
     }
@@ -360,6 +396,20 @@
     if (typeof require === 'function') {
       try {
         return require('./asset_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function fieldPresentationApi() {
+    if (global && global.ProjectMapObjectFieldPresentationModel) {
+      return global.ProjectMapObjectFieldPresentationModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./object_field_presentation_model.js');
       } catch (_err) {
         return null;
       }
@@ -873,6 +923,12 @@
     if (template === 'card') {
       return defaultCardDraft();
     }
+    if (template === 'deck_pool') {
+      return {schemaVersion: '0.1', kind: 'deck_pool', id: 'deck_pool_update', deckPoolId: '', label: 'Deck Pool', routeTags: [], launcherRoutes: [], memberCards: [], evidence: {}, authoringStatus: 'partial', authoringBlockers: ['No deck pool semantic evidence is available.']};
+    }
+    if (template === 'advisor_controller') {
+      return {schemaVersion: '0.1', kind: 'advisor_controller', id: 'advisor_controller_update', controllerId: '', entryLabel: 'Advisor Controller', roster: [], evidence: {}, authoringStatus: 'partial', authoringBlockers: ['No advisor controller semantic evidence is available.']};
+    }
     if (template === 'surface') {
       return defaultSurfaceDraft();
     }
@@ -963,6 +1019,8 @@
         sectionHeading: 'Status',
         sectionBody: 'Track the current state here.',
         sectionStatusLines: '',
+        operationMode: 'edit',
+        deleteConfirm: false,
         evidence: {}
       };
     }
@@ -1524,15 +1582,20 @@
   }
 
   function applySidebarStatusValues(baseDraft, values) {
-    return applyScalarValues(baseDraft, values, 'sidebar.', [
+    const draft = applyScalarValues(baseDraft, values, 'sidebar.', [
       'id',
       'title',
       'statusTitle',
       'sectionId',
       'sectionHeading',
       'sectionBody',
-      'sectionStatusLines'
+      'sectionStatusLines',
+      'operationMode'
     ], ['id', 'sectionId']);
+    if (has(values, 'sidebar.deleteConfirm')) {
+      draft.deleteConfirm = booleanValue(values['sidebar.deleteConfirm']);
+    }
+    return draft;
   }
 
   function applyElectionResultsValues(baseDraft, values, context) {
@@ -1751,6 +1814,90 @@
     };
   }
 
+  function applyDeckPoolValues(baseDraft, values) {
+    const draft = clone(baseDraft);
+    const data = isObject(values) ? values : {};
+    setString(data, draft, 'deckPool.label', 'label');
+    ensureArray(draft.launcherRoutes).forEach((route, index) => {
+      setString(data, route, 'deckPool.launcher.' + index + '.label', 'label');
+    });
+    const changes = [];
+    const addCardId = String(data['deckPool.add.memberCardId'] || data['deckPool.addMemberCardId'] || '').trim();
+    if (addCardId) {
+      changes.push({action: 'add', cardId: addCardId});
+    }
+    ensureArray(draft.memberCards).forEach((member) => {
+      const cardId = String(member && member.cardId || '').trim();
+      if (!cardId) {
+        return;
+      }
+      const moveTarget = String(data['deckPool.member.' + cardId + '.moveTargetDeckPoolId'] || '').trim();
+      if (moveTarget && moveTarget !== String(draft.deckPoolId || '')) {
+        changes.push({action: 'move', cardId, targetDeckPoolId: moveTarget});
+        return;
+      }
+      if (booleanValue(data['deckPool.member.' + cardId + '.remove'])) {
+        changes.push({action: 'remove', cardId});
+      }
+    });
+    const legacyRemove = String(data['deckPool.removeMemberCardId'] || '').trim();
+    if (legacyRemove) {
+      changes.push({action: 'remove', cardId: legacyRemove});
+    }
+    const legacyMove = String(data['deckPool.moveMemberCardId'] || '').trim();
+    const legacyMoveTarget = String(data['deckPool.moveTargetDeckPoolId'] || '').trim();
+    if (legacyMove && legacyMoveTarget) {
+      changes.push({action: 'move', cardId: legacyMove, targetDeckPoolId: legacyMoveTarget});
+    }
+    draft.membershipChanges = dedupeDeckMembershipChanges(changes);
+    draft.addMemberCardId = firstDeckMembershipChange(draft.membershipChanges, 'add').cardId || '';
+    draft.removeMemberCardId = firstDeckMembershipChange(draft.membershipChanges, 'remove').cardId || '';
+    const move = firstDeckMembershipChange(draft.membershipChanges, 'move');
+    draft.moveMemberCardId = move.cardId || '';
+    draft.moveTargetDeckPoolId = move.targetDeckPoolId || '';
+    return draft;
+  }
+
+  function dedupeDeckMembershipChanges(changes) {
+    const seen = new Set();
+    const out = [];
+    ensureArray(changes).forEach((change) => {
+      const action = String(change && change.action || '');
+      const cardId = String(change && change.cardId || '');
+      const targetDeckPoolId = String(change && change.targetDeckPoolId || '');
+      const key = [action, cardId, targetDeckPoolId].join(':');
+      if (!action || !cardId || seen.has(key)) {
+        return;
+      }
+      seen.add(key);
+      out.push({action, cardId, targetDeckPoolId});
+    });
+    return out;
+  }
+
+  function firstDeckMembershipChange(changes, action) {
+    return ensureArray(changes).find((change) => String(change && change.action || '') === action) || {};
+  }
+
+  function applyAdvisorControllerValues(baseDraft, values) {
+    const draft = clone(baseDraft);
+    const data = isObject(values) ? values : {};
+    setString(data, draft, 'advisorController.entry.label', 'entryLabel');
+    ensureArray(draft.roster).forEach((item) => {
+      const prefix = 'advisorController.roster.' + item.advisorId + '.';
+      setString(data, item, prefix + 'title', 'title');
+      setString(data, item, prefix + 'activeVariable', 'activeVariable');
+      setString(data, item, prefix + 'category', 'category');
+      setString(data, item, prefix + 'add.label', 'addLabel');
+      setString(data, item, prefix + 'remove.label', 'removeLabel');
+      setString(data, item, prefix + 'add.effect', 'addEffectText');
+      setString(data, item, prefix + 'remove.effect', 'removeEffectText');
+    });
+    setString(data, draft, 'advisorController.addAdvisorId', 'addAdvisorId', safeId);
+    setString(data, draft, 'advisorController.removeAdvisorId', 'removeAdvisorId', safeId);
+    return draft;
+  }
+
   function applyProjectValues(baseDraft, values) {
     return applyScalarValues(baseDraft, values, 'project.', ['id', 'title', 'gameTitle', 'author', 'ifid'], ['id']);
   }
@@ -1803,11 +1950,15 @@
       : {};
     const assets = assetRows(projectIndex, def, draft);
     const assetAddFields = draftAssetAddFields(def, draft, body);
-    return Object.assign({}, body, {
+    const next = Object.assign({}, body, {
       assets: assets.length ? assets : ensureArray(body && body.assets),
       assetAddFields: ensureArray(body && body.assetAddFields).concat(assetAddFields),
       assetCatalog: assetCatalog(projectIndex, def)
     });
+    const presentation = fieldPresentationApi();
+    return presentation && typeof presentation.enrichEventBody === 'function'
+      ? presentation.enrichEventBody(next, projectIndex)
+      : next;
   }
 
   function draftAssetAddFields(def, draft, body) {

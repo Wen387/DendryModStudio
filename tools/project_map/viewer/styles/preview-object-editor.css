@@ -1018,8 +1018,8 @@ input.preview-object-control[type="checkbox"] {
 
 .preview-object-choice-logic-group {
   display: grid;
-  grid-template-columns: minmax(76px, 104px) minmax(0, 1fr);
-  gap: 6px 8px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
   align-items: start;
   min-width: 0;
 }
@@ -1036,7 +1036,7 @@ input.preview-object-control[type="checkbox"] {
 .preview-object-choice-logic-group > .preview-object-condition-chips,
 .preview-object-choice-logic-group > .preview-object-effect-fields,
 .preview-object-choice-logic-group > .preview-object-choice-logic-chip {
-  grid-column: 2;
+  grid-column: 1;
 }
 
 .preview-object-choice-logic-group .preview-object-field {
@@ -1752,4 +1752,414 @@ input.preview-object-control[type="checkbox"] {
 .preview-object-empty {
   margin: 0;
   color: var(--muted);
+}
+
+.preview-object-semantic-section {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.preview-object-semantic-section-title {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.preview-object-semantic-status {
+  justify-self: start;
+  padding: 2px 7px;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-alt) 78%, #ffffff);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.preview-object-semantic-status.is-advanced,
+.preview-object-semantic-status.is-manual {
+  border-color: color-mix(in srgb, var(--warning) 34%, var(--border-soft));
+  color: var(--warning-strong);
+}
+
+.object-canvas-variable-picker {
+  display: grid;
+  gap: 7px;
+  padding: 7px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-alt) 72%, #ffffff);
+}
+
+.object-canvas-variable-picker summary {
+  cursor: pointer;
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.object-canvas-variable-search {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.object-canvas-variable-search input {
+  width: 100%;
+  min-height: 30px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+
+.object-canvas-variable-candidates {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 6px;
+}
+
+.object-canvas-variable-candidate {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+}
+
+.object-canvas-variable-candidate:hover,
+.object-canvas-variable-candidate:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.object-canvas-variable-candidate strong,
+.object-canvas-variable-candidate code {
+  overflow-wrap: anywhere;
+}
+
+.object-canvas-variable-candidate span,
+.object-canvas-variable-candidate small {
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.preview-object-effect-fields.is-semantic-effects {
+  display: grid;
+  gap: 10px;
+}
+
+.preview-object-semantic-effect-card {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 11px;
+  border: 1px solid color-mix(in srgb, var(--accent) 16%, var(--border-soft));
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.preview-object-semantic-effect-card > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.preview-object-semantic-effect-card > header > span {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.preview-object-semantic-effect-summary,
+.preview-object-semantic-logic-overview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px 9px;
+  border: 1px solid color-mix(in srgb, var(--studio-accent) 18%, var(--border-soft));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-alt) 72%, #ffffff);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.preview-object-semantic-effect-summary code,
+.preview-object-semantic-logic-overview code {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.preview-object-semantic-effect-summary strong {
+  color: var(--studio-accent-strong);
+  font-weight: 850;
+}
+
+.preview-object-semantic-effect-summary em,
+.preview-object-semantic-logic-overview em {
+  color: var(--muted);
+  font-style: normal;
+}
+
+.preview-object-semantic-effect-condition,
+.preview-object-semantic-logic-overview small {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.preview-object-semantic-effect-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  min-width: 0;
+}
+
+.preview-object-semantic-effect-part {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.preview-object-semantic-effect-input {
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface-alt);
+  color: var(--text);
+  font: inherit;
+}
+
+.preview-object-semantic-variable-evidence {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.preview-object-semantic-variable-evidence summary {
+  cursor: pointer;
+  color: var(--accent-strong);
+  font-weight: 850;
+}
+
+.preview-object-semantic-variable-evidence code,
+.preview-object-semantic-source-evidence code {
+  overflow-wrap: anywhere;
+}
+
+.preview-object-semantic-source-evidence {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.preview-object-semantic-source-evidence summary {
+  cursor: pointer;
+  color: var(--accent-strong);
+  font-weight: 850;
+}
+
+.preview-object-semantic-effect-delete {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  color: var(--danger-strong);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.preview-object-semantic-effect-delete input {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+}
+
+.preview-object-semantic-effect-delete .preview-object-structure-safety {
+  display: none;
+}
+
+.preview-object-semantic-effect-source-field {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.preview-object-semantic-effect-card.is-advanced-source {
+  border-color: color-mix(in srgb, var(--warning) 30%, var(--border-soft));
+  background: color-mix(in srgb, var(--surface-alt) 60%, #ffffff);
+}
+
+.preview-object-semantic-logic-card {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 14%, var(--border-soft));
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.preview-object-semantic-logic-card > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.preview-object-semantic-logic-card > header > span {
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.preview-object-semantic-logic-main {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.preview-object-semantic-logic-input {
+  width: 100%;
+  min-width: 0;
+}
+
+.preview-object-condition-structure {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.preview-object-condition-structure span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px 7px;
+  border: 1px solid var(--border-soft);
+  border-radius: 7px;
+  background: var(--surface-alt);
+}
+
+.preview-object-condition-structure strong {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.preview-object-condition-structure em {
+  color: var(--text);
+  font-style: normal;
+  overflow-wrap: anywhere;
+}
+
+.preview-object-route-state-summary {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.preview-object-route-state-summary > summary {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  justify-self: start;
+  max-width: 100%;
+  cursor: pointer;
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.preview-object-route-state-summary > summary em {
+  color: var(--muted);
+  font-style: normal;
+  font-weight: 760;
+}
+
+.preview-object-route-state-summary-body {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.preview-object-choice-logic-group > .preview-object-route-state-summary {
+  grid-column: 1;
+}
+
+.preview-object-route-state-summary article {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border-soft));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-alt) 70%, #ffffff);
+}
+
+.preview-object-route-state-summary strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 850;
+  overflow-wrap: anywhere;
+}
+
+.preview-object-route-state-summary span,
+.preview-object-route-state-summary li {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.preview-object-route-state-summary ul {
+  margin: 0;
+  padding-left: 16px;
+}
+
+.preview-object-route-state-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.preview-object-route-state-badges em {
+  padding: 2px 6px;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--accent-strong);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
 }

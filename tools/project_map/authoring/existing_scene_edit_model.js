@@ -269,10 +269,11 @@
     const textFields = visibleTextRows
       .filter((row) => !isEffectScriptRow(row))
       .map((row, index) => fieldFromTextRow(row, index, source.path));
-    const optionTextFields = optionLabelFieldsForScene(scene, source.path, textFields);
+    const metadataFields = metadataEditableFields(scene, source.path, textFields);
+    const optionTextFields = optionLabelFieldsForScene(scene, source.path, textFields.concat(metadataFields));
     let fields = textFields.concat(
       optionTextFields,
-      metadataEditableFields(scene, source.path, textFields),
+      metadataFields,
       assetEditableFields(scene, source.path, {textRows})
     );
     if (!fields.length) {
@@ -569,21 +570,113 @@
       const option = entry.option || {};
       const target = isObject(option.target) ? option.target : {};
       const rawTarget = rawOptionTarget(option, target);
+      const optionId = rawTarget || option.id || '';
+      const resolvedTarget = resolveOptionTarget(scene, rawTarget, target);
+      const targetSection = findSceneSection(scene, resolvedTarget || rawTarget);
       const parts = splitOptionTitle(optionTitleText(option, rawTarget));
       [
-        {role: 'option_label', value: parts.label, suffix: 'label'},
-        {role: 'option_subtitle', value: parts.subtitle, suffix: 'subtitle'}
+        {role: 'option_label', value: parts.label, suffix: 'label', targetRole: 'title'},
+        {role: 'option_subtitle', value: parts.subtitle, suffix: 'subtitle', targetRole: 'subtitle'}
       ].forEach((item) => {
         const value = String(item.value || '').trim();
-        if (!value || findOptionField(fields, rawTarget || option.id || '', item.role, value, entry.sectionId)) {
+        if (value) {
+          if (findOptionFieldForSynthesis(fields, optionId, item.role, value, entry.sectionId)) {
+            return;
+          }
+          const field = syntheticOptionTextField(scene, sceneSourcePath, entry, option, rawTarget, item.role, item.suffix, value, index);
+          created.push(field);
+          fields.push(field);
           return;
         }
-        const field = syntheticOptionTextField(scene, sceneSourcePath, entry, option, rawTarget, item.role, item.suffix, value, index);
+        const targetField = targetSectionTextField(fields, targetSection, item.targetRole);
+        if (!targetField || findOptionFieldForSynthesis(fields, optionId, item.role, targetField.original, entry.sectionId)) {
+          return;
+        }
+        const field = targetSectionOptionTextField(scene, sceneSourcePath, entry, option, rawTarget, item.role, item.suffix, targetField, targetSection, index);
         created.push(field);
         fields.push(field);
       });
     });
     return created;
+  }
+
+  function targetSectionTextField(fields, section, role) {
+    const sectionId = String(section && section.id || '').trim();
+    const expected = String(section && (role === 'subtitle' ? section.subtitle : section.title) || '').trim();
+    if (!sectionId || !expected) {
+      return null;
+    }
+    return ensureArray(fields).find((field) => {
+      const source = sourceRef(field && field.source || {});
+      return String(field && field.role || '') === role &&
+        String(field && field.sectionId || '') === sectionId &&
+        normalizedFieldText(field && field.original) === normalizedFieldText(expected) &&
+        source.path;
+    }) || null;
+  }
+
+  function targetSectionOptionTextField(scene, sceneSourcePath, entry, option, rawTarget, role, suffix, targetField, targetSection, index) {
+    const sceneId = String(scene && scene.id || '');
+    const optionId = String(rawTarget || option && (option.id || option.targetId) || 'option_' + (index + 1));
+    const optionSectionId = String(entry && entry.sectionId || '');
+    const targetSectionId = String(targetSection && targetSection.id || '');
+    const source = sourceRef(targetField && targetField.source || {});
+    const targetRole = String(targetField && targetField.role || '');
+    const sectionValue = String(targetSection && (targetRole === 'subtitle' ? targetSection.subtitle : targetSection.title) || '').trim();
+    const value = sectionValue || String(targetField && targetField.original || '');
+    const guarded = canGuardField(source, value);
+    return {
+      id: safeId([sceneId, optionSectionId || 'root', optionId, suffix].filter(Boolean).join('_') || 'option_' + (index + 1) + '_' + suffix),
+      role,
+      label: roleLabel(role),
+      original: value,
+      value,
+      source,
+      sourcePath: source.path || sceneSourcePath || '',
+      editability: guarded ? 'guarded_replace_text' : String(targetField && targetField.editability || 'advanced_source_patch'),
+      owner: {
+        sceneId,
+        sectionId: optionSectionId,
+        itemId: optionId,
+        kind: 'scene',
+        targetSectionId
+      },
+      sectionId: optionSectionId,
+      targetSectionId,
+      optionId,
+      derivedFromFieldId: String(targetField && targetField.id || ''),
+      derivedFromRole: String(targetField && targetField.role || ''),
+      confidence: guarded ? 'source_target_section_title' : 'parsed_target_section_title',
+      reason: guarded
+        ? 'Player option text is inherited from a source-backed target section title/subtitle and can be edited safely.'
+        : 'Player option text is inherited from the target section title/subtitle and may need advanced source editing.'
+    };
+  }
+
+  function normalizedFieldText(value) {
+    return String(value || '').replace(/\s+/g, ' ').trim();
+  }
+
+  function findOptionFieldForSynthesis(fields, optionId, role, fallbackText, sectionId) {
+    const exact = ensureArray(fields).find((field) => {
+      if (field.role !== role || !field.optionId || safeId(field.optionId) !== safeId(optionId)) {
+        return false;
+      }
+      return !sectionId || !field.sectionId || String(field.sectionId) === String(sectionId);
+    });
+    if (exact) {
+      return exact;
+    }
+    const text = String(fallbackText || '').trim();
+    if (!text) {
+      return null;
+    }
+    return ensureArray(fields).find((field) => {
+      return field.role === role &&
+        !field.optionId &&
+        String(field.original || '').trim() === text &&
+        (!sectionId || !field.sectionId || String(field.sectionId) === String(sectionId));
+    }) || null;
   }
 
   function syntheticOptionTextField(scene, sceneSourcePath, entry, option, rawTarget, role, suffix, value, index) {
@@ -2189,6 +2282,7 @@
     if (!parsed) {
       return null;
     }
+    const sourceBlock = isObject(field && field.structureSourceBlock) ? field.structureSourceBlock : {};
     const source = sourceRef(field && field.source || {});
     const path = String(source.path || '');
     const line = Number(source.line || source.startLine || 0);
@@ -2197,6 +2291,17 @@
     if (!path.startsWith('source/scenes/') || !path.endsWith('.scene.dry') || isProtectedRouterPath(path) ||
       !Number.isInteger(line) || line <= 0 || (Number.isInteger(endLine) && endLine > 0 && endLine !== line) || !anchor) {
       return null;
+    }
+    if (String(sourceBlock.kind || '') === 'section_on_arrival_insert_anchor') {
+      const expression = structuralEffectSourceExpression(parsed, {qPrefix: false});
+      const nextLine = 'on-arrival: ' + expression;
+      const change = baseFieldChange(field, '(not present yet)', nextLine);
+      change.editability = 'guarded_apply';
+      change.operationType = 'insert_text';
+      change.anchorText = anchor;
+      change.position = 'after';
+      change.dedupeSearch = nextLine;
+      return change;
     }
     if (/^on-arrival\s*:/i.test(anchor) && anchor.indexOf('{!') < 0) {
       const expression = structuralEffectSourceExpression(parsed, {qPrefix: /\bQ\.[A-Za-z_]/.test(anchor)});

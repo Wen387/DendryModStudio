@@ -23,8 +23,16 @@
         return;
       }
       card.dataset.cardBoardBound = 'true';
-      card.addEventListener('click', () => callbacks.onSelect && callbacks.onSelect(card.dataset.cardBoardCard || ''));
+      card.addEventListener('click', (event) => {
+        if (isNestedInteractive(event.target, card)) {
+          return;
+        }
+        callbacks.onSelect && callbacks.onSelect(card.dataset.cardBoardCard || '');
+      });
       card.addEventListener('keydown', (event) => {
+        if (event.target !== card) {
+          return;
+        }
         if (event.key === 'Enter' || event.key === ' ') {
           event.preventDefault();
           callbacks.onSelect && callbacks.onSelect(card.dataset.cardBoardCard || '');
@@ -85,6 +93,9 @@
 
   function bindCreate(host, callbacks) {
     host.querySelectorAll('[data-card-board-create-lane]').forEach((button) => {
+      if (button.dataset.cardBoardAction) {
+        return;
+      }
       if (button.dataset.cardBoardCreateBound === 'true') {
         return;
       }
@@ -112,11 +123,17 @@
         return;
       }
       route.dataset.cardBoardHandRouteBound = 'true';
-      const select = () => callbacks.onObjectSelect && callbacks.onObjectSelect({
-        kind: 'route',
-        key: route.dataset.cardBoardHandRoute || '',
-        laneKey: 'hand'
-      });
+      const select = () => {
+        if (route.dataset.cardBoardOpenLaneObject === 'deck_pool' && route.dataset.cardBoardDeckPool) {
+          callbacks.onAction && callbacks.onAction('open_deck_pool_editor', route);
+          return;
+        }
+        callbacks.onObjectSelect && callbacks.onObjectSelect({
+          kind: 'route',
+          key: route.dataset.cardBoardHandRoute || '',
+          laneKey: 'hand'
+        });
+      };
       route.addEventListener('click', select);
       route.addEventListener('keydown', (event) => runOnConfirmKey(event, select));
     });
@@ -164,7 +181,19 @@
         return;
       }
       button.dataset.cardBoardActionBound = 'true';
-      button.addEventListener('click', () => callbacks.onAction && callbacks.onAction(button.dataset.cardBoardAction || '', button));
+      button.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        callbacks.onAction && callbacks.onAction(button.dataset.cardBoardAction || '', button);
+      });
+      button.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') {
+          return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        callbacks.onAction && callbacks.onAction(button.dataset.cardBoardAction || '', button);
+      });
     });
   }
 
@@ -174,6 +203,14 @@
     }
     event.preventDefault();
     callback();
+  }
+
+  function isNestedInteractive(target, root) {
+    if (!target || target === root || !target.closest) {
+      return false;
+    }
+    const interactive = target.closest('button, input, select, textarea, a, [data-card-board-action], [data-card-board-option]');
+    return Boolean(interactive && root.contains(interactive));
   }
 
   function hasCardPayload(event) {

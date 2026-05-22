@@ -10,11 +10,11 @@
     return [
       '<aside class="card-face-editor" data-card-face-editor="true">',
       renderCommandDock(model, selectedObject, selected, board, opts, canEdit),
-      renderPreview(model, selected, selectedObject),
+      renderPreview(model, selected, selectedObject, opts),
       renderRuntimeLens(model, board, opts),
       renderInspector(model, body, board, selectedObject, selected, canEdit),
       renderDropContext(board && board.dropContext),
-      renderChangeSummary(model),
+      renderChangeSummary(model, selected, opts),
       '</aside>'
     ].join('');
   }
@@ -22,7 +22,7 @@
   function renderCommandDock(model, selectedObject, selected, board, options, canEdit) {
     const labels = board && board.labels || {};
     const objectLabel = selectionLabel(selectedObject, selected, labels);
-    const title = selectedObject && selectedObject.title || selected && selected.title || model && model.title || t('cardBoard.editor.emptyTitle', 'No card selected');
+    const title = selectedDisplayTitle(selectedObject, selected, model);
     const source = selected && selected.source && selected.source.path || '';
     const active = Boolean(options && options.editorOverlay);
     return [
@@ -36,9 +36,9 @@
       '</div>',
       source ? '<p class="object-canvas-command-meta">' + escapeHtml(source) + '</p>' : '',
       '<div class="object-canvas-command-row">',
-      '<button type="button" class="primary-action" data-object-canvas-action="toggle_overlay">' + escapeHtml(active ? t('objectCanvas.editorDock', 'Close editor') : t('objectCanvas.editorOverlay', 'Open object editor')) + '</button>',
+      renderPrimaryEditorButton(selectedObject, selected, active),
       '</div>',
-      renderActions(model, selectedObject, selected, canEdit),
+      renderActions(model, selectedObject, selected, canEdit, options),
       '</section>'
     ].join('');
   }
@@ -49,7 +49,7 @@
     return [
       '<header class="card-face-editor-header">',
       '<span>' + escapeHtml(objectLabel.eyebrow) + '</span>',
-      '<h3 data-card-face-selected-title="true">' + escapeHtml(selectedObject && selectedObject.title || selected && selected.title || t('cardBoard.editor.emptyTitle', 'No card selected')) + '</h3>',
+      '<h3 data-card-face-selected-title="true">' + escapeHtml(selectedDisplayTitle(selectedObject, selected, null)) + '</h3>',
       '<p>' + escapeHtml([
         objectLabel.kind,
         selected && selected.source && selected.source.path || ''
@@ -78,8 +78,12 @@
     });
   }
 
-  function renderPreview(model, card, selectedObject) {
+  function renderPreview(model, card, selectedObject, options) {
     const api = lightweightPreviewApi();
+    const sourceSnapshot = card && ensureArray(card.stateTags).includes('source') && !(options && options.editorOverlay);
+    if (sourceSnapshot && api && typeof api.renderCard === 'function') {
+      return api.renderCard(card, {selectedObject});
+    }
     const modelCard = previewCardFromModel(model);
     if (modelCard && api && typeof api.renderCard === 'function') {
       return api.renderCard(modelCard, {selectedObject});
@@ -108,14 +112,14 @@
   }
 
   function renderOpenEditorCard(model, selectedObject, selected, options) {
-    const title = selectedObject && selectedObject.title || selected && selected.title || model && model.title || t('cardBoard.editor.emptyTitle', 'No card selected');
+    const title = selectedDisplayTitle(selectedObject, selected, model);
     const active = Boolean(options && options.editorOverlay);
     return [
       '<section class="card-face-object-editor-launch object-editor-launch-card" data-object-editor-launch-card="true">',
       '<div class="template-eyebrow">' + escapeHtml(t('previewObjectEditor.modalEyebrow', 'Object editor')) + '</div>',
       '<h4>' + escapeHtml(title) + '</h4>',
       '<p>' + escapeHtml(t('previewObjectEditor.modalHint', 'Open a focused editor with a live preview and fields beside it.')) + '</p>',
-      '<button type="button" class="primary-action" data-object-canvas-action="toggle_overlay">' + escapeHtml(active ? t('objectCanvas.editorDock', 'Close editor') : t('objectCanvas.editorOverlay', 'Open object editor')) + '</button>',
+      renderPrimaryEditorButton(selectedObject, selected, active),
       '</section>'
     ].join('');
   }
@@ -199,19 +203,20 @@
       '<section class="card-face-fields card-face-option-inspector" data-card-board-option-inspector="true">',
       '<div class="template-eyebrow">' + escapeHtml(t('cardBoard.inspector.option', 'Selected choice')) + '</div>',
       '<div class="card-board-inspector-facts">',
-      fact(t('cardBoard.inspector.parentCard', 'Parent card'), selectedObject && selectedObject.card && (selectedObject.card.title || selectedObject.card.id) || ''),
+      fact(t('cardBoard.inspector.parentCard', 'Parent card'), cardDisplayTitle(selectedObject && selectedObject.card) || ''),
       fact(t('cardBoard.inspector.target', 'Target'), option.targetId || bodyOption && bodyOption.targetId || ''),
       fact(t('cardBoard.inspector.field', 'Editor field'), selectedObject && selectedObject.fieldId || option.fieldId || ''),
       fact(t('cardBoard.inspector.source', 'Source'), sourceLabel(option.source)),
       '</div>',
       '<p class="card-face-readonly-note">' + escapeHtml(t('cardBoard.editor.openToEdit', 'This choice is selected in the Object Editor; edit the focused field there.')) + '</p>',
-      canEdit ? '<button type="button" class="primary-action" data-object-canvas-action="toggle_overlay" data-card-board-option-field="' + escapeAttr(selectedObject && selectedObject.fieldId || option.fieldId || '') + '">' + escapeHtml(t('cardBoard.editor.openObjectEditor', 'Open object editor')) + '</button>' : '',
+      canEdit ? '<button type="button" class="primary-action" data-card-board-action="open_card_editor" data-card-board-option-field="' + escapeAttr(selectedObject && selectedObject.fieldId || option.fieldId || '') + '">' + escapeHtml(t('cardBoard.editor.openObjectEditor', 'Open object editor')) + '</button>' : '',
       '</section>'
     ].join('');
   }
 
   function renderRouteInspector(selectedObject) {
     const route = selectedObject && selectedObject.route || {};
+    const deckPool = selectedObject && selectedObject.deckPool || null;
     const linked = ensureArray(route.linkedCardKeys);
     return [
       '<section class="card-face-readonly card-board-route-inspector" data-card-board-route-inspector="true">',
@@ -222,7 +227,10 @@
       fact(t('cardBoard.inspector.source', 'Source'), sourceLabel(route.source)),
       fact(t('cardBoard.inspector.linkedCards', 'Linked cards'), linked.join(', ') || t('cardBoard.inspector.none', 'None')),
       '</div>',
-      linked.length ? '<div class="card-board-object-actions">' + linked.map((key) => '<button type="button" data-card-board-action="open_linked_card" data-card-board-action-card="' + escapeAttr(key) + '">' + escapeHtml(t('cardBoard.action.openLinked', 'Open linked card')) + '</button>').join('') + '</div>' : '',
+      linked.length || deckPool ? '<div class="card-board-object-actions">' + [
+        deckPool ? '<button type="button" data-card-board-action="open_deck_pool_editor" data-card-board-deck-pool="' + escapeAttr(deckPool.id || '') + '">' + escapeHtml(t('cardBoard.action.openDeckPoolEditor', 'Open deck pool editor')) + '</button>' : '',
+        linked.map((key) => '<button type="button" data-card-board-action="open_linked_card" data-card-board-action-card="' + escapeAttr(key) + '">' + escapeHtml(t('cardBoard.action.openLinked', 'Open linked card')) + '</button>').join('')
+      ].join('') + '</div>' : '',
       '</section>'
     ].join('');
   }
@@ -238,12 +246,46 @@
       fact(t('cardBoard.inspector.cards', 'Cards'), String(lane.totalCount || ensureArray(lane.cards).length || 0)),
       fact(t('cardBoard.inspector.tags', 'Tags'), ensureArray(lane.tags).join(', ') || t('cardBoard.inspector.none', 'None')),
       fact(t('cardBoard.inspector.visible', 'Visible'), String(ensureArray(lane.cards).length || 0) + ' / ' + String(board && board.metrics && board.metrics.visibleCardCount || 0)),
+      renderLaneSemanticFacts(lane),
       '</div>',
       '<div class="card-board-object-actions">',
       '<button type="button" data-card-board-action="create_in_selected_lane" data-card-board-create-lane="' + escapeAttr(lane.key || selectedObject.laneKey || 'deck') + '" data-card-board-lane-label="' + escapeAttr(label) + '" data-card-board-lane-tag="' + escapeAttr(lane.tag || '') + '">' + escapeHtml(t('cardBoard.action.createHere', 'Create card in lane')) + '</button>',
+      renderLaneSemanticActions(lane),
       '</div>',
       '</section>'
     ].join('');
+  }
+
+  function renderLaneSemanticFacts(lane) {
+    const value = lane || {};
+    if (value.deckPool) {
+      const pool = value.deckPool;
+      return [
+        fact(t('cardBoard.inspector.deckPool', 'Deck pool'), pool.id || ''),
+        fact(t('cardBoard.inspector.deckPoolKind', 'Pool kind'), pool.kind || ''),
+        fact(t('cardBoard.inspector.source', 'Source'), sourceLabel(pool.sourceAnchor))
+      ].join('');
+    }
+    if (value.advisorController) {
+      const controller = value.advisorController;
+      return [
+        fact(t('cardBoard.inspector.controller', 'Controller'), controller.id || ''),
+        fact(t('cardBoard.inspector.roster', 'Roster'), String(ensureArray(controller.roster).length || 0)),
+        fact(t('cardBoard.inspector.confidence', 'Confidence'), controller.confidence || '')
+      ].join('');
+    }
+    return '';
+  }
+
+  function renderLaneSemanticActions(lane) {
+    const value = lane || {};
+    if (value.deckPool) {
+      return '<button type="button" data-card-board-action="open_deck_pool_editor" data-card-board-deck-pool="' + escapeAttr(value.deckPool.id || '') + '">' + escapeHtml(t('cardBoard.action.openDeckPoolEditor', 'Open deck pool editor')) + '</button>';
+    }
+    if (value.advisorController) {
+      return '<button type="button" data-card-board-action="open_advisor_controller_editor" data-card-board-advisor-controller="' + escapeAttr(value.advisorController.id || '') + '">' + escapeHtml(t('cardBoard.action.openAdvisorControllerEditor', 'Open advisor controller editor')) + '</button>';
+    }
+    return '';
   }
 
   function renderIntentInspector(selectedObject) {
@@ -332,8 +374,8 @@
     ].join('');
   }
 
-  function renderChangeSummary(model) {
-    const change = model && model.changeState || {};
+  function renderChangeSummary(model, selected, options) {
+    const change = isLightweightSourceSelection(selected, model, options) ? {} : model && model.changeState || {};
     const summary = change.operationSummary || {};
     return [
       '<section class="card-face-change-summary" data-card-board-change-summary="true">',
@@ -348,9 +390,13 @@
     ].join('');
   }
 
-  function renderActions(model, selectedObject, selected, canEdit) {
+  function renderActions(model, selectedObject, selected, canEdit, options) {
+    const boardActions = renderBoardActions(model, selectedObject, selected, canEdit);
+    if (isLightweightSourceSelection(selected, model, options)) {
+      return boardActions;
+    }
     return [
-      renderBoardActions(model, selectedObject, selected, canEdit),
+      boardActions,
       '<div class="editing-actions card-face-actions">',
       '<button type="button" data-object-canvas-action="refresh">' + escapeHtml(t('existingScene.refresh', 'Refresh proposal')) + '</button>',
       '<button type="button" data-object-canvas-action="save">' + escapeHtml(t('editing.saveToChanges', 'Save to My Changes')) + '</button>',
@@ -358,6 +404,31 @@
       model && model.mode !== 'existing' ? '<button type="button" data-object-canvas-action="legacy_form">' + escapeHtml(t('objectCanvas.legacyForm', 'Advanced Form')) + '</button>' : '',
       '</div>'
     ].join('');
+  }
+
+  function renderPrimaryEditorButton(selectedObject, selected, active) {
+    if (active) {
+      return '<button type="button" class="primary-action" data-object-canvas-action="toggle_overlay">' + escapeHtml(t('objectCanvas.editorDock', 'Close editor')) + '</button>';
+    }
+    const semantic = semanticEditorTarget(selectedObject);
+    if (semantic.kind === 'deck_pool') {
+      return '<button type="button" class="primary-action" data-card-board-action="open_deck_pool_editor" data-card-board-deck-pool="' + escapeAttr(semantic.id) + '">' + escapeHtml(t('cardBoard.action.openDeckPoolEditor', 'Open deck pool editor')) + '</button>';
+    }
+    if (semantic.kind === 'advisor_controller') {
+      return '<button type="button" class="primary-action" data-card-board-action="open_advisor_controller_editor" data-card-board-advisor-controller="' + escapeAttr(semantic.id) + '">' + escapeHtml(t('cardBoard.action.openAdvisorControllerEditor', 'Open advisor controller editor')) + '</button>';
+    }
+    return '<button type="button" class="primary-action" data-card-board-action="open_card_editor" data-card-board-action-card="' + escapeAttr(selected && selected.key || '') + '">' + escapeHtml(t('objectCanvas.editorOverlay', 'Open object editor')) + '</button>';
+  }
+
+  function semanticEditorTarget(selectedObject) {
+    const value = selectedObject || {};
+    if (value.deckPool && value.deckPool.id) {
+      return {kind: 'deck_pool', id: String(value.deckPool.id || '')};
+    }
+    if (value.advisorController && value.advisorController.id) {
+      return {kind: 'advisor_controller', id: String(value.advisorController.id || '')};
+    }
+    return {kind: '', id: ''};
   }
 
   function renderBoardActions(model, selectedObject, selected, canEdit) {
@@ -382,6 +453,16 @@
       return '';
     }
     return '<div class="card-board-object-actions" data-card-board-object-actions="true">' + actions.join('') + '</div>';
+  }
+
+  function isLightweightSourceSelection(selected, model, options) {
+    if (!selected || options && options.editorOverlay) {
+      return false;
+    }
+    if (!ensureArray(selected.stateTags).includes('source')) {
+      return false;
+    }
+    return String(model && model.objectId || '') !== String(selected.id || '');
   }
 
   function renderInlineField(field, options) {
@@ -447,6 +528,22 @@
       eyebrow: t('cardBoard.editor.eyebrow', 'Selected card'),
       kind: selected && selected.kind === 'advisor' ? labels.singular || t('cardBoard.type.advisor', 'Advisor') : t('create.card', 'Card')
     };
+  }
+
+  function selectedDisplayTitle(selectedObject, selected, model) {
+    const kind = selectedObject && selectedObject.kind || '';
+    if (kind === 'option') {
+      return selectedObject.title || cardDisplayTitle(selectedObject.card || selected) || model && model.title || t('cardBoard.editor.emptyTitle', 'No card selected');
+    }
+    if (kind === 'route' || kind === 'lane' || kind === 'intent') {
+      return selectedObject && selectedObject.title || cardDisplayTitle(selected) || model && model.title || t('cardBoard.editor.emptyTitle', 'No card selected');
+    }
+    return cardDisplayTitle(selectedObject && selectedObject.card || selected) || selectedObject && selectedObject.title || model && model.title || t('cardBoard.editor.emptyTitle', 'No card selected');
+  }
+
+  function cardDisplayTitle(card) {
+    const value = card || {};
+    return String(value.heading || value.title || value.id || '').trim();
   }
 
   function readOnlyMessage(selectedObject) {

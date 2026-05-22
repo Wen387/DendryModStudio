@@ -127,6 +127,8 @@
     draft.sectionHeading = String(draft.sectionHeading || '').trim();
     draft.sectionBody = String(draft.sectionBody || '').trim();
     draft.sectionStatusLines = String(draft.sectionStatusLines || '').trim();
+    draft.operationMode = String(draft.operationMode || '').trim() === 'delete' ? 'delete' : 'edit';
+    draft.deleteConfirm = booleanValue(draft.deleteConfirm);
     draft.evidence = isObject(draft.evidence) ? draft.evidence : {};
     return draft;
   }
@@ -155,6 +157,18 @@
     }
     if (evidence.status && evidence.status.exists && !selectSection(evidence, draft.sectionId)) {
       diagnostic(diagnostics, 'warning', 'sidebar_status.section_missing', 'Selected sidebar section was not found in the current index.');
+    }
+    const selected = selectSection(evidence, draft.sectionId);
+    if (draft.operationMode === 'delete') {
+      if (!draft.deleteConfirm) {
+        diagnostic(diagnostics, 'error', 'sidebar_status.delete_confirm', 'Confirm deletion before Review & Apply can remove a sidebar category.');
+      }
+      if (!selected || !selected.deleteEvidence) {
+        diagnostic(diagnostics, 'error', 'sidebar_status.delete_evidence', 'Selected sidebar category cannot be deleted automatically because exact source anchors are missing.');
+      }
+      if (selected && selected.id === MAIN_SECTION_ID) {
+        diagnostic(diagnostics, 'error', 'sidebar_status.delete_main', 'The main sidebar display cannot be deleted automatically.');
+      }
     }
     draft.evidence = evidence;
     return {ok: diagnostics.every((item) => item.severity !== 'error'), draft, diagnostics};
@@ -201,6 +215,7 @@
     const status = isObject(evidence.status) ? evidence.status : {};
     const selected = selectSection(evidence, draft.sectionId);
     const operations = [];
+    const deleteMode = draft.operationMode === 'delete';
     const sectionChanged = !selected ||
       draft.sectionHeading !== selected.heading ||
       draft.sectionBody !== selected.body ||
@@ -212,13 +227,13 @@
         id: 'sidebar_status_generated_manual',
         type: 'manual_snippet',
         path: statusPath || 'out/html/index.html',
-        content: renderSidebarSection(draft),
+        content: deleteMode ? renderSidebarDeleteManual(draft) : renderSidebarSection(draft),
         safety: 'manual_review',
-        role: 'sidebar_status.section',
+        role: deleteMode ? 'sidebar_status.delete_section' : 'sidebar_status.section',
         description: 'Generated/custom sidebar evidence needs manual review before editing UI-owned files.'
       });
     } else if (status.exists) {
-      if (status.title && draft.statusTitle && draft.statusTitle !== status.title && status.titleLine) {
+      if (!deleteMode && status.title && draft.statusTitle && draft.statusTitle !== status.title && status.titleLine) {
         operations.push({
           id: 'sidebar_status_title',
           type: 'replace_text',
@@ -231,7 +246,34 @@
           description: 'Replace the source-backed status scene title after exact line evidence matches.'
         });
       }
-      if (selected && selected.evidence && sectionChanged) {
+      if (deleteMode && selected && selected.deleteEvidence && selected.id !== MAIN_SECTION_ID) {
+        operations.push({
+          id: 'sidebar_status_delete_section',
+          type: 'replace_section',
+          path: selected.deleteEvidence.path || statusPath,
+          anchorText: selected.deleteEvidence.anchorText,
+          endAnchorText: selected.deleteEvidence.endAnchorText,
+          content: '',
+          dedupeSearch: selected.deleteEvidence.anchorText,
+          startLine: selected.deleteEvidence.startLine,
+          endLine: selected.deleteEvidence.endLine,
+          allowEmptyReplace: true,
+          destructive: true,
+          safety: 'guarded_apply',
+          role: 'sidebar_status.delete_section',
+          description: 'Delete the source-backed sidebar/status category between exact tab and content anchors.'
+        });
+      } else if (deleteMode) {
+        operations.push({
+          id: 'sidebar_status_delete_manual',
+          type: 'manual_snippet',
+          path: statusPath,
+          content: renderSidebarDeleteManual(draft),
+          safety: 'manual_review',
+          role: 'sidebar_status.delete_section',
+          description: 'Selected sidebar category lacks exact delete anchors; review the status scene manually.'
+        });
+      } else if (selected && selected.evidence && sectionChanged) {
         operations.push({
           id: 'sidebar_status_section',
           type: 'replace_section',
@@ -412,7 +454,8 @@
       statusLines,
       path: normalizedPath(section.path || ''),
       line: section.line || null,
-      evidence: sectionEvidence(textRows)
+      evidence: sectionEvidence(textRows),
+      deleteEvidence: deleteSectionEvidence(section, textRows)
     };
   }
 
@@ -436,6 +479,26 @@
       endAnchorText,
       startLine,
       endLine
+    };
+  }
+
+  function deleteSectionEvidence(section, rows) {
+    const anchorId = normalizeSectionId(section && section.anchorId || section && section.id || '');
+    if (!anchorId || anchorId === MAIN_SECTION_ID) {
+      return null;
+    }
+    const line = Number(section && section.line || 0);
+    const path = normalizedPath(section && section.path || '');
+    const contentEvidence = sectionEvidence(rows);
+    if (!line || !path || !contentEvidence || !contentEvidence.endAnchorText || !contentEvidence.endLine) {
+      return null;
+    }
+    return {
+      path,
+      anchorText: '@' + anchorId,
+      endAnchorText: contentEvidence.endAnchorText,
+      startLine: line,
+      endLine: contentEvidence.endLine
     };
   }
 
@@ -463,6 +526,17 @@
     return lines.join('\n').replace(/\n+$/, '') + '\n';
   }
 
+  function renderSidebarDeleteManual(draft) {
+    return [
+      'Manual sidebar deletion review',
+      '',
+      'Delete category: ' + (draft.sectionId || MAIN_SECTION_ID),
+      'Heading: ' + (draft.sectionHeading || ''),
+      '',
+      'Only remove this source section after checking routes or links that depend on this sidebar category.'
+    ].join('\n') + '\n';
+  }
+
   function renderStatusScene(draft) {
     return [
       'title: ' + (draft.statusTitle || 'Status'),
@@ -475,6 +549,16 @@
   }
 
   function renderPlayerPreview(draft) {
+    if (draft.operationMode === 'delete') {
+      return [
+        'Sidebar / Status',
+        '',
+        'Delete sidebar category: ' + (draft.sectionId || MAIN_SECTION_ID),
+        'Heading: ' + (draft.sectionHeading || 'Status'),
+        '',
+        'Review & Apply will remove only the source-backed sidebar section when exact anchors still match.'
+      ].join('\n') + '\n';
+    }
     return [
       'Sidebar / Status',
       '',
@@ -494,6 +578,7 @@
       '',
       'Draft: ' + draft.id,
       'Section: ' + draft.sectionId,
+      draft.operationMode === 'delete' ? 'Operation: delete sidebar category' : 'Operation: edit sidebar category',
       '',
       'Generated operations:',
       ensureArray(plan && plan.operations).map((op) => '- ' + op.type + ' ' + op.path + ' (' + op.safety + ')').join('\n') || '- none',
@@ -596,6 +681,10 @@
       .replace(/[_-]+/g, ' ')
       .replace(/\b\w/g, (char) => char.toUpperCase())
       .trim();
+  }
+
+  function booleanValue(value) {
+    return value === true || value === 1 || /^(1|true|yes|on)$/i.test(String(value || '').trim());
   }
 
   function normalizeSectionId(value) {
