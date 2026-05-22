@@ -6,6 +6,7 @@ const path = require('path');
 const {readViewerCss} = require('./check_viewer_assets.js');
 
 const suggestions = require('./authoring/variable_suggestions.js');
+const presentation = require('./authoring/object_field_presentation_model.js');
 
 const ROOT = __dirname;
 const VIEWER_HTML = path.join(ROOT, 'viewer', 'index.html');
@@ -79,14 +80,40 @@ const snippet = suggestions.variableSnippet(candidates.find((item) => item.name 
 assert(snippet.metadataCondition === 'worker_unrest = 1', 'metadata condition snippet should avoid Q. prefix');
 assert(snippet.jsCondition === 'Q.worker_unrest', 'JS condition snippet should use Q. prefix');
 assert(snippet.effectVariable === 'worker_unrest', 'effect snippet should be just the variable name');
+const conditionPicker = presentation.buildVariablePicker(candidates, {id: 'option.0.chooseIf', value: 'worker_unrest >= 1'}, {
+  presentation: {variablePicker: {enabled: true, mode: 'metadata_condition', targetFieldId: 'option.0.chooseIf'}}
+});
+assert(conditionPicker.enabled && conditionPicker.candidates[0].insertValue === 'worker_unrest = 1', 'Object Canvas condition picker should use metadata-condition snippets');
+const conditionPoolPicker = presentation.buildVariablePicker(candidates, {id: 'option.0.chooseIf', value: ''}, {
+  limit: 2,
+  presentation: {variablePicker: {enabled: true, mode: 'metadata_condition', targetFieldId: 'option.0.chooseIf'}}
+});
+assert(conditionPoolPicker.candidates.length === 2 && !conditionPoolPicker.searchCandidates, 'Object Canvas picker should keep each field lightweight by default');
+const conditionDebugPoolPicker = presentation.buildVariablePicker(candidates, {id: 'option.0.chooseIf', value: ''}, {
+  limit: 2,
+  includeSearchCandidates: true,
+  presentation: {variablePicker: {enabled: true, mode: 'metadata_condition', targetFieldId: 'option.0.chooseIf'}}
+});
+assert(conditionDebugPoolPicker.searchCandidates.length === candidates.length, 'diagnostic callers can explicitly request the full candidate pool');
+const effectPicker = presentation.buildVariablePicker(candidates, {id: 'option.0.effect.0.variable'}, {
+  presentation: {variablePicker: {enabled: true, mode: 'effect_variable', targetFieldId: 'option.0.effect.0.variable'}}
+});
+assert(effectPicker.enabled && effectPicker.candidates.some((item) => item.insertValue === 'resources'), 'Object Canvas effect picker should insert bare variable names');
+const routePresentation = presentation.classifyField({id: 'option.0.gotoAfter', role: 'route', value: 'support_labor'});
+assert(routePresentation.variablePicker && routePresentation.variablePicker.enabled === false, 'Route target fields should not expose variable pickers; route-state summaries cover route context');
 
 const html = fs.readFileSync(VIEWER_HTML, 'utf8');
 const css = readViewerCss(path.join(ROOT, 'viewer'));
 const wizardUi = fs.readFileSync(WIZARD_UI, 'utf8');
 const cardUi = fs.readFileSync(CARD_UI, 'utf8');
 const entryUi = fs.readFileSync(ENTRY_UI, 'utf8');
+const previewObjectEditorUi = fs.readFileSync(path.join(ROOT, 'viewer', 'preview_object_editor.js'), 'utf8');
+const semanticLogicUi = fs.readFileSync(path.join(ROOT, 'viewer', 'semantic_logic_workspace_ui.js'), 'utf8');
+const objectCanvasUi = fs.readFileSync(path.join(ROOT, 'viewer', 'object_authoring_canvas_ui.js'), 'utf8');
 
 assert(html.includes('../authoring/variable_suggestions.js'), 'viewer should load variable suggestion model');
+assert(html.includes('../authoring/object_field_presentation_model.js'), 'viewer should load Object Canvas field presentation model');
+assert(html.includes('../authoring/object_semantic_operations_model.js'), 'viewer should load Object Canvas semantic operations model');
 assert(html.includes('id="wizard-variable-assistant"'), 'Event wizard should expose a variable assistant');
 assert(html.includes('id="card-variable-assistant"'), 'Card wizard should expose a variable assistant');
 assert(html.includes('id="entry-variable-assistant"'), 'Entry wizard should expose a variable assistant');
@@ -102,6 +129,15 @@ assert(cardUi.includes('lastConditionFieldId'), 'Card wizard should remember the
 assert(cardUi.includes('data-variable-action'), 'Card candidate cards should support variable actions');
 assert(entryUi.includes('ProjectMapVariableSuggestions'), 'Entry wizard should use the shared suggestion model');
 assert(entryUi.includes('entry-status-line'), 'Entry candidate cards should support status line insertion');
+assert(previewObjectEditorUi.includes('data-object-canvas-variable-copy'), 'Object Canvas editor should render variable copy buttons');
+assert(!previewObjectEditorUi.includes('data-object-canvas-variable-pool'), 'Object Canvas variable picker should not embed full candidate pools in every field');
+assert(previewObjectEditorUi.includes('data-semantic-intent'), 'Object Canvas editor should expose semantic field intent markers');
+assert(semanticLogicUi.includes('renderSemanticVariablePicker'), 'Semantic Logic controls should expose variable picker rendering');
+assert(!semanticLogicUi.includes("renderSemanticVariablePicker('semantic_logic.routeTarget'"), 'Semantic Logic route target control should not show a variable picker');
+assert(objectCanvasUi.includes('handleVariableCopy'), 'Object Canvas interactions should copy variable snippets instead of replacing field content');
+assert(objectCanvasUi.includes('variablePickerRowsForQuery'), 'Object Canvas interactions should search a shared variable candidate pool on demand');
+assert(objectCanvasUi.includes('syncSemanticEffectParts'), 'Object Canvas interactions should sync semantic effect controls back to guarded source fields');
+assert(css.includes('.object-canvas-variable-picker'), 'CSS should style Object Canvas variable pickers');
 
 process.stdout.write(JSON.stringify({
   ok: true,

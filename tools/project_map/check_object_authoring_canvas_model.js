@@ -15,6 +15,7 @@ const shellUi = require('./viewer/object_canvas_shell_ui.js');
 const modelBuilder = require('./viewer/object_canvas_model_builder.js');
 const storyboardDrafts = require('./viewer/object_canvas_storyboard_drafts.js');
 const previewEditor = require('./viewer/preview_object_editor.js');
+const semanticOperations = require('./authoring/object_semantic_operations_model.js');
 global.ProjectMapAuthoringSurfaceGraphs = {
   buildGraph(model) {
     const node = {
@@ -136,7 +137,7 @@ const commandValues = modelBuilder.withStructureCommandValues({values: {title: '
 assert(commandValues.values.title === 'Draft', 'Object Canvas model builder should preserve existing values');
 assert(commandValues.values.__structureCommands.length === 1, 'Object Canvas model builder should inject structure commands into values');
 
-const cardCanvasIndex = {schemaVersion: '0.1', project: {root: '/tmp/card-canvas'}, scenes: [{id: 'root'}], variables: [{name: 'public_order'}], semantic: {events: [], cards: [], hands: [], decks: [], pinnedCards: [], news: {items: []}}, profiles: [], diagnostics: [], summary: {}};
+const cardCanvasIndex = {schemaVersion: '0.1', project: {root: '/tmp/card-canvas'}, scenes: [{id: 'root'}], variables: [{name: 'public_order'}, {name: 'dnvp_relation'}], semantic: {events: [], cards: [], hands: [], decks: [], pinnedCards: [], news: {items: []}}, profiles: [], diagnostics: [], summary: {}};
 const largeCardDraft = {
   schemaVersion: '0.1',
   kind: 'card',
@@ -160,6 +161,59 @@ assert(largeCardModel.eventBody.options.length === 5, 'Object Canvas should pres
 assert(largeCardModel.eventBody.options[4].fields.some((field) => field.id === 'card.option.4.label'), 'large card option fields should use stable card.option.N ids');
 assert(largeCardModel.eventBody.structureActions.some((field) => field.id === 'structure_add_option'), 'large card should expose add root option structure action');
 assert(largeCardModel.eventBody.structureActions.some((field) => field.id === 'structure_move_option_up_choice_3'), 'large card should expose root option reorder actions');
+const semanticEventDraft = {
+  schemaVersion: '0.1',
+  kind: 'world_event',
+  id: 'semantic_canvas_event',
+  title: 'Semantic Canvas Event',
+  introParagraphs: ['Opening player text.'],
+  options: [
+    {id: 'support', label: 'Support the plan', chooseIf: 'public_order >= 1', unavailableText: 'Public order is too low.', effects: [{variable: 'public_order', op: '+=', value: 1}], narrativeParagraphs: ['The plan gains support.'], gotoAfter: 'continue_support', returnTarget: 'root'},
+    {id: 'wait', label: 'Wait', narrativeParagraphs: ['The room waits.'], gotoAfter: 'continue_wait', returnTarget: 'root'}
+  ]
+};
+const semanticEventModel = canvasModel.buildCanvasModel(cardCanvasIndex, semanticEventDraft);
+assert(semanticEventModel.ok, 'semantic event fixture should build');
+const semanticConditionField = semanticEventModel.eventBody.options[0].fields.find((field) => field.id === 'option.0.chooseIf');
+assert(semanticConditionField && semanticConditionField.semanticGroup === 'conditions', 'Object Canvas should classify option conditions semantically');
+assert(semanticConditionField.variablePicker && semanticConditionField.variablePicker.enabled, 'Object Canvas condition fields should expose variable candidates');
+const semanticEffectField = semanticEventModel.eventBody.optionEffects[0].fields.find((field) => field.id === 'option.0.effect.0.variable');
+assert(semanticEffectField && semanticEffectField.semanticGroup === 'state_changes', 'Object Canvas should classify effect variable fields as state changes');
+assert(semanticEffectField.variablePicker && semanticEffectField.variablePicker.candidates.some((item) => item.insertValue === 'public_order'), 'Object Canvas effect variable fields should expose bare variable insertion');
+const semanticEffectOpField = semanticEventModel.eventBody.optionEffects[0].fields.find((field) => field.id === 'option.0.effect.0.op');
+assert(semanticEffectOpField && semanticEffectOpField.variablePicker && !semanticEffectOpField.variablePicker.enabled, 'Object Canvas effect operator fields should not expose variable candidates');
+const semanticRouteField = semanticEventModel.eventBody.options[0].fields.find((field) => field.semanticGroup === 'routes');
+assert(semanticRouteField && semanticRouteField.variablePicker && !semanticRouteField.variablePicker.enabled, 'Object Canvas route target fields should not expose variable candidates');
+const semanticEventHtml = previewEditor.render(semanticEventModel);
+const previewObjectCss = fs.readFileSync(path.join(__dirname, 'viewer', 'styles', 'preview-object-editor.css'), 'utf8');
+const previewObjectEditorSource = fs.readFileSync(path.join(__dirname, 'viewer', 'preview_object_editor.js'), 'utf8');
+assert(semanticEventHtml.includes('data-object-canvas-semantic-section="player_content"'), 'Object Canvas event editor should render semantic player-content grouping');
+assert(semanticEventHtml.includes('data-semantic-intent="choice_condition"'), 'Object Canvas event editor should render semantic intent markers');
+assert(semanticEventHtml.includes('data-object-canvas-variable-target="option.0.chooseIf"'), 'Object Canvas event editor should render variable picker targets beside condition fields');
+assert(semanticEventHtml.includes('data-object-canvas-semantic-card="condition"'), 'Object Canvas should render conditions as semantic condition cards');
+assert(semanticEventHtml.includes('data-object-canvas-condition-structure="true"'), 'Object Canvas should show simple condition structure without guessing variable meaning');
+assert(semanticEventHtml.includes('data-object-canvas-semantic-card="route_outcome"'), 'Object Canvas should render route fields as semantic route cards');
+assert(semanticEventHtml.includes('preview-object-semantic-logic-overview is-route') && semanticEventHtml.includes('After this choice, go to'), 'Object Canvas route cards should lead with a route outcome summary, not raw source chrome');
+assert(previewObjectEditorSource.includes('<details class="preview-object-route-state-summary"'), 'Object Canvas route-state diagnostics should be collapsed evidence, not primary route chrome');
+assert(semanticEventHtml.includes('data-object-canvas-state-change-summary="true"'), 'Object Canvas state-change cards should lead with a semantic change summary');
+assert(semanticEventHtml.includes('<details class="preview-object-semantic-variable-evidence">'), 'Object Canvas state-change cards should keep variable evidence collapsed by default');
+assert(semanticEventModel.eventBody.variablePickerCandidates.some((item) => item.name === 'dnvp_relation'), 'Object Canvas model should keep one shared searchable variable pool');
+assert(!semanticEventHtml.includes('data-object-canvas-variable-pool'), 'Object Canvas render should not duplicate the full variable pool into every picker');
+assert(!semanticEventHtml.includes('data-object-canvas-variable-target="option.0.gotoAfter"'), 'Object Canvas route target should not render a variable picker target');
+assert(!semanticEventHtml.includes('data-object-canvas-variable-target="option.0.effect.0.op"'), 'Object Canvas effect operator should not render a variable picker target');
+assert(/\.preview-object-choice-logic-group\s*\{[\s\S]{0,160}grid-template-columns:\s*minmax\(0,\s*1fr\)/.test(previewObjectCss), 'Object Canvas choice logic groups should be single-column so semantic cards do not collapse into a narrow sidebar');
+assert(/\.preview-object-semantic-effect-grid\s*\{[\s\S]{0,160}grid-template-columns:\s*minmax\(0,\s*1fr\)/.test(previewObjectCss), 'Object Canvas state-change editors should be single-column to avoid horizontal overflow');
+const semanticEffectOps = semanticOperations.buildEffectOperations([
+  {id: 'effect_1', role: 'effect', value: 'Q.foo += 2', editability: 'guarded'},
+  {id: 'effect_2', role: 'effect', value: 'Q.foo -= 8 if cond', editability: 'guarded'},
+  {id: 'effect_3', role: 'effect', value: 'Q.foo = bar', editability: 'guarded'},
+  {id: 'effect_4', role: 'effect', value: 'Q.XYADWNISA += 1', editability: 'guarded'},
+  {id: 'effect_5', role: 'effect', value: 'Q.foo *= 0.7', editability: 'guarded'},
+  {id: 'effect_6', role: 'effect', value: 'Q.foo += 1; Q.foo += 2', editability: 'advanced_source_patch'}
+], {variables: {}});
+assert(semanticEffectOps.cards.length === 5, 'semantic operations should build state-change cards for simple assignment/increment/decrement/multiply effects');
+assert(semanticEffectOps.cards.some((card) => card.variable === 'Q.XYADWNISA'), 'semantic operations should preserve unknown variable ids without guessing names');
+assert(semanticEffectOps.advancedItems.length === 1, 'semantic operations should keep compound raw effect lines in advanced source');
 const menuCardDraft = {
   schemaVersion: '0.1',
   kind: 'card',
@@ -1210,9 +1264,13 @@ assert(existingEditorHtml.includes('data-preview-object-structure-builder="add_t
 assert(existingEditorHtml.includes('New on-arrival effect'), 'preview editor should label event-level trigger effects as on-arrival effects');
 assert(existingEditorHtml.includes('Simple source-backed Q effects can be applied automatically after review.'), 'preview editor should not label source-backed trigger effects as manual review');
 assert(!/data-preview-object-structure-builder="add_trigger_effect"[\s\S]{0,1600}Manual review only/.test(existingEditorHtml), 'source-backed trigger-effect builders should not show the manual-review notice');
-assert(existingEditorHtml.includes('data-preview-object-effect-row="true"'), 'preview editor should render effect edits as unified effect rows');
-assert(/data-preview-object-effect-row="true"[\s\S]*Q\.budget \+= 1[\s\S]*data-preview-object-effect-delete="true"[\s\S]*structure_remove_effect_budget_1/.test(existingEditorHtml), 'trigger effect edit and delete controls should share one effect row');
-assert(/data-preview-object-effect-row="true"[\s\S]*Q\.public_order \+= 1[\s\S]*data-preview-object-effect-delete="true"[\s\S]*structure_remove_effect_public_order_/.test(existingEditorHtml), 'choice effect edit and delete controls should share one effect row');
+assert(existingEditorHtml.includes('data-object-canvas-semantic-card="state_change"'), 'preview editor should render effect edits as semantic state-change cards');
+assert(existingEditorHtml.includes('data-object-canvas-state-change-summary="true"'), 'preview editor should render state changes as a semantic summary before controls');
+assert(/data-object-canvas-semantic-card="state_change"[\s\S]{0,2600}Q\.budget/.test(existingEditorHtml) && /data-object-canvas-semantic-card="state_change"[\s\S]{0,2600}structure_remove_effect_budget_1/.test(existingEditorHtml), 'trigger effect edit and delete controls should share one semantic effect card');
+assert(/data-object-canvas-semantic-card="state_change"[\s\S]{0,2600}Q\.public_order/.test(existingEditorHtml) && /data-object-canvas-semantic-card="state_change"[\s\S]{0,2600}structure_remove_effect_public_order_/.test(existingEditorHtml), 'choice effect edit and delete controls should share one semantic effect card');
+assert(existingEditorHtml.includes('data-object-canvas-effect-part="variable"'), 'source-backed effect cards should expose structured variable controls');
+assert(existingEditorHtml.includes('data-object-canvas-effect-part="condition"'), 'source-backed effect cards should expose structured condition controls');
+assert(!/Effect: Q\.[\\s\\S]{0,600}data-object-canvas-semantic-card="state_change"/.test(existingEditorHtml), 'semantic effect cards should not use Effect: Q.foo as the primary card label');
 assert(!/preview-object-structure-delete[^"]*preview-object-action-remove_effect/.test(existingEditorHtml), 'paired effect deletions should not render as separate delete cards');
 assert(existingEditorHtml.includes('data-preview-object-inline-add="add_option"'), 'preview editor should place structural add controls at the end of the relevant object category');
 assert(!existingEditorHtml.includes('preview-object-structure-workbench'), 'preview editor should not isolate structural controls in a separate workbench');

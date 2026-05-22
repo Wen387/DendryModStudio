@@ -3,6 +3,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
 const {readViewerI18n, readExploreBundle} = require('./check_viewer_assets.js');
 
 const ROOT = __dirname;
@@ -188,6 +189,16 @@ function roughZhTermViolations(entries) {
 }
 
 const html = fs.readFileSync(VIEWER_HTML, 'utf8');
+[
+  path.join(VIEWER_DIR, 'i18n', 'en.js'),
+  path.join(VIEWER_DIR, 'i18n', 'zh-Hant.js')
+].forEach((file) => {
+  try {
+    new vm.Script(fs.readFileSync(file, 'utf8'), {filename: file});
+  } catch (err) {
+    fail(path.relative(ROOT, file) + ' should parse as JavaScript: ' + err.message);
+  }
+});
 const welcomeUiSource = fs.readFileSync(path.join(VIEWER_DIR, 'welcome_surface_ui.js'), 'utf8');
 const htmlAndInjectedSurfaces = html + '\n' + welcomeUiSource;
 const i18nSource = readViewerI18n(VIEWER_DIR);

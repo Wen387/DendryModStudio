@@ -119,6 +119,10 @@ function checkObjectCanvasContracts() {
   contains(objectUi, 'openVisibleEditAction', 'Object Canvas visible click-to-edit action bridge');
   contains(objectUi, 'openSourceSliceAction(editAction)', 'Object Canvas source slice action bridge');
   contains(objectUi, 'openSemanticLogicAction(editAction)', 'Object Canvas semantic logic action bridge');
+  contains(objectUi, 'action === \'open_library_content\'', 'Object Canvas should handle Library page content entry clicks');
+  contains(objectUi, 'openLibraryContent(target)', 'Object Canvas should route Library page content clicks through a dedicated handler');
+  contains(objectUi, 'state.systemUiFocusFieldId = String(options && options.focusFieldId || \'\')', 'Existing object opening should preserve options without reading an undefined meta variable');
+  contains(objectUi, 'focusDraftField(focusFieldId)', 'Library page content opening should focus the source-backed section field');
   contains(read('viewer/index.html'), 'object_workspace_return_stack.js', 'Object Canvas transient workspace return stack include');
   contains(returnStack, 'ProjectMapObjectWorkspaceReturnStack', 'Object Canvas transient workspace return stack module');
   contains(returnStack, 'object_workspace_return_context', 'Object Canvas transient workspace return context marker');
@@ -151,6 +155,7 @@ function checkObjectCanvasContracts() {
   contains(objectUi, 'sourceSliceReviewAllowed()', 'Object Canvas source slice advanced apply review guard');
   contains(objectUi, 'semanticLogicReviewAllowed()', 'Object Canvas semantic logic advanced apply review guard');
   contains(objectUi, 'objectCanvasFieldValuesApi()', 'Object Canvas field collection should use the field value helper');
+  contains(objectUi, 'return [modal];', 'Object Canvas modal field collection should treat the active modal as authoritative over stale background fields');
   contains(objectUi, 'dispatch: false', 'Structure builder part typing should not refresh/collapse the Object Canvas before commit');
   contains(fieldValues, 'collectCanvasFieldEntries(host, options)', 'Object Canvas field collection should use de-duplicated visible field entries');
   contains(fieldValues, 'fieldIsVisibleForCollection(input, options)', 'Object Canvas field collection should ignore hidden duplicate editor controls');
@@ -175,8 +180,32 @@ function checkObjectCanvasContracts() {
   contains(objectUi, 'filterObjectCanvasAssetSelect', 'Object Canvas should filter large indexed asset selects without rebuilding the editor');
   contains(objectUi, 'input.dataset.existingAssetField', 'Object Canvas asset file handler should route existing source-backed asset replacements');
   contains(objectUi, 'focusDraftField, render, showWorkspace', 'Object Canvas should export the field focus callback into Card Board deps');
+  contains(read('viewer/index.html'), 'card_board_perf.js', 'Card Board perf probe should load before Card Board surfaces use it');
+  contains(objectUi, "perfMeasure('buildExistingModelFor'", 'Object Canvas should measure existing model construction for Card Board diagnostics');
+  contains(objectUi, "perfStart('host.innerHTML'", 'Object Canvas should measure full host replacement cost');
+  contains(objectUi, "perfStart('bindCanvasEvents'", 'Object Canvas should measure event binding cost');
+  contains(objectUi, "perfStart('focusDraftField'", 'Object Canvas should measure field focus cost');
+  contains(objectUi, 'cardWorkspace.openSelectedCardEditor(state, cardDeps(), {focusFieldId})', 'Object Canvas should let explicit Card Board editor opening build the source-backed card lazily and focus options');
+  contains(read('viewer/card_workspace_state.js'), "perfMeasure('selectCard'", 'Card Board should measure card selection');
+  contains(read('viewer/card_workspace_state.js'), 'state.editorOverlay = false', 'Plain Card Board source-card selection should stay in lightweight inspect mode');
+  contains(read('viewer/card_workspace_state.js'), 'openSelectedCardEditor', 'Card Board should expose an explicit Object Editor opening callback');
+  contains(read('viewer/card_workspace_state.js'), "value === 'open_card_editor'", 'Card Board should expose a direct open-card-editor action instead of relying only on generic overlay toggling');
+  contains(read('viewer/card_board_surface.js'), 'data-card-board-action="open_card_editor"', 'Card Board card and toolbar affordances should open the Object Editor through Card Workspace');
+  contains(read('viewer/card_board_surface.js'), 'renderToolbarEditorButton(board, options)', 'Card Board toolbar editor action should be selected-object aware');
+  contains(read('viewer/card_face_editor.js'), 'renderPrimaryEditorButton(selectedObject, selected, active)', 'Card Board side-panel primary editor action should be selected-object aware');
+  contains(read('viewer/card_board_interactions.js'), 'event.stopPropagation();\n        callbacks.onAction', 'Card Board action buttons should not be swallowed by parent card selection');
+  contains(read('viewer/card_board_interactions.js'), 'if (button.dataset.cardBoardAction) {\n        return;\n      }', 'Card Board create lane binding should not double-bind buttons that are routed through action handlers');
+  contains(read('viewer/card_board_interactions.js'), 'if (event.target !== card)', 'Card Board keyboard selection should ignore nested action controls');
+  contains(read('viewer/card_board_interactions.js'), 'isNestedInteractive(event.target, card)', 'Card Board card clicks should ignore nested action and option controls');
+  contains(read('viewer/card_board_interactions.js'), "route.dataset.cardBoardOpenLaneObject === 'deck_pool'", 'Card Board hand deck routes should open their deck pool object directly');
+  contains(read('authoring/card_board_model.js'), 'handRouteKey(', 'Card Board hand routes should get stable unique selection keys');
+  contains(read('viewer/card_board_surface.js'), "perfMeasure('surface.render'", 'Card Board surface should measure render cost');
   contains(read('viewer/card_board_surface.js'), 'data-card-board-option-field', 'Card Board should surface stable option field ids');
   contains(read('viewer/card_board_surface.js'), 'data-card-board-lane-anchor-text', 'Card Board lane targets should surface source-backed lane anchors');
+  contains(read('viewer/card_board_surface.js'), 'data-card-board-open-lane-object="deck_pool"', 'Card Board hand deck routes should carry direct deck pool editor metadata');
+  contains(read('viewer/preview_object_editor.js'), "template === 'deck_pool'", 'Preview Object Editor should treat deck_pool as its own Object Canvas editor kind');
+  contains(read('viewer/preview_object_editor.js'), 'data-preview-object-deck-pool="true"', 'Preview Object Editor should render a dedicated deck pool editing frame');
+  contains(read('authoring/object_canvas_content_bodies.js'), 'deckPool.member.\' + member.cardId + \'.moveTargetDeckPoolId', 'Object Canvas should expose row-level deck pool move fields');
   contains(read('viewer/card_board_interactions.js'), 'fieldId: option.dataset.cardBoardOptionField', 'Card Board option selection should pass the Object Canvas field id');
   contains(read('viewer/card_workspace_state.js'), 'deps.focusDraftField(fieldId)', 'Card Board option selection should focus Object Canvas fields after render');
   contains(objectUi, 'state.values[fieldId] = existingAssetReferenceLine', 'Object Canvas existing asset replacement should write directive or inline source replacement values');
@@ -203,6 +232,42 @@ function checkObjectCanvasContracts() {
   contains(editingCss, '.object-editing-preview-metadata-chip[data-metadata-kind="condition"]', 'Object preview condition metadata chip style');
   contains(read('viewer/styles/design.css'), '.design-preview-collapsible > summary', 'Design preview collapsible style');
   contains(editingCss, '.preview-object-event-graph-node', 'Complex Event Builder graph node style');
+}
+
+function checkActionDispatchContracts() {
+  const objectUi = read('viewer/object_authoring_canvas_ui.js');
+  const openFromSelectionBlock = sliceBetween(objectUi, 'function openFromSelection', 'function openVisibleEditAction');
+  assert(openFromSelectionBlock.includes('state.systemUiFocusFieldId = String(options && options.focusFieldId || \'\')'), 'openFromSelection should read runtime handoff metadata from options');
+  assert(!openFromSelectionBlock.includes('meta &&'), 'openFromSelection must not read an out-of-scope meta variable');
+
+  const objectActions = collectViewerDataValues('data-object-canvas-action');
+  const objectHandlers = [
+    {name: 'object_authoring_canvas_ui', source: objectUi},
+    {name: 'storyboard_workspace_state', source: read('viewer/storyboard_workspace_state.js')},
+    {name: 'object_canvas_project_state_workspace', source: read('viewer/object_canvas_project_state_workspace.js')},
+    {name: 'card_workspace_state', source: read('viewer/card_workspace_state.js')}
+  ];
+  const missingObjectActions = objectActions.filter((action) => !objectActionHandled(action, objectHandlers));
+  assert(missingObjectActions.length === 0, 'Every data-object-canvas-action should be handled by Object Canvas or a delegated workspace', {missingObjectActions, objectActions});
+  assert(objectActions.includes('open_library_content'), 'Library content click action should remain part of the Object Canvas action contract');
+  assert(objectActions.includes('open_system_content_scene'), 'System UI scene-text clicks should remain part of the Object Canvas action contract');
+  assert(objectUi.includes("closest('[data-object-canvas-action]')"), 'Graph-node selection should not swallow direct action buttons in the System UI preview');
+  assert(objectUi.includes("dataset.systemUiVisibleSlot"), 'Graph-node selection should preserve clicked System UI visible slots such as sidebar tabs');
+  assert(
+    objectUi.indexOf('state.selectedCanvasNode = next;') < objectUi.indexOf('state.model = state.mode === \'existing\' ? buildExistingModel'),
+    'Object Canvas should update selectedCanvasNode before rebuilding the model so System UI preview clicks do not render the previous selection'
+  );
+
+  [
+    ['data-card-board-action', 'viewer/card_workspace_state.js'],
+    ['data-runtime-lens-action', 'viewer/runtime_lens_workspace_state.js'],
+    ['data-editing-action', 'viewer/editing_workspace_ui.js']
+  ].forEach(([attribute, handlerPath]) => {
+    const values = collectViewerDataValues(attribute);
+    const handler = read(handlerPath);
+    const missing = values.filter((value) => !actionLiteralHandled(value, handler));
+    assert(missing.length === 0, attribute + ' values should be handled by ' + handlerPath, {missing, values});
+  });
 }
 
 function checkStoryboardContracts() {
@@ -438,6 +503,115 @@ function checkRenderedAndPureBehavior() {
   assert(previewEditorSync.previewObjectRouteLabel({template: 'event'}) === 'World Event', 'Preview editor route label should map event');
 }
 
+function checkLibraryEntryRuntimeBridge() {
+  global.ProjectMapObjectCanvasModelBuilder = require('./viewer/object_canvas_model_builder.js');
+  global.ProjectMapObjectAuthoringCanvasModel = require('./authoring/object_authoring_canvas_model.js');
+  global.ProjectMapObjectCanvasSurfaceAdapter = require('./viewer/object_canvas_surface_adapter.js');
+  global.ProjectMapObjectCanvasStoryboardDrafts = {
+    draftBranchList() {
+      return [];
+    },
+    withCurrentDraftBranch(_state, branches) {
+      return Array.isArray(branches) ? branches : [];
+    }
+  };
+  require('./viewer/object_authoring_canvas_ui.js');
+  global.document = {
+    body: {dataset: {mode: 'create'}},
+    querySelector() {
+      return null;
+    }
+  };
+  const index = {
+    schemaVersion: '0.1',
+    project: {name: 'Library click fixture'},
+    scenes: [{
+      id: 'library',
+      title: 'Library',
+      path: 'source/scenes/library.scene.dry',
+      type: 'event',
+      sourceSpan: {path: 'source/scenes/library.scene.dry', startLine: 1, endLine: 40},
+      sections: [{
+        id: 'library.government',
+        title: 'Government',
+        sourceSpan: {path: 'source/scenes/library.scene.dry', startLine: 8, endLine: 14},
+        options: [],
+        routes: {}
+      }]
+    }],
+    semantic: {
+      textCorpus: {
+        items: [{
+          id: 'library_background',
+          text: 'The Library explains the background institutions.',
+          role: 'body',
+          owner: {kind: 'scene', sceneId: 'library', sectionId: 'library.government'},
+          source: {
+            path: 'source/scenes/library.scene.dry',
+            line: 10,
+            startLine: 10,
+            endLine: 11,
+            anchorText: 'The Library explains the background institutions.',
+            endAnchorText: 'It is source-backed page content.'
+          }
+        }]
+      }
+    }
+  };
+  const editor = global.ProjectMapObjectAuthoringCanvas;
+  assert(editor && typeof editor.openFromSelection === 'function', 'Object Canvas runtime API should be exported for Library entry clicks');
+  const opened = editor.openFromSelection(index, 'events', 'library', {
+    focus: {fieldId: 'block:library.government', valueKey: 'block:library.government', sectionId: 'library.government'}
+  });
+  assert(opened, 'Library page content entry should open the source-backed content workspace');
+  assert(editor.activeWorkspace() === 'content', 'Library page content entry should land in the content workspace');
+  assert(editor.activeTemplate() === 'existing', 'Library page content entry should open the existing scene editor');
+}
+
+function sliceBetween(source, startNeedle, endNeedle) {
+  const start = source.indexOf(startNeedle);
+  const end = source.indexOf(endNeedle, start + startNeedle.length);
+  if (start < 0 || end < 0) {
+    return '';
+  }
+  return source.slice(start, end);
+}
+
+function collectViewerDataValues(attribute) {
+  const values = new Set();
+  viewerJsFiles().forEach((relativePath) => {
+    const source = read(relativePath);
+    const pattern = new RegExp(attribute + '=["\\\']([^"\\\']+)["\\\']', 'g');
+    let match;
+    while ((match = pattern.exec(source))) {
+      values.add(match[1]);
+    }
+  });
+  return Array.from(values).sort();
+}
+
+function viewerJsFiles() {
+  const dir = path.join(ROOT, 'viewer');
+  return fs.readdirSync(dir, {withFileTypes: true})
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.js'))
+    .map((entry) => 'viewer/' + entry.name);
+}
+
+function objectActionHandled(action, handlers) {
+  if (String(action || '').indexOf('create_') === 0) {
+    return true;
+  }
+  return handlers.some((handler) => actionLiteralHandled(action, handler.source));
+}
+
+function actionLiteralHandled(action, source) {
+  const value = String(action || '');
+  return source.includes('action === \'' + value + '\'') ||
+    source.includes('action === "' + value + '"') ||
+    source.includes('value === \'' + value + '\'') ||
+    source.includes('value === "' + value + '"');
+}
+
 function fieldHost(fields) {
   return {
     querySelectorAll(selector) {
@@ -524,9 +698,11 @@ function syncAssetActionButtonStub(fieldId) {
 function main() {
   checkDesignContracts();
   checkObjectCanvasContracts();
+  checkActionDispatchContracts();
   checkStoryboardContracts();
   checkReviewAndLensContracts();
   checkRenderedAndPureBehavior();
+  checkLibraryEntryRuntimeBridge();
   process.stdout.write(JSON.stringify({
     ok: true,
     contracts: ['design', 'object_canvas', 'storyboard', 'review_apply', 'runtime_lens']

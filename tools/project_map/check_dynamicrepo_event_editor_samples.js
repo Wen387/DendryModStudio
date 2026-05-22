@@ -17,6 +17,8 @@ const DEFAULT_ROOT = path.resolve(REPO_ROOT, 'SDAAHdynamic', 'dynamic_social_dem
 const DEFAULT_SAMPLES = [
   {id: 'hindenburg_unban_sh', expectation: 'draft', reason: 'tiny pure event'},
   {id: 'all_quiet', expectation: 'draft', reason: 'choice event with sections and guarded edits'},
+  {id: 'dnvp_collapse_right_coalition', expectation: 'draft', reason: 'anchor-only options inherit editable section titles'},
+  {id: 'dnvp_dvp_merger_glatzel', expectation: 'draft', reason: 'local result option effects should be source-backed instead of manual-only'},
   {id: 'lvp_party_congress_1928_1', expectation: 'draft', reason: 'large section event that should still round-trip into a draft'},
   {id: 'bruning_public_works', expectation: 'partial_or_better', reason: 'known partial event with sparse root choices'},
   {id: 'banking_crisis', expectation: 'partial_or_better', reason: 'large-choice event with many conditions'},
@@ -133,12 +135,16 @@ function inspectSample(projectRoot, projectIndex, sample) {
   const guardedFieldCount = (editModel.fields || []).filter((field) => {
     return ['guarded_replace_text', 'guarded_apply'].includes(String(field && field.editability || ''));
   }).length;
+  const targetTitleCoverage = targetTitleOptionCoverage(editModel);
+  const manualAddOptionEffects = addOptionEffectManualRegressions(editModel, sample.id);
   const ok = Boolean(
     parsedSource.coverageComplete &&
     reconstructed === original &&
     editModel.ok &&
     (editModel.fields || []).length > 0 &&
     guardedFieldCount > 0 &&
+    targetTitleCoverage.missing.length === 0 &&
+    manualAddOptionEffects.length === 0 &&
     renderedRoundTripOk &&
     expectationMet
   );
@@ -162,6 +168,8 @@ function inspectSample(projectRoot, projectIndex, sample) {
       options: (editModel.options || []).length,
       byEditability: countBy(editModel.fields || [], (field) => field.editability || 'unknown'),
       topRoles: topCounts(countBy(editModel.fields || [], (field) => field.role || 'unknown'), 10),
+      targetTitleOptionCoverage: targetTitleCoverage,
+      manualAddOptionEffectRegressions: manualAddOptionEffects,
       diagnostics: (editModel.diagnostics || []).slice(0, 5)
     },
     createAsNew: {
@@ -185,6 +193,38 @@ function inspectSample(projectRoot, projectIndex, sample) {
         diagnostics: canvas.changeState && canvas.changeState.diagnostics && canvas.changeState.diagnostics.slice(0, 5) || []
       } : null
     }
+  };
+}
+
+function addOptionEffectManualRegressions(editModel, sampleId) {
+  if (sampleId !== 'dnvp_dvp_merger_glatzel') {
+    return [];
+  }
+  return (editModel.fields || []).filter((field) => {
+    return String(field && field.structureAction || '') === 'add_option_effect' &&
+      String(field && field.editability || '') === 'manual_review';
+  }).map((field) => ({
+    id: field.id || '',
+    optionId: field.optionId || '',
+    sectionId: field.sectionId || '',
+    sourceLine: field.source && (field.source.line || field.source.startLine) || null
+  }));
+}
+
+function targetTitleOptionCoverage(editModel) {
+  const options = editModel && editModel.options || [];
+  const fields = editModel && editModel.fields || [];
+  const inheritedFields = fields.filter((field) => field && field.role === 'option_label' && field.targetSectionId);
+  const missing = options.filter((option) => String(option && option.labelSource || '') === 'target_title').map((option) => ({
+    id: option.id || '',
+    rawTargetId: option.rawTargetId || '',
+    targetId: option.targetId || '',
+    label: option.label || ''
+  }));
+  return {
+    inheritedFieldCount: inheritedFields.length,
+    missingCount: missing.length,
+    missing: missing.slice(0, 8)
   };
 }
 

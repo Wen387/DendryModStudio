@@ -2,6 +2,7 @@
 'use strict';
 
 const existingEdit = require('./authoring/existing_scene_edit_model.js');
+const canvasModel = require('./authoring/object_authoring_canvas_model.js');
 const structureOperationsFactory = require('./authoring/existing_scene_structure_operations.js');
 const installPlan = require('./authoring/install_plan.js');
 const fs = require('fs');
@@ -262,7 +263,7 @@ index.scenes.push({
     },
     {
       id: 'civil_war.army_backing',
-      title: 'Ask the Army command for backing.',
+      title: 'Ask the Army command for backing.  Now.',
       sourceSpan: {path: complexPath, startLine: 18, endLine: 19},
       metadata: {$file: complexPath, $line: 18},
       routes: {goTo: [{id: 'war_menu', raw: 'war_menu'}]},
@@ -307,6 +308,22 @@ index.semantic.textCorpus.items.push(
     editability: 'text_proposal',
     owner: {kind: 'scene', sceneId: 'civil_war', sectionId: 'civil_war.war_menu', itemId: 'rw_help'},
     source: {path: complexPath, line: 12, anchorText: '- @rw_help: Appeal to the Reichswehr.', endAnchorText: '- @rw_help: Appeal to the Reichswehr.'}
+  },
+  {
+    id: 'civil_war_shadow_duplicate_option_label',
+    text: 'Ask the Army command for backing.',
+    role: 'option_label',
+    editability: 'text_proposal',
+    owner: {kind: 'scene', sceneId: 'civil_war', sectionId: 'civil_war.war_menu', itemId: 'shadow_duplicate'},
+    source: {path: complexPath, line: 8, anchorText: '- @shadow_duplicate: Ask the Army command for backing.', endAnchorText: '- @shadow_duplicate: Ask the Army command for backing.'}
+  },
+  {
+    id: 'civil_war_army_backing_title',
+    text: 'Ask the Army command for backing. Now.',
+    role: 'title',
+    editability: 'text_proposal',
+    owner: {kind: 'scene', sceneId: 'civil_war', sectionId: 'civil_war.army_backing'},
+    source: {path: complexPath, line: 19, anchorText: 'title: Ask the Army command for backing.  Now.', endAnchorText: 'title: Ask the Army command for backing.  Now.'}
   }
 );
 
@@ -833,6 +850,27 @@ assert(singleLineEffectProposal.changes[0].after === 'on-arrival: rfb_banned = 1
 const singleLineEffectBundle = existingEdit.buildExportBundle(singleLineEffectProposal, index);
 assert(singleLineEffectBundle.installPlan.operations[0].type === 'replace_text' && singleLineEffectBundle.installPlan.operations[0].safety === 'guarded_apply', 'single-line on-arrival option effects should become guarded replace_text operations');
 
+const sectionHeaderEffectModel = Object.assign({}, eventModel, {
+  fields: [{
+    id: 'structure_add_option_effect_section_header',
+    role: 'effect',
+    label: 'Add effect to option: Section header',
+    transform: 'structure_action',
+    structureAction: 'add_option_effect',
+    inputType: 'text',
+    structureSourceBlock: {kind: 'section_on_arrival_insert_anchor', sectionId: 'all_quiet.target_scene'},
+    source: {path: eventModel.source.path, line: 52, startLine: 52, endLine: 52, anchorText: '@target_scene', endAnchorText: '@target_scene'}
+  }]
+});
+const sectionHeaderEffectProposal = existingEdit.buildProposal(sectionHeaderEffectModel, {
+  structure_add_option_effect_section_header: 'Q.resources += 2 if Q.flag'
+});
+assert(sectionHeaderEffectProposal.changes[0].operationType === 'insert_text', 'section-header option effect anchors should create guarded inserts');
+assert(sectionHeaderEffectProposal.changes[0].position === 'after', 'section-header option effect inserts should land immediately after the local section anchor');
+assert(sectionHeaderEffectProposal.changes[0].after === 'on-arrival: resources += 2 if flag', 'section-header option effect inserts should render source-valid on-arrival shorthand');
+const sectionHeaderEffectBundle = existingEdit.buildExportBundle(sectionHeaderEffectProposal, index);
+assert(sectionHeaderEffectBundle.installPlan.operations[0].type === 'insert_text' && sectionHeaderEffectBundle.installPlan.operations[0].content.includes('on-arrival: resources += 2 if flag'), 'section-header option effects should become guarded install operations');
+
 const removeSharedLineEffectModel = Object.assign({}, eventModel, {
   fields: [{
     id: 'structure_remove_effect_inline',
@@ -895,7 +933,20 @@ assert(complexModel.options.length === 2, 'single composite event should expose 
 assert(complexModel.options[0].targetId === 'civil_war.rw_help', 'section option target should resolve to the local section endpoint');
 assert(complexModel.options[0].rawTargetId === 'rw_help', 'section option should retain the editable raw target id');
 const nakedOption = complexModel.options.find((option) => option.rawTargetId === 'army_backing');
-assert(nakedOption && nakedOption.label === 'Ask the Army command for backing.' && nakedOption.labelSource === 'target_title', 'naked option lines should fall back to their target section title instead of generated Option labels');
+assert(nakedOption && nakedOption.label === 'Ask the Army command for backing.  Now.' && nakedOption.labelSource === 'field', 'naked option lines should expose the inherited target section title as a source-backed option label');
+const nakedOptionField = complexModel.fields.find((field) => field.role === 'option_label' && field.optionId === 'army_backing' && field.original === 'Ask the Army command for backing.  Now.');
+assert(nakedOptionField && nakedOptionField.editability === 'guarded_replace_text', 'inherited target section title option labels should be editable instead of read-only');
+assert(nakedOptionField.source && nakedOptionField.source.line === 19, 'inherited option labels should edit the target section title source line');
+assert(nakedOption.labelFieldId === nakedOptionField.id, 'option rows should link naked option labels to the generated source-backed field');
+const nakedOptionProposal = existingEdit.buildProposal(complexModel, {
+  [nakedOptionField.id]: 'Ask the Army command for support.'
+});
+const nakedOptionBundle = existingEdit.buildExportBundle(nakedOptionProposal, index);
+assert(nakedOptionBundle.installPlan.operations.some((op) => op.line === 19 && op.search === 'Ask the Army command for backing.  Now.' && op.replace === 'Ask the Army command for support.'), 'editing an inherited option label should create a guarded replace_text operation for the target section title');
+const complexCanvas = canvasModel.buildExistingCanvas(index, 'events', 'civil_war');
+const canvasNakedOption = complexCanvas.eventBody.options.find((option) => option.rawTargetId === 'army_backing');
+const canvasNakedLabel = canvasNakedOption && canvasNakedOption.fields.find((field) => field.role === 'option_label');
+assert(canvasNakedLabel && !canvasNakedLabel.readOnly && canvasNakedLabel.editability !== 'read_only', 'Object Canvas should not fall back to a read-only player option editor for target-title labels');
 assert(complexModel.flow && complexModel.flow.summary.sectionCount >= 4, 'single composite event should expose a source-backed internal flow summary');
 assert(complexModel.flow.summary.optionEdgeCount === 2, 'flow summary should count section-owned option edges');
 assert(complexModel.flow.summary.conditionalRouteCount >= 1, 'flow summary should count conditional section routes');

@@ -76,6 +76,12 @@ assert(newsFocus.kind === 'news', 'news_item focus should normalize to news');
 assert(newsFocus.targetSceneId === 'focus_news', 'news focus should resolve target scene id');
 const deckFocus = lensModel.normalizeFocus({kind: 'deck', id: 'starter_deck'}, projectIndex);
 assert(deckFocus.targetSceneId === 'starter_deck', 'deck focus should resolve target scene id');
+const deckPoolFocus = lensModel.normalizeFocus({kind: 'deck_pool', id: 'main.party', targetSceneId: 'main', proof: {kind: 'deck_pool', routeTags: ['party_affairs'], memberCardIds: ['shuffle_leadership']}}, projectIndex);
+assert(deckPoolFocus.kind === 'deck_pool', 'deck pool focus should normalize as a first-class runtime focus');
+assert(deckPoolFocus.proof && deckPoolFocus.proof.routeTags[0] === 'party_affairs', 'deck pool focus should preserve route proof metadata');
+const advisorControllerFocus = lensModel.normalizeFocus({kind: 'advisor_controller', id: 'shuffle_leadership', targetSceneId: 'shuffle_leadership', proof: {kind: 'advisor_controller', variables: ['siemsen_advisor']}}, projectIndex);
+assert(advisorControllerFocus.kind === 'advisor_controller', 'advisor controller focus should normalize as a first-class runtime focus');
+assert(advisorControllerFocus.proof && advisorControllerFocus.proof.variables[0] === 'siemsen_advisor', 'advisor controller focus should preserve variable proof metadata');
 
 const snapshotModel = lensModel.buildModel({
   isDesktop: true,

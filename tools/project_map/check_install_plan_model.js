@@ -161,6 +161,11 @@ fs.writeFileSync(
   'utf8'
 );
 fs.writeFileSync(
+  path.join(tmpRoot, 'source', 'scenes', 'events', 'section_delete.scene.dry'),
+  'title: Section Delete\n\n@old_sidebar\n\n= Old Sidebar\n\nOld sidebar body.\n\n@next_sidebar\n\n= Next Sidebar\n\nNext body.\n',
+  'utf8'
+);
+fs.writeFileSync(
   path.join(tmpRoot, 'source', 'scenes', 'events', 'section_ambiguous.scene.dry'),
   'title: Ambiguous Section\n\n= Old Section\n\nOld section body.\n= Old Section\n',
   'utf8'
@@ -769,6 +774,37 @@ assert(replacedSectionText.includes('Tail stays put.'), 'replace_section apply s
 assert(!replacedSectionText.includes('Old section body.'), 'replace_section apply should remove the old inclusive anchor range');
 const replaceSectionAgain = installPlan.applyInstallPlan(replaceSectionPlan, {projectRoot: tmpRoot, dryRun: false});
 assert(replaceSectionAgain.ok && replaceSectionAgain.results[0].status === 'already_applied', 'replace_section should be idempotent when dedupe text is present');
+
+const deleteSectionPlan = installPlan.buildInstallPlan({
+  id: 'delete_section_guarded',
+  draftKind: 'test',
+  operations: [
+    {
+      id: 'delete_section_guarded',
+      type: 'replace_section',
+      path: 'source/scenes/events/section_delete.scene.dry',
+      anchorText: '@old_sidebar',
+      endAnchorText: 'Old sidebar body.',
+      content: '',
+      dedupeSearch: '@old_sidebar',
+      startLine: 3,
+      endLine: 7,
+      allowEmptyReplace: true,
+      destructive: true,
+      safety: 'guarded_apply',
+      description: 'Delete a source-backed section between exact anchors.'
+    }
+  ]
+});
+const deleteSectionDryRun = installPlan.applyInstallPlan(deleteSectionPlan, {projectRoot: tmpRoot, dryRun: true});
+assert(deleteSectionDryRun.ok && deleteSectionDryRun.results[0].status === 'would_apply', 'empty replace_section dry-run should delete a source section');
+const deleteSectionApply = installPlan.applyInstallPlan(deleteSectionPlan, {projectRoot: tmpRoot, dryRun: false});
+assert(deleteSectionApply.ok, 'empty replace_section apply should succeed: ' + JSON.stringify(deleteSectionApply));
+const deletedSectionText = fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'events', 'section_delete.scene.dry'), 'utf8');
+assert(!deletedSectionText.includes('@old_sidebar'), 'empty replace_section should remove the start anchor');
+assert(deletedSectionText.includes('@next_sidebar'), 'empty replace_section should preserve following sections');
+const deleteSectionAgain = installPlan.applyInstallPlan(deleteSectionPlan, {projectRoot: tmpRoot, dryRun: false});
+assert(deleteSectionAgain.ok && deleteSectionAgain.results[0].status === 'already_applied', 'empty replace_section delete should be idempotent after the anchor is gone');
 
 const replaceSectionCrlfPlan = installPlan.buildInstallPlan({
   id: 'replace_section_crlf',

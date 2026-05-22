@@ -114,6 +114,7 @@ assert(starterModel.status.exists, 'Starter Demo should detect status.scene.dry'
 assert(starterModel.sections.some((section) => section.id === sidebarStatus.MAIN_SECTION_ID), 'model should expose top-level sidebar display');
 assert(starterModel.sections.some((section) => section.id === sidebarStatus.MAIN_SECTION_ID && section.statusLines.includes('Resources: [+ demo_resources +]')), 'model should merge source-backed surface status lines into the top-level sidebar display');
 assert(starterModel.sections.some((section) => section.id === 'organization' && section.evidence), 'model should expose source-backed organization section');
+assert(starterModel.sections.some((section) => section.id === 'organization' && section.deleteEvidence && section.deleteEvidence.anchorText === '@organization'), 'model should expose exact delete evidence for source-backed sidebar categories');
 assert(starterModel.sections.some((section) => section.id === 'cards' && section.evidence), 'model should expose source-backed card section');
 assert(starterModel.variables.some((item) => item.name === 'demo_support'), 'model should expose variable recommendations');
 assert(starterModel.readiness.some((row) => row.id === 'editable_section' && row.status === 'ready'), 'model should mark source-backed sections ready');
@@ -165,6 +166,12 @@ const generatedDraft = sidebarStatus.normalizeDraft(Object.assign({}, sidebarSta
 }));
 const generatedPlan = sidebarStatus.buildInstallPlan(generatedDraft, syntheticIndex({status: false, generatedSidebar: true}));
 assert(generatedPlan.operations.some((op) => op.id === 'sidebar_status_generated_manual' && op.safety === 'manual_review'), 'generated/custom sidebar should stay manual review');
+const generatedDeleteDraft = sidebarStatus.normalizeDraft(Object.assign({}, generatedDraft, {
+  operationMode: 'delete',
+  deleteConfirm: true
+}));
+const generatedDeletePlan = sidebarStatus.buildInstallPlan(generatedDeleteDraft, syntheticIndex({status: false, generatedSidebar: true}));
+assert(generatedDeletePlan.operations.some((op) => op.id === 'sidebar_status_generated_manual' && op.safety === 'manual_review' && op.role === 'sidebar_status.delete_section'), 'generated/custom sidebar delete should stay manual review');
 
 const missingStatusDraft = sidebarStatus.normalizeDraft(Object.assign({}, sidebarStatus.defaultDraft(syntheticIndex({status: false})), {
   sectionHeading: 'New Status',
@@ -190,6 +197,34 @@ assert(statusText.includes('= Justice Party Organization'), 'status section head
 assert(statusText.includes('Volunteer teams are active.'), 'conditional sidebar line should be changed');
 assert(statusText.includes('@organization'), 'section anchor should be preserved');
 assert(statusText.includes('@cards'), 'next section anchor should be preserved');
+
+const deleteProjectRoot = copyTemplate();
+const deleteIndex = buildIndex(deleteProjectRoot, path.join(os.tmpdir(), 'dms_sidebar_status_delete_index.json'));
+const deleteDraft = sidebarStatus.normalizeDraft(Object.assign({}, sidebarStatus.defaultDraft(deleteIndex), {
+  id: 'delete_organization_sidebar',
+  title: 'Delete organization sidebar tab',
+  sectionId: 'organization',
+  sectionHeading: 'Organization',
+  operationMode: 'delete',
+  deleteConfirm: true,
+  evidence: sidebarStatus.buildSidebarModel(deleteIndex)
+}));
+const deleteValidation = sidebarStatus.validateDraft(deleteDraft, deleteIndex);
+assert(deleteValidation.ok, 'source-backed sidebar delete draft should validate: ' + JSON.stringify(deleteValidation.diagnostics));
+const deleteBundle = sidebarStatus.buildExportBundle(deleteDraft, deleteIndex);
+const deleteOp = deleteBundle.installPlan.operations.find((op) => op.id === 'sidebar_status_delete_section');
+assert(deleteOp && deleteOp.type === 'replace_section' && deleteOp.allowEmptyReplace && deleteOp.destructive, 'sidebar delete should produce a destructive empty replace_section operation');
+assert(deleteOp.safety === 'guarded_apply' && deleteOp.role === 'sidebar_status.delete_section', 'sidebar delete should stay guarded source apply');
+const deleteDryRun = installPlan.applyInstallPlan(deleteBundle.installPlan, {projectRoot: deleteProjectRoot, dryRun: true});
+assert(deleteDryRun.ok && deleteDryRun.results.some((row) => row.id === 'sidebar_status_delete_section' && row.status === 'would_apply'), 'sidebar delete dry-run should pass');
+const deleteApply = installPlan.applyInstallPlan(deleteBundle.installPlan, {projectRoot: deleteProjectRoot, dryRun: false});
+assert(deleteApply.ok, 'sidebar delete apply should pass: ' + JSON.stringify(deleteApply.diagnostics));
+const deleteStatusText = fs.readFileSync(path.join(deleteProjectRoot, 'source', 'scenes', 'status.scene.dry'), 'utf8');
+assert(!deleteStatusText.includes('@organization'), 'sidebar delete should remove the selected category anchor');
+assert(!deleteStatusText.includes('= Organization'), 'sidebar delete should remove the selected category heading');
+assert(deleteStatusText.includes('@cards'), 'sidebar delete should preserve the next category');
+const deleteAgain = installPlan.applyInstallPlan(deleteBundle.installPlan, {projectRoot: deleteProjectRoot, dryRun: false});
+assert(deleteAgain.ok && deleteAgain.results[0].status === 'already_applied', 'sidebar delete should be idempotent after the category is gone');
 
 console.log(JSON.stringify({
   ok: true,

@@ -57,6 +57,21 @@ function fixtureIndex() {
           title: 'Play card',
           sourceSpan: {path: cardPath, line: 14, startLine: 14, endLine: 14, anchorText: '- @click_event: Play card', endAnchorText: '- @click_event: Play card'}
         }]
+      },
+      {
+        id: 'library',
+        title: 'Library',
+        path: 'source/scenes/library.scene.dry',
+        type: 'event',
+        flags: {isSpecial: true},
+        sourceSpan: {path: 'source/scenes/library.scene.dry', startLine: 1, endLine: 40},
+        sections: [{
+          id: 'library.government',
+          title: 'Government',
+          sourceSpan: {path: 'source/scenes/library.scene.dry', startLine: 8, endLine: 14},
+          options: [],
+          routes: {}
+        }]
       }
     ],
     variables: [{
@@ -114,6 +129,13 @@ function fixtureIndex() {
             role: 'option_label',
             owner: {kind: 'scene', sceneId: 'click_card', sectionId: 'start', itemId: 'click_event', sceneType: 'card'},
             source: {path: cardPath, line: 14, anchorText: '- @click_event: Play card', endAnchorText: '- @click_event: Play card'}
+          },
+          {
+            id: 'library_background',
+            text: 'The Library explains the background institutions.',
+            role: 'body',
+            owner: {kind: 'scene', sceneId: 'library', sectionId: 'library.government'},
+            source: {path: 'source/scenes/library.scene.dry', line: 10, startLine: 10, endLine: 11, anchorText: 'The Library explains the background institutions.', endAnchorText: 'It is source-backed page content.'}
           },
           {
             id: 'unowned_visible',
@@ -197,6 +219,8 @@ visibleRows.forEach((row) => {
     assert(action.workspace === 'system_ui', 'System UI edit action should carry workspace payload', row);
     assert(action.template && action.internalTemplate, 'System UI edit action should carry template/internalTemplate payload', row);
     assert(action.selectedRegion && action.selectedRegion.indexOf('ui:') === 0, 'System UI edit action should carry selected region payload', row);
+    assert(action.focusFieldId, 'System UI edit action should carry a focus field for semantic task handoff', row);
+    assert(Object.prototype.hasOwnProperty.call(action, 'replacementText'), 'System UI edit action should preserve replacement text even when manual review is needed', row);
     assert(action.target && action.target.source && action.target.source.path, 'System UI edit action should keep source evidence on the target', row);
   } else {
     fail('unsupported visible editAction kind', row);
@@ -208,6 +232,10 @@ visibleRows.forEach((row) => {
     assert(action.semanticEditor && action.semanticEditor.kind === 'variable_provenance', 'variable action should carry provenance editor metadata', row);
   }
 });
+
+const libraryRow = visibleRows.find((row) => row.id === 'textCorpus:library_background');
+assert(libraryRow && libraryRow.editAction && libraryRow.editAction.workspace === 'content', 'Library page content should open the content workspace, not the System UI chrome editor', libraryRow);
+assert(libraryRow.editAction.actionKind === 'open_object_section', 'Library page content should route to the owning source-backed section editor', libraryRow);
 
 [
   'open_object_field',
