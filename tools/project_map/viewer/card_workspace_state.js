@@ -191,6 +191,7 @@
     state.status = deps.t('cardBoard.status.optionSelected', 'Card choice selected in the Card Board editor.');
     deps.showWorkspace('card');
     deps.render();
+    focusSelectedOptionField(state.cardBoardSelection, deps);
     return true;
   }
 
@@ -226,6 +227,14 @@
     return false;
   }
 
+  function laneAnchorFromDataset(dataset) {
+    const value = dataset || {};
+    const path = String(value.cardBoardLaneSourcePath || '');
+    const line = String(value.cardBoardLaneSourceLine || '');
+    const anchorText = String(value.cardBoardLaneAnchorText || '');
+    return path && line ? {path, line, anchorText} : null;
+  }
+
   function createInLane(state, button, deps) {
     const dataset = button && button.dataset || {};
     const laneKey = String(dataset.cardBoardCreateLane || 'deck');
@@ -257,6 +266,7 @@
       laneKey,
       laneLabel: String(dataset.cardBoardLaneLabel || laneKey),
       laneTag,
+      laneAnchor: laneAnchorFromDataset(dataset),
       action: 'create'
     };
     state.cardBoardSelection = intentSelection(state.cardBoardSelectedKey, laneKey);
@@ -285,6 +295,7 @@
       laneKey,
       laneLabel,
       laneTag,
+      laneAnchor: laneAnchorFromDataset(dataset),
       action: 'move'
     };
     state.cardBoardLane = laneKey;
@@ -363,7 +374,7 @@
       deps.render();
       return false;
     }
-    const draft = draftFromCard(card);
+    const draft = draftFromCard(card, state);
     state.mode = 'card';
     state.template = 'card';
     state.view = 'card';
@@ -468,8 +479,54 @@
     return ensureArray(board && board.lanes).find((lane) => lane && lane.key === String(key || '')) || null;
   }
 
-  function draftFromCard(card) {
-    const options = ensureArray(card.options).slice(0, 4).map((option, index) => ({
+  function focusSelectedOptionField(selection, deps) {
+    if (!deps || typeof deps.focusDraftField !== 'function') {
+      return false;
+    }
+    const fieldId = fieldIdForSelection(selection) || 'card.title';
+    return deps.focusDraftField(fieldId);
+  }
+
+  function fieldIdForSelection(selection) {
+    const value = selection && typeof selection === 'object' ? selection : {};
+    const explicit = String(value.fieldId || '').trim();
+    if (explicit) {
+      return explicit;
+    }
+    const optionPath = String(value.optionPath || '').trim();
+    const sectionMatch = optionPath.match(/^section\.(\d+)\.(\d+)$/);
+    if (sectionMatch) {
+      return 'card.section.' + sectionMatch[1] + '.option.' + sectionMatch[2] + '.label';
+    }
+    return 'card.option.' + Number(value.optionIndex || 0) + '.label';
+  }
+
+  function parsedDraftFromCard(card, state) {
+    if (!card || !card.id || String(card.key || '').indexOf('draft:') === 0) {
+      return null;
+    }
+    const api = parsedToDraftApi();
+    if (!api || typeof api.buildDraftFromParsed !== 'function') {
+      return null;
+    }
+    try {
+      const result = api.buildDraftFromParsed(state && state.projectIndex, {
+        view: 'cards',
+        itemId: card.id,
+        newId: safeId((card.id || card.title || 'card') + '_draft')
+      });
+      return result && result.draft || null;
+    } catch (_err) {
+      return null;
+    }
+  }
+
+  function draftFromCard(card, state) {
+    const parsedDraft = parsedDraftFromCard(card, state);
+    if (parsedDraft) {
+      return parsedDraft;
+    }
+    const options = ensureArray(card.options).map((option, index) => ({
       id: safeId(option.id || 'option_' + (index + 1)),
       label: String(option.label || option.id || 'Option ' + (index + 1)),
       title: '',
@@ -518,6 +575,9 @@
         cardKey,
         optionIndex,
         optionId: String(raw.optionId || ''),
+        fieldId: String(raw.fieldId || ''),
+        optionPath: String(raw.optionPath || ''),
+        sectionId: String(raw.sectionId || ''),
         laneKey: String(raw.laneKey || state.cardBoardLane || 'pool')
       };
     }
@@ -580,6 +640,20 @@
         cardBoardLaneTag: ''
       }
     };
+  }
+
+  function parsedToDraftApi() {
+    if (global && global.ProjectMapParsedToDraft) {
+      return global.ProjectMapParsedToDraft;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('../authoring/parsed_to_draft.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
   }
 
   function parseCardKey(key) {

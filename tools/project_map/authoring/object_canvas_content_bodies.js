@@ -96,6 +96,7 @@
         sectionId: section.id || '',
         source: {}
       }))), []),
+      structureActions: cardStructureActions(draft),
       optionEffects: ensureArray(draft.options).map((option, index) => ({
         id: option.id || 'option_' + (index + 1),
         label: option.label || option.id || ('Choice ' + (index + 1)),
@@ -121,6 +122,73 @@
         field('card.maxVisits', 'Max visits', draft.maxVisits, 'guarded')
       ]
     };
+  }
+
+  function cardStructureActions(draft) {
+    const actions = [structureAction('structure_add_option', 'Add card choice', 'add_option', {
+      targetLabel: 'Card choices',
+      help: 'Adds a root card choice to the current draft.'
+    }), structureAction('structure_add_branch', 'Add menu section', 'add_branch', {
+      targetLabel: 'Menu sections',
+      help: 'Adds a menu/card section to the current draft.'
+    })];
+    ensureArray(draft.options).forEach((option, index) => {
+      const optionId = option.id || 'option_' + (index + 1);
+      actions.push(structureAction('structure_remove_option_' + optionId, 'Remove choice: ' + (option.label || optionId), 'remove_option', {
+        optionId,
+        targetLabel: option.label || optionId,
+        before: option.label || optionId,
+        help: 'Removes this root card choice from the draft.'
+      }));
+      if (index > 0) {
+        actions.push(structureAction('structure_move_option_up_' + optionId, 'Move choice up: ' + (option.label || optionId), 'move_option_up', {
+          optionId,
+          targetLabel: option.label || optionId,
+          before: option.label || optionId,
+          help: 'Moves this root card choice earlier in the draft.'
+        }));
+      }
+      if (index < ensureArray(draft.options).length - 1) {
+        actions.push(structureAction('structure_move_option_down_' + optionId, 'Move choice down: ' + (option.label || optionId), 'move_option_down', {
+          optionId,
+          targetLabel: option.label || optionId,
+          before: option.label || optionId,
+          help: 'Moves this root card choice later in the draft.'
+        }));
+      }
+    });
+    ensureArray(draft.sections).forEach((section, sectionIndex) => {
+      const sectionId = section.id || 'section_' + (sectionIndex + 1);
+      actions.push(structureAction('structure_add_option_section_' + sectionId, 'Add choice to ' + (section.title || sectionId), 'add_option', {
+        sectionId,
+        targetLabel: section.title || sectionId,
+        help: 'Adds a choice inside this menu section.'
+      }));
+      ensureArray(section.options).forEach((option, optionIndex) => {
+        const optionId = option.id || sectionId + '_option_' + (optionIndex + 1);
+        actions.push(structureAction('structure_remove_option_' + optionId, 'Remove section choice: ' + (option.label || optionId), 'remove_option', {
+          sectionId,
+          optionId,
+          targetLabel: option.label || optionId,
+          before: option.label || optionId,
+          help: 'Removes this section-owned card choice from the draft.'
+        }));
+      });
+    });
+    return actions;
+  }
+
+  function structureAction(id, label, action, extra) {
+    const data = extra || {};
+    return field(id, label, '', 'guarded', Object.assign({
+      role: 'structure',
+      transform: 'structure_action',
+      structureAction: action,
+      structureTargetLabel: data.targetLabel || label,
+      structureBefore: data.before || '',
+      reason: data.help || 'Structural changes are applied to the current card draft.',
+      source: {}
+    }, data));
   }
 
   function cardBranchFields(section, index) {

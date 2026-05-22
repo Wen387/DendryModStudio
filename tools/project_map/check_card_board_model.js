@@ -7,6 +7,8 @@ const path = require('path');
 const ROOT = __dirname;
 const indexPath = path.join(ROOT, 'templates', 'starter-demo', 'project-index.json');
 const cardBoardModel = require('./authoring/card_board_model.js');
+const canvasModel = require('./authoring/object_authoring_canvas_model.js');
+const cardWorkspaceState = require('./viewer/card_workspace_state.js');
 const cardFaceEditor = require('./viewer/card_face_editor.js');
 
 global.ProjectMapI18n = {t: (_key, fallback) => fallback};
@@ -111,6 +113,31 @@ const sparseCardIndex = Object.assign({}, index, {
 const sparseBoard = cardBoardModel.buildBoard(sparseCardIndex, draftModel, {cardBoardSelectedKey: 'card:sparse_option_card'});
 const sparseCard = sparseBoard.selected;
 assert(sparseCard && sparseCard.options[6] && sparseCard.options[6].label === 'Choice 7', 'Card Board should fallback-label options when textCorpus option labels are absent');
+assert(sparseCard.options[6].fieldId === 'card.option.6.label', 'Card Board root options should expose Object Canvas field ids');
+
+const menuCardIndex = Object.assign({}, index, {
+  scenes: (index.scenes || []).concat([{
+    id: 'menu_policy_card',
+    title: 'Menu Policy Card',
+    path: 'source/scenes/cards/menu_policy_card.scene.dry',
+    type: 'card',
+    flags: {isCard: true},
+    tags: ['menu_policy'],
+    options: [],
+    sections: [{
+      id: 'menu_policy_card.tax',
+      title: 'Tax policy',
+      paragraphs: ['Discuss tax options.'],
+      options: [{id: 'wealth_tax', title: 'Introduce wealth tax', target: {kind: 'scene', id: 'root'}}]
+    }]
+  }])
+});
+const menuBoard = cardBoardModel.buildBoard(menuCardIndex, draftModel, {
+  cardBoardSelectedKey: 'card:menu_policy_card',
+  cardBoardSelection: {kind: 'option', cardKey: 'card:menu_policy_card', optionId: 'wealth_tax'}
+});
+assert(menuBoard.selected && menuBoard.selected.options.some((option) => option.fieldId === 'card.section.0.option.0.label'), 'Card Board should expose section-owned card choices with Object Canvas field ids');
+assert(menuBoard.selectedObject && menuBoard.selectedObject.fieldId === 'card.section.0.option.0.label', 'Selected section-owned option should retain its focus field id');
 
 const sectionOwnedDeckIndex = Object.assign({}, index, {
   semantic: Object.assign({}, index.semantic, {
@@ -124,7 +151,7 @@ const sectionOwnedDeckIndex = Object.assign({}, index, {
       options: [{
         id: '#demo_action',
         target: {kind: 'tag', id: 'demo_action'},
-        sourceSpan: {path: 'source/scenes/main.scene.dry', startLine: 14, line: 14}
+        sourceSpan: {path: 'source/scenes/main.scene.dry', startLine: 14, line: 14, anchorText: '- #demo_action'}
       }]
     }]
   })
@@ -133,6 +160,7 @@ const sectionOwnedDeckBoard = cardBoardModel.buildBoard(sectionOwnedDeckIndex, d
 const sectionDeckCard = lane(sectionOwnedDeckBoard, 'deck').cards.find((card) => card.id === 'demo_action_card');
 assert(sectionDeckCard, 'Card Board should place tagged cards in section-owned semantic deck lanes');
 assert(sectionDeckCard.routeEvidence.some((item) => item.containerId === 'main.parser_deck'), 'section-owned deck route evidence should keep the section deck id');
+assert(lane(sectionOwnedDeckBoard, 'deck').sourceAnchor && lane(sectionOwnedDeckBoard, 'deck').sourceAnchor.anchorText === '- #demo_action', 'section-owned deck lane should expose a source anchor for lane-aware install');
 
 const optionBoard = cardBoardModel.buildBoard(index, existingCardModel, {
   cardBoardSelectedKey: 'card:demo_action_card',
@@ -140,6 +168,68 @@ const optionBoard = cardBoardModel.buildBoard(index, existingCardModel, {
 });
 assert(optionBoard.selectedObject && optionBoard.selectedObject.kind === 'option', 'Card Board should expose selected option objects');
 assert(optionBoard.selectedObject.option && optionBoard.selectedObject.option.label === 'Mobilize volunteers', 'Selected option should retain its card choice label');
+assert(optionBoard.selectedObject.fieldId === 'card.option.0.label', 'Selected root option should expose its Object Canvas focus field');
+
+function duplicateFixtureState(projectIndex, selectedKey) {
+  const state = {
+    projectIndex,
+    model: existingCardModel,
+    mode: 'existing',
+    template: 'existing',
+    view: 'cards',
+    item: '',
+    workspace: 'content',
+    cardBoardSelectedKey: selectedKey,
+    selectedCanvasNode: selectedKey,
+    cardBoardLane: 'pool',
+    cardBoardSelection: {kind: 'card', key: selectedKey, cardKey: selectedKey},
+    values: {}
+  };
+  const deps = {
+    collectValues() { return state.values || {}; },
+    defaultDraftForTemplate() { return {}; },
+    buildExistingModel() { return state.model; },
+    buildTemplateModel() {
+      return {
+        mode: 'card',
+        template: 'card',
+        objectId: state.baseDraft && state.baseDraft.id,
+        changeState: {draft: state.baseDraft, changedCount: 1, operationSummary: {safeApply: 1}}
+      };
+    },
+    showWorkspace() {},
+    render() {},
+    t(_key, fallback) { return fallback; }
+  };
+  return {state, deps};
+}
+
+const duplicateLarge = duplicateFixtureState(sparseCardIndex, 'card:sparse_option_card');
+assert(cardWorkspaceState.handleAction(duplicateLarge.state, 'duplicate_card', null, duplicateLarge.deps), 'Card Board duplicate action should run for source-backed cards');
+assert(duplicateLarge.state.baseDraft.options.length === 7, 'Card Board Copy as draft should preserve every parsed option instead of capping at four');
+assert(duplicateLarge.state.baseDraft.id === 'sparse_option_card_draft', 'Card Board Copy as draft should pass the canonical new draft id');
+
+const duplicateMenu = duplicateFixtureState(menuCardIndex, 'card:menu_policy_card');
+assert(cardWorkspaceState.handleAction(duplicateMenu.state, 'duplicate_card', null, duplicateMenu.deps), 'Card Board duplicate should run for menu cards');
+assert(duplicateMenu.state.baseDraft.cardShape === 'menu_card', 'Card Board Copy as draft should use parsed-to-draft for menu cards');
+assert(duplicateMenu.state.baseDraft.sections && duplicateMenu.state.baseDraft.sections[0].options.length === 1, 'Card Board Copy as draft should preserve section-owned options');
+
+const dynamicCardIndex = Object.assign({}, sparseCardIndex, {
+  scenes: (sparseCardIndex.scenes || []).concat([{
+    id: 'dynamic_policy_card',
+    title: 'Dynamic Policy Card',
+    path: 'source/scenes/cards/dynamic_policy_card.scene.dry',
+    type: 'card',
+    flags: {isCard: true},
+    dynamicStructure: true,
+    options: [{id: 'one', target: {kind: 'scene', id: 'root'}}, {id: 'two', target: {kind: 'scene', id: 'root'}}]
+  }])
+});
+const duplicateDynamic = duplicateFixtureState(dynamicCardIndex, 'card:dynamic_policy_card');
+assert(cardWorkspaceState.handleAction(duplicateDynamic.state, 'duplicate_card', null, duplicateDynamic.deps), 'Card Board duplicate should still open dynamic cards as partial drafts');
+assert(duplicateDynamic.state.baseDraft.authoringStatus === 'partial', 'Dynamic/raw card copy should remain partial');
+const dynamicModel = canvasModel.buildCanvasModel(dynamicCardIndex, {template: 'card', draft: duplicateDynamic.state.baseDraft});
+assert(!dynamicModel.ok && !dynamicModel.changeState.installPlan, 'Partial dynamic card drafts must not produce fake install plans');
 
 const routeKey = lane(board, 'hand').cards[0] && lane(board, 'hand').cards[0].key;
 const routeBoard = cardBoardModel.buildBoard(index, draftModel, {

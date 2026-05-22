@@ -201,9 +201,11 @@
       '<div class="card-board-inspector-facts">',
       fact(t('cardBoard.inspector.parentCard', 'Parent card'), selectedObject && selectedObject.card && (selectedObject.card.title || selectedObject.card.id) || ''),
       fact(t('cardBoard.inspector.target', 'Target'), option.targetId || bodyOption && bodyOption.targetId || ''),
+      fact(t('cardBoard.inspector.field', 'Editor field'), selectedObject && selectedObject.fieldId || option.fieldId || ''),
       fact(t('cardBoard.inspector.source', 'Source'), sourceLabel(option.source)),
       '</div>',
-      '<p class="card-face-readonly-note">' + escapeHtml(t('cardBoard.editor.openToEdit', 'Open this card in the object editor to edit its exact source-backed face fields.')) + '</p>',
+      '<p class="card-face-readonly-note">' + escapeHtml(t('cardBoard.editor.openToEdit', 'This choice is selected in the Object Editor; edit the focused field there.')) + '</p>',
+      canEdit ? '<button type="button" class="primary-action" data-object-canvas-action="toggle_overlay" data-card-board-option-field="' + escapeAttr(selectedObject && selectedObject.fieldId || option.fieldId || '') + '">' + escapeHtml(t('cardBoard.editor.openObjectEditor', 'Open object editor')) + '</button>' : '',
       '</section>'
     ].join('');
   }

@@ -73,6 +73,8 @@
     structureCommandCounter: 0,
     transientReturnStack: [],
     preserveScrollOnNextRefresh: false,
+    draftWorkspaceId: '',
+    draftSavedSnapshot: '',
     model: null,
     status: ''
   };
@@ -88,6 +90,8 @@
     refresh,
     getDraft: draftWithAuthoringContext,
     getOutput: () => state.model && state.model.changeState && state.model.changeState.output,
+    getDraftWorkspaceId: () => state.draftWorkspaceId || '',
+    setDraftWorkspaceId,
     getSourceSliceModel: () => state.sourceSliceModel || null,
     getSemanticLogicModel: () => state.semanticLogicModel || null,
     isActive: () => state.active,
@@ -162,7 +166,7 @@
           scheduleTemplateReconcile(document);
           return;
         }
-        openTemplateFromCreate(template);
+        openTemplateFromCreate(template, {forceNew: shouldOpenFreshDraftFromTemplateClick(template, source)});
         scheduleTemplateReconcile(document);
       } else if (template && template !== 'existing' && template !== 'object_canvas') {
         deactivate();
@@ -750,6 +754,9 @@
     if (projectIndex) {
       state.projectIndex = projectIndex;
     }
+    const previousBranches = storyboardDraftsApi().withCurrentDraftBranch
+      ? storyboardDraftsApi().withCurrentDraftBranch(state, draftBranchList(), storyboardDraftDeps())
+      : draftBranchList();
     state.mode = 'existing';
     state.template = 'existing';
     state.view = view || '';
@@ -768,7 +775,7 @@
     state.canvasPanX = 0;
     state.canvasPanY = 0;
     state.nodePositions = {};
-    state.draftBranches = [];
+    state.draftBranches = previousBranches;
     state.editorOverlay = Boolean(options && options.editorOverlay);
     state.deleteProposal = null;
     state.sourceSliceModel = null;
@@ -827,8 +834,38 @@
       return openTemplate('variables', draft, {source: 'visible_edit_action', actionKind: kind});
     }
     if (kind === 'open_system_ui_editor') {
-      const template = normalizeTemplate(editAction.targetView || editAction.target && editAction.target.template || 'entry') || 'entry';
-      return openTemplate(template, safeDefaultDraftForTemplate(template), {source: 'visible_edit_action', actionKind: kind});
+      const target = editAction.target || {};
+      const template = normalizeTemplate(target.internalTemplate || editAction.internalTemplate || target.template || editAction.template || editAction.targetView || 'entry') || 'entry';
+      const selectedRegion = String(target.selectedRegion || editAction.selectedRegion || '').trim();
+      const focusFieldId = String(target.focusFieldId || editAction.focusFieldId || '').trim();
+      const replacementText = String(editAction.replacementText || target.replacementText || editAction.value || '');
+      const values = {};
+      if (focusFieldId && replacementText) {
+        values[focusFieldId] = replacementText;
+      }
+      const opened = openTemplate(template, safeDefaultDraftForTemplate(template), {
+        source: 'visible_edit_action',
+        actionKind: kind,
+        route: editAction,
+        selectedRegion,
+        selectedCanvasNode: selectedRegion,
+        focusFieldId,
+        replacementText,
+        values,
+        manualReason: target.manualReason || editAction.manualReason || ''
+      });
+      if (opened && selectedRegion) {
+        state.selectedCanvasNode = selectedRegion;
+        render();
+      }
+      if (opened && focusFieldId) {
+        const focused = focusDraftField(focusFieldId);
+        state.status = focused
+          ? t('objectCanvas.status.graphEntryFocused', 'Opened the matching editor field.')
+          : (target.manualReason || t('objectCanvas.status.graphEntryMissing', 'Studio could not find that editor field in this draft.'));
+        updateDynamicSurfaces();
+      }
+      return opened;
     }
     if (kind === 'open_advanced_source_patch' && editAction.draftAction && !editAction.source) {
       state.status = t('objectCanvas.status.profileRouterRule', 'Router setup needs a profile rule or an advanced source anchor.');
@@ -1067,6 +1104,8 @@
     state.semanticLogicModel = null;
     state.semanticLogicAdvancedConfirmed = false;
     state.baseDraft = draft || safeDefaultDraftForTemplate(nextTemplate);
+    state.draftWorkspaceId = meta && meta.workspaceId ? String(meta.workspaceId) : '';
+    state.draftSavedSnapshot = state.draftWorkspaceId ? savedDraftSnapshot(state.baseDraft) : '';
     state.proposalOptions = null;
     clearTransientReturnStack();
     if (nextTemplate === 'card') {
@@ -1075,7 +1114,10 @@
     } else if (nextTemplate === 'variables' && state.baseDraft && state.baseDraft.variableName) {
       state.selectedCanvasNode = 'variable:' + state.baseDraft.variableName;
     }
-    state.values = {};
+    if (meta && (meta.selectedCanvasNode || meta.selectedRegion)) {
+      state.selectedCanvasNode = String(meta.selectedCanvasNode || meta.selectedRegion || '').trim() || state.selectedCanvasNode;
+    }
+    state.values = Object.assign({}, meta && meta.values || {});
     state.valueOriginals = {};
     resetStructureCommands();
     state.model = buildTemplateModel(meta || {});
@@ -1094,10 +1136,42 @@
       return;
     }
     if (isCurrentTemplateRendered(nextTemplate)) {
+      if (opts.forceNew) {
+        openFreshTemplateFromCreate(nextTemplate);
+        return;
+      }
       showWorkspace(nextTemplate);
       return;
     }
+    if (opts.forceNew) {
+      openFreshTemplateFromCreate(nextTemplate);
+      return;
+    }
     openTemplate(nextTemplate, safeDefaultDraftForTemplate(nextTemplate), {source: 'Create'});
+  }
+
+  function openFreshTemplateFromCreate(template) {
+    const previousBranches = storyboardDraftsApi().withCurrentDraftBranch
+      ? storyboardDraftsApi().withCurrentDraftBranch(state, draftBranchList(), storyboardDraftDeps())
+      : draftBranchList();
+    const opened = openTemplate(template, freshDefaultDraftForTemplate(template), {source: 'Create'});
+    if (opened && previousBranches.length) {
+      state.draftBranches = previousBranches;
+      render();
+    }
+  }
+
+  function shouldOpenFreshDraftFromTemplateClick(template, source) {
+    const nextTemplate = normalizeTemplate(template);
+    return Boolean(
+      source === 'authoring-workspace' &&
+      nextTemplate &&
+      state.active &&
+      state.mode !== 'existing' &&
+      state.template === nextTemplate &&
+      isCurrentTemplateRendered(nextTemplate) &&
+      currentDraftMatchesSavedWorkspace()
+    );
   }
 
   function syncTemplateButtonClick(template) {
@@ -1132,6 +1206,14 @@
     const wanted = surfaceForTemplate(template);
     const current = currentSurface(state.model);
     return Boolean(wanted && current && wanted.key === current.key);
+  }
+
+  function currentDraftMatchesSavedWorkspace() {
+    if (!state.draftWorkspaceId || !state.draftSavedSnapshot) {
+      return false;
+    }
+    const draft = draftWithAuthoringContext() || state.model && state.model.changeState && state.model.changeState.draft || state.baseDraft;
+    return savedDraftSnapshot(draft) === state.draftSavedSnapshot;
   }
 
   function loadDraft(draft, meta) {
@@ -1421,7 +1503,26 @@
 
   function renderSystemUiPreviewStage(model) {
     const surface = global.ProjectMapSystemUiPreviewSurface;
-    return surface && typeof surface.render === 'function' ? surface.render(model, {projectIndex: state.projectIndex, selected: state.selectedCanvasNode, fixture: state.systemUiFixture, editorOverlay: state.editorOverlay, boardChromeCollapsed: state.boardChromeCollapsed, runtimeLensSession: state.runtimeLensSession, runtimeLensStatus: state.runtimeLensStatus, runtimeLensFocusKey: state.runtimeLensFocusKey, runtimeLensDraftKey: state.runtimeLensDraftKey, runtimeLensCurrentDraftKey: state.runtimeLensCurrentDraftKey, runtimeLensExpanded: state.runtimeLensExpanded, runtimeLensCollapsed: state.runtimeLensCollapsed}) : '';
+    return surface && typeof surface.render === 'function' ? surface.render(model, {
+      projectIndex: state.projectIndex,
+      selected: state.selectedCanvasNode,
+      fixture: state.systemUiFixture,
+      editorOverlay: state.editorOverlay,
+      boardChromeCollapsed: state.boardChromeCollapsed,
+      runtimeLensSession: state.runtimeLensSession,
+      runtimeVisualSurface: runtimeVisualSurfaceForSystemUi(),
+      runtimeLensStatus: state.runtimeLensStatus,
+      runtimeLensFocusKey: state.runtimeLensFocusKey,
+      runtimeLensDraftKey: state.runtimeLensDraftKey,
+      runtimeLensCurrentDraftKey: state.runtimeLensCurrentDraftKey,
+      runtimeLensExpanded: state.runtimeLensExpanded,
+      runtimeLensCollapsed: state.runtimeLensCollapsed
+    }) : '';
+  }
+
+  function runtimeVisualSurfaceForSystemUi() {
+    const session = state.runtimeLensSession || {};
+    return session.runtimeVisualSurface || session.visualSurface || null;
   }
 
   function renderElectionResultsStage(model) {
@@ -3384,6 +3485,115 @@
     }
   }
 
+  function freshDefaultDraftForTemplate(template) {
+    return draftWithUniqueFreshId(template, safeDefaultDraftForTemplate(template));
+  }
+
+  function draftWithUniqueFreshId(template, draftInput) {
+    const nextTemplate = normalizeTemplate(template) || 'event';
+    if (!['event', 'card', 'news'].includes(nextTemplate)) {
+      return draftInput || {};
+    }
+    const draft = clonePlainObject(draftInput || {});
+    const currentId = String(draft.id || '').trim();
+    if (!currentId) {
+      return draft;
+    }
+    const used = usedDraftIdsForTemplate(nextTemplate);
+    if (!used.has(currentId)) {
+      return draft;
+    }
+    let suffix = 2;
+    let nextId = currentId + '_' + suffix;
+    while (used.has(nextId)) {
+      suffix += 1;
+      nextId = currentId + '_' + suffix;
+    }
+    applyFreshDraftId(nextTemplate, draft, currentId, nextId);
+    return draft;
+  }
+
+  function usedDraftIdsForTemplate(template) {
+    const used = new Set();
+    if (template === 'event' || template === 'card') {
+      ensureArray(state.projectIndex && state.projectIndex.scenes).forEach((scene) => {
+        const id = String(scene && scene.id || '').trim();
+        if (id) {
+          used.add(id);
+        }
+      });
+    }
+    const draftWorkspace = global.ProjectMapDraftWorkspaceUi;
+    const draftState = draftWorkspace && typeof draftWorkspace.getState === 'function'
+      ? draftWorkspace.getState()
+      : null;
+    ensureArray(draftState && draftState.items).forEach((item) => {
+      if (item && item.template === template && item.draftId) {
+        used.add(String(item.draftId));
+      }
+    });
+    draftBranchList().forEach((branch) => {
+      if (branch && String(branch.template || 'event') === template) {
+        const id = String(branch.id || branch.draft && branch.draft.id || '').trim();
+        if (id) {
+          used.add(id);
+        }
+      }
+    });
+    if (state.baseDraft && state.template === template && state.baseDraft.id) {
+      used.add(String(state.baseDraft.id));
+    }
+    return used;
+  }
+
+  function applyFreshDraftId(template, draft, previousId, nextId) {
+    draft.id = nextId;
+    if (template === 'event') {
+      const previousSeenFlag = previousId ? previousId + '_seen' : '';
+      if (draft.seenFlag === previousSeenFlag || !draft.seenFlag) {
+        draft.seenFlag = nextId + '_seen';
+      }
+    }
+  }
+
+  function clonePlainObject(value) {
+    try {
+      return JSON.parse(JSON.stringify(value || {}));
+    } catch (_err) {
+      return Object.assign({}, value || {});
+    }
+  }
+
+  function setDraftWorkspaceId(workspaceId, draft) {
+    state.draftWorkspaceId = String(workspaceId || '');
+    state.draftSavedSnapshot = state.draftWorkspaceId
+      ? savedDraftSnapshot(draft || state.model && state.model.changeState && state.model.changeState.draft || state.baseDraft)
+      : '';
+  }
+
+  function savedDraftSnapshot(draft) {
+    try {
+      return JSON.stringify(snapshotDraftPayload(draft || {}));
+    } catch (_err) {
+      return '';
+    }
+  }
+
+  function snapshotDraftPayload(value) {
+    if (!value || typeof value !== 'object') {
+      return value;
+    }
+    if (Array.isArray(value)) {
+      return value.map(snapshotDraftPayload);
+    }
+    return Object.keys(value).sort().reduce((out, key) => {
+      if (key !== 'studioAuthoringContext' && key !== 'authoringContext') {
+        out[key] = snapshotDraftPayload(value[key]);
+      }
+      return out;
+    }, {});
+  }
+
   function fallbackDraftForTemplate(template, err) {
     const key = normalizeTemplate(template) || 'event';
     const draft = {
@@ -3518,7 +3728,7 @@
   function graphStageApi() { return global.ProjectMapObjectCanvasGraphStage || null; }
   function runtimeLensWorkspaceApi() { return global.ProjectMapRuntimeLensWorkspaceState || null; }
   function cardWorkspaceApi() { return global.ProjectMapCardWorkspaceState || null; }
-  function cardDeps(entry) { return {buildExistingModel, buildExistingModelFor, buildTemplateModel, collectValues, defaultDraftForTemplate, entry, render, showWorkspace, t}; }
+  function cardDeps(entry) { return {buildExistingModel, buildExistingModelFor, buildTemplateModel, collectValues, defaultDraftForTemplate, entry, focusDraftField, render, showWorkspace, t}; }
   function runtimeLensDeps() { return {buildExistingModel, buildTemplateModel, collectValues, render, renderRuntimeLensEvidence: updateRuntimeLensEvidence}; }
 
   function storyboardWorkspaceApi() { return global.ProjectMapStoryboardWorkspaceState || null; }
