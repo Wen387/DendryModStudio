@@ -2,8 +2,7 @@
 'use strict';
 const advisorModel = require('./authoring/advisor_controller_model.js');
 const {buildDynamicRepoSemanticFixture} = require('./fixtures/dynamicrepo_semantic_fixture.js');
-function fail(message){ process.stderr.write('FAIL: '+message+'\n'); process.exit(1); }
-function assert(condition,message){ if(!condition) fail(message); }
+const {assert} = require('./check_harness.js');
 const index = buildDynamicRepoSemanticFixture();
 const model = advisorModel.buildAdvisorControllerModel(index);
 const controller = model.advisorControllers.find((item) => item.id === 'shuffle_leadership');

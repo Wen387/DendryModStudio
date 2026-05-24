@@ -1,3 +1,4 @@
+// @ts-check
 (function initProjectMapStoryScopeModel(global) {
   'use strict';
 

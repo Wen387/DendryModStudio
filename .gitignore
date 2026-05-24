@@ -35,6 +35,7 @@ docs/goals/
 # Local private development notes
 .studio-local/
 AGENTS.md
+CLAUDE.md
 .agents/
 .codex
 .claude

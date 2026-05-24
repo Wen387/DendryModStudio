@@ -10,16 +10,7 @@ const {pythonCommand} = require('./check_python_command.js');
 const metadataDraft = require('./authoring/project_metadata_draft.js');
 const installPlan = require('./authoring/install_plan.js');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function syntheticIndex(root) {
   return {

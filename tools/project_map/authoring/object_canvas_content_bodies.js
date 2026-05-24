@@ -1,3 +1,4 @@
+// @ts-check
 (function initProjectMapObjectCanvasContentBodies(global) {
   'use strict';
 

@@ -18,16 +18,7 @@ const SAMPLE_ADVISOR = path.join(__dirname, 'fixtures', 'card_drafts', 'sample_a
 const INVALID_CARD = path.join(__dirname, 'fixtures', 'card_drafts', 'invalid_card.json');
 const VIEWER_INDEX = path.join(__dirname, 'viewer', 'index.html');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));

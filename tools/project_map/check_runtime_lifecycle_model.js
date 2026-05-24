@@ -9,16 +9,7 @@ const ROOT = __dirname;
 const VIEWER = path.join(ROOT, 'viewer');
 const DESKTOP = path.join(ROOT, 'desktop');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function read(filePath) {
   return fs.readFileSync(filePath, 'utf8');

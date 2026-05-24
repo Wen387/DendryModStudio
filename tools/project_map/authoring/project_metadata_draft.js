@@ -1,3 +1,4 @@
+// @ts-check
 (function initProjectMapProjectMetadataDraft(global) {
   'use strict';
 

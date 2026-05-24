@@ -9,16 +9,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function assertDescendingSourceOrder(changes, message) {
   const lines = changes.map((change) => Number(change && (change.startLine || change.source && (change.source.line || change.source.startLine)) || 0));

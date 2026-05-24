@@ -1,3 +1,4 @@
+// @ts-check
 (function initProjectMapPartialRepairWorkflow(global) {
   'use strict';
 

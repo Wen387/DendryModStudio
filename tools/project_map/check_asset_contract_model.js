@@ -4,16 +4,7 @@
 
 const assetContracts = require('./authoring/asset_contract_model.js');
 
-function fail(message, detail) {
-  process.stderr.write('FAIL: ' + message + (detail ? '\n' + JSON.stringify(detail, null, 2) : '') + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message, detail) {
-  if (!condition) {
-    fail(message, detail);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 const eventSlots = assetContracts.assetSlotDefinitions('event');
 const cardSlots = assetContracts.assetSlotDefinitions('card');

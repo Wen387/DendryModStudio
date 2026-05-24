@@ -1,3 +1,4 @@
+// @ts-check
 (function initProjectMapTimelineCoordinateAdapter(global) {
   'use strict';
 

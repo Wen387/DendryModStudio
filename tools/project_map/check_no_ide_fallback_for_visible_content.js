@@ -11,16 +11,7 @@ const workflowEntry = require('./authoring/workflow_entry_contract_model.js');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function syntheticIndex() {
   const source = {

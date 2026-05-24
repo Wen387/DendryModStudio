@@ -16,16 +16,7 @@ const NEWS_UI = path.join(__dirname, 'viewer', 'news_ui.js');
 const newsDraft = require('./authoring/news_draft.js');
 const viewer = require('./viewer/app.js');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));

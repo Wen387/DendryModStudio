@@ -16,16 +16,7 @@ const ONBOARDING_UI = path.join(ROOT, 'viewer', 'onboarding_ui.js');
 const WELCOME_UI = path.join(ROOT, 'viewer', 'welcome_surface_ui.js');
 const TUTORIAL_UI = path.join(ROOT, 'viewer', 'tutorial_library_ui.js');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function memoryStorage() {
   const values = new Map();

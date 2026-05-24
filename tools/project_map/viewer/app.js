@@ -6,7 +6,7 @@
       return root.ProjectMapExploreModel;
     }
     if (typeof module !== 'undefined' && module.exports && typeof require === 'function') {
-      return require('./explore_model.js');
+      return require('../authoring/explore_model.js');
     }
     throw new Error('Project Map Explore model module is unavailable.');
   }

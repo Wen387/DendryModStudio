@@ -6,6 +6,7 @@ const os = require('os');
 const path = require('path');
 const {spawnSync} = require('child_process');
 const eventDraft = require('./authoring/event_draft.js');
+const {fail, assert} = require('./check_harness.js');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const SAMPLE_INDEX = path.join(os.tmpdir(), 'dendry_event_wizard_index_' + process.pid + '.json');
@@ -15,17 +16,6 @@ const FOUR_CHOICE_DRAFT = path.join(__dirname, 'fixtures', 'event_drafts', 'four
 const ADVANCED_DRAFT = path.join(__dirname, 'fixtures', 'event_drafts', 'advanced_world_event.json');
 const VIEWER_INDEX = path.join(__dirname, 'viewer', 'index.html');
 const WIZARD_UI = path.join(__dirname, 'viewer', 'wizard_ui.js');
-
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));

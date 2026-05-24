@@ -1,3 +1,4 @@
+// @ts-check
 (function initSurfaceTextDraft(global) {
   'use strict';
 

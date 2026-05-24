@@ -2,8 +2,7 @@
 'use strict';
 const deckPools = require('./authoring/deck_pool_model.js');
 const {buildDynamicRepoSemanticFixture} = require('./fixtures/dynamicrepo_semantic_fixture.js');
-function fail(message){ process.stderr.write('FAIL: '+message+'\n'); process.exit(1); }
-function assert(condition,message){ if(!condition) fail(message); }
+const {assert} = require('./check_harness.js');
 const index = buildDynamicRepoSemanticFixture();
 const model = deckPools.buildDeckPoolModel(index);
 const party = model.deckPools.find((pool) => pool.id === 'main.party');

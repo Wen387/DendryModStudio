@@ -6,16 +6,7 @@ const assetModel = require('./authoring/asset_model.js');
 const previewModel = require('./authoring/preview_model.js');
 const {readExploreBundle} = require('./check_viewer_assets.js');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 const index = {
   schemaVersion: '0.1',

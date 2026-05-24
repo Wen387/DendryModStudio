@@ -1,3 +1,4 @@
+// @ts-check
 (function initProtectedPathPolicy(global) {
   'use strict';
 

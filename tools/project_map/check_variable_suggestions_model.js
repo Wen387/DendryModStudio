@@ -14,16 +14,7 @@ const WIZARD_UI = path.join(ROOT, 'viewer', 'wizard_ui.js');
 const CARD_UI = path.join(ROOT, 'viewer', 'card_ui.js');
 const ENTRY_UI = path.join(ROOT, 'viewer', 'entry_sidebar_ui.js');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 const projectIndex = {
   schemaVersion: '0.1',

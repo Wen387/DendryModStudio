@@ -6,16 +6,7 @@ const path = require('path');
 const partialRepair = require('./authoring/partial_repair_workflow_model.js');
 const previewEditor = require('./viewer/preview_object_editor.js');
 
-function fail(message, detail) {
-  process.stderr.write('FAIL: ' + message + (detail ? '\n' + JSON.stringify(detail, null, 2) : '') + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message, detail) {
-  if (!condition) {
-    fail(message, detail);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function decodeHtml(value) {
   return String(value || '')

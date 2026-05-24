@@ -1,3 +1,4 @@
+// @ts-check
 (function initProjectMapExistingSceneAssetHelpers(global) {
   'use strict';
 

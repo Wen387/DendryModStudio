@@ -3,16 +3,7 @@
 
 const existingEdit = require('./authoring/existing_scene_edit_model.js');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function sceneFixture(id, title, relPath) {
   return {

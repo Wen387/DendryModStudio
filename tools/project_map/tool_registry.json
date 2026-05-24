@@ -1130,6 +1130,8 @@
     "tools/project_map/check_full_authoring_canvas_model.js",
     "tools/project_map/check_generalized_semantic_evidence_model.js",
     "tools/project_map/check_governance_parity.js",
+    "tools/project_map/check_harness.js",
+    "tools/project_map/check_harness_conformance.js",
     "tools/project_map/check_install_operation_contracts_model.js",
     "tools/project_map/check_install_plan_model.js",
     "tools/project_map/check_install_refresh_model.js",

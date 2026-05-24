@@ -5,16 +5,7 @@
 const fs = require('fs');
 const workbenchModel = require('./authoring/dynamic_semantic_workbench_model.js');
 
-function fail(message, detail) {
-  process.stderr.write('FAIL: ' + message + (detail ? '\n' + JSON.stringify(detail, null, 2) : '') + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message, detail) {
-  if (!condition) {
-    fail(message, detail);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function syntheticIndex() {
   // Keep this fixture local to the check so the model stays independent from

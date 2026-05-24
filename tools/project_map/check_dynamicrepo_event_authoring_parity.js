@@ -6,6 +6,7 @@ const os = require('os');
 const path = require('path');
 const childProcess = require('child_process');
 const sourceUnits = require('./authoring/event_source_unit_model.js');
+const {fail} = require('./check_harness.js');
 
 const DEFAULT_ROOT = path.resolve(__dirname, '..', '..', 'SDAAHdynamic', 'dynamic_social_democracy-main');
 const REQUIRED_DIRECTIVES = [
@@ -289,14 +290,6 @@ function writeReport(report, opts) {
     return;
   }
   process.stdout.write(text);
-}
-
-function fail(message, report) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  if (report) {
-    process.stderr.write(JSON.stringify(report, null, 2) + '\n');
-  }
-  process.exit(1);
 }
 
 main();

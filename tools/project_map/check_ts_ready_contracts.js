@@ -29,24 +29,15 @@ const routeUnderstandingPath = path.join(ROOT, 'authoring', 'route_understanding
 const routeGuidedEditPath = path.join(ROOT, 'authoring', 'route_guided_edit_model.js');
 const routeSemanticsAuditPath = path.join(ROOT, 'qa', 'route_semantics_audit.js');
 const authoringDependencyLoaderPath = path.join(ROOT, 'authoring', 'authoring_dependency_loader.js');
-const installReviewStatePath = path.join(ROOT, 'viewer', 'install_review_state_model.js');
-const installResultReportPath = path.join(ROOT, 'viewer', 'install_result_report_model.js');
+const installReviewStatePath = path.join(ROOT, 'authoring', 'install_review_state_model.js');
+const installResultReportPath = path.join(ROOT, 'authoring', 'install_result_report_model.js');
 const installPlanPath = path.join(ROOT, 'authoring', 'install_plan.js');
 const viewerIndexPath = path.join(ROOT, 'viewer', 'index.html');
 const typesPath = path.join(ROOT, 'types', 'project_map_contracts.d.ts');
 const tsconfigPath = path.join(ROOT, 'tsconfig.json');
 const packagePath = path.join(ROOT, '..', '..', 'package.json');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 const routeState = fs.readFileSync(routeStatePath, 'utf8');
 const routeScript = fs.readFileSync(routeScriptPath, 'utf8');
@@ -143,8 +134,8 @@ const runtimeTypedLoadStrategy = Object.freeze({
   'authoring/route_guided_edit_model.js': 'loader',
   'authoring/route_state_model.js': 'loader',
   'authoring/route_script_intelligence_model.js': 'loader',
-  'viewer/install_review_state_model.js': 'loader',
-  'viewer/install_result_report_model.js': 'loader',
+  'authoring/install_review_state_model.js': 'loader',
+  'authoring/install_result_report_model.js': 'loader',
   'authoring/semantic_logic_editor_model.js': 'direct',
   'authoring/event_workbench_model.js': 'direct',
   'authoring/dynamic_semantic_workbench_model.js': 'direct'
@@ -351,8 +342,8 @@ assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('authoring/r
 assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('authoring/route_guided_edit_model.js'), 'tsconfig should include route guided edit model');
 assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('qa/route_semantics_audit.js'), 'tsconfig should include route semantics audit');
 assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('authoring/authoring_dependency_loader.js'), 'tsconfig should include authoring dependency loader');
-assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('viewer/install_review_state_model.js'), 'tsconfig should include install review state model');
-assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('viewer/install_result_report_model.js'), 'tsconfig should include install result report model');
+assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('authoring/install_review_state_model.js'), 'tsconfig should include install review state model');
+assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('authoring/install_result_report_model.js'), 'tsconfig should include install result report model');
 assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('apply_install_plan.js'), 'tsconfig should include install plan CLI reader');
 assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('check_asset_contract_model.js'), 'tsconfig should include asset contract focused check');
 assert(Array.isArray(tsconfig.include) && tsconfig.include.includes('check_route_state_model.js'), 'tsconfig should include route-state focused check');

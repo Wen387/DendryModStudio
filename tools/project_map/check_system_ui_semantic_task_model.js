@@ -7,20 +7,7 @@ global.ProjectMapSystemUiRegionContext = require('./viewer/system_ui_region_cont
 global.ProjectMapSystemUiCapabilityModel = require('./viewer/system_ui_capability_model.js');
 global.ProjectMapSystemUiSemanticTaskModel = require('./viewer/system_ui_semantic_task_model.js');
 const screenModel = require('./viewer/system_ui_screen_model.js');
-
-function fail(message, extra) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  if (extra) {
-    process.stderr.write(JSON.stringify(extra, null, 2) + '\n');
-  }
-  process.exit(1);
-}
-
-function assert(condition, message, extra) {
-  if (!condition) {
-    fail(message, extra);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 const projectIndex = {
   project: {name: 'Semantic UI Fixture', root: '/tmp/system-ui-semantic-fixture'},

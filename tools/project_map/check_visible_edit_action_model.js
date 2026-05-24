@@ -6,16 +6,7 @@ const objectCanvas = require('./authoring/object_authoring_canvas_model.js');
 const sourceSlice = require('./authoring/source_slice_editor_model.js');
 const installPlan = require('./authoring/install_plan.js');
 
-function fail(message, details) {
-  process.stderr.write(JSON.stringify(Object.assign({ok: false, message}, details || {}), null, 2) + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message, details) {
-  if (!condition) {
-    fail(message, details);
-  }
-}
+const {failJson: fail, assertJson: assert} = require('./check_harness.js');
 
 function fixtureIndex() {
   const eventPath = 'source/scenes/events/click_event.scene.dry';

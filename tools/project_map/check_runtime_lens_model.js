@@ -10,16 +10,7 @@ const runtimeLens = require('./desktop/runtime_lens.js');
 const runtimePreview = require('./desktop/runtime_preview.js');
 const runtimeLensWorkspaceState = require('./viewer/runtime_lens_workspace_state.js');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function htmlBuildRunner(label) {
   return (root, meta) => {

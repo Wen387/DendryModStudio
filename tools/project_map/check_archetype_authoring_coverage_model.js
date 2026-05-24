@@ -4,17 +4,7 @@
 const parsedToDraft = require('./authoring/parsed_to_draft.js');
 const canvasModel = require('./authoring/object_authoring_canvas_model.js');
 const {syntheticIndex} = require('./fixtures/archetype_authoring_fixture.js');
-
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 const index = syntheticIndex();
 const cases = [

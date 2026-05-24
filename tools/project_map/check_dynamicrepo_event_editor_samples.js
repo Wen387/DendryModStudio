@@ -11,6 +11,7 @@ const parsedToDraft = require('./authoring/parsed_to_draft.js');
 const eventDraft = require('./authoring/event_draft.js');
 const existingSceneEdit = require('./authoring/existing_scene_edit_model.js');
 const canvasModel = require('./authoring/object_authoring_canvas_model.js');
+const {fail, assert} = require('./check_harness.js');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const DEFAULT_ROOT = path.resolve(REPO_ROOT, 'SDAAHdynamic', 'dynamic_social_democracy-main');
@@ -272,17 +273,6 @@ function countBy(items, keyFn) {
 function writeReport(report, opts) {
   const text = JSON.stringify(report, null, 2) + '\n';
   process.stdout.write(text);
-}
-
-function assert(condition, message, detail) {
-  if (!condition) {
-    fail(message, detail);
-  }
-}
-
-function fail(message, detail) {
-  process.stderr.write('FAIL: ' + message + (detail ? '\n' + JSON.stringify(detail, null, 2) : '') + '\n');
-  process.exit(1);
 }
 
 main();

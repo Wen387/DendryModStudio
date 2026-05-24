@@ -1,3 +1,4 @@
+// @ts-check
 (function initProjectMapContentStoryboardContext(global) {
   'use strict';
 

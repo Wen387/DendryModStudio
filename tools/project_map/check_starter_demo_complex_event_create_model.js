@@ -14,16 +14,7 @@ const complexAuthoring = require('./authoring/complex_event_authoring_model.js')
 const previewEditor = require('./viewer/preview_object_editor.js');
 const {pythonCommand} = require('./check_python_command.js');
 
-function fail(message, detail) {
-  process.stderr.write('FAIL: ' + message + (detail ? '\n' + JSON.stringify(detail, null, 2) : '') + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message, detail) {
-  if (!condition) {
-    fail(message, detail);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function actionFields(body, action) {
   return (body && Array.isArray(body.structureActions) ? body.structureActions : [])

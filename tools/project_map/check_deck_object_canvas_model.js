@@ -4,8 +4,7 @@ const deckDraft = require('./authoring/deck_pool_draft.js');
 const canvas = require('./authoring/object_canvas_content_adapters.js');
 const previewEditor = require('./viewer/preview_object_editor.js');
 const {buildDynamicRepoSemanticFixture} = require('./fixtures/dynamicrepo_semantic_fixture.js');
-function fail(message){ process.stderr.write('FAIL: '+message+'\n'); process.exit(1); }
-function assert(condition,message){ if(!condition) fail(message); }
+const {assert} = require('./check_harness.js');
 const index = buildDynamicRepoSemanticFixture();
 const draft = deckDraft.draftForPool(index, 'main.party');
 const model = canvas.buildTemplateCanvas(index, 'deck_pool', draft, {values: {}});

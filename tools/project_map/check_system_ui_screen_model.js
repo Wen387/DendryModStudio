@@ -14,16 +14,7 @@ global.ProjectMapSystemUiRegionEditor = require('./viewer/system_ui_region_edito
 const surface = require('./viewer/system_ui_preview_surface.js');
 const electionSurface = require('./viewer/election_results_surface.js');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function countOccurrences(text, needle) {
   return String(text || '').split(needle).length - 1;

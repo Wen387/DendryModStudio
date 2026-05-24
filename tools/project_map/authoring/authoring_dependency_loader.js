@@ -17,8 +17,8 @@
     '../authoring/route_understanding_model.js',
     '../authoring/route_guided_edit_model.js',
     '../authoring/route_script_intelligence_model.js',
-    'install_review_state_model.js',
-    'install_result_report_model.js'
+    '../authoring/install_review_state_model.js',
+    '../authoring/install_result_report_model.js'
   ]);
 
   if (global) {

@@ -5,17 +5,7 @@ const assetHelpersModule = require('./authoring/existing_scene_asset_helpers.js'
 const conditionDiagnostics = require('./authoring/existing_scene_condition_diagnostics.js');
 const textBlockHelpersModule = require('./authoring/existing_scene_text_block_helpers.js');
 const textBlockBuilderModule = require('./authoring/existing_scene_text_block_builder.js');
-
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function helperSourceRef(source) {
   const value = source && typeof source === 'object' && !Array.isArray(source) ? source : {};

@@ -45,8 +45,8 @@ function readViewerScripts(viewerDir, files) {
 }
 
 function readExploreBundle(viewerDir) {
-  return readViewerScripts(viewerDir, [
-    'explore_model.js',
+  const authoringDir = path.join(viewerDir, '..', 'authoring');
+  return readText(path.join(authoringDir, 'explore_model.js')) + '\n' + readViewerScripts(viewerDir, [
     'explore_lists.js',
     'explore_inspector.js',
     'explore_ui.js',

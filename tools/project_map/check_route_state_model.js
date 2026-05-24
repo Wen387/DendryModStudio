@@ -9,16 +9,7 @@ const path = require('path');
 const eventWorkbench = require('./authoring/event_workbench_model.js');
 const eventWorkbenchUi = require('./viewer/event_workbench_ui.js');
 
-function fail(message, detail) {
-  process.stderr.write('FAIL: ' + message + (detail ? '\n' + JSON.stringify(detail, null, 2) : '') + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message, detail) {
-  if (!condition) {
-    fail(message, detail);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function src(path, line) {
   return {path, line, startLine: line, endLine: line};

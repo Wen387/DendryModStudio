@@ -3,17 +3,7 @@
 'use strict';
 
 const installOperationContracts = require('./authoring/install_operation_contracts.js');
-
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 const normalized = installOperationContracts.normalizeInstallOperation({
   type: 'replace_text',

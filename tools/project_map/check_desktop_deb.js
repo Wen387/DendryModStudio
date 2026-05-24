@@ -9,16 +9,7 @@ const {spawnSync} = require('child_process');
 const PROJECT_MAP_DIR = __dirname;
 const DESKTOP_DIR = path.join(PROJECT_MAP_DIR, 'desktop');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));

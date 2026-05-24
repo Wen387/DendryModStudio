@@ -4,11 +4,7 @@
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..', '..');
-
-function fail(message, detail) {
-  process.stderr.write('FAIL: ' + message + (detail ? '\n' + JSON.stringify(detail, null, 2) : '') + '\n');
-  process.exit(1);
-}
+const {fail} = require('./check_harness.js');
 
 async function runDirectCheck(id, command, fn) {
   const started = Date.now();

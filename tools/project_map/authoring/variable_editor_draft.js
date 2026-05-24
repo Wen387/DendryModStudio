@@ -1,3 +1,4 @@
+// @ts-check
 (function initProjectMapVariableEditorDraft(global) {
   'use strict';
 

@@ -9,16 +9,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 const structureOperations = structureOperationsFactory.create();
 assert(structureOperations.routeLineReplacement('go-to: old_target', 'new_target') === 'go-to: new_target', 'structure operations should reroute simple go-to lines');

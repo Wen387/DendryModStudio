@@ -5,16 +5,7 @@ const coverage = require('./authoring/visible_object_coverage_model.js');
 const semanticLogic = require('./authoring/semantic_logic_editor_model.js');
 const routeGuided = require('./authoring/route_guided_edit_model.js');
 
-function fail(message, details) {
-  process.stderr.write(JSON.stringify(Object.assign({ok: false, message}, details || {}), null, 2) + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message, details) {
-  if (!condition) {
-    fail(message, details);
-  }
-}
+const {failJson: fail, assertJson: assert} = require('./check_harness.js');
 
 function src(path, line, anchorText) {
   return {path, line, startLine: line, endLine: line, anchorText, endAnchorText: anchorText};

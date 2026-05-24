@@ -3,8 +3,7 @@
 const advisorDraft = require('./authoring/advisor_controller_draft.js');
 const canvas = require('./authoring/object_canvas_content_adapters.js');
 const {buildDynamicRepoSemanticFixture} = require('./fixtures/dynamicrepo_semantic_fixture.js');
-function fail(message){ process.stderr.write('FAIL: '+message+'\n'); process.exit(1); }
-function assert(condition,message){ if(!condition) fail(message); }
+const {assert} = require('./check_harness.js');
 const index = buildDynamicRepoSemanticFixture();
 const draft = advisorDraft.draftForController(index, 'shuffle_leadership');
 const model = canvas.buildTemplateCanvas(index, 'advisor_controller', draft, {values: {}});

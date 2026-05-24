@@ -71,16 +71,7 @@ const PREVIEW_OBJECT_EDITOR_STYLE = path.join(VIEWER, 'styles', 'preview-object-
 const CARD_BOARD_STYLE = path.join(VIEWER, 'styles', 'card-board.css');
 const HARNESS = path.join(ROOT, 'qa', 'authoring_canvas_screenshot_harness.html');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function read(filePath) {
   return fs.readFileSync(filePath, 'utf8');

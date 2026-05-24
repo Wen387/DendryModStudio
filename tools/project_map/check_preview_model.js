@@ -15,16 +15,7 @@ const cardDraft = require('./fixtures/card_drafts/sample_action_card.json');
 const newsDraft = require('./fixtures/news_drafts/sample_dated_news.json');
 const surfaceDraft = require('./fixtures/surface_text_drafts/sample_label_replacement.json');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function syntheticIndex() {
   const eventScene = {

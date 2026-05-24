@@ -13,16 +13,7 @@ const desktopCore = require('./desktop/studio_core.js');
 
 const ROOT = __dirname;
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function read(filePath) {
   return fs.readFileSync(path.join(ROOT, filePath), 'utf8');

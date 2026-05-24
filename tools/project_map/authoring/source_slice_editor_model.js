@@ -1,3 +1,4 @@
+// @ts-check
 (function initProjectMapSourceSliceEditor(global) {
   'use strict';
 

@@ -3,16 +3,7 @@
 
 const debugModel = require('./authoring/runtime_preview_debug_model.js');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 const index = {
   schemaVersion: '0.1',

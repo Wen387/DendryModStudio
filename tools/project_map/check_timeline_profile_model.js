@@ -11,16 +11,7 @@ const adapter = require('./authoring/timeline_coordinate_adapter.js');
 const storyboardModel = require('./authoring/content_storyboard_model.js');
 const adapterSource = fs.readFileSync(path.join(__dirname, 'authoring', 'timeline_coordinate_adapter.js'), 'utf8');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function scene(id, title, extras) {
   const path = extras && extras.path || 'source/scenes/events/' + id + '.scene.dry';

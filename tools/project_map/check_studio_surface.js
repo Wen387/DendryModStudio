@@ -85,7 +85,7 @@ const PROJECT_METADATA_UI = path.join(ROOT, 'viewer', 'project_metadata_ui.js');
 const VARIABLE_EDITOR_UI = path.join(ROOT, 'viewer', 'variable_editor_ui.js');
 const INSTALL_REVIEW_UI = path.join(ROOT, 'viewer', 'install_review_ui.js');
 const INSTALL_UI = path.join(ROOT, 'viewer', 'install_assistant_ui.js');
-const INSTALL_RESULT_REPORT_MODEL = path.join(ROOT, 'viewer', 'install_result_report_model.js');
+const INSTALL_RESULT_REPORT_MODEL = path.join(ROOT, 'authoring', 'install_result_report_model.js');
 const DRAFT_WORKSPACE_UI = path.join(ROOT, 'viewer', 'draft_workspace_ui.js');
 const CHANGE_TRAY_UI = path.join(ROOT, 'viewer', 'change_tray_ui.js');
 const UPDATE_NOTICE_UI = path.join(ROOT, 'viewer', 'update_notice_ui.js');
@@ -100,16 +100,7 @@ const SIDEBAR_STATUS_DRAFT = path.join(ROOT, 'authoring', 'sidebar_status_draft.
 const ELECTION_RESULTS_DRAFT = path.join(ROOT, 'authoring', 'election_results_draft.js');
 const VARIABLE_EDITOR_DRAFT = path.join(ROOT, 'authoring', 'variable_editor_draft.js');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function assertHtmlOrder(before, after, message) {
   const beforeIndex = html.indexOf(before);

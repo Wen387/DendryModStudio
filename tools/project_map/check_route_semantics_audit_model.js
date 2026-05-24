@@ -4,16 +4,7 @@
 
 const audit = require('./qa/route_semantics_audit.js');
 
-function fail(message, detail) {
-  process.stderr.write('FAIL: ' + message + (detail ? '\n' + JSON.stringify(detail, null, 2) : '') + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message, detail) {
-  if (!condition) {
-    fail(message, detail);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function src(filePath, line) {
   return {path: filePath, line, startLine: line, endLine: line};

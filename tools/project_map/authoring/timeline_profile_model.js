@@ -1,3 +1,4 @@
+// @ts-check
 (function initProjectMapTimelineProfileModel(global) {
   'use strict';
 

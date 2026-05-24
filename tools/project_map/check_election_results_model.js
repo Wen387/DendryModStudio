@@ -8,17 +8,7 @@ const path = require('path');
 
 const objectCanvasModel = require('./authoring/object_authoring_canvas_model.js');
 const installPlan = require('./authoring/install_plan.js');
-
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 const repoRoot = path.resolve(__dirname, '..', '..');
 const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dms-election-results-'));

@@ -1,3 +1,4 @@
+// @ts-check
 (function initProjectMapDeckPoolModel(global) {
   'use strict';
 

@@ -18,16 +18,7 @@ global.ProjectMapCardBoardModel = cardBoardModel;
 global.ProjectMapCardFaceEditor = cardFaceEditor;
 const cardBoardSurface = require('./viewer/card_board_surface.js');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function lane(board, key) {
   return board.lanes.find((item) => item.key === key) || {cards: []};

@@ -9,16 +9,7 @@ const eventDraft = require('./authoring/event_draft.js');
 const canvasModel = require('./authoring/object_authoring_canvas_model.js');
 const {readExploreBundle} = require('./check_viewer_assets.js');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function source(pathName, line) {
   return {path: pathName, line, startLine: line, endLine: line};

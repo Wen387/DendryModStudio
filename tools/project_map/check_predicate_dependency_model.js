@@ -5,16 +5,7 @@
 const routeState = require('./authoring/route_state_model.js');
 const predicateCondition = require('./authoring/predicate_condition_model.js');
 
-function fail(message, detail) {
-  process.stderr.write('FAIL: ' + message + (detail ? '\n' + JSON.stringify(detail, null, 2) : '') + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message, detail) {
-  if (!condition) {
-    fail(message, detail);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function summary(raw) {
   const direct = predicateCondition.summarizePredicate(raw);

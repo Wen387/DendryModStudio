@@ -8,17 +8,7 @@ const installPlan = require('./authoring/install_plan.js');
 const previewEditor = require('./viewer/preview_object_editor.js');
 const reviewUi = require('./viewer/install_review_ui.js');
 const {syntheticIndex} = require('./fixtures/archetype_authoring_fixture.js');
-
-function fail(message, detail) {
-  process.stderr.write('FAIL: ' + message + (detail ? '\n' + JSON.stringify(detail, null, 2) : '') + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message, detail) {
-  if (!condition) {
-    fail(message, detail);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function decodeHtml(value) {
   return String(value || '')

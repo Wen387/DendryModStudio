@@ -16,16 +16,7 @@ const surfaceDraft = require('./authoring/surface_text_draft.js');
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const FIXTURE_ROOT = path.resolve(process.env.DMS_SDAAH_FIXTURE_ROOT || path.join(REPO_ROOT, 'social_democracy_alternate_history-main'));
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function read(filePath) {
   return fs.readFileSync(filePath, 'utf8');

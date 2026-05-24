@@ -1,3 +1,4 @@
+// @ts-check
 (function initPreviewModel(global) {
   'use strict';
 

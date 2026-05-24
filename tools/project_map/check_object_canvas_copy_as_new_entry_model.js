@@ -6,16 +6,7 @@ const previewEditor = require('./viewer/preview_object_editor.js');
 const parsedToDraft = require('./authoring/parsed_to_draft.js');
 const {syntheticIndex} = require('./fixtures/archetype_authoring_fixture.js');
 
-function fail(message, detail) {
-  process.stderr.write('FAIL: ' + message + (detail ? '\n' + JSON.stringify(detail, null, 2) : '') + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message, detail) {
-  if (!condition) {
-    fail(message, detail);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 const index = syntheticIndex();
 const samples = [

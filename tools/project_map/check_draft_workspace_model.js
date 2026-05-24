@@ -5,13 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const workspace = require('./authoring/draft_workspace.js');
-
-function assert(condition, message) {
-  if (!condition) {
-    console.error('FAIL:', message);
-    process.exit(1);
-  }
-}
+const {assert} = require('./check_harness.js');
 
 function memoryStorage(initial) {
   const data = new Map(Object.entries(initial || {}));

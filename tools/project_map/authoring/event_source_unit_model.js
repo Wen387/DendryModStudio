@@ -1,3 +1,4 @@
+// @ts-check
 (function initProjectMapEventSourceUnitModel(global) {
   'use strict';
 

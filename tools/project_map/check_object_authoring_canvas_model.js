@@ -30,16 +30,7 @@ global.ProjectMapAuthoringSurfaceGraphs = {
 };
 const graphStage = require('./viewer/object_canvas_graph_stage.js');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function occurrenceCount(text, needle) {
   return String(text || '').split(String(needle || '')).length - 1;

@@ -7,13 +7,7 @@ const vm = require('vm');
 
 const ROOT = __dirname;
 const INSTALL_UI = path.join(ROOT, 'viewer', 'install_assistant_ui.js');
-
-function assert(condition, message) {
-  if (!condition) {
-    process.stderr.write('FAIL: ' + message + '\n');
-    process.exit(1);
-  }
-}
+const {assert} = require('./check_harness.js');
 
 function loadInstallAssistant(desktop) {
   const context = {

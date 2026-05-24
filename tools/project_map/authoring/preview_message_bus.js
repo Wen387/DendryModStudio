@@ -1,3 +1,4 @@
+// @ts-check
 (function initProjectMapPreviewMessageBus(root, factory) {
   'use strict';
 

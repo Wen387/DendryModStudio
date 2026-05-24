@@ -1,3 +1,4 @@
+// @ts-check
 (function initWorkspaceLayoutDraft(global) {
   'use strict';
 

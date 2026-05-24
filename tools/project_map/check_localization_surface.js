@@ -10,16 +10,7 @@ const ROOT = __dirname;
 const VIEWER_DIR = path.join(ROOT, 'viewer');
 const VIEWER_HTML = path.join(VIEWER_DIR, 'index.html');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function findObjectBody(source, marker) {
   const markerIndex = source.indexOf(marker);

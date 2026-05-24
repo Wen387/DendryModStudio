@@ -1,3 +1,4 @@
+// @ts-check
 (function initProjectMapDesignModel(global) {
   'use strict';
 

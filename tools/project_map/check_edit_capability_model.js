@@ -13,16 +13,7 @@ const {pythonCommand} = require('./check_python_command.js');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
-function fail(message, details) {
-  process.stderr.write(JSON.stringify(Object.assign({ok: false, message}, details || {}), null, 2) + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message, details) {
-  if (!condition) {
-    fail(message, details);
-  }
-}
+const {failJson: fail, assertJson: assert} = require('./check_harness.js');
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));

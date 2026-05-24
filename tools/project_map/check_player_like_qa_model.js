@@ -12,16 +12,7 @@ const DESKTOP_MIXED_APPLY_FLOW = path.join(ROOT, 'qa', 'desktop_mixed_apply_flow
 const QA_FIXTURE = path.join(ROOT, 'fixtures', 'qa-mini');
 const SCENARIO_DIR = path.join(ROOT, 'qa', 'scenarios');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function read(filePath) {
   return fs.readFileSync(filePath, 'utf8');

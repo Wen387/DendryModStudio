@@ -22,16 +22,7 @@ const SAMPLE_CARD = path.join(FIXTURES, 'card_drafts', 'sample_action_card.json'
 const SAMPLE_SURFACE = path.join(FIXTURES, 'surface_text_drafts', 'sample_label_replacement.json');
 const INSTALL_PLAN_SCHEMA = path.join(__dirname, 'schema', 'install-plan.schema.json');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));

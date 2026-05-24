@@ -15,16 +15,7 @@ const VIEWER_DIR = path.join(PROJECT_MAP_DIR, 'viewer');
 const VALID_PROJECT_ROOT = path.join(PROJECT_MAP_DIR, 'templates', 'starter-demo');
 const CURRENT_INDEX = '/tmp/dendry_project_map/project-index.json';
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function assertSummaryAtLeast(summary, minimum, label) {
   const details = JSON.stringify(summary || null);

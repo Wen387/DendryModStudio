@@ -5,17 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const canvasModel = require('./authoring/object_authoring_canvas_model.js');
 const previewEditor = require('./viewer/preview_object_editor.js');
-
-function fail(message, detail) {
-  process.stderr.write('FAIL: ' + message + (detail ? '\n' + JSON.stringify(detail, null, 2) : '') + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message, detail) {
-  if (!condition) {
-    fail(message, detail);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function read(relativePath) {
   return fs.readFileSync(path.join(__dirname, relativePath), 'utf8');

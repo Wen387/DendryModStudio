@@ -1,3 +1,4 @@
+// @ts-check
 (function initWorkflowEntryContractModel(global) {
   'use strict';
 
