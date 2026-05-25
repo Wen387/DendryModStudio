@@ -172,12 +172,13 @@ assert(safeStaticRoute && safeStaticRoute.semanticTier === 'static_exact' && saf
 const state = understanding.stateDependencies.find((item) => item.ownerId === 'calculation');
 assert(state && state.opaque && state.directDependencyWrites.includes('hindenburg_majority'), 'opaque vote JS should produce manual state dependency evidence only', understanding.stateDependencies);
 
-const html = previewEditor.render({kind: 'event', eventBody: Object.assign({}, body, {
+const renderModelInput = {kind: 'event', eventBody: Object.assign({}, body, {
   routeScriptIntelligence: {summary: model.summary, diagnostics: model.diagnostics},
   routeEvidenceMap: model.routes,
   scriptImpactMap: model.scripts,
   routeUnderstanding: understanding
-})});
+})};
+const html = previewEditor.render(renderModelInput) + previewEditor.renderEventReviewDetailsPanels(renderModelInput.eventBody, renderModelInput);
 assert(html.includes('data-preview-object-route-understanding="true"'), 'Route Map UI should render route understanding context', html);
 assert(html.includes('data-route-understanding-section="event_chain"'), 'Route Map UI should render event chain context', html);
 assert(html.includes('data-route-understanding-section="scheduler"'), 'Route Map UI should render scheduler context', html);

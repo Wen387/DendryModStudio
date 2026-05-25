@@ -1,7 +1,7 @@
 (function initProjectMapCardBoardPerf(global) {
   'use strict';
 
-  const BUFFER_LIMIT = 50;
+  const BUFFER_LIMIT = 500;
   const STORAGE_KEY = 'dmsCardBoardPerf';
   const BUFFER_KEY = '__DMS_CARD_BOARD_PERF__';
 

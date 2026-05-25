@@ -84,7 +84,7 @@
     status: ''
   };
 
-  let elements = null; let templateClickToken = 0; let reconcileToken = 0; let refreshTimer = null; let projectStateSearchTimer = null; let projectStateSearchFocus = null;
+  let elements = null; let templateClickToken = 0; let reconcileToken = 0; let refreshTimer = null; let pendingRebuildHandle = 0; let refreshGeneration = 0; let projectStateSearchTimer = null; let projectStateSearchFocus = null;
 
   const api = {
     openFromSelection,
@@ -243,6 +243,8 @@
       clearTimeout(refreshTimer);
       refreshTimer = null;
     }
+    cancelPendingRebuild();
+    refreshGeneration++;
     if (projectStateSearchTimer) {
       clearTimeout(projectStateSearchTimer);
       projectStateSearchTimer = null;
@@ -763,6 +765,10 @@
   }
 
   function openFromSelection(projectIndex, view, item, options) {
+    // Cancel pending rebuilds from the previous view (same rationale as openTemplate).
+    if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = null; }
+    cancelPendingRebuild();
+    refreshGeneration++;
     templateClickToken += 1;
     reconcileToken += 1;
     if (projectIndex) {
@@ -1101,6 +1107,13 @@
   }
 
   function openTemplate(template, draft, meta) {
+    // Cancel any pending deferred refresh (e.g. from overlay_close) immediately.
+    // Without this, a queued rIC from the previous view runs a 300-500ms
+    // buildExistingModelFor for an event the user is no longer looking at,
+    // blocking the Create page transition.
+    if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = null; }
+    cancelPendingRebuild();
+    refreshGeneration++;
     const nextTemplate = normalizeTemplate(template) || templateFromDraft(draft) || 'event';
     if (nextTemplate === 'existing' && draft && (draft.kind === 'existing_scene_edit' || draft.sceneId && draft.changes)) {
       return loadDraft(draft, meta || {source: 'Create'});
@@ -1148,11 +1161,22 @@
     state.values = Object.assign({}, meta && meta.values || {});
     state.valueOriginals = {};
     resetStructureCommands();
-    state.model = buildTemplateModel(meta || {});
+    try {
+      state.model = buildTemplateModel(meta || {});
+    } catch (err) {
+      showWorkspace(nextTemplate);
+      showCanvasError(t('objectCanvas.status.canvasInitFailed', 'Object Canvas could not initialize: {error}').replace('{error}', err && err.message || String(err)));
+      return false;
+    }
     state.active = true;
     state.status = statusForTemplate(nextTemplate, meta);
     showWorkspace(nextTemplate);
-    render();
+    try {
+      render();
+    } catch (err) {
+      showCanvasError(t('objectCanvas.status.canvasRenderFailed', 'Object Canvas render failed: {error}').replace('{error}', err && err.message || String(err)));
+      return false;
+    }
     return Boolean(state.model && state.model.ok);
   }
 
@@ -1288,19 +1312,24 @@
       return;
     }
     const opts = options || {};
+    perfMeasure('refresh', () => refreshBody(opts), {source: opts.source || ''});
+  }
+
+  function refreshBody(opts) {
     if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = null; }
+    cancelPendingRebuild();
     const scrollSnapshot = state.preserveScrollOnNextRefresh ? captureObjectCanvasScroll() : null;
     state.preserveScrollOnNextRefresh = false;
     if (!opts.preserveStateValues) {
-      state.values = collectValues();
+      state.values = perfMeasure('refresh.collectValues', () => collectValues(), {});
     }
-    state.model = state.deleteProposal
+    state.model = perfMeasure('refresh.buildModel', () => (state.deleteProposal
       ? buildDeleteProposalModel(state.deleteProposal)
       : state.mode === 'source_slice'
       ? buildSourceSliceCanvasModel(state.sourceSliceModel, state.values)
       : state.mode === 'semantic_logic'
       ? buildSemanticLogicCanvasModel(state.semanticLogicModel, state.values)
-      : state.mode === 'existing' ? buildExistingModel({values: state.values, proposalOptions: state.proposalOptions}) : buildTemplateModel({values: state.values});
+      : state.mode === 'existing' ? buildExistingModel({values: state.values, proposalOptions: state.proposalOptions}) : buildTemplateModel({values: state.values})), {mode: state.mode || ''});
     if (!state.deleteProposal && shouldMaterializeNewEventDraft(state.values)) {
       state.model = materializeNewEventDraft(state.model);
     }
@@ -1310,7 +1339,9 @@
       render({scrollSnapshot});
       return;
     }
-    updateDynamicSurfaces();
+    updateDynamicSurfaces({
+      changedFieldKeys: opts.changedFieldKeys || null
+    });
     restoreObjectCanvasScroll(scrollSnapshot);
   }
 
@@ -1397,6 +1428,13 @@
     elements.host.classList.remove('hidden');
   }
 
+  function showCanvasError(message) {
+    if (!elements || !elements.host) { return; }
+    elements.host.innerHTML = '<div class="object-canvas-error" style="padding:32px;text-align:center;color:var(--danger,#a04040);font-size:15px;line-height:1.6;">' +
+      '<p style="font-weight:700;font-size:18px;margin:0 0 8px;">' + escapeHtml(t('objectCanvas.status.canvasErrorTitle', 'Object Canvas Error')) + '</p>' +
+      '<p style="margin:0;">' + escapeHtml(message) + '</p></div>';
+  }
+
   function deactivate() {
     state.active = false;
     if (elements && elements.host) {
@@ -1435,7 +1473,7 @@
     let stageError = null;
     if (canRenderStage) {
       try {
-        stageHtml = renderCanvasStage(model);
+        stageHtml = perfMeasure('renderCanvasStage', () => renderCanvasStage(model), {surface: surface.key || ''});
       } catch (err) {
         stageError = err;
         recordRenderError(err, surface);
@@ -1449,14 +1487,15 @@
     const shell = objectCanvasShellApi();
     const bodyHtml = stageError
       ? renderDiagnostics([{message: t('objectCanvas.renderFailed', 'Canvas render failed: {error}').replace('{error}', stageError && stageError.message ? stageError.message : String(stageError || 'unknown error'))}])
-      : model.ok ? renderBody(model) : renderUnavailable(model);
+      : model.ok ? perfMeasure('renderBody', () => renderBody(model), {surface: surface.key || ''}) : renderUnavailable(model);
+    const modalHtml = perfMeasure('renderObjectEditingModal', () => renderObjectEditingModal(model, surface), {surface: surface.key || '', editorOverlay: state.editorOverlay ? 'true' : 'false'});
     const shellHtml = shell.renderShell({
       model,
       surface,
       state,
       layoutStyle,
       stageHtml,
-      modalHtml: renderObjectEditingModal(model, surface),
+      modalHtml,
       bodyHtml,
       translate: t,
       surfaceLabelFor
@@ -1464,11 +1503,33 @@
     const htmlToken = perfStart('host.innerHTML', {surface: surface.key || ''});
     elements.host.innerHTML = shellHtml;
     perfEnd(htmlToken, {bytes: shellHtml.length});
+    // Full DOM replacement: cancel any pending deferred rebuild so it doesn't
+    // fire a redundant 450-900ms refresh against the already-replaced DOM.
+    // Also bump the generation so any in-flight rIC callback (already queued
+    // but not yet run) becomes a no-op via the generation guard.
+    cancelPendingRebuild();
+    refreshGeneration++;
+    // After a full DOM replacement, the preview pane nodes are new and need a
+    // fresh sync even if the model reference hasn't changed. Clear the tracker
+    // so the next updateDynamicSurfaces call always runs the pane sync.
+    state._lastPreviewPaneModel = null;
     const bindToken = perfStart('bindCanvasEvents', {surface: surface.key || ''});
     bindCanvasEvents();
     perfEnd(bindToken);
-    updateDynamicSurfaces();
+    updateDynamicSurfaces({skipRenderedFieldsSync: true});
     restoreObjectCanvasScroll(scrollSnapshot);
+    if (typeof global.requestAnimationFrame === 'function') {
+      const paintStart = global.performance && global.performance.now ? global.performance.now() : Date.now();
+      global.requestAnimationFrame(() => {
+        global.requestAnimationFrame(() => {
+          const paintEnd = global.performance && global.performance.now ? global.performance.now() : Date.now();
+          const api = perfApi();
+          if (api && typeof api.record === 'function') {
+            api.record('render.paintTime', paintEnd - paintStart, {view: state.view});
+          }
+        });
+      });
+    }
   }
 
   function renderHeader(model, surface) {
@@ -1807,6 +1868,20 @@
       elements.host.__dmsObjectCanvasAssetDelegated = true;
       elements.host.addEventListener('change', handleObjectCanvasAssetChange);
     }
+    if (!elements.host.__dmsObjectCanvasReviewDetailsDelegated) {
+      elements.host.__dmsObjectCanvasReviewDetailsDelegated = true;
+      elements.host.addEventListener('toggle', (event) => {
+        const details = event.target;
+        if (!details || details.dataset.previewObjectReviewDetailsLazy !== 'pending' || !details.open) {
+          return;
+        }
+        const previewApi = global.ProjectMapPreviewObjectEditor;
+        if (!previewApi || typeof previewApi.hydrateLazyReviewDetails !== 'function' || !state.model) {
+          return;
+        }
+        previewApi.hydrateLazyReviewDetails(details, state.model.eventBody || {}, state.model);
+      }, true);
+    }
     if (global.document && !global.document.__dmsObjectCanvasAssetDelegated) {
       global.document.__dmsObjectCanvasAssetDelegated = true;
       global.document.addEventListener('change', handleObjectCanvasAssetChange, true);
@@ -1840,14 +1915,48 @@
       resizer.__dmsObjectCanvasResizeBound = true;
       resizer.addEventListener('pointerdown', beginPaneResize);
     });
-    elements.host.querySelectorAll('[data-object-canvas-field]').forEach((input) => {
-      input.addEventListener('input', scheduleRefresh);
-      input.addEventListener('change', scheduleRefresh);
-    });
-    elements.host.querySelectorAll('[data-object-canvas-effect-part]').forEach((input) => {
-      input.addEventListener('input', () => syncSemanticEffectParts(input));
-      input.addEventListener('change', () => syncSemanticEffectParts(input));
-    });
+    if (!elements.host.__dmsObjectCanvasFieldDelegated) {
+      elements.host.__dmsObjectCanvasFieldDelegated = true;
+      const fieldDelegatedHandler = (event) => {
+        const target = event.target;
+        if (!target || !target.closest) {
+          return;
+        }
+        const fieldEl = target.closest('[data-object-canvas-field]');
+        if (fieldEl) {
+          if (event.type === 'input') {
+            // Live preview: rewrite only the matching [data-preview-object-rendered-for]
+            // node(s) directly from the input's current value. Coalesced to one
+            // rAF per frame inside updateRenderedPreviewForField. The lastInputAt
+            // stamp lets the deferred refresh back off while the user is typing.
+            state.lastInputAt = Date.now();
+            updateRenderedPreviewForField(target);
+          } else if (event.type === 'change') {
+            const key = fieldEl.dataset && fieldEl.dataset.objectCanvasField || '';
+            if (isPlainTextField(target)) {
+              // Plain text edits cannot change event structure. Capture
+              // values immediately (cheap, <20ms) so Save/Apply sees them,
+              // then schedule a deferred refresh to update the canvas
+              // preview (left panel). The deferred path goes through the
+              // same 180ms debounce + rIC + typing back-off + generation
+              // guard as structural fields, so it never fires mid-typing.
+              // The ~450-900ms buildExistingModelFor only runs when the
+              // user is genuinely idle.
+              state.values = collectValues();
+              scheduleRefresh({source: 'text_field_change', changedFieldKey: key || null});
+            } else {
+              scheduleRefresh({source: event.type, changedFieldKey: key || null});
+            }
+          }
+        }
+        const effectPart = target.closest('[data-object-canvas-effect-part]');
+        if (effectPart) {
+          syncSemanticEffectParts(effectPart, event.type);
+        }
+      };
+      elements.host.addEventListener('input', fieldDelegatedHandler);
+      elements.host.addEventListener('change', fieldDelegatedHandler);
+    }
     if (global.document && typeof global.document.querySelectorAll === 'function') {
       global.document.querySelectorAll('[data-object-canvas-asset-select], [data-object-canvas-asset-file]').forEach((control) => {
         if (control.__dmsObjectCanvasAssetBound) {
@@ -1866,39 +1975,55 @@
     }
     const sourceSliceWorkspace = sourceSliceWorkspaceApi();
     if (sourceSliceWorkspace && typeof sourceSliceWorkspace.bind === 'function') {
-      sourceSliceWorkspace.bind(elements.host, state, sourceSliceWorkspaceDeps());
+      perfMeasure('bindCanvasEvents.sourceSliceWorkspace', () => sourceSliceWorkspace.bind(elements.host, state, sourceSliceWorkspaceDeps()), {});
     }
     const semanticLogicWorkspace = semanticLogicWorkspaceApi();
     if (semanticLogicWorkspace && typeof semanticLogicWorkspace.bind === 'function') {
-      semanticLogicWorkspace.bind(elements.host, state, semanticLogicWorkspaceDeps());
+      perfMeasure('bindCanvasEvents.semanticLogicWorkspace', () => semanticLogicWorkspace.bind(elements.host, state, semanticLogicWorkspaceDeps()), {});
     }
-    bindVisibleEditUi(elements.host);
-    elements.host.querySelectorAll('[data-preview-object-structure-part]').forEach((input) => {
-      if (input.__dmsStructureBuilderBound) {
-        return;
-      }
-      input.__dmsStructureBuilderBound = true;
-      input.addEventListener('input', () => syncStructureBuilder(input.closest('[data-preview-object-structure-builder]')));
-      input.addEventListener('change', () => syncStructureBuilder(input.closest('[data-preview-object-structure-builder]')));
+    perfMeasure('bindCanvasEvents.visibleEditUi', () => bindVisibleEditUi(elements.host), {
+      visibleEditActions: elements.host.querySelectorAll('[data-visible-edit-action]').length,
+      contextLensMarkers: elements.host.querySelectorAll('[data-authoring-context-lens]').length
     });
+    perfMeasure('bindCanvasEvents.structureParts', () => {
+      elements.host.querySelectorAll('[data-preview-object-structure-part]').forEach((input) => {
+        if (input.__dmsStructureBuilderBound) {
+          return;
+        }
+        input.__dmsStructureBuilderBound = true;
+        input.addEventListener('input', () => syncStructureBuilder(input.closest('[data-preview-object-structure-builder]')));
+        input.addEventListener('change', () => syncStructureBuilder(input.closest('[data-preview-object-structure-builder]')));
+      });
+    }, {});
     elements.host.querySelectorAll('[data-project-state-variable-search]').forEach((input) => {
       input.addEventListener('input', () => scheduleProjectStateSearch(input));
     });
-    elements.host.querySelectorAll('[data-object-canvas-variable-search]').forEach((input) => {
-      input.addEventListener('input', () => filterObjectCanvasVariablePicker(input));
-    });
-    elements.host.querySelectorAll('[data-object-canvas-graph-node]').forEach((button) => {
-      button.addEventListener('click', (event) => {
-        if (event.__dmsObjectCanvasHandled || event.target.closest && event.target.closest('[data-object-canvas-action]')) {
-          return;
+    if (!elements.host.__dmsObjectCanvasVariableSearchDelegated) {
+      elements.host.__dmsObjectCanvasVariableSearchDelegated = true;
+      elements.host.addEventListener('input', (event) => {
+        const target = event.target;
+        const input = target && target.closest ? target.closest('[data-object-canvas-variable-search]') : null;
+        if (input) {
+          filterObjectCanvasVariablePicker(input);
         }
-        if (event.target.closest && event.target.closest('input, textarea, select, a')) {
-          return;
-        }
-        const slotId = button.dataset.systemUiVisibleSlot || '';
-        selectCanvasNode(slotId ? 'ui:slot:' + slotId : button.dataset.objectCanvasGraphNode || 'object');
       });
-    });
+    }
+    perfMeasure('bindCanvasEvents.graphNodes', () => {
+      const nodes = elements.host.querySelectorAll('[data-object-canvas-graph-node]');
+      nodes.forEach((button) => {
+        button.addEventListener('click', (event) => {
+          if (event.__dmsObjectCanvasHandled || event.target.closest && event.target.closest('[data-object-canvas-action]')) {
+            return;
+          }
+          if (event.target.closest && event.target.closest('input, textarea, select, a')) {
+            return;
+          }
+          const slotId = button.dataset.systemUiVisibleSlot || '';
+          selectCanvasNode(slotId ? 'ui:slot:' + slotId : button.dataset.objectCanvasGraphNode || 'object');
+        });
+      });
+      return nodes.length;
+    }, {});
     elements.host.querySelectorAll('[data-object-canvas-zoom]').forEach((button) => {
       button.addEventListener('click', () => handleCanvasZoom(button.dataset.objectCanvasZoom || 'reset'));
     });
@@ -1915,35 +2040,128 @@
     }
     const storyboardInteractions = global.ProjectMapContentStoryboardInteractions;
     if (storyboardInteractions && typeof storyboardInteractions.bind === 'function' && (state.workspace || 'content') === 'content' && currentSurface().key !== 'card_board') {
-      storyboardInteractions.bind(elements.host, {
+      perfMeasure('bindCanvasEvents.storyboardInteractions', () => storyboardInteractions.bind(elements.host, {
         getViewport: () => ({x: state.canvasPanX, y: state.canvasPanY, zoom: state.canvasZoom}),
         onSelect: selectCanvasNode,
         onCardMove: setCanvasNodePosition,
         onViewport: setCanvasPan,
         onZoom: handleCanvasZoom,
         onPaletteDrop: (payload, target) => { const api = storyboardWorkspaceApi(); return Boolean(api && typeof api.dropPaletteItem === 'function' && api.dropPaletteItem(state, payload, target, storyboardDeps())); }
-      });
+      }), {});
     }
     const interactions = global.ProjectMapContentGraphInteractions;
     if (interactions && typeof interactions.bind === 'function' && (state.workspace || 'content') === 'content' && elements.host.querySelector('[data-object-canvas-graph-canvas]')) {
-      interactions.bind(elements.host, {
+      perfMeasure('bindCanvasEvents.graphInteractions', () => interactions.bind(elements.host, {
         getViewport: () => ({x: state.canvasPanX, y: state.canvasPanY, zoom: state.canvasZoom}),
         onSelect: selectCanvasNode,
         onNodeMove: setCanvasNodePosition,
         onViewport: setCanvasPan,
         onZoom: handleCanvasZoom
-      });
+      }), {});
     }
-    applyCanvasViewport();
-    const storyboard = storyboardWorkspaceApi(); if (storyboard && typeof storyboard.bindPalette === 'function' && currentSurface().key !== 'card_board') { storyboard.bindPalette(elements.host, state, storyboardDeps()); }
-    const runtimeLens = runtimeLensWorkspaceApi(); if (runtimeLens && typeof runtimeLens.bind === 'function') { runtimeLens.bind(elements.host, state, runtimeLensDeps()); }
-    restoreProjectStateSearchFocus();
+    perfMeasure('bindCanvasEvents.applyCanvasViewport', () => applyCanvasViewport(), {});
+    const storyboard = storyboardWorkspaceApi(); if (storyboard && typeof storyboard.bindPalette === 'function' && currentSurface().key !== 'card_board' && !state.editorOverlay) {
+      perfMeasure('bindCanvasEvents.bindPalette', () => storyboard.bindPalette(elements.host, state, storyboardDeps()), {});
+    }
+    const runtimeLens = runtimeLensWorkspaceApi(); if (runtimeLens && typeof runtimeLens.bind === 'function') {
+      perfMeasure('bindCanvasEvents.runtimeLens', () => runtimeLens.bind(elements.host, state, runtimeLensDeps()), {});
+    }
+    perfMeasure('bindCanvasEvents.restoreProjectStateSearchFocus', () => restoreProjectStateSearchFocus(), {});
   }
 
   function scheduleRefresh(options) {
     state.preserveScrollOnNextRefresh = true;
+    const opts = options || {};
+    // 'change' wins over 'input' if both arrive in the same debounce window —
+    // change implies a commit/blur which should run the full sync.
+    const incoming = opts.source || 'full';
+    const prior = state.pendingRefreshSource || null;
+    const merged = (prior === 'change' || incoming === 'change')
+      ? 'change'
+      : (prior === 'full' || incoming === 'full' ? 'full' : incoming);
+    state.pendingRefreshSource = merged;
+    // Accumulate the changed-field keys across the debounce window so the
+    // refresh can sync only those nodes (skipping the 101-node walk). If
+    // any caller in the window doesn't pass a key (programmatic refresh),
+    // sync widens back to "all" — we can't tell what changed.
+    if (opts.changedFieldKey) {
+      if (!(state.pendingChangedFieldKeys instanceof Set)) {
+        state.pendingChangedFieldKeys = new Set();
+      }
+      state.pendingChangedFieldKeys.add(opts.changedFieldKey);
+    } else {
+      state.pendingSyncAll = true;
+    }
     if (refreshTimer) { clearTimeout(refreshTimer); }
-    refreshTimer = setTimeout(() => refresh(options || {}), 180);
+    cancelPendingRebuild();
+    refreshTimer = setTimeout(() => {
+      const finalSource = state.pendingRefreshSource || merged;
+      const finalKeys = state.pendingSyncAll ? null : state.pendingChangedFieldKeys;
+      state.pendingRefreshSource = null;
+      state.pendingChangedFieldKeys = null;
+      state.pendingSyncAll = false;
+      // Defer the heavy refresh (buildExistingModelFor + syncs, ~450ms+) to
+      // the next idle frame so it doesn't block the focus change and the
+      // user's first keystrokes on the next field. Plus: if the user has
+      // typed within the last 250ms, requeue — rIC alone yields to *new*
+      // input events but once the rebuild starts it runs to completion and
+      // stalls in-flight keystrokes. The back-off keeps the rebuild from
+      // firing in the middle of a typing burst on the next field.
+      //
+      // Generation guard: capture the current generation so that if render()
+      // fires between our scheduling and the rIC callback, the stale callback
+      // is a no-op instead of running a redundant 450-900ms refresh against
+      // an already-replaced DOM.
+      const TYPING_BACKOFF_MS = 250;
+      const MAX_BACKOFF_MS = 1500;
+      const startedAt = Date.now();
+      const capturedGeneration = ++refreshGeneration;
+      const runRefresh = () => refresh(Object.assign({}, opts, {source: finalSource, changedFieldKeys: finalKeys}));
+      const tryRun = () => {
+        if (capturedGeneration !== refreshGeneration) {
+          return;
+        }
+        const elapsed = Date.now() - startedAt;
+        const sinceInput = Date.now() - (state.lastInputAt || 0);
+        if (sinceInput < TYPING_BACKOFF_MS && elapsed < MAX_BACKOFF_MS) {
+          scheduleRebuild(tryRun);
+          return;
+        }
+        runRefresh();
+      };
+      scheduleRebuild(tryRun);
+    }, 180);
+  }
+
+  function scheduleRebuild(callback) {
+    if (typeof callback !== 'function') {
+      return;
+    }
+    if (typeof global.requestIdleCallback === 'function') {
+      pendingRebuildHandle = global.requestIdleCallback(callback, {timeout: 500});
+      return;
+    }
+    if (typeof global.requestAnimationFrame === 'function') {
+      pendingRebuildHandle = global.requestAnimationFrame(callback);
+      return;
+    }
+    pendingRebuildHandle = 0;
+    callback();
+  }
+
+  function cancelPendingRebuild() {
+    if (!pendingRebuildHandle) {
+      return;
+    }
+    if (typeof global.cancelIdleCallback === 'function') {
+      global.cancelIdleCallback(pendingRebuildHandle);
+    }
+    // cancelAnimationFrame also works for rIC handles on most engines, but
+    // call it only when rIC is unavailable (same branch as scheduleRebuild).
+    if (typeof global.cancelIdleCallback !== 'function' && typeof global.cancelAnimationFrame === 'function') {
+      global.cancelAnimationFrame(pendingRebuildHandle);
+    }
+    pendingRebuildHandle = 0;
   }
 
   function collectValuesForProgrammaticUpdate() {
@@ -2415,7 +2633,26 @@
     return target === 'card' ? 'card.' : 'event.';
   }
 
-  function syncSemanticEffectParts(input) {
+  function isPlainTextField(element) {
+    // True for textarea and free-form text-shaped inputs. False for select,
+    // checkbox, radio, file, etc. — those represent structural choices and
+    // need the full refresh path. Used by the delegated change handler to
+    // bypass buildExistingModelFor on plain text blurs.
+    if (!element) {
+      return false;
+    }
+    const tag = String(element.tagName || '').toLowerCase();
+    if (tag === 'textarea') {
+      return true;
+    }
+    if (tag !== 'input') {
+      return false;
+    }
+    const type = String(element.type || 'text').toLowerCase();
+    return type === 'text' || type === 'search' || type === 'url' || type === 'email' || type === 'tel' || type === 'password' || type === 'number';
+  }
+
+  function syncSemanticEffectParts(input, eventType) {
     if (!input || !input.closest || !elements || !elements.host) {
       return;
     }
@@ -2433,9 +2670,21 @@
     const value = semanticEffectPartValue(card, 'value') || '0';
     const condition = semanticEffectPartValue(card, 'condition');
     const expression = [normalizeSemanticEffectVariable(variable), op, value].filter(Boolean).join(' ') + (condition ? ' if ' + condition : '');
-    target.value = expression;
-    target.dispatchEvent(new Event('input', {bubbles: true}));
-    target.dispatchEvent(new Event('change', {bubbles: true}));
+    if (target.value !== expression) {
+      target.value = expression;
+    }
+    // Used to dispatch synthetic 'input' + 'change' events on the target so the
+    // delegated handlers would re-pick them up. That fired scheduleRefresh on
+    // every keystroke (synthetic 'change' dispatched unconditionally, even when
+    // the user's natural event was 'input'), resetting the 180ms debounce and
+    // queueing an rIC rebuild on every char. It also forced every other
+    // host-level input listener (variable search, etc.) to re-run per
+    // keystroke. Replaced with direct calls: live preview update always,
+    // scheduleRefresh only when the user's natural event was a commit.
+    updateRenderedPreviewForField(target);
+    if (eventType === 'change') {
+      scheduleRefresh({source: 'effect_part_change', changedFieldKey: targetId});
+    }
   }
 
   function semanticEffectPartValue(card, part) {
@@ -2832,9 +3081,6 @@
     } else if (action === 'create_similar_event') {
       global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
       createSimilarEventDraft();
-    } else if (action === 'legacy_form') {
-      global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
-      openLegacyForm();
     } else if (action === 'toggle_overlay') {
       global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
       toggleEditorOverlay(undefined, target);
@@ -3324,9 +3570,49 @@
       }
     }
     state.editorOverlay = opening;
+    if (opening) {
+      // Opening still does the full path: the modal needs a fresh model so
+      // it reflects edits the user made in the underlying canvas.
+      state.values = collectValues();
+      state.model = state.mode === 'existing'
+        ? buildExistingModel({values: state.values, proposalOptions: state.proposalOptions})
+        : buildTemplateModel({values: state.values});
+      render();
+      return;
+    }
+    // Fast close: snapshot fresh values from the DOM (Save/Apply correctness),
+    // remove the modal markup in place for instant visual close, and defer
+    // the heavy model rebuild + underlying-canvas refresh to scheduleRefresh.
+    // The pre-existing synchronous path here was buildExistingModelFor
+    // (~450ms) plus full render() (~300ms innerHTML rewrite + bindCanvasEvents)
+    // on a large existing event — that combined ~800ms+ click→close lag was
+    // the main reason "Close editor" felt sluggish. state.model is briefly
+    // stale until the deferred refresh runs (~250-500ms via typing-aware rIC).
     state.values = collectValues();
-    state.model = state.mode === 'existing' ? buildExistingModel({values: state.values, proposalOptions: state.proposalOptions}) : buildTemplateModel({values: state.values});
-    render();
+    removeEditorOverlayMarkup();
+    scheduleRefresh({source: 'overlay_close'});
+  }
+
+  function removeEditorOverlayMarkup() {
+    if (!elements || !elements.host || typeof elements.host.querySelectorAll !== 'function') {
+      return;
+    }
+    elements.host.querySelectorAll('[data-object-editing-modal="true"]').forEach((node) => {
+      if (node && node.parentNode) {
+        node.parentNode.removeChild(node);
+      }
+    });
+    // The .object-canvas section carries an 'is-editor-overlay' class that
+    // toggles dim/desaturate styles on the underlying canvas (saturate 0.78,
+    // opacity 0.58, pointer-events: none — see styles/editing.css). Removing
+    // the modal element alone leaves that class behind, so the underlying
+    // canvas stays dimmed until the deferred refresh re-renders the shell.
+    // Strip it now so close looks visually clean immediately.
+    elements.host.querySelectorAll('.object-canvas.is-editor-overlay').forEach((node) => {
+      if (node && node.classList && typeof node.classList.remove === 'function') {
+        node.classList.remove('is-editor-overlay');
+      }
+    });
   }
 
   function toggleBoardChrome(next) {
@@ -3452,30 +3738,6 @@
     }
   }
 
-  function openLegacyForm() {
-    state.values = collectValues();
-    state.model = state.deleteProposal
-      ? buildDeleteProposalModel(state.deleteProposal)
-      : state.mode === 'existing' ? buildExistingModel({values: state.values, proposalOptions: state.proposalOptions}) : buildTemplateModel({values: state.values});
-    const draft = draftWithAuthoringContext() || state.model && state.model.changeState && state.model.changeState.draft;
-    const template = state.template || 'event';
-    deactivate();
-    elements.templateButtons.forEach((button) => {
-      const active = button.dataset.createTemplate === template ||
-        workspaceForTemplate(template) === 'system_ui' && workspaceForTemplate(button.dataset.createTemplate) === 'system_ui';
-      button.classList.toggle('is-active', active);
-      button.setAttribute('aria-selected', active ? 'true' : 'false');
-    });
-    elements.templatePanels.forEach((panel) => {
-      const active = panel.dataset.createTemplatePanel === template;
-      panel.classList.toggle('hidden', !active);
-    });
-    const wizard = wizardForTemplate(template);
-    if (draft && wizard && typeof wizard.loadDraft === 'function') {
-      wizard.loadDraft(draft, {source: 'Object Canvas Advanced Form'});
-    }
-  }
-
   function collectValues() {
     const values = Object.assign({}, state.values || {});
     if (!elements || !elements.host) {
@@ -3554,24 +3816,41 @@
     return String(state.valueOriginals[key] || '');
   }
 
-  function updateDynamicSurfaces() {
+  function updateDynamicSurfaces(options) {
     if (!elements || !elements.host || !state.model) {
       return;
     }
+    const opts = options && typeof options === 'object' ? options : {};
+    perfMeasure('updateDynamicSurfaces', () => updateDynamicSurfacesBody(opts), {
+      skipHeavySync: opts.skipHeavySync ? 'true' : 'false',
+      skipRenderedFieldsSync: opts.skipRenderedFieldsSync ? 'true' : 'false'
+    });
+  }
+
+  function updateDynamicSurfacesBody(opts) {
     const preview = elements.host.querySelector('[data-object-canvas-preview]');
     if (preview) {
       const output = state.model.changeState && state.model.changeState.output || {};
       preview.textContent = output.playerPreview || output.proposalText || output.previewText || output.sceneDry || '';
     }
-    const summary = elements.host.querySelector('[data-object-canvas-operation-summary]');
-    if (summary) {
-      summary.outerHTML = renderChangePanel(state.model).split('<section class="editing-preview">')[0];
-    }
-    const plan = elements.host.querySelector('[data-object-canvas-review-plan]');
-    if (plan) {
-      const change = state.model.changeState || {};
-      const output = change.output || {};
-      plan.outerHTML = renderPlanPreview(change.installPlan || output.installPlan || parseJson(output.installPlanJson));
+    // The change-panel + install-plan HTML rewrites are heavy on large events
+    // (they re-stringify the entire model summary). They show only counts/labels
+    // that the user is not staring at while typing — defer to commit (change/blur).
+    if (!opts.skipHeavySync) {
+      const summary = elements.host.querySelector('[data-object-canvas-operation-summary]');
+      if (summary) {
+        perfMeasure('updateDynamicSurfaces.operationSummary', () => {
+          summary.outerHTML = renderChangePanel(state.model).split('<section class="editing-preview">')[0];
+        }, {});
+      }
+      const plan = elements.host.querySelector('[data-object-canvas-review-plan]');
+      if (plan) {
+        perfMeasure('updateDynamicSurfaces.reviewPlan', () => {
+          const change = state.model.changeState || {};
+          const output = change.output || {};
+          plan.outerHTML = renderPlanPreview(change.installPlan || output.installPlan || parseJson(output.installPlanJson));
+        }, {});
+      }
     }
     const status = elements.host.querySelector('[data-object-canvas-status]');
     if (status) {
@@ -3584,15 +3863,37 @@
       title.setAttribute('title', rawTitle);
     }
     syncPreviewObjectEditorChrome();
-    syncPreviewObjectEditorPane();
+    // Preview pane is the right-side rendered view; it rebuilds the entire
+    // pane HTML each call. Cheap UI niceties during typing aren't worth the
+    // cost — let the user's pause/blur trigger this.
+    // The preview pane rebuild (syncPreviewObjectEditorPane) parses the
+    // model into full HTML — ~100ms on large events. It only needs to run
+    // when the model has actually been rebuilt. Focusing a field, changing
+    // plain text, or any action that calls updateDynamicSurfaces without
+    // a model rebuild can safely skip it. After render() the tracker is
+    // cleared (state._lastPreviewPaneModel = null) so the first post-
+    // render updateDynamicSurfaces always syncs.
+    if (!opts.skipHeavySync && state.model !== state._lastPreviewPaneModel) {
+      state._lastPreviewPaneModel = state.model;
+      perfMeasure('updateDynamicSurfaces.previewPane', () => syncPreviewObjectEditorPane(), {});
+    }
     syncObjectCanvasFieldValues();
     syncObjectCanvasAssetActionState();
     syncSourceSliceAdvancedControls();
     syncSemanticLogicAdvancedControls();
     syncEventReadinessControls();
     syncObjectCanvasReviewButtons();
-    syncPreviewObjectRenderedFields();
-    bindVisibleEditUi(elements.host);
+    // On a fresh full render the rendered-text nodes were just emitted by
+    // fieldTextPreview with the same renderTextBlocks(value) output, so the
+    // sync is a no-op rewrite. Skip it to avoid 1+ second of redundant
+    // collectCanvasFieldEntries + innerHTML writes on large events. The same
+    // sync is the dominant typing-pause cost, so also defer on skipHeavySync.
+    // When changedFieldKeys is supplied (typical blur path), the sync narrows
+    // to those nodes only — turns a 101-node walk into 1.
+    if (!opts.skipRenderedFieldsSync && !opts.skipHeavySync) {
+      syncPreviewObjectRenderedFields(opts.changedFieldKeys);
+    }
+    perfMeasure('updateDynamicSurfaces.bindVisibleEditUi', () => bindVisibleEditUi(elements.host), {});
     const panel = elements.host.querySelector('[data-runtime-lens-panel]');
     if (panel && state.runtimeLensStatus === 'stale') {
       panel.dataset.runtimeLensStatus = 'stale';
@@ -3742,8 +4043,56 @@
     previewEditorSyncApi().syncPreviewObjectEditorPane(previewEditorSyncDeps());
   }
 
-  function syncPreviewObjectRenderedFields() {
-    previewEditorSyncApi().syncPreviewObjectRenderedFields(previewEditorSyncDeps());
+  function syncPreviewObjectRenderedFields(changedFieldKeys) {
+    const deps = previewEditorSyncDeps();
+    if (changedFieldKeys instanceof Set && changedFieldKeys.size > 0) {
+      deps.changedFieldKeys = changedFieldKeys;
+    }
+    previewEditorSyncApi().syncPreviewObjectRenderedFields(deps);
+  }
+
+  function updateRenderedPreviewForField(input) {
+    // Throttle live preview writes to ~7/sec instead of 60/sec. Each write
+    // sets innerHTML on a preview node, which forces the browser to
+    // recalculate layout for the entire 40K+ node DOM. At 60fps (rAF) that
+    // layout work starves the textarea's own rendering, making characters
+    // appear one-by-one. At 150ms intervals the browser handles the textarea
+    // natively between flushes, so typing feels smooth. The 150ms preview
+    // latency is barely perceptible.
+    if (!input || !input.dataset) {
+      return;
+    }
+    const key = input.dataset.objectCanvasField;
+    if (!key) {
+      return;
+    }
+    if (!state.pendingLivePreviewInputs) {
+      state.pendingLivePreviewInputs = new Map();
+    }
+    state.pendingLivePreviewInputs.set(key, input);
+    if (state.livePreviewFrameHandle) {
+      return;
+    }
+    var LIVE_PREVIEW_THROTTLE_MS = 150;
+    const flush = () => {
+      state.livePreviewFrameHandle = 0;
+      const pending = state.pendingLivePreviewInputs;
+      if (!pending || !pending.size) {
+        return;
+      }
+      state.pendingLivePreviewInputs = new Map();
+      const api = previewEditorSyncApi();
+      if (!api || typeof api.updateRenderedPreviewForField !== 'function') {
+        return;
+      }
+      const deps = previewEditorSyncDeps();
+      perfMeasure('livePreviewFlush', () => {
+        pending.forEach((entry) => {
+          api.updateRenderedPreviewForField(deps, entry);
+        });
+      }, {keys: pending.size});
+    };
+    state.livePreviewFrameHandle = setTimeout(flush, LIVE_PREVIEW_THROTTLE_MS);
   }
 
   function previewObjectFieldMap(model) {

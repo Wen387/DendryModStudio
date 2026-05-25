@@ -18,12 +18,14 @@
       Object.freeze({role: 'event_illustration', type: 'image', label: 'Event illustration'}),
       Object.freeze({role: 'event_portrait', type: 'image', label: 'Event portrait'}),
       Object.freeze({role: 'event_background', type: 'image', label: 'Event background'}),
+      Object.freeze({role: 'event_music', type: 'audio', label: 'Event music'}),
       Object.freeze({role: 'event_audio', type: 'audio', label: 'Event audio'})
     ]),
     card: Object.freeze([
       Object.freeze({role: 'card_image', type: 'image', label: 'Card image'}),
       Object.freeze({role: 'card_portrait', type: 'image', label: 'Card portrait'}),
       Object.freeze({role: 'card_background', type: 'image', label: 'Card background'}),
+      Object.freeze({role: 'card_music', type: 'audio', label: 'Card music'}),
       Object.freeze({role: 'card_audio', type: 'audio', label: 'Card audio'})
     ])
   });
@@ -68,6 +70,7 @@
     return text === 'face-image' ||
       text === 'card-image' ||
       text === 'set-bg' ||
+      text === 'set-music' ||
       text === 'audio' ||
       text === 'inline-image' ||
       text === 'inline-asset'
@@ -92,6 +95,9 @@
     if (text === 'set-bg') {
       return normalizedTarget === 'card' ? 'card_background' : 'event_background';
     }
+    if (text === 'set-music') {
+      return normalizedTarget === 'card' ? 'card_music' : 'event_music';
+    }
     if (text === 'audio') {
       return normalizedTarget === 'card' ? 'card_audio' : 'event_audio';
     }
@@ -108,10 +114,12 @@
       event_illustration: 'Event illustration',
       event_portrait: 'Event portrait',
       event_background: 'Event background',
+      event_music: 'Event music',
       event_audio: 'Event audio',
       card_image: 'Card image',
       card_portrait: 'Card portrait',
       card_background: 'Card background',
+      card_music: 'Card music',
       card_audio: 'Card audio',
       advisor_portrait: 'Advisor portrait',
       reference: 'Reference'

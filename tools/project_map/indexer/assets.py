@@ -67,6 +67,16 @@ def active_asset_directive_lines(scene: dict[str, Any]) -> set[tuple[int, str]]:
     return lines
 
 
+AUDIO_MODIFIER_KEYWORDS = frozenset(
+    ["loop", "queue", "shuffle", "nofade", "clear", "null", "none"]
+)
+
+
+def parse_audio_modifiers(value: str) -> list[str]:
+    tokens = str(value or "").split()
+    return [t.lower() for t in tokens if t.lower() in AUDIO_MODIFIER_KEYWORDS]
+
+
 def asset_paths_from_directive(value: str) -> list[str]:
     out: list[str] = []
     for match in re.finditer(
@@ -131,7 +141,14 @@ def extract_scene_asset_references(root: Path, scene: dict[str, Any]) -> list[di
         reference_text = match.group(2) if match else line
         if not directive and not line_contains_inline_asset_reference(line):
             continue
-        for asset_path in asset_paths_from_directive(reference_text):
+        audio_modifiers: list[str] = []
+        if directive in ("audio", "set-music"):
+            audio_modifiers = parse_audio_modifiers(reference_text)
+        asset_paths = asset_paths_from_directive(reference_text)
+        audio_group_id = ""
+        if directive in ("audio", "set-music") and len(asset_paths) > 1:
+            audio_group_id = f"audio_group_{line_num}"
+        for asset_path in asset_paths:
             asset_type = asset_type_for_extension(Path(asset_path).suffix)
             if not asset_type:
                 continue
@@ -159,6 +176,10 @@ def extract_scene_asset_references(root: Path, scene: dict[str, Any]) -> list[di
                 "directive": role,
                 "fileExists": file_exists,
             }
+            if audio_modifiers:
+                ref["audioModifiers"] = audio_modifiers
+            if audio_group_id:
+                ref["audioGroupId"] = audio_group_id
             if directive:
                 is_active_directive = (line_num, role) in active_directive_lines
                 ref["runtimeActive"] = is_active_directive

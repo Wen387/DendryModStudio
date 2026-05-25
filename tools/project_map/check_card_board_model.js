@@ -417,12 +417,12 @@ if (previousLocalStorage === undefined) {
   global.localStorage = previousLocalStorage;
 }
 global.__DMS_CARD_BOARD_PERF_ENABLED__ = true;
-for (let indexValue = 0; indexValue < 60; indexValue += 1) {
+for (let indexValue = 0; indexValue < 510; indexValue += 1) {
   cardBoardPerf.record('probe.' + indexValue, indexValue, {check: 'card-board'});
 }
 const measuredValue = cardBoardPerf.measure('probe.measure', () => 'measured', {check: 'card-board'});
 assert(measuredValue === 'measured', 'Card Board perf measure should return the wrapped function result');
-assert(Array.isArray(global.__DMS_CARD_BOARD_PERF__) && global.__DMS_CARD_BOARD_PERF__.length === 50, 'Card Board perf probe should retain only the most recent 50 rows');
+assert(Array.isArray(global.__DMS_CARD_BOARD_PERF__) && global.__DMS_CARD_BOARD_PERF__.length === 500, 'Card Board perf probe should retain only the most recent 500 rows');
 assert(global.__DMS_CARD_BOARD_PERF__.some((row) => row && row.name === 'probe.measure'), 'Card Board perf probe should record named measures when enabled');
 global.__DMS_CARD_BOARD_PERF_ENABLED__ = false;
 const disabledLength = global.__DMS_CARD_BOARD_PERF__.length;

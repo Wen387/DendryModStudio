@@ -105,7 +105,9 @@
       sectionId: String(item.sectionId || item.placement && item.placement.sectionId || '').trim(),
       optionId: String(item.optionId || item.placement && item.placement.optionId || '').trim(),
       branchKind: String(item.branchKind || item.placement && item.placement.branchKind || '').trim(),
-      relatedOptionIds: ensureArray(item.relatedOptionIds || item.placement && item.placement.relatedOptionIds).map(String).filter(Boolean)
+      relatedOptionIds: ensureArray(item.relatedOptionIds || item.placement && item.placement.relatedOptionIds).map(String).filter(Boolean),
+      audioModifiers: ensureArray(item.audioModifiers),
+      audioGroupId: String(item.audioGroupId || '').trim()
     };
   }
 
@@ -451,6 +453,8 @@
       optionId: ref.optionId || '',
       branchKind: ref.branchKind || '',
       relatedOptionIds: ensureArray(ref.relatedOptionIds),
+      audioModifiers: ensureArray(ref.audioModifiers),
+      audioGroupId: ref.audioGroupId || '',
       status: assetDisplayStatus(Object.assign({}, ref, {type, extension})),
       referenceState
     };
@@ -497,6 +501,8 @@
       usageRefs: ensureArray(item.usageRefs),
       status,
       statusLabel: referenceState && referenceState.label || item.status && item.status.label || humanize(status),
+      audioModifiers: ensureArray(item.audioModifiers),
+      audioGroupId: item.audioGroupId || '',
       assetRef: assetDraftReference(Object.assign({}, item, placement, {role}), {role})
     };
   }
@@ -634,11 +640,11 @@
     if (text === 'inline-image' || text === 'inline-asset') {
       return 'unknown_inline';
     }
-    if (text === 'card-image' || text === 'face-image' || text === 'set-bg' || text === 'audio') {
+    if (text === 'card-image' || text === 'face-image' || text === 'set-bg' || text === 'set-music' || text === 'audio') {
       return 'global_slot';
     }
     const role = String(asset && asset.role || '').trim();
-    if (/audio|background|portrait|card_image|event_portrait/.test(role)) {
+    if (/audio|music|background|portrait|card_image|event_portrait/.test(role)) {
       return 'global_slot';
     }
     return target === 'card' ? 'global_slot' : 'opening_visual';

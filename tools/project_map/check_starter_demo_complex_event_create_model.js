@@ -178,7 +178,7 @@ async function runStarterDemoComplexEventCreate() {
     assert(hasAction(initialModel.eventBody, 'remove_effect', (field) => field.optionId === 'signal_committee'), 'new-event canvas should expose remove-effect for option effects', initialModel.eventBody.structureActions);
     assert(initialModel.contextBoard.variables.some((row) => row.name === 'demo_dynamic_pressure' && row.status === 'new_or_missing'), 'new variables should be visible before install', initialModel.contextBoard.variables);
     assert(initialModel.eventBody.readinessChecklist.every((row) => row.ok), 'complex Demo draft should pass readiness before install', initialModel.eventBody.readinessChecklist);
-    const initialHtml = previewEditor.render(initialModel);
+    const initialHtml = previewEditor.render(initialModel) + previewEditor.renderEventReviewDetailsPanels(initialModel.eventBody || {}, initialModel);
     assert(initialHtml.includes('data-preview-object-choice-layout="player_path"'), 'new-event UI should render choices in a player-path layout for complex nested options');
     assert(initialHtml.includes('data-preview-object-choice-nested-section="committee_floor"') && initialHtml.includes('data-preview-object-inline-add="add_option"'), 'choice editor should expose child-choice entry points on follow-up/menu sections');
     assert(initialHtml.includes('data-preview-object-choice-logic="true"') && initialHtml.includes('data-preview-object-choice-logic-group="route"'), 'new-event UI should keep condition/route/effect editing inside each choice');

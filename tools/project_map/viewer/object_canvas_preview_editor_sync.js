@@ -23,28 +23,124 @@
     if (!hasActivePreviewEditor(ctx) || !ctx.editor || typeof ctx.editor.renderTextBlocks !== 'function') {
       return;
     }
-    const fields = previewObjectFieldMap(ctx.model, ctx);
-    ctx.host.querySelectorAll('[data-preview-object-rendered-for]').forEach((node) => {
-      const key = node.dataset && node.dataset.previewObjectRenderedFor;
-      const input = key ? selectedCanvasFieldInput(ctx, key) : null;
-      const field = key ? fields.get(key) : null;
-      const value = input ? input.value : field && field.value !== undefined ? field.value : field && field.original || '';
-      node.innerHTML = ctx.editor.renderTextBlocks(value, {empty: false});
+    const perf = perfApi(ctx);
+    const limitKeys = ctx.changedFieldKeys instanceof Set && ctx.changedFieldKeys.size > 0
+      ? ctx.changedFieldKeys
+      : null;
+    const run = () => {
+      const fields = previewObjectFieldMap(ctx.model, ctx);
+      // Build the key→input map ONCE before the loop. Calling
+      // selectedCanvasFieldInput per node makes collectCanvasFieldEntries
+      // read layout (getComputedStyle/getClientRects), which interleaves
+      // with the node.innerHTML writes below and forces a fresh layout on
+      // every iteration. On large events that is O(N) forced layouts on a
+      // multi-MB DOM. When limitKeys is provided (typical blur sync of a
+      // single changed field) we skip the full collection entirely and
+      // resolve each input by direct querySelector — no layout flush.
+      const inputByKey = collectCanvasInputsByKey(ctx, limitKeys);
+      let nodes = ctx.host.querySelectorAll('[data-preview-object-rendered-for]');
+      if (limitKeys) {
+        nodes = Array.prototype.filter.call(nodes, (node) => {
+          const key = node.dataset && node.dataset.previewObjectRenderedFor;
+          return Boolean(key && limitKeys.has(key));
+        });
+      }
+      nodes.forEach((node) => {
+        const key = node.dataset && node.dataset.previewObjectRenderedFor;
+        const input = key ? lookupCanvasInputForKey(inputByKey, ctx, key) : null;
+        const field = key ? fields.get(key) : null;
+        const value = input ? input.value : field && field.value !== undefined ? field.value : field && field.original || '';
+        node.innerHTML = ctx.editor.renderTextBlocks(value, {empty: false});
+      });
+      return nodes.length;
+    };
+    if (perf && typeof perf.measure === 'function') {
+      perf.measure('syncPreviewObjectRenderedFields', run, {
+        scope: limitKeys ? 'targeted' : 'all',
+        keyCount: limitKeys ? limitKeys.size : 0
+      });
+    } else {
+      run();
+    }
+  }
+
+  function updateRenderedPreviewForField(deps, input) {
+    // Microsecond-level single-field preview update used by the live-typing
+    // path. Caller already has the focused input from event.target, so we
+    // skip the layout-forcing collectCanvasFieldEntries walk and the model
+    // rebuild entirely. Render the value once and write to all rendered-for
+    // nodes that match the key.
+    if (!input || !input.dataset) {
+      return;
+    }
+    const key = input.dataset.objectCanvasField;
+    if (!key) {
+      return;
+    }
+    const ctx = normalizeDeps(deps);
+    if (!hasActivePreviewEditor(ctx) || !ctx.editor || typeof ctx.editor.renderTextBlocks !== 'function') {
+      return;
+    }
+    const value = input.value !== undefined && input.value !== null ? String(input.value) : '';
+    const html = ctx.editor.renderTextBlocks(value, {empty: false});
+    const selector = '[data-preview-object-rendered-for="' + ctx.cssEscape(key) + '"]';
+    ctx.host.querySelectorAll(selector).forEach((node) => {
+      node.innerHTML = html;
     });
   }
 
-  function selectedCanvasFieldInput(ctx, key) {
-    const fieldValues = ctx.global && ctx.global.ProjectMapObjectCanvasFieldValues;
-    if (fieldValues && typeof fieldValues.collectCanvasFieldEntries === 'function') {
-      const entries = fieldValues.collectCanvasFieldEntries(ctx.host, {
-        activeElement: ctx.document && ctx.document.activeElement
+  function collectCanvasInputsByKey(ctx, limitKeys) {
+    if (limitKeys instanceof Set && limitKeys.size > 0) {
+      // Targeted path: one direct querySelector per key, no global walk
+      // and no layout-forcing visibility checks.
+      const map = new Map();
+      limitKeys.forEach((key) => {
+        const input = ctx.host.querySelector('[data-object-canvas-field="' + ctx.cssEscape(key) + '"]');
+        if (input) {
+          map.set(key, input);
+        }
       });
-      const match = entries.find((input) => input && input.dataset && input.dataset.objectCanvasField === key);
-      if (match) {
-        return match;
+      return map;
+    }
+    const fieldValues = ctx.global && ctx.global.ProjectMapObjectCanvasFieldValues;
+    if (!fieldValues || typeof fieldValues.collectCanvasFieldEntries !== 'function') {
+      return null;
+    }
+    const entries = fieldValues.collectCanvasFieldEntries(ctx.host, {
+      activeElement: ctx.document && ctx.document.activeElement
+    });
+    const map = new Map();
+    entries.forEach((input) => {
+      const key = input && input.dataset && input.dataset.objectCanvasField;
+      if (key && !map.has(key)) {
+        map.set(key, input);
       }
+    });
+    return map;
+  }
+
+  function lookupCanvasInputForKey(inputByKey, ctx, key) {
+    if (inputByKey && inputByKey.has(key)) {
+      return inputByKey.get(key);
     }
     return ctx.host.querySelector('[data-object-canvas-field="' + ctx.cssEscape(key) + '"]');
+  }
+
+  function selectedCanvasFieldInput(ctx, key) {
+    const inputByKey = collectCanvasInputsByKey(ctx);
+    return lookupCanvasInputForKey(inputByKey, ctx, key);
+  }
+
+  function perfApi(ctx) {
+    const rootGlobal = ctx && ctx.global;
+    if (rootGlobal && rootGlobal.ProjectMapCardBoardPerf) {
+      return rootGlobal.ProjectMapCardBoardPerf;
+    }
+    try {
+      return require('./card_board_perf.js');
+    } catch (_err) {
+      return null;
+    }
   }
 
   function previewObjectFieldMap(model, deps) {
@@ -275,6 +371,7 @@
     const model = ctx.model || state.model || null;
     const surface = ctx.surface || (typeof ctx.currentSurface === 'function' ? ctx.currentSurface(model) : ctx.currentSurface) || null;
     return {
+      changedFieldKeys: ctx.changedFieldKeys instanceof Set ? ctx.changedFieldKeys : null,
       cssEscape: typeof ctx.cssEscape === 'function' ? ctx.cssEscape : fallbackCssEscape,
       document: ctx.document || rootGlobal.document || null,
       editor: ctx.previewObjectEditor || rootGlobal.ProjectMapPreviewObjectEditor || null,
@@ -317,6 +414,7 @@
   const api = {
     syncPreviewObjectEditorPane,
     syncPreviewObjectRenderedFields,
+    updateRenderedPreviewForField,
     previewObjectFieldMap,
     selectedCanvasFieldInput,
     syncPreviewObjectEditorChrome,

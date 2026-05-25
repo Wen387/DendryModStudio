@@ -3106,6 +3106,9 @@
     if (directive === 'set-bg') {
       return target === 'card' ? 'card_background' : 'event_background';
     }
+    if (directive === 'set-music') {
+      return target === 'card' ? 'card_music' : 'event_music';
+    }
     if (directive === 'audio') {
       return target === 'card' ? 'card_audio' : 'event_audio';
     }

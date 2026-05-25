@@ -272,16 +272,19 @@ function runRouteScriptIntelligence() {
   assert(trial.paths[0].steps[0].scriptEffects.some((effect) => effect === 'Q.pressure += 2'), 'trial step should report safe script effects', trial.paths[0]);
 
   const enriched = routeScript.enrichEventBody(body, {});
-  const html = previewEditor.render({mode: 'existing', objectKind: 'event', title: 'Route Script Fixture', eventBody: enriched});
+  const enrichedModel = {mode: 'existing', objectKind: 'event', title: 'Route Script Fixture', eventBody: enriched};
+  const enrichedPanels = previewEditor.renderEventReviewDetailsPanels(enriched, enrichedModel);
+  const html = previewEditor.render(enrichedModel) + enrichedPanels;
   assert(html.includes('data-preview-object-route-script="true"'), 'event editor should render route/script intelligence summary');
   assert(html.includes('preview-object-route-script-summary') && html.includes('preview-object-route-script-chips'), 'route/script review should render a collapsible summary with counts');
   assert(html.includes('data-preview-object-route-evidence="true"'), 'event editor should render route evidence');
   assert(html.includes('data-preview-object-script-impact="true"'), 'event editor should render script impact');
-  const modalHtml = previewEditor.renderModal({mode: 'existing', objectKind: 'event', title: 'Route Script Fixture', eventBody: enriched});
+  const modalHtml = previewEditor.renderModal(enrichedModel) + enrichedPanels;
   assert((modalHtml.match(/data-preview-object-route-script="true"/g) || []).length === 1, 'modal editor should show route/script review only once');
-  const previewPaneHtml = previewEditor.renderPreviewPane({mode: 'existing', objectKind: 'event', title: 'Route Script Fixture', eventBody: enriched});
+  const previewPaneHtml = previewEditor.renderPreviewPane(enrichedModel);
   assert(!previewPaneHtml.includes('data-preview-object-route-script="true"'), 'live preview pane should not duplicate route/script review');
-  const quietHtml = previewEditor.render({mode: 'existing', objectKind: 'event', title: 'Quiet Route Script Fixture', eventBody: routeScript.enrichEventBody(quietBody(), {})});
+  const quietModel = {mode: 'existing', objectKind: 'event', title: 'Quiet Route Script Fixture', eventBody: routeScript.enrichEventBody(quietBody(), {})};
+  const quietHtml = previewEditor.render(quietModel) + previewEditor.renderEventReviewDetailsPanels(quietModel.eventBody, quietModel);
   assert(!quietHtml.includes('data-preview-object-route-script="true"'), 'exact routes and simple guided effects should not render a no-op route/script review panel');
 
   const structuredBody = eventStructure.toEventBody(eventStructure.fromEditingContext({
@@ -297,7 +300,8 @@ function runRouteScriptIntelligence() {
   assert(routeMap.reviewHints.some((hint) => hint.key === 'manual_boundary' && hint.count >= 1), 'Route Map should expose manual script boundary review hints from model evidence', routeMap.reviewHints);
   assert(routeMap.reviewHintCounts && routeMap.reviewHintCounts.missing_target && routeMap.reviewHintCounts.missing_target.count >= 1, 'Route Map should expose model-owned review hint counts for missing targets', routeMap.reviewHintCounts);
   assert(routeMap.reviewHintCounts && routeMap.reviewHintCounts.manual_boundary && routeMap.reviewHintCounts.manual_boundary.count >= 1, 'Route Map should expose model-owned review hint counts for manual script boundaries', routeMap.reviewHintCounts);
-  const routeMapHtml = previewEditor.render({mode: 'existing', objectKind: 'event', title: 'Route Script Fixture', eventBody: structuredBody});
+  const routeMapModel = {mode: 'existing', objectKind: 'event', title: 'Route Script Fixture', eventBody: structuredBody};
+  const routeMapHtml = previewEditor.render(routeMapModel) + previewEditor.renderEventReviewDetailsPanels(structuredBody, routeMapModel);
   assert(routeMapHtml.includes('data-preview-object-route-edge-id="edge:evidence:'), 'rendered Route Map should include model-provided evidence edges', routeMapHtml);
   assert(routeMapHtml.includes('data-route-map-review-chip="missing_target"'), 'rendered Route Map should show model-provided missing-target review chips', routeMapHtml);
   assert(routeMapHtml.includes('data-preview-object-route-causal-flow="true"') && routeMapHtml.includes('data-route-causal-edge="'), 'rendered Route Map should show cause/gate/result route flow rows', routeMapHtml);

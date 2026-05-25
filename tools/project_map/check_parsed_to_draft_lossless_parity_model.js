@@ -179,7 +179,7 @@ assert(repairEntries.some((entry) => entry.role === 'body' && entry.repairAction
 const lossyCanvas = canvasModel.buildCanvasModel(lossy, {template: 'event', draft: lossyResult.draft});
 assert(!lossyCanvas.ok && lossyCanvas.changeState.diagnostics.some((diag) => diag.code === 'parsed_to_draft.partial_blocked'), 'partial draft should remain blocked in Object Canvas', lossyCanvas.changeState.diagnostics);
 assert(lossyCanvas.eventBody.eventGraph && lossyCanvas.eventBody.eventGraph.reviewHints.some((hint) => hint.key === 'partial_blocker' && hint.count >= 1), 'partial draft Route Map should expose parity repair hints without unblocking install', lossyCanvas.eventBody.eventGraph);
-const lossyHtml = previewEditor.render(lossyCanvas);
+const lossyHtml = previewEditor.render(lossyCanvas) + previewEditor.renderEventReviewDetailsPanels(lossyCanvas.eventBody || {}, lossyCanvas);
 assert(lossyHtml.includes('data-preview-object-route-map-review="true"') && lossyHtml.includes('data-route-map-review-chip="partial_blocker"'), 'partial draft Route Map should render parity repair chips', lossyHtml);
 
 process.stdout.write(JSON.stringify({

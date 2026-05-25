@@ -12,13 +12,42 @@
   let cachedOpeningContextUi = null;
   let cachedFieldPresentation = null;
   let cachedSemanticOperations = null;
+  let branchSectionGroupsCallCount = 0;
+
+  function perfApi() {
+    if (global && global.ProjectMapCardBoardPerf) {
+      return global.ProjectMapCardBoardPerf;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./card_board_perf.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function perfMeasure(name, fn, detail) {
+    const api = perfApi();
+    return api && typeof api.measure === 'function' ? api.measure(name, fn, detail || {}) : fn();
+  }
+
+  function perfRecord(name, value, detail) {
+    const api = perfApi();
+    if (api && typeof api.record === 'function') {
+      api.record(name, Number(value) || 0, detail || {});
+    }
+  }
 
   const api = {
     render,
     renderModal,
     renderModalPreviewPane,
     renderPreviewPane,
-    renderTextBlocks
+    renderTextBlocks,
+    renderEventReviewDetailsPanels,
+    hydrateLazyReviewDetails
   };
 
   if (global) {
@@ -175,7 +204,6 @@
       createSimilar ? '<button type="button" data-object-canvas-action="create_similar_event" data-create-similar-object="true" data-create-similar-kind="' + escapeAttr(kind) + '">' + escapeHtml(createSimilarLabel(kind, model)) + '</button>' : '',
       '<button type="button" data-object-canvas-action="save">' + escapeHtml(t('editing.saveToChanges', 'Save to My Changes')) + '</button>',
       '<button class="primary-action" type="button" data-object-canvas-action="review">' + escapeHtml(t('existingScene.review', 'Review & Apply')) + '</button>',
-      model && model.mode !== 'existing' ? '<button type="button" data-object-canvas-action="legacy_form">' + escapeHtml(t('objectCanvas.legacyForm', 'Advanced Form')) + '</button>' : '',
       '</div>'
     ].join('');
   }
@@ -1902,11 +1930,21 @@
       capability.message ||
       '';
     const source = sourceLabelFromRef(asset && asset.source);
-    const rowAttrs = previewAssetRowAttrs(asset, target, capability.canPreview && capability.mediaKind === 'image' ? 'object-editing-preview-asset-figure' : 'object-editing-preview-asset-ref');
+    const previewMediaClass = capability.canPreview && (capability.mediaKind === 'image' || capability.mediaKind === 'audio') ? 'object-editing-preview-asset-figure' : 'object-editing-preview-asset-ref';
+    const rowAttrs = previewAssetRowAttrs(asset, target, previewMediaClass);
     if (capability.canPreview && capability.mediaKind === 'image' && capability.url) {
       return [
         '<figure' + rowAttrs + '>',
         '<img src="' + escapeAttr(capability.url) + '" alt="' + escapeAttr(label) + '" loading="lazy">',
+        '<figcaption>' + escapeHtml([role, label, state].filter(Boolean).join(' / ')) + '</figcaption>',
+        source ? '<small>' + escapeHtml(source) + '</small>' : '',
+        '</figure>'
+      ].join('');
+    }
+    if (capability.canPreview && capability.mediaKind === 'audio' && capability.url) {
+      return [
+        '<figure' + rowAttrs + ' data-asset-preview-audio="true">',
+        '<audio controls preload="metadata" src="' + escapeAttr(capability.url) + '"></audio>',
         '<figcaption>' + escapeHtml([role, label, state].filter(Boolean).join(' / ')) + '</figcaption>',
         source ? '<small>' + escapeHtml(source) + '</small>' : '',
         '</figure>'
@@ -1944,19 +1982,28 @@
   }
 
   function renderKindEditor(kind, body, model) {
-    if (kind === 'card') {
-      return renderCardEditor(body, model);
-    }
-    if (kind === 'deck_pool') {
-      return renderDeckPoolEditor(body, model);
-    }
-    if (kind === 'news') {
-      return renderNewsEditor(body, model);
-    }
-    if (kind === 'text-replacement') {
-      return renderTextReplacementEditor(body, model);
-    }
-    return renderEventEditor(body, model);
+    return perfMeasure('renderKindEditor', () => {
+      branchSectionGroupsCallCount = 0;
+      let html;
+      if (kind === 'card') {
+        html = renderCardEditor(body, model);
+      } else if (kind === 'deck_pool') {
+        html = renderDeckPoolEditor(body, model);
+      } else if (kind === 'news') {
+        html = renderNewsEditor(body, model);
+      } else if (kind === 'text-replacement') {
+        html = renderTextReplacementEditor(body, model);
+      } else {
+        html = renderEventEditor(body, model);
+      }
+      perfRecord('renderKindEditor.branchSectionGroups.calls', branchSectionGroupsCallCount, {
+        kind,
+        options: ensureArray(body && body.options).length,
+        branchSections: ensureArray(body && body.branchSections).length,
+        structureActions: ensureArray(body && body.structureActions).length
+      });
+      return html;
+    }, {kind});
   }
 
   function renderDeckPoolEditor(body, model) {
@@ -2053,6 +2100,7 @@
   }
 
   function branchSectionGroups(body) {
+    branchSectionGroupsCallCount += 1;
     const groups = {};
     ensureArray(body && body.branchSections).forEach((field) => {
       const id = normalizeEndpointToken(field && (field.sectionId || field.id));
@@ -2078,8 +2126,8 @@
     return groups;
   }
 
-  function renderEventReviewDetails(body, model) {
-    const panels = [
+  function renderEventReviewDetailsPanels(body, model) {
+    return perfMeasure('renderEventReviewDetailsPanels', () => [
       renderFlowOverview(body && body.flow, model, 'editor'),
       eventBuilderUi().renderChoiceUnitSummary(body && body.choiceUnits),
       eventBuilderUi().renderConsequenceGroups(body && body.consequenceGroups),
@@ -2088,18 +2136,58 @@
       eventBuilderUi().renderRouteScriptIntelligence(body),
       eventBuilderUi().renderEventGraphSummary(body && body.eventGraph, body),
       eventBuilderUi().renderEventReadiness(body && body.readinessChecklist)
-    ].filter(Boolean);
-    if (!panels.length) {
+    ].filter(Boolean).join(''), {});
+  }
+
+  function hasReviewDetailsContent(body) {
+    if (!body) {
+      return false;
+    }
+    if (body.flow && typeof body.flow === 'object') {
+      const nodes = ensureArray(body.flow.nodes).length;
+      const edges = ensureArray(body.flow.edges).length;
+      if (nodes || edges) {
+        return true;
+      }
+    }
+    if (ensureArray(body.choiceUnits).length) return true;
+    if (ensureArray(body.consequenceGroups).length) return true;
+    if (body.continuationMap && ensureArray(body.continuationMap.entries).length) return true;
+    if (ensureArray(body.playabilityChecks).length) return true;
+    if (body.eventGraph && (ensureArray(body.eventGraph.nodes).length || ensureArray(body.eventGraph.edges).length)) return true;
+    if (body.readinessChecklist && ensureArray(body.readinessChecklist.items).length) return true;
+    if (body.scriptRows && ensureArray(body.scriptRows).length) return true;
+    return false;
+  }
+
+  function renderEventReviewDetails(body, model) {
+    if (!hasReviewDetailsContent(body)) {
       return '';
     }
     return [
-      '<details class="preview-object-review-details" data-preview-object-review-details="true">',
+      '<details class="preview-object-review-details" data-preview-object-review-details="true" data-preview-object-review-details-lazy="pending">',
       '<summary>' + escapeHtml(t('previewObjectEditor.reviewDetails', 'Route and install review')) + '</summary>',
-      '<div class="preview-object-review-details-body">',
-      panels.join(''),
+      '<div class="preview-object-review-details-body" data-preview-object-review-details-body="pending">',
+      '<small class="preview-object-review-details-pending">' + escapeHtml(t('previewObjectEditor.reviewDetailsLoading', 'Loading review details…')) + '</small>',
       '</div>',
       '</details>'
     ].join('');
+  }
+
+  function hydrateLazyReviewDetails(detailsEl, body, model) {
+    if (!detailsEl || detailsEl.dataset.previewObjectReviewDetailsLazy !== 'pending') {
+      return false;
+    }
+    const bodyEl = detailsEl.querySelector('[data-preview-object-review-details-body="pending"]');
+    if (!bodyEl) {
+      detailsEl.dataset.previewObjectReviewDetailsLazy = 'hydrated';
+      return false;
+    }
+    const html = renderEventReviewDetailsPanels(body, model);
+    bodyEl.innerHTML = html;
+    bodyEl.dataset.previewObjectReviewDetailsBody = 'hydrated';
+    detailsEl.dataset.previewObjectReviewDetailsLazy = 'hydrated';
+    return true;
   }
 
   function renderBranchSectionEditor(branches, options, body, renderPlan, model) {

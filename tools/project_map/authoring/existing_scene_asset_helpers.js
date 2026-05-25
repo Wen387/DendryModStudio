@@ -32,6 +32,7 @@
     return text === 'face-image' ||
       text === 'card-image' ||
       text === 'set-bg' ||
+      text === 'set-music' ||
       text === 'audio' ||
       text === 'inline-image' ||
       text === 'inline-asset'
@@ -44,6 +45,7 @@
       'face-image': 'Portrait image',
       'card-image': 'Card image',
       'set-bg': 'Background image',
+      'set-music': 'Music track',
       audio: 'Audio asset',
       'inline-image': 'Inline image',
       'inline-asset': 'Inline asset'
@@ -157,6 +159,13 @@
           return text;
         }
         return path;
+      }
+      if (directive === 'audio' || directive === 'set-music') {
+        const source = sourceRef(asset && asset.source || {});
+        const anchor = String(source.anchorText || '').trim();
+        if (anchor && anchor.includes(path)) {
+          return anchor;
+        }
       }
       return directive + ': ' + path;
     }

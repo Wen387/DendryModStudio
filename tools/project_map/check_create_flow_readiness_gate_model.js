@@ -79,7 +79,7 @@ const readyPure = canvasModel.buildNewEventCanvas(readyProfile, Object.assign({}
   options: []
 }), {});
 const blockedRows = blocked.eventBody.readinessChecklist.filter((row) => !row.ok);
-const blockedHtml = previewEditor.render(blocked);
+const blockedHtml = previewEditor.render(blocked) + previewEditor.renderEventReviewDetailsPanels(blocked.eventBody || {}, blocked);
 const objectUi = read('viewer/object_authoring_canvas_ui.js');
 
 assert(blockedRows.length >= 1, 'invalid draft should produce blocked readiness rows', blocked.eventBody.readinessChecklist);

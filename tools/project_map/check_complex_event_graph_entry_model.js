@@ -35,7 +35,7 @@ const draft = {
 
 const model = canvasModel.buildNewEventCanvas(index, draft, {});
 const graph = model.eventBody.eventGraph;
-const html = previewEditor.render(model);
+const html = previewEditor.render(model) + previewEditor.renderEventReviewDetailsPanels(model.eventBody || {}, model);
 
 assert(graph && graph.kind === 'complex_event_graph', 'complex builder should expose event graph', graph);
 assert(graph.nodes.every((node) => node.editAction && node.editAction.actionKind), 'every graph node should have edit action', graph.nodes);

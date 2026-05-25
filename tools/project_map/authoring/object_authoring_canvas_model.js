@@ -225,7 +225,7 @@
     if (!context || !context.ok) {
       return emptyCanvas('existing', diagnostic('warning', 'object_canvas.existing_unavailable', 'This object cannot be opened in the authoring Canvas yet.'), context);
     }
-    const body = eventBodyForExisting(context, projectIndex, opts.values || {});
+    const body = perfMeasure('eventBodyForExisting', () => eventBodyForExisting(context, projectIndex, opts.values || {}), {view, item: String(itemOrId || '')});
     const output = context.output || {};
     return {
       schemaVersion: OBJECT_AUTHORING_CANVAS_VERSION,
@@ -413,13 +413,15 @@
     };
     const structureApi = eventStructureApi();
     const modeledBody = structureApi && typeof structureApi.fromEditingContext === 'function' && typeof structureApi.toEventBody === 'function'
-      ? structureApi.toEventBody(structureApi.fromEditingContext(context, projectIndex, {body}))
+      ? perfMeasure('structureApi.fromEditingContext+toEventBody', () => structureApi.toEventBody(structureApi.fromEditingContext(context, projectIndex, {body})), {})
       : body;
-    return enrichFieldPresentation(
-      bodyWithQueuedStructurePreviews(regroupOptionOwnedText(modeledBody), values),
+    const regrouped = perfMeasure('regroupOptionOwnedText', () => regroupOptionOwnedText(modeledBody), {options: ensureArray(modeledBody && modeledBody.options).length});
+    const queued = bodyWithQueuedStructurePreviews(regrouped, values);
+    return perfMeasure('enrichFieldPresentation', () => enrichFieldPresentation(
+      queued,
       projectIndex,
       {routeState: routeStateForExisting(projectIndex, context)}
-    );
+    ), {sections: ensureArray(queued && queued.sections).length, options: ensureArray(queued && queued.options).length});
   }
 
   function enrichFieldPresentation(body, projectIndex, options) {
@@ -1806,6 +1808,25 @@
 
   function clone(value) {
     return JSON.parse(JSON.stringify(value));
+  }
+
+  function perfApi() {
+    if (global && global.ProjectMapCardBoardPerf) {
+      return global.ProjectMapCardBoardPerf;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('../viewer/card_board_perf.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function perfMeasure(name, fn, detail) {
+    const api = perfApi();
+    return api && typeof api.measure === 'function' ? api.measure(name, fn, detail || {}) : fn();
   }
 
   const api = {

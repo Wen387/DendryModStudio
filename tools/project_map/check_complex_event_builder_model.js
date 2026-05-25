@@ -89,7 +89,7 @@ assert(model.changeState.installPlan.operations.some((op) => op.id === 'event_ro
 assert(model.changeState.installPlan.operations.some((op) => op.id.indexOf('event_variable_init_new_campaign_signal') === 0 && op.safety === 'guarded_apply'), 'install plan should initialize new event variables');
 assert(!model.changeState.installPlan.operations.some((op) => op.type === 'manual_snippet'), 'known-profile complex event path should not fall back to manual snippets');
 
-const html = previewEditor.render(model);
+const html = previewEditor.render(model) + previewEditor.renderEventReviewDetailsPanels(model.eventBody || {}, model);
 assert(!html.includes('data-preview-object-path-tree="true"'), 'UI should not add a separate path-tree panel above the normal choice editor');
 assert(html.includes('data-preview-object-choice-layout="player_path"'), 'UI should render choices in a player-path layout instead of a flat option list');
 assert(html.includes('data-preview-object-choice-nested-section="follow_up"') && html.includes('data-preview-object-inline-add="add_option"'), 'choice editor should show follow-up sections with nested add-choice entry points');
