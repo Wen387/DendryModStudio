@@ -17,7 +17,8 @@
   };
 
   const state = {
-    items: []
+    items: [],
+    activeDraftWorkspaceId: ''
   };
 
   let elements = null;
@@ -47,6 +48,7 @@
   function start(document) {
     elements = {
       save: document.getElementById('draft-workspace-save'),
+      reviewAll: document.getElementById('draft-workspace-review-all'),
       exportAll: document.getElementById('draft-workspace-export'),
       status: document.getElementById('draft-workspace-status'),
       list: document.getElementById('draft-workspace-list')
@@ -62,6 +64,9 @@
   function bind() {
     if (elements.save) {
       elements.save.addEventListener('click', saveCurrentDraft);
+    }
+    if (elements.reviewAll) {
+      elements.reviewAll.addEventListener('click', reviewAllInstall);
     }
     if (elements.exportAll) {
       elements.exportAll.addEventListener('click', exportAllDrafts);
@@ -143,7 +148,12 @@
       return;
     }
     const output = typeof wizard.getOutput === 'function' ? wizard.getOutput() : {};
-    const existing = state.items.find((item) => item.template === template && item.draftId === String(draft.id));
+    const activeWorkspaceId = typeof wizard.getDraftWorkspaceId === 'function'
+      ? wizard.getDraftWorkspaceId()
+      : state.activeDraftWorkspaceId;
+    const existing = activeWorkspaceId
+      ? state.items.find((item) => item.workspaceId === activeWorkspaceId && item.template === template && item.draftId === String(draft.id))
+      : null;
     const item = api.makeDraftItem({
       template,
       draft,
@@ -154,6 +164,10 @@
       createdAt: existing && existing.createdAt
     });
     state.items = api.upsertDraftItem(state.items, item);
+    state.activeDraftWorkspaceId = item.workspaceId || '';
+    if (typeof wizard.setDraftWorkspaceId === 'function') {
+      wizard.setDraftWorkspaceId(state.activeDraftWorkspaceId, draft);
+    }
     persist();
     render();
     setStatus(t('draftWorkspace.saved', 'Draft saved in Studio.'), 'ready');
@@ -165,6 +179,7 @@
       setStatus(t('draftWorkspace.missingDraft', 'Saved draft was not found.'), 'warning');
       return;
     }
+    state.activeDraftWorkspaceId = item.workspaceId || '';
     const createButton = global.document.querySelector('[data-mode="create"]');
     if (createButton) {
       createButton.click();
@@ -176,12 +191,15 @@
     if (!templateButton && item.template) {
       const objectCanvas = global.ProjectMapObjectAuthoringCanvas;
       if (objectCanvas && typeof objectCanvas.openTemplate === 'function') {
-        objectCanvas.openTemplate(item.template, item.draft, {source: 'My Changes'});
+        objectCanvas.openTemplate(item.template, item.draft, {source: 'My Changes', workspaceId: item.workspaceId});
       }
     }
     const wizard = wizardForTemplate(item.template);
     if (wizard && typeof wizard.loadDraft === 'function') {
       wizard.loadDraft(item.draft, {fileName: item.title || item.draftId || 'Studio draft'});
+      if (typeof wizard.setDraftWorkspaceId === 'function') {
+        wizard.setDraftWorkspaceId(state.activeDraftWorkspaceId, item.draft);
+      }
       setStatus(t('draftWorkspace.loaded', 'Draft loaded into Create.'), 'ready');
     } else {
       setStatus(t('draftWorkspace.noWizard', 'This template cannot be loaded yet.'), 'warning');
@@ -201,6 +219,33 @@
     }
     assistant.loadPlan(item.installPlan, {fileName: item.draftId + '.install-plan.json'});
     const installButton = global.document.querySelector('[data-mode="install"]');
+    if (installButton) {
+      installButton.click();
+    }
+  }
+
+  function reviewAllInstall() {
+    const withPlans = state.items.filter((item) => item.installPlan);
+    if (!withPlans.length) {
+      setStatus(t('draftWorkspace.noPlansToReview', 'No drafts have install plans to review.'), 'warning');
+      return;
+    }
+    const assistant = global.ProjectMapInstallAssistant;
+    if (!assistant || typeof assistant.loadPlan !== 'function') {
+      setStatus(t('draftWorkspace.installMissing', 'Install Assistant is not loaded.'), 'warning');
+      return;
+    }
+    const payload = {
+      schemaVersion: '0.1',
+      exportedAt: new Date().toISOString(),
+      items: withPlans
+    };
+    assistant.loadPlan(payload, {fileName: 'studio-drafts-review-all.json'});
+    setStatus(
+      t('draftWorkspace.reviewAllSent', '{count} drafts sent to Review & Apply.').replace('{count}', String(withPlans.length)),
+      'ready'
+    );
+    var installButton = global.document.querySelector('[data-mode="install"]');
     if (installButton) {
       installButton.click();
     }
@@ -228,13 +273,20 @@
       return;
     }
     elements.list.innerHTML = '';
+    var hasPlans = state.items.some(function (item) { return item.installPlan; });
     if (!state.items.length) {
       setStatus(t('draftWorkspace.empty', 'No Studio drafts saved yet.'), '');
+      if (elements.reviewAll) {
+        elements.reviewAll.disabled = true;
+      }
       if (elements.exportAll) {
         elements.exportAll.disabled = true;
       }
       dispatchUpdate();
       return;
+    }
+    if (elements.reviewAll) {
+      elements.reviewAll.disabled = !hasPlans;
     }
     if (elements.exportAll) {
       elements.exportAll.disabled = false;
@@ -344,14 +396,8 @@
     if (objectCanvas && typeof objectCanvas.isActive === 'function' && objectCanvas.isActive()) {
       return typeof objectCanvas.activeTemplate === 'function' ? objectCanvas.activeTemplate() : 'event';
     }
-    const editingWorkspace = global.ProjectMapEditingWorkspace;
-    if (editingWorkspace && typeof editingWorkspace.isActive === 'function' && editingWorkspace.isActive()) {
-      return 'existing';
-    }
-    const existingEditor = global.ProjectMapExistingSceneEditor;
-    if (existingEditor && typeof existingEditor.isActive === 'function' && existingEditor.isActive()) {
-      return 'existing';
-    }
+    // Legacy EditingWorkspace / ExistingSceneEditor removed 2026-05-25 —
+    // Object Canvas subsumes all existing-scene editing.
     const active = global.document.querySelector('[data-create-template].is-active');
     return active && active.dataset.createTemplate ? active.dataset.createTemplate : 'event';
   }
@@ -375,7 +421,7 @@
       entry: global.ProjectMapEntrySidebarWizard,
       project: global.ProjectMapProjectMetadataWizard,
       variables: global.ProjectMapVariableEditorWizard,
-      existing: global.ProjectMapObjectAuthoringCanvas || global.ProjectMapEditingWorkspace || global.ProjectMapExistingSceneEditor
+      existing: global.ProjectMapObjectAuthoringCanvas
     }[template] || null;
   }
 

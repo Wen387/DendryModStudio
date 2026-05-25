@@ -4,8 +4,9 @@
 const fs = require('fs');
 const path = require('path');
 const viewer = require('./viewer/app.js');
-const design = require('./viewer/design_model.js');
+const design = require('./authoring/design_model.js');
 const {readViewerCss} = require('./check_viewer_assets.js');
+const {fail, assert} = require('./check_harness.js');
 
 const args = process.argv.slice(2);
 const fixtureIslands = args.includes('--fixture-islands');
@@ -15,17 +16,6 @@ const indexPath = args.find((arg) => !arg.startsWith('--')) || '';
 
 if (unknownFlag) {
   fail('unknown flag: ' + unknownFlag);
-}
-
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
 }
 
 function assertEqual(actual, expected, label) {

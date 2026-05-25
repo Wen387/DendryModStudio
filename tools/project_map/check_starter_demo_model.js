@@ -16,16 +16,7 @@ const {pythonCommand} = require('./check_python_command.js');
 const compiler = require('dendrynexus/lib/parsers/compiler');
 const {DendryEngine} = require('dendrynexus/lib/engine');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function read(relativePath) {
   return fs.readFileSync(path.join(TEMPLATE_ROOT, relativePath), 'utf8');

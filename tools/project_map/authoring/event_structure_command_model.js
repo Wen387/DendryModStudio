@@ -44,6 +44,10 @@
       });
     } else if (type === 'add_section' || type === 'add_branch') {
       addSection(next, parseBranch(cmd.value || cmd.raw || cmd.text));
+    } else if (type === 'link_option_to_new_section') {
+      linkOptionToNewSection(next, cmd.optionId || cmd.targetId || cmd.id, cmd.value || cmd.raw || cmd.text);
+    } else if (type === 'rename_anchor') {
+      renameAnchor(next, cmd.targetId || cmd.optionId || cmd.sectionId || cmd.id, cmd.value || cmd.raw || cmd.text);
     } else if (type === 'remove_section' || type === 'remove_layer') {
       removeSection(next, cmd.sectionId || cmd.targetId || cmd.id);
     } else if (type === 'add_trigger_effect') {
@@ -87,6 +91,10 @@
       }
       if (key.indexOf('structure_add_option_section_') === 0) {
         commands.push({type: 'add_option', sectionId: key.slice('structure_add_option_section_'.length), value: text});
+      } else if (key.indexOf('structure_link_option_section_') === 0) {
+        commands.push({type: 'link_option_to_new_section', optionId: key.slice('structure_link_option_section_'.length), value: text});
+      } else if (key.indexOf('structure_rename_anchor_') === 0) {
+        commands.push({type: 'rename_anchor', targetId: key.slice('structure_rename_anchor_'.length), value: text});
       } else if (key.indexOf('structure_add_option_effect_') === 0) {
         commands.push({type: 'add_option_effect', optionId: key.slice('structure_add_option_effect_'.length), value: text});
       } else if (key.indexOf('structure_remove_option_condition_') === 0 && truthy(text)) {
@@ -210,6 +218,157 @@
     structure.options = ensureArray(structure.options).filter((option) => safeId(option.ownerSectionId) !== id);
   }
 
+  function linkOptionToNewSection(structure, optionId, value) {
+    const option = findOption(structure, optionId);
+    if (!option) {
+      return;
+    }
+    const parsed = parseBranch(value);
+    const requested = safeId(parsed.section || stringValue(value).split(/\s+/)[0] || option.id + '_follow_up');
+    const existing = sectionById(structure, requested);
+    const sectionId = existing ? existing.id : uniqueId(structure, requested || option.id + '_follow_up');
+    if (!existing) {
+      structure.sections = ensureArray(structure.sections).concat({
+        id: sectionId,
+        title: humanize(sectionId),
+        text: parsed.text || 'Follow-up prose.',
+        condition: parsed.condition || '',
+        exitTarget: 'root',
+        options: [],
+        effects: []
+      });
+    }
+    updateOption(structure, option.id, (targetOption) => {
+      targetOption.resultMode = 'native';
+      targetOption.gotoAfter = '';
+      targetOption.returnTarget = sectionId;
+    });
+  }
+
+  function renameAnchor(structure, targetId, value) {
+    const oldId = safeId(targetId);
+    const requested = safeId(value);
+    if (!oldId || !requested || oldId === requested) {
+      return;
+    }
+    const rawHits = rawRouteHits(structure, oldId);
+    if (rawHits.length > 1) {
+      addAnchorRenameDiagnostic(structure, oldId, requested, 'ambiguous_raw_route_rename');
+      return;
+    }
+    const newId = uniqueIdExcept(structure, requested, oldId);
+    rewriteStructuredAnchorRefs(structure, oldId, newId);
+    if (rawHits.length === 1) {
+      rewriteRawRouteRefs(structure, oldId, newId);
+    }
+  }
+
+  function findOption(structure, optionId) {
+    const id = safeId(optionId);
+    let found = ensureArray(structure && structure.options).find((option) => safeId(option && option.id) === id) || null;
+    if (found) {
+      return found;
+    }
+    ensureArray(structure && structure.sections).some((section) => {
+      found = ensureArray(section && section.options).find((option) => safeId(option && option.id) === id) || null;
+      return Boolean(found);
+    });
+    return found;
+  }
+
+  function rewriteStructuredAnchorRefs(structure, oldId, newId) {
+    if (safeId(structure.setJump) === oldId) {
+      structure.setJump = newId;
+    }
+    ensureArray(structure.options).forEach((option) => rewriteOptionAnchorRefs(option, oldId, newId));
+    ensureArray(structure.sections).forEach((section) => {
+      const sectionWasRenamed = safeId(section.id) === oldId;
+      if (sectionWasRenamed) {
+        section.id = newId;
+      }
+      if (safeId(section.exitTarget) === oldId) {
+        section.exitTarget = newId;
+      }
+      if (safeId(section.setJump) === oldId) {
+        section.setJump = newId;
+      }
+      ensureArray(section.options).forEach((option) => {
+        if (safeId(option.ownerSectionId) === oldId) {
+          option.ownerSectionId = newId;
+        }
+        rewriteOptionAnchorRefs(option, oldId, newId);
+      });
+    });
+  }
+
+  function rewriteOptionAnchorRefs(option, oldId, newId) {
+    if (!option) {
+      return;
+    }
+    if (safeId(option.id) === oldId) {
+      option.id = newId;
+    }
+    if (safeId(option.gotoAfter) === oldId) {
+      option.gotoAfter = newId;
+    }
+    if (safeId(option.returnTarget) === oldId) {
+      option.returnTarget = newId;
+    }
+    if (safeId(option.setJump) === oldId) {
+      option.setJump = newId;
+    }
+  }
+
+  function rawRouteHits(structure, oldId) {
+    const hits = [];
+    collectRawRouteOwners(structure).forEach((owner) => {
+      ensureArray(owner.value[owner.key]).forEach((line, index) => {
+        if (rawRouteTargetsAnchor(line, oldId)) {
+          hits.push({owner, index});
+        }
+      });
+    });
+    return hits;
+  }
+
+  function rewriteRawRouteRefs(structure, oldId, newId) {
+    collectRawRouteOwners(structure).forEach((owner) => {
+      owner.value[owner.key] = ensureArray(owner.value[owner.key]).map((line) => rawRouteTargetsAnchor(line, oldId) ? rewriteRawRouteTarget(line, oldId, newId) : line);
+    });
+  }
+
+  function collectRawRouteOwners(structure) {
+    const owners = [];
+    if (structure) {
+      owners.push({value: structure, key: 'rawRoutes'});
+    }
+    ensureArray(structure && structure.options).forEach((option) => owners.push({value: option, key: 'rawRoutes'}));
+    ensureArray(structure && structure.sections).forEach((section) => {
+      owners.push({value: section, key: 'rawRoutes'});
+      ensureArray(section && section.options).forEach((option) => owners.push({value: option, key: 'rawRoutes'}));
+    });
+    return owners;
+  }
+
+  function rawRouteTargetsAnchor(line, anchorId) {
+    const escaped = escapeRegex(safeId(anchorId));
+    return new RegExp('^\\s*(?:go-to|check-success-go-to|check-failure-go-to)\\s*:\\s*[@#]?' + escaped + '(?:\\b|\\s|$)', 'i').test(stringValue(line));
+  }
+
+  function rewriteRawRouteTarget(line, oldId, newId) {
+    const escaped = escapeRegex(safeId(oldId));
+    return stringValue(line).replace(new RegExp('^(\\s*(?:go-to|check-success-go-to|check-failure-go-to)\\s*:\\s*[@#]?)' + escaped + '((?:\\b|\\s|$))', 'i'), '$1' + newId + '$2');
+  }
+
+  function addAnchorRenameDiagnostic(structure, oldId, newId, reason) {
+    structure.anchorRenameDiagnostics = ensureArray(structure.anchorRenameDiagnostics).concat({
+      code: 'event_structure.' + reason,
+      oldId,
+      newId,
+      reason
+    });
+  }
+
   function updateOption(structure, optionId, callback) {
     const id = safeId(optionId);
     const seen = new Set();
@@ -280,6 +439,22 @@
       if (Number.isFinite(number)) {
         structure.when[key] = number;
       }
+    } else if (key === 'frequency') {
+      const text = stringValue(value).trim();
+      const number = Number(text);
+      structure.frequency = text && Number.isFinite(number) ? number : null;
+    } else if (key === 'setJump') {
+      structure.setJump = optionalSafeId(value);
+    } else if (key === 'calls') {
+      structure.calls = rawEffectLines(value);
+    } else if (key === 'rawRoutes') {
+      structure.rawRoutes = rawEffectLines(value);
+    } else if (key === 'rawOnDisplay') {
+      structure.rawOnDisplay = rawEffectLines(value);
+    } else if (key === 'rawOnDeparture') {
+      structure.rawOnDeparture = rawEffectLines(value);
+    } else if (key === 'conditionalBody') {
+      structure.conditionalText = stringValue(value);
     } else if (key === 'requires') {
       if (normalizeEventShape(structure.eventShape, ensureArray(structure.options).length) === 'pure_event') {
         structure.rawViewIf = stringValue(value);
@@ -290,7 +465,7 @@
   }
 
   function updateSectionField(structure, fieldId, value) {
-    const match = fieldId.match(/^event\.section\.(\d+)\.(body|title|condition|exitTarget)$/);
+    const match = fieldId.match(/^event\.section\.(\d+)\.(body|conditionalBody|title|condition|exitTarget|setJump|calls|rawRoutes|rawEffects|rawOnDisplay|rawOnDeparture)$/);
     if (!match) {
       return;
     }
@@ -300,12 +475,18 @@
     }
     if (match[2] === 'body') {
       section.text = stringValue(value);
+    } else if (match[2] === 'conditionalBody') {
+      section.conditionalText = stringValue(value);
     } else if (match[2] === 'title') {
       section.title = stringValue(value);
     } else if (match[2] === 'condition') {
       section.condition = stringValue(value);
     } else if (match[2] === 'exitTarget') {
       section.exitTarget = safeId(value || 'root');
+    } else if (match[2] === 'setJump') {
+      section.setJump = optionalSafeId(value);
+    } else if (match[2] === 'calls' || match[2] === 'rawRoutes' || match[2] === 'rawEffects' || match[2] === 'rawOnDisplay' || match[2] === 'rawOnDeparture') {
+      section[match[2]] = rawEffectLines(value);
     }
   }
 
@@ -335,7 +516,7 @@
       });
       return;
     }
-    const match = fieldId.match(/^option\.(\d+)\.(label|subtitle|body|chooseIf|unavailableText|resultMode|gotoAfter|returnTarget|rawEffects)$/);
+    const match = fieldId.match(/^option\.(\d+)\.(label|subtitle|body|chooseIf|unavailableText|resultMode|gotoAfter|returnTarget|setJump|calls|rawRoutes|rawEffects)$/);
     if (!match) {
       return;
     }
@@ -347,6 +528,14 @@
     updateOption(structure, option.id, (targetOption) => {
       if (key === 'rawEffects') {
         targetOption.rawEffects = rawEffectLines(value);
+        return;
+      }
+      if (key === 'calls' || key === 'rawRoutes') {
+        targetOption[key] = rawEffectLines(value);
+        return;
+      }
+      if (key === 'setJump') {
+        targetOption.setJump = optionalSafeId(value);
         return;
       }
       if (key === 'resultMode') {
@@ -457,12 +646,13 @@
       text === 'event.subtitle' ||
       text === 'event.heading' ||
       text === 'event.intro' ||
+      text === 'event.conditionalBody' ||
       text === 'event.id' ||
       text === 'event.rawEffects' ||
-      /^event\.(eventShape|tags|newPage|useSeenFlag|year|monthStart|monthEnd|requires|priority)$/.test(text) ||
-      /^event\.section\.\d+\.(body|title|condition|exitTarget)$/.test(text) ||
+      /^event\.(eventShape|tags|newPage|useSeenFlag|year|monthStart|monthEnd|requires|priority|frequency|setJump|calls|rawRoutes|rawOnDisplay|rawOnDeparture)$/.test(text) ||
+      /^event\.section\.\d+\.(body|conditionalBody|title|condition|exitTarget|setJump|calls|rawRoutes|rawEffects|rawOnDisplay|rawOnDeparture)$/.test(text) ||
       /^event\.effect\.\d+\.(variable|op|value|condition|hook)$/.test(text) ||
-      /^option\.\d+\.(label|subtitle|body|chooseIf|unavailableText|resultMode|gotoAfter|returnTarget|rawEffects)$/.test(text) ||
+      /^option\.\d+\.(label|subtitle|body|chooseIf|unavailableText|resultMode|gotoAfter|returnTarget|setJump|calls|rawRoutes|rawEffects)$/.test(text) ||
       /^option\.\d+\.effect\.\d+\.(variable|op|value|condition|hook)$/.test(text);
   }
 
@@ -474,15 +664,26 @@
   }
 
   function uniqueId(structure, base) {
+    return uniqueIdExcept(structure, base, '');
+  }
+
+  function uniqueIdExcept(structure, base, exceptId) {
     const safe = safeId(base || 'item');
+    const except = safeId(exceptId);
     const existing = new Set();
     ensureArray(structure.options).forEach((option) => {
-      existing.add(safeId(option.id));
-      if (option.gotoAfter) {
+      if (safeId(option.id) !== except) {
+        existing.add(safeId(option.id));
+      }
+      if (option.gotoAfter && safeId(option.gotoAfter) !== except) {
         existing.add(safeId(option.gotoAfter));
       }
     });
-    ensureArray(structure.sections).forEach((section) => existing.add(safeId(section.id)));
+    ensureArray(structure.sections).forEach((section) => {
+      if (safeId(section.id) !== except) {
+        existing.add(safeId(section.id));
+      }
+    });
     if (!existing.has(safe)) {
       return safe;
     }
@@ -529,10 +730,14 @@
 
   function normalizeEventShape(value, rootOptionCount) {
     const text = stringValue(value).trim();
-    if (text === 'choice_event' || text === 'pure_event') {
+    if (text === 'choice_event' || text === 'linear_choice_event' || text === 'pure_event') {
       return text;
     }
-    return Number(rootOptionCount || 0) > 0 ? 'choice_event' : 'pure_event';
+    const count = Number(rootOptionCount || 0);
+    if (count <= 0) {
+      return 'pure_event';
+    }
+    return count === 1 ? 'linear_choice_event' : 'choice_event';
   }
 
   function humanize(value) {
@@ -549,6 +754,10 @@
       .replace(/[^A-Za-z0-9_]+/g, '_')
       .replace(/^_+|_+$/g, '');
     return /^[A-Za-z_]/.test(text) ? text : 'draft_' + (text || 'item');
+  }
+
+  function escapeRegex(value) {
+    return stringValue(value);
   }
 
   function optionalSafeId(value) {

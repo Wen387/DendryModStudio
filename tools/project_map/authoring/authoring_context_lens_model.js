@@ -1,3 +1,4 @@
+// @ts-check
 (function initProjectMapAuthoringContextLens(global) {
   'use strict';
 

@@ -6,17 +6,7 @@ const path = require('path');
 
 const previewModel = require('./authoring/preview_model.js');
 const meaningLayer = require('./authoring/meaning_layer.js');
-
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 const surfaceEscapeHatch = previewModel.buildPreviewModel({
   template: 'surface',

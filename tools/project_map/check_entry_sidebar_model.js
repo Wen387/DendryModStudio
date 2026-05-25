@@ -9,21 +9,11 @@ const entrySidebar = require('./authoring/entry_sidebar_draft.js');
 const installPlan = require('./authoring/install_plan.js');
 const core = require('./desktop/studio_core.js');
 const {pythonCommand} = require('./check_python_command.js');
+const {fail, assert} = require('./check_harness.js');
 
 const ROOT = __dirname;
 const DESKTOP_DIR = path.join(ROOT, 'desktop');
 const TEMPLATE_ROOT = path.join(ROOT, 'templates', 'starter-demo');
-
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
 
 function syntheticIndex(options) {
   const opts = options || {};

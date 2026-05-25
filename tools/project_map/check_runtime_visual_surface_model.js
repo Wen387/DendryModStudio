@@ -41,16 +41,7 @@ global.ProjectMapEditCapability = {
 
 const visualSurface = require('./authoring/runtime_visual_surface_model.js');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 const projectIndex = {
   scenes: [
@@ -134,6 +125,8 @@ const draftable = visualSurface.buildVisualSurface({
 assert(draftable.summary.draftableCount === 1, 'strong source-backed text should become draftable');
 assert(draftable.candidates[0].action.enabled === true, 'draftable text should expose an open_route action');
 assert(draftable.candidates[0].routeClass === 'direct_field_replace', 'draftable text should preserve edit capability route');
+assert(draftable.candidates[0].runtimeEvidenceState === 'source_backed', 'draftable text should classify as source-backed System UI evidence');
+assert(draftable.summary.sourceBackedRuntimeCount === 1, 'runtime summary should count source-backed evidence');
 
 const generated = visualSurface.buildVisualSurface({
   projectIndex,
@@ -146,6 +139,8 @@ const generated = visualSurface.buildVisualSurface({
   }
 });
 assert(generated.candidates[0].editability === 'generated_only', 'generated out/html source should be generated-only');
+assert(generated.candidates[0].runtimeEvidenceState === 'generated_only', 'generated out/html source should classify as generated-only runtime evidence');
+assert(generated.summary.generatedOnlyRuntimeCount === 1, 'runtime summary should count generated-only System UI evidence');
 assert(generated.diagnostics.some((diag) => diag.code === 'runtime_visual_surface.generated_runtime_output'), 'generated source should produce a diagnostic');
 
 const weakGraphic = visualSurface.buildVisualSurface({
@@ -159,6 +154,7 @@ const weakGraphic = visualSurface.buildVisualSurface({
   }
 });
 assert(weakGraphic.candidates[0].editability === 'manual_review', 'weak D3/custom visual evidence should stay manual review');
+assert(weakGraphic.candidates[0].runtimeEvidenceState === 'ambiguous', 'weak D3/custom visual evidence should be ambiguous runtime evidence');
 
 const ambiguous = visualSurface.buildVisualSurface({
   projectIndex: {
@@ -180,6 +176,7 @@ const ambiguous = visualSurface.buildVisualSurface({
   }
 });
 assert(ambiguous.candidates[0].editability === 'manual_review', 'ambiguous source matches should not become draftable');
+assert(ambiguous.candidates[0].runtimeEvidenceState === 'ambiguous', 'ambiguous source matches should expose ambiguous runtime evidence');
 assert(ambiguous.diagnostics.some((diag) => diag.code === 'runtime_visual_surface.ambiguous_candidate'), 'ambiguous source should produce diagnostic');
 
 const asset = visualSurface.buildVisualSurface({
@@ -202,6 +199,7 @@ const asset = visualSurface.buildVisualSurface({
   }
 });
 assert(asset.candidates[0].editability === 'proposal_only', 'asset candidate should not claim automatic replacement');
+assert(asset.candidates[0].runtimeEvidenceState === 'source_backed', 'source-backed asset evidence should stay source-backed while proposal-only');
 assert(asset.candidates[0].action.enabled === true, 'asset candidate should still open the owning workspace when routed');
 assert(asset.candidates[0].actions.some((action) => action.type === 'open_route' && action.enabled === true), 'asset candidate should retain an open route action');
 assert(asset.candidates[0].actions.some((action) => action.type === 'create_asset_reference_draft' && action.enabled === true), 'asset candidate should expose an asset reference draft action');
@@ -213,5 +211,6 @@ process.stdout.write(JSON.stringify({
   draftable: draftable.summary.draftableCount,
   generated: generated.summary.generatedOnlyCount,
   manual: weakGraphic.summary.manualReviewCount,
-  asset: asset.candidates[0].editability
+  asset: asset.candidates[0].editability,
+  runtimeStates: draftable.summary.sourceBackedRuntimeCount + generated.summary.generatedOnlyRuntimeCount + weakGraphic.summary.ambiguousRuntimeCount
 }, null, 2) + '\n');

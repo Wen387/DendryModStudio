@@ -11,7 +11,8 @@
       searchQuery: String(opts.storySearchQuery || storyboard.search && storyboard.search.query || ''),
       scopeCollapsed: Boolean(opts.storyScopeCollapsed),
       overviewCollapsed: Boolean(opts.storyOverviewCollapsed),
-      cardColors: opts.storyCardColors && typeof opts.storyCardColors === 'object' ? opts.storyCardColors : {}
+      cardColors: opts.storyCardColors && typeof opts.storyCardColors === 'object' ? opts.storyCardColors : {},
+      storyCardStacks: opts.storyCardStacks && typeof opts.storyCardStacks === 'object' ? opts.storyCardStacks : {}
     };
     const view = storyboard.view || 'timeline';
     return [
@@ -172,6 +173,7 @@
     ].join('');
   }
 
+
   function renderTimelineLane(lane, laneIndex, laneWidth, laneGap, positions, storyboard) {
     const left = 36 + laneIndex * (laneWidth + laneGap);
     const cards = orderCardsForLane(lane.cards || [], storyboard);
@@ -238,6 +240,7 @@
       '</section>'
     ].join('');
   }
+
 
   function renderCanvasControls() {
     return [
@@ -698,7 +701,6 @@
       '<button type="button" data-object-canvas-action="refresh">' + escapeHtml(t('existingScene.refresh', 'Refresh proposal')) + '</button>',
       '<button type="button" data-object-canvas-action="save">' + escapeHtml(t('editing.saveToChanges', 'Save to My Changes')) + '</button>',
       '<button class="primary-action" type="button" data-object-canvas-action="review">' + escapeHtml(t('existingScene.review', 'Review & Apply')) + '</button>',
-      model.mode !== 'existing' ? '<button type="button" data-object-canvas-action="legacy_form">' + escapeHtml(t('objectCanvas.legacyForm', 'Advanced Form')) + '</button>' : '',
       '</div>'
     ].join('');
   }

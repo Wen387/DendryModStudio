@@ -25,17 +25,9 @@ global.ProjectMapRuntimeVisualAssetDraftModel = require('./authoring/runtime_vis
 const runtimeLensUi = require('./viewer/runtime_lens_ui.js');
 const runtimeLensWorkspace = require('./viewer/runtime_lens_workspace_state.js');
 const canvasModel = require('./authoring/object_authoring_canvas_model.js');
+const {buildDynamicRepoSemanticFixture} = require('./fixtures/dynamicrepo_semantic_fixture.js');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 const projectIndex = {
   scenes: [
@@ -122,6 +114,15 @@ const deckFocus = runtimeLensUi.focusFromCanvas(projectIndex, {
 }, 'deck:starter_deck');
 assert(deckFocus.kind === 'deck', 'Storyboard Runtime Lens focus should resolve deck scene kind');
 assert(deckFocus.targetSceneId === 'starter_deck', 'Storyboard Runtime Lens focus should jump to deck scenes');
+const dynamicIndex = buildDynamicRepoSemanticFixture();
+const dynamicDeckFocus = runtimeLensUi.focusFromCardBoard(dynamicIndex, {mode: 'card', template: 'card'}, {cardBoardSelection: {kind: 'lane', laneKey: 'deck_pool:main.party'}});
+assert(dynamicDeckFocus.kind === 'deck_pool', 'Card Board Runtime Lens should focus named deck pools');
+assert(dynamicDeckFocus.proof && dynamicDeckFocus.proof.routeTags.includes('party_affairs'), 'deck pool Runtime Lens focus should include route/tag proof');
+const dynamicAdvisorFocus = runtimeLensUi.focusFromCardBoard(dynamicIndex, {mode: 'card', template: 'card'}, {cardBoardSelection: {kind: 'lane', laneKey: 'advisor_controller:shuffle_leadership'}});
+assert(dynamicAdvisorFocus.kind === 'advisor_controller', 'Card Board Runtime Lens should focus advisor controllers');
+assert(dynamicAdvisorFocus.proof && dynamicAdvisorFocus.proof.variables.includes('siemsen_advisor'), 'advisor controller Runtime Lens focus should include variable proof');
+const proofHtml = runtimeLensUi.renderPanel({focus: dynamicDeckFocus, status: 'idle'});
+assert(proofHtml.includes('data-runtime-lens-proof="deck_pool"'), 'Runtime Lens panel should render deck proof metadata');
 
 const textFocus = runtimeLensUi.focusFromCanvas(projectIndex, {
   objectId: 'surface_text_update',

@@ -421,7 +421,7 @@
       : editability === 'draft_extractable'
         ? 'guarded_apply'
         : editability === 'source_patch'
-          ? 'advanced_apply'
+          ? (sourcePatchCanGuard(draft) ? 'guarded_apply' : 'advanced_apply')
           : singleLineTextProposal
             ? 'guarded_apply'
             : 'manual_review';
@@ -445,7 +445,9 @@
               description: isTextProposal
                 ? 'Text proposal: replace player-facing prose after matching the indexed original text and exact line evidence.'
                 : isSourcePatch
-                ? 'Studio source patch: replace player-facing text through an advanced source-backed operation.'
+                ? (safety === 'guarded_apply'
+                  ? 'Studio source patch: replace player-facing text after matching exact source evidence.'
+                  : 'Studio source patch: replace player-facing text through an advanced source-backed operation.')
                 : safety === 'guarded_apply'
                 ? 'Replace source scene text after matching the indexed original text and line evidence.'
                 : 'Replace a source-backed surface label after matching the original text.'
@@ -757,6 +759,26 @@
     );
   }
 
+  function sourcePatchCanGuard(draft) {
+    const source = isObject(draft && draft.source) ? draft.source : {};
+    const path = String(source.path || '');
+    const line = Number(source.line || source.startLine || 0);
+    const endLine = Number(source.endLine || line || 0);
+    if (!path.startsWith('source/')) {
+      return false;
+    }
+    if (isProtectedRouterPath(path) && path !== 'source/scenes/root.scene.dry') {
+      return false;
+    }
+    if (!Number.isInteger(line) || line < 1) {
+      return false;
+    }
+    if (Number.isInteger(endLine) && endLine > 0 && endLine !== line) {
+      return false;
+    }
+    return Boolean(String(draft.originalLabel || '').trim() && String(draft.replacementLabel || '').trim());
+  }
+
   function textProposalCanGuard(draft) {
     const source = isObject(draft && draft.source) ? draft.source : {};
     const path = String(source.path || '');
@@ -1040,6 +1062,7 @@
       projectRoot,
       includeEvidence,
       textFiles: new Map(),
+      copyTargets: new Map(),
       copyActions: []
     };
   }
@@ -1111,7 +1134,8 @@
       if (!state || !state.exists) {
         return;
       }
-      if (String(state.text || '').includes(dedupe)) {
+      const inserted = insertAtAnchor(state.text, operation, state.originalText);
+      if ((inserted.ok && inserted.alreadyApplied) || finalTextHasInsertedContent(state.text, operation)) {
         return;
       }
       const message = 'Insert operation passed its local anchor check, but later same-file operations removed the inserted content.';
@@ -1127,6 +1151,30 @@
       operation,
       failedOperationEvidence(operation, match, message)
     );
+  }
+
+  function finalTextHasInsertedContent(text, operation) {
+    const wanted = contentLines(operation && operation.content || '');
+    if (!wanted.length) {
+      return false;
+    }
+    const lines = splitLogicalLines(text || '').lines;
+    const matches = [];
+    for (let index = 0; index <= lines.length - wanted.length; index += 1) {
+      const ok = wanted.every((line, offset) => lines[index + offset] === line);
+      if (ok) {
+        matches.push(index);
+      }
+    }
+    if (!matches.length) {
+      return false;
+    }
+    const lineEvidence = Number(operation && (operation.line || operation.startLine) || 0);
+    if (Number.isInteger(lineEvidence) && lineEvidence > 0) {
+      const expected = operation.position === 'before' ? lineEvidence - 1 : lineEvidence;
+      return matches.some((index) => Math.abs(index - expected) <= 1);
+    }
+    return matches.length === 1;
   }
 
   function textFileState(context, target) {
@@ -1368,6 +1416,21 @@
       return failedPreflightResult(context, operation, 'copy_source_missing', 'Asset copy source file does not exist.');
     }
     const sourceHash = hashFile(context.fs, context.crypto, sourcePath);
+    const previousCopy = context.copyTargets.get(target);
+    if (previousCopy) {
+      diagnostics.push(diagnostic('error', 'install_plan.copy_duplicate_target', 'Multiple asset copy operations target the same project file: ' + operation.path, operation));
+      return withOperationEvidence(
+        {id: operation.id, type: operation.type, path: operation.path, status: 'failed', sourceHash},
+        context.includeEvidence,
+        operation,
+        assetOperationEvidence(operation, 'failed', {
+          match: 'duplicate_copy_target',
+          message: 'Multiple asset copy operations target the same project file.',
+          sourceHash,
+          previousSourceHash: previousCopy.sourceHash
+        })
+      );
+    }
     if (context.fs.existsSync(target)) {
       if (!context.fs.statSync(target).isFile()) {
         diagnostics.push(diagnostic('error', 'install_plan.copy_conflict', 'Asset copy target exists and is not a file: ' + operation.path, operation));
@@ -1408,6 +1471,7 @@
         })
       );
     }
+    context.copyTargets.set(target, {sourcePath, sourceHash});
     context.copyActions.push({sourcePath, target});
     return withOperationEvidence(
       {id: operation.id, type: operation.type, path: operation.path, status: 'would_apply', sourceHash},
@@ -1534,10 +1598,10 @@
       if (
         operation.type === 'insert_text' &&
         safety === 'guarded_apply' &&
-        isProtectedRouterPath(rel) &&
         operation.anchorText &&
         operation.content &&
-        operation.dedupeSearch
+        operation.dedupeSearch &&
+        isAllowedProtectedRouterInsert(operation, rel)
       ) {
         return {ok: true, message: 'Guarded insert_text is allowed with an exact anchor and dedupe evidence.'};
       }
@@ -1690,6 +1754,20 @@
       return {ok: true, message: 'Guarded asset file copy with desktop source path and safe project target.'};
     }
     return {ok: false, message: 'Unsupported safe operation type: ' + operation.type};
+  }
+
+  function isAllowedProtectedRouterInsert(operation, rel) {
+    const id = String(operation && operation.id || '').trim();
+    if (rel === 'source/scenes/root.scene.dry') {
+      return id === 'root_seen_flag' || id === 'variable_root_init' || /^event_variable_init_[A-Za-z0-9_]+_\d+$/.test(id);
+    }
+    if (rel === 'source/scenes/post_event.scene.dry') {
+      return id === 'post_event_migration' || id === 'event_router_registration';
+    }
+    if (rel === 'source/scenes/post_event_news.scene.dry') {
+      return id === 'post_event_news_snippet' || id === 'event_router_registration';
+    }
+    return false;
   }
 
   function isAssetInstallTargetPath(relPath) {
@@ -2228,6 +2306,9 @@
     const lines = parts.lines;
     const startMatch = resolveSectionAnchor(lines, anchor, operation.rawAnchorText || '', operation.startLine || operation.line || null, 0, 'start', originalText);
     if (!startMatch.ok) {
+      if (emptySectionDeleteAlreadyApplied(text, operation)) {
+        return {ok: true, alreadyApplied: true, text, beforeSnippet: '', afterSnippet: ''};
+      }
       if (containsUniqueNormalizedBlock(text, content)) {
         return {ok: true, alreadyApplied: true, text, beforeSnippet: content, afterSnippet: content};
       }
@@ -2256,6 +2337,9 @@
     }
     const endMatch = resolveSectionAnchor(lines, endAnchor, operation.rawEndAnchorText || '', operation.endLine || null, start, 'end', originalText);
     if (!endMatch.ok) {
+      if (emptySectionDeleteAlreadyApplied(text, operation)) {
+        return {ok: true, alreadyApplied: true, text, beforeSnippet: '', afterSnippet: ''};
+      }
       if (containsUniqueNormalizedBlock(text, content)) {
         return {ok: true, alreadyApplied: true, text, beforeSnippet: content, afterSnippet: content};
       }
@@ -2311,6 +2395,22 @@
 
   function normalizedReplacementBlock(value) {
     return normalizeNewlines(value).replace(/\n$/, '');
+  }
+
+  function emptySectionDeleteAlreadyApplied(text, operation) {
+    if (!operation || !operation.allowEmptyReplace || String(operation.content || '').trim()) {
+      return false;
+    }
+    const normalized = normalizeNewlines(text);
+    const anchor = String(operation.anchorText || '').trim();
+    const dedupe = String(operation.dedupeSearch || anchor || '').trim();
+    if (anchor && normalized.includes(anchor)) {
+      return false;
+    }
+    if (dedupe && normalized.includes(dedupe)) {
+      return false;
+    }
+    return Boolean(anchor || dedupe);
   }
 
   function resolveSectionAnchor(lines, anchor, rawAnchor, lineEvidence, minimumIndex, kind, originalText) {

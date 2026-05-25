@@ -11,22 +11,95 @@ const existingEdit = require('./authoring/existing_scene_edit_model.js');
 const eventWorkbench = require('./authoring/event_workbench_model.js');
 const installPlan = require('./authoring/install_plan.js');
 const {pythonCommand} = require('./check_python_command.js');
+const dryParser = require('dendrynexus/lib/parsers/dry.js');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 
-function fail(message, details) {
-  process.stderr.write(JSON.stringify(Object.assign({ok: false, message}, details || {}), null, 2) + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message, details) {
-  if (!condition) {
-    fail(message, details);
-  }
-}
+const {failJson: fail, assertJson: assert} = require('./check_harness.js');
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+function parseDryContent(content) {
+  let output = null;
+  dryParser.parseFromContent('option_block_probe.scene.dry', content, (err, result) => {
+    output = {err, result};
+  });
+  return output;
+}
+
+function runOptionBlockBoundaryAssertions() {
+  const contiguous = parseDryContent([
+    'title: Root',
+    '',
+    'Intro.',
+    '',
+    '- @one: One',
+    '- @two: Two',
+    ''
+  ].join('\n'));
+  assert(!contiguous.err && contiguous.result.options.length === 2, 'Dendry parser should accept contiguous option lines', contiguous.err && contiguous.err.toString());
+
+  const blankBeforeFirst = parseDryContent([
+    'title: Root',
+    '',
+    'Intro.',
+    '',
+    '- @one: One',
+    ''
+  ].join('\n'));
+  assert(!blankBeforeFirst.err && blankBeforeFirst.result.options.length === 1, 'Dendry parser should allow the blank line that starts an option block after prose', blankBeforeFirst.err && blankBeforeFirst.err.toString());
+
+  const blankBetween = parseDryContent([
+    'title: Root',
+    '',
+    'Intro.',
+    '',
+    '- @one: One',
+    '',
+    '- @two: Two',
+    ''
+  ].join('\n'));
+  assert(blankBetween.err && /Found content after an options block/.test(blankBetween.err.toString()), 'Dendry parser should reject a blank line that splits one option block before another option', blankBetween.err && blankBetween.err.toString());
+
+  const contiguousTagInsert = parseDryContent([
+    'title: Root',
+    '',
+    'Intro.',
+    '',
+    '- @one: One',
+    '- #event: Monthly event popups',
+    '- @two: Two',
+    ''
+  ].join('\n'));
+  assert(!contiguousTagInsert.err && contiguousTagInsert.result.options.some((option) => option.id === '#event'), 'Dendry parser should accept contiguous tag-router options inside an option block', contiguousTagInsert.err && contiguousTagInsert.err.toString());
+
+  const trailingBlank = parseDryContent([
+    'title: Root',
+    '',
+    'Intro.',
+    '',
+    '- @one: One',
+    '',
+    ''
+  ].join('\n'));
+  assert(!trailingBlank.err && trailingBlank.result.options.length === 1, 'Dendry parser should allow trailing blank lines after the final option', trailingBlank.err && trailingBlank.err.toString());
+
+  const sectionAfterOptions = parseDryContent([
+    'title: Root',
+    '',
+    '- @local: Local',
+    '',
+    '@local',
+    'title: Local',
+    '',
+    'Local section.',
+    ''
+  ].join('\n'));
+  assert(!sectionAfterOptions.err && sectionAfterOptions.result.sections.length === 1, 'Dendry parser should allow a section after an option block', sectionAfterOptions.err && sectionAfterOptions.err.toString());
+
+  return 6;
 }
 
 function writeFixture(root) {
@@ -152,6 +225,7 @@ function stableTextId(rel, line, role, text) {
 }
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dms_parser_editability_'));
+const optionBlockBoundaryCases = runOptionBlockBoundaryAssertions();
 writeFixture(root);
 const index = buildIndex(root);
 const corpus = textItems(index);
@@ -303,5 +377,6 @@ process.stdout.write(JSON.stringify({
   fields: model.fields.length,
   textBlocks: model.textBlocks.length,
   optionOperations: optionBundle.installPlan.operations.length,
+  optionBlockBoundaryCases,
   removeOptionSafety: removeOptionBundle.installPlan.operations[0].safety
 }, null, 2) + '\n');

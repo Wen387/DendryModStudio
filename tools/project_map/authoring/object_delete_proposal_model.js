@@ -1,3 +1,4 @@
+// @ts-check
 (function initProjectMapObjectDeleteProposalModel(global) {
   'use strict';
 

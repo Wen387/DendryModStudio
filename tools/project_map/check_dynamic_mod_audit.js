@@ -21,16 +21,7 @@ const FIXTURES = [
   {id: 'dynamic-mod', root: DYNAMIC_ROOT, includeExcerpts: true}
 ];
 
-function fail(message, detail) {
-  process.stderr.write('FAIL: ' + message + (detail ? '\n' + JSON.stringify(detail, null, 2) : '') + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message, detail) {
-  if (!condition) {
-    fail(message, detail);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));

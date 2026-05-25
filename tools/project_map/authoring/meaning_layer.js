@@ -1,3 +1,4 @@
+// @ts-check
 (function initMeaningLayer(global) {
   'use strict';
 

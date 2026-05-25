@@ -1,0 +1,22 @@
+#!/usr/bin/env node
+'use strict';
+const advisorDraft = require('./authoring/advisor_controller_draft.js');
+const canvas = require('./authoring/object_canvas_content_adapters.js');
+const {buildDynamicRepoSemanticFixture} = require('./fixtures/dynamicrepo_semantic_fixture.js');
+const {assert} = require('./check_harness.js');
+const index = buildDynamicRepoSemanticFixture();
+const draft = advisorDraft.draftForController(index, 'shuffle_leadership');
+const model = canvas.buildTemplateCanvas(index, 'advisor_controller', draft, {values: {}});
+assert(model.template === 'advisor_controller', 'advisor_controller template should build a canvas model');
+const siemsen = model.eventBody.options.find((option) => option.id === 'siemsen');
+assert(siemsen && siemsen.fields.some((field) => field.id === 'advisorController.roster.siemsen.title'), 'roster title field id should be stable');
+assert(siemsen.fields.some((field) => field.id === 'advisorController.roster.siemsen.add.label'), 'roster add label field id should be stable');
+const addModel = canvas.buildTemplateCanvas(index, 'advisor_controller', draft, {values: {'advisorController.addAdvisorId': 'new_advisor'}});
+const addOp = addModel.changeState.installPlan.operations.find((op) => op.role === 'advisor_controller.add_roster_item');
+assert(addOp && addOp.groupId === 'advisor_controller:shuffle_leadership' && addOp.safety === 'manual_review', 'add advisor candidate should produce grouped manual operation');
+const changed = canvas.buildTemplateCanvas(index, 'advisor_controller', draft, {values: {'advisorController.roster.siemsen.title': 'Anna S.'}});
+assert(changed.changeState.installPlan.operations.some((op) => op.role === 'advisor_controller.update_roster_item' && op.safety === 'guarded_apply'), 'source-backed roster title edit should produce guarded update operation');
+const partialDraft = advisorDraft.normalizeDraft(Object.assign({}, draft, {authoringStatus: 'partial', authoringBlockers: ['pattern incomplete'], entryLabel: 'Changed'}));
+const partialBundle = advisorDraft.buildExportBundle(partialDraft, index);
+assert(partialBundle.installPlan.operations.every((op) => op.safety === 'manual_review'), 'partial controller should not produce auto-apply install operations');
+process.stdout.write(JSON.stringify({ok:true, roster:model.eventBody.options.length}, null, 2)+'\n');

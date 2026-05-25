@@ -3,16 +3,7 @@
 
 const bus = require('./authoring/preview_message_bus.js');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 assert(bus && typeof bus === 'object', 'CommonJS export should return the preview message bus API');
 assert(bus.MESSAGE_KINDS.RUNTIME_PREVIEW_COMMAND === 'dms-runtime-preview-command', 'runtime preview command kind should be centralized');

@@ -4,6 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 const viewer = require('./viewer/app.js');
+const {fail, assert} = require('./check_harness.js');
 
 const DEFAULT_INDEX = '/tmp/dendry_project_map/project-index.json';
 const args = process.argv.slice(2);
@@ -17,20 +18,9 @@ if (unknownFlag) {
   fail('unknown flag: ' + unknownFlag);
 }
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
 function assertEqual(actual, expected, label) {
   if (actual !== expected) {
     fail(label + ' expected ' + expected + ', got ' + actual);
-  }
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
   }
 }
 

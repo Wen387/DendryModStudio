@@ -1,3 +1,4 @@
+// @ts-check
 (function initProjectMapExistingSceneAssetHelpers(global) {
   'use strict';
 
@@ -26,11 +27,26 @@
     return parts[parts.length - 1] || text;
   }
 
+  function assetContractApi() {
+    if (global && global.ProjectMapAssetContractModel) {
+      return global.ProjectMapAssetContractModel;
+    }
+    if (typeof require === 'function') {
+      try { return require('./asset_contract_model.js'); } catch (_err) { /* optional */ }
+    }
+    return null;
+  }
+
   function normalizeAssetDirective(value) {
+    const api = assetContractApi();
+    if (api && typeof api.normalizeAssetDirective === 'function') {
+      return api.normalizeAssetDirective(value);
+    }
     const text = String(value || '').trim().toLowerCase();
     return text === 'face-image' ||
       text === 'card-image' ||
       text === 'set-bg' ||
+      text === 'set-music' ||
       text === 'audio' ||
       text === 'inline-image' ||
       text === 'inline-asset'
@@ -43,6 +59,7 @@
       'face-image': 'Portrait image',
       'card-image': 'Card image',
       'set-bg': 'Background image',
+      'set-music': 'Music track',
       audio: 'Audio asset',
       'inline-image': 'Inline image',
       'inline-asset': 'Inline asset'
@@ -156,6 +173,13 @@
           return text;
         }
         return path;
+      }
+      if (directive === 'audio' || directive === 'set-music') {
+        const source = sourceRef(asset && asset.source || {});
+        const anchor = String(source.anchorText || '').trim();
+        if (anchor && anchor.includes(path)) {
+          return anchor;
+        }
       }
       return directive + ': ' + path;
     }

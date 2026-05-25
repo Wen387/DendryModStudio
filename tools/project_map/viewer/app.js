@@ -6,7 +6,7 @@
       return root.ProjectMapExploreModel;
     }
     if (typeof module !== 'undefined' && module.exports && typeof require === 'function') {
-      return require('./explore_model.js');
+      return require('../authoring/explore_model.js');
     }
     throw new Error('Project Map Explore model module is unavailable.');
   }
@@ -308,6 +308,7 @@
       desktopStatus: document.getElementById('desktop-status'),
       desktopProgress: document.getElementById('desktop-progress'),
       desktopProgressBar: document.getElementById('desktop-progress-bar'),
+      desktopProgressHint: document.getElementById('desktop-progress-hint'),
       desktopProgressLabel: document.getElementById('desktop-progress-label'),
       topbarMore: document.getElementById('topbar-more')
     };
@@ -1070,6 +1071,17 @@
     elements.desktopProgress.dataset.stage = stage;
     if (elements.desktopProgressBar) {
       elements.desktopProgressBar.style.width = percent + '%';
+    }
+    if (elements.desktopProgressHint) {
+      const hintKey = update && update.hintKey || '';
+      const hintFallback = update && update.hint || '';
+      const hint = hintKey ? t(hintKey, hintFallback) : hintFallback;
+      if (hint) {
+        elements.desktopProgressHint.textContent = hint;
+        elements.desktopProgressHint.classList.remove('hidden');
+      } else {
+        elements.desktopProgressHint.classList.add('hidden');
+      }
     }
     if (elements.desktopProgressLabel) {
       elements.desktopProgressLabel.textContent = percent + '% · ' + label;

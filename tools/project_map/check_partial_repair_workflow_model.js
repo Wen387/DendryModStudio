@@ -6,16 +6,7 @@ const path = require('path');
 const partialRepair = require('./authoring/partial_repair_workflow_model.js');
 const previewEditor = require('./viewer/preview_object_editor.js');
 
-function fail(message, detail) {
-  process.stderr.write('FAIL: ' + message + (detail ? '\n' + JSON.stringify(detail, null, 2) : '') + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message, detail) {
-  if (!condition) {
-    fail(message, detail);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function decodeHtml(value) {
   return String(value || '')
@@ -218,6 +209,25 @@ assert(html.includes('data-partial-repair-entry="repair_body"'), 'rendered parit
 assert(html.includes('data-partial-repair-entry="repair_assets"'), 'rendered parity panel should include asset repair entry');
 assert(html.includes('data-partial-repair-entry="repair_dynamicraw"'), 'rendered parity panel should include unsupported boundary entry');
 assert(html.includes('data-partial-repair-kind="asset"'), 'asset repair row should keep asset repair kind marker');
+const sparseEntries = partialRepair.buildRepairEntries({
+  roles: {},
+  blockers: [{
+    code: 'parsed_to_draft.root_choice_missing',
+    message: 'This parsed event has follow-up structure but no root player choice.'
+  }]
+}, {
+  model: {
+    objectView: 'events',
+    objectId: 'sparse_event',
+    eventBody: {
+      structureActions: [{id: 'structure_add_option', source: {path: 'source/scenes/events/sparse_event.scene.dry', line: 12}}]
+    }
+  }
+});
+const sparseEntry = sparseEntries.find((entry) => entry.id === 'repair_sparse_root_choice');
+assert(sparseEntry && sparseEntry.repairAction && sparseEntry.repairAction.actionKind === 'open_object_section', 'sparse root-choice blockers should route to Object Canvas structure repair.', sparseEntries);
+assert(sparseEntry.repairAction.fieldId === 'structure_add_option' && sparseEntry.repairAction.installSafety === 'guarded_apply', 'sparse root-choice repair should target structure_add_option safely.', sparseEntry);
+
 assert(html.includes('data-authoring-context-lens="true"'), 'repair rows should expose AQ context lens metadata');
 
 const actions = visibleEditActions(html);

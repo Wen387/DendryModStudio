@@ -40,9 +40,9 @@ const SCENARIOS = {
   explore_design_existing_edit: {
     title: 'Player finds an existing event through Explore and Design, edits it, and dry-runs the guarded replacement.',
     run: scenarioExploreDesignExistingEdit,
-    dialogRoots: ['projectRoot'],
+    dialogRoots: [],
     playerLike: [
-      'opens a project through Quick Start',
+      'loads the bundled demo template',
       'searches Explore events',
       'inspects the same event in Design list view',
       'opens Edit existing from Design',
@@ -65,6 +65,22 @@ const SCENARIOS = {
       'opens Create / World Event Canvas',
       'clicks a source-backed Storyboard event card',
       'verifies the card becomes selected and opens the object editor modal'
+    ],
+    shortcuts: [
+      'uses the packaged starter template instead of a native folder picker',
+      'dispatches mouse-like pointer events in Electron instead of manual clicking'
+    ]
+  },
+  card_board_canvas_selection: {
+    title: 'Player opens Create, clicks a Card Board card, and explicitly opens the Object Editor.',
+    run: scenarioCardBoardCanvasSelection,
+    dialogRoots: ['projectRoot'],
+    playerLike: [
+      'opens a project through Quick Start',
+      'opens Create / Card Board',
+      'clicks a source-backed Card Board card',
+      'verifies the card becomes selected without auto-opening the editor',
+      'opens the Object Editor explicitly from the Card Board side panel'
     ],
     shortcuts: [
       'uses a deterministic test dialog adapter for native folder selection',
@@ -857,6 +873,191 @@ async function scenarioContentStoryboardCanvasSelection(win, args, artifactDir, 
   }, cardKey), 'Pointer-clicking a Storyboard card should select it and open the object editor');
   await screenshot(win, artifactDir, '02-storyboard-card-selected-editor-open');
   log('Storyboard card pointer click opens the object editor', 'PASS', cardKey);
+}
+
+async function scenarioCardBoardCanvasSelection(win, args, artifactDir, log) {
+  await expectWelcomeSurfaceVisible(win, 'Quick Start overlay should be visible on first launch');
+  await expectVisible(win, '#onboarding-load-demo', 'Quick Start should expose bundled demo template action');
+  await click(win, '#onboarding-load-demo');
+  await waitForWelcomeSurfaceHidden(win, 'Quick Start should close after loading demo template');
+  const loaded = await waitForProjectNamed(win, 'Dendry Mod Studio Starter Demo', args.timeoutMs);
+  await waitForDesktopProgressHidden(win, args.timeoutMs);
+  log('Bundled demo template opens', 'PASS', JSON.stringify(loaded.summary || {}));
+
+  await click(win, '#mode-create');
+  await click(win, '[data-create-template="card"]');
+  await expectVisible(win, '#existing-scene-editor-host [data-card-board-surface="true"]', 'Card Board should render in Create');
+  await screenshot(win, artifactDir, '01-card-board');
+  log('Card Board renders', 'PASS', '01-card-board.png');
+
+  const deckPoolOpened = await evalInPage(win, () => {
+    const button = Array.from(document.querySelectorAll('#existing-scene-editor-host [data-card-board-action="open_deck_pool_editor"][data-card-board-deck-pool]')).find(isVisible);
+    if (button) {
+      button.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window}));
+      return true;
+    }
+    const route = Array.from(document.querySelectorAll('#existing-scene-editor-host [data-card-board-hand-route][data-card-board-open-lane-object="deck_pool"]')).find(isVisible);
+    if (!route) {
+      return false;
+    }
+    route.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window}));
+    return true;
+
+    function isVisible(node) {
+      const rect = node && node.getBoundingClientRect && node.getBoundingClientRect();
+      const style = node && window.getComputedStyle(node);
+      return Boolean(rect && rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden');
+    }
+  });
+  if (!deckPoolOpened) {
+    throw new Error('Card Board did not expose a clickable deck pool route.');
+  }
+  await waitFor(win, () => evalInPage(win, () => {
+    const modal = document.querySelector('[data-object-editing-modal="true"]');
+    const close = modal && modal.querySelector('[data-object-canvas-action="toggle_overlay"]');
+    const frame = modal && modal.querySelector('[data-preview-object-deck-pool="true"]');
+    const canvas = window.ProjectMapObjectAuthoringCanvas;
+    return Boolean(modal && close && frame && canvas && canvas.activeTemplate && canvas.activeTemplate() === 'deck_pool');
+  }), 'Clicking a Card Board deck route should open the deck pool Object Editor');
+  const deckPoolEdited = await evalInPage(win, () => {
+    const modal = document.querySelector('[data-object-editing-modal="true"]');
+    const frame = modal && modal.querySelector('[data-preview-object-deck-pool="true"]');
+    const add = modal && modal.querySelector('[data-object-canvas-field="deckPool.add.memberCardId"]');
+    const addOption = add && Array.from(add.options || []).find((option) => option.value);
+    const remove = modal && Array.from(modal.querySelectorAll('[data-object-canvas-field]')).find((field) => String(field.dataset.objectCanvasField || '').endsWith('.remove'));
+    if (!frame || !add || !addOption || !remove) {
+      const canvas = window.ProjectMapObjectAuthoringCanvas;
+      const draft = canvas && canvas.getDraft && canvas.getDraft();
+      return {
+        ok: false,
+        hasModal: Boolean(modal),
+        hasFrame: Boolean(frame),
+        hasAdd: Boolean(add),
+        addOptions: add ? Array.from(add.options || []).map((option) => option.value).filter(Boolean).length : 0,
+        hasRemove: Boolean(remove),
+        activeTemplate: canvas && canvas.activeTemplate && canvas.activeTemplate(),
+        deckPoolId: draft && draft.deckPoolId || '',
+        memberCards: draft && Array.isArray(draft.memberCards) ? draft.memberCards.length : -1,
+        availableMemberCards: draft && Array.isArray(draft.availableMemberCards) ? draft.availableMemberCards.length : -1,
+        fieldIds: modal ? Array.from(modal.querySelectorAll('[data-object-canvas-field]')).map((field) => field.dataset.objectCanvasField || '').slice(0, 20) : []
+      };
+    }
+    add.value = addOption.value;
+    add.dispatchEvent(new Event('input', {bubbles: true}));
+    add.dispatchEvent(new Event('change', {bubbles: true}));
+    remove.checked = true;
+    remove.dispatchEvent(new Event('input', {bubbles: true}));
+    remove.dispatchEvent(new Event('change', {bubbles: true}));
+    if (window.ProjectMapObjectAuthoringCanvas && typeof window.ProjectMapObjectAuthoringCanvas.refresh === 'function') {
+      window.ProjectMapObjectAuthoringCanvas.refresh();
+    }
+    return {ok: true};
+  });
+  if (!deckPoolEdited || !deckPoolEdited.ok) {
+    throw new Error('Deck pool Object Editor did not expose selectable add/remove membership controls: ' + JSON.stringify(deckPoolEdited || {}));
+  }
+  try {
+    await waitFor(win, () => evalInPage(win, () => {
+      const canvas = window.ProjectMapObjectAuthoringCanvas;
+      const draft = canvas && canvas.getDraft && canvas.getDraft();
+      const output = canvas && canvas.getOutput && canvas.getOutput();
+      let operations = output && output.installPlan && output.installPlan.operations || [];
+      if (!operations.length && draft && window.ProjectMapDeckPoolDraft && window.ProjectMapWizard) {
+        const projectIndex = window.ProjectMapWizard.getState && window.ProjectMapWizard.getState().projectIndex;
+        const bundle = window.ProjectMapDeckPoolDraft.buildExportBundle(draft, projectIndex);
+        operations = bundle && bundle.installPlan && bundle.installPlan.operations || [];
+      }
+      window.__DMS_QA_DECK_POOL_AFTER_EDIT__ = {
+        membershipChanges: draft && draft.membershipChanges || [],
+        operationRoles: operations.map((op) => op.role || ''),
+        activeTemplate: canvas && canvas.activeTemplate && canvas.activeTemplate()
+      };
+      return Boolean(draft && Array.isArray(draft.membershipChanges) && draft.membershipChanges.length >= 2 &&
+        operations.some((op) => op.role === 'deck_pool.add_member') &&
+        operations.some((op) => op.role === 'deck_pool.remove_member'));
+    }), 'Deck pool selectable membership edits should update the draft and Review & Apply plan');
+  } catch (err) {
+    const detail = await evalInPage(win, () => window.__DMS_QA_DECK_POOL_AFTER_EDIT__ || {});
+    throw new Error(err.message + ': ' + JSON.stringify(detail));
+  }
+  await screenshot(win, artifactDir, '02-card-board-deck-pool-editor-open');
+  log('Card Board deck route opens the deck pool editor and updates membership operations', 'PASS');
+
+  await click(win, '[data-object-editing-modal] [data-object-canvas-action="toggle_overlay"]');
+  await waitFor(win, () => evalInPage(win, () => !document.querySelector('[data-object-editing-modal="true"]')), 'Card Board deck pool editor modal should close');
+
+  const cardKey = await evalInPage(win, () => {
+    const cards = Array.from(document.querySelectorAll('#existing-scene-editor-host [data-card-board-card]'));
+    const card = cards.find((node) => /^card:/.test(node.dataset.cardBoardCard || ''));
+    return card && card.dataset.cardBoardCard || '';
+  });
+  if (!cardKey) {
+    throw new Error('Card Board did not render a source-backed card to click.');
+  }
+  await dispatchCardBoardPointerClick(win, cardKey);
+  await waitFor(win, () => evalInPage(win, (key) => {
+    const selected = document.querySelector('[data-card-board-card="' + cssEscape(key) + '"].is-selected');
+    const modal = document.querySelector('[data-object-editing-modal="true"]');
+    const title = Array.from(document.querySelectorAll('[data-card-face-selected-title="true"]')).find(isVisible);
+    return Boolean(selected && !modal && title && /Starter Action Card/.test(title.textContent || ''));
+
+    function cssEscape(value) {
+      return window.CSS && window.CSS.escape ? window.CSS.escape(String(value || '')) : String(value || '').replace(/["\\\]]/g, '\\$&');
+    }
+    function isVisible(node) {
+      const rect = node && node.getBoundingClientRect && node.getBoundingClientRect();
+      const style = node && window.getComputedStyle(node);
+      return Boolean(rect && rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden');
+    }
+  }, cardKey), 'Pointer-clicking a Card Board card should select it without opening the modal and update the side panel title');
+  await screenshot(win, artifactDir, '03-card-board-card-selected');
+  log('Card Board card pointer click selects the card', 'PASS', cardKey);
+
+  const opened = await evalInPage(win, () => {
+    const button = document.querySelector('#existing-scene-editor-host .card-face-command-dock [data-card-board-action="open_card_editor"]');
+    if (!button) {
+      return false;
+    }
+    button.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window}));
+    return true;
+  });
+  if (!opened) {
+    throw new Error('Card Board did not expose an Object Editor opening button.');
+  }
+  await waitFor(win, () => evalInPage(win, () => {
+    const modal = document.querySelector('[data-object-editing-modal="true"]');
+    const canvas = window.ProjectMapObjectAuthoringCanvas;
+    return Boolean(modal && canvas && canvas.activeTemplate && canvas.activeTemplate() === 'existing');
+  }), 'Open object editor should open the source-backed card modal');
+  await screenshot(win, artifactDir, '04-card-board-object-editor-open');
+  log('Card Board explicit Object Editor action opens the modal', 'PASS', cardKey);
+
+  await click(win, '[data-object-editing-modal] [data-object-canvas-action="toggle_overlay"]');
+  await waitFor(win, () => evalInPage(win, () => !document.querySelector('[data-object-editing-modal="true"]')), 'Card Board object editor modal should close');
+
+  const inlineOpened = await evalInPage(win, (key) => {
+    const selector = '#existing-scene-editor-host [data-card-board-action="open_card_editor"][data-card-board-action-card="' + cssEscape(key) + '"]';
+    const button = document.querySelector(selector);
+    if (!button) {
+      return false;
+    }
+    button.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, view: window}));
+    return true;
+
+    function cssEscape(value) {
+      return window.CSS && window.CSS.escape ? window.CSS.escape(String(value || '')) : String(value || '').replace(/["\\\]]/g, '\\$&');
+    }
+  }, cardKey);
+  if (!inlineOpened) {
+    throw new Error('Card Board card did not expose an inline Edit affordance.');
+  }
+  await waitFor(win, () => evalInPage(win, () => {
+    const modal = document.querySelector('[data-object-editing-modal="true"]');
+    const canvas = window.ProjectMapObjectAuthoringCanvas;
+    return Boolean(modal && canvas && canvas.activeTemplate && canvas.activeTemplate() === 'existing');
+  }), 'Card Board inline Edit affordance should open the source-backed card modal');
+  await screenshot(win, artifactDir, '05-card-board-inline-edit-open');
+  log('Card Board inline Edit affordance opens the modal without parent selection swallowing it', 'PASS', cardKey);
 }
 
 async function scenarioWorkflowAccessRenderedEntries(win, args, artifactDir, log) {
@@ -2210,6 +2411,13 @@ async function waitForProjectNamed(win, expectedName, timeoutMs) {
   });
 }
 
+async function waitForDesktopProgressHidden(win, timeoutMs) {
+  await waitFor(win, () => evalInPage(win, () => {
+    const progress = document.getElementById('desktop-progress');
+    return !progress || progress.classList.contains('hidden') || progress.getAttribute('aria-hidden') === 'true';
+  }), 'Desktop project loading overlay should be hidden', timeoutMs);
+}
+
 async function waitForPageReady(win, timeoutMs) {
   await waitFor(win, () => evalInPage(win, () => document.readyState === 'complete'), 'document ready', timeoutMs);
   await waitFor(win, () => evalInPage(win, () => Boolean(window.ProjectMapWizard && window.ProjectMapInstallAssistant)), 'Studio globals ready', timeoutMs);
@@ -2281,6 +2489,47 @@ async function dispatchStoryboardPointerClick(win, cardKey) {
   }
 }
 
+async function dispatchCardBoardPointerClick(win, cardKey) {
+  const result = await evalInPage(win, (key) => {
+    const selector = '[data-card-board-card="' + cssEscape(key) + '"]';
+    const card = document.querySelector(selector);
+    if (!card) {
+      return {ok: false, reason: 'missing-card'};
+    }
+    card.scrollIntoView({block: 'center', inline: 'center'});
+    const rect = card.getBoundingClientRect();
+    const clientX = Math.round(rect.left + Math.min(96, Math.max(24, rect.width / 2)));
+    const clientY = Math.round(rect.top + Math.min(92, Math.max(24, rect.height / 2)));
+    const EventCtor = window.PointerEvent || window.MouseEvent;
+    const base = {
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+      clientX,
+      clientY,
+      button: 0,
+      pointerId: 83,
+      pointerType: 'mouse',
+      isPrimary: true
+    };
+    card.dispatchEvent(new EventCtor('pointerdown', Object.assign({}, base, {buttons: 1})));
+    card.dispatchEvent(new EventCtor('pointerup', Object.assign({}, base, {buttons: 0})));
+    card.dispatchEvent(new MouseEvent('click', Object.assign({}, base, {buttons: 0, view: window})));
+    return {
+      ok: true,
+      selected: Boolean(document.querySelector(selector + '.is-selected')),
+      modal: Boolean(document.querySelector('[data-object-editing-modal="true"]'))
+    };
+
+    function cssEscape(value) {
+      return window.CSS && window.CSS.escape ? window.CSS.escape(String(value || '')) : String(value || '').replace(/["\\\]]/g, '\\$&');
+    }
+  }, cardKey);
+  if (!result || !result.ok) {
+    throw new Error('Could not dispatch Card Board pointer click for ' + cardKey + ': ' + JSON.stringify(result));
+  }
+}
+
 async function clickIfExists(win, selector) {
   return evalInPage(win, (targetSelector) => {
     const isVisible = (candidate) => {
@@ -2318,7 +2567,7 @@ async function closeObjectEditorIfOpen(win) {
 
 async function openObjectCanvasDraft(win, template, draft) {
   const ok = await evalInPage(win, (nextTemplate, nextDraft) => {
-    const api = window.ProjectMapObjectAuthoringCanvas || window.ProjectMapEditingWorkspace;
+    const api = window.ProjectMapObjectAuthoringCanvas;
     if (!api || typeof api.openTemplate !== 'function') {
       return false;
     }
@@ -2328,7 +2577,7 @@ async function openObjectCanvasDraft(win, template, draft) {
     throw new Error('Could not open Object Canvas draft for template: ' + template);
   }
   await waitFor(win, () => evalInPage(win, (nextTemplate) => {
-    const api = window.ProjectMapObjectAuthoringCanvas || window.ProjectMapEditingWorkspace;
+    const api = window.ProjectMapObjectAuthoringCanvas;
     return Boolean(api && typeof api.activeTemplate === 'function' && api.activeTemplate() === nextTemplate);
   }, template), 'Object Canvas should activate template: ' + template);
 }
@@ -2460,7 +2709,7 @@ async function waitForEventOutput(win, expectedId) {
       output && output.installPlanJson && output.patchPreview &&
       String(output.scene || output.sceneDry || '').includes('tags: event, world')
     );
-    const canvas = window.ProjectMapObjectAuthoringCanvas || window.ProjectMapEditingWorkspace;
+    const canvas = window.ProjectMapObjectAuthoringCanvas;
     const canvasDraft = canvas && canvas.getDraft && canvas.getDraft();
     const canvasOutput = canvas && canvas.getOutput && canvas.getOutput();
     const canvasReady = Boolean(
@@ -2475,7 +2724,7 @@ async function waitForEventOutput(win, expectedId) {
 async function syncEventWizardDraftToObjectCanvas(win) {
   const ok = await evalInPage(win, () => {
     const wizard = window.ProjectMapWizard;
-    const canvas = window.ProjectMapObjectAuthoringCanvas || window.ProjectMapEditingWorkspace;
+    const canvas = window.ProjectMapObjectAuthoringCanvas;
     if (!wizard || typeof wizard.getDraft !== 'function' || !canvas || typeof canvas.openTemplate !== 'function') {
       return false;
     }
@@ -2866,7 +3115,7 @@ async function waitForEntryOutput(win, expectedId) {
       String(output.installPlanJson || '').includes('entry_sidebar') &&
       String(output.patchPreview || '').includes('replace section')
     );
-    const canvas = window.ProjectMapObjectAuthoringCanvas || window.ProjectMapEditingWorkspace;
+    const canvas = window.ProjectMapObjectAuthoringCanvas;
     const canvasDraft = canvas && canvas.getDraft && canvas.getDraft();
     const canvasOutput = canvas && canvas.getOutput && canvas.getOutput();
     const canvasReady = Boolean(
@@ -2881,7 +3130,7 @@ async function waitForEntryOutput(win, expectedId) {
 async function syncEntryDraftToObjectCanvas(win) {
   const ok = await evalInPage(win, () => {
     const wizard = window.ProjectMapEntrySidebarWizard;
-    const canvas = window.ProjectMapObjectAuthoringCanvas || window.ProjectMapEditingWorkspace;
+    const canvas = window.ProjectMapObjectAuthoringCanvas;
     if (!wizard || typeof wizard.getDraft !== 'function' || !canvas || typeof canvas.openTemplate !== 'function') {
       return false;
     }
@@ -2912,7 +3161,7 @@ async function openAuthoringTemplate(win, template) {
     if (workspace && typeof workspace.setTemplate === 'function') {
       workspace.setTemplate(nextTemplate, {silent: true});
     }
-    const canvas = window.ProjectMapObjectAuthoringCanvas || window.ProjectMapEditingWorkspace;
+    const canvas = window.ProjectMapObjectAuthoringCanvas;
     if (!canvas || typeof canvas.openTemplate !== 'function') {
       return false;
     }
@@ -2926,7 +3175,7 @@ async function openAuthoringTemplate(win, template) {
 async function syncWizardDraftToObjectCanvas(win, template, wizardGlobalName) {
   const ok = await evalInPage(win, (nextTemplate, globalName) => {
     const wizard = window[globalName];
-    const canvas = window.ProjectMapObjectAuthoringCanvas || window.ProjectMapEditingWorkspace;
+    const canvas = window.ProjectMapObjectAuthoringCanvas;
     if (!wizard || typeof wizard.getDraft !== 'function' || !canvas || typeof canvas.openTemplate !== 'function') {
       return false;
     }
@@ -2947,7 +3196,7 @@ async function loadNewsDraft(win, draft) {
     if (workspace && typeof workspace.setTemplate === 'function') {
       workspace.setTemplate('news', {silent: true});
     }
-    const canvas = window.ProjectMapObjectAuthoringCanvas || window.ProjectMapEditingWorkspace;
+    const canvas = window.ProjectMapObjectAuthoringCanvas;
     const canvasOk = canvas && typeof canvas.openTemplate === 'function'
       ? canvas.openTemplate('news', nextDraft, {source: 'QA news draft', template: 'news'})
       : false;

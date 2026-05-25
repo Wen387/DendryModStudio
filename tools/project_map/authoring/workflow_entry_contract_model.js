@@ -1,3 +1,4 @@
+// @ts-check
 (function initWorkflowEntryContractModel(global) {
   'use strict';
 
@@ -30,7 +31,7 @@
     entry('event_graph_node_edit', 'Edit event graph node', 'Complex Event Builder', 'open_event_graph_node', 'events', 'graph_node', 'data-preview-object-event-graph-node', 'Review & Apply', 'Focus matching editor field', 'Dry-run or apply generated draft operation', 'event readiness checklist'),
     entry('event_graph_edge_edit', 'Edit event graph route', 'Complex Event Builder', 'open_event_graph_edge', 'routes', 'graph_edge', 'data-preview-object-event-graph-edge', 'Review & Apply', 'Focus route editor field', 'Dry-run or apply generated route operation', 'route target resolves'),
     entry('variable_create_from_event_effect', 'Create variable from event effect', 'Object Canvas context board', 'open_variable_editor', 'variables', 'effect_variable', 'data-workflow-entry="variable-create-from-effect"', 'Review & Apply', 'Open variable draft from event context', 'Dry-run or apply variable init/definition operation', 'variable draft has source-backed init'),
-    entry('asset_picker_copy_install', 'Add asset and copy file', 'Create', 'select_asset_install_file', 'assets', 'asset_install_request', 'id="wizard-asset-picker"', 'Review & Apply', 'Create asset reference and copy proposal', 'Copy guarded local file into project asset folder', 'desktop sourcePath exists'),
+    entry('asset_picker_copy_install', 'Add asset and copy file', 'Create', 'select_asset_install_file', 'assets', 'asset_install_request', 'class="object-canvas-asset-picker-control"', 'Review & Apply', 'Create asset reference and copy proposal', 'Copy guarded local file into project asset folder', 'desktop sourcePath exists'),
     entry('profile_router_registration', 'Register event route', 'Object Canvas context board', 'open_router_registration', 'router', 'known_profile', 'data-workflow-entry="profile-router-registration"', 'Review & Apply', 'Preview router registration operation', 'Dry-run or apply advanced router patch', 'known profile rule and anchor'),
     entry('unknown_profile_router_rule', 'Add router rule', 'Object Canvas context board', 'open_profile_router_rule', 'router', 'unknown_profile', 'data-workflow-entry="profile-router-rule"', 'Review & Apply', 'Show missing profile rule repair path', 'No apply until a rule or anchor is selected', 'profile rule or advanced anchor selected'),
     entry('review_apply_dry_run', 'Review and dry-run operations', 'Review & Apply', 'review_apply', 'install_plan', 'current_plan', 'data-object-canvas-action="review"', 'Review & Apply', 'Inspect install plan', 'Dry-run/apply safe, guarded, or advanced operations', 'plan has no blocked visible workflow')

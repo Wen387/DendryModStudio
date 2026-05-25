@@ -7,17 +7,7 @@ const workflow = require('./authoring/workflow_entry_contract_model.js');
 const canvasModel = require('./authoring/object_authoring_canvas_model.js');
 const previewEditor = require('./viewer/preview_object_editor.js');
 const graphStage = require('./viewer/object_canvas_graph_stage.js');
-
-function fail(message, detail) {
-  process.stderr.write('FAIL: ' + message + (detail ? '\n' + JSON.stringify(detail, null, 2) : '') + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message, detail) {
-  if (!condition) {
-    fail(message, detail);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function read(relativePath) {
   return fs.readFileSync(path.join(__dirname, relativePath), 'utf8');
@@ -116,9 +106,13 @@ const existingCardModel = canvasModel.buildCanvasModel(knownIndex, {
 }, {});
 const renderedUi = [
   previewEditor.render(knownModel),
+  previewEditor.renderEventReviewDetailsPanels(knownModel && knownModel.eventBody || {}, knownModel),
   previewEditor.render(textEventModel),
+  previewEditor.renderEventReviewDetailsPanels(textEventModel && textEventModel.eventBody || {}, textEventModel),
   previewEditor.renderModal(existingModel),
+  previewEditor.renderEventReviewDetailsPanels(existingModel && existingModel.eventBody || {}, existingModel),
   previewEditor.renderModal(existingCardModel),
+  previewEditor.renderEventReviewDetailsPanels(existingCardModel && existingCardModel.eventBody || {}, existingCardModel),
   graphStage.render(knownModel, {state: {selectedCanvasNode: 'object'}}),
   graphStage.render(unknownModel, {state: {selectedCanvasNode: 'object'}})
 ].join('\n');

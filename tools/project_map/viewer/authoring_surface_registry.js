@@ -20,7 +20,7 @@
       workspace: 'content',
       labelKey: 'authoring.surface.cardBoard',
       fallback: 'Card Board',
-      templates: ['card']
+      templates: ['card', 'deck_pool', 'advisor_controller']
     },
     {
       key: 'system_ui_preview',
@@ -37,6 +37,13 @@
       templates: ['election_results']
     },
     {
+      key: 'spatial_canvas',
+      workspace: 'content',
+      labelKey: 'authoring.surface.spatialCanvas',
+      fallback: 'Spatial Canvas',
+      templates: ['event', 'news', 'surface', 'existing']
+    },
+    {
       key: 'project_state_board',
       workspace: 'project_state',
       labelKey: 'authoring.surface.projectStateBoard',
@@ -49,6 +56,8 @@
     {key: 'event', workspace: 'content', surface: 'content_storyboard', labelKey: 'create.worldEvent', fallback: 'World Event'},
     {key: 'news', workspace: 'content', surface: 'content_storyboard', labelKey: 'create.news', fallback: 'News'},
     {key: 'card', workspace: 'content', surface: 'card_board', labelKey: 'create.card', fallback: 'Card'},
+    {key: 'deck_pool', workspace: 'content', surface: 'card_board', labelKey: 'create.deckPool', fallback: 'Deck Pool', hidden: true},
+    {key: 'advisor_controller', workspace: 'content', surface: 'card_board', labelKey: 'create.advisorController', fallback: 'Advisor Controller', hidden: true},
     {key: 'surface', workspace: 'content', surface: 'content_storyboard', labelKey: 'create.editText', fallback: 'Edit Text', hidden: true},
     {key: 'existing', workspace: 'content', surface: 'content_storyboard', labelKey: 'objectCanvas.mode.existing', fallback: 'Existing Object'},
     {key: 'entry', workspace: 'system_ui', surface: 'system_ui_preview', labelKey: 'create.entrySidebar', fallback: 'Entry & Sidebar'},
@@ -107,6 +116,12 @@
     }
     if (text === 'news_item') {
       return 'news';
+    }
+    if (text === 'deckPool' || text === 'deck-pool') {
+      return 'deck_pool';
+    }
+    if (text === 'advisorController' || text === 'advisor-controller') {
+      return 'advisor_controller';
     }
     if (text === 'surface_text' || text === 'text') {
       return 'surface';

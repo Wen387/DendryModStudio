@@ -22,18 +22,34 @@
         input,
         order,
         active: input === active,
-        visible: fieldIsVisibleForCollection(input, opts),
+        visible: undefined,
         structureOutput: Boolean(input.dataset && input.dataset.previewObjectStructureOutput)
       });
     });
     const entries = [];
     byKey.forEach((rows) => {
-      const activeRow = rows.find((row) => row.active);
+      // Fast path: keys with a single mapped input (the typical case for
+      // virtually all 101+ fields on a large event) skip the layout-forcing
+      // visibility check entirely. fieldIsVisibleForCollection calls
+      // getComputedStyle/getClientRects which each flush layout on the full
+      // host DOM (multi-MB on large events) — that used to dominate
+      // collectValues at 100-300ms.
+      if (rows.length === 1) {
+        entries.push(rows[0].input);
+        return;
+      }
+      const resolveVisible = (row) => {
+        if (row.visible === undefined) {
+          row.visible = fieldIsVisibleForCollection(row.input, opts);
+        }
+        return row.visible;
+      };
+      const activeRow = rows.find((row) => row.active && resolveVisible(row));
       if (activeRow) {
         entries.push(activeRow.input);
         return;
       }
-      const visibleRows = rows.filter((row) => row.visible);
+      const visibleRows = rows.filter(resolveVisible);
       if (visibleRows.length) {
         entries.push(visibleRows[0].input);
         return;

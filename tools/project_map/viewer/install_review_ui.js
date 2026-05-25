@@ -325,6 +325,9 @@
       return t('install.action.replaceText', 'Replace player-facing text');
     }
     if (type === 'replace_section') {
+      if (operation && (operation.destructive || operation.allowEmptyReplace && !String(operation.content || '').trim())) {
+        return t('install.action.deleteSection', 'Delete a source section');
+      }
       return t('install.action.replaceSection', 'Replace a source section');
     }
     if (type === 'insert_text') {

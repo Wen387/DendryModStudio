@@ -6,7 +6,7 @@ const path = require('path');
 const {readExploreBundle} = require('./check_viewer_assets.js');
 
 const viewer = require('./viewer/app.js');
-const design = require('./viewer/design_model.js');
+const design = require('./authoring/design_model.js');
 const projectStateSurface = require('./viewer/project_state_surface.js');
 const storyPaletteModel = require('./authoring/story_palette_model.js');
 const storyPaletteSidebar = require('./viewer/storyboard_palette_sidebar.js');
@@ -18,16 +18,7 @@ const PROJECT_STATE_WORKSPACE = path.join(__dirname, 'viewer', 'object_canvas_pr
 const STORYBOARD_WORKSPACE_STATE = path.join(__dirname, 'viewer', 'storyboard_workspace_state.js');
 const VARIABLE_EDITOR_UI = path.join(__dirname, 'viewer', 'variable_editor_ui.js');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function largeIndex() {
   const sceneCount = 180;

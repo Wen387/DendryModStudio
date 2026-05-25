@@ -91,7 +91,8 @@ Is-hand
 Is-deck
 Max-cards
 Audio
-Audio: shuffle audio/theme.ogg
+Audio: audio/theme.ogg loop
+Audio: shuffle audio/track_a.ogg audio/track_b.ogg
 Achievement
 Call
 On-arrival
@@ -167,6 +168,10 @@ Important Studio assumptions:
 - Do not put blank lines inside a single option block. In Dendry's parser, a
   blank line after options ends the option block; another `- @target` after
   that is invalid content.
+- Generated option/router inserts must follow the same rule when they are
+  added inside an existing option block. Insert content such as
+  `- #event: Monthly event popups` should stay contiguous with neighboring
+  option lines and should not include padding blank lines that split the block.
 - A line such as `@another_scene: Visible option text` in a community note may
   be missing the leading option marker because of chat formatting. Confirm
   before accepting it as syntax.
@@ -464,8 +469,9 @@ Community creators usually think of image directives in simple terms:
 - `card-image` is the image shown on a card.
 - `set-bg` / `setBg` can change a runtime background.
 - `set-sprites` can reference one or more positioned images.
-- `set-music` and `audio` can reference music or sound, sometimes more than
-  one file in the same directive.
+- `set-music` and `audio` can reference music or sound. The `audio` directive
+  supports modifier keywords and can reference multiple files in a single line
+  (see the Audio And Music section below).
 
 Studio must distinguish three different facts:
 
@@ -499,6 +505,59 @@ Asset edit rules:
 - Runtime Preview is evidence, not proof of source correctness. If an image
   reference is indexed but absent at runtime, inspect runtime rendering code,
   generated output, and the active scene template.
+
+## Audio And Music
+
+The `audio` directive is more capable than its simple appearance suggests. The
+DendryNexus browser runtime parses the directive value as space-separated
+tokens: modifier keywords are consumed first, and the remaining tokens are
+treated as audio file paths.
+
+Supported modifier keywords (discovered from runtime `prototype.audio`):
+
+| Keyword   | Effect                                                       |
+|-----------|--------------------------------------------------------------|
+| `loop`    | After playback ends, restart the same track.                 |
+| `queue`   | Add to a FIFO queue; plays after the current track ends.     |
+| `shuffle` | Add files to `audioPlaylist`; on track end, pick one at random. |
+| `clear`   | Empty the current `audioPlaylist`.                           |
+| `nofade`  | Skip the fade-out/fade-in crossfade; hard-cut to new track.  |
+| `null` / `none` | Fade out and stop playback entirely.                   |
+
+Example source patterns:
+
+```dry
+audio: audio/bgm_tension.ogg loop
+audio: shuffle audio/track_a.ogg audio/track_b.ogg audio/track_c.ogg
+audio: queue audio/fanfare.ogg
+audio: clear
+audio: nofade audio/new_theme.ogg loop
+audio: none
+```
+
+The runtime maintains a single `currentAudio` element with jQuery `.animate()`
+for volume fades (`sound_fade_time` defaults to 2 seconds). When multiple files
+are given with `shuffle`, they are concatenated into `audioPlaylist` and the
+runtime picks a random entry on each track end. With `queue`, tracks are pushed
+onto `audioQueue` and popped LIFO on track end. `loop` sets `HTMLAudioElement
+.loop = true` and is evaluated last, so it combines with other keywords.
+
+`set-music` is a separate directive that some projects use as an alias or
+alternative to `audio`. The parser stores it in `scene.setMusic`. Whether the
+runtime honours it depends on the project HTML template; not all templates
+wire `setMusic` to the audio engine. Studio should index both `set-music` and
+`audio` but treat `audio` as the primary music/sound directive.
+
+Studio implications:
+
+- When indexing `audio:` directives, strip known modifier keywords before
+  extracting asset file paths.
+- A single `audio:` line can reference multiple files; each is a separate
+  asset reference.
+- The `loop`, `queue`, `shuffle`, `clear`, `nofade`, and `null`/`none`
+  keywords are not file paths and must not be treated as asset references.
+- Safe editing of the `audio:` directive must preserve modifier keywords
+  while allowing path replacement.
 
 ## The Post-event Boundary
 

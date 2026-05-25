@@ -8,16 +8,7 @@ const path = require('path');
 const runtimePreview = require('./desktop/runtime_preview.js');
 const debugBridge = require('./desktop/runtime_preview_debug_bridge.js');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function htmlBuildRunner(commandLabel) {
   return (root, meta) => {

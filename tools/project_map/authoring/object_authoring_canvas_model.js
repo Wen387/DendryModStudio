@@ -110,6 +110,34 @@
     return null;
   }
 
+  function fieldPresentationApi() {
+    if (global && global.ProjectMapObjectFieldPresentationModel) {
+      return global.ProjectMapObjectFieldPresentationModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./object_field_presentation_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function routeStateApi() {
+    if (global && global.ProjectMapRouteStateModel) {
+      return global.ProjectMapRouteStateModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./route_state_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   function isExistingProposal(value) {
     return isObject(value) && (value.kind === 'existing_scene_edit' || Boolean(value.sceneId && value.changes));
   }
@@ -197,7 +225,7 @@
     if (!context || !context.ok) {
       return emptyCanvas('existing', diagnostic('warning', 'object_canvas.existing_unavailable', 'This object cannot be opened in the authoring Canvas yet.'), context);
     }
-    const body = eventBodyForExisting(context, projectIndex, opts.values || {});
+    const body = perfMeasure('eventBodyForExisting', () => eventBodyForExisting(context, projectIndex, opts.values || {}), {view, item: String(itemOrId || '')});
     const output = context.output || {};
     return {
       schemaVersion: OBJECT_AUTHORING_CANVAS_VERSION,
@@ -350,7 +378,7 @@
     const effectEditors = ensureArray(editors.effects);
     const body = {
       mode: 'existing',
-      eventShape: optionRows.length ? 'choice_event' : 'pure_event',
+      eventShape: optionRows.length > 1 ? 'choice_event' : optionRows.length === 1 ? 'linear_choice_event' : 'pure_event',
       title: titleEditor || {
         id: '',
         label: 'Title',
@@ -385,9 +413,37 @@
     };
     const structureApi = eventStructureApi();
     const modeledBody = structureApi && typeof structureApi.fromEditingContext === 'function' && typeof structureApi.toEventBody === 'function'
-      ? structureApi.toEventBody(structureApi.fromEditingContext(context, projectIndex, {body}))
+      ? perfMeasure('structureApi.fromEditingContext+toEventBody', () => structureApi.toEventBody(structureApi.fromEditingContext(context, projectIndex, {body})), {})
       : body;
-    return bodyWithQueuedStructurePreviews(regroupOptionOwnedText(modeledBody), values);
+    const regrouped = perfMeasure('regroupOptionOwnedText', () => regroupOptionOwnedText(modeledBody), {options: ensureArray(modeledBody && modeledBody.options).length});
+    const queued = bodyWithQueuedStructurePreviews(regrouped, values);
+    return perfMeasure('enrichFieldPresentation', () => enrichFieldPresentation(
+      queued,
+      projectIndex,
+      {routeState: routeStateForExisting(projectIndex, context)}
+    ), {sections: ensureArray(queued && queued.sections).length, options: ensureArray(queued && queued.options).length});
+  }
+
+  function enrichFieldPresentation(body, projectIndex, options) {
+    const presentation = fieldPresentationApi();
+    return presentation && typeof presentation.enrichEventBody === 'function'
+      ? presentation.enrichEventBody(body, projectIndex, options || {})
+      : body;
+  }
+
+  function routeStateForExisting(projectIndex, context) {
+    if (!context || String(context.sceneKind || 'event') === 'card') {
+      return null;
+    }
+    const api = routeStateApi();
+    if (!api || typeof api.routeStatesForScene !== 'function') {
+      return null;
+    }
+    try {
+      return api.routeStatesForScene(projectIndex, context.sceneId || '', {sampleLimit: 6});
+    } catch (_err) {
+      return null;
+    }
   }
 
   function regroupOptionOwnedText(body) {
@@ -961,7 +1017,7 @@
       ? api.normalizeAssetDirective
       : (value) => {
         const text = String(value || '').trim().toLowerCase();
-        return text === 'face-image' || text === 'card-image' || text === 'set-bg' || text === 'audio' ? text : '';
+        return text === 'face-image' || text === 'card-image' || text === 'set-bg' || text === 'set-music' || text === 'audio' ? text : '';
       };
     const explicit = normalize(row && (row.directive || row.replacementDirective));
     if (explicit) {
@@ -1282,7 +1338,7 @@
   function eventBodyForNewEvent(draft, projectIndex) {
     return {
       mode: 'new_event',
-      eventShape: draft.eventShape || (ensureArray(draft.options).length ? 'choice_event' : 'pure_event'),
+      eventShape: draft.eventShape || (ensureArray(draft.options).length > 1 ? 'choice_event' : ensureArray(draft.options).length === 1 ? 'linear_choice_event' : 'pure_event'),
       title: field('event.title', 'Title', draft.title, 'guarded'),
       subtitle: field('event.subtitle', 'Subtitle', draft.subtitle || '', 'guarded'),
       heading: field('event.heading', 'Heading', draft.heading || draft.title, 'guarded'),
@@ -1752,6 +1808,25 @@
 
   function clone(value) {
     return JSON.parse(JSON.stringify(value));
+  }
+
+  function perfApi() {
+    if (global && global.ProjectMapCardBoardPerf) {
+      return global.ProjectMapCardBoardPerf;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('../viewer/card_board_perf.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function perfMeasure(name, fn, detail) {
+    const api = perfApi();
+    return api && typeof api.measure === 'function' ? api.measure(name, fn, detail || {}) : fn();
   }
 
   const api = {

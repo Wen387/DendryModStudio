@@ -1,13 +1,6 @@
 (function initProjectMapWizard(global) {
   'use strict';
 
-  const EVENT_NAMES = [
-    'project-map:index-loaded',
-    'ProjectMap:index-loaded',
-    'projectmap:index-loaded',
-    'ProjectMapIndexLoaded',
-    'project-map:model-loaded'
-  ];
 
   const MIN_OPTION_COUNT = 2;
   const MAX_OPTION_COUNT = 4;
@@ -82,14 +75,6 @@
 
   function startWizard(document) {
     elements = {
-      body: document.body,
-      modeButtons: Array.from(document.querySelectorAll('[data-mode]')),
-      explorePane: document.getElementById('explore-pane'),
-      designPane: document.getElementById('design-pane'),
-      createPane: document.getElementById('create-pane'),
-      installPane: document.getElementById('install-pane'),
-      dropTarget: document.getElementById('index-drop-target'),
-      file: document.getElementById('index-file'),
       draftFile: document.getElementById('wizard-draft-file'),
       draftStatus: document.getElementById('wizard-draft-status'),
       form: document.getElementById('event-wizard-form'),
@@ -137,8 +122,6 @@
       previewPanels: Array.from(document.querySelectorAll('[data-preview-panel]'))
     };
 
-    bindModeSwitch();
-    bindIndexLoading();
     bindDraftLoading();
     bindForm();
     bindEffectHelper();
@@ -146,79 +129,46 @@
     bindAssetReferenceEvents();
     initPreviewTabs();
     bindDownloads();
-    bindIndexEvents();
     bindLocaleRefresh();
-    bindPageLifecycle();
-    setMode('explore');
+    bindShellEvents();
     renderWizard();
   }
 
-  function bindModeSwitch() {
-    elements.modeButtons.forEach((button) => {
-      button.addEventListener('click', () => setMode(button.dataset.mode, {reason: 'user'}));
-    });
-  }
-
   function setMode(mode, options) {
-    const nextMode = mode === 'create' || mode === 'install' || mode === 'design' ? mode : 'explore';
-    const previousMode = elements.body.dataset.mode || '';
-    const changed = previousMode !== nextMode;
-    const detail = {
-      previousMode,
-      nextMode,
-      reason: options && options.reason || 'programmatic',
-      visible: !global.document.hidden
-    };
-    if (changed) {
-      dispatchLifecycleEvent('ProjectMap:mode-changing', detail);
-    }
-    elements.body.dataset.mode = nextMode;
-    elements.explorePane.classList.toggle('hidden', nextMode !== 'explore');
-    if (elements.designPane) {
-      elements.designPane.classList.toggle('hidden', nextMode !== 'design');
-    }
-    elements.createPane.classList.toggle('hidden', nextMode !== 'create');
-    if (elements.installPane) {
-      elements.installPane.classList.toggle('hidden', nextMode !== 'install');
-    }
-    elements.modeButtons.forEach((button) => {
-      const active = button.dataset.mode === nextMode;
-      button.classList.toggle('is-active', active);
-      button.setAttribute('aria-selected', active ? 'true' : 'false');
-    });
-    if (nextMode === 'create') {
-      renderWizard();
-    }
-    if (changed) {
-      dispatchLifecycleEvent('ProjectMap:mode-changed', detail);
+    const shell = global.ProjectMapShellNavigation;
+    if (shell && typeof shell.setMode === 'function') {
+      shell.setMode(mode, options);
     }
   }
 
-  function bindPageLifecycle() {
+  function bindShellEvents() {
     if (!global.document || typeof global.document.addEventListener !== 'function') {
       return;
     }
-    global.document.addEventListener('visibilitychange', () => {
-      dispatchLifecycleEvent('ProjectMap:foreground-changed', {
-        mode: elements && elements.body && elements.body.dataset.mode || '',
-        visible: !global.document.hidden,
-        visibilityState: global.document.visibilityState || ''
-      });
+    global.document.addEventListener('ProjectMap:mode-changed', (event) => {
+      const detail = event.detail || {};
+      if (detail.nextMode === 'create') {
+        renderWizard();
+      }
     });
-  }
-
-  function dispatchLifecycleEvent(name, detail) {
-    if (!global.document || typeof global.document.dispatchEvent !== 'function') {
-      return;
-    }
-    let event;
-    if (typeof global.CustomEvent === 'function') {
-      event = new global.CustomEvent(name, {detail});
-    } else {
-      event = global.document.createEvent('CustomEvent');
-      event.initCustomEvent(name, false, false, detail);
-    }
-    global.document.dispatchEvent(event);
+    global.document.addEventListener('ProjectMap:shell-index-updated', (event) => {
+      const detail = event.detail || {};
+      state.projectIndex = detail.projectIndex || null;
+      state.projectModel = detail.projectModel || null;
+      state.lastIndexLabel = detail.lastIndexLabel || '';
+      refreshLookups();
+      if (detail.ok) {
+        setIndexStatus(indexSummaryText(), '');
+      } else {
+        setIndexStatus('Index model failed: ' + (detail.error && detail.error.message || 'unknown'), 'warning');
+      }
+      renderWizard();
+    });
+    global.document.addEventListener('ProjectMap:index-error', (event) => {
+      const detail = event.detail || {};
+      setIndexStatus(detail.message || 'Index error.', 'warning');
+      renderWizard();
+    });
   }
 
   function bindLocaleRefresh() {
@@ -227,53 +177,6 @@
     });
   }
 
-  function bindIndexLoading() {
-    if (elements.file) {
-      elements.file.addEventListener('change', (event) => {
-        const file = event.target.files && event.target.files[0];
-        if (file) {
-          readProjectIndexFile(file);
-        }
-      });
-    }
-
-    const target = elements.dropTarget;
-    if (!target) {
-      return;
-    }
-
-    ['dragenter', 'dragover'].forEach((name) => {
-      target.addEventListener(name, (event) => {
-        event.preventDefault();
-        target.classList.add('is-drag-over');
-      });
-    });
-
-    ['dragleave', 'drop'].forEach((name) => {
-      target.addEventListener(name, () => {
-        target.classList.remove('is-drag-over');
-      });
-    });
-
-    target.addEventListener('drop', (event) => {
-      event.preventDefault();
-      const files = event.dataTransfer && event.dataTransfer.files;
-      const file = files && files[0];
-      if (!file) {
-        return;
-      }
-      if (elements.file) {
-        try {
-          elements.file.files = files;
-          elements.file.dispatchEvent(new Event('change', {bubbles: true}));
-          return;
-        } catch (err) {
-          setIndexStatus('Drop loaded for Create; use picker if Explore stays empty.', 'warning');
-        }
-      }
-      readProjectIndexFile(file);
-    });
-  }
 
   function bindDraftLoading() {
     if (!elements.draftFile) {
@@ -496,71 +399,26 @@
     }
   }
 
-  function bindIndexEvents() {
-    EVENT_NAMES.forEach((name) => {
-      const handler = (event) => {
-        if (event.__projectMapWizardHandled) {
-          return;
-        }
-        event.__projectMapWizardHandled = true;
-        const detail = event.detail || {};
-        if (detail.__projectMapWizardHandled) {
-          return;
-        }
-        detail.__projectMapWizardHandled = true;
-        if (detail.model || detail.viewModel) {
-          setProjectModel(detail.model || detail.viewModel, detail);
-        } else if (detail.index || detail.projectIndex) {
-          setProjectIndex(detail.index || detail.projectIndex, detail);
-        }
-      };
-      global.addEventListener(name, handler);
-      if (global.document && typeof global.document.addEventListener === 'function') {
-        global.document.addEventListener(name, handler);
-      }
-    });
-  }
-
-  function readProjectIndexFile(file) {
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const index = JSON.parse(String(reader.result || ''));
-        setProjectIndex(index, {fileName: file.name, fileSize: file.size});
-      } catch (err) {
-        setIndexStatus('Index parse failed: ' + err.message, 'warning');
-        renderWizard();
-      }
-    };
-    reader.onerror = () => {
-      setIndexStatus('Index read failed.', 'warning');
-    };
-    reader.readAsText(file);
-  }
 
   function setProjectIndex(index, meta) {
+    const shell = global.ProjectMapShellNavigation;
+    if (shell && typeof shell.setProjectIndex === 'function') {
+      return shell.setProjectIndex(index, meta);
+    }
     state.projectIndex = index || null;
     state.projectModel = null;
     state.lastIndexLabel = meta && meta.fileName ? meta.fileName : '';
-
-    try {
-      if (global.ProjectMapViewer && typeof global.ProjectMapViewer.buildViewModel === 'function') {
-        state.projectModel = global.ProjectMapViewer.buildViewModel(index);
-      }
-      refreshLookups();
-      setIndexStatus(indexSummaryText(), '');
-      renderWizard();
-      return {ok: true};
-    } catch (err) {
-      state.projectModel = null;
-      refreshLookups();
-      setIndexStatus('Index model failed: ' + err.message, 'warning');
-      renderWizard();
-      return {ok: false, error: err};
-    }
+    refreshLookups();
+    setIndexStatus(indexSummaryText(), '');
+    renderWizard();
+    return {ok: true};
   }
 
   function setProjectModel(model, meta) {
+    const shell = global.ProjectMapShellNavigation;
+    if (shell && typeof shell.setProjectModel === 'function') {
+      return shell.setProjectModel(model, meta);
+    }
     state.projectModel = model || null;
     state.projectIndex = meta && meta.index ? meta.index : state.projectIndex;
     state.lastIndexLabel = meta && meta.fileName ? meta.fileName : state.lastIndexLabel;

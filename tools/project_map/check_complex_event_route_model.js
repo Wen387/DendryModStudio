@@ -5,16 +5,7 @@ const eventDraft = require('./authoring/event_draft.js');
 const canvasModel = require('./authoring/object_authoring_canvas_model.js');
 const previewEditor = require('./viewer/preview_object_editor.js');
 
-function fail(message, detail) {
-  process.stderr.write('FAIL: ' + message + (detail ? '\n' + JSON.stringify(detail, null, 2) : '') + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message, detail) {
-  if (!condition) {
-    fail(message, detail);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function codes(result) {
   return result.diagnostics.map((item) => item.code);
@@ -130,7 +121,7 @@ assert(updated.eventBody.eventGraph.edges.some((edge) => edge.kind === 'return_r
 assert(updated.eventBody.eventGraph.nodes.some((node) => node.id === 'option:first' && node.secondaryActions.some((action) => action.fieldId === 'option.0.chooseIf' && action.editAction && action.editAction.draftAction)), 'Route Map option node should expose a draft condition edit action');
 assert(updated.eventBody.eventGraph.nodes.some((node) => node.id === 'option:first' && node.secondaryActions.some((action) => action.fieldId === 'option.0.unavailableText' && action.editAction && action.editAction.draftAction)), 'Route Map option node should expose a draft unavailable-text edit action');
 assert(updated.eventBody.eventGraph.nodes.some((node) => node.id === 'section:follow_up' && node.secondaryActions.some((action) => action.fieldId === 'event.section.0.condition' && action.editAction && action.editAction.draftAction)), 'Route Map section node should expose a draft condition edit action');
-const routeMapHtml = previewEditor.render(updated);
+const routeMapHtml = previewEditor.render(updated) + previewEditor.renderEventReviewDetailsPanels(updated.eventBody || {}, updated);
 assert(routeMapHtml.includes('data-preview-object-choice-logic="true"'), 'choice editor should render route/condition controls inside the owning choice');
 assert(routeMapHtml.includes('data-object-canvas-field="option.0.chooseIf"') && routeMapHtml.includes('data-object-canvas-field="option.0.returnTarget"'), 'choice editor should expose draft condition and return route fields on the choice row');
 assert(routeMapHtml.includes('data-preview-object-route-map="true"'), 'UI should render the structured Route Map panel');

@@ -5,22 +5,39 @@
     const model = screen || {};
     const selectedKey = String(model.selectedKey || '').replace(/^ui:/, '');
     const shell = model.shell || {};
+    const flow = model.playerFlow || {};
+    const activeScreen = flow.activeScreen || 'entry_menu';
     if (model.template === 'election_results') {
       return renderElectionResults(model, selectedKey);
     }
     return [
       '<section class="system-ui-live-preview system-screen-preview ' + escapeAttr(shell.fixtureClass || '') + '" data-system-ui-live-preview="true" data-system-ui-screen-preview="true" data-system-ui-fixture-current="' + escapeAttr(model.fixture || '') + '">',
       '<div class="template-eyebrow">' + escapeHtml(t('systemUi.preview', 'Live preview')) + '</div>',
-      '<div class="system-screen-shell" data-system-screen-shell="true" data-system-ui-recipe="' + escapeAttr(model.template || '') + '">',
-      renderTopbar(model, selectedKey),
-      '<div class="system-screen-body">',
-      renderSidebar(model, selectedKey),
-      renderMain(model, selectedKey),
-      renderInteractiveRail(model, selectedKey),
+      renderPlayerFlowTabs(model),
+      '<div class="system-screen-shell" data-system-screen-shell="true" data-system-ui-recipe="' + escapeAttr(model.template || '') + '" data-system-player-flow-active="' + escapeAttr(activeScreen) + '">',
+      renderTopbar(model, selectedKey, activeScreen),
+      '<div class="system-screen-body" data-system-player-screen="' + escapeAttr(activeScreen) + '">',
+      renderSidebar(model, selectedKey, activeScreen),
+      renderPlayerScreen(model, selectedKey, activeScreen),
       '</div>',
-      renderLayoutFrame(model, selectedKey),
       '</div>',
       '</section>'
+    ].join('');
+  }
+
+  function renderPlayerFlowTabs(model) {
+    const flow = model && model.playerFlow || {};
+    const screens = ensureArray(flow.screens);
+    if (!screens.length) {
+      return '';
+    }
+    return [
+      '<div class="system-screen-flow-tabs" data-system-player-flow-tabs="true">',
+      screens.map((screen) => {
+        const active = screen.id === flow.activeScreen;
+        return '<button type="button" class="' + (active ? 'is-active' : '') + '" data-system-player-flow-control="true" data-system-player-flow-screen="' + escapeAttr(screen.id || '') + '" aria-pressed="' + (active ? 'true' : 'false') + '">' + escapeHtml(t(screen.labelKey, screen.fallback || screen.id)) + '</button>';
+      }).join(''),
+      '</div>'
     ].join('');
   }
 
@@ -30,6 +47,7 @@
     return [
       '<section class="system-ui-live-preview system-screen-preview ' + escapeAttr(shell.fixtureClass || '') + '" data-system-ui-live-preview="true" data-system-ui-screen-preview="true" data-system-ui-fixture-current="' + escapeAttr(model.fixture || '') + '" data-system-election-results="true">',
       '<div class="template-eyebrow">' + escapeHtml(t('systemUi.preview', 'Live preview')) + '</div>',
+      renderPlayerFlowTabs(model),
       '<div class="system-screen-shell system-election-results-shell" data-system-screen-shell="true" data-system-ui-recipe="election_results">',
       renderRegionButton(model, 'election_results_frame', selectedKey, [
         '<span class="system-screen-label">' + escapeHtml(t('systemUi.region.electionFrame', 'Election frame')) + '</span>',
@@ -60,7 +78,7 @@
     ].join('');
   }
 
-  function renderTopbar(model, selectedKey) {
+  function renderTopbar(model, selectedKey, activeScreen) {
     const shell = model.shell || {};
     return [
       '<header class="system-screen-topbar">',
@@ -68,43 +86,67 @@
         '<span class="system-screen-label">' + escapeHtml(t('systemUi.region.header', 'Header / menu')) + '</span>',
         '<strong>' + escapeHtml(shell.title || '') + '</strong>',
         '<span>' + escapeHtml(shell.subtitle || '') + '</span>'
-      ].join('')),
+      ].join(''), '', slotIdFor(model, activeScreen, 'screen_header')),
       '<nav aria-label="' + escapeAttr(t('systemUi.region.header', 'Header / menu')) + '">',
-      ensureArray(shell.menu).map((item) => '<span>' + escapeHtml(item) + '</span>').join(''),
+      ensureArray(shell.menu).map((item) => renderTopbarMenuItem(model, item)).join(''),
       '</nav>',
       '</header>'
     ].join('');
   }
 
-  function renderSidebar(model, selectedKey) {
+  function renderTopbarMenuItem(model, item) {
+    const label = String(item || '');
+    if (label.toLowerCase() !== 'library') {
+      return '<span>' + escapeHtml(label) + '</span>';
+    }
+    const library = model && model.libraryContent || {};
+    const section = firstLibrarySection(library);
+    if (!library.exists || !section) {
+      return '<span>' + escapeHtml(label) + '</span>';
+    }
+    return [
+      '<button type="button" class="system-screen-topbar-link" data-object-canvas-action="open_library_content" data-system-ui-library-entry="topbar" data-system-ui-library-scene-id="' + escapeAttr(section.route && section.route.sceneId || library.sceneId || 'library') + '" data-system-ui-library-section-id="' + escapeAttr(section.route && section.route.sectionId || section.id || '') + '">',
+      escapeHtml(label),
+      '</button>'
+    ].join('');
+  }
+
+  function firstLibrarySection(library) {
+    return ensureArray(library && library.sections).find((section) => section && section.sourceBacked) ||
+      ensureArray(library && library.sections)[0] ||
+      null;
+  }
+
+  function renderSidebar(model, selectedKey, activeScreen) {
     const region = regionByKey(model, 'sidebar_status') || {};
     const categories = sidebarCategories(model, region);
     const selectedCategory = categories.find((category) => category.selected) || categories[0] || null;
     const categoryBody = selectedCategory ? [selectedCategory.body, selectedCategory.statusLines].filter(Boolean).join('\n') : '';
-    const body = region.body || categoryBody;
-    const lines = String(body || '').split('\n').map((line) => line.trim()).filter(Boolean).slice(0, 6);
+    const body = categoryBody || region.body;
+    const lines = String(body || '').split('\n').map((line) => line.trim()).filter(Boolean).slice(0, 18);
     return [
       '<aside class="system-screen-sidebar">',
       '<div class="system-screen-tabs" data-system-screen-sidebar-tabs="true">',
-      categories.map(renderSidebarCategoryTab).join(''),
+      categories.map((category) => renderSidebarCategoryTab(model, category, activeScreen)).join(''),
       '<button type="button" class="system-screen-tab-add" data-system-ui-template="workspace_layout">' + escapeHtml(t('systemUi.addSidebarCategory', 'Add category')) + '</button>',
       '</div>',
       renderRegionButton(model, 'sidebar_status', selectedKey, [
         '<span class="system-screen-label">' + escapeHtml(t(region.labelKey, region.fallback || 'Sidebar / Status')) + '</span>',
       '<strong>' + renderSystemPreviewInline(selectedCategory && selectedCategory.heading || region.title || '') + '</strong>',
       '<div class="system-screen-status-lines">',
-      lines.length ? lines.map((line, index) => '<span data-system-screen-status-line="' + String(index) + '">' + renderSystemPreviewInline(line) + '</span>').join('') : '<span>' + escapeHtml(t('systemUi.emptyStatus', 'No status lines yet.')) + '</span>',
+      lines.length ? lines.map((line, index) => '<span data-system-screen-status-line="' + String(index) + '" data-system-ui-focus-field="sidebar.sectionStatusLines">' + renderSystemPreviewInline(line) + '</span>').join('') : '<span>' + escapeHtml(t('systemUi.emptyStatus', 'No status lines yet.')) + '</span>',
       '</div>'
-      ].join('')),
+      ].join(''), '', slotIdFor(model, activeScreen, 'sidebar_status')),
       '</aside>'
     ].join('');
   }
 
-  function renderSidebarCategoryTab(category) {
+  function renderSidebarCategoryTab(model, category, activeScreen) {
     const value = category || {};
     const key = 'sidebar_category:' + (value.id || 'main');
+    const slot = sidebarTabSlotId(model, activeScreen, value.id || '');
     return [
-      '<button type="button" class="' + (value.selected ? 'is-selected ' : '') + 'system-screen-tab" data-object-canvas-graph-node="ui:' + escapeAttr(key) + '" data-system-screen-sidebar-category="' + escapeAttr(value.id || '') + '" aria-pressed="' + (value.selected ? 'true' : 'false') + '">',
+      '<button type="button" class="' + (value.selected ? 'is-selected ' : '') + 'system-screen-tab" data-object-canvas-graph-node="ui:' + escapeAttr(key) + '" data-system-ui-visible-slot="' + escapeAttr(slot || '') + '" data-system-ui-slot-screen="' + escapeAttr(activeScreen || '') + '" data-system-screen-sidebar-category="' + escapeAttr(value.id || '') + '" aria-pressed="' + (value.selected ? 'true' : 'false') + '">',
       escapeHtml(value.label || value.heading || value.id || ''),
       '</button>'
     ].join('');
@@ -125,26 +167,141 @@
     }];
   }
 
-  function renderMain(model, selectedKey) {
+  function renderPlayerScreen(model, selectedKey, activeScreen) {
+    if (activeScreen === 'library_page') {
+      return renderLibraryMain(model, selectedKey);
+    }
+    if (activeScreen === 'in_game') {
+      return renderPlayableMain(model, selectedKey);
+    }
+    return renderEntryMain(model, selectedKey);
+  }
+
+  function renderEntryMain(model, selectedKey) {
     const main = regionByKey(model, 'main_content') || {};
     const options = regionByKey(model, 'main_options') || {};
+    const mainSlot = slotById(model, 'entry_menu.main_copy') || {};
+    const optionSlots = slotsForScreenRegion(model, 'entry_menu', 'main_options');
+    const optionSlot = optionSlots[0] || slotById(model, 'entry_menu.start_option') || {};
+    const mainTitle = mainSlot.title || mainSlot.label || main.title || '';
+    const mainBody = mainSlot.body !== undefined ? mainSlot.body : main.body || '';
+    const optionTitle = optionSlot.title || optionSlot.label || options.title || '';
+    const optionBody = optionSlot.body !== undefined ? optionSlot.body : options.body || '';
     return [
-      '<main class="system-screen-main">',
+      '<main class="system-screen-main system-screen-entry-main" data-system-entry-menu="true">',
       '<article class="system-screen-card">',
       renderRegionButton(model, 'main_content', selectedKey, [
         '<span class="system-screen-label">' + escapeHtml(t(main.labelKey, main.fallback || 'Main content')) + '</span>',
-        '<h2>' + renderSystemPreviewInline(main.title || '') + '</h2>',
-        '<div class="system-screen-copy" data-system-screen-copy="true">' + renderSystemPreviewText(main.body || '') + '</div>',
-        renderFixtureHint(model)
-      ].join('')),
-      renderRegionButton(model, 'main_options', selectedKey, [
-        '<span class="system-screen-label">' + escapeHtml(t(options.labelKey, options.fallback || 'Options')) + '</span>',
-        '<strong>' + renderSystemPreviewInline(options.title || '') + '</strong>',
-        '<small>' + renderSystemPreviewInline(options.body || '') + '</small>'
-      ].join('')),
+        '<h2>' + renderSystemPreviewInline(mainTitle) + '</h2>',
+        mainBody && !optionSlots.length ? '<div class="system-screen-copy" data-system-screen-copy="true">' + renderSystemPreviewText(mainBody) + '</div>' : '',
+        !optionSlots.length ? renderFixtureHint(model) : ''
+      ].join(''), '', 'entry_menu.main_copy'),
+      optionSlots.length
+        ? '<div class="system-screen-entry-options" data-system-screen-entry-options="true">' + optionSlots.map((slot) => renderEntryOptionButton(model, selectedKey, slot, options)).join('') + '</div>'
+        : renderRegionButton(model, 'main_options', selectedKey, [
+          '<span class="system-screen-label">' + escapeHtml(t(options.labelKey, options.fallback || 'Options')) + '</span>',
+          '<strong>' + renderSystemPreviewInline(optionTitle) + '</strong>',
+          '<small>' + renderSystemPreviewInline(optionBody) + '</small>'
+        ].join(''), '', 'entry_menu.start_option'),
       '</article>',
       '</main>'
     ].join('');
+  }
+
+  function renderEntryOptionButton(model, selectedKey, slot, optionsRegion) {
+    const route = slot && slot.route || {};
+    return renderRegionButton(model, 'main_options', selectedKey, [
+      '<span class="system-screen-label">' + escapeHtml(t(optionsRegion.labelKey, optionsRegion.fallback || 'Options')) + '</span>',
+      '<strong>' + renderSystemPreviewInline(slot && (slot.title || slot.label) || '') + '</strong>',
+      route.sceneId ? '<small>' + renderSystemPreviewInline(route.sceneId) + '</small>' : ''
+    ].join(''), 'system-screen-entry-choice', slot && slot.id || '');
+  }
+
+  function renderLibraryMain(model, selectedKey) {
+    const library = model && model.libraryContent || {};
+    const sections = ensureArray(library.sections);
+    return [
+      '<main class="system-screen-main system-screen-library-main" data-system-library-page="true">',
+      '<article class="system-screen-card system-screen-library-card">',
+      '<h2>' + escapeHtml(library.title || t('systemUi.flow.library', 'Library')) + '</h2>',
+      sections.length
+        ? '<div class="system-screen-library-list" data-system-library-section-list="true">' + sections.map((section) => renderLibrarySectionButton(model, section, selectedKey)).join('') + '</div>'
+        : '<p class="editing-empty">' + escapeHtml(library.manualReason || t('systemUi.libraryContentEmpty', 'No Library content sections were found.')) + '</p>',
+      '</article>',
+      '</main>'
+    ].join('');
+  }
+
+  function renderLibrarySectionButton(model, section) {
+    const value = section || {};
+    const slotId = 'library_page.section:' + safeSlotId(value.id || value.label || 'content');
+    return [
+      '<button type="button" class="system-screen-library-section" data-object-canvas-action="open_library_content" data-system-ui-visible-slot="' + escapeAttr(slotId) + '" data-system-ui-slot-screen="library_page" data-system-ui-library-scene-id="' + escapeAttr(value.route && value.route.sceneId || 'library') + '" data-system-ui-library-section-id="' + escapeAttr(value.route && value.route.sectionId || value.id || '') + '" data-system-ui-source-state="' + escapeAttr(value.sourceBacked ? 'source_backed' : 'manual_review') + '">',
+      '<strong>' + renderSystemPreviewInline(value.label || '') + '</strong>',
+      value.body ? '<div class="system-screen-library-section-copy">' + renderSystemPreviewText(value.body) + '</div>' : '',
+      '</button>'
+    ].join('');
+  }
+
+  function renderPlayableMain(model, selectedKey) {
+    const main = regionByKey(model, 'main_content') || {};
+    const options = regionByKey(model, 'main_options') || {};
+    const sceneSlot = slotById(model, 'in_game.scene_copy') || {};
+    const optionSlot = slotById(model, 'in_game.scene_option') || {};
+    const mainTitle = sceneSlot.title || sceneSlot.label || main.title || '';
+    const mainBody = sceneSlot.body !== undefined ? sceneSlot.body : main.body || '';
+    const optionTitle = optionSlot.title || optionSlot.label || options.title || '';
+    const optionBody = optionSlot.body !== undefined ? optionSlot.body : options.body || '';
+    return [
+      '<main class="system-screen-main system-screen-play-main" data-system-play-surface="true">',
+      '<article class="system-screen-card system-screen-play-card">',
+      renderRegionButton(model, 'main_content', selectedKey, [
+        '<h2>' + renderSystemPreviewInline(mainTitle) + '</h2>',
+        '<div class="system-screen-copy" data-system-screen-copy="true">' + renderSystemPreviewText(mainBody) + '</div>',
+        renderFixtureHint(model)
+      ].join(''), 'system-screen-play-story', 'in_game.scene_copy'),
+      renderRegionButton(model, 'main_options', selectedKey, [
+        '<strong>' + renderSystemPreviewInline(optionTitle) + '</strong>',
+        optionBody ? '<small>' + renderSystemPreviewInline(optionBody || '') + '</small>' : ''
+      ].join(''), 'system-screen-play-choice', 'in_game.scene_option'),
+      renderPlaySection(model, selectedKey, t('systemUi.playDecks', 'Decks - click a deck to draw a card.'), 'deck_lane', 'in_game.deck', [
+        renderPlayTile(model, 'deck_lane', selectedKey, 'deck', 'in_game.deck')
+      ].join(''), 'deck'),
+      renderPlaySection(model, selectedKey, t('systemUi.playHand', 'Hand - click a card to play.'), 'workspace_hand', 'in_game.hand', [
+        renderPlayTile(model, 'action_card', selectedKey, 'card', 'in_game.card'),
+        renderEmptyPlaySlot(),
+        renderEmptyPlaySlot()
+      ].join(''), 'hand'),
+      renderPlaySection(model, selectedKey, t('systemUi.playAdvisors', 'Advisors'), 'advisor_lane', 'in_game.advisors', [
+        renderPlayTile(model, 'advisor_lane', selectedKey, 'advisor', 'in_game.advisors')
+      ].join(''), 'advisor'),
+      '</article>',
+      '</main>'
+    ].join('');
+  }
+
+  function renderPlaySection(model, selectedKey, title, regionKey, slotId, inner, key) {
+    return [
+      '<section class="system-screen-play-section system-screen-play-section-' + escapeAttr(key || 'item') + '" data-system-play-section="' + escapeAttr(key || 'item') + '">',
+      renderRegionButton(model, regionKey, selectedKey, '<h3>' + escapeHtml(title) + '</h3>', 'system-screen-play-section-title', slotId),
+      '<div class="system-screen-play-grid">',
+      inner,
+      '</div>',
+      '</section>'
+    ].join('');
+  }
+
+  function renderPlayTile(model, key, selectedKey, kind, slotId) {
+    const region = regionByKey(model, key) || {};
+    return renderRegionButton(model, key, selectedKey, [
+      '<span class="system-screen-label">' + escapeHtml(t(region.labelKey, region.fallback || key)) + '</span>',
+      '<strong>' + renderSystemPreviewInline(region.title || '') + '</strong>',
+      '<small>' + renderSystemPreviewInline(region.body || '') + '</small>'
+    ].join(''), 'system-screen-play-tile system-screen-play-tile-' + safeClass(kind || key), slotId);
+  }
+
+  function renderEmptyPlaySlot() {
+    return '<div class="system-screen-empty-card-slot" data-system-play-empty-slot="true" aria-hidden="true"></div>';
   }
 
   function renderInteractiveRail(model, selectedKey) {
@@ -177,12 +334,14 @@
     ].join(''));
   }
 
-  function renderRegionButton(model, key, selectedKey, inner, extraClass) {
+  function renderRegionButton(model, key, selectedKey, inner, extraClass, slotId) {
     const region = regionByKey(model, key) || {family: '', key};
+    const slot = slotId && model && model.playerFlow && model.playerFlow.bySlot ? model.playerFlow.bySlot[slotId] : null;
     const activeFamilies = ensureArray(model.focusFamilies);
-    const selected = selectedKey === key;
+    const selected = slot ? Boolean(model && model.selectedSlot && model.selectedSlot.id === slot.id) : selectedKey === key;
     const focus = activeFamilies.includes(region.family);
     const owner = region.ownerTemplate || '';
+    const capability = region.capability || {};
     const className = [
       'system-screen-region',
       'system-screen-region-' + safeClass(key),
@@ -191,7 +350,37 @@
       focus ? 'is-recipe-focus' : '',
       extraClass || ''
     ].filter(Boolean).join(' ');
-    return '<button type="button" class="' + className + '" data-object-canvas-graph-node="ui:' + escapeAttr(key) + '" data-system-ui-region="' + escapeAttr(key) + '" data-system-screen-region="' + escapeAttr(key) + '" data-system-screen-family="' + escapeAttr(region.family || '') + '" data-system-screen-owner-template="' + escapeAttr(owner) + '" aria-pressed="' + (selected ? 'true' : 'false') + '">' + inner + '</button>';
+    const route = slot && slot.route || {};
+    const actionAttrs = slot && slot.actionKind === 'open_content_scene'
+      ? ' data-object-canvas-action="open_system_content_scene" data-system-ui-content-scene-id="' + escapeAttr(route.sceneId || '') + '" data-system-ui-content-section-id="' + escapeAttr(route.sectionId || '') + '"'
+      : '';
+    return '<button type="button" class="' + className + '" data-object-canvas-graph-node="ui:' + escapeAttr(key) + '"' + actionAttrs + ' data-system-ui-visible-slot="' + escapeAttr(slot && slot.id || '') + '" data-system-ui-slot-screen="' + escapeAttr(slot && slot.screen || '') + '" data-system-ui-slot-action="' + escapeAttr(slot && slot.actionKind || '') + '" data-system-ui-source-state="' + escapeAttr(slot && slot.sourceState || '') + '" data-system-ui-region="' + escapeAttr(key) + '" data-system-screen-region="' + escapeAttr(key) + '" data-system-screen-family="' + escapeAttr(region.family || '') + '" data-system-screen-owner-template="' + escapeAttr(owner) + '" data-system-ui-runtime-state="' + escapeAttr(capability.runtimeEvidenceState || '') + '" data-system-ui-install-safety="' + escapeAttr(capability.installSafety || '') + '" aria-pressed="' + (selected ? 'true' : 'false') + '">' + inner + '</button>';
+  }
+
+  function slotById(model, slotId) {
+    const id = String(slotId || '');
+    return model && model.playerFlow && model.playerFlow.bySlot ? model.playerFlow.bySlot[id] || null : null;
+  }
+
+  function slotsForScreenRegion(model, screenId, regionKey) {
+    return ensureArray(model && model.playerFlow && model.playerFlow.byScreen && model.playerFlow.byScreen[screenId] && model.playerFlow.byScreen[screenId].slots)
+      .filter((slot) => slot && slot.regionKey === regionKey && !slot.categoryId);
+  }
+
+  function slotIdFor(model, screenId, regionKey) {
+    const slots = ensureArray(model && model.playerFlow && model.playerFlow.byScreen && model.playerFlow.byScreen[screenId] && model.playerFlow.byScreen[screenId].slots);
+    const slot = slots.find((item) => item && item.regionKey === regionKey && !item.categoryId);
+    return slot && slot.id || '';
+  }
+
+  function sidebarTabSlotId(model, screenId, categoryId) {
+    const slots = ensureArray(model && model.playerFlow && model.playerFlow.byScreen && model.playerFlow.byScreen[screenId] && model.playerFlow.byScreen[screenId].slots);
+    const slot = slots.find((item) => item && item.categoryId === categoryId);
+    return slot && slot.id || '';
+  }
+
+  function safeSlotId(value) {
+    return String(value || 'slot').trim().replace(/[^A-Za-z0-9_.:-]+/g, '_') || 'slot';
   }
 
   function renderFixtureHint(model) {

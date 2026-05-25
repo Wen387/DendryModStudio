@@ -135,13 +135,17 @@ def classify_semantics(root: Path, scenes: list[dict[str, Any]],
     election_results = extract_election_results(root, scenes)
     runtime_surface = extract_runtime_surface(root)
     parser_evidence = build_parser_evidence(scenes, route_order_groups, dynamic_key_evidence, news, selected_profiles)
+    deck_pools = build_deck_pools(scenes, decks)
+    advisor_controllers = build_advisor_controllers(scenes)
 
     return {
         "events": sorted(events, key=lambda item: item["id"]),
         "cards": sorted(cards, key=lambda item: item["id"]),
         "hands": sorted(hands, key=lambda item: item["id"]),
         "decks": sorted(decks, key=lambda item: item["id"]),
+        "deckPools": sorted(deck_pools, key=lambda item: item["id"]),
         "pinnedCards": sorted(pinned_cards, key=lambda item: item["id"]),
+        "advisorControllers": sorted(advisor_controllers, key=lambda item: item["id"]),
         "news": news,
         "surfaceText": surface_text,
         "textCorpus": text_corpus,
@@ -162,3 +166,140 @@ def classify_semantics(root: Path, scenes: list[dict[str, Any]],
         ],
         "labels": labels,
     }
+
+
+def build_deck_pools(scenes: list[dict[str, Any]], decks: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    cards = [scene for scene in scenes if scene.get("type") in {"card", "pinned_card"} or scene.get("flags", {}).get("isCard") or scene.get("flags", {}).get("isPinnedCard")]
+    pools = []
+    for deck in decks:
+        options = deck.get("options", []) or []
+        targets = [route_target(option) for option in options]
+        targets = [target for target in targets if target.get("kind")]
+        route_tags = sorted({target["id"] for target in targets if target.get("kind") == "tag"})
+        direct_scene_ids = sorted({target["id"] for target in targets if target.get("kind") == "scene"})
+        member_ids = []
+        for card in cards:
+            card_id = card.get("id", "")
+            card_tags = set(card.get("tags", []))
+            if card_id in direct_scene_ids or any(tag in card_tags for tag in route_tags):
+                member_ids.append(card_id)
+        kind = "dynamic_partial"
+        if route_tags and direct_scene_ids:
+            kind = "hybrid"
+        elif deck.get("ownerKind") == "section":
+            kind = "section_owned_deck"
+        elif route_tags:
+            kind = "tag_pool"
+        elif direct_scene_ids:
+            kind = "direct_scene_pool"
+        pools.append({
+            "id": deck.get("id", ""),
+            "label": deck.get("title", "") or deck.get("id", ""),
+            "ownerSceneId": deck.get("ownerSceneId", ""),
+            "ownerSectionId": deck.get("id", "") if deck.get("ownerKind") == "section" else "",
+            "path": deck.get("path", ""),
+            "routeTags": route_tags,
+            "directSceneIds": direct_scene_ids,
+            "routeTargets": targets,
+            "launcherRoutes": launcher_routes_for_pool(scenes, deck),
+            "memberCardIds": sorted(member_ids),
+            "sourceAnchor": deck.get("sourceSpan", {}),
+            "kind": kind,
+            "status": "partial" if kind in {"hybrid", "dynamic_partial"} else "ready",
+        })
+    return [pool for pool in pools if pool.get("id")]
+
+
+def route_target(option: dict[str, Any]) -> dict[str, str]:
+    target = option.get("target", {}) if isinstance(option, dict) else {}
+    kind = target.get("kind", "")
+    target_id = str(target.get("id", "")).lstrip("#@")
+    option_id = str(option.get("id", "")) if isinstance(option, dict) else ""
+    if kind in {"tag", "scene"} and target_id:
+        return {"kind": kind, "id": target_id, "optionId": option_id}
+    if option_id.startswith("#"):
+        return {"kind": "tag", "id": option_id[1:], "optionId": option_id}
+    if option_id.startswith("@"):
+        return {"kind": "scene", "id": option_id[1:], "optionId": option_id}
+    return {"kind": "", "id": "", "optionId": option_id}
+
+
+def launcher_routes_for_pool(scenes: list[dict[str, Any]], deck: dict[str, Any]) -> list[dict[str, Any]]:
+    targets = {str(deck.get("id", "")).split(".")[-1], str(deck.get("id", "")), str(deck.get("ownerSectionId", ""))}
+    rows = []
+    for scene in scenes:
+        if not (scene.get("type") == "hand" or scene.get("flags", {}).get("isHand")):
+            continue
+        for option in scene.get("options", []):
+            target = option.get("target", {})
+            if target.get("kind") == "scene" and str(target.get("id", "")) in targets:
+                rows.append({
+                    "id": option.get("id", ""),
+                    "label": option.get("title", "") or option.get("label", "") or option.get("id", ""),
+                    "targetKind": "scene",
+                    "targetId": target.get("id", ""),
+                    "ownerSceneId": scene.get("id", ""),
+                    "source": option.get("sourceSpan", {}),
+                })
+    return rows
+
+
+def build_advisor_controllers(scenes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    advisor_cards = [scene for scene in scenes if (scene.get("type") == "pinned_card" or scene.get("flags", {}).get("isPinnedCard")) and "advisor" in scene.get("tags", [])]
+    variables = {advisor_variable(scene.get("viewIf", "")) for scene in advisor_cards}
+    variables = {value for value in variables if value}
+    controllers = []
+    for scene in scenes:
+        if scene.get("type") not in {"card", "pinned_card"} and not scene.get("flags", {}).get("isCard"):
+            continue
+        if scene.get("flags", {}).get("isPinnedCard"):
+            continue
+        effects = [effect for effect in scene.get("effects", []) if effect.get("variable") in variables]
+        has_add = any(str(effect.get("value", "")) == "1" for effect in effects)
+        has_remove = any(str(effect.get("value", "")) == "0" for effect in effects)
+        if not (has_add and has_remove):
+            continue
+        roster = []
+        for card in advisor_cards:
+            variable = advisor_variable(card.get("viewIf", ""))
+            if not variable:
+                continue
+            add = next((effect for effect in effects if effect.get("variable") == variable and str(effect.get("value", "")) == "1"), None)
+            remove = next((effect for effect in effects if effect.get("variable") == variable and str(effect.get("value", "")) == "0"), None)
+            if add or remove:
+                roster.append({
+                    "advisorId": card.get("id", ""),
+                    "title": card.get("title", "") or card.get("id", ""),
+                    "activeVariable": variable,
+                    "categoryTags": [tag for tag in card.get("tags", []) if tag != "advisor"],
+                    "pinnedCardSceneId": card.get("id", ""),
+                    "addSectionId": add.get("sectionId", "") if add else "",
+                    "removeSectionId": remove.get("sectionId", "") if remove else "",
+                    "sourceAnchors": {
+                        "pinnedCard": card.get("sourceSpan", {}),
+                        "viewIf": card.get("metadata", {}).get("viewIf", {}),
+                        "tags": card.get("metadata", {}).get("tags", {}),
+                        "addEffect": add.get("source", {}) if add else {},
+                        "removeEffect": remove.get("source", {}) if remove else {},
+                    },
+                    "confidence": "exact" if add and remove else "partial",
+                })
+        if roster:
+            controllers.append({
+                "id": scene.get("id", ""),
+                "title": scene.get("title", "") or scene.get("id", ""),
+                "controllerSceneId": scene.get("id", ""),
+                "path": scene.get("path", ""),
+                "roster": roster,
+                "sourceAnchor": scene.get("sourceSpan", {}),
+                "confidence": "exact" if all(item.get("confidence") == "exact" for item in roster) else "partial",
+            })
+    return controllers
+
+
+def advisor_variable(view_if: str) -> str:
+    text = str(view_if or "")
+    for token in text.replace("==", "=").split():
+        if token.endswith("_advisor"):
+            return token
+    return ""

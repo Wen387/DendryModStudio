@@ -1,3 +1,4 @@
+// @ts-check
 (function initProjectMapPartialRepairWorkflow(global) {
   'use strict';
 
@@ -14,7 +15,61 @@
     const body = model.eventBody || opts.body || {};
     const roles = parity && parity.roles || {};
     const rows = Object.keys(roles).map((key) => roles[key]).filter((row) => row && Number(row.missing || 0) > 0);
-    return rows.map((row) => repairEntryForRole(row, body, model, t));
+    const entries = rows.map((row) => repairEntryForRole(row, body, model, t));
+    blockerRepairEntries(parity && parity.blockers, body, model, t).forEach((entry) => entries.push(entry));
+    return entries;
+  }
+
+  function blockerRepairEntries(blockers, body, model, t) {
+    return ensureArray(blockers).map((item) => sparseChoiceRepairEntry(item, body, model, t)).filter(Boolean);
+  }
+
+  function sparseChoiceRepairEntry(blocker, body, model, t) {
+    const code = String(blocker && blocker.code || '').trim();
+    if (code !== 'parsed_to_draft.choice_event_too_few_options' && code !== 'parsed_to_draft.root_choice_missing') {
+      return null;
+    }
+    const targetView = targetViewForModel(model);
+    const targetId = String(model && (model.objectId || model.sceneId) || '').trim();
+    const action = {
+      actionKind: 'open_object_section',
+      routeClass: 'object_structure',
+      targetView,
+      targetId,
+      fieldId: 'structure_add_option',
+      valueKey: 'structure_add_option',
+      label: t('partialRepair.label.sparseChoice', 'Repair sparse root choices'),
+      role: 'sparse_root_choice',
+      source: sourceRef(firstStructureSource(body)),
+      installSafety: 'guarded_apply',
+      draftAction: true
+    };
+    const entry = {
+      schemaVersion: VERSION,
+      kind: 'partial_repair_entry',
+      id: 'repair_sparse_root_choice',
+      role: 'sparse_root_choice',
+      repairKind: 'option',
+      label: t('partialRepair.label.sparseChoice', 'Repair sparse root choices'),
+      description: String(blocker && blocker.message || '') || t('partialRepair.description.sparseChoice', 'Add a visible root option, convert to a text event, or link the existing structure before install.'),
+      blocking: true,
+      missing: 1,
+      parsed: 0,
+      draft: 0,
+      status: 'blocking',
+      repairable: true,
+      reviewable: true,
+      boundaryKind: '',
+      boundaryReason: '',
+      repairAction: action,
+      routeLabel: t('partialRepair.route.structureEditor', 'Open event structure')
+    };
+    entry.lens = lensForEntry(entry, {role: 'sparse_root_choice', blocking: true, missing: 1}, t);
+    return entry;
+  }
+
+  function firstStructureSource(body) {
+    return ensureArray(body && body.structureActions).map((field) => field && (field.source || firstUsageSource(field))).find((source) => source && source.path) || {};
   }
 
   function repairEntryForRole(row, body, model, t) {

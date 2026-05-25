@@ -283,6 +283,12 @@
       operationType: String(value.operationTemplate && value.operationTemplate.type || ''),
       operationTemplate: value.operationTemplate || null,
       routeReason: String(value.capability && value.capability.reason || ''),
+      workspace: String(target.workspace || ''),
+      template: String(target.template || ''),
+      internalTemplate: String(target.internalTemplate || target.template || ''),
+      selectedRegion: String(target.selectedRegion || ''),
+      focusFieldId: String(target.focusFieldId || target.fieldId || ''),
+      replacementText: String(target.replacementText || hints.replacementText || item.replacementText || ''),
       target: target,
       semanticEditor,
       visibleContent: true

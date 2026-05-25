@@ -1,3 +1,4 @@
+// @ts-check
 (function initProjectMapObjectCanvasContentBodies(global) {
   'use strict';
 
@@ -96,6 +97,7 @@
         sectionId: section.id || '',
         source: {}
       }))), []),
+      structureActions: cardStructureActions(draft),
       optionEffects: ensureArray(draft.options).map((option, index) => ({
         id: option.id || 'option_' + (index + 1),
         label: option.label || option.id || ('Choice ' + (index + 1)),
@@ -121,6 +123,73 @@
         field('card.maxVisits', 'Max visits', draft.maxVisits, 'guarded')
       ]
     };
+  }
+
+  function cardStructureActions(draft) {
+    const actions = [structureAction('structure_add_option', 'Add card choice', 'add_option', {
+      targetLabel: 'Card choices',
+      help: 'Adds a root card choice to the current draft.'
+    }), structureAction('structure_add_branch', 'Add menu section', 'add_branch', {
+      targetLabel: 'Menu sections',
+      help: 'Adds a menu/card section to the current draft.'
+    })];
+    ensureArray(draft.options).forEach((option, index) => {
+      const optionId = option.id || 'option_' + (index + 1);
+      actions.push(structureAction('structure_remove_option_' + optionId, 'Remove choice: ' + (option.label || optionId), 'remove_option', {
+        optionId,
+        targetLabel: option.label || optionId,
+        before: option.label || optionId,
+        help: 'Removes this root card choice from the draft.'
+      }));
+      if (index > 0) {
+        actions.push(structureAction('structure_move_option_up_' + optionId, 'Move choice up: ' + (option.label || optionId), 'move_option_up', {
+          optionId,
+          targetLabel: option.label || optionId,
+          before: option.label || optionId,
+          help: 'Moves this root card choice earlier in the draft.'
+        }));
+      }
+      if (index < ensureArray(draft.options).length - 1) {
+        actions.push(structureAction('structure_move_option_down_' + optionId, 'Move choice down: ' + (option.label || optionId), 'move_option_down', {
+          optionId,
+          targetLabel: option.label || optionId,
+          before: option.label || optionId,
+          help: 'Moves this root card choice later in the draft.'
+        }));
+      }
+    });
+    ensureArray(draft.sections).forEach((section, sectionIndex) => {
+      const sectionId = section.id || 'section_' + (sectionIndex + 1);
+      actions.push(structureAction('structure_add_option_section_' + sectionId, 'Add choice to ' + (section.title || sectionId), 'add_option', {
+        sectionId,
+        targetLabel: section.title || sectionId,
+        help: 'Adds a choice inside this menu section.'
+      }));
+      ensureArray(section.options).forEach((option, optionIndex) => {
+        const optionId = option.id || sectionId + '_option_' + (optionIndex + 1);
+        actions.push(structureAction('structure_remove_option_' + optionId, 'Remove section choice: ' + (option.label || optionId), 'remove_option', {
+          sectionId,
+          optionId,
+          targetLabel: option.label || optionId,
+          before: option.label || optionId,
+          help: 'Removes this section-owned card choice from the draft.'
+        }));
+      });
+    });
+    return actions;
+  }
+
+  function structureAction(id, label, action, extra) {
+    const data = extra || {};
+    return field(id, label, '', 'guarded', Object.assign({
+      role: 'structure',
+      transform: 'structure_action',
+      structureAction: action,
+      structureTargetLabel: data.targetLabel || label,
+      structureBefore: data.before || '',
+      reason: data.help || 'Structural changes are applied to the current card draft.',
+      source: {}
+    }, data));
   }
 
   function cardBranchFields(section, index) {
@@ -295,7 +364,9 @@
       metaFields: [
         field('sidebar.id', 'Draft id', draft.id, 'guarded'),
         field('sidebar.title', 'Draft title', draft.title, 'guarded'),
-        field('sidebar.sectionId', 'Section id', draft.sectionId, 'guarded')
+        field('sidebar.sectionId', 'Section id', draft.sectionId, 'guarded'),
+        field('sidebar.operationMode', 'Operation', draft.operationMode || 'edit', 'guarded'),
+        Object.assign(field('sidebar.deleteConfirm', 'Confirm delete', draft.deleteConfirm ? 'true' : 'false', 'guarded'), {inputType: 'checkbox'})
       ]
     };
   }
@@ -477,6 +548,82 @@
     return fields;
   }
 
+  function deckPoolBody(draft) {
+    const launchers = ensureArray(draft.launcherRoutes);
+    const members = ensureArray(draft.memberCards);
+    const candidates = ensureArray(draft.availableMemberCards);
+    const targetPools = ensureArray(draft.targetDeckPools);
+    const memberCandidateOptions = [{value: '', label: 'Select a card'}].concat(candidates.map((card) => ({
+      value: card.cardId,
+      label: (card.title || card.cardId) + (ensureArray(card.currentPoolIds).length ? ' (' + card.currentPoolIds.join(', ') + ')' : '')
+    })));
+    const targetPoolOptions = [{value: '', label: 'Keep in this pool'}].concat(targetPools.map((pool) => ({
+      value: pool.id,
+      label: pool.label || pool.id
+    })));
+    return {
+      mode: 'deck_pool',
+      bodyEyebrow: 'Deck pool',
+      optionsLabel: 'Pool members',
+      metaLabel: 'Pool routing',
+      title: field('deckPool.label', 'Deck label', draft.label, 'guarded'),
+      sections: [
+        field('deckPool.id', 'Deck pool id', draft.deckPoolId, 'read_only', {readOnly: true}),
+        field('deckPool.ownerSceneId', 'Owner scene', draft.ownerSceneId, 'read_only', {readOnly: true}),
+        field('deckPool.ownerSectionId', 'Owner section', draft.ownerSectionId, 'read_only', {readOnly: true})
+      ],
+      options: members.map((member) => optionRow({
+        id: member.cardId,
+        label: member.title || member.cardId,
+        targetId: member.membership
+      }, 0, [
+        field('deckPool.member.' + member.cardId + '.title', 'Card title', member.title, 'read_only', {readOnly: true, cardId: member.cardId}),
+        field('deckPool.member.' + member.cardId + '.id', 'Card id', member.cardId, 'read_only', {readOnly: true, cardId: member.cardId}),
+        field('deckPool.member.' + member.cardId + '.membership', 'Membership', member.membership, 'read_only', {readOnly: true, cardId: member.cardId}),
+        field('deckPool.member.' + member.cardId + '.editableReason', 'Evidence', member.editableReason || 'review', 'read_only', {readOnly: true, cardId: member.cardId}),
+        field('deckPool.member.' + member.cardId + '.remove', 'Remove from pool', 'false', 'guarded', {inputType: 'checkbox', cardId: member.cardId}),
+        field('deckPool.member.' + member.cardId + '.moveTargetDeckPoolId', 'Move to pool', '', 'guarded', {inputType: 'select', options: targetPoolOptions, cardId: member.cardId})
+      ])),
+      metaFields: launchers.map((route, index) => field('deckPool.launcher.' + index + '.label', 'Launcher ' + (index + 1), route.label, 'guarded')).concat(ensureArray(draft.routeTags).map((tag, index) => field('deckPool.routeTag.' + index, 'Route tag ' + (index + 1), tag, 'read_only', {readOnly: true, help: 'Routing evidence; rename route tags from source review.'}))).concat([
+        field('deckPool.add.memberCardId', 'Add card to pool', draft.addMemberCardId, 'guarded', {inputType: 'select', options: memberCandidateOptions})
+      ])
+    };
+  }
+
+  function advisorControllerBody(draft) {
+    const roster = ensureArray(draft.roster);
+    return {
+      mode: 'advisor_controller',
+      bodyEyebrow: 'Advisor controller',
+      optionsLabel: 'Advisor roster',
+      metaLabel: 'Controller routing',
+      title: field('advisorController.entry.label', 'Pinned entry label', draft.entryLabel, 'guarded'),
+      sections: [
+        field('advisorController.id', 'Controller id', draft.controllerId, 'read_only', {readOnly: true}),
+        field('advisorController.pinnedEntryId', 'Pinned entry scene', draft.pinnedEntryId, 'read_only', {readOnly: true}),
+        field('advisorController.entry.target', 'Controller route target', draft.pinnedEntryTargetSceneId, 'read_only', {readOnly: true})
+      ],
+      options: roster.map((item) => optionRow({
+        id: item.advisorId,
+        label: item.title || item.advisorId,
+        targetId: item.activeVariable
+      }, 0, [
+        field('advisorController.roster.' + item.advisorId + '.title', 'Advisor title', item.title, 'guarded'),
+        field('advisorController.roster.' + item.advisorId + '.activeVariable', 'Active variable', item.activeVariable, 'guarded'),
+        field('advisorController.roster.' + item.advisorId + '.category', 'Category / faction', item.category, 'guarded'),
+        field('advisorController.roster.' + item.advisorId + '.add.label', 'Add label', item.addLabel, 'guarded'),
+        field('advisorController.roster.' + item.advisorId + '.remove.label', 'Remove label', item.removeLabel, 'guarded'),
+        field('advisorController.roster.' + item.advisorId + '.add.effect', 'Add effect', item.addEffectText, 'guarded'),
+        field('advisorController.roster.' + item.advisorId + '.remove.effect', 'Remove effect', item.removeEffectText, 'guarded')
+      ])),
+      metaFields: [
+        field('advisorController.addAdvisorId', 'Add advisor candidate', draft.addAdvisorId, 'guarded'),
+        field('advisorController.removeAdvisorId', 'Remove advisor candidate', draft.removeAdvisorId, 'guarded'),
+        field('advisorController.capacityGate', 'Capacity gate', draft.capacityGate && draft.capacityGate.variable || '', 'read_only', {readOnly: true})
+      ]
+    };
+  }
+
   function joinParagraphs(value) {
     return ensureArray(value).map((item) => String(item || '').trim()).filter(Boolean).join('\n\n');
   }
@@ -503,6 +650,8 @@
     eventBody,
     newsBody,
     cardBody,
+    deckPoolBody,
+    advisorControllerBody,
     surfaceBody,
     entryBody,
     playSurfaceBody,

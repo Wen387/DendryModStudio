@@ -3,22 +3,14 @@
 
 const fs = require('fs');
 const path = require('path');
+const vm = require('vm');
 const {readViewerI18n, readExploreBundle} = require('./check_viewer_assets.js');
 
 const ROOT = __dirname;
 const VIEWER_DIR = path.join(ROOT, 'viewer');
 const VIEWER_HTML = path.join(VIEWER_DIR, 'index.html');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function findObjectBody(source, marker) {
   const markerIndex = source.indexOf(marker);
@@ -188,6 +180,16 @@ function roughZhTermViolations(entries) {
 }
 
 const html = fs.readFileSync(VIEWER_HTML, 'utf8');
+[
+  path.join(VIEWER_DIR, 'i18n', 'en.js'),
+  path.join(VIEWER_DIR, 'i18n', 'zh-Hant.js')
+].forEach((file) => {
+  try {
+    new vm.Script(fs.readFileSync(file, 'utf8'), {filename: file});
+  } catch (err) {
+    fail(path.relative(ROOT, file) + ' should parse as JavaScript: ' + err.message);
+  }
+});
 const welcomeUiSource = fs.readFileSync(path.join(VIEWER_DIR, 'welcome_surface_ui.js'), 'utf8');
 const htmlAndInjectedSurfaces = html + '\n' + welcomeUiSource;
 const i18nSource = readViewerI18n(VIEWER_DIR);
@@ -328,21 +330,8 @@ function tagForId(id) {
 [
   ['install-status', 'data-i18n="install.noPlan"'],
   ['install-project-status', 'data-i18n="install.projectMissing"'],
-  ['wizard-title', 'data-i18n-value="create.sample.eventTitle"'],
-  ['wizard-heading', 'data-i18n-value="create.sample.eventHeading"'],
-  ['wizard-intro', 'data-i18n-value="create.sample.eventIntro"'],
-  ['wizard-option-0-title', 'data-i18n-value="create.sample.eventOption0Title"'],
-  ['wizard-option-0-subtitle', 'data-i18n-value="create.sample.eventOption0Subtitle"'],
-  ['wizard-option-0-body', 'data-i18n-value="create.sample.eventOption0Body"'],
-  ['wizard-option-1-title', 'data-i18n-value="create.sample.eventOption1Title"'],
-  ['wizard-option-1-subtitle', 'data-i18n-value="create.sample.eventOption1Subtitle"'],
-  ['wizard-option-1-body', 'data-i18n-value="create.sample.eventOption1Body"'],
-  ['wizard-option-2-title', 'data-i18n-value="create.sample.eventOption2Title"'],
-  ['wizard-option-2-subtitle', 'data-i18n-value="create.sample.eventOption2Subtitle"'],
-  ['wizard-option-2-body', 'data-i18n-value="create.sample.eventOption2Body"'],
-  ['wizard-option-3-title', 'data-i18n-value="create.sample.eventOption3Title"'],
-  ['wizard-option-3-subtitle', 'data-i18n-value="create.sample.eventOption3Subtitle"'],
-  ['wizard-option-3-body', 'data-i18n-value="create.sample.eventOption3Body"'],
+  // Legacy wizard-* field checks removed 2026-05-25 — Complex Event Builder
+  // form retired in favor of Object Canvas (showCanvasError on init failure).
   ['news-description', 'data-i18n-value="create.sample.newsDescription"'],
   ['card-title', 'data-i18n-value="create.sample.cardTitle"'],
   ['card-heading', 'data-i18n-value="create.sample.cardHeading"'],
@@ -375,13 +364,13 @@ function tagForId(id) {
   ['sort direction title', 'data-i18n-title="explore.sortDirection"'],
   ['sort direction aria', 'data-i18n-aria-label="explore.sortDirection"'],
   ['explore inspector aria', 'data-i18n-aria-label="aria.inspector"'],
-  ['event wizard title', 'data-i18n="create.eventWizard"'],
+  // ['event wizard title', 'data-i18n="create.eventWizard"'], — removed with legacy wizard form
   ['news wizard title', 'data-i18n="create.newsWizard"'],
   ['card wizard title', 'data-i18n="create.cardWizard"'],
   ['text proposal wizard title', 'data-i18n="create.textProposalWizard"'],
   ['create no index status', 'data-i18n="create.status.noIndexLoaded"'],
   ['create add effect', 'data-i18n="create.addEffect"'],
-  ['create download root snippet', 'data-i18n="create.downloadRootSnippet"'],
+  // ['create download root snippet', 'data-i18n="create.downloadRootSnippet"'], — removed with legacy wizard form
   ['create download snippet', 'data-i18n="create.downloadSnippet"'],
   ['create download proposal', 'data-i18n="create.downloadProposal"'],
   ['news headline sample value', 'data-i18n-value="create.sample.newsHeadline"'],

@@ -6,16 +6,7 @@ const coverage = require('./authoring/visible_object_coverage_model.js');
 const semanticLogic = require('./authoring/semantic_logic_editor_model.js');
 const workspace = require('./viewer/semantic_logic_workspace_ui.js');
 
-function fail(message, details) {
-  process.stderr.write(JSON.stringify(Object.assign({ok: false, message}, details || {}), null, 2) + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message, details) {
-  if (!condition) {
-    fail(message, details);
-  }
-}
+const {failJson: fail, assertJson: assert} = require('./check_harness.js');
 
 function src(path, line, anchorText) {
   return {path, line, startLine: line, endLine: line, anchorText, endAnchorText: anchorText};
@@ -182,7 +173,8 @@ const deps = {
   escapeAttr: (value) => String(value === undefined || value === null ? '' : value),
   renderPlanPreview: (plan) => plan ? '<section data-object-canvas-review-plan="true"></section>' : '',
   renderDiagnostics: () => '',
-  semanticLogicApi: semanticLogic
+  semanticLogicApi: semanticLogic,
+  projectIndex: index
 };
 const noChange = workspace.buildCanvasModel(routeModel, {}, deps);
 assert(noChange.changeState.changedCount === 0, 'semantic editor should not create a fake plan before edits', noChange.changeState);
@@ -195,10 +187,15 @@ assert(html.includes('data-semantic-logic-editor="true"'), 'semantic workspace s
 assert(html.includes('data-semantic-logic-field-controls="true"'), 'semantic workspace should render guided field controls');
 assert(html.includes('semantic-logic-field-controls-header'), 'semantic workspace should render a global-style guided form header');
 assert(html.includes('data-semantic-logic-control="route-target"'), 'semantic workspace should render route target control');
+assert(!html.includes('data-object-canvas-variable-target="semantic_logic.routeTarget"'), 'semantic route target should not expose a variable picker');
+assert(html.includes('data-object-canvas-variable-target="semantic_logic.routePredicate"'), 'semantic route editor should expose variable picker for route predicates');
+assert(html.includes('Q.public_order'), 'semantic route predicate picker should offer JS condition snippets');
 assert(html.includes('data-route-editor-evidence="true"'), 'semantic workspace should render route evidence marker');
 const effectChanged = workspace.buildCanvasModel(effectModel, {'semantic_logic.effectValue': '2'}, deps);
 const effectHtml = workspace.render(effectChanged, {semanticLogicModel: effectModel, values: {'semantic_logic.effectValue': '2'}}, deps);
 assert(effectHtml.includes('data-semantic-logic-control="effect-value"'), 'semantic workspace should render effect value control');
+assert(effectHtml.includes('data-object-canvas-variable-target="semantic_logic.effectVariable"'), 'semantic effect editor should expose variable picker for effect variables');
+assert(effectHtml.includes('data-object-canvas-variable-copy="public_order"'), 'semantic effect variable picker should copy bare variable names');
 
 process.stdout.write(JSON.stringify({
   ok: true,

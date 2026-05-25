@@ -277,7 +277,8 @@
       renderTextControl('semantic_logic.routeTarget', valueFor(values, 'semantic_logic.routeTarget', controls.target), controls.target, tr(deps, 'semanticLogic.routeTarget', 'Target'), deps, 'route-target'),
       renderTextControl('semantic_logic.routePredicate', valueFor(values, 'semantic_logic.routePredicate', controls.predicate), controls.predicate, tr(deps, 'semanticLogic.routePredicate', 'Predicate'), deps, 'route-predicate'),
       renderTextControl('semantic_logic.routeLabel', valueFor(values, 'semantic_logic.routeLabel', controls.label), controls.label, tr(deps, 'semanticLogic.routeLabel', 'Visible label'), deps, 'route-label'),
-      '</div>'
+      '</div>',
+      renderSemanticVariablePicker('semantic_logic.routePredicate', 'js_condition', deps)
     ].join('');
   }
 
@@ -289,6 +290,8 @@
       renderTextControl('semantic_logic.effectValue', valueFor(values, 'semantic_logic.effectValue', controls.value), controls.value, tr(deps, 'semanticLogic.effectValue', 'Value'), deps, 'effect-value'),
       renderTextControl('semantic_logic.effectCondition', valueFor(values, 'semantic_logic.effectCondition', controls.condition), controls.condition, tr(deps, 'semanticLogic.effectCondition', 'Condition'), deps, 'effect-condition'),
       '</div>',
+      renderSemanticVariablePicker('semantic_logic.effectVariable', 'effect_variable', deps),
+      renderSemanticVariablePicker('semantic_logic.effectCondition', 'js_condition', deps),
       controls.sharedLine || controls.dynamicKey ? '<p class="semantic-logic-control-note">' + esc(deps, controlNote(controls, deps)) + '</p>' : ''
     ].join('');
   }
@@ -330,6 +333,65 @@
       '<input type="text" data-object-canvas-field="' + attr(deps, key) + '" data-object-canvas-original="' + attr(deps, original || '') + '" value="' + attr(deps, value || '') + '">',
       '</label>'
     ].join('');
+  }
+
+  function renderSemanticVariablePicker(targetFieldId, mode, deps) {
+    const api = fieldPresentationApi();
+    const picker = api && typeof api.buildVariablePicker === 'function'
+      ? api.buildVariablePicker(projectIndex(deps), {id: targetFieldId, role: mode}, {
+        limit: 6,
+        presentation: {
+          variablePicker: {enabled: true, mode, targetFieldId}
+        }
+      })
+      : {enabled: false, candidates: []};
+    const candidates = ensureArray(picker && picker.candidates);
+    if (!picker || !picker.enabled || !candidates.length) {
+      return '';
+    }
+    return [
+      '<details class="semantic-logic-variable-picker object-canvas-variable-picker" data-object-canvas-variable-picker="true" data-variable-target-field="' + attr(deps, targetFieldId) + '" data-variable-picker-mode="' + attr(deps, mode) + '" data-variable-picker-limit="12">',
+      '<summary>' + esc(deps, tr(deps, 'semanticLogic.variablePicker', 'Variable picker')) + '</summary>',
+      '<label class="object-canvas-variable-search"><span>' + esc(deps, tr(deps, 'semanticLogic.variableSearch', 'Search variables')) + '</span><input type="search" data-object-canvas-variable-search="true" placeholder="' + attr(deps, tr(deps, 'semanticLogic.variableSearchPlaceholder', 'type to filter')) + '"></label>',
+      '<div class="object-canvas-variable-candidates" data-object-canvas-variable-candidates="true">',
+      candidates.map((candidate) => renderSemanticVariableCandidate(candidate, targetFieldId, mode, deps)).join(''),
+      '</div>',
+      '</details>'
+    ].join('');
+  }
+
+  function renderSemanticVariableCandidate(candidate, targetFieldId, mode, deps) {
+    const value = String(candidate && candidate.insertValue || candidate && candidate.name || '');
+    if (!value) {
+      return '';
+    }
+    const search = String(candidate && (candidate.searchText || [candidate.name, candidate.meaning, candidate.summary].join(' ')) || '').toLowerCase();
+    return [
+      '<button type="button" class="object-canvas-variable-candidate" data-object-canvas-variable-copy="' + attr(deps, value) + '" data-object-canvas-variable-target="' + attr(deps, targetFieldId) + '" data-object-canvas-variable-mode="' + attr(deps, mode || '') + '" data-object-canvas-variable-search-text="' + attr(deps, search) + '">',
+      '<strong>' + esc(deps, candidate && (candidate.label || candidate.name) || value) + '</strong>',
+      candidate && candidate.meaning ? '<span>' + esc(deps, candidate.meaning) + '</span>' : '',
+      candidate && candidate.summary ? '<small>' + esc(deps, candidate.summary) + '</small>' : '',
+      '<code>' + esc(deps, value) + '</code>',
+      '</button>'
+    ].join('');
+  }
+
+  function fieldPresentationApi() {
+    if (global && global.ProjectMapObjectFieldPresentationModel) {
+      return global.ProjectMapObjectFieldPresentationModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('../authoring/object_field_presentation_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function projectIndex(deps) {
+    return deps && (deps.projectIndex || deps.state && deps.state.projectIndex) || null;
   }
 
   function renderReadonlyControl(label, value, deps, marker) {

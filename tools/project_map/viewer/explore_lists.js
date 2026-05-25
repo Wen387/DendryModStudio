@@ -388,6 +388,7 @@
       renderBadge(asset.type || 'asset', asset.type || ''),
       renderBadge(asset.status && asset.status.key || asset.editability || 'reference_only', asset.status && asset.status.key || asset.editability || ''),
       usageCount ? renderBadge(t('assets.usedCount', 'used ') + usageCount, 'info') : '',
+      renderAudioModifierBadgesExplore(asset),
       '</span>',
       '</button>'
     ].join('');
@@ -890,6 +891,16 @@
     return '<span class="badge ' + escapeAttr(className || '') + '">' + escapeHtml(labelForBadge(text)) + '</span>';
   }
 
+  function renderAudioModifierBadgesExplore(asset) {
+    var modifiers = Array.isArray(asset && asset.audioModifiers) ? asset.audioModifiers : [];
+    if (!modifiers.length) {
+      return '';
+    }
+    return modifiers.map(function (mod) {
+      return '<span class="badge audio-modifier-badge">' + escapeHtml(mod) + '</span>';
+    }).join('');
+  }
+
   function labelForBadge(text) {
     const value = String(text || '');
     const labels = {
@@ -917,10 +928,12 @@
       asset: t('assets.type.asset', 'asset'),
       event_illustration: t('assets.role.event_illustration', 'event illustration'),
       event_portrait: t('assets.role.event_portrait', 'event portrait'),
-      event_audio: t('assets.role.event_audio', 'event audio'),
+      event_music: t('assets.role.event_music', 'event music (BGM)'),
+      event_audio: t('assets.role.event_audio', 'event audio (SFX)'),
       card_image: t('assets.role.card_image', 'card image'),
       card_portrait: t('assets.role.card_portrait', 'card portrait'),
-      card_audio: t('assets.role.card_audio', 'card audio'),
+      card_music: t('assets.role.card_music', 'card music (BGM)'),
+      card_audio: t('assets.role.card_audio', 'card audio (SFX)'),
       advisor_portrait: t('assets.role.advisor_portrait', 'advisor portrait'),
       reference: t('assets.role.reference', 'reference'),
       source_asset: t('assets.sourceKind.sourceAsset', 'source asset'),

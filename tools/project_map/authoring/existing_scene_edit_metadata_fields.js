@@ -1,3 +1,4 @@
+// @ts-check
 (function initProjectMapExistingSceneEditMetadataFields(global) {
   'use strict';
 

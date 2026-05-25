@@ -1,3 +1,4 @@
+// @ts-check
 (function initProjectMapStoryPaletteModel(global) {
   'use strict';
 

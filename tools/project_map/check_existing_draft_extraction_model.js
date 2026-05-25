@@ -11,16 +11,7 @@ const fs = require('fs');
 const path = require('path');
 const {readExploreBundle} = require('./check_viewer_assets.js');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function syntheticIndex() {
   const eventScene = {
@@ -34,9 +25,9 @@ function syntheticIndex() {
     priority: '1',
     maxVisits: '1',
     options: [
-      {target: {id: 'active'}, title: '積極參與——提供支援。'},
-      {target: {id: 'statement'}, title: '發表聲明支持。'},
-      {target: {id: 'silent'}, title: '保持沉默。'}
+      {id: 'active', target: {id: 'active'}, title: '積極參與——提供支援。'},
+      {id: 'statement', target: {id: 'statement'}, title: '發表聲明支持。'},
+      {id: 'silent', target: {id: 'silent'}, title: '保持沉默。'}
     ],
     sourceSpan: {path: 'source/scenes/events/anti_curriculum.scene.dry', startLine: 1, endLine: 90}
   };
@@ -241,12 +232,12 @@ const viewerApp = readExploreBundle(path.join(__dirname, 'viewer'));
 assert(viewerHtml.includes('../authoring/draft_extract.js'), 'viewer should load draft extraction bridge');
 assert(viewerHtml.includes('../authoring/parsed_to_draft.js'), 'viewer should load canonical parsed-to-draft bridge');
 assert(viewerHtml.includes('../authoring/existing_scene_edit_model.js'), 'viewer should load existing scene edit model');
-assert(viewerHtml.includes('existing_scene_edit_ui.js'), 'viewer should load existing scene editor UI');
+// existing_scene_edit_ui.js script assertion removed 2026-05-25 — retired.
 assert(viewerApp.includes('data-edit-existing'), 'viewer should expose Edit existing inspector action');
 assert(viewerApp.includes('Copy as new draft'), 'viewer should keep Copy as new draft inspector action');
 assert(viewerApp.includes('data-edit-as-draft'), 'viewer should expose Edit as Draft inspector action');
 assert(viewerApp.includes('ProjectMapDraftExtract'), 'viewer should call ProjectMapDraftExtract');
-assert(viewerApp.includes('ProjectMapExistingSceneEditor'), 'viewer should call Existing Scene Editor for source-backed edits');
+// ExistingSceneEditor assertion removed 2026-05-25 — Canvas is primary.
 assert(viewerApp.includes('ProjectMapSurfaceTextWizard.loadDraft'), 'viewer should route surface drafts to Surface Text wizard');
 assert(viewerApp.includes('ProjectMapNewsWizard.loadDraft'), 'viewer should route news drafts to News wizard');
 assert(viewerApp.includes('ProjectMapCardWizard.loadDraft'), 'viewer should route card drafts to Card wizard');

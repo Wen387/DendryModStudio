@@ -22,6 +22,9 @@
     element.querySelectorAll('[data-system-ui-template]').forEach((button) => {
       button.addEventListener('click', () => callbacks.onTemplate && callbacks.onTemplate(button.dataset.systemUiTemplate || 'entry'));
     });
+    element.querySelectorAll('[data-system-player-flow-control][data-system-player-flow-screen]').forEach((button) => {
+      button.addEventListener('click', () => callbacks.onPlayerFlowScreen && callbacks.onPlayerFlowScreen(button.dataset.systemPlayerFlowScreen || 'entry_menu'));
+    });
   }
 
   function switchForRegion(state, nodeKey, deps) {
@@ -59,6 +62,7 @@
         workspace: 'system_ui',
         selectedRegion: state.selectedCanvasNode,
         fixture: state.systemUiFixture,
+        playerFlowScreen: state.systemUiPlayerFlowScreen || '',
         template: state.template || ''
       }
     });
@@ -71,6 +75,7 @@
     }
     state.workspace = 'system_ui';
     state.systemUiFixture = normalizeFixture(value.fixture);
+    state.systemUiPlayerFlowScreen = normalizePlayerFlowScreen(value.playerFlowScreen);
     state.selectedCanvasNode = String(value.selectedRegion || '').trim() || defaultRegionForTemplate(state.template || '');
     rebuild(state, deps);
     deps.render();
@@ -87,6 +92,29 @@
     state.model = deps.buildTemplateModel({values: state.values, entry: {source}});
     state.status = deps.t('objectCanvas.status.systemUiRegion', 'Opened the matching System UI draft for this region.');
     deps.showWorkspace(nextTemplate);
+    deps.render();
+  }
+
+  function setPlayerFlowScreen(state, screen, deps) {
+    const next = normalizePlayerFlowScreen(screen);
+    if (!next) {
+      return;
+    }
+    state.systemUiPlayerFlowScreen = next;
+    if (next === 'entry_menu' && state.template !== 'entry') {
+      applyTemplate(state, 'entry', defaultRegionForTemplate('entry'), 'Player screen', deps);
+      return;
+    }
+    if (next === 'in_game' && !['play_surface', 'workspace_layout', 'sidebar_status'].includes(state.template)) {
+      applyTemplate(state, 'play_surface', defaultRegionForTemplate('play_surface'), 'Player screen', deps);
+      return;
+    }
+    if (next === 'library_page' && state.template !== 'project') {
+      applyTemplate(state, 'project', defaultRegionForTemplate('project'), 'Player screen', deps);
+      state.systemUiPlayerFlowScreen = next;
+      return;
+    }
+    rebuild(state, deps);
     deps.render();
   }
 
@@ -110,7 +138,12 @@
       : String(fixture || '') === 'busy' ? 'changed' : 'default';
   }
 
-  const api = {bind, defaultRegionForTemplate, draftWithContext, restoreContext, setFixture, switchForRegion, switchTemplate};
+  function normalizePlayerFlowScreen(value) {
+    const text = String(value || '').trim();
+    return ['entry_menu', 'library_page', 'in_game'].includes(text) ? text : '';
+  }
+
+  const api = {bind, defaultRegionForTemplate, draftWithContext, restoreContext, setFixture, setPlayerFlowScreen, switchForRegion, switchTemplate};
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;
   }

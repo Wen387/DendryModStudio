@@ -11,7 +11,7 @@
   }
 
   function isCardBoardState(state) {
-    return state && ((state.mode === 'existing' && state.view === 'cards') || state.template === 'card');
+    return state && ((state.mode === 'existing' && state.view === 'cards') || ['card', 'deck_pool', 'advisor_controller'].includes(state.template));
   }
 
   function surfaceOptions(state) {
@@ -103,6 +103,10 @@
   }
 
   function selectCard(state, key, deps) {
+    return perfMeasure('selectCard', () => selectCardImpl(state, key, deps), {key: String(key || '')});
+  }
+
+  function selectCardImpl(state, key, deps) {
     if (!isCardBoardState(state)) {
       return false;
     }
@@ -117,9 +121,10 @@
         editorOverlay: Boolean(key)
       });
     }
-    const nextModel = deps.buildExistingModelFor('cards', parsed.id, {values: {}});
-    if (!nextModel || !nextModel.ok) {
-      return rebuild(state, deps, {selectedCanvasNode: key, cardBoardSelectedKey: key});
+    if (state.editorOverlay) {
+      return openCardEditorForKey(state, key, deps, {
+        status: deps.t('cardBoard.status.cardSelected', 'Card opened in the Card Board editor.')
+      });
     }
     state.mode = 'existing';
     state.template = 'existing';
@@ -127,13 +132,13 @@
     state.item = parsed.id;
     state.workspace = 'content';
     state.values = {};
-    state.model = nextModel;
+    state.model = lightweightCardInspectModel(state.projectIndex, parsed.id, key);
     state.selectedCanvasNode = key;
     state.cardBoardSelectedKey = key;
     state.cardBoardLane = parsed.kind === 'advisor' ? 'advisor' : state.cardBoardLane || 'pool';
     state.cardBoardSelection = cardSelection(key, state.cardBoardLane);
-    state.editorOverlay = true;
-    state.status = deps.t('cardBoard.status.cardSelected', 'Card opened in the Card Board editor.');
+    state.editorOverlay = false;
+    state.status = deps.t('cardBoard.status.cardSelectedLight', 'Card selected. Open the Object Editor when you are ready to edit.');
     deps.showWorkspace('card');
     deps.render();
     return true;
@@ -167,30 +172,81 @@
       return false;
     }
     const parsed = parseCardKey(cardKey);
-    state.values = deps.collectValues();
-    if (parsed && parsed.kind !== 'draft' && !(state.mode === 'existing' && state.view === 'cards' && String(state.item || '') === parsed.id)) {
-      const nextModel = deps.buildExistingModelFor('cards', parsed.id, {values: {}});
-      if (nextModel && nextModel.ok) {
-        state.mode = 'existing';
-        state.template = 'existing';
-        state.view = 'cards';
-        state.item = parsed.id;
-        state.workspace = 'content';
-        state.values = {};
-        state.model = nextModel;
-      } else {
-        state.model = state.mode === 'existing' ? deps.buildExistingModel({values: state.values}) : deps.buildTemplateModel({values: state.values, entry: {source: 'Card Board'}});
-      }
-    } else {
-      state.model = state.mode === 'existing' ? deps.buildExistingModel({values: state.values}) : deps.buildTemplateModel({values: state.values, entry: {source: 'Card Board'}});
+    const normalizedSelection = Object.assign({kind: 'option'}, selection, {cardKey});
+    const sameOpenCard = parsed && parsed.kind !== 'draft' && state.editorOverlay &&
+      state.mode === 'existing' && state.view === 'cards' && String(state.item || '') === parsed.id;
+    if (sameOpenCard) {
+      state.selectedCanvasNode = cardKey;
+      state.cardBoardSelectedKey = cardKey;
+      state.cardBoardSelection = normalizedSelection;
+      state.status = deps.t('cardBoard.status.optionSelected', 'Card choice selected in the Card Board editor.');
+      deps.showWorkspace('card');
+      focusSelectedOptionField(state.cardBoardSelection, deps);
+      return true;
     }
+    if (parsed && parsed.kind !== 'draft') {
+      return openCardEditorForKey(state, cardKey, deps, {
+        selection: normalizedSelection,
+        focusFieldId: fieldIdForSelection(normalizedSelection),
+        status: deps.t('cardBoard.status.optionSelected', 'Card choice selected in the Card Board editor.')
+      });
+    }
+    state.values = deps.collectValues();
+    state.model = state.mode === 'existing' ? deps.buildExistingModel({values: state.values}) : deps.buildTemplateModel({values: state.values, entry: {source: 'Card Board'}});
     state.selectedCanvasNode = cardKey;
     state.cardBoardSelectedKey = cardKey;
-    state.cardBoardSelection = Object.assign({kind: 'option'}, selection, {cardKey});
+    state.cardBoardSelection = normalizedSelection;
     state.editorOverlay = true;
     state.status = deps.t('cardBoard.status.optionSelected', 'Card choice selected in the Card Board editor.');
     deps.showWorkspace('card');
     deps.render();
+    focusSelectedOptionField(state.cardBoardSelection, deps);
+    return true;
+  }
+
+  function openSelectedCardEditor(state, deps, options) {
+    if (!isCardBoardState(state)) {
+      return false;
+    }
+    const opts = options && typeof options === 'object' ? options : {};
+    const selection = opts.selection || state.cardBoardSelection || {};
+    const key = String(opts.cardKey || selection.cardKey || state.cardBoardSelectedKey || state.selectedCanvasNode || '').trim();
+    return openCardEditorForKey(state, key, deps, {
+      selection,
+      focusFieldId: opts.focusFieldId || (selection.kind === 'option' ? fieldIdForSelection(selection) : ''),
+      status: opts.status || deps.t('cardBoard.status.cardSelected', 'Card opened in the Card Board editor.')
+    });
+  }
+
+  function openCardEditorForKey(state, key, deps, options) {
+    const parsed = parseCardKey(key);
+    if (!parsed || parsed.kind === 'draft') {
+      return false;
+    }
+    const opts = options && typeof options === 'object' ? options : {};
+    const nextModel = deps.buildExistingModelFor('cards', parsed.id, {values: {}});
+    if (!nextModel || !nextModel.ok) {
+      return rebuild(state, deps, {selectedCanvasNode: key, cardBoardSelectedKey: key});
+    }
+    const laneKey = parsed.kind === 'advisor' ? 'advisor' : state.cardBoardLane || 'pool';
+    state.mode = 'existing';
+    state.template = 'existing';
+    state.view = 'cards';
+    state.item = parsed.id;
+    state.workspace = 'content';
+    state.values = {};
+    state.model = nextModel;
+    state.selectedCanvasNode = key;
+    state.cardBoardSelectedKey = key;
+    state.cardBoardLane = laneKey;
+    state.cardBoardSelection = opts.selection || cardSelection(key, laneKey);
+    state.editorOverlay = true;
+    state.status = opts.status || deps.t('cardBoard.status.cardSelected', 'Card opened in the Card Board editor.');
+    deps.showWorkspace('card');
+    deps.render();
+    if (opts.focusFieldId) {
+      focusSelectedOptionField(Object.assign({}, state.cardBoardSelection, {fieldId: opts.focusFieldId}), deps);
+    }
     return true;
   }
 
@@ -220,10 +276,77 @@
     if (value === 'create_in_selected_lane') {
       return createInLane(state, target || fakeLaneButton(state.cardBoardLane || 'deck'), deps);
     }
+    if (value === 'open_deck_pool_editor') {
+      return openLaneObjectEditor(state, 'deck_pool', target, deps);
+    }
+    if (value === 'open_advisor_controller_editor') {
+      return openLaneObjectEditor(state, 'advisor_controller', target, deps);
+    }
+    if (value === 'open_card_editor') {
+      return openSelectedCardEditor(state, deps, {
+        cardKey: target && target.dataset && target.dataset.cardBoardActionCard || '',
+        focusFieldId: target && target.dataset && target.dataset.cardBoardOptionField || ''
+      });
+    }
     if (value === 'open_linked_card') {
       return selectCard(state, target && target.dataset && target.dataset.cardBoardActionCard || '', deps);
     }
     return false;
+  }
+
+  function openLaneObjectEditor(state, template, target, deps) {
+    const board = currentBoard(state);
+    const dataset = target && target.dataset || {};
+    const selectedObject = board && board.selectedObject || {};
+    let lane = selectedObject.lane || boardLane(board, state.cardBoardLane || '');
+    const id = template === 'deck_pool'
+      ? String(dataset.cardBoardDeckPool || selectedObject.deckPool && selectedObject.deckPool.id || lane && lane.deckPool && lane.deckPool.id || '')
+      : String(dataset.cardBoardAdvisorController || selectedObject.advisorController && selectedObject.advisorController.id || lane && lane.advisorController && lane.advisorController.id || '');
+    lane = semanticLaneForObject(board, template, id) || lane;
+    const draft = draftForLaneObject(template, state.projectIndex, id);
+    if (!draft || !draft.id) {
+      state.status = deps.t('cardBoard.status.semanticObjectMissing', 'This board lane does not have a complete semantic object yet.');
+      deps.render();
+      return false;
+    }
+    state.mode = template;
+    state.template = template;
+    state.view = template;
+    state.item = id;
+    state.workspace = 'content';
+    state.baseDraft = draft;
+    state.values = {};
+    state.selectedCanvasNode = template + ':' + id;
+    state.cardBoardSelectedKey = state.selectedCanvasNode;
+    state.cardBoardLane = lane && lane.key || state.cardBoardLane || 'pool';
+    state.cardBoardSelection = {kind: 'lane', key: 'lane:' + state.cardBoardLane, laneKey: state.cardBoardLane};
+    state.editorOverlay = true;
+    state.model = deps.buildTemplateModel({values: {}, entry: {source: 'Card Board lane'}});
+    state.status = template === 'deck_pool'
+      ? deps.t('cardBoard.status.deckPoolOpened', 'Deck pool opened in the Object Editor.')
+      : deps.t('cardBoard.status.advisorControllerOpened', 'Advisor controller opened in the Object Editor.');
+    deps.showWorkspace(template);
+    deps.render();
+    return true;
+  }
+
+  function draftForLaneObject(template, projectIndex, id) {
+    const api = template === 'deck_pool' ? deckPoolDraftApi() : advisorControllerDraftApi();
+    if (api && template === 'deck_pool' && typeof api.draftForPool === 'function') {
+      return api.draftForPool(projectIndex, id);
+    }
+    if (api && template === 'advisor_controller' && typeof api.draftForController === 'function') {
+      return api.draftForController(projectIndex, id);
+    }
+    return null;
+  }
+
+  function laneAnchorFromDataset(dataset) {
+    const value = dataset || {};
+    const path = String(value.cardBoardLaneSourcePath || '');
+    const line = String(value.cardBoardLaneSourceLine || '');
+    const anchorText = String(value.cardBoardLaneAnchorText || '');
+    return path && line ? {path, line, anchorText} : null;
   }
 
   function createInLane(state, button, deps) {
@@ -257,6 +380,7 @@
       laneKey,
       laneLabel: String(dataset.cardBoardLaneLabel || laneKey),
       laneTag,
+      laneAnchor: laneAnchorFromDataset(dataset),
       action: 'create'
     };
     state.cardBoardSelection = intentSelection(state.cardBoardSelectedKey, laneKey);
@@ -285,6 +409,7 @@
       laneKey,
       laneLabel,
       laneTag,
+      laneAnchor: laneAnchorFromDataset(dataset),
       action: 'move'
     };
     state.cardBoardLane = laneKey;
@@ -363,7 +488,7 @@
       deps.render();
       return false;
     }
-    const draft = draftFromCard(card);
+    const draft = draftFromCard(card, state);
     state.mode = 'card';
     state.template = 'card';
     state.view = 'card';
@@ -437,7 +562,7 @@
   function currentBoard(state) {
     const api = global.ProjectMapCardBoardModel;
     return api && typeof api.buildBoard === 'function'
-      ? api.buildBoard(state.projectIndex, state.model, surfaceOptions(state))
+      ? perfMeasure('buildBoard', () => api.buildBoard(state.projectIndex, state.model, surfaceOptions(state)), {source: 'currentBoard'})
       : {lanes: [], selected: null, selectedObject: null};
   }
 
@@ -468,8 +593,145 @@
     return ensureArray(board && board.lanes).find((lane) => lane && lane.key === String(key || '')) || null;
   }
 
-  function draftFromCard(card) {
-    const options = ensureArray(card.options).slice(0, 4).map((option, index) => ({
+  function semanticLaneForObject(board, template, id) {
+    const objectId = String(id || '');
+    if (!objectId) {
+      return null;
+    }
+    return ensureArray(board && board.lanes).find((lane) => {
+      if (!lane) {
+        return false;
+      }
+      if (template === 'deck_pool') {
+        return String(lane.deckPool && lane.deckPool.id || '') === objectId;
+      }
+      if (template === 'advisor_controller') {
+        return String(lane.advisorController && lane.advisorController.id || '') === objectId;
+      }
+      return false;
+    }) || null;
+  }
+
+  function lightweightCardInspectModel(projectIndex, cardId, key) {
+    const card = lightweightCardFromIndex(projectIndex, cardId, key);
+    return {
+      ok: true,
+      schemaVersion: '0.1',
+      kind: 'object_authoring_canvas_model',
+      mode: 'existing',
+      template: 'existing',
+      objectKind: 'card',
+      objectId: '__card_board_lightweight__',
+      title: card.title || cardId || 'Card',
+      source: card.source || {},
+      eventBody: {},
+      changeState: {
+        draft: null,
+        proposal: null,
+        output: {},
+        installPlan: null,
+        operationSummary: {safeApply: 0, guardedApply: 0, manualReview: 0, refused: 0},
+        changedCount: 0,
+        diagnostics: [],
+        warnings: []
+      }
+    };
+  }
+
+  function lightweightCardFromIndex(projectIndex, cardId, key) {
+    const index = projectIndex && typeof projectIndex === 'object' ? projectIndex : {};
+    const id = String(cardId || '');
+    const scene = ensureArray(index.scenes).find((item) => String(item && item.id || '') === id) || {};
+    const text = textForScene(index, id);
+    const title = String(text.heading || text.title || scene.title || id || '');
+    return {
+      key: String(key || ''),
+      id,
+      title,
+      source: sourceRef(scene.sourceSpan || scene.topLevelSpan || {path: scene.path})
+    };
+  }
+
+  function textForScene(index, sceneId) {
+    const out = {};
+    ensureArray(index && index.semantic && index.semantic.textCorpus && index.semantic.textCorpus.items).forEach((row) => {
+      const owner = row && row.owner || {};
+      if (String(owner.sceneId || '') !== String(sceneId || '')) {
+        return;
+      }
+      const role = String(row.role || '');
+      if ((role === 'heading' || role === 'title') && !out[role]) {
+        out[role] = String(row.text || '');
+      }
+    });
+    return out;
+  }
+
+  function sourceRef(source) {
+    const value = source && typeof source === 'object' ? source : {};
+    return {
+      path: String(value.path || ''),
+      line: value.line || value.startLine || ''
+    };
+  }
+
+  function focusSelectedOptionField(selection, deps) {
+    if (!deps || typeof deps.focusDraftField !== 'function') {
+      return false;
+    }
+    const fieldId = fieldIdForSelection(selection) || 'card.title';
+    return deps.focusDraftField(fieldId);
+  }
+
+  function fieldIdForSelection(selection) {
+    const value = selection && typeof selection === 'object' ? selection : {};
+    const explicit = String(value.fieldId || '').trim();
+    if (explicit) {
+      return explicit;
+    }
+    const optionPath = String(value.optionPath || '').trim();
+    const sectionMatch = optionPath.match(/^section\.(\d+)\.(\d+)$/);
+    if (sectionMatch) {
+      return 'card.section.' + sectionMatch[1] + '.option.' + sectionMatch[2] + '.label';
+    }
+    const sectionIndex = value.sectionIndex !== undefined && value.sectionIndex !== null
+      ? Number(value.sectionIndex)
+      : NaN;
+    if (Number.isFinite(sectionIndex)) {
+      return 'card.section.' + sectionIndex + '.option.' + Number(value.optionIndex || 0) + '.label';
+    }
+    if (value.optionIndex === undefined || value.optionIndex === null || value.optionIndex === '') {
+      return 'card.title';
+    }
+    return 'card.option.' + Number(value.optionIndex || 0) + '.label';
+  }
+
+  function parsedDraftFromCard(card, state) {
+    if (!card || !card.id || String(card.key || '').indexOf('draft:') === 0) {
+      return null;
+    }
+    const api = parsedToDraftApi();
+    if (!api || typeof api.buildDraftFromParsed !== 'function') {
+      return null;
+    }
+    try {
+      const result = api.buildDraftFromParsed(state && state.projectIndex, {
+        view: 'cards',
+        itemId: card.id,
+        newId: safeId((card.id || card.title || 'card') + '_draft')
+      });
+      return result && result.draft || null;
+    } catch (_err) {
+      return null;
+    }
+  }
+
+  function draftFromCard(card, state) {
+    const parsedDraft = parsedDraftFromCard(card, state);
+    if (parsedDraft) {
+      return parsedDraft;
+    }
+    const options = ensureArray(card.options).map((option, index) => ({
       id: safeId(option.id || 'option_' + (index + 1)),
       label: String(option.label || option.id || 'Option ' + (index + 1)),
       title: '',
@@ -517,7 +779,11 @@
         key: String(raw.key || 'option:' + cardKey + ':' + optionIndex),
         cardKey,
         optionIndex,
+        sectionIndex: raw.sectionIndex !== undefined && raw.sectionIndex !== null && raw.sectionIndex !== '' ? Number(raw.sectionIndex) : null,
         optionId: String(raw.optionId || ''),
+        fieldId: String(raw.fieldId || ''),
+        optionPath: String(raw.optionPath || ''),
+        sectionId: String(raw.sectionId || ''),
         laneKey: String(raw.laneKey || state.cardBoardLane || 'pool')
       };
     }
@@ -582,6 +848,67 @@
     };
   }
 
+  function deckPoolDraftApi() {
+    if (global && global.ProjectMapDeckPoolDraft) {
+      return global.ProjectMapDeckPoolDraft;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('../authoring/deck_pool_draft.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function advisorControllerDraftApi() {
+    if (global && global.ProjectMapAdvisorControllerDraft) {
+      return global.ProjectMapAdvisorControllerDraft;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('../authoring/advisor_controller_draft.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function parsedToDraftApi() {
+    if (global && global.ProjectMapParsedToDraft) {
+      return global.ProjectMapParsedToDraft;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('../authoring/parsed_to_draft.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function perfApi() {
+    if (global && global.ProjectMapCardBoardPerf) {
+      return global.ProjectMapCardBoardPerf;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./card_board_perf.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function perfMeasure(name, fn, detail) {
+    const api = perfApi();
+    return api && typeof api.measure === 'function' ? api.measure(name, fn, detail || {}) : fn();
+  }
+
   function parseCardKey(key) {
     const match = String(key || '').match(/^(card|advisor|draft):(.+)$/);
     if (!match) {
@@ -607,7 +934,7 @@
     return Array.isArray(value) ? value : [];
   }
 
-  const api = {bind, draftWithContext, handleAction, isCardBoardState, openFromSystemRegion, renderStage, reset, restoreContext, selectCard, selectObject};
+  const api = {bind, draftWithContext, handleAction, isCardBoardState, openFromSystemRegion, openSelectedCardEditor, renderStage, reset, restoreContext, selectCard, selectObject};
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;
   }

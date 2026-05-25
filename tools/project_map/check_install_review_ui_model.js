@@ -8,25 +8,16 @@ const vm = require('vm');
 
 const installPlan = require('./authoring/install_plan.js');
 const installOperationContracts = require('./authoring/install_operation_contracts.js');
-const reviewStateModel = require('./viewer/install_review_state_model.js');
-const resultReportModel = require('./viewer/install_result_report_model.js');
+const reviewStateModel = require('./authoring/install_review_state_model.js');
+const resultReportModel = require('./authoring/install_result_report_model.js');
 const reviewUi = require('./viewer/install_review_ui.js');
 
 const ROOT = __dirname;
 const INSTALL_UI = path.join(ROOT, 'viewer', 'install_assistant_ui.js');
-const REVIEW_STATE_MODEL = path.join(ROOT, 'viewer', 'install_review_state_model.js');
-const RESULT_REPORT_MODEL = path.join(ROOT, 'viewer', 'install_result_report_model.js');
+const REVIEW_STATE_MODEL = path.join(ROOT, 'authoring', 'install_review_state_model.js');
+const RESULT_REPORT_MODEL = path.join(ROOT, 'authoring', 'install_result_report_model.js');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function t(_key, fallback) {
   return fallback;

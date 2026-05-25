@@ -275,10 +275,10 @@
         routeClass: ROUTE_CLASSES.SYSTEM_UI_WORKSPACE,
         view: 'surfaceText',
         itemId: item.id || item.itemId || '',
-        target: Object.assign(targetFromSource(source), systemUiTargetForPath(source.path), {
+        target: Object.assign(targetFromSource(source), systemUiTargetForItem(item, source), {
           itemId: item.id || item.itemId || ''
         }),
-        installSafety: isSafeSurfaceSource(source.path, item.editability) ? 'guarded_apply' : 'advanced_apply',
+        installSafety: systemUiSafetyForSource(source, item.editability),
         reason: 'This visible label belongs to a System UI surface; Studio opens the UI workspace and emits a guarded or advanced source-backed operation.',
         captured: ['source evidence', 'system UI route']
       });
@@ -365,8 +365,8 @@
         routeClass: ROUTE_CLASSES.SYSTEM_UI_WORKSPACE,
         view: 'textCorpus',
         itemId: item.id || '',
-        target: Object.assign(targetFromSource(source), {workspace: 'system_ui', template: 'entry'}),
-        installSafety: 'advanced_apply',
+        target: Object.assign(targetFromSource(source), systemUiTargetForItem(item, source)),
+        installSafety: systemUiSafetyForSource(source, item && item.editability),
         reason: 'Root scene text affects entry/sidebar flow. Studio opens the System UI workspace and emits an advanced source-backed operation.',
         captured: ['protected root source', 'system UI route']
       });
@@ -555,15 +555,83 @@
   function systemUiTargetForPath(path) {
     const rel = normalizePath(path);
     if (rel === 'source/scenes/root.scene.dry') {
-      return {workspace: 'system_ui', template: 'entry'};
+      return {workspace: 'system_ui', template: 'entry', internalTemplate: 'entry', selectedRegion: 'ui:main_content'};
     }
-    if (rel.startsWith('source/scenes/status') || rel.includes('sidebar')) {
-      return {workspace: 'system_ui', template: 'entry', internalTemplate: 'sidebar_status'};
+    if (rel.startsWith('source/scenes/status') || rel.startsWith('source/qdisplays/') || rel.includes('sidebar')) {
+      return {workspace: 'system_ui', template: 'sidebar_status', internalTemplate: 'sidebar_status', selectedRegion: 'ui:sidebar_status'};
     }
     if (rel === 'source/info.dry') {
-      return {workspace: 'system_ui', template: 'project'};
+      return {workspace: 'system_ui', template: 'project', internalTemplate: 'project', selectedRegion: 'ui:screen_header'};
     }
-    return {workspace: 'system_ui', template: 'entry'};
+    return {workspace: 'system_ui', template: 'entry', internalTemplate: 'entry', selectedRegion: 'ui:main_content'};
+  }
+
+  function systemUiTargetForItem(item, source) {
+    const ref = sourceRef(source || item && item.source || {});
+    const base = systemUiTargetForPath(ref.path);
+    const role = String(item && (item.role || item.semanticRole || item.owner && item.owner.kind) || '').trim();
+    const lower = role.toLowerCase();
+    const target = Object.assign({}, base, {
+      sourceRole: role,
+      focusFieldId: '',
+      manualReason: ''
+    });
+    if (base.internalTemplate === 'project') {
+      target.selectedRegion = 'ui:screen_header';
+      target.focusFieldId = /author/.test(lower) ? 'project.author' : /ifid/.test(lower) ? 'project.ifid' : 'project.gameTitle';
+      target.role = 'project_metadata.' + target.focusFieldId.replace(/^project\./, '');
+      return target;
+    }
+    if (base.internalTemplate === 'sidebar_status') {
+      target.selectedRegion = 'ui:sidebar_status';
+      target.focusFieldId = /title|heading/.test(lower)
+        ? 'sidebar.sectionHeading'
+        : /status|line/.test(lower)
+          ? 'sidebar.sectionStatusLines'
+          : 'sidebar.sectionBody';
+      target.role = 'sidebar_status.' + target.focusFieldId.replace(/^sidebar\./, '');
+      return target;
+    }
+    if (/option|route|choice/.test(lower)) {
+      target.selectedRegion = 'ui:main_options';
+      target.focusFieldId = 'entry.firstOptionTitle';
+      target.role = 'entry_sidebar.option_label';
+      return target;
+    }
+    if (/title/.test(lower)) {
+      target.selectedRegion = 'ui:screen_header';
+      target.focusFieldId = 'entry.rootTitle';
+      target.role = 'entry_sidebar.title';
+      return target;
+    }
+    if (/heading/.test(lower)) {
+      target.selectedRegion = 'ui:main_content';
+      target.focusFieldId = 'entry.rootHeading';
+      target.role = 'entry_sidebar.heading';
+      return target;
+    }
+    if (/body|intro|text|surface_text/.test(lower)) {
+      target.selectedRegion = 'ui:main_content';
+      target.focusFieldId = 'entry.rootIntro';
+      target.role = 'entry_sidebar.opening';
+      return target;
+    }
+    target.manualReason = 'System UI route found, but no unique draft field matched this visible text.';
+    return target;
+  }
+
+  function systemUiSafetyForSource(source, editability) {
+    const ref = sourceRef(source || {});
+    if (isGeneratedPath(ref.path)) {
+      return 'advanced_apply';
+    }
+    if (ref.path === 'source/scenes/root.scene.dry' || ref.path === 'source/info.dry') {
+      return ref.line || ref.anchorText ? 'guarded_apply' : 'advanced_apply';
+    }
+    if (isSafeSurfaceSource(ref.path, editability) || ref.path.startsWith('source/scenes/') || ref.path.startsWith('source/qdisplays/')) {
+      return ref.line || ref.anchorText ? 'guarded_apply' : 'advanced_apply';
+    }
+    return 'advanced_apply';
   }
 
   function targetFromSource(source) {
@@ -620,6 +688,7 @@
       replace: '',
       content: '',
       dedupeSearch: '',
+      role: target.role || target.sourceRole || '',
       description: 'Edit visible source-backed content from Studio.'
     };
     if (

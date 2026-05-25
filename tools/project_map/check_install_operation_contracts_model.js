@@ -3,17 +3,7 @@
 'use strict';
 
 const installOperationContracts = require('./authoring/install_operation_contracts.js');
-
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 const normalized = installOperationContracts.normalizeInstallOperation({
   type: 'replace_text',
@@ -38,6 +28,22 @@ assert(normalized.deletesSourceLine === true && normalized.deleteMode === 'line'
 
 const unknownType = installOperationContracts.normalizeInstallOperation({type: 'future_operation', safety: 'safe_apply'}, 0);
 assert(unknownType.type === 'future_operation', 'typed operation core should preserve unknown operation types for orchestration checks');
+const semanticOperation = installOperationContracts.normalizeInstallOperation({type: 'replace_text', safety: 'guarded_apply', semanticOperation: 'deck_pool.add_member', groupId: 'advisor_controller:shuffle_leadership', reviewSummary: 'Roster item'}, 1);
+assert(semanticOperation.semanticOperation === 'deck_pool.add_member', 'operation core should preserve deck/advisor semantic operation tags');
+assert(semanticOperation.groupId === 'advisor_controller:shuffle_leadership' && semanticOperation.reviewSummary === 'Roster item', 'operation core should preserve grouped review metadata');
+['deck_pool.add_member', 'deck_pool.remove_member', 'deck_pool.move_member'].forEach((role, index) => {
+  const normalizedDeckOperation = installOperationContracts.normalizeInstallOperation({
+    id: role.replace(/\./g, '_'),
+    type: 'replace_text',
+    safety: 'guarded_apply',
+    semanticOperation: role,
+    role,
+    groupId: 'deck_pool:main_party',
+    reviewSummary: 'Move Shuffle Leadership from Party Affairs to Government Affairs'
+  }, index);
+  assert(normalizedDeckOperation.semanticOperation === role, 'deck pool membership operation should preserve semantic operation ' + role);
+  assert(normalizedDeckOperation.groupId === 'deck_pool:main_party' && normalizedDeckOperation.reviewSummary, 'deck pool membership operation should preserve grouped review summary for ' + role);
+});
 
 const patchPreview = installOperationContracts.renderPatchPreview({
   operations: [

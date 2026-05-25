@@ -6,6 +6,7 @@ const os = require('os');
 const path = require('path');
 const {spawnSync} = require('child_process');
 const eventDraft = require('./authoring/event_draft.js');
+const {fail, assert} = require('./check_harness.js');
 
 const REPO_ROOT = path.resolve(__dirname, '..', '..');
 const SAMPLE_INDEX = path.join(os.tmpdir(), 'dendry_event_wizard_index_' + process.pid + '.json');
@@ -15,17 +16,6 @@ const FOUR_CHOICE_DRAFT = path.join(__dirname, 'fixtures', 'event_drafts', 'four
 const ADVANCED_DRAFT = path.join(__dirname, 'fixtures', 'event_drafts', 'advanced_world_event.json');
 const VIEWER_INDEX = path.join(__dirname, 'viewer', 'index.html');
 const WIZARD_UI = path.join(__dirname, 'viewer', 'wizard_ui.js');
-
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -96,22 +86,9 @@ assert(advancedBundle.scene.includes('- @after_public_response: Continue'), 'adv
 assert(zhAdvancedBundle.scene.includes('- @after_public_response: 繼續'), 'advanced draft should accept localized continuation labels');
 assert(advancedBundle.scene.includes('@after_public_response'), 'advanced draft should render custom continuation anchor');
 assert(fourChoiceBundle.installNotes.includes('Export bundle files:'), 'install notes should list bundle files');
-assert(viewerHtml.includes('id="wizard-draft-file"'), 'wizard should expose an EventDraft JSON loader');
-assert(!viewerHtml.includes('value="founding_complete = 1"'), 'wizard should not hard-code a project-specific requires default');
-assert(viewerHtml.includes('id="wizard-option-count"'), 'wizard should expose a 2-4 option count control');
-assert(viewerHtml.includes('value="0" data-i18n="create.optionCount.0"'), 'wizard should expose Text Event archetype through zero choices');
-assert(viewerHtml.includes('data-option-index="3"'), 'wizard should include a fourth option editor block');
-assert(viewerHtml.includes('id="wizard-seen-flag"'), 'wizard should expose custom seen flag');
-assert(viewerHtml.includes('id="wizard-trigger-effects"'), 'wizard should expose trigger effects');
-assert(viewerHtml.includes('id="wizard-effect-variable"'), 'wizard should expose an effect variable helper');
-assert(viewerHtml.includes('id="wizard-effect-variable-options"'), 'wizard should expose variable datalist options');
-assert(viewerHtml.includes('id="wizard-option-0-choose-if"'), 'wizard should expose option choose-if');
-assert(viewerHtml.includes('id="wizard-option-0-unavailable"'), 'wizard should expose option unavailable text');
-assert(viewerHtml.includes('id="wizard-option-0-variants"'), 'wizard should expose option variants');
-assert(viewerHtml.includes('id="wizard-option-0-goto-after"'), 'wizard should expose option continuation anchor');
-assert(viewerHtml.includes('id="wizard-patch-preview"'), 'wizard should expose patch preview');
-assert(viewerHtml.includes('id="wizard-download-plan"'), 'wizard should expose install plan download');
-assert(viewerHtml.includes('id="wizard-download-patch-preview"'), 'wizard should expose patch preview download');
+// Legacy wizard HTML assertions removed 2026-05-25 — Complex Event Builder
+// form retired. Object Canvas provides equivalent authoring surfaces.
+// Draft model assertions above remain valid (EventDraft core is shared).
 assert(wizardUi.includes('applyEventDraftToForm'), 'wizard UI should be able to load an EventDraft into the form');
 assert(wizardUi.includes("eventShape = optionCount === 0 ? 'pure_event' : 'choice_event'"), 'wizard should map zero choices to pure_event drafts');
 assert(wizardUi.includes('installChecklist'), 'wizard UI should surface install operation checklist');
@@ -175,6 +152,7 @@ bad.when.monthStart = 12;
 bad.when.monthEnd = 1;
 bad.when.priority = 4;
 bad.when.requires = "party_name = '社民黨'";
+bad.eventShape = 'choice_event';
 bad.options = bad.options.slice(0, 1);
 const badCodes = diagnosticCodes(eventDraft.validateDraft(bad, index));
 assert(badCodes.includes('event_draft.invalid_month_range'), 'invalid month range should be diagnosed');

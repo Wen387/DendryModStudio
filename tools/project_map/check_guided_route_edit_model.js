@@ -7,16 +7,7 @@ const routeScript = require('./authoring/route_script_intelligence_model.js');
 const semanticLogic = require('./authoring/semantic_logic_editor_model.js');
 const workspace = require('./viewer/semantic_logic_workspace_ui.js');
 
-function fail(message, detail) {
-  process.stderr.write('FAIL: ' + message + (detail ? '\n' + JSON.stringify(detail, null, 2) : '') + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message, detail) {
-  if (!condition) {
-    fail(message, detail);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function src(path, line, anchorText) {
   return {path, line, startLine: line, endLine: line, anchorText, endAnchorText: anchorText};

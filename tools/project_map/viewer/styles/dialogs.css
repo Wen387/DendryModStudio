@@ -770,6 +770,21 @@
   transition: width 180ms ease;
 }
 
+.desktop-progress-hint {
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-left: 3px solid var(--accent);
+  color: var(--fg);
+  font-size: 14px;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.desktop-progress-hint.hidden {
+  display: none;
+}
+
 .desktop-progress-label {
   min-width: 0;
   color: var(--muted);

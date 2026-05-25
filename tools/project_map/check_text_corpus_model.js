@@ -4,16 +4,7 @@
 const fs = require('fs');
 const viewer = require('./viewer/app.js');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 const indexPath = process.argv[2];
 if (!indexPath) {

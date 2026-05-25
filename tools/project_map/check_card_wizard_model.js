@@ -18,16 +18,7 @@ const SAMPLE_ADVISOR = path.join(__dirname, 'fixtures', 'card_drafts', 'sample_a
 const INVALID_CARD = path.join(__dirname, 'fixtures', 'card_drafts', 'invalid_card.json');
 const VIEWER_INDEX = path.join(__dirname, 'viewer', 'index.html');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -233,6 +224,96 @@ assert(!justiceActionBundle.installPlan.operations.some((op) => op.id === 'wire_
 assert(!justiceAdvisorBundle.installPlan.operations.some((op) => op.id === 'wire_card_flow'), 'Justice Party advisor card should auto-route through #demo_advisor');
 assert(installPlan.operationSummary(justiceActionBundle.installPlan).safeApply === 1, 'Justice Party action card create should be safe-apply');
 assert(installPlan.operationSummary(justiceAdvisorBundle.installPlan).safeApply === 1, 'Justice Party advisor card create should be safe-apply');
+
+const laneIntentIndex = {
+  schemaVersion: '0.1',
+  project: {root: REPO_ROOT, profileIds: ['generic-dendry']},
+  profiles: [{id: 'generic-dendry', uiLabels: {advisorLikeSingular: 'Advisor', advisorLikePlural: 'Advisors'}}],
+  scenes: [
+    {
+      id: 'main',
+      title: 'Workspace Hand',
+      type: 'hand',
+      path: 'source/scenes/main.scene.dry',
+      options: [
+        {id: '@lane_action_deck', target: {kind: 'scene', id: 'lane_action_deck'}, sourceSpan: {path: 'source/scenes/main.scene.dry', startLine: 8, anchorText: '- @lane_action_deck: Draw an action card.'}},
+        {id: '#advisor_anchor', target: {kind: 'tag', id: 'advisor_anchor'}, sourceSpan: {path: 'source/scenes/main.scene.dry', startLine: 9, anchorText: '- #advisor_anchor: Talk to an advisor.'}}
+      ]
+    },
+    {
+      id: 'lane_action_deck',
+      title: 'Lane Action Deck',
+      type: 'deck',
+      path: 'source/scenes/decks/lane_action_deck.scene.dry',
+      sourceSpan: {path: 'source/scenes/decks/lane_action_deck.scene.dry', endLine: 4, endAnchorText: 'title: Lane Action Deck'},
+      options: []
+    }
+  ],
+  variables: [{name: 'demo_resources'}],
+  semantic: {events: [], cards: [], hands: [], decks: [], pinnedCards: [], news: {items: []}},
+  diagnostics: [],
+  summary: {}
+};
+const laneIntentDraft = {
+  schemaVersion: '0.1',
+  kind: 'card',
+  id: 'lane_intent_card',
+  title: 'Lane intent card',
+  cardKind: 'action_card',
+  tags: ['old_tag'],
+  heading: 'Lane intent card',
+  introParagraphs: ['A card placed into a board lane.'],
+  options: [{id: 'continue', label: 'Continue', narrativeParagraphs: ['Done.'], gotoAfter: 'main'}]
+};
+const existingLaneRouteIndex = Object.assign({}, laneIntentIndex, {
+  scenes: laneIntentIndex.scenes.map((scene) => scene.id === 'lane_action_deck' ? Object.assign({}, scene, {
+    options: [{id: '#lane_action', target: {kind: 'tag', id: 'lane_action'}, sourceSpan: {path: 'source/scenes/decks/lane_action_deck.scene.dry', startLine: 5, anchorText: '- #lane_action'}}]
+  }) : scene)
+});
+const existingLaneRouteBundle = cardDraft.buildExportBundle(laneIntentDraft, existingLaneRouteIndex, {
+  authoringContext: {surface: 'card_board', cardBoardDropContext: {laneKey: 'deck', laneTag: 'lane_action', laneLabel: 'Lane Action Deck', action: 'move'}}
+});
+assert(existingLaneRouteBundle.scene.includes('tags: lane_action, old_tag'), 'Card Board lane tag should be added to the exported scene when it is the selected lane route');
+assert(existingLaneRouteBundle.installPlan.operations.filter((op) => op.type === 'create_file').length === 1, 'existing lane tag route should produce create scene only');
+assert(!existingLaneRouteBundle.installPlan.operations.some((op) => op.type === 'insert_text' || op.id === 'wire_card_flow'), 'existing lane tag route should not generate manual or guarded wiring');
+const deckLaneBundle = cardDraft.buildExportBundle(laneIntentDraft, laneIntentIndex, {
+  authoringContext: {surface: 'card_board', cardBoardDropContext: {
+    laneKey: 'deck',
+    laneTag: 'lane_action',
+    laneLabel: 'Lane Action Deck',
+    action: 'move',
+    laneAnchor: {path: 'source/scenes/decks/lane_action_deck.scene.dry', line: 4, anchorText: 'title: Lane Action Deck'}
+  }}
+});
+const deckLaneInsert = deckLaneBundle.installPlan.operations.find((op) => op.type === 'insert_text' && op.id === 'card_deck_tag_route');
+assert(deckLaneInsert, 'deck lane context without an existing route should create a guarded insert operation');
+assert(deckLaneInsert.safety === 'guarded_apply', 'deck lane insert should be guarded');
+assert(deckLaneInsert.path === 'source/scenes/decks/lane_action_deck.scene.dry', 'deck lane insert should use the deck lane source path');
+assert(deckLaneInsert.anchorText === 'title: Lane Action Deck', 'deck lane insert should preserve source anchor text');
+assert(deckLaneInsert.dedupeSearch === '- #lane_action', 'deck lane insert should dedupe by lane tag');
+assert(deckLaneInsert.content === '- #lane_action\n', 'deck lane insert should wire the lane tag');
+const advisorLaneBundle = cardDraft.buildExportBundle(Object.assign({}, laneIntentDraft, {
+  id: 'advisor_lane_intent_card',
+  title: 'Advisor lane intent card',
+  cardKind: 'advisor_like'
+}), laneIntentIndex, {
+  authoringContext: {surface: 'card_board', cardBoardDropContext: {
+    laneKey: 'advisor',
+    laneTag: 'advisor_lane',
+    laneLabel: 'Advisors',
+    action: 'move',
+    laneAnchor: {path: 'source/scenes/main.scene.dry', line: 9, anchorText: '- #advisor_anchor: Talk to an advisor.'}
+  }}
+});
+const advisorLaneInsert = advisorLaneBundle.installPlan.operations.find((op) => op.type === 'insert_text' && op.id === 'card_advisor_tag_route');
+assert(advisorLaneInsert, 'advisor lane context should create a guarded advisor insert operation');
+assert(advisorLaneInsert.path === 'source/scenes/main.scene.dry', 'advisor lane insert should use the hand/advisor anchor path');
+assert(advisorLaneInsert.anchorText === '- #advisor_anchor: Talk to an advisor.', 'advisor lane insert should use the advisor lane anchor');
+assert(advisorLaneInsert.dedupeSearch === '- #advisor_lane', 'advisor lane insert should dedupe by advisor lane tag');
+const unwiredLaneBundle = cardDraft.buildExportBundle(laneIntentDraft, laneIntentIndex, {
+  authoringContext: {surface: 'card_board', cardBoardDropContext: {laneKey: 'unwired', action: 'remove_from_lane'}}
+});
+assert(!unwiredLaneBundle.installPlan.operations.some((op) => op.type === 'insert_text' || /delete/i.test(op.type || '') || /delete/i.test(op.id || '')), 'unwired/remove intent should not create route deletion or insert operations');
 
 const invalidCodes = diagnosticCodes(invalidResult);
 assert(invalidCodes.includes('card_draft.duplicate_scene_id'), 'invalid card should diagnose duplicate scene id');

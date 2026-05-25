@@ -15,6 +15,7 @@ const shellUi = require('./viewer/object_canvas_shell_ui.js');
 const modelBuilder = require('./viewer/object_canvas_model_builder.js');
 const storyboardDrafts = require('./viewer/object_canvas_storyboard_drafts.js');
 const previewEditor = require('./viewer/preview_object_editor.js');
+const semanticOperations = require('./authoring/object_semantic_operations_model.js');
 global.ProjectMapAuthoringSurfaceGraphs = {
   buildGraph(model) {
     const node = {
@@ -29,16 +30,7 @@ global.ProjectMapAuthoringSurfaceGraphs = {
 };
 const graphStage = require('./viewer/object_canvas_graph_stage.js');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function occurrenceCount(text, needle) {
   return String(text || '').split(String(needle || '')).length - 1;
@@ -55,6 +47,8 @@ const sectionObject = storyboardDrafts.storyObjectFromKey('section:event.section
 assert(sectionObject && sectionObject.kind === 'section' && sectionObject.parentId === 'event' && sectionObject.view === 'events', 'Storyboard draft helper should parse section keys back to event parents');
 assert(storyboardDrafts.draftBranchKeyMatches({draft: {id: 'followup'}}, 'draft:event:followup'), 'Storyboard draft helper should match event draft branch keys');
 assert(storyboardDrafts.draftBranchKeyMatches({id: 'card_branch'}, 'draft:card:card_branch'), 'Storyboard draft helper should match card draft branch keys');
+assert(!storyboardDrafts.draftBranchKeyMatches({template: 'event', id: 'shared_id'}, 'draft:card:shared_id'), 'Storyboard draft helper should not remove event drafts when a card draft has the same id');
+assert(!storyboardDrafts.draftBranchMatches({template: 'event', id: 'shared_id'}, {template: 'card', id: 'shared_id'}), 'Storyboard draft branch merge should keep same-id drafts for different templates separate');
 const storyboardDraftDeps = {
   ensureArray(value) { return Array.isArray(value) ? value : []; },
   normalizeTemplate(value) { return value === 'card' || value === 'news' ? value : 'event'; },
@@ -75,11 +69,177 @@ const relatedCard = storyboardDrafts.relatedCardDraft(
 );
 assert(relatedCard.kind === 'card' && relatedCard.id === 'branch_card', 'Storyboard draft helper should build related card drafts');
 assert(relatedCard.studioAuthoringContext.cardBoardDropContext.sourceKey === 'event:fixture', 'Related card draft should keep source selection context');
+const activeDraftBranch = storyboardDrafts.currentDraftBranch({
+  mode: 'new_event',
+  template: 'event',
+  baseDraft: {id: 'first_canvas_event', title: 'First canvas event'},
+  model: {
+    changeState: {
+      draft: {
+        id: 'first_canvas_event',
+        title: 'First canvas event edited',
+        introParagraphs: ['The first draft should stay visible while another event is created.']
+      }
+    }
+  },
+  draftBranches: [],
+  projectIndex: {scenes: []}
+}, storyboardDraftDeps);
+assert(activeDraftBranch && activeDraftBranch.id === 'first_canvas_event', 'Storyboard draft helper should snapshot the active new event draft as a branch');
+assert(activeDraftBranch.title === 'First canvas event edited', 'Active draft branch should use the current edited draft title');
+const mergedActiveBranches = storyboardDrafts.withCurrentDraftBranch({
+  mode: 'new_event',
+  template: 'event',
+  baseDraft: {id: 'first_canvas_event', title: 'Old title'},
+  model: {changeState: {draft: {id: 'first_canvas_event', title: 'Updated title'}}},
+  draftBranches: [{template: 'event', id: 'first_canvas_event', title: 'Old title'}],
+  projectIndex: {scenes: []}
+}, [{template: 'event', id: 'first_canvas_event', title: 'Old title'}], storyboardDraftDeps);
+assert(mergedActiveBranches.length === 1 && mergedActiveBranches[0].title === 'Updated title', 'Active draft branch snapshot should replace the stale branch for the same draft id');
+const transitionState = {
+  mode: 'new_event',
+  template: 'event',
+  baseDraft: {id: 'first_canvas_event', title: 'First canvas event'},
+  model: {changeState: {draft: {id: 'first_canvas_event', title: 'First canvas event'}}},
+  draftBranches: [],
+  projectIndex: {scenes: []}
+};
+const openedSecondDraft = storyboardDrafts.openStandaloneEventDraft(transitionState, {insertKey: 'time:1936'}, Object.assign({}, storyboardDraftDeps, {
+  openTemplate(_template, draft) {
+    transitionState.template = 'event';
+    transitionState.mode = 'new_event';
+    transitionState.baseDraft = draft;
+    transitionState.model = {changeState: {draft}};
+    transitionState.draftBranches = [];
+    return true;
+  },
+  buildTemplateModel() {
+    return {changeState: {draft: transitionState.baseDraft}};
+  },
+  render() {},
+  showWorkspace() {},
+  resetStructureCommands() {}
+}));
+assert(openedSecondDraft, 'Standalone Storyboard event creation should open the next draft');
+assert(transitionState.draftBranches.some((branch) => branch.id === 'first_canvas_event'), 'Creating another Canvas event should keep the previous active draft card visible');
 const commandValues = modelBuilder.withStructureCommandValues({values: {title: 'Draft'}}, {
   structureCommands: [{id: 'structure_command_1', value: 'Q.test += 1'}]
 });
 assert(commandValues.values.title === 'Draft', 'Object Canvas model builder should preserve existing values');
 assert(commandValues.values.__structureCommands.length === 1, 'Object Canvas model builder should inject structure commands into values');
+
+const cardCanvasIndex = {schemaVersion: '0.1', project: {root: '/tmp/card-canvas'}, scenes: [{id: 'root'}], variables: [{name: 'public_order'}, {name: 'dnvp_relation'}], semantic: {events: [], cards: [], hands: [], decks: [], pinnedCards: [], news: {items: []}}, profiles: [], diagnostics: [], summary: {}};
+const largeCardDraft = {
+  schemaVersion: '0.1',
+  kind: 'card',
+  id: 'large_canvas_card',
+  title: 'Large Canvas Card',
+  cardKind: 'action_card',
+  cardShape: 'choice_card',
+  heading: 'Large Canvas Card',
+  tags: ['cards'],
+  introParagraphs: ['Choose.'],
+  options: Array.from({length: 5}, (_unused, index) => ({
+    id: 'choice_' + (index + 1),
+    label: 'Choice ' + (index + 1),
+    narrativeParagraphs: ['Result ' + (index + 1) + '.'],
+    gotoAfter: 'root'
+  }))
+};
+const largeCardModel = canvasModel.buildCanvasModel(cardCanvasIndex, {template: 'card', draft: largeCardDraft});
+assert(largeCardModel.ok, 'Object Canvas should accept large cards');
+assert(largeCardModel.eventBody.options.length === 5, 'Object Canvas should preserve more than four root card options');
+assert(largeCardModel.eventBody.options[4].fields.some((field) => field.id === 'card.option.4.label'), 'large card option fields should use stable card.option.N ids');
+assert(largeCardModel.eventBody.structureActions.some((field) => field.id === 'structure_add_option'), 'large card should expose add root option structure action');
+assert(largeCardModel.eventBody.structureActions.some((field) => field.id === 'structure_move_option_up_choice_3'), 'large card should expose root option reorder actions');
+const semanticEventDraft = {
+  schemaVersion: '0.1',
+  kind: 'world_event',
+  id: 'semantic_canvas_event',
+  title: 'Semantic Canvas Event',
+  introParagraphs: ['Opening player text.'],
+  options: [
+    {id: 'support', label: 'Support the plan', chooseIf: 'public_order >= 1', unavailableText: 'Public order is too low.', effects: [{variable: 'public_order', op: '+=', value: 1}], narrativeParagraphs: ['The plan gains support.'], gotoAfter: 'continue_support', returnTarget: 'root'},
+    {id: 'wait', label: 'Wait', narrativeParagraphs: ['The room waits.'], gotoAfter: 'continue_wait', returnTarget: 'root'}
+  ]
+};
+const semanticEventModel = canvasModel.buildCanvasModel(cardCanvasIndex, semanticEventDraft);
+assert(semanticEventModel.ok, 'semantic event fixture should build');
+const semanticConditionField = semanticEventModel.eventBody.options[0].fields.find((field) => field.id === 'option.0.chooseIf');
+assert(semanticConditionField && semanticConditionField.semanticGroup === 'conditions', 'Object Canvas should classify option conditions semantically');
+assert(semanticConditionField.variablePicker && semanticConditionField.variablePicker.enabled, 'Object Canvas condition fields should expose variable candidates');
+const semanticEffectField = semanticEventModel.eventBody.optionEffects[0].fields.find((field) => field.id === 'option.0.effect.0.variable');
+assert(semanticEffectField && semanticEffectField.semanticGroup === 'state_changes', 'Object Canvas should classify effect variable fields as state changes');
+assert(semanticEffectField.variablePicker && semanticEffectField.variablePicker.candidates.some((item) => item.insertValue === 'public_order'), 'Object Canvas effect variable fields should expose bare variable insertion');
+const semanticEffectOpField = semanticEventModel.eventBody.optionEffects[0].fields.find((field) => field.id === 'option.0.effect.0.op');
+assert(semanticEffectOpField && semanticEffectOpField.variablePicker && !semanticEffectOpField.variablePicker.enabled, 'Object Canvas effect operator fields should not expose variable candidates');
+const semanticRouteField = semanticEventModel.eventBody.options[0].fields.find((field) => field.semanticGroup === 'routes');
+assert(semanticRouteField && semanticRouteField.variablePicker && !semanticRouteField.variablePicker.enabled, 'Object Canvas route target fields should not expose variable candidates');
+const semanticEventHtml = previewEditor.render(semanticEventModel);
+const previewObjectCss = fs.readFileSync(path.join(__dirname, 'viewer', 'styles', 'preview-object-editor.css'), 'utf8');
+const previewObjectEditorSource = fs.readFileSync(path.join(__dirname, 'viewer', 'preview_object_editor.js'), 'utf8');
+assert(semanticEventHtml.includes('data-object-canvas-semantic-section="player_content"'), 'Object Canvas event editor should render semantic player-content grouping');
+assert(semanticEventHtml.includes('data-semantic-intent="choice_condition"'), 'Object Canvas event editor should render semantic intent markers');
+assert(semanticEventHtml.includes('data-object-canvas-variable-target="option.0.chooseIf"'), 'Object Canvas event editor should render variable picker targets beside condition fields');
+assert(semanticEventHtml.includes('data-object-canvas-semantic-card="condition"'), 'Object Canvas should render conditions as semantic condition cards');
+assert(semanticEventHtml.includes('data-object-canvas-condition-structure="true"'), 'Object Canvas should show simple condition structure without guessing variable meaning');
+assert(semanticEventHtml.includes('data-object-canvas-semantic-card="route_outcome"'), 'Object Canvas should render route fields as semantic route cards');
+assert(semanticEventHtml.includes('preview-object-semantic-logic-overview is-route') && semanticEventHtml.includes('After this choice, go to'), 'Object Canvas route cards should lead with a route outcome summary, not raw source chrome');
+assert(previewObjectEditorSource.includes('<details class="preview-object-route-state-summary"'), 'Object Canvas route-state diagnostics should be collapsed evidence, not primary route chrome');
+assert(semanticEventHtml.includes('data-object-canvas-state-change-summary="true"'), 'Object Canvas state-change cards should lead with a semantic change summary');
+assert(semanticEventHtml.includes('<details class="preview-object-semantic-variable-evidence">'), 'Object Canvas state-change cards should keep variable evidence collapsed by default');
+assert(semanticEventModel.eventBody.variablePickerCandidates.some((item) => item.name === 'dnvp_relation'), 'Object Canvas model should keep one shared searchable variable pool');
+assert(!semanticEventHtml.includes('data-object-canvas-variable-pool'), 'Object Canvas render should not duplicate the full variable pool into every picker');
+assert(!semanticEventHtml.includes('data-object-canvas-variable-target="option.0.gotoAfter"'), 'Object Canvas route target should not render a variable picker target');
+assert(!semanticEventHtml.includes('data-object-canvas-variable-target="option.0.effect.0.op"'), 'Object Canvas effect operator should not render a variable picker target');
+assert(/\.preview-object-choice-logic-group\s*\{[\s\S]{0,160}grid-template-columns:\s*minmax\(0,\s*1fr\)/.test(previewObjectCss), 'Object Canvas choice logic groups should be single-column so semantic cards do not collapse into a narrow sidebar');
+assert(/\.preview-object-semantic-effect-grid\s*\{[\s\S]{0,160}grid-template-columns:\s*minmax\(0,\s*1fr\)/.test(previewObjectCss), 'Object Canvas state-change editors should be single-column to avoid horizontal overflow');
+const semanticEffectOps = semanticOperations.buildEffectOperations([
+  {id: 'effect_1', role: 'effect', value: 'Q.foo += 2', editability: 'guarded'},
+  {id: 'effect_2', role: 'effect', value: 'Q.foo -= 8 if cond', editability: 'guarded'},
+  {id: 'effect_3', role: 'effect', value: 'Q.foo = bar', editability: 'guarded'},
+  {id: 'effect_4', role: 'effect', value: 'Q.XYADWNISA += 1', editability: 'guarded'},
+  {id: 'effect_5', role: 'effect', value: 'Q.foo *= 0.7', editability: 'guarded'},
+  {id: 'effect_6', role: 'effect', value: 'Q.foo += 1; Q.foo += 2', editability: 'advanced_source_patch'}
+], {variables: {}});
+assert(semanticEffectOps.cards.length === 5, 'semantic operations should build state-change cards for simple assignment/increment/decrement/multiply effects');
+assert(semanticEffectOps.cards.some((card) => card.variable === 'Q.XYADWNISA'), 'semantic operations should preserve unknown variable ids without guessing names');
+assert(semanticEffectOps.advancedItems.length === 1, 'semantic operations should keep compound raw effect lines in advanced source');
+const menuCardDraft = {
+  schemaVersion: '0.1',
+  kind: 'card',
+  id: 'menu_canvas_card',
+  title: 'Menu Canvas Card',
+  cardKind: 'action_card',
+  cardShape: 'menu_card',
+  heading: 'Menu Canvas Card',
+  tags: ['cards'],
+  introParagraphs: ['Choose a section.'],
+  options: [],
+  sections: [{
+    id: 'tax',
+    title: 'Tax',
+    paragraphs: ['Tax policy.'],
+    options: [{id: 'wealth_tax', label: 'Wealth tax', narrativeParagraphs: ['Raise it.'], gotoAfter: 'root'}]
+  }]
+};
+const menuCardModel = canvasModel.buildCanvasModel(cardCanvasIndex, {template: 'card', draft: menuCardDraft});
+assert(menuCardModel.ok, 'Object Canvas should accept menu cards');
+assert(menuCardModel.eventBody.branchSections.some((field) => field.id === 'card.section.0.option.0.label'), 'menu card section option fields should use stable card.section.S.option.N ids');
+assert(menuCardModel.eventBody.structureActions.some((field) => field.id === 'structure_add_option_section_tax'), 'menu card should expose add section option structure action');
+const addedRootOptionModel = canvasModel.buildCanvasModel(cardCanvasIndex, {template: 'card', draft: largeCardDraft}, {values: {__structureCommands: [{type: 'add_option', value: '- @sixth_choice: Sixth choice\n# sixth_choice\nResult text.'}]}});
+assert(addedRootOptionModel.ok && addedRootOptionModel.changeState.draft.options.length === 6, 'add root card option should update draft options');
+assert(addedRootOptionModel.changeState.draft.options[5].id === 'sixth_choice', 'add root card option should preserve parsed option id');
+const removedRootOptionModel = canvasModel.buildCanvasModel(cardCanvasIndex, {template: 'card', draft: largeCardDraft}, {values: {structure_remove_option_choice_2: '1'}});
+assert(!removedRootOptionModel.changeState.draft.options.some((option) => option.id === 'choice_2'), 'remove root card option should update draft options');
+const reorderedRootOptionModel = canvasModel.buildCanvasModel(cardCanvasIndex, {template: 'card', draft: largeCardDraft}, {values: {structure_move_option_up_choice_3: '1'}});
+assert(reorderedRootOptionModel.changeState.draft.options[1].id === 'choice_3', 'reorder root card option should update draft order');
+const addedSectionOptionModel = canvasModel.buildCanvasModel(cardCanvasIndex, {template: 'card', draft: menuCardDraft}, {values: {__structureCommands: [
+  {type: 'add_branch', value: '# labor\nLabor section body.'},
+  {type: 'add_option', sectionId: 'tax', value: '- @land_tax: Land tax\n# land_tax\nLand tax result.'}
+]}});
+assert(addedSectionOptionModel.changeState.draft.sections.some((section) => section.id === 'labor'), 'add menu section should update draft sections');
+assert(addedSectionOptionModel.changeState.draft.sections[0].options.some((option) => option.id === 'land_tax'), 'add section option should update section-owned options');
 const sourceSliceFallback = modelBuilder.buildSourceSliceCanvasModel({targetId: 'scene.source'}, {}, {
   baseDraft: {id: 'draft_source', title: 'Draft Source'},
   t(_key, fallback) { return fallback; }
@@ -1095,9 +1255,13 @@ assert(existingEditorHtml.includes('data-preview-object-structure-builder="add_t
 assert(existingEditorHtml.includes('New on-arrival effect'), 'preview editor should label event-level trigger effects as on-arrival effects');
 assert(existingEditorHtml.includes('Simple source-backed Q effects can be applied automatically after review.'), 'preview editor should not label source-backed trigger effects as manual review');
 assert(!/data-preview-object-structure-builder="add_trigger_effect"[\s\S]{0,1600}Manual review only/.test(existingEditorHtml), 'source-backed trigger-effect builders should not show the manual-review notice');
-assert(existingEditorHtml.includes('data-preview-object-effect-row="true"'), 'preview editor should render effect edits as unified effect rows');
-assert(/data-preview-object-effect-row="true"[\s\S]*Q\.budget \+= 1[\s\S]*data-preview-object-effect-delete="true"[\s\S]*structure_remove_effect_budget_1/.test(existingEditorHtml), 'trigger effect edit and delete controls should share one effect row');
-assert(/data-preview-object-effect-row="true"[\s\S]*Q\.public_order \+= 1[\s\S]*data-preview-object-effect-delete="true"[\s\S]*structure_remove_effect_public_order_/.test(existingEditorHtml), 'choice effect edit and delete controls should share one effect row');
+assert(existingEditorHtml.includes('data-object-canvas-semantic-card="state_change"'), 'preview editor should render effect edits as semantic state-change cards');
+assert(existingEditorHtml.includes('data-object-canvas-state-change-summary="true"'), 'preview editor should render state changes as a semantic summary before controls');
+assert(/data-object-canvas-semantic-card="state_change"[\s\S]{0,2600}Q\.budget/.test(existingEditorHtml) && /data-object-canvas-semantic-card="state_change"[\s\S]{0,2600}structure_remove_effect_budget_1/.test(existingEditorHtml), 'trigger effect edit and delete controls should share one semantic effect card');
+assert(/data-object-canvas-semantic-card="state_change"[\s\S]{0,2600}Q\.public_order/.test(existingEditorHtml) && /data-object-canvas-semantic-card="state_change"[\s\S]{0,2600}structure_remove_effect_public_order_/.test(existingEditorHtml), 'choice effect edit and delete controls should share one semantic effect card');
+assert(existingEditorHtml.includes('data-object-canvas-effect-part="variable"'), 'source-backed effect cards should expose structured variable controls');
+assert(existingEditorHtml.includes('data-object-canvas-effect-part="condition"'), 'source-backed effect cards should expose structured condition controls');
+assert(!/Effect: Q\.[\\s\\S]{0,600}data-object-canvas-semantic-card="state_change"/.test(existingEditorHtml), 'semantic effect cards should not use Effect: Q.foo as the primary card label');
 assert(!/preview-object-structure-delete[^"]*preview-object-action-remove_effect/.test(existingEditorHtml), 'paired effect deletions should not render as separate delete cards');
 assert(existingEditorHtml.includes('data-preview-object-inline-add="add_option"'), 'preview editor should place structural add controls at the end of the relevant object category');
 assert(!existingEditorHtml.includes('preview-object-structure-workbench'), 'preview editor should not isolate structural controls in a separate workbench');
@@ -1878,6 +2042,9 @@ assert(purePatternEvent.changeState.draft.options.length === 0, 'pure text patte
 assert(purePatternEvent.eventBody.eventStructure && purePatternEvent.eventBody.eventStructure.provenance === 'draft', 'pure text pattern should still use EventStructure draft provenance');
 assert(purePatternEvent.eventBody.eventGraph && purePatternEvent.eventBody.eventGraph.nodes.some((node) => node.id === 'root'), 'pure text pattern should expose a route map root node');
 assert(purePatternEvent.eventBody.metaFields.some((field) => field.id === 'event.pattern' && field.inputType === 'select'), 'Event pattern selector should live inside Event metadata');
+const purePatternHtml = previewEditor.render(purePatternEvent);
+assert(purePatternHtml.includes('Event template') && purePatternHtml.includes('Text / popup'), 'Event pattern selector should use understandable labels', purePatternHtml);
+assert(purePatternHtml.includes('Creates a no-choice event'), 'pure text Event pattern should explain what changes structurally', purePatternHtml);
 
 const branchingPatternEvent = canvasModel.buildNewEventCanvas(index, {}, {
   values: {'event.pattern': 'branching_consequence'}
@@ -1885,6 +2052,8 @@ const branchingPatternEvent = canvasModel.buildNewEventCanvas(index, {}, {
 assert(branchingPatternEvent.ok && branchingPatternEvent.changeState.draft.schemaVersion === '0.1', 'branching consequence pattern should produce EventDraft v0.1');
 assert(branchingPatternEvent.changeState.draft.options.length >= 2 && branchingPatternEvent.changeState.draft.options.length <= 4, 'branching consequence pattern should create a compact root choice set');
 assert(branchingPatternEvent.eventBody.eventGraph.edges.some((edge) => edge.kind === 'return_route' && edge.sourceKind === 'draft'), 'branching consequence pattern should expose editable draft return routes');
+const branchingPatternHtml = previewEditor.render(branchingPatternEvent);
+assert(branchingPatternHtml.includes('Branching choices') && branchingPatternHtml.includes('multiple player choices'), 'branching consequence Event pattern should explain the template difference', branchingPatternHtml);
 
 const conditionalPatternEvent = canvasModel.buildNewEventCanvas(index, {}, {
   values: {'event.pattern': 'conditional_menu_loop'}
@@ -1898,8 +2067,9 @@ assert(conditionalPatternEvent.eventBody.eventGraph.nodes.some((node) => node.id
 assert(conditionalPatternEvent.eventBody.eventGraph.nodes.some((node) => node.id === 'option:follow_up_action' && node.secondaryActions.some((action) => action.fieldId === 'option.2.unavailableText' && action.editAction && action.editAction.draftAction)), 'conditional menu/loop route map should expose unavailable text as draft actions');
 assert(conditionalPatternEvent.eventBody.eventGraph.nodes.some((node) => node.id === 'section:menu_loop' && node.secondaryActions.some((action) => action.fieldId === 'event.section.0.condition' && action.editAction && action.editAction.draftAction)), 'conditional menu/loop route map should expose section condition as draft actions');
 assert(conditionalPatternEvent.changeState.output.sceneDry.includes('@open_menu\n' + 'title: Review the situation\n' + 'go-to: menu_loop\n\n' + 'The discussion moves into a focused menu.'), 'native menu-opening routes should render before result prose so Dendry treats them as routes');
-const conditionalRouteMapHtml = previewEditor.render(conditionalPatternEvent);
+const conditionalRouteMapHtml = previewEditor.render(conditionalPatternEvent) + previewEditor.renderEventReviewDetailsPanels(conditionalPatternEvent.eventBody || {}, conditionalPatternEvent);
 assert(conditionalRouteMapHtml.includes('data-preview-object-route-map="true"'), 'conditional menu/loop editor should render the structured Route Map');
+assert(conditionalRouteMapHtml.includes('Conditional menu / loop') && conditionalRouteMapHtml.includes('follow-up menu or section'), 'conditional menu/loop Event pattern should explain the template difference', conditionalRouteMapHtml);
 assert(conditionalRouteMapHtml.includes('data-route-map-field="option.2.chooseIf"'), 'conditional menu/loop Route Map should render condition action chips');
 assert(conditionalRouteMapHtml.includes('data-route-map-field="option.2.unavailableText"'), 'conditional menu/loop Route Map should render unavailable-text action chips');
 assert(conditionalRouteMapHtml.includes('data-route-map-field="event.section.0.condition"'), 'conditional menu/loop Route Map should render section condition action chips');

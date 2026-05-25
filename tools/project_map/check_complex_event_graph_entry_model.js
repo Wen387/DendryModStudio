@@ -3,17 +3,7 @@
 
 const canvasModel = require('./authoring/object_authoring_canvas_model.js');
 const previewEditor = require('./viewer/preview_object_editor.js');
-
-function fail(message, detail) {
-  process.stderr.write('FAIL: ' + message + (detail ? '\n' + JSON.stringify(detail, null, 2) : '') + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message, detail) {
-  if (!condition) {
-    fail(message, detail);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 const index = {
   schemaVersion: '0.1',
@@ -45,7 +35,7 @@ const draft = {
 
 const model = canvasModel.buildNewEventCanvas(index, draft, {});
 const graph = model.eventBody.eventGraph;
-const html = previewEditor.render(model);
+const html = previewEditor.render(model) + previewEditor.renderEventReviewDetailsPanels(model.eventBody || {}, model);
 
 assert(graph && graph.kind === 'complex_event_graph', 'complex builder should expose event graph', graph);
 assert(graph.nodes.every((node) => node.editAction && node.editAction.actionKind), 'every graph node should have edit action', graph.nodes);

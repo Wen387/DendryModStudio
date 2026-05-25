@@ -23,7 +23,7 @@
         <div class="brand-copy">
           <div class="wordmark">Dendry <span>Mod Studio</span></div>
           <div class="brand-meta">
-            <span data-i18n="topbar.version">Dendry Mod Studio v0.97.8 dev preview</span>
+            <span data-i18n="topbar.version">Dendry Mod Studio v0.98.0 dev preview</span>
             <a href="https://github.com/Wen387" target="_blank" rel="noreferrer" data-i18n="topbar.author">by Awen</a>
           </div>
           <div id="brand-subtitle" class="brand-subtitle" data-i18n="topbar.subtitle.default">Studio workspace for branching Dendry projects</div>
@@ -138,6 +138,7 @@
         <div class="desktop-progress-track" aria-hidden="true">
           <div id="desktop-progress-bar" class="desktop-progress-bar"></div>
         </div>
+        <div id="desktop-progress-hint" class="desktop-progress-hint hidden"></div>
         <div id="desktop-progress-label" class="desktop-progress-label" data-i18n="topbar.idle">Idle</div>
       </div>
     </div>
@@ -470,6 +471,7 @@
         </div>
         <div class="draft-workspace-actions">
           <button id="draft-workspace-save" class="primary-action" type="button" data-i18n="draftWorkspace.saveCurrent">Save current change</button>
+          <button id="draft-workspace-review-all" type="button" data-i18n="draftWorkspace.reviewAll">Review & Apply All</button>
           <button id="draft-workspace-export" type="button" data-i18n="draftWorkspace.exportAll">Export change list</button>
         </div>
         <div id="draft-workspace-status" class="wizard-index-status" data-i18n="draftWorkspace.empty">No saved change proposals yet.</div>
@@ -786,444 +788,11 @@
         </div>
       </aside>
 
-      <section class="wizard-form-panel" aria-labelledby="wizard-heading-label" data-create-template-panel="event">
-        <div class="wizard-title-row">
-          <div>
-            <h1 id="wizard-heading-label" class="wizard-title" data-i18n="create.eventWizard">Complex Event Builder</h1>
-            <div id="wizard-core-status" class="wizard-status" data-i18n="create.status.eventCorePending">EventDraft core pending.</div>
-          </div>
-          <div class="wizard-status-stack">
-            <label class="draft-file-picker">
-              <span data-i18n="create.loadDraftJson">Load draft JSON</span>
-              <input id="wizard-draft-file" type="file" accept="application/json,.json">
-            </label>
-            <div id="wizard-draft-status" class="wizard-index-status" data-i18n="create.status.noDraftLoaded">No draft loaded.</div>
-            <div id="wizard-index-status" class="wizard-index-status" data-i18n="create.status.noIndexLoaded">No index loaded.</div>
-          </div>
-        </div>
-
-        <form id="event-wizard-form" class="wizard-form">
-          <div class="wizard-guidance" data-i18n="create.guidance.event">
-            Build a player-facing event proposal: when it appears, what players read, what choices they get, and what changes after those choices.
-          </div>
-          <section class="event-readiness-panel" aria-label="Playable event checklist" data-i18n-aria-label="event.readinessAria">
-            <div>
-              <strong data-i18n="event.readinessTitle">Playable event checklist</strong>
-              <p data-i18n="event.readinessBody">Studio checks whether this draft has player text, a valid appearance window, usable choices, variable effects, and export readiness.</p>
-            </div>
-            <div id="event-route-summary" class="event-route-summary"></div>
-            <div id="event-readiness-checklist" class="event-readiness-list"></div>
-          </section>
-          <fieldset class="wizard-section event-workbench-section">
-            <legend data-i18n="create.section.playerScene">Player Scene</legend>
-            <label class="wide-field event-heading-field">
-              <span data-i18n="create.field.heading">heading</span>
-              <input id="wizard-heading" name="heading" type="text" value="A new pressure enters the room" data-i18n-value="create.sample.eventHeading">
-              <small class="wizard-field-help" data-i18n="create.help.heading">Main title shown in the player preview.</small>
-            </label>
-            <label class="wide-field event-intro-field">
-              <span data-i18n="create.field.intro">intro</span>
-              <textarea id="wizard-intro" name="intro" rows="5" data-i18n-value="create.sample.eventIntro">A public event creates a short window where institutions, movements, and party strategy all pull on the same question.</textarea>
-              <small class="wizard-field-help" data-i18n="create.help.intro">Opening prose players read before choosing.</small>
-            </label>
-            <div class="wizard-subsection-title">
-              <strong data-i18n="create.section.routingTiming">Routing & timing</strong>
-              <span data-i18n="create.section.routingTimingHelp">Controls where the scene is saved and when it can appear.</span>
-            </div>
-            <div class="field-grid event-core-grid">
-              <label class="event-technical-field">
-                <span data-i18n="create.field.id">id</span>
-                <input id="wizard-id" name="id" type="text" value="new_world_event" autocomplete="off">
-                <small class="wizard-field-help" data-i18n="create.help.id">Internal file-safe name; players do not see it, but install plans use it.</small>
-              </label>
-              <label class="event-technical-field">
-                <span data-i18n="create.field.title">title</span>
-                <input id="wizard-title" name="title" type="text" value="New world event" data-i18n-value="create.sample.eventTitle">
-                <small class="wizard-field-help" data-i18n="create.help.title">Short editor label for finding this proposal later.</small>
-              </label>
-              <label class="event-routing-field">
-                <span data-i18n="create.field.year">year</span>
-                <input id="wizard-year" name="year" type="number" min="2014" max="2035" value="2021">
-                <small class="wizard-field-help" data-i18n="create.help.eventYear">Year when this event can first appear.</small>
-              </label>
-              <label class="event-routing-field">
-                <span data-i18n="create.field.monthStart">monthStart</span>
-                <input id="wizard-month-start" name="monthStart" type="number" min="1" max="12" value="5">
-                <small class="wizard-field-help" data-i18n="create.help.monthStart">First month in the event window.</small>
-              </label>
-              <label class="event-routing-field">
-                <span data-i18n="create.field.monthEnd">monthEnd</span>
-                <input id="wizard-month-end" name="monthEnd" type="number" min="1" max="12" value="7">
-                <small class="wizard-field-help" data-i18n="create.help.monthEnd">Last month in the event window.</small>
-              </label>
-              <label class="event-routing-field event-wide-control">
-                <span data-i18n="create.field.requires">requires</span>
-                <input id="wizard-requires" name="requires" type="text" value="">
-                <small class="wizard-field-help" data-i18n="create.help.eventRequires">Extra condition required before the event is eligible.</small>
-              </label>
-              <label class="event-routing-field">
-                <span data-i18n="create.field.priority">priority</span>
-                <input id="wizard-priority" name="priority" type="number" step="1" value="0">
-                <small class="wizard-field-help" data-i18n="create.help.priority">Tie-breaker when several eligible events compete.</small>
-              </label>
-              <label class="event-choice-count-field">
-                <span data-i18n="create.field.choices">choices</span>
-                <select id="wizard-option-count" name="optionCount">
-                  <option value="0" data-i18n="create.optionCount.0">Text event</option>
-                  <option value="2" selected data-i18n="create.optionCount.2">2 choices</option>
-                  <option value="3" data-i18n="create.optionCount.3">3 choices</option>
-                  <option value="4" data-i18n="create.optionCount.4">4 choices</option>
-                </select>
-                <small class="wizard-field-help" data-i18n="create.help.choices">How many buttons the player can choose from.</small>
-              </label>
-            </div>
-            <section id="wizard-variable-assistant" class="variable-assistant" aria-label="Variable candidates" data-i18n-aria-label="variableAssistant.aria">
-              <div class="variable-assistant-head">
-                <div>
-                  <strong data-i18n="variableAssistant.title">Variable candidates</strong>
-                  <p data-i18n="variableAssistant.eventHelp">Search the ProjectIndex for existing variables. Insert a condition into the focused condition field, or use the variable in the effect helper.</p>
-                </div>
-                <label>
-                  <span data-i18n="variableAssistant.search">Search variables</span>
-                  <input id="wizard-variable-search" type="search" placeholder="resource, event flag, unrest..." data-i18n-placeholder="variableAssistant.placeholder">
-                </label>
-              </div>
-              <div id="wizard-variable-candidates" class="variable-candidate-list"></div>
-            </section>
-            <div id="wizard-draft-asset-panel" class="draft-asset-panel-host"></div>
-            <div class="asset-install-picker">
-              <label>
-                <span data-i18n="assets.installPicker">Asset file to install</span>
-                <input id="wizard-asset-file" name="assetFile" type="file" accept="image/*,audio/*" multiple>
-                <small class="wizard-field-help" data-i18n="create.help.assetInstallPicker">Select local image/audio files to create install proposals and matching assetRefs.</small>
-              </label>
-            </div>
-            <div id="wizard-asset-picker" class="asset-picker-host"></div>
-            <div id="wizard-asset-manifest" class="asset-manifest-host"></div>
-            <details class="asset-advanced-panel">
-              <summary data-i18n="assets.advancedRawData">Advanced asset data</summary>
-              <label class="wide-field asset-ref-editor">
-                <span data-i18n="create.field.assetRefs">assetRefs</span>
-                <textarea id="wizard-asset-refs" name="assetRefs" rows="3" placeholder="assets/portraits/example.png | image | Event portrait" data-i18n-placeholder="create.sample.eventAssetRefs"></textarea>
-                <small class="wizard-field-help" data-i18n="create.help.assetRefs">Optional image/audio references for authoring preview. Studio does not copy or install asset files.</small>
-              </label>
-              <label class="wide-field asset-ref-editor">
-                <span data-i18n="assets.installRequests">Asset install proposals</span>
-                <textarea id="wizard-asset-install-requests" name="assetInstallRequests" rows="3" placeholder="Portrait Hero.PNG | assets/studio/events/new_world_event/portrait-hero.png | image | Portrait Hero | event_illustration" data-i18n-placeholder="create.sample.eventAssetInstallRequest"></textarea>
-                <small class="wizard-field-help" data-i18n="create.help.assetInstallRequests">Selected local files become guarded asset copy operations in Review &amp; Apply when Studio has a desktop source path.</small>
-              </label>
-            </details>
-            <details id="wizard-event-advanced" class="advanced-panel">
-              <summary data-i18n="create.advanced">Advanced</summary>
-              <div class="field-grid">
-                <label>
-                  <span data-i18n="create.field.seenFlag">seenFlag</span>
-                  <input id="wizard-seen-flag" name="seenFlag" type="text" value="">
-                  <small class="wizard-field-help" data-i18n="create.help.seenFlag">Variable used to avoid showing the same event repeatedly.</small>
-                </label>
-              </div>
-              <label class="wide-field">
-                <span data-i18n="create.field.effectsOnTrigger">effectsOnTrigger</span>
-                <textarea id="wizard-trigger-effects" name="effectsOnTrigger" rows="3"></textarea>
-                <small class="wizard-field-help" data-i18n="create.help.effectsOnTrigger">Variable changes applied as soon as the event opens.</small>
-              </label>
-            </details>
-          </fieldset>
-
-          <fieldset class="wizard-section">
-            <legend data-i18n="create.section.options">Options</legend>
-            <p class="wizard-section-help" data-i18n="create.help.eventOptions">Options are the player buttons. Their effects change variables; their body text explains the result.</p>
-            <div class="effect-helper">
-              <label>
-                <span data-i18n="create.field.target">target</span>
-                <select id="wizard-effect-target">
-                  <option value="trigger" data-i18n="create.effect.target.trigger">Trigger</option>
-                  <option value="option:0" data-i18n="create.option.a">Option A</option>
-                  <option value="option:1" data-i18n="create.option.b">Option B</option>
-                  <option value="option:2" data-i18n="create.option.c">Option C</option>
-                  <option value="option:3" data-i18n="create.option.d">Option D</option>
-                </select>
-              </label>
-              <label>
-                <span data-i18n="create.field.variable">variable</span>
-                <input id="wizard-effect-variable" type="text" list="wizard-effect-variable-options" autocomplete="off">
-                <datalist id="wizard-effect-variable-options"></datalist>
-              </label>
-              <label>
-                <span data-i18n="create.field.op">op</span>
-                <select id="wizard-effect-op">
-                  <option value="+=">+=</option>
-                  <option value="-=">-=</option>
-                  <option value="=">=</option>
-                </select>
-              </label>
-              <label>
-                <span data-i18n="create.field.value">value</span>
-                <input id="wizard-effect-value" type="text" value="1">
-              </label>
-              <button id="wizard-effect-append" type="button" data-i18n="create.addEffect">Add effect</button>
-            </div>
-            <div class="option-grid event-option-grid">
-              <section class="option-block event-option-block" data-option-index="0">
-                <h2 data-i18n="create.option.a">Option A</h2>
-                <label>
-                  <span data-i18n="create.field.id">id</span>
-                  <input id="wizard-option-0-id" type="text" value="respond_publicly">
-                </label>
-                <label>
-                  <span data-i18n="create.field.title">title</span>
-                  <input id="wizard-option-0-title" type="text" value="Respond publicly" data-i18n-value="create.sample.eventOption0Title">
-                </label>
-                <label>
-                  <span data-i18n="create.field.subtitle">subtitle</span>
-                  <input id="wizard-option-0-subtitle" type="text" value="Spend capacity to define the issue." data-i18n-value="create.sample.eventOption0Subtitle">
-                </label>
-                <label>
-                  <span data-i18n="create.field.effects">effects</span>
-                  <textarea id="wizard-option-0-effects" rows="4">resources -= 1
-media_reach += 2</textarea>
-                </label>
-                <label>
-                  <span data-i18n="create.field.body">body</span>
-                  <textarea id="wizard-option-0-body" rows="5" data-i18n-value="create.sample.eventOption0Body">The party turns the event into a public argument. Reporters ask for a clearer line; allied groups watch whether the response has enough substance to carry beyond one news cycle.</textarea>
-                </label>
-                <details id="wizard-option-0-advanced" class="advanced-panel" data-option-advanced-index="0">
-                  <summary data-i18n="create.advanced">Advanced</summary>
-                  <label>
-                    <span data-i18n="create.field.chooseIf">chooseIf</span>
-                    <input id="wizard-option-0-choose-if" type="text">
-                  </label>
-                  <label>
-                    <span data-i18n="create.field.unavailableText">unavailableText</span>
-                    <input id="wizard-option-0-unavailable" type="text">
-                  </label>
-                  <label>
-                    <span data-i18n="create.field.variants">variants</span>
-                    <textarea id="wizard-option-0-variants" rows="3"></textarea>
-                  </label>
-                  <label>
-                    <span data-i18n="create.field.gotoAfter">gotoAfter</span>
-                    <input id="wizard-option-0-goto-after" type="text">
-                  </label>
-                </details>
-              </section>
-
-              <section class="option-block event-option-block" data-option-index="1">
-                <h2 data-i18n="create.option.b">Option B</h2>
-                <label>
-                  <span data-i18n="create.field.id">id</span>
-                  <input id="wizard-option-1-id" type="text" value="build_quietly">
-                </label>
-                <label>
-                  <span data-i18n="create.field.title">title</span>
-                  <input id="wizard-option-1-title" type="text" value="Build quietly" data-i18n-value="create.sample.eventOption1Title">
-                </label>
-                <label>
-                  <span data-i18n="create.field.subtitle">subtitle</span>
-                  <input id="wizard-option-1-subtitle" type="text" value="Trade visibility for organizing depth." data-i18n-value="create.sample.eventOption1Subtitle">
-                </label>
-                <label>
-                  <span data-i18n="create.field.effects">effects</span>
-                  <textarea id="wizard-option-1-effects" rows="4">media_reach -= 1
-civil_society_trust += 1</textarea>
-                </label>
-                <label>
-                  <span data-i18n="create.field.body">body</span>
-                  <textarea id="wizard-option-1-body" rows="5" data-i18n-value="create.sample.eventOption1Body">The public line stays modest while organizers gather testimony and map the coalition around the issue. The choice buys time, but the larger media frame moves without waiting.</textarea>
-                </label>
-                <details id="wizard-option-1-advanced" class="advanced-panel" data-option-advanced-index="1">
-                  <summary data-i18n="create.advanced">Advanced</summary>
-                  <label>
-                    <span data-i18n="create.field.chooseIf">chooseIf</span>
-                    <input id="wizard-option-1-choose-if" type="text">
-                  </label>
-                  <label>
-                    <span data-i18n="create.field.unavailableText">unavailableText</span>
-                    <input id="wizard-option-1-unavailable" type="text">
-                  </label>
-                  <label>
-                    <span data-i18n="create.field.variants">variants</span>
-                    <textarea id="wizard-option-1-variants" rows="3"></textarea>
-                  </label>
-                  <label>
-                    <span data-i18n="create.field.gotoAfter">gotoAfter</span>
-                    <input id="wizard-option-1-goto-after" type="text">
-                  </label>
-                </details>
-              </section>
-
-              <section class="option-block event-option-block hidden" data-option-index="2">
-                <h2 data-i18n="create.option.c">Option C</h2>
-                <label>
-                  <span data-i18n="create.field.id">id</span>
-                  <input id="wizard-option-2-id" type="text" value="call_coalition">
-                </label>
-                <label>
-                  <span data-i18n="create.field.title">title</span>
-                  <input id="wizard-option-2-title" type="text" value="Call coalition partners" data-i18n-value="create.sample.eventOption2Title">
-                </label>
-                <label>
-                  <span data-i18n="create.field.subtitle">subtitle</span>
-                  <input id="wizard-option-2-subtitle" type="text" value="Trade speed for trust." data-i18n-value="create.sample.eventOption2Subtitle">
-                </label>
-                <label>
-                  <span data-i18n="create.field.effects">effects</span>
-                  <textarea id="wizard-option-2-effects" rows="4">civil_society_trust += 1</textarea>
-                </label>
-                <label>
-                  <span data-i18n="create.field.body">body</span>
-                  <textarea id="wizard-option-2-body" rows="5" data-i18n-value="create.sample.eventOption2Body">The party slows the response long enough to call partners into the room. The public line becomes less sharp, but less lonely.</textarea>
-                </label>
-                <details id="wizard-option-2-advanced" class="advanced-panel" data-option-advanced-index="2">
-                  <summary data-i18n="create.advanced">Advanced</summary>
-                  <label>
-                    <span data-i18n="create.field.chooseIf">chooseIf</span>
-                    <input id="wizard-option-2-choose-if" type="text">
-                  </label>
-                  <label>
-                    <span data-i18n="create.field.unavailableText">unavailableText</span>
-                    <input id="wizard-option-2-unavailable" type="text">
-                  </label>
-                  <label>
-                    <span data-i18n="create.field.variants">variants</span>
-                    <textarea id="wizard-option-2-variants" rows="3"></textarea>
-                  </label>
-                  <label>
-                    <span data-i18n="create.field.gotoAfter">gotoAfter</span>
-                    <input id="wizard-option-2-goto-after" type="text">
-                  </label>
-                </details>
-              </section>
-
-              <section class="option-block event-option-block hidden" data-option-index="3">
-                <h2 data-i18n="create.option.d">Option D</h2>
-                <label>
-                  <span data-i18n="create.field.id">id</span>
-                  <input id="wizard-option-3-id" type="text" value="observe_first">
-                </label>
-                <label>
-                  <span data-i18n="create.field.title">title</span>
-                  <input id="wizard-option-3-title" type="text" value="Observe first" data-i18n-value="create.sample.eventOption3Title">
-                </label>
-                <label>
-                  <span data-i18n="create.field.subtitle">subtitle</span>
-                  <input id="wizard-option-3-subtitle" type="text" value="Keep capacity unspent." data-i18n-value="create.sample.eventOption3Subtitle">
-                </label>
-                <label>
-                  <span data-i18n="create.field.effects">effects</span>
-                  <textarea id="wizard-option-3-effects" rows="4">resources += 1</textarea>
-                </label>
-                <label>
-                  <span data-i18n="create.field.body">body</span>
-                  <textarea id="wizard-option-3-body" rows="5" data-i18n-value="create.sample.eventOption3Body">The organization waits for the first wave to settle. It preserves capacity, but gives others more room to frame the event.</textarea>
-                </label>
-                <details id="wizard-option-3-advanced" class="advanced-panel" data-option-advanced-index="3">
-                  <summary data-i18n="create.advanced">Advanced</summary>
-                  <label>
-                    <span data-i18n="create.field.chooseIf">chooseIf</span>
-                    <input id="wizard-option-3-choose-if" type="text">
-                  </label>
-                  <label>
-                    <span data-i18n="create.field.unavailableText">unavailableText</span>
-                    <input id="wizard-option-3-unavailable" type="text">
-                  </label>
-                  <label>
-                    <span data-i18n="create.field.variants">variants</span>
-                    <textarea id="wizard-option-3-variants" rows="3"></textarea>
-                  </label>
-                  <label>
-                    <span data-i18n="create.field.gotoAfter">gotoAfter</span>
-                    <input id="wizard-option-3-goto-after" type="text">
-                  </label>
-                </details>
-              </section>
-            </div>
-          </fieldset>
-        </form>
+      <!-- Legacy Complex Event Builder form removed 2026-05-25.
+           Mode switching and index loading extracted to shell_navigation.js.
+           wizard_ui.js retained for draft import and Create-pane rendering. -->
+      <section class="wizard-form-panel hidden" data-create-template-panel="event" data-legacy-removed="true">
       </section>
-
-      <aside class="wizard-preview-panel" aria-label="World event draft previews" data-i18n-aria-label="create.eventPreviewAria" data-create-template-panel="event">
-        <section class="wizard-diagnostics">
-          <div class="preview-heading" data-i18n="create.diagnostics">Diagnostics</div>
-          <div id="wizard-diagnostics"></div>
-        </section>
-
-        <section class="preview-drawer" aria-label="Output" data-i18n-aria-label="create.outputAria">
-          <div class="preview-heading output-heading" data-i18n="create.output">Output</div>
-          <div class="output-tabs" role="tablist" aria-label="Generated event output" data-i18n-aria-label="create.generatedEventOutputAria">
-            <button class="output-tab is-active" type="button" role="tab" aria-selected="true" data-preview-tab="scene" data-i18n="create.scene">Scene</button>
-            <button class="output-tab" type="button" role="tab" aria-selected="false" data-preview-tab="draft" data-i18n="create.draftJson">Draft JSON</button>
-            <button class="output-tab" type="button" role="tab" aria-selected="false" data-preview-tab="root" data-i18n="create.rootInit">Root init</button>
-            <button class="output-tab" type="button" role="tab" aria-selected="false" data-preview-tab="migration" data-i18n="create.migration">Migration</button>
-            <button class="output-tab" type="button" role="tab" aria-selected="false" data-preview-tab="patch" data-i18n="create.patchPreview">Patch preview</button>
-            <button class="output-tab" type="button" role="tab" aria-selected="false" data-preview-tab="install" data-i18n="create.install">Install</button>
-          </div>
-
-          <section class="preview-block is-active" data-preview-panel="scene">
-            <div class="preview-heading" data-i18n="create.preview">player-facing preview</div>
-            <div id="wizard-player-preview" class="player-preview"></div>
-            <div class="preview-heading" data-i18n="create.sceneDryPreview">.scene.dry preview</div>
-            <pre id="wizard-scene-preview" class="code-preview"></pre>
-          </section>
-
-          <section class="preview-block" data-preview-panel="draft" hidden>
-            <div class="preview-heading" data-i18n="create.draftJsonPreview">draft JSON preview</div>
-            <pre id="wizard-json-preview" class="code-preview"></pre>
-          </section>
-
-          <section class="preview-block" data-preview-panel="root" hidden>
-            <div class="preview-heading" data-i18n="create.rootInitSnippet">root init snippet</div>
-            <pre id="wizard-root-preview" class="code-preview"></pre>
-          </section>
-
-          <section class="preview-block" data-preview-panel="migration" hidden>
-            <div class="preview-heading" data-i18n="create.migrationSnippet">post_event migration snippet</div>
-            <pre id="wizard-migration-preview" class="code-preview"></pre>
-          </section>
-
-          <section class="preview-block install-panel" data-preview-panel="install" hidden>
-            <div class="preview-heading" data-i18n="create.installNotes">install notes</div>
-            <pre id="wizard-install-preview" class="code-preview"></pre>
-          </section>
-
-          <section class="preview-block" data-preview-panel="patch" hidden>
-            <div class="preview-heading" data-i18n="create.patchPreview">patch preview</div>
-            <pre id="wizard-patch-preview" class="code-preview"></pre>
-          </section>
-        </section>
-
-        <div class="wizard-actions">
-          <div class="wizard-action-group wizard-action-primary">
-            <div class="wizard-action-copy">
-              <strong data-i18n="create.action.recommendedNext">Recommended next step</strong>
-              <span data-i18n="create.action.reviewHelp">Review what can be applied, what needs checking, and what remains manual.</span>
-            </div>
-            <button id="wizard-review-install" class="primary-action" type="button" data-i18n="create.reviewInstall">Review &amp; Apply</button>
-          </div>
-          <div class="wizard-action-group wizard-action-secondary">
-            <div class="wizard-action-copy">
-              <strong data-i18n="create.action.sourceFile">Generated source file</strong>
-              <span data-i18n="create.action.sourceFileHelp">Download the playable scene file if you are handing files to someone else.</span>
-            </div>
-            <button id="wizard-download-scene" type="button" data-i18n="create.downloadScene">Download .scene.dry</button>
-          </div>
-          <details class="wizard-action-group wizard-action-advanced">
-            <summary>
-              <span data-i18n="create.action.advancedDownloads">Advanced downloads</span>
-              <small data-i18n="create.action.advancedHelp">Draft JSON, install notes, install plan, patch preview, and router snippets.</small>
-            </summary>
-            <div class="wizard-action-row">
-              <button id="wizard-download-json" type="button" data-i18n="create.saveDraftJson">Save draft JSON</button>
-              <button id="wizard-download-root" type="button" data-i18n="create.downloadRootSnippet">Download root snippet</button>
-              <button id="wizard-download-migration" type="button" data-i18n="create.downloadMigrationSnippet">Download migration snippet</button>
-              <button id="wizard-download-patch" type="button" data-i18n="create.downloadInstallNotes">Download install notes</button>
-              <button id="wizard-download-plan" type="button" data-i18n="create.downloadInstallPlan">Download install plan</button>
-              <button id="wizard-download-patch-preview" type="button" data-i18n="create.downloadPatchPreview">Download patch preview</button>
-            </div>
-          </details>
-        </div>
-      </aside>
-
       <section class="wizard-form-panel hidden" aria-labelledby="news-heading-label" data-create-template-panel="news">
         <div class="wizard-title-row">
           <div>
@@ -2712,6 +2281,10 @@ media_reach += 1</textarea>
   <script src="../authoring/event_structure_model.js"></script>
   <script src="../authoring/news_draft.js"></script>
   <script src="../authoring/card_draft.js"></script>
+  <script src="../authoring/deck_pool_model.js"></script>
+  <script src="../authoring/deck_pool_draft.js"></script>
+  <script src="../authoring/advisor_controller_model.js"></script>
+  <script src="../authoring/advisor_controller_draft.js"></script>
   <script src="../authoring/surface_text_draft.js"></script>
   <script src="../authoring/entry_sidebar_draft.js"></script>
   <script src="../authoring/play_surface_draft.js"></script>
@@ -2747,6 +2320,8 @@ media_reach += 1</textarea>
   <script src="../authoring/story_chain_graph_model.js"></script>
   <script src="../authoring/story_palette_model.js"></script>
   <script src="../authoring/content_storyboard_model.js"></script>
+  <script src="../authoring/spatial_canvas_layout.js"></script>
+  <script src="../authoring/spatial_canvas_model.js"></script>
   <script src="../authoring/runtime_snapshot_model.js"></script>
   <script src="../authoring/runtime_dom_map_model.js"></script>
   <script src="../authoring/runtime_visual_asset_draft_model.js"></script>
@@ -2756,6 +2331,8 @@ media_reach += 1</textarea>
   <script src="../authoring/card_board_model.js"></script>
   <script src="../authoring/event_choice_path_model.js"></script>
   <script src="../authoring/variable_suggestions.js"></script>
+  <script src="../authoring/object_field_presentation_model.js"></script>
+  <script src="../authoring/object_semantic_operations_model.js"></script>
   <script src="../authoring/asset_model.js"></script>
   <script src="../authoring/preview_model.js"></script>
   <script src="../authoring/meaning_layer.js"></script>
@@ -2771,9 +2348,9 @@ media_reach += 1</textarea>
   <script src="icons.js"></script>
   <script src="welcome_surface_ui.js"></script>
   <script src="runtime_preview_loading_ui.js"></script>
-  <script src="explore_model.js"></script>
-  <script src="editing_context_graph.js"></script>
-  <script src="editing_field_panels.js"></script>
+  <script src="../authoring/explore_model.js"></script>
+  <!-- editing_context_graph.js and editing_field_panels.js removed 2026-05-25 —
+       only served editing_workspace_ui.js which is retired. -->
   <script src="authoring_surface_registry.js"></script>
   <script src="authoring_surface_graphs.js"></script>
   <script src="authoring_reference_index.js"></script>
@@ -2782,6 +2359,7 @@ media_reach += 1</textarea>
   <script src="storyboard_palette_sidebar.js"></script>
   <script src="runtime_lens_ui.js"></script>
   <script src="runtime_lens_workspace_state.js"></script>
+  <script src="card_board_perf.js"></script>
   <script src="visible_edit_action_ui.js"></script>
   <script src="visible_text_renderer.js"></script>
   <script src="lightweight_object_preview.js"></script>
@@ -2794,6 +2372,9 @@ media_reach += 1</textarea>
   <script src="storyboard_workspace_state.js"></script>
   <script src="content_storyboard_surface.js"></script>
   <script src="content_storyboard_interactions.js"></script>
+  <script src="spatial_canvas_surface.js"></script>
+  <script src="spatial_canvas_interactions.js"></script>
+  <script src="spatial_canvas_workspace_state.js"></script>
   <script src="card_face_editor.js"></script>
   <script src="card_board_surface.js"></script>
   <script src="card_board_interactions.js"></script>
@@ -2802,6 +2383,8 @@ media_reach += 1</textarea>
   <script src="project_state_surface.js"></script>
   <script src="system_ui_fixture_state.js"></script>
   <script src="system_ui_region_context.js"></script>
+  <script src="system_ui_capability_model.js"></script>
+  <script src="system_ui_semantic_task_model.js"></script>
   <script src="system_ui_workspace_state.js"></script>
   <script src="system_ui_screen_model.js"></script>
   <script src="election_results_chart.js"></script>
@@ -2817,15 +2400,17 @@ media_reach += 1</textarea>
   <script src="source_slice_workspace_ui.js"></script>
   <script src="semantic_logic_workspace_ui.js"></script>
   <script src="object_canvas_field_values.js"></script><script src="object_canvas_storyboard_drafts.js"></script><script src="object_canvas_preview_editor_sync.js"></script><script src="authoring_workspace_ui.js"></script>
-  <script src="editing_workspace_ui.js"></script>
+  <!-- editing_workspace_ui.js removed 2026-05-25 — Contextual Editing
+       retired; Object Canvas provides equivalent authoring surfaces. -->
   <script src="object_authoring_canvas_ui.js"></script>
   <script src="explore_lists.js"></script>
   <script src="explore_inspector.js"></script>
   <script src="explore_ui.js"></script>
   <script src="app.js"></script>
-  <script src="design_model.js"></script>
+  <script src="../authoring/design_model.js"></script>
   <script src="meaning_layer_ui.js"></script>
   <script src="event_workbench_ui.js"></script>
+  <script src="shell_navigation.js"></script>
   <script src="wizard_ui.js"></script>
   <script src="news_ui.js"></script>
   <script src="card_ui.js"></script>
@@ -2840,7 +2425,8 @@ media_reach += 1</textarea>
   <script src="install_assistant_ui.js"></script>
   <script src="change_tray_ui.js"></script>
   <script src="draft_workspace_ui.js"></script>
-  <script src="existing_scene_edit_ui.js"></script>
+  <!-- existing_scene_edit_ui.js removed 2026-05-25 — oldest existing-scene
+       editor; Object Canvas subsumes all its functions. -->
   <script src="onboarding_ui.js"></script>
   <script src="update_notice_ui.js"></script>
   <script src="tutorial_library_ui.js"></script>

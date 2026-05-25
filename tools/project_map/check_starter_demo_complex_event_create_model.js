@@ -14,16 +14,7 @@ const complexAuthoring = require('./authoring/complex_event_authoring_model.js')
 const previewEditor = require('./viewer/preview_object_editor.js');
 const {pythonCommand} = require('./check_python_command.js');
 
-function fail(message, detail) {
-  process.stderr.write('FAIL: ' + message + (detail ? '\n' + JSON.stringify(detail, null, 2) : '') + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message, detail) {
-  if (!condition) {
-    fail(message, detail);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function actionFields(body, action) {
   return (body && Array.isArray(body.structureActions) ? body.structureActions : [])
@@ -187,7 +178,7 @@ async function runStarterDemoComplexEventCreate() {
     assert(hasAction(initialModel.eventBody, 'remove_effect', (field) => field.optionId === 'signal_committee'), 'new-event canvas should expose remove-effect for option effects', initialModel.eventBody.structureActions);
     assert(initialModel.contextBoard.variables.some((row) => row.name === 'demo_dynamic_pressure' && row.status === 'new_or_missing'), 'new variables should be visible before install', initialModel.contextBoard.variables);
     assert(initialModel.eventBody.readinessChecklist.every((row) => row.ok), 'complex Demo draft should pass readiness before install', initialModel.eventBody.readinessChecklist);
-    const initialHtml = previewEditor.render(initialModel);
+    const initialHtml = previewEditor.render(initialModel) + previewEditor.renderEventReviewDetailsPanels(initialModel.eventBody || {}, initialModel);
     assert(initialHtml.includes('data-preview-object-choice-layout="player_path"'), 'new-event UI should render choices in a player-path layout for complex nested options');
     assert(initialHtml.includes('data-preview-object-choice-nested-section="committee_floor"') && initialHtml.includes('data-preview-object-inline-add="add_option"'), 'choice editor should expose child-choice entry points on follow-up/menu sections');
     assert(initialHtml.includes('data-preview-object-choice-logic="true"') && initialHtml.includes('data-preview-object-choice-logic-group="route"'), 'new-event UI should keep condition/route/effect editing inside each choice');
@@ -258,6 +249,13 @@ async function runStarterDemoComplexEventCreate() {
     assert(createdSource.includes('@corridor_briefing'), 'created source should include the newly added branch');
     assert(!createdSource.includes('@press_room'), 'created source should not include the removed provisional branch');
     assert(createdSource.includes('Split the message for district organizers.'), 'created source should include the newly added nested option');
+    const postEventSource = fs.readFileSync(path.join(prepared.root, 'source', 'scenes', 'post_event.scene.dry'), 'utf8');
+    assert(
+      postEventSource.includes('- @main: Return to the workspace hand\n- #event: Monthly event popups\n- @root: Back to the starter menu'),
+      'router registration should keep the Dendry options block contiguous',
+      postEventSource
+    );
+    assert(!postEventSource.includes('\n\n- #event'), 'router registration should not insert a blank line before #event', postEventSource);
 
     const reindexed = await core.buildProjectIndex({
       root: prepared.root,

@@ -12,16 +12,7 @@ const installPlan = require('./authoring/install_plan.js');
 const projectStateSurface = require('./viewer/project_state_surface.js');
 const projectStateWorkspace = require('./viewer/object_canvas_project_state_workspace.js');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function syntheticIndex(root) {
   return {

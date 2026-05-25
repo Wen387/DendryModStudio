@@ -3,16 +3,7 @@
 
 const assetDraftModel = require('./authoring/runtime_visual_asset_draft_model.js');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 const projectIndex = {
   project: {name: 'Runtime Visual Asset Fixture', root: '/fixture'},

@@ -3,21 +3,13 @@
 'use strict';
 
 const routeState = require('./authoring/route_state_model.js');
+const fieldPresentation = require('./authoring/object_field_presentation_model.js');
 const fs = require('fs');
 const path = require('path');
 const eventWorkbench = require('./authoring/event_workbench_model.js');
 const eventWorkbenchUi = require('./viewer/event_workbench_ui.js');
 
-function fail(message, detail) {
-  process.stderr.write('FAIL: ' + message + (detail ? '\n' + JSON.stringify(detail, null, 2) : '') + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message, detail) {
-  if (!condition) {
-    fail(message, detail);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function src(path, line) {
   return {path, line, startLine: line, endLine: line};
@@ -381,6 +373,11 @@ const rendered = eventWorkbenchUi.renderEventWorkbench(workbench, {locale: 'en'}
 assert(rendered.includes('data-event-workbench-section="routeState"'), 'Event Workbench UI should render route-state section', rendered);
 assert(rendered.includes('data-event-workbench-route-state='), 'Event Workbench UI should render route-state rows', rendered);
 assert(rendered.includes('possible random split'), 'Event Workbench UI should render runtime route semantics', rendered);
+const routePresentationRows = fieldPresentation.routeStateSummaries(center);
+assert(routePresentationRows.some((row) => row.badges.includes('possible random split')), 'Object Canvas route-state summaries should preserve randomization warnings');
+assert(routePresentationRows.some((row) => row.candidates.some((candidate) => candidate.predicate)), 'Object Canvas route-state summaries should preserve predicates near route fields');
+const previewEditorSource = fs.readFileSync(path.join(__dirname, 'viewer', 'preview_object_editor.js'), 'utf8');
+assert(previewEditorSource.includes('data-object-canvas-route-state-summary'), 'Object Canvas editor should render route-state summary markers');
 const html = fs.readFileSync(path.join(__dirname, 'viewer', 'index.html'), 'utf8');
 const dependencyLoader = fs.readFileSync(path.join(__dirname, 'authoring', 'authoring_dependency_loader.js'), 'utf8');
 assert(html.indexOf('authoring_dependency_loader.js') >= 0 && html.indexOf('authoring_dependency_loader.js') < html.indexOf('event_workbench_model.js'), 'viewer should load authoring dependencies before Event Workbench');

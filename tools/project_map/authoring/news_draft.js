@@ -1,3 +1,4 @@
+// @ts-check
 (function initNewsDraft(global) {
   'use strict';
 

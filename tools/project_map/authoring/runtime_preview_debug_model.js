@@ -1,3 +1,4 @@
+// @ts-check
 (function initRuntimePreviewDebugModel(global) {
   'use strict';
 

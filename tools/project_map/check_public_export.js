@@ -7,18 +7,7 @@ const {spawnSync} = require('child_process');
 const {runGovernanceParityCheck} = require('./check_governance_parity.js');
 
 const ROOT = path.resolve(__dirname, '..', '..');
-
-function fail(message, details) {
-  const payload = Object.assign({ok: false, message}, details || {});
-  process.stderr.write(JSON.stringify(payload, null, 2) + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message, details) {
-  if (!condition) {
-    fail(message, details);
-  }
-}
+const {failJson: fail, assertJson: assert} = require('./check_harness.js');
 
 function exists(relativePath) {
   return fs.existsSync(path.join(ROOT, relativePath));

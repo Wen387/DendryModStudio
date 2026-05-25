@@ -3,6 +3,7 @@
 
   const MODEL_VERSION = '0.1';
   const SURFACE_STATUSES = ['ready', 'partial', 'blocked', 'failed'];
+  const SYSTEM_UI_EVIDENCE_STATES = ['source_backed', 'generated_only', 'runtime_custom', 'ambiguous', 'blocked'];
   const CONFIDENCE_RANK = {manual_review: 0, weak: 1, strong: 2, exact: 3};
   const DEFAULT_LIMITS = {
     candidates: 80,
@@ -118,6 +119,8 @@
       diagnostics.push(diagnostic('warning', 'runtime_visual_surface.source_missing', 'A runtime visual surface candidate did not have source evidence.'));
       return normalizeCandidate(Object.assign(base, {
         editability: 'manual_review',
+        runtimeEvidenceState: 'runtime_custom',
+        systemUiEvidenceState: 'runtime_custom',
         reason: base.reason || 'No source evidence was available for this rendered surface.',
         action: disabledAction('No source route is available.')
       }), index, context.limits);
@@ -126,6 +129,8 @@
       diagnostics.push(diagnostic('warning', 'runtime_visual_surface.generated_runtime_output', 'A runtime visual surface maps only to generated runtime output: ' + source.path));
       return normalizeCandidate(Object.assign(base, {
         editability: 'generated_only',
+        runtimeEvidenceState: 'generated_only',
+        systemUiEvidenceState: 'generated_only',
         reason: base.reason || 'Generated runtime output stays read-only.',
         action: disabledAction('Generated runtime output is protected.')
       }), index, context.limits);
@@ -134,6 +139,8 @@
       diagnostics.push(diagnostic('warning', 'runtime_visual_surface.ambiguous_candidate', 'A runtime visual surface matched multiple possible source locations.'));
       return normalizeCandidate(Object.assign(base, {
         editability: 'manual_review',
+        runtimeEvidenceState: 'ambiguous',
+        systemUiEvidenceState: 'ambiguous',
         reason: base.reason || 'Multiple source candidates need manual review.',
         action: disabledAction('Ambiguous source evidence.')
       }), index, context.limits);
@@ -142,6 +149,8 @@
       diagnostics.push(diagnostic('warning', 'runtime_visual_surface.manual_review_surface', 'A weak runtime visual surface candidate remains manual review.'));
       return normalizeCandidate(Object.assign(base, {
         editability: 'manual_review',
+        runtimeEvidenceState: 'ambiguous',
+        systemUiEvidenceState: 'ambiguous',
         reason: base.reason || 'Weak runtime mapping is evidence only.',
         action: disabledAction('Weak mapping cannot open an edit route.')
       }), index, context.limits);
@@ -154,6 +163,8 @@
       diagnostics.push(diagnostic('warning', 'runtime_visual_surface.manual_review_surface', 'A graphics/sidebar/runtime UI surface remains manual review.'));
       return normalizeCandidate(Object.assign(base, {
         editability: 'manual_review',
+        runtimeEvidenceState: 'runtime_custom',
+        systemUiEvidenceState: 'runtime_custom',
         reason: base.reason || 'Custom graphics, sidebars, D3, and runtime UI remain manual review unless a precise source-backed text route exists.',
         action: disabledAction('No safe visual edit route exists yet.')
       }), index, context.limits);
@@ -167,6 +178,8 @@
       diagnostics.push(diagnostic('warning', 'runtime_visual_surface.ambiguous_candidate', 'Runtime text matched multiple ProjectIndex text rows.'));
       return normalizeCandidate(Object.assign(base, {
         editability: 'manual_review',
+        runtimeEvidenceState: 'ambiguous',
+        systemUiEvidenceState: 'ambiguous',
         reason: 'Multiple source text rows match this rendered surface.',
         action: disabledAction('Ambiguous text source.')
       }), index, context.limits);
@@ -175,6 +188,8 @@
       diagnostics.push(diagnostic('warning', 'runtime_visual_surface.not_edit_capable', 'Runtime text source was found, but no editable ProjectIndex text row matched it.'));
       return normalizeCandidate(Object.assign(base, {
         editability: 'proposal_only',
+        runtimeEvidenceState: 'source_backed',
+        systemUiEvidenceState: 'source_backed',
         reason: base.reason || 'Source-backed runtime text did not match a unique editable Text Corpus or Surface Text item.',
         action: disabledAction('No unique text edit route.')
       }), index, context.limits);
@@ -194,6 +209,8 @@
       diagnostics.push(diagnostic('warning', 'runtime_visual_surface.asset_route_limited', 'Runtime asset could not be routed to a unique owning scene.'));
       return normalizeCandidate(Object.assign(base, {
         editability: 'proposal_only',
+        runtimeEvidenceState: 'source_backed',
+        systemUiEvidenceState: 'source_backed',
         reason: 'Runtime asset evidence is source-backed, but the owning scene route is not unique.',
         action: disabledAction('No unique owning scene route.')
       }), index, context.limits);
@@ -214,6 +231,8 @@
     const actions = [routeAction, assetDraftAction].filter(Boolean);
     return normalizeCandidate(Object.assign(base, {
       editability: 'proposal_only',
+      runtimeEvidenceState: 'source_backed',
+      systemUiEvidenceState: 'source_backed',
       routeClass: capability && capability.routeClass || '',
       installSafety: capability && capability.installSafety || 'manual_review',
       route: capability || null,
@@ -238,6 +257,8 @@
     }
     return normalizeCandidate(Object.assign(base, {
       editability: safeDraft ? 'draftable' : 'proposal_only',
+      runtimeEvidenceState: 'source_backed',
+      systemUiEvidenceState: 'source_backed',
       routeClass,
       installSafety: safety || 'manual_review',
       route: capability || null,
@@ -392,6 +413,9 @@
       source,
       confidence: normalizeConfidence(input.confidence),
       editability: normalizeEditability(input.editability),
+      runtimeEvidenceState: normalizeSystemUiEvidenceState(input.runtimeEvidenceState || input.systemUiEvidenceState || evidenceStateFromCandidateInput(input, source)),
+      systemUiEvidenceState: normalizeSystemUiEvidenceState(input.systemUiEvidenceState || input.runtimeEvidenceState || evidenceStateFromCandidateInput(input, source)),
+      themeLayoutCandidate: themeLayoutCandidateForCandidate(input, source),
       routeClass: String(input.routeClass || route && route.routeClass || ''),
       installSafety: String(input.installSafety || route && route.installSafety || ''),
       view: String(input.view || ''),
@@ -458,6 +482,12 @@
       proposalOnlyCount: rows.filter((item) => item.editability === 'proposal_only').length,
       manualReviewCount: rows.filter((item) => item.editability === 'manual_review').length,
       generatedOnlyCount: rows.filter((item) => item.editability === 'generated_only').length,
+      sourceBackedRuntimeCount: rows.filter((item) => item.runtimeEvidenceState === 'source_backed').length,
+      generatedOnlyRuntimeCount: rows.filter((item) => item.runtimeEvidenceState === 'generated_only').length,
+      runtimeCustomCount: rows.filter((item) => item.runtimeEvidenceState === 'runtime_custom').length,
+      ambiguousRuntimeCount: rows.filter((item) => item.runtimeEvidenceState === 'ambiguous').length,
+      blockedRuntimeCount: rows.filter((item) => item.runtimeEvidenceState === 'blocked').length,
+      themeLayoutCandidateCount: rows.filter((item) => item.themeLayoutCandidate && item.themeLayoutCandidate.supported).length,
       diagnosticCount: ensureArray(diagnostics).length
     };
   }
@@ -478,6 +508,51 @@
       return 'ready';
     }
     return 'partial';
+  }
+
+  function normalizeSystemUiEvidenceState(value) {
+    const text = String(value || '').trim();
+    if (SYSTEM_UI_EVIDENCE_STATES.includes(text)) {
+      return text;
+    }
+    if (text === 'ready' || text === 'draftable') {
+      return 'source_backed';
+    }
+    if (text === 'manual_review' || text === 'proposal_only' || text === 'weak') {
+      return 'ambiguous';
+    }
+    return '';
+  }
+
+  function evidenceStateFromCandidateInput(input, source) {
+    const editability = String(input && input.editability || '').trim();
+    if (editability === 'generated_only' || isGeneratedPath(source && source.path)) {
+      return 'generated_only';
+    }
+    if (/ambiguous|multiple/i.test(String(input && input.reason || input && input.action && input.action.reason || ''))) {
+      return 'ambiguous';
+    }
+    if (editability === 'manual_review' && !source.path) {
+      return 'runtime_custom';
+    }
+    if (source && source.path) {
+      return 'source_backed';
+    }
+    return 'runtime_custom';
+  }
+
+  function themeLayoutCandidateForCandidate(input, source) {
+    const text = [input && input.role, input && input.selector, input && input.label, input && input.currentValue].join(' ').toLowerCase();
+    const sourceBacked = source && source.path && !isGeneratedPath(source.path);
+    const safeToken = /color|theme|layout|sidebar|title|heading|label|copy|route|category/.test(text);
+    return {
+      supported: Boolean(sourceBacked && safeToken && !/selector|class|svg|canvas|d3|geometry/.test(text)),
+      scope: sourceBacked && safeToken ? 'limited_source_backed' : 'manual_runtime_observed',
+      manualOnly: !sourceBacked || /selector|class|svg|canvas|d3|geometry/.test(text),
+      reason: sourceBacked && safeToken
+        ? 'Source-backed theme/layout-like token may be reviewed as a limited candidate.'
+        : 'Runtime selector, class, SVG geometry, D3, or custom renderer evidence remains manual review.'
+    };
   }
 
   function openRouteAction(capability, fallbackLabel) {

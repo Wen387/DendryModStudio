@@ -11,16 +11,7 @@ const ROOT = path.resolve(__dirname, '..', '..');
 const SDAAH_ROOT = path.join(ROOT, 'social_democracy_alternate_history-main');
 const BUILD_SCRIPT = path.join(__dirname, 'build_project_map.py');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 if (!fs.existsSync(path.join(SDAAH_ROOT, 'source', 'info.dry'))) {
   fail('SDAAH original fixture root is missing: ' + SDAAH_ROOT);

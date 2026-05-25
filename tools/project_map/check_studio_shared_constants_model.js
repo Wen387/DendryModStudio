@@ -4,16 +4,7 @@
 const contracts = require('./authoring/studio_shared_constants.js');
 const viewer = require('./viewer/app.js');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function t(key, fallback) {
   return key + '|' + fallback;

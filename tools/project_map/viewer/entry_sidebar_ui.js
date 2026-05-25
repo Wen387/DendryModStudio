@@ -578,7 +578,7 @@
     if (authoringWorkspace && typeof authoringWorkspace.setTemplate === 'function') {
       authoringWorkspace.setTemplate('event', {silent: true});
     }
-    const objectCanvas = global.ProjectMapObjectAuthoringCanvas || global.ProjectMapEditingWorkspace;
+    const objectCanvas = global.ProjectMapObjectAuthoringCanvas;
     const seededCanvas = objectCanvas && typeof objectCanvas.openTemplate === 'function'
       ? objectCanvas.openTemplate('event', eventDraft, {source: t('create.status.seededFirstEvent', 'Seeded first event'), template: 'event'})
       : false;

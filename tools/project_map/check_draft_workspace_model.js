@@ -5,13 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const workspace = require('./authoring/draft_workspace.js');
-
-function assert(condition, message) {
-  if (!condition) {
-    console.error('FAIL:', message);
-    process.exit(1);
-  }
-}
+const {assert} = require('./check_harness.js');
 
 function memoryStorage(initial) {
   const data = new Map(Object.entries(initial || {}));
@@ -457,6 +451,123 @@ assert(reviewableReview.disabled === false, 'saved change with install plan shou
 reviewableReview.click();
 assert(uiSmoke.loadedPlan === reviewableItem.installPlan, 'enabled Review should load the saved install plan');
 assert(uiSmoke.installClicks === 1, 'enabled Review should switch to Install');
+
+function runDraftWorkspaceSaveSmoke(initialItems, currentDraft, currentOutput, workspaceId) {
+  const elements = {
+    'draft-workspace-save': fakeElement('button'),
+    'draft-workspace-export': fakeElement('button'),
+    'draft-workspace-status': fakeElement('div'),
+    'draft-workspace-list': fakeElement('div')
+  };
+  let persistedItems = initialItems.slice();
+  let activeWorkspaceId = workspaceId || '';
+  const document = {
+    readyState: 'complete',
+    body: fakeElement('body'),
+    getElementById(id) {
+      return elements[id] || null;
+    },
+    addEventListener() {},
+    createElement(tagName) {
+      return fakeElement(tagName);
+    },
+    querySelector() {
+      return null;
+    }
+  };
+  const context = {
+    document,
+    ProjectMapDraftWorkspace: Object.assign({}, workspace, {
+      loadDraftItems() {
+        return persistedItems;
+      },
+      saveDraftItems(_storage, items) {
+        persistedItems = items.slice();
+        return true;
+      }
+    }),
+    ProjectMapObjectAuthoringCanvas: {
+      isActive() {
+        return true;
+      },
+      activeTemplate() {
+        return 'event';
+      },
+      refresh() {},
+      getDraft() {
+        return currentDraft;
+      },
+      getOutput() {
+        return currentOutput;
+      },
+      getDraftWorkspaceId() {
+        return activeWorkspaceId;
+      },
+      setDraftWorkspaceId(id) {
+        activeWorkspaceId = String(id || '');
+      }
+    },
+    ProjectMapI18n: {
+      t(_key, fallback) {
+        return fallback;
+      }
+    },
+    CSS: {
+      escape(value) {
+        return String(value).replace(/"/g, '\\"');
+      }
+    },
+    Blob: function Blob() {},
+    URL: {
+      createObjectURL() {
+        return 'blob:test';
+      },
+      revokeObjectURL() {}
+    }
+  };
+  context.window = context;
+  context.globalThis = context;
+  vm.runInNewContext(
+    fs.readFileSync(path.join(__dirname, 'viewer', 'draft_workspace_ui.js'), 'utf8'),
+    context,
+    {filename: 'draft_workspace_ui.js'}
+  );
+  elements['draft-workspace-save'].click();
+  return {items: persistedItems, activeWorkspaceId};
+}
+
+const savedDefaultEvent = workspace.makeDraftItem({
+  template: 'event',
+  draft: {
+    schemaVersion: '0.1',
+    kind: 'world_event',
+    id: 'new_world_event',
+    title: 'Already saved event'
+  },
+  output: {playerPreview: 'Already saved event'}
+}, {now: '2026-04-29T12:12:00.000Z'});
+const unsourcedSameIdSave = runDraftWorkspaceSaveSmoke([savedDefaultEvent], {
+  schemaVersion: '0.1',
+  kind: 'world_event',
+  id: 'new_world_event',
+  title: 'Second unsourced event'
+}, {
+  playerPreview: 'Second unsourced event'
+}, '');
+assert(unsourcedSameIdSave.items.length === 2, 'saving a new unsourced draft with the same id should not overwrite an older saved draft');
+assert(unsourcedSameIdSave.items.some((entry) => entry.title === 'Already saved event'), 'older same-id draft should remain in My Changes');
+assert(unsourcedSameIdSave.items.some((entry) => entry.title === 'Second unsourced event'), 'new same-id draft should be stored as its own My Changes item');
+
+const sourcedSameIdSave = runDraftWorkspaceSaveSmoke([savedDefaultEvent], {
+  schemaVersion: '0.1',
+  kind: 'world_event',
+  id: 'new_world_event',
+  title: 'Updated saved event'
+}, {
+  playerPreview: 'Updated saved event'
+}, savedDefaultEvent.workspaceId);
+assert(sourcedSameIdSave.items.length === 1, 'saving a loaded saved draft should update that My Changes item');
+assert(sourcedSameIdSave.items[0].title === 'Updated saved event', 'loaded saved draft updates should preserve the intended upsert behavior');
 
 console.log(JSON.stringify({
   ok: true,

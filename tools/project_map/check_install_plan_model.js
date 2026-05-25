@@ -22,16 +22,7 @@ const SAMPLE_CARD = path.join(FIXTURES, 'card_drafts', 'sample_action_card.json'
 const SAMPLE_SURFACE = path.join(FIXTURES, 'surface_text_drafts', 'sample_label_replacement.json');
 const INSTALL_PLAN_SCHEMA = path.join(__dirname, 'schema', 'install-plan.schema.json');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function readJson(filePath) {
   return JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -158,6 +149,11 @@ fs.writeFileSync(
 fs.writeFileSync(
   path.join(tmpRoot, 'source', 'scenes', 'events', 'section_text.scene.dry'),
   'title: Section Text\n\n= Old Section\n\nOld section body.\nTail stays put.\n',
+  'utf8'
+);
+fs.writeFileSync(
+  path.join(tmpRoot, 'source', 'scenes', 'events', 'section_delete.scene.dry'),
+  'title: Section Delete\n\n@old_sidebar\n\n= Old Sidebar\n\nOld sidebar body.\n\n@next_sidebar\n\n= Next Sidebar\n\nNext body.\n',
   'utf8'
 );
 fs.writeFileSync(
@@ -350,6 +346,19 @@ fs.writeFileSync(
     '= Swallow Section',
     '',
     'Original section body.',
+    'Tail stays put.',
+    ''
+  ].join('\n'),
+  'utf8'
+);
+fs.writeFileSync(
+  path.join(tmpRoot, 'source', 'scenes', 'events', 'swallowed_remote_dedupe.scene.dry'),
+  [
+    'title: Swallowed Remote Dedupe',
+    'Mention face-image: img/events/remote.png elsewhere.',
+    '= Remote Section',
+    '',
+    'Original remote section body.',
     'Tail stays put.',
     ''
   ].join('\n'),
@@ -649,6 +658,35 @@ const unsafeCopyTargetPlan = installPlan.buildInstallPlan({
 const unsafeCopyTargetClassification = installPlan.classifyOperation(unsafeCopyTargetPlan.operations[0]);
 assert(unsafeCopyTargetClassification.status === 'refused', 'copy_asset_file should refuse generated runtime output targets');
 assert(unsafeCopyTargetClassification.reason.includes('generated/protected output') || unsafeCopyTargetClassification.reason.includes('project asset folders'), 'unsafe copy target refusal should explain the generated output or asset folder boundary');
+const duplicateAssetSourcePath = path.join(sourceAssetDir, 'Duplicate Portrait.PNG');
+fs.writeFileSync(duplicateAssetSourcePath, Buffer.from('different fake image bytes'));
+const duplicateCopyTargetPlan = installPlan.buildInstallPlan({
+  id: 'copy_asset_duplicate_target',
+  draftKind: 'asset',
+  operations: [
+    {
+      id: 'copy_asset_file_duplicate_1',
+      type: 'copy_asset_file',
+      path: 'assets/studio/events/copy_asset_guarded/duplicate.png',
+      sourceName: 'Portrait Hero.PNG',
+      sourcePath: sourceAssetPath,
+      assetType: 'image',
+      safety: 'guarded_apply'
+    },
+    {
+      id: 'copy_asset_file_duplicate_2',
+      type: 'copy_asset_file',
+      path: 'assets/studio/events/copy_asset_guarded/duplicate.png',
+      sourceName: 'Duplicate Portrait.PNG',
+      sourcePath: duplicateAssetSourcePath,
+      assetType: 'image',
+      safety: 'guarded_apply'
+    }
+  ]
+});
+const duplicateCopyTargetDryRun = installPlan.applyInstallPlan(duplicateCopyTargetPlan, {projectRoot: tmpRoot, dryRun: true});
+assert(!duplicateCopyTargetDryRun.ok, 'asset copy dry-run should block duplicate target paths in the same plan');
+assert(duplicateCopyTargetDryRun.diagnostics.some((diag) => diag.code === 'install_plan.copy_duplicate_target'), 'duplicate asset copy targets should report copy_duplicate_target');
 const copyAssetDryRun = installPlan.applyInstallPlan(copyAssetPlan, {projectRoot: tmpRoot, dryRun: true});
 assert(copyAssetDryRun.ok, 'asset copy dry-run should succeed when source and target are safe: ' + JSON.stringify(copyAssetDryRun));
 assert(copyAssetDryRun.results[0].status === 'would_apply', 'asset copy dry-run should report would_apply');
@@ -727,6 +765,37 @@ assert(replacedSectionText.includes('Tail stays put.'), 'replace_section apply s
 assert(!replacedSectionText.includes('Old section body.'), 'replace_section apply should remove the old inclusive anchor range');
 const replaceSectionAgain = installPlan.applyInstallPlan(replaceSectionPlan, {projectRoot: tmpRoot, dryRun: false});
 assert(replaceSectionAgain.ok && replaceSectionAgain.results[0].status === 'already_applied', 'replace_section should be idempotent when dedupe text is present');
+
+const deleteSectionPlan = installPlan.buildInstallPlan({
+  id: 'delete_section_guarded',
+  draftKind: 'test',
+  operations: [
+    {
+      id: 'delete_section_guarded',
+      type: 'replace_section',
+      path: 'source/scenes/events/section_delete.scene.dry',
+      anchorText: '@old_sidebar',
+      endAnchorText: 'Old sidebar body.',
+      content: '',
+      dedupeSearch: '@old_sidebar',
+      startLine: 3,
+      endLine: 7,
+      allowEmptyReplace: true,
+      destructive: true,
+      safety: 'guarded_apply',
+      description: 'Delete a source-backed section between exact anchors.'
+    }
+  ]
+});
+const deleteSectionDryRun = installPlan.applyInstallPlan(deleteSectionPlan, {projectRoot: tmpRoot, dryRun: true});
+assert(deleteSectionDryRun.ok && deleteSectionDryRun.results[0].status === 'would_apply', 'empty replace_section dry-run should delete a source section');
+const deleteSectionApply = installPlan.applyInstallPlan(deleteSectionPlan, {projectRoot: tmpRoot, dryRun: false});
+assert(deleteSectionApply.ok, 'empty replace_section apply should succeed: ' + JSON.stringify(deleteSectionApply));
+const deletedSectionText = fs.readFileSync(path.join(tmpRoot, 'source', 'scenes', 'events', 'section_delete.scene.dry'), 'utf8');
+assert(!deletedSectionText.includes('@old_sidebar'), 'empty replace_section should remove the start anchor');
+assert(deletedSectionText.includes('@next_sidebar'), 'empty replace_section should preserve following sections');
+const deleteSectionAgain = installPlan.applyInstallPlan(deleteSectionPlan, {projectRoot: tmpRoot, dryRun: false});
+assert(deleteSectionAgain.ok && deleteSectionAgain.results[0].status === 'already_applied', 'empty replace_section delete should be idempotent after the anchor is gone');
 
 const replaceSectionCrlfPlan = installPlan.buildInstallPlan({
   id: 'replace_section_crlf',
@@ -1101,6 +1170,48 @@ const sourceUnitLogicPlan = installPlan.existingSceneEditInstallPlan({
 });
 assert(sourceUnitLogicPlan.operations.length === 1, 'section body, condition, and exit route changes should coalesce into one source-unit replace_section');
 assert(sourceUnitLogicPlan.operations[0].content === '@decision\nview-if: public_order >= 2\nDecision body revised.\ngo-to: next_scene\n', 'coalesced section-flow content should apply text replacements inside the primary section body');
+const sourceUnitEndBeforePlan = installPlan.existingSceneEditInstallPlan({
+  id: 'source_unit_end_before',
+  draftKind: 'existing_scene_edit',
+  title: 'Source Unit End Before',
+  changes: [
+    {
+      fieldId: 'decision_body_again',
+      role: 'section_text',
+      sectionId: 'source_unit_logic.decision',
+      source: sourceUnitLogicSource,
+      operationType: 'replace_section',
+      anchorText: sourceUnitLogicSource.anchorText,
+      endAnchorText: sourceUnitLogicSource.endAnchorText,
+      rawAnchorText: sourceUnitLogicSource.rawAnchorText,
+      rawEndAnchorText: sourceUnitLogicSource.rawEndAnchorText,
+      startLine: 3,
+      endLine: 6,
+      before: '@decision\nview-if: public_order >= 1\nDecision body.\ngo-to: root\n',
+      after: '@decision\nview-if: public_order >= 1\nDecision body revised.\ngo-to: root\n',
+      editability: 'guarded_replace_section'
+    },
+    {
+      fieldId: 'decision_end_before_image',
+      role: 'asset_reference',
+      sectionId: 'source_unit_logic.decision',
+      source: Object.assign({}, sourceUnitLogicSource, {
+        line: 6,
+        startLine: 6,
+        endLine: 6,
+        anchorText: sourceUnitLogicSource.endAnchorText,
+        endAnchorText: sourceUnitLogicSource.endAnchorText
+      }),
+      operationType: 'insert_text',
+      anchorText: sourceUnitLogicSource.endAnchorText,
+      position: 'before',
+      before: '',
+      after: 'face-image: img/events/end-before.png',
+      editability: 'guarded_apply'
+    }
+  ]
+});
+assert(sourceUnitEndBeforePlan.operations.length === 2, 'source-unit coalescer should not move a before-insert anchored to the end of a multi-line section');
 const sourceUnitLogicDryRun = installPlan.applyInstallPlan(sourceUnitLogicPlan, {projectRoot: tmpRoot, dryRun: true, includeEvidence: true});
 assert(sourceUnitLogicDryRun.ok && sourceUnitLogicDryRun.results[0].status === 'would_apply', 'coalesced section-flow dry-run should verify against current source: ' + JSON.stringify(sourceUnitLogicDryRun));
 
@@ -1430,6 +1541,39 @@ const swallowedInsertDryRun = installPlan.applyInstallPlan(swallowedInsertPlan, 
 assert(!swallowedInsertDryRun.ok, 'same-file section replacement must not silently swallow a preceding insert operation');
 assert(swallowedInsertDryRun.diagnostics.some((diag) => diag.code === 'install_plan.final_insert_missing'), 'swallowed inserts should report final_insert_missing');
 
+const swallowedRemoteDedupePlan = installPlan.buildInstallPlan({
+  id: 'swallowed_remote_dedupe',
+  draftKind: 'test',
+  operations: [
+    {
+      id: 'swallowed_remote_insert',
+      type: 'insert_text',
+      path: 'source/scenes/events/swallowed_remote_dedupe.scene.dry',
+      line: 3,
+      position: 'after',
+      anchorText: '= Remote Section',
+      content: 'face-image: img/events/remote.png\n',
+      dedupeSearch: 'face-image: img/events/remote.png',
+      safety: 'guarded_apply'
+    },
+    {
+      id: 'swallowed_remote_replace_section',
+      type: 'replace_section',
+      path: 'source/scenes/events/swallowed_remote_dedupe.scene.dry',
+      startLine: 3,
+      endLine: 5,
+      anchorText: '= Remote Section',
+      endAnchorText: 'Original remote section body.',
+      content: '= Remote Section\n\nRemote replacement body.\n',
+      dedupeSearch: 'Remote replacement body.',
+      safety: 'guarded_apply'
+    }
+  ]
+});
+const swallowedRemoteDedupeDryRun = installPlan.applyInstallPlan(swallowedRemoteDedupePlan, {projectRoot: tmpRoot, dryRun: true});
+assert(!swallowedRemoteDedupeDryRun.ok, 'remote duplicate text must not hide a swallowed same-file insert');
+assert(swallowedRemoteDedupeDryRun.diagnostics.some((diag) => diag.code === 'install_plan.final_insert_missing'), 'swallowed remote-dedupe inserts should report final_insert_missing');
+
 const staleInsertLinePlan = installPlan.buildInstallPlan({
   id: 'insert_line_stale',
   draftKind: 'test',
@@ -1593,6 +1737,24 @@ const rootJsRefusedPlan = installPlan.buildInstallPlan({
   ]
 });
 assert(installPlan.classifyOperation(rootJsRefusedPlan.operations[0]).status === 'refused', 'Entry/Sidebar guarded root replacement must not cover JS/init lines');
+
+const protectedRouterArbitraryInsertPlan = installPlan.buildInstallPlan({
+  id: 'root_arbitrary_insert_refused',
+  draftKind: 'entry_sidebar',
+  operations: [
+    {
+      id: 'root_arbitrary_insert',
+      type: 'insert_text',
+      path: 'source/scenes/root.scene.dry',
+      anchorText: 'ROOT_LABEL',
+      content: 'Q.arbitrary_router_state = 1;\n',
+      dedupeSearch: 'Q.arbitrary_router_state',
+      safety: 'guarded_apply',
+      role: 'entry_sidebar.router'
+    }
+  ]
+});
+assert(installPlan.classifyOperation(protectedRouterArbitraryInsertPlan.operations[0]).status === 'refused', 'guarded protected-router inserts should be limited to known generated router/init operations');
 
 const protectedRouterSectionPlan = installPlan.buildInstallPlan({
   id: 'post_event_section_refused',

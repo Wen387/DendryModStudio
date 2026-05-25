@@ -5,16 +5,7 @@ const eventDraft = require('./authoring/event_draft.js');
 const installPlan = require('./authoring/install_plan.js');
 const canvasModel = require('./authoring/object_authoring_canvas_model.js');
 
-function fail(message, detail) {
-  process.stderr.write('FAIL: ' + message + (detail ? '\n' + JSON.stringify(detail, null, 2) : '') + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message, detail) {
-  if (!condition) {
-    fail(message, detail);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 const draft = {
   schemaVersion: '0.1',

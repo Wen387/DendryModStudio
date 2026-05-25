@@ -1,3 +1,4 @@
+// @ts-check
 (function initProjectMapParserRendererConfidence(global) {
   'use strict';
 

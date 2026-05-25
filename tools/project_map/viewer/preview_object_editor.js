@@ -10,13 +10,44 @@
   let cachedChoicePathModel = null;
   let cachedMetadataUi = null;
   let cachedOpeningContextUi = null;
+  let cachedFieldPresentation = null;
+  let cachedSemanticOperations = null;
+  let branchSectionGroupsCallCount = 0;
+
+  function perfApi() {
+    if (global && global.ProjectMapCardBoardPerf) {
+      return global.ProjectMapCardBoardPerf;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./card_board_perf.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function perfMeasure(name, fn, detail) {
+    const api = perfApi();
+    return api && typeof api.measure === 'function' ? api.measure(name, fn, detail || {}) : fn();
+  }
+
+  function perfRecord(name, value, detail) {
+    const api = perfApi();
+    if (api && typeof api.record === 'function') {
+      api.record(name, Number(value) || 0, detail || {});
+    }
+  }
 
   const api = {
     render,
     renderModal,
     renderModalPreviewPane,
     renderPreviewPane,
-    renderTextBlocks
+    renderTextBlocks,
+    renderEventReviewDetailsPanels,
+    hydrateLazyReviewDetails
   };
 
   if (global) {
@@ -124,12 +155,16 @@
     const options = ensureArray(value.options);
     const branches = ensureArray(value.branchSections);
     const assets = ensureArray(value.assets);
+    const audioAssetCount = assets.filter(function (a) { return a && (a.type === 'audio' || /audio|music/.test(String(a.role || ''))); }).length;
     const chips = [
       sections.length ? t('previewObjectEditor.flowSections', 'Sections') + ': ' + sections.length : '',
       options.length ? t('previewObjectEditor.flowOptions', 'Options') + ': ' + options.length : '',
       branches.length ? t('previewObjectEditor.branchText', 'Conditional and follow-up text') + ': ' + branches.length : '',
       assets.length ? t('previewObjectEditor.assets', 'Referenced assets') + ': ' + assets.length : ''
     ].filter(Boolean);
+    if (audioAssetCount) {
+      chips.push('♫ ' + t('previewObjectEditor.audioAssets', 'Audio') + ': ' + audioAssetCount);
+    }
     return [
       '<article class="object-editing-live-preview object-editing-event-preview is-large-summary" data-object-editing-large-preview-summary="true">',
       '<div class="object-editing-preview-kicker">' + escapeHtml(t('objectPreview.event', 'World Event')) + '</div>',
@@ -143,7 +178,7 @@
         showAddControls: false,
         showReplacementControls: false
       }),
-      '<small>' + escapeHtml(t('previewObjectEditor.expandPreview', 'Expand preview')) + '</small>',
+      '<button type="button" class="object-canvas-expand-preview-btn" data-object-canvas-action="toggle_preview_expanded">' + escapeHtml(t('previewObjectEditor.expandPreview', 'Expand preview')) + '</button>',
       '</article>'
     ].join('');
   }
@@ -173,7 +208,6 @@
       createSimilar ? '<button type="button" data-object-canvas-action="create_similar_event" data-create-similar-object="true" data-create-similar-kind="' + escapeAttr(kind) + '">' + escapeHtml(createSimilarLabel(kind, model)) + '</button>' : '',
       '<button type="button" data-object-canvas-action="save">' + escapeHtml(t('editing.saveToChanges', 'Save to My Changes')) + '</button>',
       '<button class="primary-action" type="button" data-object-canvas-action="review">' + escapeHtml(t('existingScene.review', 'Review & Apply')) + '</button>',
-      model && model.mode !== 'existing' ? '<button type="button" data-object-canvas-action="legacy_form">' + escapeHtml(t('objectCanvas.legacyForm', 'Advanced Form')) + '</button>' : '',
       '</div>'
     ].join('');
   }
@@ -1554,7 +1588,7 @@
       renderPreviewAssetSlots(slots, normalizedTarget, opts),
       globalRows.length ? '<div class="object-canvas-asset-row-grid" data-object-canvas-global-assets="true">' + globalRows.slice(0, 8).map((asset) => renderPreviewAsset(asset, normalizedTarget)).join('') + '</div>' : '',
       flowRows.length || flowAddFields.length ? '<div class="object-canvas-asset-row-grid" data-object-canvas-flow-asset-summary="true"><small>' + escapeHtml(t('assets.flowAssets', 'Flow assets')) + '</small>' + flowRows.slice(0, 8).map((asset) => renderFlowAssetRow(asset, normalizedTarget, opts)).join('') + flowAddControls + '</div>' : '',
-      rows.length > 8 ? '<small>' + escapeHtml(t('previewObjectEditor.moreAssets', 'More assets') + ': ' + String(rows.length - 8)) + '</small>' : '',
+      rows.length > 8 ? '<button type="button" class="object-canvas-expand-assets-btn" data-object-canvas-action="toggle_preview_expanded">' + escapeHtml(t('previewObjectEditor.moreAssets', 'More assets') + ': +' + String(rows.length - 8)) + '</button>' : '',
       '</section>'
     ].join('');
   }
@@ -1580,9 +1614,10 @@
     return [
       '<div class="object-canvas-asset-slot-grid" data-object-canvas-asset-slots="true">',
       slots.map((slot) => [
-        '<article class="object-canvas-asset-slot" data-object-canvas-asset-slot="true" data-asset-slot-role="' + escapeAttr(slot.role || '') + '" data-asset-slot-status="' + escapeAttr(slot.status || 'empty') + '">',
+        '<article class="object-canvas-asset-slot' + (isAudioSlotRole(slot.role) ? ' is-audio-slot' : '') + '" data-object-canvas-asset-slot="true" data-asset-slot-role="' + escapeAttr(slot.role || '') + '" data-asset-slot-status="' + escapeAttr(slot.status || 'empty') + '">',
         '<strong>' + escapeHtml(t('assets.role.' + slot.role, slot.roleLabel || slot.label || slot.role || t('previewObjectEditor.asset', 'Asset'))) + '</strong>',
         '<small>' + escapeHtml(t('assets.type.' + (slot.type || 'asset'), slot.type || 'asset')) + '</small>',
+        renderAudioModifierBadges(slot.assetRef),
         slot.assetRef && slot.assetRef.path ? '<code>' + escapeHtml(slot.assetRef.path) + '</code>' : '<span>' + escapeHtml(t('assets.slotEmpty', 'No asset selected for this slot.')) + '</span>',
         slot.installRequest ? '<em>' + escapeHtml(slot.installRequest.sourceName || slot.installRequest.sourcePath || t('assets.sourcePending', 'Source file selected in this browser session')) + '</em>' : '',
         opts.showControls || opts.showAddControls && slot.addField && !(slot.assetRef && slot.assetRef.path) ? renderAssetSlotControls(slot, target, opts) : '',
@@ -1607,7 +1642,9 @@
       role: row.role || row.assetRef && row.assetRef.role || '',
       directive: row.directive || row.assetRef && row.assetRef.directive || '',
       previewUrl: row.previewUrl || row.assetRef && row.assetRef.previewUrl || '',
-      fileExists: row.fileExists
+      fileExists: row.fileExists,
+      audioModifiers: row.audioModifiers || row.assetRef && row.assetRef.audioModifiers || [],
+      audioGroupId: row.audioGroupId || row.assetRef && row.assetRef.audioGroupId || ''
     }));
     const assetInstallRequests = ensureArray(rows).filter((row) => row && row.installRequest).map((row) => row.installRequest);
     return api.buildAssetSlots({assetRefs, assetInstallRequests}, {target}).map((slot) => {
@@ -1900,7 +1937,8 @@
       capability.message ||
       '';
     const source = sourceLabelFromRef(asset && asset.source);
-    const rowAttrs = previewAssetRowAttrs(asset, target, capability.canPreview && capability.mediaKind === 'image' ? 'object-editing-preview-asset-figure' : 'object-editing-preview-asset-ref');
+    const previewMediaClass = capability.canPreview && (capability.mediaKind === 'image' || capability.mediaKind === 'audio') ? 'object-editing-preview-asset-figure' : 'object-editing-preview-asset-ref';
+    const rowAttrs = previewAssetRowAttrs(asset, target, previewMediaClass);
     if (capability.canPreview && capability.mediaKind === 'image' && capability.url) {
       return [
         '<figure' + rowAttrs + '>',
@@ -1910,10 +1948,21 @@
         '</figure>'
       ].join('');
     }
+    if (capability.canPreview && capability.mediaKind === 'audio' && capability.url) {
+      return [
+        '<figure' + rowAttrs + ' data-asset-preview-audio="true">',
+        '<audio controls preload="metadata" src="' + escapeAttr(capability.url) + '"></audio>',
+        renderAudioModifierBadges(asset),
+        '<figcaption>' + escapeHtml([role, label, state].filter(Boolean).join(' / ')) + '</figcaption>',
+        source ? '<small>' + escapeHtml(source) + '</small>' : '',
+        '</figure>'
+      ].join('');
+    }
     return [
       '<div' + rowAttrs + '>',
       '<strong>' + escapeHtml(label) + '</strong>',
       role ? '<small>' + escapeHtml(role) + '</small>' : '',
+      renderAudioModifierBadges(asset),
       asset && asset.path ? '<code>' + escapeHtml(asset.path) + '</code>' : '',
       state ? '<small>' + escapeHtml(state) + '</small>' : '',
       asset && asset.installRequest && asset.installRequest.sourceName ? '<small>' + escapeHtml(asset.installRequest.sourceName) + '</small>' : '',
@@ -1941,17 +1990,93 @@
     ].join('');
   }
 
+  function isAudioSlotRole(role) {
+    return /audio|music/.test(String(role || ''));
+  }
+
+  function renderAudioModifierBadges(assetRef) {
+    const modifiers = ensureArray(assetRef && assetRef.audioModifiers);
+    if (!modifiers.length) {
+      return '';
+    }
+    return '<span class="audio-modifier-badges">' + modifiers.map(function (mod) {
+      return '<span class="audio-modifier-badge" data-audio-modifier="' + escapeAttr(mod) + '">' + escapeHtml(mod) + '</span>';
+    }).join('') + '</span>';
+  }
+
   function renderKindEditor(kind, body, model) {
-    if (kind === 'card') {
-      return renderCardEditor(body, model);
-    }
-    if (kind === 'news') {
-      return renderNewsEditor(body, model);
-    }
-    if (kind === 'text-replacement') {
-      return renderTextReplacementEditor(body, model);
-    }
-    return renderEventEditor(body, model);
+    return perfMeasure('renderKindEditor', () => {
+      branchSectionGroupsCallCount = 0;
+      let html;
+      if (kind === 'card') {
+        html = renderCardEditor(body, model);
+      } else if (kind === 'deck_pool') {
+        html = renderDeckPoolEditor(body, model);
+      } else if (kind === 'news') {
+        html = renderNewsEditor(body, model);
+      } else if (kind === 'text-replacement') {
+        html = renderTextReplacementEditor(body, model);
+      } else {
+        html = renderEventEditor(body, model);
+      }
+      perfRecord('renderKindEditor.branchSectionGroups.calls', branchSectionGroupsCallCount, {
+        kind,
+        options: ensureArray(body && body.options).length,
+        branchSections: ensureArray(body && body.branchSections).length,
+        structureActions: ensureArray(body && body.structureActions).length
+      });
+      return html;
+    }, {kind});
+  }
+
+  function renderDeckPoolEditor(body, model) {
+    const members = ensureArray(body && body.options);
+    const meta = ensureArray(body && body.metaFields);
+    const addFields = meta.filter((field) => /^deckPool\.add\./.test(fieldId(field)));
+    const routingFields = meta.filter((field) => /^deckPool\.(launcher|routeTag)\./.test(fieldId(field)));
+    const infoFields = ensureArray(body && body.sections);
+    return [
+      '<article class="preview-object-frame preview-object-deck-pool-frame" data-preview-object-deck-pool="true">',
+      '<div class="preview-object-kicker">' + escapeHtml(body && body.bodyEyebrow || t('objectPreview.deckPool', 'Deck pool')) + '</div>',
+      renderInlineField(body.title || fallbackField('deckPool.label', t('previewObjectEditor.deckPoolLabel', 'Deck label'), model && model.title), {
+        role: 'title',
+        element: 'input',
+        className: 'preview-object-title-input'
+      }),
+      infoFields.length ? '<section class="preview-object-logic-section"><h4>' + escapeHtml(t('previewObjectEditor.deckPoolIdentity', 'Pool identity')) + '</h4>' + infoFields.map((field) => renderInlineField(field, {role: 'source-context', element: 'input'})).join('') + '</section>' : '',
+      routingFields.length ? '<section class="preview-object-logic-section"><h4>' + escapeHtml(t('previewObjectEditor.deckPoolRouting', 'Pool routing')) + '</h4>' + routingFields.map((field) => renderInlineField(field, {role: 'route', element: logicFieldElement(field)})).join('') + '</section>' : '',
+      addFields.length ? '<section class="preview-object-logic-section"><h4>' + escapeHtml(t('previewObjectEditor.deckPoolAddMember', 'Add card to pool')) + '</h4>' + addFields.map((field) => renderInlineField(field, {role: 'deck-pool-add', element: logicFieldElement(field)})).join('') + '</section>' : '',
+      '<section class="preview-object-choices preview-object-deck-pool-members" data-preview-object-deck-pool-members="true">',
+      '<div class="preview-object-section-title">' + escapeHtml(body && body.optionsLabel || t('previewObjectEditor.deckPoolMembers', 'Pool members')) + '</div>',
+      members.length ? members.map((member, index) => renderDeckPoolMember(member, index, body, model)).join('') : renderEmpty(t('previewObjectEditor.deckPoolNoMembers', 'No cards are currently in this pool.')),
+      '</section>',
+      '</article>'
+    ].join('');
+  }
+
+  function renderDeckPoolMember(option, index, body, model) {
+    const fields = ensureArray(option && option.fields);
+    const title = firstField(fields, /\.title$/i) || fallbackField('deckPool.member.' + index + '.title', t('previewObjectEditor.cardTitle', 'Card title'), option && (option.label || option.id));
+    const id = firstField(fields, /\.id$/i);
+    const membership = firstField(fields, /\.membership$/i);
+    const evidence = firstField(fields, /\.editableReason$/i);
+    const remove = firstField(fields, /\.remove$/i);
+    const move = firstField(fields, /\.moveTargetDeckPoolId$/i);
+    return [
+      '<article class="preview-object-choice preview-object-deck-pool-member" data-preview-object-deck-pool-member="' + escapeAttr(option && option.id || String(index + 1)) + '">',
+      '<div class="preview-object-choice-main">',
+      '<b>' + escapeHtml(String(index + 1)) + '</b>',
+      renderInlineField(title, {role: 'deck-pool-member-title', element: 'input'}),
+      '</div>',
+      '<div class="preview-object-choice-details" open>',
+      id ? renderInlineField(id, {role: 'deck-pool-member-id', element: 'input'}) : '',
+      membership ? renderInlineField(membership, {role: 'deck-pool-member-membership', element: 'input'}) : '',
+      evidence ? renderInlineField(evidence, {role: 'deck-pool-member-evidence', element: 'input'}) : '',
+      remove ? renderInlineField(remove, {role: 'deck-pool-member-remove', element: logicFieldElement(remove)}) : '',
+      move ? renderInlineField(move, {role: 'deck-pool-member-move', element: logicFieldElement(move)}) : '',
+      '</div>',
+      '</article>'
+    ].join('');
   }
 
   function renderEventEditor(body, model) {
@@ -1978,7 +2103,7 @@
       }) : '',
       openingContextUi().render(body, model),
       sections.length
-        ? '<div class="preview-object-prose" data-preview-object-prose="true">' + sections.map((field, index) => [
+        ? '<section class="preview-object-semantic-section" data-object-canvas-semantic-section="player_content"><div class="preview-object-semantic-section-title" data-object-canvas-semantic-group="player_content">' + escapeHtml(t('previewObjectEditor.semanticGroup.player_content', 'Player content')) + '</div><div class="preview-object-prose" data-preview-object-prose="true">' + sections.map((field, index) => [
           renderInlineField(field, {
             role: 'body',
             element: 'textarea',
@@ -1986,7 +2111,7 @@
             assetBaseUrl: textOptions.assetBaseUrl
           }),
           renderInlineAssetPlacements(assetsForBranch(field, body), assetAddFieldsForBranch(field, body), 'event', body, model)
-        ].join('')).join('') + '</div>'
+        ].join('')).join('') + '</div></section>'
         : renderEmpty(t('objectCanvas.noBodyFields', 'No player-facing body fields are available yet.')),
       renderChoiceEditor(options, 'event', body, renderPlan, model),
       renderBranchSectionEditor(branchSections, textOptions, body, renderPlan, model),
@@ -1998,6 +2123,7 @@
   }
 
   function branchSectionGroups(body) {
+    branchSectionGroupsCallCount += 1;
     const groups = {};
     ensureArray(body && body.branchSections).forEach((field) => {
       const id = normalizeEndpointToken(field && (field.sectionId || field.id));
@@ -2023,8 +2149,8 @@
     return groups;
   }
 
-  function renderEventReviewDetails(body, model) {
-    const panels = [
+  function renderEventReviewDetailsPanels(body, model) {
+    return perfMeasure('renderEventReviewDetailsPanels', () => [
       renderFlowOverview(body && body.flow, model, 'editor'),
       eventBuilderUi().renderChoiceUnitSummary(body && body.choiceUnits),
       eventBuilderUi().renderConsequenceGroups(body && body.consequenceGroups),
@@ -2033,18 +2159,58 @@
       eventBuilderUi().renderRouteScriptIntelligence(body),
       eventBuilderUi().renderEventGraphSummary(body && body.eventGraph, body),
       eventBuilderUi().renderEventReadiness(body && body.readinessChecklist)
-    ].filter(Boolean);
-    if (!panels.length) {
+    ].filter(Boolean).join(''), {});
+  }
+
+  function hasReviewDetailsContent(body) {
+    if (!body) {
+      return false;
+    }
+    if (body.flow && typeof body.flow === 'object') {
+      const nodes = ensureArray(body.flow.nodes).length;
+      const edges = ensureArray(body.flow.edges).length;
+      if (nodes || edges) {
+        return true;
+      }
+    }
+    if (ensureArray(body.choiceUnits).length) return true;
+    if (ensureArray(body.consequenceGroups).length) return true;
+    if (body.continuationMap && ensureArray(body.continuationMap.entries).length) return true;
+    if (ensureArray(body.playabilityChecks).length) return true;
+    if (body.eventGraph && (ensureArray(body.eventGraph.nodes).length || ensureArray(body.eventGraph.edges).length)) return true;
+    if (body.readinessChecklist && ensureArray(body.readinessChecklist.items).length) return true;
+    if (body.scriptRows && ensureArray(body.scriptRows).length) return true;
+    return false;
+  }
+
+  function renderEventReviewDetails(body, model) {
+    if (!hasReviewDetailsContent(body)) {
       return '';
     }
     return [
-      '<details class="preview-object-review-details" data-preview-object-review-details="true">',
+      '<details class="preview-object-review-details" data-preview-object-review-details="true" data-preview-object-review-details-lazy="pending">',
       '<summary>' + escapeHtml(t('previewObjectEditor.reviewDetails', 'Route and install review')) + '</summary>',
-      '<div class="preview-object-review-details-body">',
-      panels.join(''),
+      '<div class="preview-object-review-details-body" data-preview-object-review-details-body="pending">',
+      '<small class="preview-object-review-details-pending">' + escapeHtml(t('previewObjectEditor.reviewDetailsLoading', 'Loading review details…')) + '</small>',
       '</div>',
       '</details>'
     ].join('');
+  }
+
+  function hydrateLazyReviewDetails(detailsEl, body, model) {
+    if (!detailsEl || detailsEl.dataset.previewObjectReviewDetailsLazy !== 'pending') {
+      return false;
+    }
+    const bodyEl = detailsEl.querySelector('[data-preview-object-review-details-body="pending"]');
+    if (!bodyEl) {
+      detailsEl.dataset.previewObjectReviewDetailsLazy = 'hydrated';
+      return false;
+    }
+    const html = renderEventReviewDetailsPanels(body, model);
+    bodyEl.innerHTML = html;
+    bodyEl.dataset.previewObjectReviewDetailsBody = 'hydrated';
+    detailsEl.dataset.previewObjectReviewDetailsLazy = 'hydrated';
+    return true;
   }
 
   function renderBranchSectionEditor(branches, options, body, renderPlan, model) {
@@ -2670,6 +2836,17 @@
   }
 
   function renderEffectFields(fields, body) {
+    const semantic = semanticOperationsApi();
+    if (semantic && typeof semantic.buildEffectOperations === 'function') {
+      const operations = semantic.buildEffectOperations(fields, {
+        variables: semantic.variableEvidenceMap && semantic.variableEvidenceMap({variables: body && body.variablePickerCandidates || []})
+      });
+      return renderSemanticEffectFields(operations, body);
+    }
+    return renderLegacyEffectFields(fields, body);
+  }
+
+  function renderLegacyEffectFields(fields, body) {
     const rows = pairedEffectRows(fields);
     return '<div class="preview-object-effect-fields">' + rows.map((row) => {
       if (row.kind === 'add') {
@@ -2683,6 +2860,208 @@
       }
       return renderEffectRow(row.field, row.removeAction, body);
     }).join('') + '</div>';
+  }
+
+  function renderSemanticEffectFields(operations, body) {
+    const cards = ensureArray(operations && operations.cards);
+    const advanced = ensureArray(operations && operations.advancedItems);
+    const structureRows = ensureArray(operations && operations.structureRows);
+    const html = cards.map((card) => renderSemanticEffectCard(card, body))
+      .concat(advanced.map((card) => renderSemanticAdvancedEffectCard(card, body)))
+      .concat(structureRows.map((row) => renderSemanticEffectStructureRow(row, body)))
+      .join('');
+    return html ? '<div class="preview-object-effect-fields is-semantic-effects" data-object-canvas-semantic-effects="true">' + html + '</div>' : '';
+  }
+
+  function renderSemanticEffectStructureRow(row, body) {
+    if (!row) {
+      return '';
+    }
+    if (row.kind === 'add') {
+      return structureUi().renderInlineAddAction(row.field, body);
+    }
+    if (row.kind === 'structure') {
+      return structureUi().renderCompactStructureAction(row.field, body);
+    }
+    if (row.kind === 'effect-delete') {
+      return renderSemanticDeleteOnlyEffectRow(row.field, body);
+    }
+    return '';
+  }
+
+  function renderSemanticEffectCard(card, body) {
+    const sourceFieldId = card && card.sourceFieldId || '';
+    const variable = card && card.variable || '';
+    const op = card && card.op || '+=';
+    const value = card && card.value || '';
+    const condition = card && card.condition || '';
+    return [
+      '<article class="preview-object-semantic-effect-card" data-object-canvas-semantic-card="state_change"' + (sourceFieldId ? ' data-object-canvas-effect-source-field="' + escapeAttr(sourceFieldId) + '"' : '') + '>',
+      '<header>',
+      '<span>' + escapeHtml(t('previewObjectEditor.semanticEffect.title', 'State change')) + '</span>',
+      card && card.removeAction ? renderSemanticEffectDeleteControl(card.removeAction, body) : '',
+      '</header>',
+      renderSemanticEffectSummary(variable, op, value, condition),
+      '<div class="preview-object-semantic-effect-grid">',
+      renderSemanticEffectPart(card, 'variable', t('previewObjectEditor.semanticEffect.variable', 'Variable ID'), variable, {field: card && card.fields && card.fields.variable}),
+      renderSemanticEffectPart(card, 'op', t('previewObjectEditor.semanticEffect.operation', 'Change'), op, {field: card && card.fields && card.fields.op, options: semanticEffectOperatorOptions()}),
+      renderSemanticEffectPart(card, 'value', t('previewObjectEditor.semanticEffect.value', 'Value / expression'), value, {field: card && card.fields && card.fields.value}),
+      renderSemanticEffectPart(card, 'condition', t('previewObjectEditor.semanticEffect.condition', 'Only when'), condition, {field: card && card.fields && card.fields.condition, emptyLabel: t('previewObjectEditor.semanticEffect.noCondition', 'Always')}),
+      '</div>',
+      renderSemanticVariableEvidence(card && card.variableEvidence),
+      renderSemanticEffectSourceControl(card),
+      renderSemanticEffectEvidence(card),
+      '</article>'
+    ].join('');
+  }
+
+  function renderSemanticEffectSummary(variable, op, value, condition) {
+    const opLabel = semanticEffectOperatorLabel(op);
+    return [
+      '<div class="preview-object-semantic-effect-summary" data-object-canvas-state-change-summary="true">',
+      '<span>' + escapeHtml(t('previewObjectEditor.semanticEffect.summaryPrefix', 'Change')) + '</span>',
+      variable ? '<code>' + escapeHtml(variable) + '</code>' : '<em>' + escapeHtml(t('previewObjectEditor.semanticEffect.missingVariable', 'choose a variable')) + '</em>',
+      '<strong>' + escapeHtml(opLabel) + '</strong>',
+      value ? '<code>' + escapeHtml(value) + '</code>' : '<em>' + escapeHtml(t('previewObjectEditor.semanticEffect.missingValue', 'enter a value')) + '</em>',
+      condition ? '<span class="preview-object-semantic-effect-condition">' + escapeHtml(t('previewObjectEditor.semanticEffect.when', 'when')) + ' <code>' + escapeHtml(condition) + '</code></span>' : '',
+      '</div>'
+    ].join('');
+  }
+
+  function semanticEffectOperatorOptions() {
+    return [
+      {value: '=', label: semanticEffectOperatorLabel('=') + ' (=)'},
+      {value: '+=', label: semanticEffectOperatorLabel('+=') + ' (+=)'},
+      {value: '-=', label: semanticEffectOperatorLabel('-=') + ' (-=)'}
+    ];
+  }
+
+  function semanticEffectOperatorLabel(op) {
+    const value = String(op || '').trim();
+    if (value === '=') {
+      return t('previewObjectEditor.semanticEffect.op.set', 'set to');
+    }
+    if (value === '+=') {
+      return t('previewObjectEditor.semanticEffect.op.increase', 'increase by');
+    }
+    if (value === '-=') {
+      return t('previewObjectEditor.semanticEffect.op.decrease', 'decrease by');
+    }
+    if (value === '*=') {
+      return t('previewObjectEditor.semanticEffect.op.multiply', 'multiply by');
+    }
+    if (value === '/=') {
+      return t('previewObjectEditor.semanticEffect.op.divide', 'divide by');
+    }
+    return value || t('previewObjectEditor.semanticEffect.op.change', 'change by');
+  }
+
+  function renderSemanticEffectPart(card, part, label, value, options) {
+    const opts = options || {};
+    const field = opts.field || null;
+    const text = field ? fieldValue(field) : String(value || '');
+    const fieldIdValue = fieldId(field);
+    const sourceFieldId = card && card.sourceFieldId || '';
+    const data = fieldIdValue
+      ? ' data-object-canvas-field="' + escapeAttr(fieldIdValue) + '" data-editing-field="' + escapeAttr(fieldIdValue) + '" data-object-canvas-original="' + escapeAttr(field && field.original !== undefined ? field.original : field && field.value || '') + '"'
+      : sourceFieldId ? ' data-object-canvas-effect-part="' + escapeAttr(part) + '" data-object-canvas-effect-target="' + escapeAttr(sourceFieldId) + '"' : '';
+    const common = ' class="preview-object-semantic-effect-input"';
+    const control = opts.options
+      ? '<select' + common + data + '>' + opts.options.map((option) => {
+        const optionValue = typeof option === 'object' ? String(option.value || '') : String(option || '');
+        const optionLabel = typeof option === 'object' ? String(option.label || optionValue) : optionValue;
+        return '<option value="' + escapeAttr(optionValue) + '"' + (optionValue === text ? ' selected' : '') + '>' + escapeHtml(optionLabel) + '</option>';
+      }).join('') + '</select>'
+      : '<input type="text"' + common + data + ' value="' + escapeAttr(text) + '" placeholder="' + escapeAttr(opts.emptyLabel || '') + '">';
+    return [
+      '<label class="preview-object-semantic-effect-part is-' + escapeAttr(safeClass(part)) + '">',
+      '<span>' + escapeHtml(label) + '</span>',
+      control,
+      field && part === 'variable' ? renderFieldVariablePicker(field, fieldPresentation(field, {fallbackLabel: label}), false) : '',
+      field && part === 'condition' ? renderFieldVariablePicker(field, fieldPresentation(field, {fallbackLabel: label}), false) : '',
+      '</label>'
+    ].join('');
+  }
+
+  function renderSemanticEffectSourceControl(card) {
+    if (!card || !card.sourceFieldId) {
+      return '';
+    }
+    const original = card.field && card.field.original !== undefined ? String(card.field.original || '') : String(card.sourceExpression || '');
+    const current = card.field ? fieldValue(card.field) : String(card.sourceExpression || original);
+    return '<textarea class="preview-object-semantic-effect-source-field" data-object-canvas-field="' + escapeAttr(card.sourceFieldId) + '" data-editing-field="' + escapeAttr(card.sourceFieldId) + '" data-object-canvas-original="' + escapeAttr(original) + '" aria-hidden="true" tabindex="-1">' + escapeHtml(current) + '</textarea>';
+  }
+
+  function renderSemanticEffectEvidence(card) {
+    const evidence = card && card.evidence || {};
+    const source = evidence.sourceLabel || '';
+    const expression = card && card.sourceExpression || evidence.sourceExpression || '';
+    if (!source && !expression) {
+      return '';
+    }
+    return [
+      '<details class="preview-object-semantic-source-evidence">',
+      '<summary>' + escapeHtml(t('previewObjectEditor.semanticEffect.sourceEvidence', 'Source evidence')) + '</summary>',
+      expression ? '<code>' + escapeHtml(expression) + '</code>' : '',
+      source ? '<small>' + escapeHtml(source) + '</small>' : '',
+      evidence.sharedSourceLine ? '<small>' + escapeHtml(t('previewObjectEditor.semanticEffect.sharedLine', 'Shared source line')) + '</small>' : '',
+      '</details>'
+    ].join('');
+  }
+
+  function renderSemanticVariableEvidence(evidence) {
+    if (!evidence) {
+      return '';
+    }
+    const pieces = [];
+    pieces.push(t('previewObjectEditor.semanticEffect.reads', 'reads') + ' ' + Number(evidence.readCount || 0));
+    pieces.push(t('previewObjectEditor.semanticEffect.writes', 'writes') + ' ' + Number(evidence.writeCount || 0));
+    const hints = ensureArray(evidence.sourceHints).slice(0, 1);
+    return [
+      '<details class="preview-object-semantic-variable-evidence">',
+      '<summary>' + escapeHtml(t('previewObjectEditor.semanticEffect.variableEvidence', 'Variable evidence')) + '</summary>',
+      '<code>' + escapeHtml(evidence.displayName || ('Q.' + evidence.name)) + '</code>',
+      '<span>' + escapeHtml(pieces.join(' · ')) + '</span>',
+      hints.length ? '<small>' + escapeHtml(hints[0]) + '</small>' : '',
+      '</details>'
+    ].join('');
+  }
+
+  function renderSemanticAdvancedEffectCard(card, body) {
+    return [
+      '<article class="preview-object-semantic-effect-card is-advanced-source" data-object-canvas-semantic-card="advanced_source">',
+      '<header>',
+      '<span>' + escapeHtml(t('previewObjectEditor.semanticEffect.advancedTitle', 'Advanced effect source')) + '</span>',
+      card && card.removeAction ? renderSemanticEffectDeleteControl(card.removeAction, body) : '',
+      '</header>',
+      card && card.field ? renderInlineField(card.field, {role: 'effect', element: logicFieldElement(card.field)}) : '',
+      renderSemanticEffectEvidence(card),
+      '</article>'
+    ].join('');
+  }
+
+  function renderSemanticDeleteOnlyEffectRow(field, body) {
+    const context = structureUi().structureActionContext(field);
+    return [
+      '<article class="preview-object-semantic-effect-card is-delete-only" data-object-canvas-semantic-card="state_change_delete">',
+      '<header><span>' + escapeHtml(t('previewObjectEditor.semanticEffect.deleteOnlyTitle', 'Remove state change')) + '</span></header>',
+      context ? '<code>' + escapeHtml(context) + '</code>' : '',
+      renderSemanticEffectDeleteControl(field, body),
+      '</article>'
+    ].join('');
+  }
+
+  function renderSemanticEffectDeleteControl(field, body) {
+    const id = fieldId(field);
+    const original = field && field.original !== undefined ? String(field.original || '') : 'false';
+    const safety = structureUi().structureActionSafetyLabel(body, field);
+    return [
+      '<label class="preview-object-semantic-effect-delete preview-object-action-remove_effect" data-preview-object-effect-delete="true">',
+      id ? '<input type="checkbox" data-object-canvas-field="' + escapeAttr(id) + '" data-editing-field="' + escapeAttr(id) + '" data-object-canvas-original="' + escapeAttr(original) + '">' : '',
+      '<span>' + escapeHtml(t('previewObjectEditor.semanticEffect.remove', 'Remove')) + '</span>',
+      safety ? '<small class="preview-object-structure-safety">' + escapeHtml(safety) + '</small>' : '',
+      '</label>'
+    ].join('');
   }
 
   function pairedEffectRows(fields) {
@@ -2837,7 +3216,7 @@
     const optionAssetAddFields = assetAddFieldsForOption(option, eventBody, resultFields);
     const choiceActions = structureUi().optionStructureActions(option, eventBody);
     const effectGroup = choiceCardEffectGroup(structureUi().optionEffectGroup(option, eventBody), option, nextSection, eventBody);
-    const choiceDeleteActions = choiceActions.filter((field) => ['remove_option', 'remove_option_condition'].includes(String(field && field.structureAction || '')));
+    const choiceDeleteActions = choiceActions.filter((field) => ['remove_option', 'remove_option_condition', 'move_option_up', 'move_option_down'].includes(String(field && field.structureAction || '')));
     const choiceEffectActions = choiceActions.filter((field) => choiceEffectActionBelongsOnChoice(field, option, nextSection, eventBody));
     const resultActions = structureUi().resultSectionActions(resultFields, eventBody);
     const logicFields = choiceLogicFields(fields);
@@ -3046,15 +3425,16 @@
     ].join('');
     const routeTarget = option && (option.targetId || option.gotoAfter || option.returnTarget || '');
     const routeContent = [
+      renderChoiceRouteStateSummary(option, eventBody, fields, resultFields),
       routeTarget ? renderLogicSummaryChip(t('objectCanvas.optionTarget', 'Target'), endpointDisplay(routeTarget, model), 'route') : '',
       logic.routes.length ? renderLogicFields(logic.routes, 'choice-route') : ''
     ].join('');
     const effectFields = uniqueFieldRefs(logic.effects.concat(ensureArray(effectGroup && effectGroup.fields), choiceEffectActions));
     const effectContent = effectFields.length ? renderEffectFields(effectFields, eventBody) : '';
     const groups = [
-      renderChoiceLogicGroup('gate', t('previewObjectEditor.choiceGate', 'Gate'), conditionContent),
-      renderChoiceLogicGroup('route', t('previewObjectEditor.choiceRoute', 'Route'), routeContent),
-      renderChoiceLogicGroup('effects', t('previewObjectEditor.choiceEffects', 'Choice effects'), effectContent)
+      renderChoiceLogicGroup('gate', t('previewObjectEditor.semanticGroup.conditions', 'Conditions'), conditionContent),
+      renderChoiceLogicGroup('route', t('previewObjectEditor.semanticGroup.routes', 'Result and route'), routeContent),
+      renderChoiceLogicGroup('effects', t('previewObjectEditor.semanticGroup.state_changes', 'State changes'), effectContent)
     ].filter(Boolean);
     if (!groups.length) {
       return '';
@@ -3074,14 +3454,15 @@
     const conditionContent = conditionFields.length
       ? renderLogicFields(conditionFields, 'section-condition')
       : section && section.condition ? renderLogicSummaryChip(t('previewObjectEditor.when', 'When'), section.condition, 'gate') : '';
-    const routeContent = routeFields.length
-      ? renderLogicFields(routeFields, 'section-route')
-      : '';
+    const routeContent = [
+      renderFieldRouteStateSummary(routeFields, body),
+      routeFields.length ? renderLogicFields(routeFields, 'section-route') : ''
+    ].join('');
     const effectContent = effects.length ? renderEffectFields(effects, body) : '';
     const groups = [
-      renderChoiceLogicGroup('gate', t('previewObjectEditor.choiceGate', 'Gate'), conditionContent),
-      renderChoiceLogicGroup('route', t('previewObjectEditor.choiceExitRoute', 'Exit route'), routeContent),
-      renderChoiceLogicGroup('effects', t('previewObjectEditor.stepEffects', 'Step effects'), effectContent)
+      renderChoiceLogicGroup('gate', t('previewObjectEditor.semanticGroup.conditions', 'Conditions'), conditionContent),
+      renderChoiceLogicGroup('route', t('previewObjectEditor.semanticGroup.routes', 'Result and route'), routeContent),
+      renderChoiceLogicGroup('effects', t('previewObjectEditor.semanticGroup.state_changes', 'State changes'), effectContent)
     ].filter(Boolean);
     if (!groups.length) {
       return '';
@@ -3108,10 +3489,228 @@
   }
 
   function renderLogicFields(fields, role) {
+    if (/condition/i.test(role || '')) {
+      return renderSemanticLogicFields(fields, 'condition', role);
+    }
+    if (/route/i.test(role || '')) {
+      return renderSemanticLogicFields(fields, 'route', role);
+    }
     return ensureArray(fields).map((field) => renderInlineField(field, {
       role,
       element: logicFieldElement(field)
     })).join('');
+  }
+
+  function renderSemanticLogicFields(fields, kind, role) {
+    return ensureArray(fields).map((field) => renderSemanticLogicField(field, kind, role)).join('');
+  }
+
+  function renderSemanticLogicField(field, kind, role) {
+    const id = fieldId(field);
+    const rawLabel = field && field.label || id || '';
+    const presentation = fieldPresentation(field, {fallbackLabel: rawLabel});
+    const label = semanticFieldLabel(field, rawLabel, presentation);
+    const value = fieldValue(field);
+    const original = field && field.original !== undefined ? String(field.original || '') : value;
+    const data = id
+      ? ' data-object-canvas-field="' + escapeAttr(id) + '" data-editing-field="' + escapeAttr(id) + '" data-object-canvas-original="' + escapeAttr(original) + '"'
+      : '';
+    const readOnly = Boolean(field && (field.readOnly || !id));
+    const control = renderControl({
+      element: logicFieldElement(field),
+      value,
+      field,
+      role,
+      data,
+      readOnly,
+      controlClass: 'preview-object-semantic-logic-input preview-object-control',
+      placeholder: field && field.placeholder
+    });
+    const overview = kind === 'route'
+      ? renderSemanticRouteOverview(value, label)
+      : renderSemanticConditionOverview(value, label);
+    return [
+      '<article class="preview-object-semantic-logic-card is-' + escapeAttr(safeClass(kind)) + '" data-object-canvas-semantic-card="' + escapeAttr(kind === 'route' ? 'route_outcome' : 'condition') + '"' + (presentation ? ' data-semantic-intent="' + escapeAttr(presentation.intent || '') + '" data-semantic-group="' + escapeAttr(presentation.group || '') + '"' : '') + '>',
+      '<header>',
+      '<span>' + escapeHtml(kind === 'route' ? t('previewObjectEditor.semanticRoute.title', 'Route outcome') : t('previewObjectEditor.semanticCondition.title', 'Condition')) + '</span>',
+      renderSemanticStatusBadge(presentation, readOnly),
+      '</header>',
+      overview,
+      '<label class="preview-object-semantic-logic-main">',
+      '<span>' + escapeHtml(kind === 'route' ? t('previewObjectEditor.semanticRoute.target', 'Target') : (label || rawLabel)) + '</span>',
+      control,
+      '</label>',
+      kind === 'condition' ? renderConditionStructurePreview(value) : '',
+      kind === 'condition' ? renderFieldVariablePicker(field, presentation, readOnly) : '',
+      renderSemanticLogicEvidence(field),
+      '</article>'
+    ].join('');
+  }
+
+  function renderSemanticRouteOverview(value, label) {
+    const target = String(value || '').trim();
+    const description = String(label || '').trim();
+    return [
+      '<div class="preview-object-semantic-logic-overview is-route">',
+      '<span>' + escapeHtml(t('previewObjectEditor.semanticRoute.summaryPrefix', 'After this choice, go to')) + '</span>',
+      target ? '<code>' + escapeHtml(target) + '</code>' : '<em>' + escapeHtml(t('previewObjectEditor.semanticRoute.missingTarget', 'choose a target')) + '</em>',
+      description && description !== target ? '<small>' + escapeHtml(description) + '</small>' : '',
+      '</div>'
+    ].join('');
+  }
+
+  function renderSemanticConditionOverview(value, label) {
+    const condition = String(value || '').trim();
+    if (!condition) {
+      return '';
+    }
+    return [
+      '<div class="preview-object-semantic-logic-overview is-condition">',
+      '<span>' + escapeHtml(label || t('previewObjectEditor.semanticCondition.title', 'Condition')) + '</span>',
+      '<code>' + escapeHtml(condition) + '</code>',
+      '</div>'
+    ].join('');
+  }
+
+  function renderConditionStructurePreview(value) {
+    const parsed = parseSimpleCondition(value);
+    if (!parsed) {
+      return '';
+    }
+    return [
+      '<div class="preview-object-condition-structure" data-object-canvas-condition-structure="true">',
+      '<span><strong>' + escapeHtml(t('previewObjectEditor.semanticCondition.variable', 'Variable')) + '</strong><em>' + escapeHtml(parsed.variable) + '</em></span>',
+      '<span><strong>' + escapeHtml(t('previewObjectEditor.semanticCondition.operator', 'Operator')) + '</strong><em>' + escapeHtml(parsed.operator) + '</em></span>',
+      '<span><strong>' + escapeHtml(t('previewObjectEditor.semanticCondition.value', 'Value')) + '</strong><em>' + escapeHtml(parsed.value) + '</em></span>',
+      '</div>'
+    ].join('');
+  }
+
+  function parseSimpleCondition(value) {
+    const text = String(value || '').trim();
+    const match = text.match(/^(Q\.)?([A-Za-z_][A-Za-z0-9_]*)\s*(>=|<=|==|=|>|<)\s*(.+)$/);
+    if (!match || /\s+(?:and|or)\s+/i.test(match[4])) {
+      return null;
+    }
+    return {
+      variable: (match[1] || 'Q.') + match[2],
+      operator: match[3],
+      value: match[4].trim()
+    };
+  }
+
+  function renderSemanticLogicEvidence(field) {
+    const source = field && field.source || {};
+    const path = source && source.path || field && field.sourcePath || '';
+    const line = Number(source && (source.line || source.startLine) || 0);
+    if (!path && !fieldContextHint(field)) {
+      return '';
+    }
+    return [
+      '<details class="preview-object-semantic-source-evidence">',
+      '<summary>' + escapeHtml(t('previewObjectEditor.semanticEffect.sourceEvidence', 'Source evidence')) + '</summary>',
+      path ? '<small>' + escapeHtml(path + (line ? ':' + line : '')) + '</small>' : '',
+      fieldContextHint(field) ? '<small>' + escapeHtml(fieldContextHint(field)) + '</small>' : '',
+      '</details>'
+    ].join('');
+  }
+
+  function renderChoiceRouteStateSummary(option, body, fields, resultFields) {
+    const api = fieldPresentationApi();
+    const summaries = api && typeof api.routeSummariesForOption === 'function'
+      ? api.routeSummariesForOption(option, body, ensureArray(fields).concat(ensureArray(resultFields)))
+      : [];
+    return renderRouteStateSummary(summaries);
+  }
+
+  function renderFieldRouteStateSummary(fields, body) {
+    const api = fieldPresentationApi();
+    const summaries = api && typeof api.routeSummariesForFields === 'function'
+      ? api.routeSummariesForFields(fields, body)
+      : [];
+    return renderRouteStateSummary(summaries);
+  }
+
+  function renderRouteStateSummary(summaries) {
+    const rows = ensureArray(summaries);
+    if (!rows.length) {
+      return '';
+    }
+    return [
+      '<details class="preview-object-route-state-summary" data-object-canvas-route-state-summary="true">',
+      '<summary><span>' + escapeHtml(t('previewObjectEditor.routeStateSummary', 'Route check')) + '</span><em>' + escapeHtml(routeStateSummaryCount(rows)) + '</em></summary>',
+      '<div class="preview-object-route-state-summary-body">',
+      rows.map((row) => [
+        '<article data-object-canvas-route-state="' + escapeAttr(row.id || row.ownerId || '') + '" data-route-state-status="' + escapeAttr(row.status || '') + '">',
+        '<strong>' + escapeHtml(routeStateFriendlyLabel(row)) + '</strong>',
+        '<span>' + escapeHtml(routeStateStatusLabel(row)) + '</span>',
+        routeStateCandidateList(row),
+        routeStateBadges(row),
+        '</article>'
+      ].join('')).join(''),
+      '</div>',
+      '</details>'
+    ].join('');
+  }
+
+  function routeStateSummaryCount(rows) {
+    const count = ensureArray(rows).reduce((total, row) => total + Math.max(1, ensureArray(row && row.candidates).length), 0);
+    return t('previewObjectEditor.routeStateSummaryCount', '{count} target checks').replace('{count}', String(count));
+  }
+
+  function routeStateFriendlyLabel(row) {
+    const candidates = ensureArray(row && row.candidates);
+    if (candidates.length === 1) {
+      const target = candidates[0] && (candidates[0].resolvedTarget || candidates[0].rawTarget);
+      if (target) {
+        return t('previewObjectEditor.routeStateTarget', 'Target') + ': ' + target;
+      }
+    }
+    return row && row.routePurpose ? row.routePurpose : t('previewObjectEditor.routeState', 'Route state');
+  }
+
+  function routeStateCandidateList(row) {
+    const candidates = ensureArray(row && row.candidates).slice(0, 4);
+    if (!candidates.length) {
+      return '';
+    }
+    return '<ul>' + candidates.map((candidate) => {
+      const target = candidate.resolvedTarget || candidate.rawTarget || '';
+      const predicate = candidate.predicate ? ' if ' + candidate.predicate : '';
+      const suffix = candidate.dynamicTarget ? ' · ' + t('previewObjectEditor.routeDynamic', 'dynamic') : candidate.isFallback ? ' · ' + t('previewObjectEditor.routeFallback', 'fallback') : '';
+      return '<li>' + escapeHtml(target + predicate + suffix) + '</li>';
+    }).join('') + '</ul>';
+  }
+
+  function routeStateBadges(row) {
+    const badges = ensureArray(row && row.badges);
+    if (!badges.length) {
+      return '';
+    }
+    return '<div class="preview-object-route-state-badges">' + badges.map((badge) => '<em>' + escapeHtml(routeStateBadgeLabel(badge)) + '</em>').join('') + '</div>';
+  }
+
+  function routeStateStatusLabel(row) {
+    if (row && row.safeEditEligible) {
+      return t('previewObjectEditor.routeState.safe', 'safe guided edit');
+    }
+    const status = String(row && row.status || '');
+    if (status === 'runtime_ambiguous') {
+      return t('previewObjectEditor.routeState.runtimeAmbiguous', 'runtime-sensitive');
+    }
+    if (status === 'dynamic') {
+      return t('previewObjectEditor.routeState.dynamic', 'dynamic target');
+    }
+    if (status === 'needs_review') {
+      return t('previewObjectEditor.routeState.needsReview', 'needs review');
+    }
+    return t('previewObjectEditor.routeState.reviewable', 'reviewable');
+  }
+
+  function routeStateBadgeLabel(badge) {
+    const key = String(badge || '').replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '').toLowerCase();
+    const fallback = String(badge || '');
+    return t('previewObjectEditor.routeStateBadge.' + key, fallback);
   }
 
   function renderLogicSummaryChip(label, value, kind) {
@@ -3241,13 +3840,16 @@
     const value = fieldValue(field);
     const id = fieldId(field);
     const rawLabel = field && field.label || opts.fallbackLabel || id || '';
-    const label = displayFieldLabel(field, rawLabel);
+    const presentation = fieldPresentation(field, Object.assign({}, opts, {fallbackLabel: rawLabel}));
+    const label = semanticFieldLabel(field, rawLabel, presentation);
     const readOnly = Boolean(opts.forceReadOnly || field && (field.readOnly || !id));
     const element = opts.element === 'input' || opts.element === 'select' || opts.element === 'checkbox' ? opts.element : 'textarea';
     const action = String(field && field.structureAction || '');
     const className = [
       'preview-object-field',
       'preview-object-field-' + safeClass(opts.role || 'field'),
+      presentation && presentation.group ? 'preview-object-field-group-' + safeClass(presentation.group) : '',
+      presentation && presentation.intent ? 'preview-object-field-intent-' + safeClass(presentation.intent) : '',
       action ? 'preview-object-action-' + safeClass(action) : '',
       field && field.status ? 'is-' + safeClass(field.status) : '',
       readOnly ? 'is-readonly' : ''
@@ -3258,6 +3860,7 @@
       ? ' data-object-canvas-field="' + escapeAttr(id) + '" data-editing-field="' + escapeAttr(id) + '" data-object-canvas-original="' + escapeAttr(original) + '"'
       : '';
     const structureData = action ? ' data-preview-object-structure-action="' + escapeAttr(action) + '"' : '';
+    const semanticData = presentation ? ' data-semantic-intent="' + escapeAttr(presentation.intent || '') + '" data-semantic-group="' + escapeAttr(presentation.group || '') + '"' : '';
     const control = renderControl({
       element,
       value,
@@ -3270,13 +3873,15 @@
     });
     const renderedPreview = fieldTextPreview(value, id, element, opts);
     return [
-      '<label class="' + escapeAttr(className) + '" data-preview-object-field-role="' + escapeAttr(opts.role || 'field') + '"' + structureData + '>',
-      label ? renderEditorFieldLabel(label, rawLabel) : '',
+      '<label class="' + escapeAttr(className) + '" data-preview-object-field-role="' + escapeAttr(opts.role || 'field') + '"' + structureData + semanticData + '>',
+      label ? renderEditorFieldLabel(label, rawLabel, presentation) : '',
       renderFieldContextLens(field, opts.role || 'field'),
       fieldVisualBadges(field),
+      renderSemanticStatusBadge(presentation, readOnly),
       fieldContextHint(field) ? '<small class="preview-object-field-context">' + escapeHtml(fieldContextHint(field)) + '</small>' : '',
       fieldLogicChips(field),
       control,
+      renderFieldVariablePicker(field, presentation, readOnly),
       renderedPreview,
       field && field.status ? '<small>' + escapeHtml(statusLabel(field.status, readOnly)) + '</small>' : '',
       '</label>'
@@ -3292,24 +3897,114 @@
     ].join('');
   }
 
-  function renderEditorFieldLabel(label, rawLabel) {
+  function renderEditorFieldLabel(label, rawLabel, presentation) {
     const source = String(rawLabel || '').trim();
     const title = source && source !== String(label || '').trim()
       ? ' title="' + escapeAttr(source) + '"'
       : '';
+    const group = semanticGroupDisplay(presentation);
     return [
-      '<span class="preview-object-field-label" data-preview-object-field-label="true"' + title + '>',
-      '<em>' + escapeHtml(t('previewObjectEditor.editorField', 'Editor field')) + '</em>',
+      '<span class="preview-object-field-label" data-preview-object-field-label="true"' + title + (presentation ? ' data-preview-object-field-intent="' + escapeAttr(presentation.intent || '') + '"' : '') + '>',
+      '<em>' + escapeHtml(group || t('previewObjectEditor.editorField', 'Editor field')) + '</em>',
       '<b>' + escapeHtml(label || '') + '</b>',
       '<i class="visible-edit-affordance" data-visible-edit-affordance="object-canvas-preview">' + escapeHtml(t('visibleEdit.action', 'Edit')) + '</i>',
       '</span>'
     ].join('');
   }
 
+  function renderSemanticStatusBadge(presentation, readOnly) {
+    if (!presentation) {
+      return '';
+    }
+    const kind = readOnly ? 'read_only' : String(presentation.statusKind || 'editable');
+    const label = readOnly ? t('previewObjectEditor.semanticStatus.readOnly', 'Read only') : semanticStatusDisplay(presentation);
+    if (!label) {
+      return '';
+    }
+    return '<small class="preview-object-semantic-status is-' + escapeAttr(safeClass(kind)) + '" data-preview-object-semantic-status="' + escapeAttr(kind) + '">' + escapeHtml(label) + '</small>';
+  }
+
+  function renderFieldVariablePicker(field, presentation, readOnly) {
+    const picker = field && field.variablePicker || {};
+    const id = fieldId(field);
+    if (readOnly || !picker.enabled || !id || !ensureArray(picker.candidates).length) {
+      return '';
+    }
+    const searchId = 'variable_picker_' + safeClass(id);
+    return [
+      '<details class="object-canvas-variable-picker" data-object-canvas-variable-picker="true" data-variable-target-field="' + escapeAttr(id) + '" data-variable-picker-mode="' + escapeAttr(picker.mode || '') + '" data-variable-picker-limit="12">',
+      '<summary>' + escapeHtml(t('previewObjectEditor.variablePicker', 'Variable picker')) + '</summary>',
+      '<label class="object-canvas-variable-search"><span>' + escapeHtml(t('previewObjectEditor.variableSearch', 'Search variables')) + '</span><input id="' + escapeAttr(searchId) + '" type="search" data-object-canvas-variable-search="true" placeholder="' + escapeAttr(t('previewObjectEditor.variableSearchPlaceholder', 'type to filter')) + '"></label>',
+      '<div class="object-canvas-variable-candidates" data-object-canvas-variable-candidates="true">',
+      ensureArray(picker.candidates).map((candidate) => renderVariableCandidate(candidate, id, picker.mode, presentation)).join(''),
+      '</div>',
+      '</details>'
+    ].join('');
+  }
+
+  function renderVariableCandidate(candidate, targetFieldId, mode, presentation) {
+    const value = String(candidate && candidate.insertValue || candidate && candidate.name || '');
+    if (!value) {
+      return '';
+    }
+    const search = String(candidate && (candidate.searchText || [candidate.name, candidate.meaning, candidate.summary].join(' ')) || '').toLowerCase();
+    return [
+      '<button type="button" class="object-canvas-variable-candidate" data-object-canvas-variable-copy="' + escapeAttr(value) + '" data-object-canvas-variable-target="' + escapeAttr(targetFieldId) + '" data-object-canvas-variable-mode="' + escapeAttr(mode || '') + '" data-object-canvas-variable-search-text="' + escapeAttr(search) + '">',
+      '<strong>' + escapeHtml(candidate && (candidate.label || candidate.name) || value) + '</strong>',
+      candidate && candidate.meaning ? '<span>' + escapeHtml(candidate.meaning) + '</span>' : '',
+      candidate && candidate.summary ? '<small>' + escapeHtml(candidate.summary) + '</small>' : '',
+      presentation && presentation.variablePicker && presentation.variablePicker.mode ? '<code>' + escapeHtml(value) + '</code>' : '',
+      '</button>'
+    ].join('');
+  }
+
+  function semanticFieldLabel(field, rawLabel, presentation) {
+    const current = displayFieldLabel(field, rawLabel);
+    const semantic = presentation && presentation.label || '';
+    if (!semantic) {
+      return current;
+    }
+    if (!current || current === rawLabel || /^(Condition|Effect|Route|Option label|Choice label|Result text|Go to after|Set jump|Raw route directives|Call scenes)$/i.test(current)) {
+      return semantic;
+    }
+    return current;
+  }
+
+  function semanticGroupDisplay(presentation) {
+    if (!presentation || !presentation.group) {
+      return '';
+    }
+    return t('previewObjectEditor.semanticGroup.' + presentation.group, presentation.groupLabel || presentation.group || 'Field');
+  }
+
+  function semanticStatusDisplay(presentation) {
+    const kind = String(presentation && presentation.statusKind || '');
+    if (kind === 'read_only') {
+      return t('previewObjectEditor.semanticStatus.readOnly', 'Read only');
+    }
+    if (kind === 'advanced') {
+      return t('previewObjectEditor.semanticStatus.advanced', 'Advanced source');
+    }
+    if (kind === 'manual') {
+      return t('previewObjectEditor.semanticStatus.manual', 'Manual review');
+    }
+    if (kind === 'source_backed') {
+      return t('previewObjectEditor.semanticStatus.sourceBacked', 'Source-backed');
+    }
+    return t('previewObjectEditor.semanticStatus.editable', 'Editable');
+  }
+
   function displayFieldLabel(field, fallbackLabel) {
     const label = String(fallbackLabel || field && field.label || field && field.id || '').trim();
+    const id = String(field && field.id || '').trim();
     const role = String(field && (field.semanticRole || field.branchKind || field.role) || '').toLowerCase();
     const action = String(field && field.structureAction || '').toLowerCase();
+    if (id === 'event.pattern') {
+      return t('previewObjectEditor.field.eventPattern', 'Event template');
+    }
+    if (id === 'event.patternReset') {
+      return t('previewObjectEditor.field.patternReset', 'Apply selected template');
+    }
     if (action === 'add_option') {
       if (field && field.sectionId) {
         return t('previewObjectEditor.structureAddSectionOptionTitle', 'New option in this section');
@@ -3327,6 +4022,12 @@
     }
     if (action === 'remove_option') {
       return t('previewObjectEditor.structureRemoveOptionTitle', 'Remove choice');
+    }
+    if (action === 'move_option_up') {
+      return t('previewObjectEditor.structureMoveOptionUpTitle', 'Move choice up');
+    }
+    if (action === 'move_option_down') {
+      return t('previewObjectEditor.structureMoveOptionDownTitle', 'Move choice down');
     }
     if (action === 'remove_option_condition') {
       return t('previewObjectEditor.structureRemoveConditionTitle', 'Remove prerequisite');
@@ -3367,7 +4068,7 @@
       const optionsList = Array.isArray(opts.field && opts.field.options) ? opts.field.options : [];
       return [
         '<select class="' + escapeAttr(opts.controlClass) + '"' + opts.data + (opts.readOnly ? ' disabled' : '') + '>',
-        optionsList.map((option) => renderOption(option, opts.value)).join(''),
+        optionsList.map((option) => renderOption(option, opts.value, opts.field)).join(''),
         '</select>'
       ].join('');
     }
@@ -3456,6 +4157,14 @@
       return '';
     }
     const parts = [];
+    const id = String(field.id || '').trim();
+    if (id === 'event.pattern') {
+      parts.push(eventPatternDescription(fieldValue(field)));
+    } else if (id === 'event.patternReset') {
+      parts.push(t('previewObjectEditor.patternResetHelp', 'Changing the template alone keeps edited content. Check this to replace the draft with the selected template.'));
+    } else if (field.help) {
+      parts.push(String(field.help));
+    }
     if (field.derivedAlias) {
       parts.push(t('previewObjectEditor.derivedAlias', 'Derived from the source body'));
     }
@@ -3680,10 +4389,39 @@
     return null;
   }
 
-  function renderOption(option, current) {
+  function renderOption(option, current, field) {
     const value = typeof option === 'string' ? option : String(option && option.value || '');
-    const label = typeof option === 'string' ? option : String(option && (option.label || option.value) || '');
+    const label = optionLabel(option, value, field);
     return '<option value="' + escapeAttr(value) + '"' + (String(value) === String(current || '') ? ' selected' : '') + '>' + escapeHtml(label) + '</option>';
+  }
+
+  function optionLabel(option, value, field) {
+    if (String(field && field.id || '') === 'event.pattern') {
+      return eventPatternLabel(value);
+    }
+    return typeof option === 'string' ? option : String(option && (option.label || option.value) || '');
+  }
+
+  function eventPatternLabel(value) {
+    const text = String(value || '').trim();
+    if (text === 'pure_text') {
+      return t('previewObjectEditor.eventPattern.pure', 'Text / popup');
+    }
+    if (text === 'conditional_menu_loop') {
+      return t('previewObjectEditor.eventPattern.menu', 'Conditional menu / loop');
+    }
+    return t('previewObjectEditor.eventPattern.branching', 'Branching choices');
+  }
+
+  function eventPatternDescription(value) {
+    const text = String(value || '').trim();
+    if (text === 'pure_text') {
+      return t('previewObjectEditor.eventPattern.pureHelp', 'Creates a no-choice event: text, appearance conditions, and optional trigger effects only.');
+    }
+    if (text === 'conditional_menu_loop') {
+      return t('previewObjectEditor.eventPattern.menuHelp', 'Creates an event that opens a follow-up menu or section with conditional choices, unavailable text, and loop routes.');
+    }
+    return t('previewObjectEditor.eventPattern.branchingHelp', 'Creates a standard event with multiple player choices, each leading to its own consequence page, effects, and return route.');
   }
 
   function isChecked(value) {
@@ -3765,6 +4503,9 @@
     if (template === 'surface') {
       return 'text-replacement';
     }
+    if (template === 'deck_pool') {
+      return 'deck_pool';
+    }
     const objectKind = normalizeTemplate(model && model.objectKind);
     if (objectKind === 'card') {
       return 'card';
@@ -3774,6 +4515,9 @@
     }
     if (objectKind === 'surface') {
       return 'text-replacement';
+    }
+    if (objectKind === 'deck_pool') {
+      return 'deck_pool';
     }
     return 'event';
   }
@@ -3789,6 +4533,9 @@
     if (text === 'new_card' || text === 'advisor' || text === 'card') {
       return 'card';
     }
+    if (text === 'deck_pool' || text === 'deck-pool' || text === 'deckPool') {
+      return 'deck_pool';
+    }
     if (text === 'surface_text' || text === 'text' || text === 'textPatch' || text === 'surface') {
       return 'surface';
     }
@@ -3800,6 +4547,7 @@
       event: t('objectPreview.event', 'World Event'),
       news: t('objectPreview.news', 'News'),
       card: t('objectPreview.card', 'Card'),
+      deck_pool: t('objectPreview.deckPool', 'Deck pool'),
       'text-replacement': t('objectPreview.textPatch', 'Text Patch')
     }[kind] || t('objectPreview.title', 'Object Preview');
   }
@@ -3809,6 +4557,7 @@
       event: t('previewObjectEditor.intent.event', 'Edit the event as a visible player-facing panel; Canvas keeps the timeline context beside it.'),
       news: t('previewObjectEditor.intent.news', 'Edit the news item as a visible headline and description card.'),
       card: t('previewObjectEditor.intent.card', 'Edit the full card face instead of squeezing card text into the board thumbnail.'),
+      deck_pool: t('previewObjectEditor.intent.deckPool', 'Manage which cards belong to this deck pool while keeping source-backed routing evidence visible.'),
       'text-replacement': t('previewObjectEditor.intent.text', 'Edit replacement text with before, after, and source context.')
     }[kind] || t('previewObjectEditor.intent.default', 'Edit visible player-facing text in place.');
   }
@@ -3892,6 +4641,54 @@
 
   function safeClass(value) {
     return String(value || 'item').replace(/[^a-z0-9_-]+/gi, '-').toLowerCase();
+  }
+
+  function fieldPresentation(field, options) {
+    if (field && field.semanticPresentation) {
+      return field.semanticPresentation;
+    }
+    const api = fieldPresentationApi();
+    return api && typeof api.classifyField === 'function'
+      ? api.classifyField(field || {}, options || {})
+      : null;
+  }
+
+  function fieldPresentationApi() {
+    if (cachedFieldPresentation) {
+      return cachedFieldPresentation;
+    }
+    if (global && global.ProjectMapObjectFieldPresentationModel) {
+      cachedFieldPresentation = global.ProjectMapObjectFieldPresentationModel;
+      return cachedFieldPresentation;
+    }
+    if (typeof require === 'function') {
+      try {
+        cachedFieldPresentation = require('../authoring/object_field_presentation_model.js');
+        return cachedFieldPresentation;
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function semanticOperationsApi() {
+    if (cachedSemanticOperations) {
+      return cachedSemanticOperations;
+    }
+    if (global && global.ProjectMapObjectSemanticOperations) {
+      cachedSemanticOperations = global.ProjectMapObjectSemanticOperations;
+      return cachedSemanticOperations;
+    }
+    if (typeof require === 'function') {
+      try {
+        cachedSemanticOperations = require('../authoring/object_semantic_operations_model.js');
+        return cachedSemanticOperations;
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
   }
 
   function structureDraftApi() {

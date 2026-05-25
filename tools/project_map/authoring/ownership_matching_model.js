@@ -1,3 +1,4 @@
+// @ts-check
 (function initProjectMapOwnershipMatching(global) {
   'use strict';
 

@@ -1,3 +1,4 @@
+// @ts-check
 (function initRuntimeSnapshotModel(global) {
   'use strict';
 

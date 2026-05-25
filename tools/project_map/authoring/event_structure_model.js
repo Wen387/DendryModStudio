@@ -5,6 +5,7 @@
   const STRUCTURE_KIND = 'event_structure';
   const EVENT_PATTERN_OPTIONS = [
     {value: 'branching_consequence', label: 'Branching Consequence Event'},
+    {value: 'linear_choice', label: 'Linear Choice Event'},
     {value: 'pure_text', label: 'Pure Text Event'},
     {value: 'conditional_menu_loop', label: 'Conditional Menu / Loop Event'}
   ];
@@ -125,12 +126,19 @@
       subtitle: stringValue(draft.subtitle),
       heading: stringValue(draft.heading || draft.title || 'New World Event'),
       openingText: joinParagraphs(draft.introParagraphs),
+      conditionalText: joinConditionalParagraphs(draft.conditionalParagraphs),
       when: isObject(draft.when) ? clone(draft.when) : {},
       rawViewIf: stringValue(draft.rawViewIf || draft.viewIf),
       tags: ensureArray(draft.tags),
       newPage: draft.newPage !== false,
-      useSeenFlag: draft.useSeenFlag !== undefined ? Boolean(draft.useSeenFlag) : eventShape === 'choice_event',
+      useSeenFlag: draft.useSeenFlag !== undefined ? Boolean(draft.useSeenFlag) : choiceLikeEventShape(eventShape),
       maxVisits: draft.maxVisits === undefined ? null : draft.maxVisits,
+      frequency: draft.frequency === undefined ? null : draft.frequency,
+      setJump: stringValue(draft.setJump || draft.jumpTarget),
+      calls: ensureArray(draft.calls || draft.callTargets || draft.callScenes).map(stringValue).filter(Boolean),
+      rawRoutes: rawEffectLines(draft.rawRoutes || draft.routeClauses || draft.advancedRoutes),
+      rawOnDisplay: rawEffectLines(draft.rawOnDisplay || draft.rawDisplayHook || draft.advancedOnDisplay),
+      rawOnDeparture: rawEffectLines(draft.rawOnDeparture || draft.rawDepartureHook || draft.advancedOnDeparture),
       source: sourceRef({path: 'source/scenes/events/' + (draft.id || 'new_world_event') + '.scene.dry'}),
       triggerEffects: ensureArray(draft.effectsOnTrigger).map(effectFromDraft).filter((effect) => effect.variable),
       rawTriggerEffects: rawEffectLines(draft.rawEffectsOnTrigger || draft.rawTriggerEffects || draft.advancedEffectsOnTrigger),
@@ -151,7 +159,7 @@
       kind: STRUCTURE_KIND,
       provenance: 'source',
       mode: 'existing',
-      eventShape: ensureArray(body && body.options).length ? 'choice_event' : 'pure_event',
+      eventShape: eventShapeForOptionCount(ensureArray(body && body.options).length),
       id: stringValue(context && context.sceneId || ''),
       title: stringValue(context && context.title || context && context.sceneId || ''),
       heading: stringValue(context && context.title || context && context.sceneId || ''),
@@ -226,14 +234,23 @@
     draft.rawViewIf = stringValue(value.rawViewIf || draft.rawViewIf || draft.viewIf || '');
     draft.tags = ensureArray(value.tags).length ? ensureArray(value.tags).slice() : ensureArray(draft.tags);
     draft.newPage = value.newPage !== false;
-    draft.useSeenFlag = value.useSeenFlag !== undefined ? Boolean(value.useSeenFlag) : draft.eventShape === 'choice_event';
+    draft.useSeenFlag = value.useSeenFlag !== undefined ? Boolean(value.useSeenFlag) : choiceLikeEventShape(draft.eventShape);
     if (draft.useSeenFlag && !draft.seenFlag) {
       draft.seenFlag = draft.id + '_seen';
     }
     if (value.maxVisits !== undefined) {
       draft.maxVisits = value.maxVisits;
     }
+    if (value.frequency !== undefined) {
+      draft.frequency = value.frequency;
+    }
+    draft.setJump = stringValue(value.setJump || '');
+    draft.calls = ensureArray(value.calls).map(stringValue).filter(Boolean);
+    draft.rawRoutes = rawEffectLines(value.rawRoutes);
+    draft.rawOnDisplay = rawEffectLines(value.rawOnDisplay);
+    draft.rawOnDeparture = rawEffectLines(value.rawOnDeparture);
     draft.introParagraphs = paragraphs(value.openingText);
+    draft.conditionalParagraphs = conditionalParagraphs(value.conditionalText);
     draft.effectsOnTrigger = ensureArray(value.triggerEffects).map(effectToDraft).filter((effect) => effect.variable);
     draft.rawEffectsOnTrigger = rawEffectLines(value.rawTriggerEffects);
     draft.options = ensureArray(value.options)
@@ -244,6 +261,17 @@
       draft.sections = sections;
     } else {
       delete draft.sections;
+    }
+    const unresolvedAnchorRenames = ensureArray(value.anchorRenameDiagnostics).map((item) => ({
+      target: stringValue(item && (item.oldId || item.target || item.anchorId)),
+      owner: 'event structure anchor rename',
+      reason: stringValue(item && item.reason || item && item.code || 'ambiguous_raw_route_rename')
+    })).filter((item) => item.target);
+    if (unresolvedAnchorRenames.length) {
+      draft.anchorResolution = Object.assign({}, isObject(draft.anchorResolution) ? draft.anchorResolution : {}, {
+        version: '0.1',
+        unresolvedRoutes: ensureArray(draft.anchorResolution && draft.anchorResolution.unresolvedRoutes).concat(unresolvedAnchorRenames)
+      });
     }
     return draft;
   }
@@ -271,10 +299,18 @@
       title: field('event.title', 'Title', structure.title, 'guarded'),
       subtitle: field('event.subtitle', 'Subtitle', structure.subtitle || '', 'guarded'),
       heading: field('event.heading', 'Heading', structure.heading || structure.title, 'guarded'),
-      sections: [field('event.intro', 'Opening text', structure.openingText, 'guarded', {
-        semanticRole: 'opening_text',
-        sectionId: 'opening'
-      })],
+      sections: [
+        field('event.intro', 'Opening text', structure.openingText, 'guarded', {
+          semanticRole: 'opening_text',
+          sectionId: 'opening'
+        }),
+        field('event.conditionalBody', 'Conditional body', structure.conditionalText || '', 'guarded', {
+          inputType: 'textarea',
+          role: 'conditional_text',
+          semanticRole: 'conditional_body',
+          sectionId: 'opening'
+        })
+      ],
       branchSections,
       options: allOptions.map((option, index) => optionRow(option, index, structure)),
       variables: eventVariableRows(structure),
@@ -291,7 +327,7 @@
         field('event.pattern', 'Event pattern', eventPatternForStructure(structure), 'guarded', {inputType: 'select', options: EVENT_PATTERN_OPTIONS.map(clone)}),
         field('event.patternReset', 'Reset draft to selected pattern', 'false', 'guarded', {inputType: 'checkbox'}),
         field('event.id', 'Event id', structure.id, 'guarded'),
-        field('event.eventShape', 'Event type', eventShape, 'guarded', {inputType: 'select', options: ['choice_event', 'pure_event']}),
+        field('event.eventShape', 'Event type', eventShape, 'guarded', {inputType: 'select', options: ['choice_event', 'linear_choice_event', 'pure_event']}),
         field('event.tags', 'Tags', ensureArray(structure.tags).join(', '), 'guarded'),
         field('event.newPage', 'New page', structure.newPage === false ? 'false' : 'true', 'guarded', {inputType: 'select', options: ['true', 'false']}),
         field('event.year', 'Year', structure.when && structure.when.year, 'guarded'),
@@ -299,6 +335,12 @@
         field('event.monthEnd', 'Month end', structure.when && structure.when.monthEnd, 'guarded'),
         field('event.requires', eventShape === 'pure_event' ? 'Appearance condition' : 'Condition', structure.rawViewIf || structure.when && structure.when.requires, 'guarded'),
         field('event.priority', 'Priority', structure.when && structure.when.priority, 'guarded'),
+        field('event.frequency', 'Frequency', structure.frequency === undefined || structure.frequency === null ? '' : structure.frequency, 'guarded'),
+        field('event.setJump', 'Set jump', structure.setJump || '', 'guarded', {role: 'route'}),
+        field('event.calls', 'Call scenes', joinRawEffectLines(structure.calls), 'advanced_apply', {inputType: 'textarea', role: 'route', semanticRole: 'call_routes'}),
+        field('event.rawRoutes', 'Raw route directives', joinRawEffectLines(structure.rawRoutes), 'advanced_apply', {inputType: 'textarea', role: 'route', semanticRole: 'raw_routes'}),
+        field('event.rawOnDisplay', 'Raw on-display hook', joinRawEffectLines(structure.rawOnDisplay), 'advanced_apply', {inputType: 'textarea', role: 'effect', semanticRole: 'raw_hook'}),
+        field('event.rawOnDeparture', 'Raw on-departure hook', joinRawEffectLines(structure.rawOnDeparture), 'advanced_apply', {inputType: 'textarea', role: 'effect', semanticRole: 'raw_hook'}),
         field('event.useSeenFlag', 'One-shot seen flag', structure.useSeenFlag ? 'true' : 'false', 'guarded', {inputType: 'select', options: ['true', 'false']}),
         field('event.rawEffects', 'Raw trigger effects', joinRawEffectLines(structure.rawTriggerEffects), 'advanced_apply', {inputType: 'textarea', role: 'effect', semanticRole: 'raw_effects'})
       ],
@@ -955,7 +997,7 @@
   function readinessChecklist(structure, rootOptions) {
     const eventShape = normalizeEventShape(structure && structure.eventShape, ensureArray(rootOptions).length);
     const anchors = eventAnchors(structure);
-    const routeProblems = unresolvedRoutes(structure, anchors);
+    const routeProblems = unresolvedRoutes(structure, anchors).concat(anchorRenameProblems(structure));
     const effectProblems = invalidEffects(structure);
     const visibleTextOk = Boolean(stringValue(structure.openingText).trim()) && (
       eventShape === 'pure_event' ||
@@ -980,10 +1022,20 @@
     ];
     if (eventShape === 'choice_event') {
       rows.splice(1, 0, readinessItem('root_options', ensureArray(rootOptions).length >= 2, 'Choice event has at least 2 root options.', editAction('open_object_field', 'option.0.label', 'option_1')));
+    } else if (eventShape === 'linear_choice_event') {
+      rows.splice(1, 0, readinessItem('root_options', ensureArray(rootOptions).length === 1, 'Linear choice event has exactly 1 root option.', editAction('open_object_field', 'option.0.label', 'option_1')));
     } else {
       rows.splice(1, 0, readinessItem('event_shape', ensureArray(rootOptions).length === 0, 'Text event has no player choices.', editAction('open_object_field', 'event.eventShape', structure.id || 'event')));
     }
     return rows;
+  }
+
+  function anchorRenameProblems(structure) {
+    return ensureArray(structure && structure.anchorRenameDiagnostics).map((item) => {
+      const oldId = stringValue(item && (item.oldId || item.target || item.anchorId));
+      const newId = stringValue(item && item.newId);
+      return oldId && newId ? oldId + ' -> ' + newId : oldId || stringValue(item && item.reason || item && item.code);
+    }).filter(Boolean);
   }
 
   function eventVariableRows(structure) {
@@ -1211,6 +1263,30 @@
         placeholder: 'Q.variable += 1 if condition',
         help: 'Add a Q effect that runs from this option/result.'
       }));
+      actions.push(structuralField({
+        id: 'structure_link_option_section_' + safeId(option.id),
+        role: 'route',
+        action: 'link_option_to_new_section',
+        optionId: option.id,
+        label: 'Link option to new section: ' + (option.label || option.id),
+        targetLabel: option.label || option.id,
+        editability: 'guarded_apply',
+        inputType: 'textarea',
+        placeholder: '# follow_up\nFollow-up prose.',
+        help: 'Create a nested follow-up section and route this option to it.'
+      }));
+      actions.push(structuralField({
+        id: 'structure_rename_anchor_' + safeId(option.id),
+        role: 'route',
+        action: 'rename_anchor',
+        optionId: option.id,
+        label: 'Rename option anchor: ' + (option.label || option.id),
+        targetLabel: option.label || option.id,
+        editability: 'guarded_apply',
+        inputType: 'text',
+        placeholder: safeId(option.id) + '_renamed',
+        help: 'Rename this option anchor and update structured route references.'
+      }));
       if (option.chooseIf) {
         actions.push(structuralField({
           id: 'structure_remove_option_condition_' + safeId(option.id),
@@ -1254,6 +1330,18 @@
       }));
     });
     ensureArray(structure.sections).forEach((section) => {
+      actions.push(structuralField({
+        id: 'structure_rename_anchor_' + safeId(section.id),
+        role: 'route',
+        action: 'rename_anchor',
+        sectionId: section.id,
+        label: 'Rename section anchor: ' + (section.title || section.id),
+        targetLabel: section.title || section.id,
+        editability: 'guarded_apply',
+        inputType: 'text',
+        placeholder: safeId(section.id) + '_renamed',
+        help: 'Rename this section anchor and update structured route references.'
+      }));
       actions.push(structuralField({
         id: 'structure_remove_layer_' + safeId(section.id),
         action: 'remove_layer',
@@ -1424,11 +1512,13 @@
         source: effectSource || option && option.source || sceneSource,
         editability: effectSource && effectSource.structureKind === 'opaque_js_insert_anchor'
           ? 'advanced_source_patch'
-          : sourceSupportsGuardedEffectInsert(effectSource || option && option.source || sceneSource) ? 'guarded_apply' : 'manual_review',
+          : effectSource && effectSource.structureKind === 'section_on_arrival_insert_anchor' ||
+            sourceSupportsGuardedEffectInsert(effectSource || option && option.source || sceneSource) ? 'guarded_apply' : 'manual_review',
         sourceBlock: effectSource ? {
           kind: effectSource.structureKind || 'effect_insert_anchor',
           anchorText: effectSource.anchorText || '',
-          line: effectSource.line || effectSource.startLine || null
+          line: effectSource.line || effectSource.startLine || null,
+          sectionId: effectSource.sectionId || stringValue(option && (option.targetId || option.sectionId || option.rawTargetId || ''))
         } : null,
         inputType: 'text',
         placeholder: 'Q.variable += 1 if condition',
@@ -2078,9 +2168,11 @@
         sourceOrder: Number(effect && effect.sourceOrder || 0) || 0
       }) : null;
     }).filter(Boolean);
-    const fallback = sourceForOpaqueJsInsert(opaqueJsBlocks, sections, option && (option.sectionId || option.targetId || option.rawTargetId || option.id), sceneId);
+    const targetSectionId = option && (option.sectionId || option.targetId || option.rawTargetId || option.id);
+    const sectionFallback = sourceForSectionOnArrivalInsert(sections, targetSectionId, sceneId);
+    const fallback = sourceForOpaqueJsInsert(opaqueJsBlocks, sections, targetSectionId, sceneId);
     if (!matches.length) {
-      return fallback || null;
+      return sectionFallback || fallback || null;
     }
     matches.sort((a, b) => {
       const aOrder = Number(a.sourceOrder || 0) || 0;
@@ -2244,6 +2336,31 @@
     }
     candidates.sort((a, b) => Number(a.line || 0) - Number(b.line || 0));
     return candidates[candidates.length - 1];
+  }
+
+  function sourceForSectionOnArrivalInsert(sections, sectionId, sceneId) {
+    const wanted = normalizeEndpointLocalId(sectionId, sceneId);
+    if (!wanted) {
+      return null;
+    }
+    const section = ensureArray(sections).find((row) => normalizeEndpointLocalId(row && row.id, sceneId) === wanted) || null;
+    const source = sourceRef(section && (section.sourceSpan || section.source) || {});
+    const path = stringValue(source.path).replace(/\\/g, '/');
+    const line = Number(source.line || source.startLine || 0);
+    const anchor = stringValue(source.anchorText).trim();
+    if (!path.startsWith('source/scenes/') || !path.endsWith('.scene.dry') || isProtectedRouterPath(path) ||
+      !Number.isInteger(line) || line <= 0 || !/^[@#]\s*\S+/.test(anchor)) {
+      return null;
+    }
+    return Object.assign({}, source, {
+      line,
+      startLine: line,
+      endLine: line,
+      anchorText: anchor,
+      endAnchorText: anchor,
+      sectionId: stringValue(section && section.id || sectionId),
+      structureKind: 'section_on_arrival_insert_anchor'
+    });
   }
 
   function sectionForLine(sections, line) {
@@ -2669,6 +2786,8 @@
     const resultMode = normalizeResultMode(value.resultMode || value.routeMode || value.continuationMode, hasGotoAfter ? explicitGotoAfter : 'continue_' + id);
     return {
       id,
+      sourceAnchorId: stringValue(value.sourceAnchorId),
+      renderAnchorId: stringValue(value.renderAnchorId),
       ownerSectionId: stringValue(ownerSectionId),
       label: stringValue(value.label || value.title || 'Option ' + (index + 1)),
       subtitle: stringValue(value.subtitle),
@@ -2680,6 +2799,9 @@
       body: joinParagraphs(value.narrativeParagraphs || value.body || value.text),
       effects: ensureArray(value.effects).map(effectFromDraft).filter((effect) => effect.variable),
       rawEffects: rawEffectLines(value.rawEffects || value.rawOptionEffects || value.advancedEffects),
+      rawRoutes: rawEffectLines(value.rawRoutes || value.routeClauses || value.advancedRoutes),
+      calls: ensureArray(value.calls || value.callTargets || value.callScenes).map(stringValue).filter(Boolean),
+      setJump: stringValue(value.setJump || value.jumpTarget),
       variants: ensureArray(value.variants).map((variant) => ({
         condition: stringValue(variant && variant.condition),
         text: stringValue(variant && variant.text)
@@ -2715,12 +2837,21 @@
     const id = safeId(value.id || 'section_' + (index + 1));
     return {
       id,
+      sourceAnchorId: stringValue(value.sourceAnchorId),
+      renderAnchorId: stringValue(value.renderAnchorId),
       title: stringValue(value.title || value.heading || humanize(id)),
       text: joinParagraphs(value.paragraphs || value.narrativeParagraphs || value.body || value.text),
+      conditionalText: joinConditionalParagraphs(value.conditionalParagraphs || value.conditionalBody || value.conditionalText),
       condition: stringValue(value.condition || value.viewIf || value.chooseIf),
       exitTarget: safeId(value.exitTarget || value.returnTarget || 'root'),
       options: ensureArray(value.options).map((option, optionIndex) => optionFromDraft(option, optionIndex, id)),
-      effects: ensureArray(value.effects).map(effectFromDraft).filter((effect) => effect.variable)
+      effects: ensureArray(value.effects).map(effectFromDraft).filter((effect) => effect.variable),
+      rawEffects: rawEffectLines(value.rawEffects || value.rawSectionEffects || value.advancedEffects),
+      rawRoutes: rawEffectLines(value.rawRoutes || value.routeClauses || value.advancedRoutes),
+      calls: ensureArray(value.calls || value.callTargets || value.callScenes).map(stringValue).filter(Boolean),
+      setJump: stringValue(value.setJump || value.jumpTarget),
+      rawOnDisplay: rawEffectLines(value.rawOnDisplay || value.rawDisplayHook || value.advancedOnDisplay),
+      rawOnDeparture: rawEffectLines(value.rawOnDeparture || value.rawDepartureHook || value.advancedOnDeparture)
     };
   }
 
@@ -2756,10 +2887,19 @@
     const value = isObject(section) ? section : {};
     const out = {
       id: safeId(value.id || 'section'),
+      sourceAnchorId: stringValue(value.sourceAnchorId),
+      renderAnchorId: stringValue(value.renderAnchorId),
       title: stringValue(value.title || humanize(value.id)),
       paragraphs: paragraphs(value.text),
+      conditionalParagraphs: conditionalParagraphs(value.conditionalText),
       options: ensureArray(value.options).map(optionToDraft),
-      effects: ensureArray(value.effects).map(effectToDraft).filter((effect) => effect.variable)
+      effects: ensureArray(value.effects).map(effectToDraft).filter((effect) => effect.variable),
+      rawEffects: rawEffectLines(value.rawEffects),
+      rawRoutes: rawEffectLines(value.rawRoutes),
+      calls: ensureArray(value.calls).map(stringValue).filter(Boolean),
+      setJump: stringValue(value.setJump || ''),
+      rawOnDisplay: rawEffectLines(value.rawOnDisplay),
+      rawOnDeparture: rawEffectLines(value.rawOnDeparture)
     };
     if (value.condition) {
       out.condition = stringValue(value.condition);
@@ -2775,12 +2915,17 @@
     const resultMode = normalizeResultMode(value.resultMode, value.gotoAfter);
     const out = {
       id: safeId(value.id || 'option'),
+      sourceAnchorId: stringValue(value.sourceAnchorId),
+      renderAnchorId: stringValue(value.renderAnchorId),
       label: stringValue(value.label || value.id || 'Option'),
       subtitle: stringValue(value.subtitle),
       chooseIf: stringValue(value.chooseIf),
       unavailableText: stringValue(value.unavailableText),
       effects: ensureArray(value.effects).map(effectToDraft).filter((effect) => effect.variable),
       rawEffects: rawEffectLines(value.rawEffects),
+      rawRoutes: rawEffectLines(value.rawRoutes),
+      calls: ensureArray(value.calls).map(stringValue).filter(Boolean),
+      setJump: stringValue(value.setJump || ''),
       narrativeParagraphs: paragraphs(value.body),
       variants: ensureArray(value.variants).map((variant) => ({
         condition: stringValue(variant && variant.condition),
@@ -2814,6 +2959,9 @@
         field('option.' + index + '.resultMode', 'Result routing', option.resultMode || 'continue', 'guarded', {inputType: 'select', options: ['native', 'continue'], role: 'route'}),
         field('option.' + index + '.gotoAfter', 'Result section', option.gotoAfter, 'guarded', {role: 'route'}),
         field('option.' + index + '.returnTarget', 'After result route', option.returnTarget || 'root', 'guarded', {role: 'route'}),
+        field('option.' + index + '.setJump', 'Set jump', option.setJump || '', 'guarded', {role: 'route'}),
+        field('option.' + index + '.calls', 'Call scenes', joinRawEffectLines(option.calls), 'advanced_apply', {inputType: 'textarea', role: 'route', semanticRole: 'call_routes'}),
+        field('option.' + index + '.rawRoutes', 'Raw option routes', joinRawEffectLines(option.rawRoutes), 'advanced_apply', {inputType: 'textarea', role: 'route', semanticRole: 'raw_routes'}),
         field('option.' + index + '.rawEffects', 'Raw option effects', joinRawEffectLines(option.rawEffects), 'advanced_apply', {inputType: 'textarea', role: 'effect', semanticRole: 'raw_effects'})
       ]
     };
@@ -2832,7 +2980,14 @@
       field('event.section.' + index + '.title', label + ' title', section.title || '', 'guarded', Object.assign({}, meta, {semanticRole: 'section_title'})),
       field('event.section.' + index + '.condition', label + ' condition', section.condition || '', 'guarded', Object.assign({}, meta, {role: 'condition', semanticRole: 'section_condition'})),
       field('event.section.' + index + '.body', label, section.text || '', 'guarded', meta),
-      field('event.section.' + index + '.exitTarget', label + ' exit route', section.exitTarget || 'root', 'guarded', Object.assign({}, meta, {role: 'route', semanticRole: 'section_exit_route'}))
+      field('event.section.' + index + '.conditionalBody', label + ' conditional body', section.conditionalText || '', 'guarded', Object.assign({}, meta, {inputType: 'textarea', role: 'conditional_text', semanticRole: 'conditional_body'})),
+      field('event.section.' + index + '.exitTarget', label + ' exit route', section.exitTarget || 'root', 'guarded', Object.assign({}, meta, {role: 'route', semanticRole: 'section_exit_route'})),
+      field('event.section.' + index + '.setJump', label + ' set jump', section.setJump || '', 'guarded', Object.assign({}, meta, {role: 'route', semanticRole: 'section_set_jump'})),
+      field('event.section.' + index + '.calls', label + ' call scenes', joinRawEffectLines(section.calls), 'advanced_apply', Object.assign({}, meta, {inputType: 'textarea', role: 'route', semanticRole: 'section_call_routes'})),
+      field('event.section.' + index + '.rawRoutes', label + ' raw routes', joinRawEffectLines(section.rawRoutes), 'advanced_apply', Object.assign({}, meta, {inputType: 'textarea', role: 'route', semanticRole: 'section_raw_routes'})),
+      field('event.section.' + index + '.rawEffects', label + ' raw effects', joinRawEffectLines(section.rawEffects), 'advanced_apply', Object.assign({}, meta, {inputType: 'textarea', role: 'effect', semanticRole: 'section_raw_effects'})),
+      field('event.section.' + index + '.rawOnDisplay', label + ' on-display hook', joinRawEffectLines(section.rawOnDisplay), 'advanced_apply', Object.assign({}, meta, {inputType: 'textarea', role: 'effect', semanticRole: 'section_raw_hook'})),
+      field('event.section.' + index + '.rawOnDeparture', label + ' on-departure hook', joinRawEffectLines(section.rawOnDeparture), 'advanced_apply', Object.assign({}, meta, {inputType: 'textarea', role: 'effect', semanticRole: 'section_raw_hook'}))
     ];
   }
 
@@ -3020,10 +3175,22 @@
 
   function normalizeEventShape(value, rootOptionCount) {
     const text = stringValue(value).trim();
-    if (text === 'choice_event' || text === 'pure_event') {
+    if (text === 'choice_event' || text === 'linear_choice_event' || text === 'pure_event') {
       return text;
     }
-    return Number(rootOptionCount || 0) > 0 ? 'choice_event' : 'pure_event';
+    return eventShapeForOptionCount(rootOptionCount);
+  }
+
+  function eventShapeForOptionCount(rootOptionCount) {
+    const count = Number(rootOptionCount || 0);
+    if (count <= 0) {
+      return 'pure_event';
+    }
+    return count === 1 ? 'linear_choice_event' : 'choice_event';
+  }
+
+  function choiceLikeEventShape(shape) {
+    return shape === 'choice_event' || shape === 'linear_choice_event';
   }
 
   function eventPatternForStructure(structure) {
@@ -3032,8 +3199,12 @@
     if (ensureArray(value.sections).some((section) => ensureArray(section && section.options).length)) {
       return 'conditional_menu_loop';
     }
-    if (normalizeEventShape(value.eventShape, rootOptions.length) === 'pure_event') {
+    const eventShape = normalizeEventShape(value.eventShape, rootOptions.length);
+    if (eventShape === 'pure_event') {
       return 'pure_text';
+    }
+    if (eventShape === 'linear_choice_event') {
+      return 'linear_choice';
     }
     return 'branching_consequence';
   }
@@ -3067,6 +3238,34 @@
       return value.map((item) => stringValue(item).trim()).filter(Boolean).join('\n\n');
     }
     return stringValue(value).trim();
+  }
+
+  function conditionalParagraphs(value) {
+    if (Array.isArray(value)) {
+      return value.map(normalizeConditionalParagraph).filter((row) => row.raw || row.condition || row.text);
+    }
+    return stringValue(value).split(/\n\s*\n/).map((item) => normalizeConditionalParagraph(item)).filter((row) => row.raw || row.condition || row.text);
+  }
+
+  function normalizeConditionalParagraph(value) {
+    const row = isObject(value) ? value : {raw: value};
+    const raw = stringValue(row.raw || row.sourceText).trim();
+    const parsed = parseConditionalRaw(raw);
+    return {
+      condition: stringValue(row.condition || row.if || parsed.condition).trim(),
+      text: stringValue(row.text || row.body || parsed.text).trim(),
+      raw,
+      sourceRole: stringValue(row.sourceRole || row.role || 'conditional_body').trim()
+    };
+  }
+
+  function joinConditionalParagraphs(value) {
+    return conditionalParagraphs(value).map((row) => row.raw || (row.condition && row.text ? '[? if ' + row.condition + ' : ' + row.text + ' ?]' : row.text)).filter(Boolean).join('\n\n');
+  }
+
+  function parseConditionalRaw(raw) {
+    const match = stringValue(raw).trim().match(/^\[\?\s*if\s+([\s\S]*?)\s*:\s*([\s\S]*?)\s*\?\]$/);
+    return match ? {condition: match[1].trim(), text: match[2].trim()} : {condition: '', text: ''};
   }
 
   function humanize(value) {

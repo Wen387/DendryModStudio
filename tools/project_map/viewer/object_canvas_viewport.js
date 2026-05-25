@@ -1,12 +1,32 @@
 (function initProjectMapObjectCanvasViewport(global) {
   'use strict';
 
-  const MIN_ZOOM = 0.25;
+  const MIN_ZOOM = 0.10;
   const MAX_ZOOM = 1.8;
   const STEP_ZOOM_DELTA = 0.1;
   const WHEEL_ZOOM_SENSITIVITY = 0.0014;
   const ZOOM_TRANSITION_MS = 140;
   const ZOOM_TRANSITION = 'transform ' + ZOOM_TRANSITION_MS + 'ms cubic-bezier(0.2, 0.8, 0.2, 1)';
+
+  /**
+   * LOD thresholds expressed as zoom fractions.  Driven by CSS on the
+   * board via `data-canvas-lod`; no HTML re-render needed.
+   *
+   *   LOD 0 (chip)       zoom < 20%   — bird's-eye navigation
+   *   LOD 1 (overview)   zoom 20–35%  — identify cards, large fonts
+   *   LOD 2 (working)    zoom 35–60%  — main working range, readable
+   *   LOD 3 (full)       zoom ≥ 60%   — full detail, default fonts
+   */
+  const LOD_ZOOM_0 = 0.20;
+  const LOD_ZOOM_1 = 0.35;
+  const LOD_ZOOM_2 = 0.60;
+
+  function canvasLod(zoom) {
+    if (zoom < LOD_ZOOM_0) { return 0; }
+    if (zoom < LOD_ZOOM_1) { return 1; }
+    if (zoom < LOD_ZOOM_2) { return 2; }
+    return 3;
+  }
 
   function apply(root, state, options) {
     if (!root || !state) {
@@ -19,13 +39,16 @@
     const edges = root.querySelector('[data-object-canvas-graph-edges]');
     const label = root.querySelector('[data-object-canvas-zoom-label]');
     setTransformTransition([board, edges], Boolean(options && options.animate));
+    var lod = canvasLod(scale);
     if (board) {
       board.style.transform = transform;
       board.style.transformOrigin = '0 0';
+      promoteForZoom(board, lod);
     }
     if (edges) {
       edges.style.transform = transform;
       edges.style.transformOrigin = '0 0';
+      promoteForZoom(edges, -1);
     }
     if (label) {
       label.textContent = Math.round(scale * 100) + '%';
@@ -106,6 +129,52 @@
       return false;
     }
     return element.dataset.contentStoryboardCanvas === 'true' || element.dataset.objectCanvasGraphCanvas === 'true';
+  }
+
+  /**
+   * Temporarily promote to GPU layer during zoom for smooth animation,
+   * then demote after ~200ms of inactivity so the browser re-rasterizes
+   * text at the current zoom → crisp at rest, smooth during motion.
+   */
+  var WILL_CHANGE_SETTLE_MS = 300;
+
+  /**
+   * During zoom: promote to GPU layer for smooth compositing.
+   * After zoom settles: demote (re-rasterize for crisp text) and
+   * apply the deferred LOD level in one batched repaint.
+   *
+   * @param {Element} element  — board or edges element
+   * @param {number}  lod      — target LOD (≥0 to set on settle, <0 to skip)
+   */
+  function promoteForZoom(element, lod) {
+    if (!element || !element.style) { return; }
+    element.style.willChange = 'transform';
+    var lodStr = lod >= 0 ? String(lod) : '';
+    // First paint (after render() rebuilds DOM): set LOD immediately so
+    // cards don't flash in default/small-font state for 300ms.
+    if (lodStr && element.dataset && element.dataset.canvasLod !== lodStr && !element.__dmsWillChangeTimer) {
+      element.dataset.canvasLod = lodStr;
+    }
+    if (!motionAllowed()) {
+      // Reduced-motion: keep will-change permanently, update LOD immediately
+      if (lodStr && element.dataset) {
+        element.dataset.canvasLod = lodStr;
+      }
+      return;
+    }
+    if (element.__dmsWillChangeTimer) {
+      clearTimeout(element.__dmsWillChangeTimer);
+    }
+    // Stash target LOD so the settle callback uses the latest value
+    if (lod >= 0) { element.__dmsTargetLod = lod; }
+    element.__dmsWillChangeTimer = setTimeout(function () {
+      // Batch: apply LOD + demote in one frame
+      if (element.__dmsTargetLod !== undefined && element.dataset) {
+        element.dataset.canvasLod = String(element.__dmsTargetLod);
+      }
+      element.style.willChange = '';
+      element.__dmsWillChangeTimer = null;
+    }, WILL_CHANGE_SETTLE_MS);
   }
 
   function setTransformTransition(elements, animate) {

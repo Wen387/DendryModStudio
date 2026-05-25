@@ -9,21 +9,13 @@ const ROOT = __dirname;
 const VIEWER = path.join(ROOT, 'viewer');
 const DESKTOP = path.join(ROOT, 'desktop');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function read(filePath) {
   return fs.readFileSync(filePath, 'utf8');
 }
 
+const shellNavigation = read(path.join(VIEWER, 'shell_navigation.js'));
 const wizardUi = read(path.join(VIEWER, 'wizard_ui.js'));
 const objectCanvasUi = read(path.join(VIEWER, 'object_authoring_canvas_ui.js'));
 const installAssistantUi = read(path.join(VIEWER, 'install_assistant_ui.js'));
@@ -34,10 +26,10 @@ const runtimePreview = read(path.join(DESKTOP, 'runtime_preview.js'));
 const desktopPackage = read(path.join(DESKTOP, 'package.json'));
 const cleanupSource = read(path.join(DESKTOP, 'runtime_session_cleanup.js'));
 
-assert(wizardUi.includes('ProjectMap:mode-changing'), 'Wizard should emit mode-changing lifecycle events');
-assert(wizardUi.includes('ProjectMap:mode-changed'), 'Wizard should emit mode-changed lifecycle events');
-assert(wizardUi.includes('ProjectMap:foreground-changed'), 'Wizard should emit foreground lifecycle events');
-assert(wizardUi.includes('visibilitychange'), 'Wizard should observe document visibility changes');
+assert(shellNavigation.includes('ProjectMap:mode-changing'), 'Shell navigation should emit mode-changing lifecycle events');
+assert(shellNavigation.includes('ProjectMap:mode-changed'), 'Shell navigation should emit mode-changed lifecycle events');
+assert(shellNavigation.includes('ProjectMap:foreground-changed'), 'Shell navigation should emit foreground lifecycle events');
+assert(shellNavigation.includes('visibilitychange'), 'Shell navigation should observe document visibility changes');
 
 assert(objectCanvasUi.includes('bindRuntimeLifecycle'), 'Object Canvas should bind runtime lifecycle hooks');
 assert(objectCanvasUi.includes('suspendForegroundRuntime'), 'Object Canvas should suspend foreground runtime work');

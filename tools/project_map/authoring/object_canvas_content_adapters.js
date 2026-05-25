@@ -5,6 +5,8 @@
     'event',
     'news',
     'card',
+    'deck_pool',
+    'advisor_controller',
     'play_surface',
     'workspace_layout',
     'sidebar_status',
@@ -19,6 +21,8 @@
     world_event: 'event',
     news_item: 'news',
     card: 'card',
+    deck_pool: 'deck_pool',
+    advisor_controller: 'advisor_controller',
     play_surface: 'play_surface',
     workspace_layout: 'workspace_layout',
     sidebar_status: 'sidebar_status',
@@ -31,6 +35,7 @@
 
   const EVENT_PATTERNS = [
     {value: 'branching_consequence', label: 'Branching Consequence Event'},
+    {value: 'linear_choice', label: 'Linear Choice Event'},
     {value: 'pure_text', label: 'Pure Text Event'},
     {value: 'conditional_menu_loop', label: 'Conditional Menu / Loop Event'}
   ];
@@ -78,6 +83,32 @@
       body: BODIES.cardBody,
       source: (draft) => sourceRef({path: 'source/scenes/cards/' + (draft.id || 'new_card') + '.scene.dry'}),
       preview: (bundle) => bundle.scene || bundle.sceneDry || ''
+    },
+    deck_pool: {
+      label: 'Deck Pool',
+      objectKind: 'deck_pool',
+      mode: 'deck_pool',
+      globalName: 'ProjectMapDeckPoolDraft',
+      moduleName: 'deck_pool_draft.js',
+      defaultDraft: (projectIndex, api) => api && typeof api.defaultDraft === 'function' ? api.defaultDraft(projectIndex) : fallbackDraftForTemplate('deck_pool'),
+      normalize: (draft, api) => normalizeWithApi(api, draft),
+      applyValues: applyDeckPoolValues,
+      body: BODIES.deckPoolBody,
+      source: (draft) => sourceRef(draft.evidence && draft.evidence.sourceAnchor || {path: draft.path || ''}),
+      preview: (bundle) => bundle.proposal || bundle.previewText || ''
+    },
+    advisor_controller: {
+      label: 'Advisor Controller',
+      objectKind: 'advisor_controller',
+      mode: 'advisor_controller',
+      globalName: 'ProjectMapAdvisorControllerDraft',
+      moduleName: 'advisor_controller_draft.js',
+      defaultDraft: (projectIndex, api) => api && typeof api.defaultDraft === 'function' ? api.defaultDraft(projectIndex) : fallbackDraftForTemplate('advisor_controller'),
+      normalize: (draft, api) => normalizeWithApi(api, draft),
+      applyValues: applyAdvisorControllerValues,
+      body: BODIES.advisorControllerBody,
+      source: (draft) => sourceRef(draft.evidence && draft.evidence.sourceAnchor || {}),
+      preview: (bundle) => bundle.proposal || bundle.previewText || ''
     },
     surface: {
       label: 'Text Replacement',
@@ -317,6 +348,12 @@
     if (text === 'world_event') {
       return 'event';
     }
+    if (text === 'deckPool' || text === 'deck-pool' || text === 'deck_pool') {
+      return 'deck_pool';
+    }
+    if (text === 'advisorController' || text === 'advisor-controller' || text === 'advisor_controller') {
+      return 'advisor_controller';
+    }
     if (text === 'news_item') {
       return 'news';
     }
@@ -359,6 +396,20 @@
     if (typeof require === 'function') {
       try {
         return require('./asset_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function fieldPresentationApi() {
+    if (global && global.ProjectMapObjectFieldPresentationModel) {
+      return global.ProjectMapObjectFieldPresentationModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./object_field_presentation_model.js');
       } catch (_err) {
         return null;
       }
@@ -418,7 +469,8 @@
     }
     try {
       return api.buildExportBundle(draft, projectIndex, {
-        defaultContinueLabel: options.defaultContinueLabel || 'Continue'
+        defaultContinueLabel: options.defaultContinueLabel || 'Continue',
+        authoringContext: options.authoringContext || draft.studioAuthoringContext || draft.authoringContext || null
       });
     } catch (err) {
       return {
@@ -483,8 +535,12 @@
     if (ensureArray(value.sections).some((section) => ensureArray(section && section.options).length)) {
       return 'conditional_menu_loop';
     }
-    if (String(value.eventShape || '').trim() === 'pure_event' || ensureArray(value.options).length === 0) {
+    const eventShape = String(value.eventShape || '').trim();
+    if (eventShape === 'pure_event' || ensureArray(value.options).length === 0) {
       return 'pure_text';
+    }
+    if (eventShape === 'linear_choice_event' || ensureArray(value.options).length === 1) {
+      return 'linear_choice';
     }
     return 'branching_consequence';
   }
@@ -494,6 +550,9 @@
     const base = isObject(baseDraft) ? baseDraft : {};
     if (normalized === 'pure_text') {
       return pureTextEventDraft(base);
+    }
+    if (normalized === 'linear_choice') {
+      return linearChoiceEventDraft(base);
     }
     if (normalized === 'conditional_menu_loop') {
       return conditionalMenuLoopEventDraft(base);
@@ -516,6 +575,7 @@
       newPage: defaults.newPage === undefined ? true : Boolean(defaults.newPage),
       when: isObject(base.when) ? clone(base.when) : {year: 1936, monthStart: 1, monthEnd: 3, requires: '', priority: 0},
       introParagraphs: paragraphs(defaults.introParagraphs || defaults.intro || 'Write the opening event text here.'),
+      conditionalParagraphs: Array.isArray(base.conditionalParagraphs) ? clone(base.conditionalParagraphs) : [],
       effectsOnTrigger: [],
       rawEffectsOnTrigger: []
     };
@@ -541,6 +601,23 @@
     draft.options = [
       {id: 'option_1', label: 'Take the first path', narrativeParagraphs: ['The first consequence appears.'], effects: [], resultMode: 'continue', gotoAfter: 'continue_option_1', returnTarget: 'root'},
       {id: 'option_2', label: 'Choose another path', narrativeParagraphs: ['The second consequence appears.'], effects: [], resultMode: 'continue', gotoAfter: 'continue_option_2', returnTarget: 'root'}
+    ];
+    return draft;
+  }
+
+  function linearChoiceEventDraft(baseDraft) {
+    const draft = sharedEventDraftFields(baseDraft, {
+      id: 'new_world_event',
+      title: 'New Linear Event',
+      heading: 'New Linear Event',
+      tags: ['event', 'world'],
+      introParagraphs: ['Write the opening event text here.']
+    });
+    draft.eventShape = 'linear_choice_event';
+    draft.seenFlag = draft.id + '_seen';
+    draft.useSeenFlag = true;
+    draft.options = [
+      {id: 'continue_story', label: 'Continue', narrativeParagraphs: ['Write the single-path consequence here.'], effects: [], resultMode: 'continue', gotoAfter: 'continue_continue_story', returnTarget: 'root'}
     ];
     return draft;
   }
@@ -655,6 +732,7 @@
       rawViewIf: String(value.rawViewIf || ''),
       when: isObject(value.when) ? value.when : {},
       introParagraphs: ensureArray(value.introParagraphs).map(String),
+      conditionalParagraphs: ensureArray(value.conditionalParagraphs).map((row) => isObject(row) ? row : String(row)),
       effectsOnTrigger: ensureArray(value.effectsOnTrigger),
       rawEffectsOnTrigger: ensureArray(value.rawEffectsOnTrigger),
       options: ensureArray(value.options).map(eventOptionPatternSignature),
@@ -686,6 +764,7 @@
       title: String(value.title || value.heading || ''),
       condition: String(value.condition || value.viewIf || value.chooseIf || ''),
       paragraphs: ensureArray(value.paragraphs || value.narrativeParagraphs).map(String),
+      conditionalParagraphs: ensureArray(value.conditionalParagraphs).map((row) => isObject(row) ? row : String(row)),
       exitTarget: String(value.exitTarget || value.returnTarget || ''),
       effects: ensureArray(value.effects),
       options: ensureArray(value.options).map(eventOptionPatternSignature)
@@ -697,9 +776,13 @@
     const when = isObject(value.when) ? value.when : value;
     const id = safeId(value.id || value.rawId || 'new_world_event');
     const explicitOptions = Object.prototype.hasOwnProperty.call(value, 'options');
-    const eventShape = String(value.eventShape || '').trim() === 'pure_event' || (explicitOptions && ensureArray(value.options).length === 0)
+    const rawShape = String(value.eventShape || '').trim();
+    const optionCount = explicitOptions ? ensureArray(value.options).length : -1;
+    const eventShape = rawShape === 'pure_event' || (explicitOptions && optionCount === 0)
       ? 'pure_event'
-      : 'choice_event';
+      : rawShape === 'linear_choice_event' || (explicitOptions && optionCount === 1)
+        ? 'linear_choice_event'
+        : 'choice_event';
     const defaultDraft = defaultEventDraft();
     const converted = Object.assign(defaultEventDraft(), value, {
       schemaVersion: String(value.schemaVersion || '0.1'),
@@ -712,8 +795,8 @@
       tags: normalizeTags(value.tags, eventShape),
       newPage: value.newPage === undefined ? true : booleanValue(value.newPage),
       rawViewIf: String(value.rawViewIf || value.viewIf || '').trim(),
-      useSeenFlag: value.useSeenFlag === undefined ? eventShape === 'choice_event' : booleanValue(value.useSeenFlag),
-      seenFlag: eventShape === 'choice_event' || booleanValue(value.useSeenFlag) ? safeId(value.seenFlag || value.rawSeenFlag || id + '_seen') : '',
+      useSeenFlag: value.useSeenFlag === undefined ? choiceLikeEventShape(eventShape) : booleanValue(value.useSeenFlag),
+      seenFlag: choiceLikeEventShape(eventShape) || booleanValue(value.useSeenFlag) ? safeId(value.seenFlag || value.rawSeenFlag || id + '_seen') : '',
       maxVisits: value.maxVisits === undefined || value.maxVisits === null || value.maxVisits === '' ? null : numberOr(value.maxVisits, null),
       when: {
         year: numberOr(value.year || when.year, 1936),
@@ -723,10 +806,15 @@
         priority: numberOr(value.priority || when.priority, 0)
       },
       introParagraphs: paragraphs(value.introParagraphs || value.intro || value.body || 'Write the opening event text here.'),
+      conditionalParagraphs: normalizeConditionalParagraphs(value.conditionalParagraphs || value.conditionalBody || value.conditionalText),
       rawEffectsOnTrigger: rawEffectLines(value.rawEffectsOnTrigger || value.rawTriggerEffects || value.advancedEffectsOnTrigger),
       options: normalizeEventOptions(explicitOptions ? value.options : defaultDraft.options)
     });
     return normalizeWithApi(api, converted);
+  }
+
+  function choiceLikeEventShape(eventShape) {
+    return eventShape === 'choice_event' || eventShape === 'linear_choice_event';
   }
 
   function normalizeTags(value, eventShape) {
@@ -835,6 +923,12 @@
     if (template === 'card') {
       return defaultCardDraft();
     }
+    if (template === 'deck_pool') {
+      return {schemaVersion: '0.1', kind: 'deck_pool', id: 'deck_pool_update', deckPoolId: '', label: 'Deck Pool', routeTags: [], launcherRoutes: [], memberCards: [], evidence: {}, authoringStatus: 'partial', authoringBlockers: ['No deck pool semantic evidence is available.']};
+    }
+    if (template === 'advisor_controller') {
+      return {schemaVersion: '0.1', kind: 'advisor_controller', id: 'advisor_controller_update', controllerId: '', entryLabel: 'Advisor Controller', roster: [], evidence: {}, authoringStatus: 'partial', authoringBlockers: ['No advisor controller semantic evidence is available.']};
+    }
     if (template === 'surface') {
       return defaultSurfaceDraft();
     }
@@ -925,6 +1019,8 @@
         sectionHeading: 'Status',
         sectionBody: 'Track the current state here.',
         sectionStatusLines: '',
+        operationMode: 'edit',
+        deleteConfirm: false,
         evidence: {}
       };
     }
@@ -1033,6 +1129,9 @@
     if (has(data, 'event.intro')) {
       draft.introParagraphs = paragraphs(data['event.intro']);
     }
+    if (has(data, 'event.conditionalBody')) {
+      draft.conditionalParagraphs = normalizeConditionalParagraphs(data['event.conditionalBody']);
+    }
     setNumber(data, draft.when, 'event.year', 'year');
     setNumber(data, draft.when, 'event.monthStart', 'monthStart');
     setNumber(data, draft.when, 'event.monthEnd', 'monthEnd');
@@ -1072,6 +1171,9 @@
       setString(data, next, 'event.section.' + index + '.exitTarget', 'exitTarget', safeId);
       if (has(data, 'event.section.' + index + '.body')) {
         next.paragraphs = paragraphs(data['event.section.' + index + '.body']);
+      }
+      if (has(data, 'event.section.' + index + '.conditionalBody')) {
+        next.conditionalParagraphs = normalizeConditionalParagraphs(data['event.section.' + index + '.conditionalBody']);
       }
       return next;
     });
@@ -1191,12 +1293,201 @@
     if (sections.length) {
       draft.sections = sections;
     }
+    applyCardStructureValues(draft, data);
     if (titleChanged && !headingChanged) {
       draft.heading = draft.title;
     } else if (!draft.heading) {
       draft.heading = draft.title;
     }
     return draft;
+  }
+
+  function applyCardStructureValues(draft, data) {
+    cardStructureCommandsFromValues(data).forEach((command) => {
+      const type = String(command.type || command.action || '').trim();
+      if (type === 'add_option') {
+        addCardOption(draft, command);
+      } else if (type === 'add_branch' || type === 'add_section') {
+        addCardSection(draft, command);
+      } else if (type === 'remove_option') {
+        removeCardOption(draft, command.optionId);
+      } else if (type === 'move_option_up') {
+        moveRootCardOption(draft, command.optionId, -1);
+      } else if (type === 'move_option_down') {
+        moveRootCardOption(draft, command.optionId, 1);
+      }
+    });
+    if (ensureArray(draft.sections).length) {
+      draft.cardShape = 'menu_card';
+    } else if (!ensureArray(draft.options).length) {
+      draft.cardShape = 'pinned_text_card';
+    } else if (draft.cardShape === 'pinned_text_card') {
+      draft.cardShape = 'choice_card';
+    }
+  }
+
+  function cardStructureCommandsFromValues(values) {
+    const data = isObject(values) ? values : {};
+    const commands = [];
+    const raw = data.__structureCommands || data.structure_commands || data.structureCommands;
+    ensureArray(raw).forEach((command) => {
+      if (isObject(command)) {
+        commands.push(Object.assign({}, command, {type: command.type || command.action || ''}));
+      }
+    });
+    Object.keys(data).forEach((key) => {
+      const text = String(data[key] === undefined || data[key] === null ? '' : data[key]).trim();
+      if (key === 'structure_add_option' && text) {
+        commands.push({type: 'add_option', value: text});
+      } else if (key === 'structure_add_branch' && text) {
+        commands.push({type: 'add_branch', value: text});
+      } else if (key.indexOf('structure_add_option_section_') === 0 && text) {
+        commands.push({type: 'add_option', sectionId: key.slice('structure_add_option_section_'.length), value: text});
+      } else if (key.indexOf('structure_remove_option_') === 0 && truthy(text)) {
+        commands.push({type: 'remove_option', optionId: key.slice('structure_remove_option_'.length)});
+      } else if (key.indexOf('structure_move_option_up_') === 0 && truthy(text)) {
+        commands.push({type: 'move_option_up', optionId: key.slice('structure_move_option_up_'.length)});
+      } else if (key.indexOf('structure_move_option_down_') === 0 && truthy(text)) {
+        commands.push({type: 'move_option_down', optionId: key.slice('structure_move_option_down_'.length)});
+      }
+    });
+    return commands;
+  }
+
+  function addCardOption(draft, command) {
+    const parsed = parseStructureOptionValue(command && command.value);
+    const id = uniqueCardAnchor(draft, safeId(parsed.target || parsed.label || 'new_option'));
+    const option = {
+      id,
+      label: parsed.label || 'Player-facing option text',
+      title: '',
+      subtitle: '',
+      chooseIf: parsed.chooseIf || '',
+      unavailableText: parsed.unavailableText || '',
+      narrativeParagraphs: paragraphs(parsed.result || 'Result prose.'),
+      gotoAfter: safeId(parsed.gotoAfter || 'root') || 'root',
+      effects: parsed.effect && parsed.effect.variable && parsed.effect.value ? [parsed.effect] : []
+    };
+    const sectionId = safeId(command && command.sectionId || '');
+    if (sectionId) {
+      const section = ensureArray(draft.sections).find((item) => safeId(item && item.id) === sectionId);
+      if (section) {
+        section.options = ensureArray(section.options).concat(option);
+        return;
+      }
+    }
+    draft.options = ensureArray(draft.options).concat(option);
+  }
+
+  function addCardSection(draft, command) {
+    const parsed = parseStructureBranchValue(command && command.value);
+    const id = uniqueCardAnchor(draft, safeId(parsed.section || 'menu_section'));
+    draft.sections = ensureArray(draft.sections).concat({
+      id,
+      title: humanTitle(id),
+      condition: parsed.condition || '',
+      paragraphs: paragraphs(parsed.text || 'Section prose.'),
+      exitTarget: 'root',
+      options: []
+    });
+  }
+
+  function removeCardOption(draft, optionId) {
+    const id = safeId(optionId || '');
+    if (!id) {
+      return;
+    }
+    draft.options = ensureArray(draft.options).filter((option) => safeId(option && option.id) !== id);
+    ensureArray(draft.sections).forEach((section) => {
+      section.options = ensureArray(section.options).filter((option) => safeId(option && option.id) !== id);
+    });
+  }
+
+  function moveRootCardOption(draft, optionId, direction) {
+    const id = safeId(optionId || '');
+    const options = ensureArray(draft.options).slice();
+    const index = options.findIndex((option) => safeId(option && option.id) === id);
+    const nextIndex = index + Number(direction || 0);
+    if (index < 0 || nextIndex < 0 || nextIndex >= options.length) {
+      return;
+    }
+    const current = options[index];
+    options[index] = options[nextIndex];
+    options[nextIndex] = current;
+    draft.options = options;
+  }
+
+  function parseStructureOptionValue(value) {
+    const lines = String(value || '').split(/\r?\n/);
+    const first = lines.find((line) => /^\s*-\s*@[^:]+:/.test(line)) || '';
+    const match = first.match(/^\s*-\s*@([^:]+):\s*(.*)$/);
+    const section = lines.find((line) => /^\s*#\s*\S+/.test(line)) || '';
+    const chooseLine = lines.find((line) => /^\s*choose-if\s*:/i.test(line)) || '';
+    const unavailableLine = lines.find((line) => /^\s*unavailable-(?:subtitle|text)\s*:/i.test(line)) || '';
+    const effectLines = lines.filter((line) => /^\s*on-arrival\s*:/i.test(line));
+    const target = match && match[1] || (section.match(/^\s*#\s*(\S+)/) || [])[1] || '';
+    const label = match && match[2] || '';
+    const result = lines.filter((line) => line !== first && line !== section && line !== chooseLine && line !== unavailableLine && !/^\s*result-mode\s*:/i.test(line) && !effectLines.includes(line)).join('\n').trim();
+    return {
+      target,
+      label,
+      result,
+      chooseIf: chooseLine.replace(/^\s*choose-if\s*:\s*/i, '').trim(),
+      unavailableText: unavailableLine.replace(/^\s*unavailable-(?:subtitle|text)\s*:\s*/i, '').trim(),
+      effect: effectLines[0] ? parseStructureEffect(effectLines[0].replace(/^\s*on-arrival\s*:\s*/i, '').replace(/;+$/, '').trim()) : null
+    };
+  }
+
+  function parseStructureBranchValue(value) {
+    const lines = String(value || '').split(/\r?\n/);
+    const sectionLine = lines.find((line) => /^\s*#\s*\S+/.test(line)) || '';
+    const section = (sectionLine.match(/^\s*#\s*(\S+)/) || [])[1] || '';
+    const body = lines.filter((line) => line !== sectionLine).join('\n').trim();
+    const conditional = body.match(/^\[\?\s*if\s+(.+?)\s*:\s*([\s\S]*?)\s*\?\]$/);
+    return {section, condition: conditional ? conditional[1].trim() : '', text: conditional ? conditional[2].trim() : body};
+  }
+
+  function parseStructureEffect(value) {
+    const text = String(value || '').trim().replace(/^Q\./, '');
+    const parts = text.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*(\+=|-=|=)\s*([\s\S]*)$/);
+    if (!parts) {
+      return null;
+    }
+    const tail = splitStructureEffectCondition(parts[3]);
+    return {variable: parts[1], op: parts[2], value: tail.value, condition: tail.condition};
+  }
+
+  function splitStructureEffectCondition(value) {
+    const text = String(value || '').trim();
+    const match = text.match(/^([\s\S]*?)\s+if\s+([\s\S]+)$/i);
+    return match ? {value: match[1].trim(), condition: match[2].trim()} : {value: text, condition: ''};
+  }
+
+  function uniqueCardAnchor(draft, base) {
+    const root = safeId(base || 'new_option') || 'new_option';
+    const used = new Set();
+    ensureArray(draft.options).forEach((option) => used.add(safeId(option && option.id)));
+    ensureArray(draft.sections).forEach((section) => {
+      used.add(safeId(section && section.id));
+      ensureArray(section && section.options).forEach((option) => used.add(safeId(option && option.id)));
+    });
+    if (!used.has(root)) {
+      return root;
+    }
+    let index = 2;
+    while (used.has(root + '_' + index)) {
+      index += 1;
+    }
+    return root + '_' + index;
+  }
+
+  function humanTitle(value) {
+    return String(value || '').replace(/[_-]+/g, ' ').replace(/^./, (char) => char.toUpperCase());
+  }
+
+  function truthy(value) {
+    const text = String(value || '').trim().toLowerCase();
+    return Boolean(text && !['0', 'false', 'no', 'off'].includes(text));
   }
 
   function applySurfaceValues(baseDraft, values) {
@@ -1291,15 +1582,20 @@
   }
 
   function applySidebarStatusValues(baseDraft, values) {
-    return applyScalarValues(baseDraft, values, 'sidebar.', [
+    const draft = applyScalarValues(baseDraft, values, 'sidebar.', [
       'id',
       'title',
       'statusTitle',
       'sectionId',
       'sectionHeading',
       'sectionBody',
-      'sectionStatusLines'
+      'sectionStatusLines',
+      'operationMode'
     ], ['id', 'sectionId']);
+    if (has(values, 'sidebar.deleteConfirm')) {
+      draft.deleteConfirm = booleanValue(values['sidebar.deleteConfirm']);
+    }
+    return draft;
   }
 
   function applyElectionResultsValues(baseDraft, values, context) {
@@ -1518,6 +1814,90 @@
     };
   }
 
+  function applyDeckPoolValues(baseDraft, values) {
+    const draft = clone(baseDraft);
+    const data = isObject(values) ? values : {};
+    setString(data, draft, 'deckPool.label', 'label');
+    ensureArray(draft.launcherRoutes).forEach((route, index) => {
+      setString(data, route, 'deckPool.launcher.' + index + '.label', 'label');
+    });
+    const changes = [];
+    const addCardId = String(data['deckPool.add.memberCardId'] || data['deckPool.addMemberCardId'] || '').trim();
+    if (addCardId) {
+      changes.push({action: 'add', cardId: addCardId});
+    }
+    ensureArray(draft.memberCards).forEach((member) => {
+      const cardId = String(member && member.cardId || '').trim();
+      if (!cardId) {
+        return;
+      }
+      const moveTarget = String(data['deckPool.member.' + cardId + '.moveTargetDeckPoolId'] || '').trim();
+      if (moveTarget && moveTarget !== String(draft.deckPoolId || '')) {
+        changes.push({action: 'move', cardId, targetDeckPoolId: moveTarget});
+        return;
+      }
+      if (booleanValue(data['deckPool.member.' + cardId + '.remove'])) {
+        changes.push({action: 'remove', cardId});
+      }
+    });
+    const legacyRemove = String(data['deckPool.removeMemberCardId'] || '').trim();
+    if (legacyRemove) {
+      changes.push({action: 'remove', cardId: legacyRemove});
+    }
+    const legacyMove = String(data['deckPool.moveMemberCardId'] || '').trim();
+    const legacyMoveTarget = String(data['deckPool.moveTargetDeckPoolId'] || '').trim();
+    if (legacyMove && legacyMoveTarget) {
+      changes.push({action: 'move', cardId: legacyMove, targetDeckPoolId: legacyMoveTarget});
+    }
+    draft.membershipChanges = dedupeDeckMembershipChanges(changes);
+    draft.addMemberCardId = firstDeckMembershipChange(draft.membershipChanges, 'add').cardId || '';
+    draft.removeMemberCardId = firstDeckMembershipChange(draft.membershipChanges, 'remove').cardId || '';
+    const move = firstDeckMembershipChange(draft.membershipChanges, 'move');
+    draft.moveMemberCardId = move.cardId || '';
+    draft.moveTargetDeckPoolId = move.targetDeckPoolId || '';
+    return draft;
+  }
+
+  function dedupeDeckMembershipChanges(changes) {
+    const seen = new Set();
+    const out = [];
+    ensureArray(changes).forEach((change) => {
+      const action = String(change && change.action || '');
+      const cardId = String(change && change.cardId || '');
+      const targetDeckPoolId = String(change && change.targetDeckPoolId || '');
+      const key = [action, cardId, targetDeckPoolId].join(':');
+      if (!action || !cardId || seen.has(key)) {
+        return;
+      }
+      seen.add(key);
+      out.push({action, cardId, targetDeckPoolId});
+    });
+    return out;
+  }
+
+  function firstDeckMembershipChange(changes, action) {
+    return ensureArray(changes).find((change) => String(change && change.action || '') === action) || {};
+  }
+
+  function applyAdvisorControllerValues(baseDraft, values) {
+    const draft = clone(baseDraft);
+    const data = isObject(values) ? values : {};
+    setString(data, draft, 'advisorController.entry.label', 'entryLabel');
+    ensureArray(draft.roster).forEach((item) => {
+      const prefix = 'advisorController.roster.' + item.advisorId + '.';
+      setString(data, item, prefix + 'title', 'title');
+      setString(data, item, prefix + 'activeVariable', 'activeVariable');
+      setString(data, item, prefix + 'category', 'category');
+      setString(data, item, prefix + 'add.label', 'addLabel');
+      setString(data, item, prefix + 'remove.label', 'removeLabel');
+      setString(data, item, prefix + 'add.effect', 'addEffectText');
+      setString(data, item, prefix + 'remove.effect', 'removeEffectText');
+    });
+    setString(data, draft, 'advisorController.addAdvisorId', 'addAdvisorId', safeId);
+    setString(data, draft, 'advisorController.removeAdvisorId', 'removeAdvisorId', safeId);
+    return draft;
+  }
+
   function applyProjectValues(baseDraft, values) {
     return applyScalarValues(baseDraft, values, 'project.', ['id', 'title', 'gameTitle', 'author', 'ifid'], ['id']);
   }
@@ -1570,11 +1950,15 @@
       : {};
     const assets = assetRows(projectIndex, def, draft);
     const assetAddFields = draftAssetAddFields(def, draft, body);
-    return Object.assign({}, body, {
+    const next = Object.assign({}, body, {
       assets: assets.length ? assets : ensureArray(body && body.assets),
       assetAddFields: ensureArray(body && body.assetAddFields).concat(assetAddFields),
       assetCatalog: assetCatalog(projectIndex, def)
     });
+    const presentation = fieldPresentationApi();
+    return presentation && typeof presentation.enrichEventBody === 'function'
+      ? presentation.enrichEventBody(next, projectIndex)
+      : next;
   }
 
   function draftAssetAddFields(def, draft, body) {
@@ -2337,6 +2721,30 @@
 
   function joinParagraphs(value) {
     return ensureArray(value).map((item) => String(item || '').trim()).filter(Boolean).join('\n\n');
+  }
+
+  function normalizeConditionalParagraphs(value) {
+    if (Array.isArray(value)) {
+      return value.map(normalizeConditionalParagraph).filter((row) => row.raw || row.condition || row.text);
+    }
+    return String(value || '').split(/\n\s*\n/).map((item) => normalizeConditionalParagraph(item)).filter((row) => row.raw || row.condition || row.text);
+  }
+
+  function normalizeConditionalParagraph(value) {
+    const row = isObject(value) ? value : {raw: value};
+    const raw = String(row.raw || row.sourceText || '').trim();
+    const parsed = parseConditionalRaw(raw);
+    return {
+      condition: String(row.condition || row.if || parsed.condition || '').trim(),
+      text: String(row.text || row.body || parsed.text || '').trim(),
+      raw,
+      sourceRole: String(row.sourceRole || row.role || 'conditional_body').trim()
+    };
+  }
+
+  function parseConditionalRaw(raw) {
+    const match = String(raw || '').trim().match(/^\[\?\s*if\s+([\s\S]*?)\s*:\s*([\s\S]*?)\s*\?\]$/);
+    return match ? {condition: match[1].trim(), text: match[2].trim()} : {condition: '', text: ''};
   }
 
   function firstNonEmpty() {

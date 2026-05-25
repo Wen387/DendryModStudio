@@ -3,7 +3,7 @@
 
   const EVENT_DRAFT_VERSION = '0.1';
   const EVENT_KIND = 'world_event';
-  const EVENT_SHAPES = new Set(['choice_event', 'pure_event']);
+  const EVENT_SHAPES = new Set(['choice_event', 'linear_choice_event', 'pure_event']);
   const ID_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
   const EFFECT_OPS = new Set(['=', '+=', '-=']);
   const RESULT_MODES = new Set(['continue', 'native']);
@@ -36,15 +36,23 @@
     draft.newPage = normalizeBoolean(draft.newPage, true);
     draft.rawViewIf = String(draft.rawViewIf || draft.viewIf || '').trim();
     draft.maxVisits = numberOrNull(draft.maxVisits);
-    draft.useSeenFlag = normalizeBoolean(draft.useSeenFlag, draft.eventShape === 'choice_event');
+    draft.frequency = numberOrNull(draft.frequency);
+    draft.setJump = String(draft.setJump || draft.jumpTarget || '').trim();
+    draft.calls = normalizeLineList(draft.calls || draft.callTargets || draft.callScenes);
+    draft.rawRoutes = normalizeLineList(draft.rawRoutes || draft.routeClauses || draft.advancedRoutes);
+    draft.useSeenFlag = normalizeBoolean(draft.useSeenFlag, choiceLikeEventShape(draft.eventShape));
     draft.seenFlag = String(draft.useSeenFlag ? (draft.seenFlag || (draft.id ? draft.id + '_seen' : '')) : (draft.seenFlag || '')).trim();
     draft.when = normalizeWhen(draft.when);
     draft.effectsOnTrigger = ensureArray(draft.effectsOnTrigger).map(normalizeEffect);
-    draft.rawEffectsOnTrigger = rawEffectLines(draft.rawEffectsOnTrigger || draft.rawTriggerEffects || draft.advancedEffectsOnTrigger);
+    draft.rawEffectsOnTrigger = concatRawLines(draft.rawEffectsOnTrigger, draft.rawTriggerEffects, draft.advancedEffectsOnTrigger, draft.rawOnArrival);
+    draft.rawOnDisplay = normalizeLineList(draft.rawOnDisplay || draft.rawDisplayHook || draft.advancedOnDisplay);
+    draft.rawOnDeparture = normalizeLineList(draft.rawOnDeparture || draft.rawDepartureHook || draft.advancedOnDeparture);
     draft.introParagraphs = normalizeTextList(draft.introParagraphs);
+    draft.conditionalParagraphs = normalizeConditionalParagraphs(draft.conditionalParagraphs || draft.conditionalBody || draft.conditionalText);
     draft.assetRefs = ensureArray(draft.assetRefs).map(normalizeAssetRef);
     draft.assetPlacements = ensureArray(draft.assetPlacements).map(normalizeAssetPlacement).filter((asset) => asset.path);
     draft.assetInstallRequests = ensureArray(draft.assetInstallRequests).map(normalizeAssetInstallRequest);
+    draft.anchorResolution = normalizeAnchorResolution(draft.anchorResolution);
     draft.options = ensureArray(draft.options).map(normalizeOption);
     const sections = ensureArray(draft.sections).map(normalizeSection).filter((section) => section.id);
     if (sections.length) {
@@ -64,7 +72,14 @@
     if (Array.isArray(options) && options.length === 0) {
       return 'pure_event';
     }
+    if (Array.isArray(options) && options.length === 1) {
+      return 'linear_choice_event';
+    }
     return 'choice_event';
+  }
+
+  function choiceLikeEventShape(shape) {
+    return shape === 'choice_event' || shape === 'linear_choice_event';
   }
 
   function normalizeWhen(when) {
@@ -94,12 +109,17 @@
     const resultMode = normalizeResultMode(value.resultMode || value.routeMode || value.continuationMode, hasGotoAfter ? explicitGotoAfter : fallbackGotoAfter);
     return {
       id,
+      sourceAnchorId: String(value.sourceAnchorId || '').trim(),
+      renderAnchorId: String(value.renderAnchorId || '').trim(),
       label: String(value.label || '').trim(),
       subtitle: String(value.subtitle || '').trim(),
       chooseIf: String(value.chooseIf || '').trim(),
       unavailableText: String(value.unavailableText || '').trim(),
       effects: ensureArray(value.effects).map(normalizeEffect),
       rawEffects: rawEffectLines(value.rawEffects || value.rawOptionEffects || value.advancedEffects),
+      rawRoutes: normalizeLineList(value.rawRoutes || value.routeClauses || value.advancedRoutes),
+      calls: normalizeLineList(value.calls || value.callTargets || value.callScenes),
+      setJump: String(value.setJump || value.jumpTarget || '').trim(),
       narrativeParagraphs: normalizeTextList(value.narrativeParagraphs),
       assetPlacements: ensureArray(value.assetPlacements).map(normalizeAssetPlacement).filter((asset) => asset.path),
       variants: ensureArray(value.variants).map(normalizeVariant),
@@ -145,6 +165,14 @@
       .filter(Boolean);
   }
 
+  function concatRawLines() {
+    return Array.prototype.slice.call(arguments).reduce((rows, value) => rows.concat(rawEffectLines(value)), []);
+  }
+
+  function normalizeLineList(value) {
+    return rawEffectLines(value);
+  }
+
   function normalizeTags(value, shape) {
     const fallback = shape === 'pure_event' ? ['event'] : ['event', 'world'];
     if (Array.isArray(value)) {
@@ -186,11 +214,20 @@
     const id = String(value.id || ('section_' + (index + 1))).trim();
     return {
       id,
+      sourceAnchorId: String(value.sourceAnchorId || '').trim(),
+      renderAnchorId: String(value.renderAnchorId || '').trim(),
       title: String(value.title || value.heading || '').trim(),
       condition: String(value.condition || value.viewIf || value.chooseIf || '').trim(),
       paragraphs: normalizeTextList(value.paragraphs || value.narrativeParagraphs || value.body || value.text),
+      conditionalParagraphs: normalizeConditionalParagraphs(value.conditionalParagraphs || value.conditionalBody || value.conditionalText),
       assetPlacements: ensureArray(value.assetPlacements).map(normalizeAssetPlacement).filter((asset) => asset.path),
       effects: ensureArray(value.effects).map(normalizeEffect),
+      rawEffects: rawEffectLines(value.rawEffects || value.rawSectionEffects || value.advancedEffects),
+      rawRoutes: normalizeLineList(value.rawRoutes || value.routeClauses || value.advancedRoutes),
+      calls: normalizeLineList(value.calls || value.callTargets || value.callScenes),
+      setJump: String(value.setJump || value.jumpTarget || '').trim(),
+      rawOnDisplay: normalizeLineList(value.rawOnDisplay || value.rawDisplayHook || value.advancedOnDisplay),
+      rawOnDeparture: normalizeLineList(value.rawOnDeparture || value.rawDepartureHook || value.advancedOnDeparture),
       options: ensureArray(value.options).map(normalizeOption),
       exitTarget: String(value.exitTarget || value.returnTarget || 'root').trim()
     };
@@ -212,6 +249,57 @@
       return value.split(/\n\s*\n/).map((item) => item.trim()).filter(Boolean);
     }
     return [];
+  }
+
+  function normalizeConditionalParagraphs(value) {
+    if (Array.isArray(value)) {
+      return value.map(normalizeConditionalParagraph).filter((row) => row.raw || row.condition || row.text);
+    }
+    if (typeof value === 'string') {
+      return value.split(/\n\s*\n/).map((item) => normalizeConditionalParagraph(item)).filter((row) => row.raw || row.condition || row.text);
+    }
+    return [];
+  }
+
+  function normalizeConditionalParagraph(value) {
+    const row = isObject(value) ? value : {raw: value};
+    const raw = String(row.raw || row.sourceText || '').trim();
+    const parsed = parseSimpleConditionalBody(raw);
+    return {
+      condition: String(row.condition || row.if || parsed.condition || '').trim(),
+      text: String(row.text || row.body || parsed.text || (!raw ? value : '') || '').trim(),
+      raw,
+      sourceRole: String(row.sourceRole || row.role || 'conditional_body').trim()
+    };
+  }
+
+  function parseSimpleConditionalBody(raw) {
+    const match = String(raw || '').trim().match(/^\[\?\s*if\s+([\s\S]*?)\s*:\s*([\s\S]*?)\s*\?\]$/);
+    return match ? {condition: match[1].trim(), text: match[2].trim()} : {condition: '', text: ''};
+  }
+
+  function normalizeAnchorResolution(value) {
+    const row = isObject(value) ? value : {};
+    const rewrites = ensureArray(row.rewrites).map((rewrite) => {
+      const item = isObject(rewrite) ? rewrite : {};
+      return {
+        source: String(item.source || item.from || '').trim(),
+        render: String(item.render || item.to || '').trim(),
+        owner: String(item.owner || '').trim(),
+        kind: String(item.kind || '').trim()
+      };
+    }).filter((rewrite) => rewrite.source || rewrite.render);
+    const unresolvedRoutes = ensureArray(row.unresolvedRoutes || row.unresolvedTargets).map((target) => {
+      const item = isObject(target) ? target : {target};
+      return {
+        target: String(item.target || '').trim(),
+        owner: String(item.owner || '').trim(),
+        reason: String(item.reason || '').trim()
+      };
+    }).filter((target) => target.target || target.owner);
+    return rewrites.length || unresolvedRoutes.length
+      ? {version: String(row.version || '0.1'), rewrites, unresolvedRoutes}
+      : null;
   }
 
   function normalizeAssetRef(asset) {
@@ -325,6 +413,16 @@
     return global ? global.ProjectMapInstallPlan : null;
   }
 
+  function assetContractApi() {
+    if (global && global.ProjectMapAssetContractModel) {
+      return global.ProjectMapAssetContractModel;
+    }
+    if (typeof require === 'function') {
+      try { return require('./asset_contract_model.js'); } catch (_err) { /* optional */ }
+    }
+    return null;
+  }
+
   function validateDraft(input, projectIndex) {
     const draft = normalizeDraft(input);
     const diagnostics = [];
@@ -338,7 +436,7 @@
       diag(diagnostics, 'error', 'event_draft.kind', 'Only kind "world_event" is supported in v0.4.');
     }
     if (!EVENT_SHAPES.has(draft.eventShape)) {
-      diag(diagnostics, 'error', 'event_draft.event_shape', 'eventShape must be "choice_event" or "pure_event".');
+      diag(diagnostics, 'error', 'event_draft.event_shape', 'eventShape must be "choice_event", "linear_choice_event", or "pure_event".');
     }
     if (!ID_RE.test(draft.id)) {
       diag(diagnostics, 'error', 'event_draft.id', 'Event id must match /^[A-Za-z_][A-Za-z0-9_]*$/.');
@@ -352,6 +450,12 @@
     if (draft.maxVisits !== null && (!Number.isInteger(draft.maxVisits) || draft.maxVisits < 1)) {
       diag(diagnostics, 'error', 'event_draft.max_visits', 'max-visits must be a positive integer.');
     }
+    if (draft.frequency !== null && (!Number.isInteger(draft.frequency) || draft.frequency < 1)) {
+      diag(diagnostics, 'error', 'event_draft.frequency', 'frequency must be a positive integer.');
+    }
+    if (draft.setJump) {
+      checkRouteTarget(draft.setJump, diagnostics, 'event_draft.set_jump');
+    }
     if (!draft.title) {
       diag(diagnostics, 'error', 'event_draft.title', 'Title is required.');
     }
@@ -361,11 +465,18 @@
     validateWhen(draft.when, diagnostics);
     checkConditionText(draft.when.requires, diagnostics, 'event_draft.requires', variables, draft.seenFlag);
     checkConditionText(draft.rawViewIf, diagnostics, 'event_draft.view_if', variables, draft.seenFlag);
+    validateConditionalParagraphs(draft.conditionalParagraphs, diagnostics, variables, draft.seenFlag, 'event_draft.conditional_body');
+    validateAnchorResolution(draft.anchorResolution, diagnostics);
 
     const optionIds = new Set();
-    const renderedAnchors = new Set();
+    const renderedAnchors = new Set(draft.id ? [draft.id] : []);
+    const sectionIds = new Set(ensureArray(draft.sections).map((section) => String(section && section.id || '')).filter(Boolean));
+    const linkTargetIds = optionLinkTargetIds(sectionIds, scenes);
     if (draft.eventShape === 'choice_event' && draft.options.length < 2) {
       diag(diagnostics, 'error', 'event_draft.choice_count', 'World event drafts must contain at least 2 choices.');
+    }
+    if (draft.eventShape === 'linear_choice_event' && draft.options.length !== 1) {
+      diag(diagnostics, 'error', 'event_draft.linear_choice_count', 'Linear choice event drafts must contain exactly 1 root choice.');
     }
     if (draft.eventShape === 'pure_event' && draft.options.length) {
       diag(diagnostics, 'error', 'event_draft.pure_event_options', 'Pure text event drafts must not contain root player choices; switch to choice_event first.');
@@ -378,7 +489,10 @@
         diag(diagnostics, 'error', 'event_draft.duplicate_option_id', 'Duplicate option id: ' + option.id);
       }
       optionIds.add(option.id);
-      recordRenderedAnchor(renderedAnchors, option.id, diagnostics);
+      const linkedTarget = optionLinksExistingTarget(option, linkTargetIds);
+      if (!linkedTarget) {
+        recordRenderedAnchor(renderedAnchors, option.id, diagnostics);
+      }
       if (!option.label) {
         diag(diagnostics, 'error', 'event_draft.option_label', 'Option ' + option.id + ' needs a label.');
       }
@@ -386,12 +500,15 @@
       if (option.unavailableText && !option.chooseIf) {
         diag(diagnostics, 'warning', 'event_draft.unavailable_without_choose_if', 'unavailableText only matters when chooseIf is set: ' + option.id);
       }
-      if (option.resultMode !== 'native') {
+      if (!linkedTarget && option.resultMode !== 'native') {
         checkGotoAfter(option.gotoAfter, diagnostics);
         recordRenderedAnchor(renderedAnchors, option.gotoAfter, diagnostics);
       }
-      if (option.returnTarget) {
+      if (!linkedTarget && option.returnTarget) {
         checkRouteTarget(option.returnTarget, diagnostics, 'event_draft.return_target');
+      }
+      if (option.setJump) {
+        checkRouteTarget(option.setJump, diagnostics, 'event_draft.set_jump');
       }
       option.effects.forEach((effect) => validateEffect(effect, variables, draft.seenFlag, diagnostics));
       option.variants.forEach((variant) => {
@@ -402,20 +519,24 @@
     });
     draft.effectsOnTrigger.forEach((effect) => validateEffect(effect, variables, draft.seenFlag, diagnostics));
     draft.introParagraphs.forEach((paragraph) => checkFakeInlineOption(paragraph, diagnostics));
-    ensureArray(draft.sections).forEach((section) => validateSection(section, variables, draft.seenFlag, renderedAnchors, diagnostics));
+    ensureArray(draft.sections).forEach((section) => validateSection(section, variables, draft.seenFlag, renderedAnchors, linkTargetIds, diagnostics));
     validateResolvedRouteTargets(draft, renderedAnchors, scenes, diagnostics);
 
     return {draft, diagnostics, ok: diagnostics.every((item) => item.severity !== 'error')};
   }
 
-  function validateSection(section, variables, seenFlag, renderedAnchors, diagnostics) {
+  function validateSection(section, variables, seenFlag, renderedAnchors, linkTargetIds, diagnostics) {
     if (!ID_RE.test(section.id)) {
       diag(diagnostics, 'error', 'event_draft.section_id', 'Section id must be a valid anchor id.');
     }
     recordRenderedAnchor(renderedAnchors, section.id, diagnostics);
     checkConditionText(section.condition, diagnostics, 'event_draft.section_condition', variables, seenFlag);
+    validateConditionalParagraphs(section.conditionalParagraphs, diagnostics, variables, seenFlag, 'event_draft.section_conditional_body');
     checkRouteTarget(section.exitTarget, diagnostics, 'event_draft.section_exit_target');
     section.effects.forEach((effect) => validateEffect(effect, variables, '', diagnostics));
+    if (section.setJump) {
+      checkRouteTarget(section.setJump, diagnostics, 'event_draft.set_jump');
+    }
     section.paragraphs.forEach((paragraph) => checkFakeInlineOption(paragraph, diagnostics));
     const optionIds = new Set();
     section.options.forEach((option, index) => {
@@ -426,7 +547,10 @@
         diag(diagnostics, 'error', 'event_draft.duplicate_option_id', 'Duplicate section option id: ' + option.id);
       }
       optionIds.add(option.id);
-      recordRenderedAnchor(renderedAnchors, option.id, diagnostics);
+      const linkedTarget = optionLinksExistingTarget(option, linkTargetIds);
+      if (!linkedTarget) {
+        recordRenderedAnchor(renderedAnchors, option.id, diagnostics);
+      }
       if (!option.label) {
         diag(diagnostics, 'error', 'event_draft.section_option_label', 'Section option ' + option.id + ' needs a label.');
       }
@@ -434,11 +558,11 @@
       if (option.unavailableText && !option.chooseIf) {
         diag(diagnostics, 'warning', 'event_draft.unavailable_without_choose_if', 'unavailableText only matters when chooseIf is set: ' + option.id);
       }
-      if (option.resultMode !== 'native') {
+      if (!linkedTarget && option.resultMode !== 'native') {
         checkGotoAfter(option.gotoAfter, diagnostics);
         recordRenderedAnchor(renderedAnchors, option.gotoAfter, diagnostics);
       }
-      if (option.returnTarget) {
+      if (!linkedTarget && option.returnTarget) {
         checkRouteTarget(option.returnTarget, diagnostics, 'event_draft.return_target');
       }
       option.effects.forEach((effect) => validateEffect(effect, variables, '', diagnostics));
@@ -484,6 +608,31 @@
     if (effect.op !== '=' && typeof effect.value !== 'number' && !isNumericLiteral(effect.value) && !isSafeNumericExpression(effect.value)) {
       diag(diagnostics, 'error', 'event_draft.effect_value', 'Delta effect value must be numeric for ' + effect.variable + '.');
     }
+  }
+
+  function validateConditionalParagraphs(rows, diagnostics, variables, seenFlag, code) {
+    ensureArray(rows).forEach((row, index) => {
+      const raw = String(row && row.raw || '').trim();
+      const condition = String(row && row.condition || '').trim();
+      const text = String(row && row.text || '').trim();
+      if (!raw && (!condition || !text)) {
+        diag(diagnostics, 'error', code || 'event_draft.conditional_body', 'Conditional body row ' + (index + 1) + ' needs raw text or both condition and text.');
+      }
+      if (!raw) {
+        checkConditionText(condition, diagnostics, code || 'event_draft.conditional_body', variables, seenFlag);
+      }
+      if (text) {
+        checkFakeInlineOption(text, diagnostics);
+      }
+    });
+  }
+
+  function validateAnchorResolution(anchorResolution, diagnostics) {
+    ensureArray(anchorResolution && anchorResolution.unresolvedRoutes).forEach((item) => {
+      const target = String(item && item.target || '').trim();
+      const owner = String(item && item.owner || '').trim();
+      diag(diagnostics, 'error', 'event_draft.unresolved_anchor_mapping', 'Anchor mapping could not safely resolve route target "' + target + '"' + (owner ? ' from ' + owner : '') + '.');
+    });
   }
 
   function isNumericLiteral(value) {
@@ -555,15 +704,18 @@
   }
 
   function validateResolvedRouteTargets(draft, renderedAnchors, scenes, diagnostics) {
-    const targets = [];
+    const targets = rawRouteTargets(draft.rawRoutes, 'event raw route');
     ensureArray(draft.options).forEach((option) => {
+      rawRouteTargets(option.rawRoutes, 'option raw route ' + option.id).forEach((item) => targets.push(item));
       if (option.returnTarget) {
         targets.push({target: option.returnTarget, owner: 'option ' + option.id});
       }
     });
     ensureArray(draft.sections).forEach((section) => {
       targets.push({target: section.exitTarget, owner: 'section ' + section.id});
+      rawRouteTargets(section.rawRoutes, 'section raw route ' + section.id).forEach((item) => targets.push(item));
       ensureArray(section.options).forEach((option) => {
+        rawRouteTargets(option.rawRoutes, 'section option raw route ' + option.id).forEach((item) => targets.push(item));
         if (option.returnTarget) {
           targets.push({target: option.returnTarget, owner: 'section option ' + option.id});
         }
@@ -580,6 +732,26 @@
     });
   }
 
+  function rawRouteTargets(rawRoutes, owner) {
+    const targets = [];
+    ensureArray(rawRoutes).forEach((line) => {
+      const target = staticRawRouteTarget(line);
+      if (target) {
+        targets.push({target, owner});
+      }
+    });
+    return targets;
+  }
+
+  function staticRawRouteTarget(line) {
+    const match = String(line || '').trim().match(/^(?:go-to|check-success-go-to|check-failure-go-to)\s*:\s*[@#]?([A-Za-z_][A-Za-z0-9_.-]*)\b/i);
+    if (!match) {
+      return '';
+    }
+    const target = String(match[1] || '').trim();
+    return ID_RE.test(target) ? target : '';
+  }
+
   function recordRenderedAnchor(anchors, anchorId, diagnostics) {
     if (!anchorId) {
       return;
@@ -588,6 +760,44 @@
       diag(diagnostics, 'error', 'event_draft.duplicate_anchor', 'Rendered anchor would be duplicated: ' + anchorId);
     }
     anchors.add(anchorId);
+  }
+
+  function optionLinkTargetIds(sectionIds, sceneIds) {
+    const out = new Set();
+    if (sectionIds && typeof sectionIds.forEach === 'function') {
+      sectionIds.forEach((id) => out.add(id));
+    }
+    if (sceneIds && typeof sceneIds.forEach === 'function') {
+      sceneIds.forEach((id) => out.add(id));
+    }
+    return out;
+  }
+
+  function optionLinksExistingTarget(option, targetIds) {
+    return Boolean(
+      option &&
+      targetIds &&
+      targetIds.has(option.id) &&
+      !optionHasInlineResultContent(option)
+    );
+  }
+
+  function optionHasInlineResultContent(option) {
+    const value = isObject(option) ? option : {};
+    return Boolean(
+      String(value.title || '').trim() ||
+      String(value.subtitle || '').trim() ||
+      String(value.chooseIf || '').trim() ||
+      String(value.unavailableText || '').trim() ||
+      String(value.setJump || '').trim() ||
+      ensureArray(value.effects).length ||
+      ensureArray(value.rawEffects).length ||
+      ensureArray(value.rawRoutes).length ||
+      ensureArray(value.calls).length ||
+      ensureArray(value.narrativeParagraphs).length ||
+      ensureArray(value.assetPlacements).length ||
+      ensureArray(value.variants).length
+    );
   }
 
   function checkFakeInlineOption(text, diagnostics) {
@@ -626,7 +836,7 @@
     if (draft.newPage) {
       lines.push('new-page: true');
     }
-    if (draft.eventShape === 'choice_event') {
+    if (choiceLikeEventShape(draft.eventShape)) {
       lines.push('is-card: true');
     }
     if (ensureArray(draft.tags).length) {
@@ -641,6 +851,14 @@
     if (draft.maxVisits !== null || draft.useSeenFlag) {
       lines.push('max-visits: ' + (draft.maxVisits !== null ? draft.maxVisits : 1));
     }
+    if (draft.frequency !== null) {
+      lines.push('frequency: ' + draft.frequency);
+    }
+    if (draft.setJump) {
+      lines.push('set-jump: ' + draft.setJump);
+    }
+    appendCallLines(lines, draft.calls);
+    appendRawDirectiveLines(lines, draft.rawRoutes);
     if (draft.useSeenFlag || draft.effectsOnTrigger.length || draft.rawEffectsOnTrigger.length) {
       lines.push('on-arrival: {!');
       if (draft.useSeenFlag) {
@@ -650,11 +868,16 @@
       draft.rawEffectsOnTrigger.forEach((line) => lines.push(renderRawEffect(line)));
       lines.push('!}');
     }
+    appendRawHookBlock(lines, 'on-display', draft.rawOnDisplay);
+    appendRawHookBlock(lines, 'on-departure', draft.rawOnDeparture);
     lines.push('');
     lines.push('= ' + draft.heading);
     lines.push('');
     appendParagraphs(lines, draft.introParagraphs);
+    appendConditionalParagraphs(lines, draft.conditionalParagraphs);
     appendAssetPlacementLines(lines, draft.assetPlacements, {placementKind: 'opening_visual'});
+    const sectionIds = new Set(ensureArray(draft.sections).map((section) => String(section && section.id || '')).filter(Boolean));
+    const linkTargetIds = optionLinkTargetIds(sectionIds, sceneSet(projectIndex));
     if (draft.options.length) {
       draft.options.forEach((option) => {
         lines.push('- @' + option.id + ': ' + option.label);
@@ -664,10 +887,12 @@
         if (index > 0) {
           lines.push('');
         }
-        appendOption(lines, option, continueLabel, draft);
+        if (!optionLinksExistingTarget(option, linkTargetIds)) {
+          appendOption(lines, option, continueLabel, draft);
+        }
       });
     }
-    ensureArray(draft.sections).forEach((section) => appendSection(lines, section, continueLabel, draft));
+    ensureArray(draft.sections).forEach((section) => appendSection(lines, section, continueLabel, draft, linkTargetIds));
     return lines.join('\n') + '\n';
   }
 
@@ -701,8 +926,12 @@
   }
 
   function normalizeAssetDirective(value) {
+    const api = assetContractApi();
+    if (api && typeof api.normalizeAssetDirective === 'function') {
+      return api.normalizeAssetDirective(value);
+    }
     const text = String(value || '').trim().toLowerCase();
-    return text === 'face-image' || text === 'card-image' || text === 'set-bg' || text === 'audio' ? text : '';
+    return text === 'face-image' || text === 'card-image' || text === 'set-bg' || text === 'set-music' || text === 'audio' ? text : '';
   }
 
   function defaultContinueLabel(options) {
@@ -759,6 +988,11 @@
       option.rawEffects.forEach((line) => lines.push(renderRawEffect(line)));
       lines.push('!}');
     }
+    if (option.setJump) {
+      lines.push('set-jump: ' + option.setJump);
+    }
+    appendCallLines(lines, option.calls);
+    appendRawDirectiveLines(lines, option.rawRoutes);
     if (nativeResult && option.returnTarget) {
       lines.push('go-to: ' + renderRouteTarget(draft, option.returnTarget));
     }
@@ -782,7 +1016,7 @@
     lines.push('go-to: ' + renderRouteTarget(draft, option.returnTarget || 'root'));
   }
 
-  function appendSection(lines, section, continueLabel, draft) {
+  function appendSection(lines, section, continueLabel, draft, linkTargetIds) {
     lines.push('');
     lines.push('@' + section.id);
     if (section.title) {
@@ -791,17 +1025,26 @@
     if (section.condition) {
       lines.push('view-if: ' + section.condition);
     }
-    if (section.effects.length) {
+    if (section.effects.length || section.rawEffects.length) {
       lines.push('on-arrival: {!');
       section.effects.forEach((effect) => lines.push(renderEffect(effect)));
+      section.rawEffects.forEach((line) => lines.push(renderRawEffect(line)));
       lines.push('!}');
     }
+    appendRawHookBlock(lines, 'on-display', section.rawOnDisplay);
+    appendRawHookBlock(lines, 'on-departure', section.rawOnDeparture);
+    if (section.setJump) {
+      lines.push('set-jump: ' + section.setJump);
+    }
+    appendCallLines(lines, section.calls);
+    appendRawDirectiveLines(lines, section.rawRoutes);
     lines.push('');
     if (section.title) {
       lines.push('= ' + section.title);
       lines.push('');
     }
     appendParagraphs(lines, section.paragraphs);
+    appendConditionalParagraphs(lines, section.conditionalParagraphs);
     appendAssetPlacementLines(lines, section.assetPlacements, {sectionId: section.id});
     section.options.forEach((option) => {
       lines.push('- @' + option.id + ': ' + option.label);
@@ -813,7 +1056,9 @@
       if (index > 0) {
         lines.push('');
       }
-      appendOption(lines, option, continueLabel, draft);
+      if (!optionLinksExistingTarget(option, linkTargetIds)) {
+        appendOption(lines, option, continueLabel, draft);
+      }
     });
     if (!section.options.length && section.exitTarget) {
       lines.push('go-to: ' + renderRouteTarget(draft, section.exitTarget));
@@ -828,11 +1073,60 @@
     return text || 'root';
   }
 
+  function appendCallLines(lines, calls) {
+    ensureArray(calls).forEach((target) => {
+      const text = String(target || '').trim();
+      if (text) {
+        lines.push('call: ' + text);
+      }
+    });
+  }
+
+  function appendRawDirectiveLines(lines, rawLines) {
+    ensureArray(rawLines).forEach((line) => {
+      const text = String(line || '').trim();
+      if (text) {
+        lines.push(text);
+      }
+    });
+  }
+
+  function appendRawHookBlock(lines, directive, rawLines) {
+    const rows = ensureArray(rawLines).map((line) => String(line || '').trim()).filter(Boolean);
+    if (!rows.length) {
+      return;
+    }
+    lines.push(directive + ': {!');
+    rows.forEach((line) => lines.push(renderRawEffect(line)));
+    lines.push('!}');
+  }
+
   function appendParagraphs(lines, paragraphs) {
     ensureArray(paragraphs).forEach((paragraph) => {
       lines.push(paragraph);
       lines.push('');
     });
+  }
+
+  function appendConditionalParagraphs(lines, rows) {
+    ensureArray(rows).forEach((row) => {
+      const line = renderConditionalParagraph(row);
+      if (line) {
+        lines.push(line);
+        lines.push('');
+      }
+    });
+  }
+
+  function renderConditionalParagraph(row) {
+    const value = normalizeConditionalParagraph(row);
+    if (value.raw) {
+      return value.raw;
+    }
+    if (value.condition && value.text) {
+      return '[? if ' + value.condition + ' : ' + value.text + ' ?]';
+    }
+    return value.text || '';
   }
 
   function appendAssetPlacementLines(lines, placements, scope) {
@@ -1053,11 +1347,7 @@
       position: anchor.position,
       dedupeSearch: '- #event',
       safety: 'advanced_apply',
-      content: [
-        '',
-        '- #event: Monthly event popups',
-        ''
-      ].join('\n'),
+      content: '- #event: Monthly event popups\n',
       description: 'Register the monthly event tag lane for new tags:event world event scenes.'
     };
   }
@@ -1181,7 +1471,7 @@
       ? bodyRows.map((row) => String(row && (row.text || row.value || row.original) || '').trim()).filter(Boolean)
       : normalizeTextList(scene.body || scene.text || '');
     const optionsRows = ensureArray(scene.options || scene.choices);
-    const eventShape = optionsRows.length ? 'choice_event' : 'pure_event';
+    const eventShape = optionsRows.length > 1 ? 'choice_event' : optionsRows.length === 1 ? 'linear_choice_event' : 'pure_event';
     return normalizeDraft({
       schemaVersion: EVENT_DRAFT_VERSION,
       kind: EVENT_KIND,
@@ -1194,8 +1484,14 @@
       newPage: scene.newPage === undefined ? booleanFromText(roleText('newPage'), true) : scene.newPage,
       rawViewIf: String(scene.viewIf || scene.view_if || roleText('viewIf') || '').trim(),
       maxVisits: scene.maxVisits || scene.max_visits || null,
-      useSeenFlag: eventShape === 'choice_event',
-      seenFlag: eventShape === 'choice_event' ? id + '_seen' : '',
+      frequency: scene.frequency || null,
+      calls: scene.calls || scene.callTargets || [],
+      setJump: scene.setJump || scene.set_jump || scene.jumpTarget || '',
+      rawRoutes: scene.rawRoutes || scene.routeClauses || [],
+      rawOnDisplay: scene.rawOnDisplay || scene.onDisplay || [],
+      rawOnDeparture: scene.rawOnDeparture || scene.onDeparture || [],
+      useSeenFlag: choiceLikeEventShape(eventShape),
+      seenFlag: choiceLikeEventShape(eventShape) ? id + '_seen' : '',
       when: {
         year: numberOrNull(scene.year) || 1936,
         monthStart: numberOrNull(scene.monthStart || scene.month_start) || 1,
@@ -1205,6 +1501,7 @@
       },
       introParagraphs: body.length ? body : normalizeTextList(scene.intro || scene.description || scene.title || ''),
       effectsOnTrigger: sceneEffectsForDraft(scene),
+      rawEffectsOnTrigger: scene.rawEffectsOnTrigger || scene.rawOnArrival || scene.onArrival || [],
       assetRefs: assetRefsForScene(scene),
       options: optionsRows.map(optionFromScene)
     });

@@ -46,7 +46,7 @@
 
   function openRelatedEventDraft(state, branch, context, action, deps) {
     const helpers = deps || {};
-    const previousBranches = draftBranchList(state).filter((item) => !draftBranchMatches(item, branch));
+    const previousBranches = withCurrentDraftBranch(state, draftBranchList(state), helpers).filter((item) => !draftBranchMatches(item, branch));
     const draft = branch.draft || {};
     const opened = helpers.openTemplate && helpers.openTemplate('event', draft, {source: 'Storyboard', action: 'create_' + String(action || 'followup')});
     if (!opened) {
@@ -67,6 +67,7 @@
     if (template !== 'card' && template !== 'news') {
       return false;
     }
+    const previousBranches = withCurrentDraftBranch(state, draftBranchList(state), helpers);
     const draft = template === 'card'
       ? relatedCardDraft(state, branch, context, action, helpers)
       : relatedNewsDraft(state, branch, context, action, helpers);
@@ -75,6 +76,7 @@
       return false;
     }
     if (template === 'card') {
+      state.draftBranches = previousBranches;
       const key = draftStoryboardKey('card', draft, branch, helpers);
       state.cardBoardSelectedKey = key;
       state.selectedCanvasNode = key;
@@ -94,6 +96,7 @@
       call(helpers.render);
       return true;
     }
+    state.draftBranches = previousBranches;
     restoreStoryboardContextAfterDraftOpen(state, context, draft, branch, helpers);
     state.status = t('objectCanvas.status.relatedNewsOpened', 'Related news draft opened for editing.');
     call(helpers.showWorkspace, 'news');
@@ -177,7 +180,7 @@
 
   function openStandaloneEventDraft(state, context, deps) {
     const helpers = deps || {};
-    const previousBranches = draftBranchList(state);
+    const previousBranches = withCurrentDraftBranch(state, draftBranchList(state), helpers);
     const draft = standaloneEventDraft(state, context, helpers);
     const opened = helpers.openTemplate && helpers.openTemplate('event', draft, {source: 'Storyboard', action: 'create_event'});
     if (!opened) {
@@ -193,7 +196,7 @@
 
   function openElectionEventDraft(state, context, deps) {
     const helpers = deps || {};
-    const previousBranches = draftBranchList(state);
+    const previousBranches = withCurrentDraftBranch(state, draftBranchList(state), helpers);
     const draft = electionEventDraft(state, context, helpers);
     const opened = helpers.openTemplate && helpers.openTemplate('event', draft, {source: 'Election Results', action: 'create_election_event'});
     if (!opened) {
@@ -308,6 +311,42 @@
     } catch (_err) {
       return Object.assign({}, value || {});
     }
+  }
+
+  function withCurrentDraftBranch(state, branches, deps) {
+    const branch = currentDraftBranch(state, deps);
+    const list = ensureArray(deps || {}, branches).slice();
+    if (!branch) {
+      return list;
+    }
+    return list.filter((item) => !draftBranchMatches(item, branch)).concat(branch);
+  }
+
+  function currentDraftBranch(state, deps) {
+    const helpers = deps || {};
+    if (!state || state.mode === 'existing') {
+      return null;
+    }
+    const template = normalizeTemplateValue(state.template || '', helpers);
+    if (!['event', 'card', 'news'].includes(template)) {
+      return null;
+    }
+    const draft = state.model && state.model.changeState && state.model.changeState.draft || state.baseDraft || {};
+    const id = String(draft.id || '').trim();
+    if (!id) {
+      return null;
+    }
+    const title = String(draft.title || draft.heading || draft.headline || id).trim();
+    const detail = ensureArray(helpers, draft.introParagraphs).concat(ensureArray(helpers, draft.paragraphs)).filter(Boolean)[0] ||
+      String(draft.description || draft.subtitle || '').trim();
+    return {
+      template,
+      id,
+      title,
+      detail,
+      draft: cloneDraft(draft),
+      insertionContext: draft.studioAuthoringContext || draft.authoringContext || null
+    };
   }
 
   function insertYearFromKey(value) {
@@ -447,7 +486,14 @@
   }
 
   function draftBranchMatches(a, b) {
-    return branchId(a) && branchId(a) === branchId(b);
+    const leftId = branchId(a);
+    const rightId = branchId(b);
+    if (!leftId || leftId !== rightId) {
+      return false;
+    }
+    const leftKind = branchTemplateKind(a);
+    const rightKind = branchTemplateKind(b);
+    return !leftKind || !rightKind || leftKind === rightKind;
   }
 
   function draftBranchKeyMatches(branch, key) {
@@ -456,11 +502,37 @@
       return false;
     }
     const id = branchId(branch);
-    return text === 'draft:' + id || text === 'draft:event:' + id || text === 'draft:card:' + id || text === 'draft:news:' + id;
+    if (!id) {
+      return false;
+    }
+    if (text === 'draft:' + id) {
+      return true;
+    }
+    const match = text.match(/^draft:(event|card|news):(.+)$/);
+    if (!match || match[2] !== id) {
+      return false;
+    }
+    const kind = branchTemplateKind(branch);
+    return !kind || kind === match[1];
   }
 
   function branchId(branch) {
     return String(branch && (branch.id || branch.draft && branch.draft.id) || '').trim();
+  }
+
+  function branchTemplateKind(branch) {
+    const draft = branch && branch.draft || {};
+    const text = String(branch && (branch.template || branch.kind) || draft.template || draft.kind || '').trim();
+    if (text === 'card' || text === 'advisor' || text === 'advisor_like') {
+      return 'card';
+    }
+    if (text === 'news' || text === 'news_item') {
+      return 'news';
+    }
+    if (text === 'event' || text === 'world_event' || text === 'new_event') {
+      return 'event';
+    }
+    return '';
   }
 
   function normalizeStoryCanvasCategory(value) {
@@ -533,6 +605,8 @@
     standaloneEventDraft,
     electionEventDraft,
     cloneDraft,
+    withCurrentDraftBranch,
+    currentDraftBranch,
     insertYearFromKey,
     draftYear,
     uniqueDraftId,

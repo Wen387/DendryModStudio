@@ -5,16 +5,7 @@ const canvasModel = require('./authoring/object_authoring_canvas_model.js');
 const complexAuthoring = require('./authoring/complex_event_authoring_model.js');
 const previewEditor = require('./viewer/preview_object_editor.js');
 
-function fail(message, detail) {
-  process.stderr.write('FAIL: ' + message + (detail ? '\n' + JSON.stringify(detail, null, 2) : '') + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message, detail) {
-  if (!condition) {
-    fail(message, detail);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function syntheticIndex() {
   return {
@@ -230,7 +221,7 @@ function runComplexEventAuthoringFlow() {
   assert(brokenReport.playability.diagnostics.some((item) => item.code === 'complex_event.all_root_choices_conditioned'), 'playability should warn when every root choice is gated', brokenReport.playability);
   assert(brokenReport.playability.diagnostics.some((item) => item.code === 'complex_event.missing_target'), 'playability should flag missing continuation targets', brokenReport.playability);
 
-  const html = previewEditor.render(model);
+  const html = previewEditor.render(model) + previewEditor.renderEventReviewDetailsPanels(model.eventBody || {}, model);
   assert(html.includes('data-preview-object-choice-units="true"'), 'UI should render complete choice unit summary');
   assert(html.includes('data-preview-object-consequence-groups="true"'), 'UI should render consequence groups');
   assert(html.includes('data-preview-object-continuation-map="true"'), 'UI should render continuation map');

@@ -15,16 +15,7 @@ const cardDraft = require('./fixtures/card_drafts/sample_action_card.json');
 const newsDraft = require('./fixtures/news_drafts/sample_dated_news.json');
 const surfaceDraft = require('./fixtures/surface_text_drafts/sample_label_replacement.json');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function syntheticIndex() {
   const eventScene = {
@@ -268,11 +259,9 @@ assert(cardDraftCore.normalizeDraft({
 const html = fs.readFileSync(path.join(__dirname, 'viewer', 'index.html'), 'utf8');
 assert(html.includes('../authoring/asset_model.js'), 'viewer should load AssetModel before PreviewModel');
 assert(html.includes('../authoring/preview_model.js'), 'viewer should load PreviewModel before wizard UIs');
-assert(html.includes('id="wizard-asset-refs"'), 'Event wizard should expose an assetRefs editing field');
+// wizard-asset-* removed with legacy wizard form (2026-05-25). Card surfaces retained.
 assert(html.includes('id="card-asset-refs"'), 'Card wizard should expose an assetRefs editing field');
-assert(html.includes('id="wizard-asset-picker"'), 'Event wizard should expose an embedded asset picker');
 assert(html.includes('id="card-asset-picker"'), 'Card wizard should expose an embedded asset picker');
-assert(html.includes('id="wizard-asset-manifest"'), 'Event wizard should expose an asset manifest review surface');
 assert(html.includes('id="card-asset-manifest"'), 'Card wizard should expose an asset manifest review surface');
 ['wizard_ui.js', 'card_ui.js', 'news_ui.js', 'surface_text_ui.js'].forEach((fileName) => {
   const content = fs.readFileSync(path.join(__dirname, 'viewer', fileName), 'utf8');

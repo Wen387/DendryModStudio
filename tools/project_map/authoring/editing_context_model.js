@@ -1,3 +1,4 @@
+// @ts-check
 (function initProjectMapEditingContextModel(global) {
   'use strict';
 

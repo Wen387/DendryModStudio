@@ -12,8 +12,8 @@ const WELCOME_SURFACE_UI = path.join(ROOT, 'viewer', 'welcome_surface_ui.js');
 const RUNTIME_PREVIEW_LOADING_UI = path.join(ROOT, 'viewer', 'runtime_preview_loading_ui.js');
 const WIZARD_UI = path.join(ROOT, 'viewer', 'wizard_ui.js');
 const CARD_UI = path.join(ROOT, 'viewer', 'card_ui.js');
-const EXISTING_SCENE_EDIT_UI = path.join(ROOT, 'viewer', 'existing_scene_edit_ui.js');
-const EDITING_WORKSPACE_UI = path.join(ROOT, 'viewer', 'editing_workspace_ui.js');
+// Legacy editing_workspace_ui.js and existing_scene_edit_ui.js removed
+// 2026-05-25 — Object Canvas subsumes both.
 const AUTHORING_SURFACE_REGISTRY = path.join(ROOT, 'viewer', 'authoring_surface_registry.js');
 const AUTHORING_SURFACE_GRAPHS = path.join(ROOT, 'viewer', 'authoring_surface_graphs.js');
 const AUTHORING_REFERENCE_INDEX = path.join(ROOT, 'viewer', 'authoring_reference_index.js');
@@ -38,6 +38,8 @@ const CONTENT_GRAPH_INTERACTIONS = path.join(ROOT, 'viewer', 'content_graph_inte
 const PROJECT_STATE_SURFACE = path.join(ROOT, 'viewer', 'project_state_surface.js');
 const SYSTEM_UI_FIXTURE_STATE = path.join(ROOT, 'viewer', 'system_ui_fixture_state.js');
 const SYSTEM_UI_REGION_CONTEXT = path.join(ROOT, 'viewer', 'system_ui_region_context.js');
+const SYSTEM_UI_CAPABILITY_MODEL = path.join(ROOT, 'viewer', 'system_ui_capability_model.js');
+const SYSTEM_UI_SEMANTIC_TASK_MODEL = path.join(ROOT, 'viewer', 'system_ui_semantic_task_model.js');
 const SYSTEM_UI_WORKSPACE_STATE = path.join(ROOT, 'viewer', 'system_ui_workspace_state.js');
 const SYSTEM_UI_SCREEN_MODEL = path.join(ROOT, 'viewer', 'system_ui_screen_model.js');
 const SYSTEM_UI_SCREEN_PREVIEW = path.join(ROOT, 'viewer', 'system_ui_screen_preview.js');
@@ -83,7 +85,7 @@ const PROJECT_METADATA_UI = path.join(ROOT, 'viewer', 'project_metadata_ui.js');
 const VARIABLE_EDITOR_UI = path.join(ROOT, 'viewer', 'variable_editor_ui.js');
 const INSTALL_REVIEW_UI = path.join(ROOT, 'viewer', 'install_review_ui.js');
 const INSTALL_UI = path.join(ROOT, 'viewer', 'install_assistant_ui.js');
-const INSTALL_RESULT_REPORT_MODEL = path.join(ROOT, 'viewer', 'install_result_report_model.js');
+const INSTALL_RESULT_REPORT_MODEL = path.join(ROOT, 'authoring', 'install_result_report_model.js');
 const DRAFT_WORKSPACE_UI = path.join(ROOT, 'viewer', 'draft_workspace_ui.js');
 const CHANGE_TRAY_UI = path.join(ROOT, 'viewer', 'change_tray_ui.js');
 const UPDATE_NOTICE_UI = path.join(ROOT, 'viewer', 'update_notice_ui.js');
@@ -98,16 +100,7 @@ const SIDEBAR_STATUS_DRAFT = path.join(ROOT, 'authoring', 'sidebar_status_draft.
 const ELECTION_RESULTS_DRAFT = path.join(ROOT, 'authoring', 'election_results_draft.js');
 const VARIABLE_EDITOR_DRAFT = path.join(ROOT, 'authoring', 'variable_editor_draft.js');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function assertHtmlOrder(before, after, message) {
   const beforeIndex = html.indexOf(before);
@@ -144,8 +137,7 @@ const welcomeSurface = html + '\n' + welcomeSurfaceUi;
 const runtimePreviewLoadingUi = fs.readFileSync(RUNTIME_PREVIEW_LOADING_UI, 'utf8');
 const wizardUi = fs.readFileSync(WIZARD_UI, 'utf8');
 const cardUi = fs.readFileSync(CARD_UI, 'utf8');
-const existingSceneEditUi = fs.readFileSync(EXISTING_SCENE_EDIT_UI, 'utf8');
-const editingWorkspaceUi = fs.readFileSync(EDITING_WORKSPACE_UI, 'utf8');
+// existingSceneEditUi / editingWorkspaceUi reads removed 2026-05-25.
 const authoringSurfaceRegistry = fs.readFileSync(AUTHORING_SURFACE_REGISTRY, 'utf8');
 const authoringSurfaceGraphs = fs.readFileSync(AUTHORING_SURFACE_GRAPHS, 'utf8');
 const authoringReferenceIndex = fs.readFileSync(AUTHORING_REFERENCE_INDEX, 'utf8');
@@ -170,6 +162,8 @@ const contentGraphInteractions = fs.readFileSync(CONTENT_GRAPH_INTERACTIONS, 'ut
 const projectStateSurface = fs.readFileSync(PROJECT_STATE_SURFACE, 'utf8');
 const systemUiFixtureState = fs.readFileSync(SYSTEM_UI_FIXTURE_STATE, 'utf8');
 const systemUiRegionContext = fs.readFileSync(SYSTEM_UI_REGION_CONTEXT, 'utf8');
+const systemUiCapabilityModel = fs.readFileSync(SYSTEM_UI_CAPABILITY_MODEL, 'utf8');
+const systemUiSemanticTaskModel = fs.readFileSync(SYSTEM_UI_SEMANTIC_TASK_MODEL, 'utf8');
 const systemUiWorkspaceState = fs.readFileSync(SYSTEM_UI_WORKSPACE_STATE, 'utf8');
 const systemUiScreenModel = fs.readFileSync(SYSTEM_UI_SCREEN_MODEL, 'utf8');
 const systemUiScreenPreview = fs.readFileSync(SYSTEM_UI_SCREEN_PREVIEW, 'utf8');
@@ -235,16 +229,15 @@ const previewObjectStructureUi = fs.readFileSync(PREVIEW_OBJECT_STRUCTURE_UI, 'u
 assert(html.includes('data-studio-surface="direction-b"'), 'viewer should mark Direction B Studio as the active surface');
 assert(html.includes('brand-mark branch-mark'), 'viewer should expose a Branch brand mark');
 assert(html.includes('Dendry <span>Mod Studio</span>'), 'viewer should emphasize Mod Studio in the wordmark');
-assert(html.includes('Dendry Mod Studio v0.97.8 dev preview'), 'topbar should expose the Studio version for testers');
+assert(html.includes('Dendry Mod Studio v0.98.0 dev preview'), 'topbar should expose the Studio version for testers');
 assert(html.includes('https://github.com/Wen387'), 'topbar should link the author GitHub profile');
 assert(html.includes('nav-group-title'), 'Explore navigation should be grouped by authoring purpose');
 assert(html.includes('Story content'), 'Explore navigation should include a Story content group');
 assert(html.includes('Quality'), 'Explore navigation should include a Quality group');
 assert(html.includes('sidebar-confidence'), 'Explore navigation should anchor the confidence legend in the sidebar');
 assert(html.includes('output-tabs'), 'Create preview should use a tabbed Output surface');
-assert(html.includes('data-preview-tab="scene"'), 'Output tabs should include the scene preview');
+// Legacy wizard scene/migration preview tabs removed with Complex Event Builder form (2026-05-25).
 assert(html.includes('data-preview-tab="draft"'), 'Output tabs should include the draft JSON preview');
-assert(html.includes('data-preview-panel="migration"'), 'Output panels should include migration snippet output');
 assert(html.includes('data-preview-panel="install"'), 'Output panels should include install notes actions');
 assert(html.includes('../authoring/asset_model.js'), 'viewer should load shared AssetModel before PreviewModel');
 assert(html.includes('../authoring/ownership_matching_model.js'), 'viewer should load shared ownership matching helper before semantic authoring models');
@@ -314,8 +307,8 @@ assert(html.includes('../authoring/variable_editor_draft.js'), 'viewer should lo
 assert(html.includes('../authoring/semantic_ownership_graph_model.js'), 'viewer should load Semantic Ownership Graph model');
 assert(html.includes('../authoring/dynamic_semantic_workbench_model.js'), 'viewer should load Dynamic Semantic Workbench model');
 assert(html.includes('id="existing-scene-editor-host"'), 'Create mode should expose an Existing Scene Editor host');
-assert(html.includes('existing_scene_edit_ui.js'), 'viewer should load Existing Scene Editor UI');
-assert(html.includes('editing_workspace_ui.js'), 'viewer should load Contextual Editing workspace UI');
+// Legacy editing_workspace_ui.js and existing_scene_edit_ui.js script
+// assertions removed 2026-05-25 — files retired, Canvas is primary.
 assert(html.includes('authoring_surface_registry.js'), 'viewer should load Authoring Surface registry');
 assert(html.includes('authoring_surface_graphs.js'), 'viewer should load Authoring Surface graph builders');
 assert(html.includes('authoring_reference_index.js'), 'viewer should load Authoring Reference Index');
@@ -325,6 +318,13 @@ assert(html.includes('storyboard_palette_sidebar.js'), 'viewer should load Story
 assert(html.includes('storyboard_workspace_state.js'), 'viewer should load Storyboard workspace state');
 assert(html.includes('content_storyboard_surface.js'), 'viewer should load Content Storyboard surface');
 assert(html.includes('content_storyboard_interactions.js'), 'viewer should load Content Storyboard interactions');
+assert(html.includes('../authoring/spatial_canvas_layout.js'), 'viewer should load Spatial Canvas layout engine');
+assert(html.includes('../authoring/spatial_canvas_model.js'), 'viewer should load Spatial Canvas model');
+assert(html.includes('spatial_canvas_surface.js'), 'viewer should load Spatial Canvas surface renderer');
+assert(html.includes('spatial_canvas_interactions.js'), 'viewer should load Spatial Canvas interactions');
+assert(html.includes('spatial_canvas_workspace_state.js'), 'viewer should load Spatial Canvas workspace state');
+assert(html.includes('shell_navigation.js'), 'viewer should load shell_navigation.js for mode switching and index loading');
+assert(html.includes('wizard_ui.js'), 'viewer should load wizard_ui.js for draft import and Create-pane rendering');
 assert(html.includes('card_face_editor.js'), 'viewer should load Card Face editor');
 assert(html.includes('card_board_surface.js'), 'viewer should load Card Board surface');
 assert(html.includes('card_board_interactions.js'), 'viewer should load Card Board interactions');
@@ -333,6 +333,8 @@ assert(html.includes('content_graph_interactions.js'), 'viewer should load Conte
 assert(html.includes('project_state_surface.js'), 'viewer should load Project State Dependency Board surface');
 assert(html.includes('system_ui_fixture_state.js'), 'viewer should load System UI fixture states');
 assert(html.includes('system_ui_region_context.js'), 'viewer should load System UI region context');
+assert(html.includes('system_ui_capability_model.js'), 'viewer should load System UI capability model');
+assert(html.includes('system_ui_semantic_task_model.js'), 'viewer should load System UI semantic task model');
 assert(html.includes('system_ui_workspace_state.js'), 'viewer should load System UI workspace state');
 assert(html.includes('system_ui_screen_model.js'), 'viewer should load System UI Screen model');
 assert(html.includes('system_ui_screen_preview.js'), 'viewer should load System UI Screen preview');
@@ -382,6 +384,7 @@ assert(authoringSurfaceRegistry.includes('card_board'), 'Authoring Surface regis
 assert(authoringSurfaceRegistry.includes('system_ui_preview'), 'Authoring Surface registry should define System UI Preview');
 assert(authoringSurfaceRegistry.includes('election_results_board'), 'Authoring Surface registry should define Election Results as a dedicated authoring surface');
 assert(authoringSurfaceRegistry.includes('project_state_board'), 'Authoring Surface registry should define Project State Board');
+assert(authoringSurfaceRegistry.includes('spatial_canvas'), 'Authoring Surface registry should define Spatial Canvas');
 assert(authoringSurfaceGraphs.includes('ProjectMapAuthoringSurfaceGraphs'), 'Authoring Surface graph builders should expose a browser API');
 assert(authoringReferenceIndex.includes('ProjectMapAuthoringReferenceIndex'), 'Authoring Reference Index should expose a browser API');
 assert(objectCanvasSurfaceAdapter.includes('ProjectMapObjectCanvasSurfaceAdapter'), 'Object Canvas surface adapter should expose a browser API');
@@ -445,12 +448,41 @@ assert(systemUiFixtureState.includes('ProjectMapSystemUiFixtureState'), 'System 
 assert(systemUiFixtureState.includes('status_heavy') && systemUiFixtureState.includes('interactive'), 'System UI fixture states should include status-heavy and interactive modes');
 assert(systemUiRegionContext.includes('ProjectMapSystemUiRegionContext'), 'System UI region context helper should expose a browser API');
 assert(systemUiRegionContext.includes('REGION_OWNERS'), 'System UI region context should define region ownership');
+assert(systemUiCapabilityModel.includes('ProjectMapSystemUiCapabilityModel'), 'System UI capability model should expose a browser API');
+assert(systemUiCapabilityModel.includes('buildCapabilityMatrix'), 'System UI capability model should build a shared region capability matrix');
+assert(systemUiCapabilityModel.includes('runtimeEvidenceState'), 'System UI capability model should classify runtime evidence');
+assert(systemUiSemanticTaskModel.includes('system_ui_semantic_task_matrix'), 'System UI semantic task model should build a semantic task matrix');
+assert(systemUiSemanticTaskModel.includes('top_chrome_diagnostics'), 'System UI semantic task model should classify Top Chrome separately');
+assert(systemUiScreenModel.includes('semanticTaskMatrix'), 'System UI Screen model should attach semantic task matrix');
+assert(systemUiScreenModel.includes('capabilityMatrix'), 'System UI Screen model should attach region capabilities');
+assert(systemUiScreenModel.includes('system_ui_player_flow'), 'System UI Screen model should expose playerFlow over internal regions');
+assert(systemUiScreenModel.includes('entry_menu') && systemUiScreenModel.includes('library_page') && systemUiScreenModel.includes('in_game'), 'System UI playerFlow should define Entry, Library, and in-game screens');
+assert(systemUiRegionEditor.includes('data-system-ui-capability'), 'System UI editor should render capability evidence cards');
+assert(systemUiRegionEditor.includes('data-system-ui-runtime-state'), 'System UI editor should expose runtime evidence markers');
+assert(systemUiRegionEditor.includes('data-system-ui-semantic-task-panel'), 'System UI editor should render semantic current-task summary before raw fields');
+assert(systemUiRegionEditor.includes('data-system-ui-selected-slot'), 'System UI editor should anchor the first screen to the selected visible slot');
+assert(systemUiRegionEditor.includes('data-system-ui-semantic-fields') && systemUiRegionEditor.indexOf('renderSemanticRegionFields') < systemUiRegionEditor.indexOf('renderLibraryContentDiagnostics'), 'System UI editor should render editable player fields before diagnostics');
+assert(systemUiRegionEditor.includes('data-system-ui-content-scene-handoff'), 'System UI editor should hand source-backed scene text to the content editor instead of showing unrelated System UI fields');
+assert(systemUiRegionEditor.includes('data-system-ui-sidebar-composer'), 'System UI editor should expose Sidebar Composer markers');
+assert(systemUiRegionEditor.includes('data-system-ui-sidebar-composer-mode="delete"'), 'System UI editor should expose Sidebar Composer delete mode');
+assert(systemUiRegionEditor.includes('data-system-ui-library-content'), 'System UI editor should expose Library page content markers');
+assert(systemUiPreviewSurface.includes('data-system-ui-library-entry="toolbar"'), 'System UI surface should expose a toolbar Library content entry');
+assert(systemUiScreenPreview.includes('data-system-ui-library-entry="topbar"'), 'System UI preview should make the Library topbar item open Library content');
+assert(systemUiScreenPreview.includes('open_system_content_scene'), 'System UI preview should route scene text clicks to the owning content scene');
+assert(systemUiRegionEditor.includes('data-system-ui-top-chrome-diagnostics'), 'System UI editor should expose Top Chrome diagnostics markers');
+assert(systemUiRegionEditor.includes('data-system-ui-advanced-details'), 'System UI editor should keep source/capability evidence in Advanced details');
+assert(systemUiRegionEditor.includes('data-system-ui-theme-layout-candidate'), 'System UI editor should expose limited theme/layout candidate markers');
+assert(systemUiScreenPreview.includes('data-system-ui-install-safety'), 'System UI preview should expose capability safety markers');
+assert(objectAuthoringCanvasUi.includes('focusFieldId') && objectAuthoringCanvasUi.includes('replacementText'), 'Object Canvas should preserve Visible Edit System UI focus and replacement text');
 assert(systemUiWorkspaceState.includes('ProjectMapSystemUiWorkspaceState'), 'System UI workspace state helper should expose a browser API');
 assert(systemUiWorkspaceState.includes('studioAuthoringContext'), 'System UI workspace state should preserve saved authoring context');
 assert(systemUiScreenModel.includes('ProjectMapSystemUiScreenModel'), 'System UI Screen model should expose a browser API');
 assert(systemUiScreenModel.includes('FAMILY_ORDER'), 'System UI Screen model should define object families');
 assert(systemUiScreenPreview.includes('ProjectMapSystemUiScreenPreview'), 'System UI Screen preview should expose a browser API');
 assert(systemUiScreenPreview.includes('data-system-screen-shell'), 'System UI Screen preview should render a shared shell');
+assert(systemUiScreenPreview.includes('data-system-player-flow-tabs') && systemUiScreenPreview.includes('data-system-ui-visible-slot'), 'System UI Screen preview should render player flow tabs and visible-slot markers');
+assert(systemUiScreenPreview.includes('data-system-ui-slot-screen'), 'System UI visible slots should carry passive screen markers instead of triggering flow switching');
+assert(systemUiScreenPreview.includes('data-system-library-page') && systemUiScreenPreview.includes('data-system-play-surface'), 'System UI Screen preview should render Library and in-game player screens');
 assert(systemUiScreenPreview.includes('data-system-election-results'), 'System UI Screen preview should render Election Results as a WYSIWYG screen');
 assert(systemUiScreenPreview.includes('renderSystemPreviewText'), 'System UI Screen preview should render source text through the readable visible-text renderer');
 assert(systemUiScreenPreview.includes('data-system-screen-copy'), 'System UI Screen preview should wrap player text in a bounded copy region');
@@ -458,8 +490,11 @@ assert(systemUiRegionRouter.includes('ProjectMapSystemUiRegionRouter'), 'System 
 assert(systemUiRegionEditor.includes('ProjectMapSystemUiRegionEditor'), 'System UI region editor should expose a browser API');
 assert(systemUiRegionEditor.includes('data-system-ui-region-context'), 'System UI region editor should render context evidence');
 assert(systemUiRegionEditor.includes('data-system-ui-card-board-handoff'), 'System UI region editor should deep-link card play regions into Card Board');
+assert(systemUiRegionEditor.indexOf('selected ? renderTaskDetails') < systemUiRegionEditor.indexOf('selected ? renderSelectedRegion'), 'System UI editor should render editable fields before selected-region metadata');
 assert(systemUiRegionEditor.includes('renderEvidenceLocation'), 'System UI region editor should add safe breakpoints to long source evidence paths');
 assert(systemUiPreviewSurface.includes('ProjectMapSystemUiPreviewSurface'), 'System UI Preview surface should expose a browser API');
+assert(systemUiPreviewSurface.includes('data-system-player-flow-toolbar'), 'System UI surface should expose player screen modes instead of internal recipe-first controls');
+assert(systemUiPreviewSurface.includes('data-system-player-flow-control'), 'System UI screen switching should be limited to explicit flow controls');
 assert(objectCanvasViewport.includes('ProjectMapObjectCanvasViewport'), 'Object Canvas viewport helper should expose a browser API');
 assert(objectCanvasViewport.includes('fitContentStoryboard'), 'Object Canvas viewport helper should fit the Storyboard canvas');
 assert(objectCanvasGraphStage.includes('ProjectMapObjectCanvasGraphStage'), 'Object Canvas graph stage should stay split out of the main controller');
@@ -468,12 +503,8 @@ assert(authoringWorkspaceUi.includes("key: 'content'"), 'Create mode should expo
 assert(authoringWorkspaceUi.includes("key: 'system_ui'"), 'Create mode should expose System UI Authoring as a workspace');
 assert(authoringWorkspaceUi.includes("key: 'project_state'"), 'Create mode should expose Project State as a workspace');
 assert(authoringWorkspaceUi.includes('data-authoring-template-group') && authoringWorkspaceUi.includes("key: 'system_ui'"), 'Create mode should group system UI templates away from content authoring');
-assert(existingSceneEditUi.includes('data-existing-block'), 'Existing Scene Editor should expose section block editors');
-assert(existingSceneEditUi.includes('existingScene.textBlocks'), 'Existing Scene Editor should label page section editing');
-assert(existingSceneEditUi.includes('if (!state.active)') && existingSceneEditUi.includes('return;'), 'Existing Scene Editor should not hide the shared Canvas host when inactive');
-assert(editingWorkspaceUi.includes('ProjectMapEditingWorkspace'), 'Contextual Editing workspace should expose a browser API');
-assert(editingWorkspaceUi.includes('data-editing-workspace'), 'Contextual Editing workspace should expose a stable QA marker');
-assert(editingWorkspaceUi.includes('if (!state.active)') && editingWorkspaceUi.includes('return;'), 'Contextual Editing should not hide the shared Canvas host when inactive');
+// Legacy existingSceneEditUi / editingWorkspaceUi assertions removed
+// 2026-05-25 — both UI shells retired; Object Canvas is primary.
 assert(authoringWorkspaceUi.includes('ProjectMapAuthoringWorkspace'), 'Authoring Workspace navigation should expose a browser API');
 assert(authoringWorkspaceUi.includes("system_ui: 'entry'"), 'Authoring Workspace navigation should default System UI to Entry & Sidebar');
 assert(authoringWorkspaceUi.includes("project_state: 'variables'"), 'Authoring Workspace navigation should default Project State to Variables');
@@ -502,7 +533,7 @@ assert(existingSceneEditModel.includes('existingSceneTextBlockBuilder().textBloc
 assert(!existingSceneEditModel.includes("['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg']"), 'Existing Scene Edit model should not re-own asset extension classification');
 assert(objectAuthoringCanvasUi.includes('ProjectMapObjectAuthoringCanvas'), 'Object Authoring Canvas should expose a browser API');
 assert(objectAuthoringCanvasUi.includes('openTemplate'), 'Object Authoring Canvas should route template authoring through Canvas');
-assert(objectAuthoringCanvasUi.includes('ProjectMapEditingWorkspace = api'), 'Object Authoring Canvas should bridge the existing editing API');
+// EditingWorkspace bridge assertion removed 2026-05-25 — legacy bridge retired.
 assert(visibleEditActionUi.includes('ProjectMapVisibleEditActionUi'), 'Visible edit action UI should expose a browser API');
 assert(visibleEditActionUi.includes('data-visible-edit-action'), 'Visible edit action UI should render a stable edit marker');
 assert(sourceSliceWorkspaceUi.includes('ProjectMapSourceSliceWorkspace'), 'Source Slice workspace UI should expose a browser API');
@@ -584,9 +615,9 @@ assert(html.includes('id="workspace-layout-form"'), 'Create mode should expose t
 assert(html.includes('id="sidebar-status-form"'), 'Create mode should expose the Sidebar / Status form');
 assert(html.includes('id="project-metadata-form"'), 'Create mode should expose the Game Info form');
 assert(html.includes('id="variable-editor-form"'), 'Create mode should expose the Variable Editor form');
-assert(html.includes('id="event-readiness-checklist"'), 'Event editor should expose playable-event readiness checks');
-assert(html.includes('id="event-route-summary"'), 'Event editor should expose routing summary chips');
-assert(html.includes('data-i18n="create.section.playerScene"'), 'Event editor should prioritize player-facing scene fields');
+// Legacy wizard event-readiness-checklist, event-route-summary, playerScene section
+// removed with Complex Event Builder form (2026-05-25). Object Canvas provides
+// equivalent functionality via its own surfaces.
 assert(html.includes('id="project-metadata-evidence"'), 'Create mode should expose Game Info source evidence');
 assert(html.includes('id="variable-editor-evidence"'), 'Create mode should expose variable source evidence');
 assert(html.includes('id="entry-playability-checklist"'), 'Entry & Sidebar should expose first-playable readiness checks');
@@ -639,10 +670,10 @@ assert(html.includes('update_notice_ui.js'), 'viewer should load Update Notice U
 assert(appUi.includes('iconForView') && appUi.includes('ProjectMapIcons'), 'Explore nav rerender should preserve shared icons');
 assert(css.includes('.nav-label') && css.includes('.nav-item .ui-icon'), 'Explore nav should style icon-and-label rows');
 assert(html.includes('wizard-field-help'), 'Create forms should explain what important fields change');
-assert(html.includes('id="wizard-variable-assistant"'), 'Event editor should expose semantic variable candidates');
+// wizard-variable-assistant removed with legacy wizard form (2026-05-25)
 assert(html.includes('id="card-variable-assistant"'), 'Card editor should expose semantic variable candidates');
 assert(html.includes('id="entry-variable-assistant"'), 'Entry editor should expose semantic variable candidates');
-assert(html.includes('data-i18n="create.guidance.event"'), 'Event editor should explain the editing intent before raw fields');
+// create.guidance.event removed with legacy wizard form (2026-05-25)
 assert(html.includes('data-i18n="create.guidance.card"'), 'Card editor should explain card routing and draw behavior before raw fields');
 assert(html.includes('data-i18n="create.guidance.surface"'), 'Text editor should explain source evidence before raw fields');
 assert(html.includes('data-i18n="create.guidance.entry"'), 'Entry editor should explain source evidence and safe apply boundaries before raw fields');
@@ -653,7 +684,7 @@ assert(html.includes('data-i18n="create.help.surfaceEditability"'), 'Text editab
 assert(html.includes('wizard-action-primary'), 'Create output actions should separate the recommended next step');
 assert(html.includes('wizard-action-advanced'), 'Create output actions should hide technical downloads behind an advanced group');
 assert(html.includes('data-i18n="create.action.recommendedNext"'), 'Create actions should label the recommended next step');
-assert(html.includes('id="wizard-review-install" class="primary-action"'), 'Event Review & Apply should be the primary output action');
+// wizard-review-install removed with legacy wizard form (2026-05-25)
 assert(html.includes('My Changes'), 'Create mode should frame saved drafts as My Changes');
 assert(html.includes('id="install-runtime-preview"'), 'Install Assistant should expose a Runtime Preview action');
 assert(html.includes('id="install-runtime-preview-result"'), 'Install Assistant should render Runtime Preview results');
@@ -806,7 +837,8 @@ assert(desktopRuntimePreview.includes('recordDebugCommandHistory'), 'Runtime Pre
 assert(draftWorkspaceUi.includes('draft-workspace-item-preview'), 'saved changes should render a player-facing preview excerpt');
 assert(draftWorkspaceUi.includes('draftWorkspace.noInstallPlanShort'), 'saved changes without install plans should explain that review is unavailable');
 assert(draftWorkspaceUi.includes('reviewButton.disabled = !item.installPlan'), 'saved changes without install plans should not switch to Install review');
-assert(draftWorkspaceUi.includes('ProjectMapExistingSceneEditor'), 'saved existing-scene edits should reopen into the Existing Scene Editor');
+// ExistingSceneEditor draft workspace assertion removed 2026-05-25 —
+// Object Canvas handles existing-scene draft loading directly.
 assert(draftWorkspaceUi.includes('ProjectMapEntrySidebarWizard'), 'saved Entry & Sidebar drafts should reopen into the Entry wizard');
 assert(draftWorkspaceUi.includes('ProjectMapPlaySurfaceWizard'), 'saved Playable Surface drafts should reopen into the Playable Surface wizard');
 assert(draftWorkspaceUi.includes('ProjectMapWorkspaceLayoutWizard'), 'saved Workspace Layout drafts should reopen into the Workspace Layout wizard');
@@ -846,7 +878,8 @@ assert(css.includes('.system-ui-evidence-row code') && css.includes('overflow-wr
 assert(html.includes('studio_shared_constants.js'), 'viewer should load shared Studio constants before UI modules');
 assert(appUi.includes('data-edit-existing'), 'Explore inspector should expose Edit existing');
 assert(appUi.includes('Copy as new draft'), 'Explore inspector should keep copy-as-new draft wording');
-assert(appUi.includes('ProjectMapExistingSceneEditor'), 'Explore should call Existing Scene Editor when editing existing Events/Cards');
+// ExistingSceneEditor Explore assertion removed 2026-05-25 —
+// Explore now routes to Object Canvas directly.
 assert(designUi.includes('data-design-edit-existing'), 'Design inspector should expose Edit existing');
 assert(designUi.includes('Copy as new draft'), 'Design inspector should keep copy-as-new draft wording');
 assert(designUi.includes('designModelStale') && designUi.includes('designModeIsActive'), 'Design should defer heavy graph rebuilds until the Design page is visible');
@@ -863,18 +896,13 @@ assert(appUi.includes('renderAssetRepairActions'), 'Assets inspector should expo
 assert(appUi.includes('handleAssetRepairFileSelection'), 'Assets inspector should turn replacement file picks into asset install requests');
 assert(appUi.includes('ProjectMap:asset-install-request-selected'), 'Assets inspector should dispatch asset install requests to Create wizards');
 assert(appUi.includes('Missing asset reference'), 'Preview assets should surface missing asset reference diagnostics');
-assert(html.includes('id="wizard-asset-refs"'), 'Event wizard should expose an assetRefs editor');
+// wizard-asset-* removed with legacy wizard form (2026-05-25). Card surfaces retained.
 assert(html.includes('id="card-asset-refs"'), 'Card wizard should expose an assetRefs editor');
-assert(html.includes('id="wizard-draft-asset-panel"'), 'Event wizard should expose a visual draft asset panel');
 assert(html.includes('id="card-draft-asset-panel"'), 'Card wizard should expose a visual draft asset panel');
 assert(html.includes('class="asset-advanced-panel"'), 'raw asset text editors should be demoted into an advanced panel');
-assert(html.includes('id="wizard-asset-picker"'), 'Event wizard should expose an asset picker');
 assert(html.includes('id="card-asset-picker"'), 'Card wizard should expose an asset picker');
-assert(html.includes('id="wizard-asset-manifest"'), 'Event wizard should expose an asset manifest surface');
 assert(html.includes('id="card-asset-manifest"'), 'Card wizard should expose an asset manifest surface');
-assert(html.includes('id="wizard-asset-file"'), 'Event wizard should expose a graphical asset file picker');
 assert(html.includes('id="card-asset-file"'), 'Card wizard should expose a graphical asset file picker');
-assert(html.includes('id="wizard-asset-install-requests"'), 'Event wizard should expose asset install request review');
 assert(html.includes('id="card-asset-install-requests"'), 'Card wizard should expose asset install request review');
 assert(i18nUi.includes("'assets.useInEventDraft'"), 'asset use-in-event action should be localized');
 assert(i18nUi.includes("'assets.useInCardDraft'"), 'asset use-in-card action should be localized');

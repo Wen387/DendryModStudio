@@ -10,16 +10,7 @@ const PROJECT_MAP_DIR = __dirname;
 const DESKTOP_DIR = path.join(PROJECT_MAP_DIR, 'desktop');
 const VIEWER_DIR = path.join(PROJECT_MAP_DIR, 'viewer');
 
-function fail(message) {
-  process.stderr.write('FAIL: ' + message + '\n');
-  process.exit(1);
-}
-
-function assert(condition, message) {
-  if (!condition) {
-    fail(message);
-  }
-}
+const {fail, assert} = require('./check_harness.js');
 
 function read(filePath) {
   return fs.readFileSync(filePath, 'utf8');
