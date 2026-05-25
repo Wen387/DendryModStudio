@@ -1001,6 +1001,122 @@ async function writeParserIndex(root, parserOut, paths) {
   return parserIndex;
 }
 
+const INDEX_CACHE_VERSION = 1;
+
+function projectCacheDir(outDir, root) {
+  const id = crypto.createHash('sha256').update(path.resolve(root)).digest('hex').slice(0, 16);
+  return path.join(outDir, 'index-cache', id);
+}
+
+function toolFileMtimeTag(filePath) {
+  try {
+    const stat = fs.statSync(filePath);
+    return filePath + ':' + stat.mtimeMs;
+  } catch (_err) { return ''; }
+}
+
+function computeProjectFingerprint(root, toolPaths) {
+  const sourceDir = path.join(root, 'source');
+  const files = [];
+  function walk(dir) {
+    let entries;
+    try { entries = fs.readdirSync(dir, {withFileTypes: true}); }
+    catch (_err) { return; }
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) { walk(full); continue; }
+      if (!entry.isFile()) { continue; }
+      if (!/\.dry$/i.test(entry.name)) { continue; }
+      try {
+        const stat = fs.statSync(full);
+        files.push(path.relative(root, full) + ':' + stat.mtimeMs + ':' + stat.size);
+      } catch (_err) { /* skip unreadable */ }
+    }
+  }
+  if (fs.existsSync(sourceDir)) { walk(sourceDir); }
+  files.sort();
+  const hash = crypto.createHash('sha256');
+  hash.update('v' + INDEX_CACHE_VERSION + '\n');
+  // Include indexer + parser script mtimes so Studio updates invalidate the
+  // cache automatically, without needing a manual INDEX_CACHE_VERSION bump.
+  if (toolPaths) {
+    const tag1 = toolFileMtimeTag(toolPaths.indexer);
+    const tag2 = toolFileMtimeTag(toolPaths.parser);
+    if (tag1) { hash.update('tool:' + tag1 + '\n'); }
+    if (tag2) { hash.update('tool:' + tag2 + '\n'); }
+  }
+  for (const line of files) { hash.update(line + '\n'); }
+  return {version: INDEX_CACHE_VERSION, fileCount: files.length, hash: hash.digest('hex'), root: path.resolve(root)};
+}
+
+function checkProjectCache(outDir, root, includeExcerpts, toolPaths) {
+  const cacheDir = projectCacheDir(outDir, root);
+  const fpPath = path.join(cacheDir, 'fingerprint.json');
+  const indexName = includeExcerpts ? 'project-index-excerpts.json' : 'project-index.json';
+  const indexPath = path.join(cacheDir, indexName);
+  const result = {hit: false, cacheDir, indexPath, fpPath, firstTime: true, fingerprint: null};
+  if (!fs.existsSync(fpPath) || !fs.existsSync(indexPath)) { return result; }
+  try {
+    const cached = JSON.parse(fs.readFileSync(fpPath, 'utf8'));
+    const current = computeProjectFingerprint(root, toolPaths);
+    result.firstTime = false;
+    result.fingerprint = current;
+    if (cached.hash === current.hash && cached.version === current.version) {
+      result.hit = true;
+    }
+    return result;
+  } catch (_err) { return result; }
+}
+
+function saveProjectCache(outDir, root, includeExcerpts, srcIndexPath, fingerprint) {
+  try {
+    const cacheDir = projectCacheDir(outDir, root);
+    fs.mkdirSync(cacheDir, {recursive: true});
+    const fp = fingerprint || computeProjectFingerprint(root);
+    fs.writeFileSync(path.join(cacheDir, 'fingerprint.json'), JSON.stringify(fp, null, 2) + '\n', 'utf8');
+    const indexName = includeExcerpts ? 'project-index-excerpts.json' : 'project-index.json';
+    fs.copyFileSync(srcIndexPath, path.join(cacheDir, indexName));
+  } catch (_err) { /* cache save is non-fatal */ }
+}
+
+var INDEX_CACHE_MAX_ENTRIES = 3;
+
+function pruneIndexCache(outDir) {
+  const cacheRoot = path.join(outDir, 'index-cache');
+  if (!fs.existsSync(cacheRoot)) { return; }
+  let entries;
+  try { entries = fs.readdirSync(cacheRoot, {withFileTypes: true}); }
+  catch (_err) { return; }
+  const dirs = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory()) { continue; }
+    const dir = path.join(cacheRoot, entry.name);
+    const fpPath = path.join(dir, 'fingerprint.json');
+    let mtime = 0;
+    let projectRoot = '';
+    try {
+      const stat = fs.statSync(fpPath);
+      mtime = stat.mtimeMs;
+      const fp = JSON.parse(fs.readFileSync(fpPath, 'utf8'));
+      projectRoot = fp.root || '';
+    } catch (_err) { /* treat as oldest */ }
+    dirs.push({dir, mtime, projectRoot});
+  }
+  // Remove entries whose project root no longer exists on disk
+  const orphans = dirs.filter((d) => d.projectRoot && !fs.existsSync(d.projectRoot));
+  for (const orphan of orphans) {
+    try { fs.rmSync(orphan.dir, {recursive: true, force: true}); } catch (_err) { /* skip */ }
+  }
+  // Keep the most recent INDEX_CACHE_MAX_ENTRIES entries; remove the rest
+  const survivors = dirs.filter((d) => !orphans.includes(d));
+  if (survivors.length <= INDEX_CACHE_MAX_ENTRIES) { return; }
+  survivors.sort((a, b) => b.mtime - a.mtime);
+  const evict = survivors.slice(INDEX_CACHE_MAX_ENTRIES);
+  for (const entry of evict) {
+    try { fs.rmSync(entry.dir, {recursive: true, force: true}); } catch (_err) { /* skip */ }
+  }
+}
+
 async function buildProjectIndex(options) {
   const paths = resolveResourcePaths(options);
   emitProgress(options, {
@@ -1058,6 +1174,44 @@ async function buildProjectIndex(options) {
   const indexName = includeExcerpts ? 'project-index-excerpts.json' : 'project-index.json';
   const parserOut = path.join(scratch, 'parser-index.json');
   const indexPath = path.join(scratch, indexName);
+
+  // --- Index cache: skip parser + indexer if source files haven't changed ---
+  pruneIndexCache(scratch);
+  emitProgress(options, {
+    stage: 'cache-check',
+    percent: 6,
+    label: 'Checking for cached index...'
+  });
+  const cache = checkProjectCache(scratch, root, includeExcerpts, paths);
+  if (cache.hit) {
+    emitProgress(options, {
+      stage: 'cache-load',
+      percent: 85,
+      label: 'Loading cached Project Map index...'
+    });
+    try {
+      const index = JSON.parse(fs.readFileSync(cache.indexPath, 'utf8'));
+      emitProgress(options, {
+        stage: 'complete',
+        percent: 100,
+        label: 'Project Map index ready (cached).'
+      });
+      return {
+        ok: true,
+        root,
+        projectName: projectName(index, root),
+        includeExcerpts,
+        indexPath: cache.indexPath,
+        indexSize: fileSize(cache.indexPath),
+        index,
+        cached: true,
+        summary: summarizeIndex(index)
+      };
+    } catch (_err) {
+      // Cache read failed — fall through to full build
+    }
+  }
+
   const pythonCheck = checkPython(options);
   const python = pythonCheck.python;
   if (!pythonCheck.ok) {
@@ -1079,7 +1233,13 @@ async function buildProjectIndex(options) {
   emitProgress(options, {
     stage: 'parser',
     percent: 24,
-    label: 'Parsing Dendry scene structure...'
+    label: cache.firstTime
+      ? 'Parsing Dendry scenes...'
+      : 'Project files changed. Rebuilding index...',
+    hintKey: cache.firstTime ? 'desktop.indexHintFirstTime' : '',
+    hint: cache.firstTime
+      ? 'First time opening this project. Building a reusable index — future loads will be much faster. This may take 30–60 seconds.'
+      : null
   });
   try {
     await writeParserIndex(root, parserOut, paths);
@@ -1101,7 +1261,11 @@ async function buildProjectIndex(options) {
   emitProgress(options, {
     stage: 'indexer',
     percent: 58,
-    label: includeExcerpts ? 'Building review index with source excerpts...' : 'Building Project Map semantic index...'
+    label: includeExcerpts ? 'Building review index with source excerpts...' : 'Building Project Map semantic index...',
+    hintKey: cache.firstTime ? 'desktop.indexHintFirstTime' : '',
+    hint: cache.firstTime
+      ? 'First time opening this project. Building a reusable index — future loads will be much faster. This may take 30–60 seconds.'
+      : null
   });
   const args = [
     paths.indexer,
@@ -1162,6 +1326,8 @@ async function buildProjectIndex(options) {
       message: 'The Project Map index was generated but could not be read.'
     };
   }
+
+  saveProjectCache(scratch, root, includeExcerpts, indexPath, cache.fingerprint);
 
   emitProgress(options, {
     stage: 'complete',
@@ -1282,6 +1448,7 @@ module.exports = {
   checkScratchDir,
   runDesktopDoctor,
   buildProjectIndex,
+  pruneIndexCache,
   loadStarterDemoIndex,
   applyInstallPlan,
   createRuntimePreview,
