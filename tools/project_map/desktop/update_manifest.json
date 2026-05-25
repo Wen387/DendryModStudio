@@ -3,72 +3,92 @@
   "channel": "dev-preview",
   "latestVersion": "0.98.0",
   "minimumRecommendedVersion": "0.98.0",
-  "severity": "info",
-  "noticeId": "v0.97.8-preview-announcement-2026-05-21",
-  "title": "Dendry Mod Studio v0.97.8 preview update is ready",
+  "severity": "warning",
+  "noticeId": "v0.98-preview-announcement-2026-05-25",
+  "title": "Dendry Mod Studio v0.98 — major feature update",
   "titleLocalized": {
-    "en": "Dendry Mod Studio v0.97.8 preview update is ready",
-    "zh-Hant": "Dendry Mod Studio v0.97.8 預覽更新已可使用"
+    "en": "Dendry Mod Studio v0.98 — major feature update",
+    "zh-Hant": "Dendry Mod Studio v0.98 — 大型功能更新"
   },
-  "body": "v0.97.8 improves the visible object editor, complex routing states, conditional route editing, event creation extensions, art asset handling, the bundled demo, and smoother canvas zoom.",
+  "body": "v0.98 is a major feature update. Music asset management, Canvas storyboard zoom and card stacking, significantly faster project loading, better performance, and improved complex conditional logic support. Projects edited with older Studio versions may not load correctly — please keep backups.",
   "bodyLocalized": {
-    "en": "v0.97.8 improves the visible object editor, complex routing states, conditional route editing, event creation extensions, art asset handling, the bundled demo, and smoother canvas zoom.",
-    "zh-Hant": "v0.97.8 改善了可視物件編輯器、複雜路由狀態、條件路由編輯、事件建立擴充、圖片素材處理、內建 Demo，以及更平順的 Canvas 縮放。"
+    "en": "v0.98 is a major feature update. Music asset management, Canvas storyboard zoom and card stacking, significantly faster project loading, better performance, and improved complex conditional logic support. Projects edited with older Studio versions may not load correctly — please keep backups.",
+    "zh-Hant": "v0.98 是一次大型功能更新。新增音樂資產管理、Canvas 故事板縮放與卡牌堆疊、大幅提升專案載入速度與整體效能，並改善了對複雜條件判斷的支援。使用舊版 Studio 編輯過的專案可能無法正確載入——請務必保留備份。"
   },
-  "details": "This preview makes the visible object editor easier to use by keeping more choice conditions, effects, routes, unavailable text, and result pages close to the player-facing choices that own them. Route Map and Semantic Logic have better support for complex routing states and conditional route editing, and event creation gained several editing extensions.\n\nIt also fixes several bugs around art assets and Runtime Preview image handling, slightly expands the built-in demo content, and adds smoother zooming and magnification to the current canvas editor interface.\n\nThis is still an unsigned preview build. Please keep backups of real projects, review install plans before applying changes, and report any confusing editor behavior or broken preview output.",
+  "details": "This is the largest feature update since the initial preview. Key changes:\n\n• Music asset management — browse, preview, and edit set-music directives with audio modifier badges directly in the Object Canvas and Explore gallery.\n\n• Canvas storyboard improvements — 4-level zoom with Level of Detail that keeps cards readable from 10% bird's-eye to full detail, and drag-to-snap card stacking that lets you organize cards like real playing cards on a desk.\n\n• Performance — faster project indexing and rendering, smoother zoom animation, and reduced memory use during canvas editing.\n\n• Complex conditionals — better support for multi-branch routing states, nested conditions, and conditional route editing in the Route Map and Semantic Logic panels.\n\n⚠️ Breaking change: projects that were edited with v0.97.x or earlier may not load correctly in v0.98. Always keep backups of your source files before updating.\n\n⚠️ This is a large feature update and new bugs are expected. If something breaks, please report it — your feedback directly shapes what gets fixed next.\n\nThis is still an unsigned preview build. Please review install plans before applying changes.",
   "detailsLocalized": {
-    "en": "This preview makes the visible object editor easier to use by keeping more choice conditions, effects, routes, unavailable text, and result pages close to the player-facing choices that own them. Route Map and Semantic Logic have better support for complex routing states and conditional route editing, and event creation gained several editing extensions.\n\nIt also fixes several bugs around art assets and Runtime Preview image handling, slightly expands the built-in demo content, and adds smoother zooming and magnification to the current canvas editor interface.\n\nThis is still an unsigned preview build. Please keep backups of real projects, review install plans before applying changes, and report any confusing editor behavior or broken preview output.",
-    "zh-Hant": "這個預覽版讓可視物件編輯器更容易使用：更多選項條件、效果、路由、不可用文本與結果頁會靠近它們所屬的玩家選項。Route Map 與 Semantic Logic 也加強了對複雜路由狀態和條件路由編輯的支援，事件建立流程則新增了幾個編輯擴充。\n\n它也修復了數個圖片素材與 Runtime Preview 圖片處理相關問題，稍微擴充了內建 Demo 內容，並讓目前 Canvas 編輯介面的縮放與放大更平順。\n\n這仍是未簽署的預覽版。請保留真實專案備份，在套用修改前檢查 install plan；如果遇到令人困惑的編輯行為或破損預覽，也歡迎回報。"
+    "en": "This is the largest feature update since the initial preview. Key changes:\n\n• Music asset management — browse, preview, and edit set-music directives with audio modifier badges directly in the Object Canvas and Explore gallery.\n\n• Canvas storyboard improvements — 4-level zoom with Level of Detail that keeps cards readable from 10% bird's-eye to full detail, and drag-to-snap card stacking that lets you organize cards like real playing cards on a desk.\n\n• Performance — faster project indexing and rendering, smoother zoom animation, and reduced memory use during canvas editing.\n\n• Complex conditionals — better support for multi-branch routing states, nested conditions, and conditional route editing in the Route Map and Semantic Logic panels.\n\n⚠️ Breaking change: projects that were edited with v0.97.x or earlier may not load correctly in v0.98. Always keep backups of your source files before updating.\n\n⚠️ This is a large feature update and new bugs are expected. If something breaks, please report it — your feedback directly shapes what gets fixed next.\n\nThis is still an unsigned preview build. Please review install plans before applying changes.",
+    "zh-Hant": "這是自首次預覽以來最大的功能更新。主要變化：\n\n• 音樂資產管理——在 Object Canvas 和 Explore 素材庫中直接瀏覽、預聽和編輯 set-music 指令，搭配音訊修飾符標記。\n\n• Canvas 故事板改進——4 級縮放搭配自動細節層次，從 10% 鳥瞰圖到完整細節都保持卡牌可讀；拖拽磁吸卡牌堆疊讓你像整理桌上撲克牌一樣組織故事卡牌。\n\n• 效能提升——更快的專案索引與渲染、更流暢的縮放動畫、Canvas 編輯時更低的記憶體佔用。\n\n• 複雜條件判斷——Route Map 和 Semantic Logic 面板對多分支路由狀態、巢狀條件和條件路由編輯有更好的支援。\n\n⚠️ 相容性提醒：使用 v0.97.x 或更早版本編輯過的專案可能無法在 v0.98 中正確載入。更新前請務必保留 source 檔案備份。\n\n⚠️ 這是一次大型功能更新，預期會有新的 Bug 出現。如果發現問題，請回報——你的回饋直接決定下一步修什麼。\n\n這仍是未簽署的預覽版。套用修改前請先檢查 install plan。"
   },
   "announcementOnly": true,
   "notices": [
     {
-      "noticeId": "v0.97.8-release-2026-05-21",
+      "noticeId": "v0.98-release-2026-05-25",
       "kind": "release",
-      "severity": "info",
-      "title": "v0.97.8 preview update is ready",
+      "severity": "warning",
+      "title": "v0.98 major feature update is ready",
       "titleLocalized": {
-        "en": "v0.97.8 preview update is ready",
-        "zh-Hant": "v0.97.8 預覽更新已可使用"
+        "en": "v0.98 major feature update is ready",
+        "zh-Hant": "v0.98 大型功能更新已可使用"
       },
-      "body": "v0.97.8 improves the visible object editor, complex routing states, conditional route editing, event creation extensions, art asset handling, the bundled demo, and smoother canvas zoom.",
+      "body": "Music asset management, Canvas storyboard zoom and card stacking, faster loading, better performance, and improved complex conditional support. Projects from older versions may not load — keep backups.",
       "bodyLocalized": {
-        "en": "v0.97.8 improves the visible object editor, complex routing states, conditional route editing, event creation extensions, art asset handling, the bundled demo, and smoother canvas zoom.",
-        "zh-Hant": "v0.97.8 改善了可視物件編輯器、複雜路由狀態、條件路由編輯、事件建立擴充、圖片素材處理、內建 Demo，以及更平順的 Canvas 縮放。"
+        "en": "Music asset management, Canvas storyboard zoom and card stacking, faster loading, better performance, and improved complex conditional support. Projects from older versions may not load — keep backups.",
+        "zh-Hant": "新增音樂資產管理、Canvas 故事板縮放與卡牌堆疊、更快載入速度、更好效能，以及更強的複雜條件支援。舊版專案可能無法載入——請保留備份。"
       },
-      "details": "This preview makes the visible object editor easier to use by keeping more choice conditions, effects, routes, unavailable text, and result pages close to the player-facing choices that own them. Route Map and Semantic Logic have better support for complex routing states and conditional route editing, and event creation gained several editing extensions.\n\nIt also fixes several bugs around art assets and Runtime Preview image handling, slightly expands the built-in demo content, and adds smoother zooming and magnification to the current canvas editor interface.\n\nThis is still an unsigned preview build. Please keep backups of real projects, review install plans before applying changes, and report any confusing editor behavior or broken preview output.",
+      "details": "This is the largest feature update since the initial preview. Key changes:\n\n• Music asset management — browse, preview, and edit set-music directives with audio modifier badges directly in the Object Canvas and Explore gallery.\n\n• Canvas storyboard improvements — 4-level zoom with Level of Detail that keeps cards readable from 10% bird's-eye to full detail, and drag-to-snap card stacking that lets you organize cards like real playing cards on a desk.\n\n• Performance — faster project indexing and rendering, smoother zoom animation, and reduced memory use during canvas editing.\n\n• Complex conditionals — better support for multi-branch routing states, nested conditions, and conditional route editing in the Route Map and Semantic Logic panels.\n\n⚠️ Breaking change: projects that were edited with v0.97.x or earlier may not load correctly in v0.98. Always keep backups of your source files before updating.\n\n⚠️ This is a large feature update and new bugs are expected. If something breaks, please report it — your feedback directly shapes what gets fixed next.",
       "detailsLocalized": {
-        "en": "This preview makes the visible object editor easier to use by keeping more choice conditions, effects, routes, unavailable text, and result pages close to the player-facing choices that own them. Route Map and Semantic Logic have better support for complex routing states and conditional route editing, and event creation gained several editing extensions.\n\nIt also fixes several bugs around art assets and Runtime Preview image handling, slightly expands the built-in demo content, and adds smoother zooming and magnification to the current canvas editor interface.\n\nThis is still an unsigned preview build. Please keep backups of real projects, review install plans before applying changes, and report any confusing editor behavior or broken preview output.",
-        "zh-Hant": "這個預覽版讓可視物件編輯器更容易使用：更多選項條件、效果、路由、不可用文本與結果頁會靠近它們所屬的玩家選項。Route Map 與 Semantic Logic 也加強了對複雜路由狀態和條件路由編輯的支援，事件建立流程則新增了幾個編輯擴充。\n\n它也修復了數個圖片素材與 Runtime Preview 圖片處理相關問題，稍微擴充了內建 Demo 內容，並讓目前 Canvas 編輯介面的縮放與放大更平順。\n\n這仍是未簽署的預覽版。請保留真實專案備份，在套用修改前檢查 install plan；如果遇到令人困惑的編輯行為或破損預覽，也歡迎回報。"
+        "en": "This is the largest feature update since the initial preview. Key changes:\n\n• Music asset management — browse, preview, and edit set-music directives with audio modifier badges directly in the Object Canvas and Explore gallery.\n\n• Canvas storyboard improvements — 4-level zoom with Level of Detail that keeps cards readable from 10% bird's-eye to full detail, and drag-to-snap card stacking that lets you organize cards like real playing cards on a desk.\n\n• Performance — faster project indexing and rendering, smoother zoom animation, and reduced memory use during canvas editing.\n\n• Complex conditionals — better support for multi-branch routing states, nested conditions, and conditional route editing in the Route Map and Semantic Logic panels.\n\n⚠️ Breaking change: projects that were edited with v0.97.x or earlier may not load correctly in v0.98. Always keep backups of your source files before updating.\n\n⚠️ This is a large feature update and new bugs are expected. If something breaks, please report it — your feedback directly shapes what gets fixed next.",
+        "zh-Hant": "這是自首次預覽以來最大的功能更新。主要變化：\n\n• 音樂資產管理——在 Object Canvas 和 Explore 素材庫中直接瀏覽、預聽和編輯 set-music 指令，搭配音訊修飾符標記。\n\n• Canvas 故事板改進——4 級縮放搭配自動細節層次，從 10% 鳥瞰圖到完整細節都保持卡牌可讀；拖拽磁吸卡牌堆疊讓你像整理桌上撲克牌一樣組織故事卡牌。\n\n• 效能提升——更快的專案索引與渲染、更流暢的縮放動畫、Canvas 編輯時更低的記憶體佔用。\n\n• 複雜條件判斷——Route Map 和 Semantic Logic 面板對多分支路由狀態、巢狀條件和條件路由編輯有更好的支援。\n\n⚠️ 相容性提醒：使用 v0.97.x 或更早版本編輯過的專案可能無法在 v0.98 中正確載入。更新前請務必保留 source 檔案備份。\n\n⚠️ 這是一次大型功能更新，預期會有新的 Bug 出現。如果發現問題，請回報——你的回饋直接決定下一步修什麼。"
       },
       "downloadUrl": "https://github.com/Wen387/DendryModStudio/releases",
       "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.98.md",
-      "publishedAt": "2026-05-21"
+      "publishedAt": "2026-05-25"
     },
     {
-      "noticeId": "v0.97.8-dev-preview-status-2026-05-21",
+      "noticeId": "v0.98-compatibility-warning-2026-05-25",
+      "kind": "announcement",
+      "severity": "warning",
+      "title": "Older projects may need re-indexing",
+      "titleLocalized": {
+        "en": "Older projects may need re-indexing",
+        "zh-Hant": "舊專案可能需要重新索引"
+      },
+      "body": "v0.98 changes how Studio reads project structure. If a project edited with v0.97.x fails to load, try re-scanning from the Open Project dialog. If the problem persists, please report it with the project name and error message.",
+      "bodyLocalized": {
+        "en": "v0.98 changes how Studio reads project structure. If a project edited with v0.97.x fails to load, try re-scanning from the Open Project dialog. If the problem persists, please report it with the project name and error message.",
+        "zh-Hant": "v0.98 變更了 Studio 讀取專案結構的方式。如果以 v0.97.x 編輯過的專案無法載入，請嘗試從「開啟專案」對話框重新掃描。如果問題持續，請附上專案名稱和錯誤訊息回報。"
+      },
+      "details": "The project indexer and model layer were updated to support music directives and new canvas features. Most existing projects should load without issues, but edge cases involving custom scheduler wiring or unusual event structures may need a fresh scan.\n\nIf re-scanning doesn't help, please open a GitHub Issue with the project name, the error message or screenshot, and your Studio version.",
+      "detailsLocalized": {
+        "en": "The project indexer and model layer were updated to support music directives and new canvas features. Most existing projects should load without issues, but edge cases involving custom scheduler wiring or unusual event structures may need a fresh scan.\n\nIf re-scanning doesn't help, please open a GitHub Issue with the project name, the error message or screenshot, and your Studio version.",
+        "zh-Hant": "專案索引器和模型層為了支援音樂指令與新 Canvas 功能而更新。大多數現有專案應該能正常載入，但涉及自訂排程接線或不尋常事件結構的邊界情況可能需要重新掃描。\n\n如果重新掃描後問題仍在，請在 GitHub Issues 中附上專案名稱、錯誤訊息或截圖，以及你的 Studio 版本。"
+      },
+      "publishedAt": "2026-05-25"
+    },
+    {
+      "noticeId": "v0.98-bug-expectation-2026-05-25",
       "kind": "announcement",
       "severity": "info",
-      "title": "A note about the dev preview",
+      "title": "Expect more bugs after this update",
       "titleLocalized": {
-        "en": "A note about the dev preview",
-        "zh-Hant": "關於開發預覽狀態"
+        "en": "Expect more bugs after this update",
+        "zh-Hant": "本次更新後預期會有更多 Bug"
       },
-      "body": "Studio is still in active feature development. There will be bugs and missing workflows, and your reports help decide what gets fixed next.",
+      "body": "This is the largest single feature update so far. New code paths in music editing, Canvas stacking, and the performance rewrite have not yet been battle-tested by real mod projects. Please report anything broken — it helps enormously.",
       "bodyLocalized": {
-        "en": "Studio is still in active feature development. There will be bugs and missing workflows, and your reports help decide what gets fixed next.",
-        "zh-Hant": "Studio 仍處於積極功能開發中。現在仍會有 Bug 與缺失流程，而你的回報會幫助決定下一步修什麼。"
+        "en": "This is the largest single feature update so far. New code paths in music editing, Canvas stacking, and the performance rewrite have not yet been battle-tested by real mod projects. Please report anything broken — it helps enormously.",
+        "zh-Hant": "這是目前為止最大的單次功能更新。音樂編輯、Canvas 堆疊和效能重寫中的新程式碼路徑尚未經過真實 Mod 專案的實戰測試。請回報任何故障——這對開發有極大幫助。"
       },
-      "details": "The editor is becoming more capable, but it is not yet at the stage where development can focus only on polish and repairs. If something feels confusing, too manual, unsafe, or simply absent, that is useful feedback.\n\nThe most helpful report includes the Studio version, OS, mod name, source path if available, what you tried, what you expected, and what actually happened.",
+      "details": "Areas most likely to have new bugs:\n\n• Music directive editing — the audio player, modifier badges, and set-music draft fields are brand new.\n\n• Canvas card stacking — group drag, snap detection, and z-index ordering handle many edge cases but have not been tested with large real-world storyboards.\n\n• LOD zoom — the Level of Detail system dynamically changes font sizes and hides content layers. Text may occasionally appear blurry during rapid zoom on older hardware.\n\n• Shell navigation — mode switching was refactored into a separate module. If tab switching behaves unexpectedly, please report it.\n\nThe most helpful report includes your Studio version, OS, the project or mod name, what you tried, what you expected, and what actually happened. Screenshots and source paths make bugs much easier to reproduce.",
       "detailsLocalized": {
-        "en": "The editor is becoming more capable, but it is not yet at the stage where development can focus only on polish and repairs. If something feels confusing, too manual, unsafe, or simply absent, that is useful feedback.\n\nThe most helpful report includes the Studio version, OS, mod name, source path if available, what you tried, what you expected, and what actually happened.",
-        "zh-Hant": "編輯器正在變得更有能力，但專案還沒有進入只需要打磨和修繕的階段。如果某個地方讓你困惑、太手動、不放心，或乾脆缺少入口，這些都是有用回饋。\n\n最有幫助的回報會包含 Studio 版本、作業系統、Mod 名稱、可用的 source 路徑、你嘗試了什麼、原本期待什麼，以及實際發生了什麼。"
+        "en": "Areas most likely to have new bugs:\n\n• Music directive editing — the audio player, modifier badges, and set-music draft fields are brand new.\n\n• Canvas card stacking — group drag, snap detection, and z-index ordering handle many edge cases but have not been tested with large real-world storyboards.\n\n• LOD zoom — the Level of Detail system dynamically changes font sizes and hides content layers. Text may occasionally appear blurry during rapid zoom on older hardware.\n\n• Shell navigation — mode switching was refactored into a separate module. If tab switching behaves unexpectedly, please report it.\n\nThe most helpful report includes your Studio version, OS, the project or mod name, what you tried, what you expected, and what actually happened. Screenshots and source paths make bugs much easier to reproduce.",
+        "zh-Hant": "最可能出現新 Bug 的區域：\n\n• 音樂指令編輯——音訊播放器、修飾符標記和 set-music 草稿欄位都是全新的。\n\n• Canvas 卡牌堆疊——群組拖動、磁吸偵測和 z-index 排序處理了許多邊界情況，但尚未在大型真實故事板上測試。\n\n• LOD 縮放——細節層次系統會動態改變字體大小並隱藏內容層。在較舊硬體上快速縮放時，文字偶爾可能模糊。\n\n• Shell 導航——模式切換被重構到獨立模組。如果分頁切換行為異常，請回報。\n\n最有幫助的回報會包含 Studio 版本、作業系統、專案或 Mod 名稱、你嘗試了什麼、原本期待什麼，以及實際發生了什麼。截圖和 source 路徑能讓 Bug 更容易被重現。"
       },
-      "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.98.md",
-      "publishedAt": "2026-05-21"
+      "publishedAt": "2026-05-25"
     },
     {
-      "noticeId": "v0.97.8-playtest-call-2026-05-21",
+      "noticeId": "v0.98-playtest-call-2026-05-25",
       "kind": "playtest",
       "severity": "info",
       "title": "Trying a real mod? Please tell me where it breaks.",
@@ -76,26 +96,26 @@
         "en": "Trying a real mod? Please tell me where it breaks.",
         "zh-Hant": "正在測試真實 Mod？歡迎告訴我哪裡壞了。"
       },
-      "body": "The most useful v0.97.8 feedback is about real editing flows: complex events, guided route edits, Review & Apply, Runtime Preview, the Starter Demo, material browsing, and Windows install speed.",
+      "body": "The most useful v0.98 feedback is about real editing flows: loading older projects, music directive editing, Canvas zoom and card stacking, complex event conditionals, Review & Apply, and Runtime Preview.",
       "bodyLocalized": {
-        "en": "The most useful v0.97.8 feedback is about real editing flows: complex events, guided route edits, Review & Apply, Runtime Preview, the Starter Demo, material browsing, and Windows install speed.",
-        "zh-Hant": "v0.97.8 最需要的回饋是真實編輯流程：複合事件、引導式路由編輯、審查與套用、Runtime Preview、Starter Demo、素材瀏覽，以及 Windows 安裝速度。"
+        "en": "The most useful v0.98 feedback is about real editing flows: loading older projects, music directive editing, Canvas zoom and card stacking, complex event conditionals, Review & Apply, and Runtime Preview.",
+        "zh-Hant": "v0.98 最需要的回饋是真實編輯流程：載入舊專案、音樂指令編輯、Canvas 縮放與卡牌堆疊、複雜事件條件判斷、審查與套用，以及 Runtime Preview。"
       },
       "details": "Screenshots are very helpful for layout or preview problems. For editing bugs, source paths and the generated install plan are even better because they make the issue reproducible.",
       "detailsLocalized": {
         "en": "Screenshots are very helpful for layout or preview problems. For editing bugs, source paths and the generated install plan are even better because they make the issue reproducible.",
         "zh-Hant": "如果是版面或預覽問題，截圖很有幫助。如果是編輯錯誤，source 路徑和生成的 install plan 更有價值，因為它們能讓問題被重現。"
       },
-      "actionUrl": "https://github.com/Wen387/DendryModStudio/issues/new?title=%5BPlaytest%20Feedback%5D%20",
+      "actionUrl": "https://github.com/Wen387/DendryModStudio/issues/new?title=%5Bv0.98%20Playtest%5D%20",
       "actionLabel": "Share playtest feedback",
       "actionLabelLocalized": {
         "en": "Share playtest feedback",
         "zh-Hant": "分享測試回饋"
       },
-      "publishedAt": "2026-05-21"
+      "publishedAt": "2026-05-25"
     },
     {
-      "noticeId": "v0.97.8-contact-bug-report-2026-05-21",
+      "noticeId": "v0.98-contact-bug-report-2026-05-25",
       "kind": "contact",
       "severity": "info",
       "notify": false,
@@ -104,26 +124,26 @@
         "en": "Report a problem",
         "zh-Hant": "回報問題"
       },
-      "body": "Use GitHub Issues when Studio crashes, applies a confusing plan, parses an event incorrectly, or produces a broken preview.",
+      "body": "Use GitHub Issues when Studio crashes, fails to load a project, applies a confusing plan, parses an event incorrectly, or produces a broken preview.",
       "bodyLocalized": {
-        "en": "Use GitHub Issues when Studio crashes, applies a confusing plan, parses an event incorrectly, or produces a broken preview.",
-        "zh-Hant": "當 Studio 當機、產生難以理解的套用計畫、錯誤解析事件，或做出破損預覽時，請使用 GitHub Issues 回報。"
+        "en": "Use GitHub Issues when Studio crashes, fails to load a project, applies a confusing plan, parses an event incorrectly, or produces a broken preview.",
+        "zh-Hant": "當 Studio 當機、無法載入專案、產生難以理解的套用計畫、錯誤解析事件，或做出破損預覽時，請使用 GitHub Issues 回報。"
       },
       "details": "A good bug report includes your operating system, Studio version, whether you used browser or desktop mode, the project or mod name, the exact action, and any diagnostics or error text shown by Studio.",
       "detailsLocalized": {
         "en": "A good bug report includes your operating system, Studio version, whether you used browser or desktop mode, the project or mod name, the exact action, and any diagnostics or error text shown by Studio.",
         "zh-Hant": "好的問題回報會包含：作業系統、Studio 版本、使用瀏覽器或桌面模式、專案或 Mod 名稱、實際操作步驟，以及 Studio 顯示的診斷或錯誤文字。"
       },
-      "actionUrl": "https://github.com/Wen387/DendryModStudio/issues/new?title=%5BBug%5D%20",
+      "actionUrl": "https://github.com/Wen387/DendryModStudio/issues/new?title=%5Bv0.98%20Bug%5D%20",
       "actionLabel": "Report issue",
       "actionLabelLocalized": {
         "en": "Report issue",
         "zh-Hant": "回報問題"
       },
-      "publishedAt": "2026-05-21"
+      "publishedAt": "2026-05-25"
     },
     {
-      "noticeId": "v0.97.8-contact-feature-request-2026-05-21",
+      "noticeId": "v0.98-contact-feature-request-2026-05-25",
       "kind": "contact",
       "severity": "info",
       "notify": false,
@@ -148,10 +168,10 @@
         "en": "Request feature",
         "zh-Hant": "提出功能需求"
       },
-      "publishedAt": "2026-05-21"
+      "publishedAt": "2026-05-25"
     }
   ],
   "downloadUrl": "https://github.com/Wen387/DendryModStudio/releases",
   "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.98.md",
-  "publishedAt": "2026-05-21"
+  "publishedAt": "2026-05-25"
 }
