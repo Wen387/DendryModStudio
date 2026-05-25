@@ -48,6 +48,7 @@
   function start(document) {
     elements = {
       save: document.getElementById('draft-workspace-save'),
+      reviewAll: document.getElementById('draft-workspace-review-all'),
       exportAll: document.getElementById('draft-workspace-export'),
       status: document.getElementById('draft-workspace-status'),
       list: document.getElementById('draft-workspace-list')
@@ -63,6 +64,9 @@
   function bind() {
     if (elements.save) {
       elements.save.addEventListener('click', saveCurrentDraft);
+    }
+    if (elements.reviewAll) {
+      elements.reviewAll.addEventListener('click', reviewAllInstall);
     }
     if (elements.exportAll) {
       elements.exportAll.addEventListener('click', exportAllDrafts);
@@ -220,6 +224,33 @@
     }
   }
 
+  function reviewAllInstall() {
+    const withPlans = state.items.filter((item) => item.installPlan);
+    if (!withPlans.length) {
+      setStatus(t('draftWorkspace.noPlansToReview', 'No drafts have install plans to review.'), 'warning');
+      return;
+    }
+    const assistant = global.ProjectMapInstallAssistant;
+    if (!assistant || typeof assistant.loadPlan !== 'function') {
+      setStatus(t('draftWorkspace.installMissing', 'Install Assistant is not loaded.'), 'warning');
+      return;
+    }
+    const payload = {
+      schemaVersion: '0.1',
+      exportedAt: new Date().toISOString(),
+      items: withPlans
+    };
+    assistant.loadPlan(payload, {fileName: 'studio-drafts-review-all.json'});
+    setStatus(
+      t('draftWorkspace.reviewAllSent', '{count} drafts sent to Review & Apply.').replace('{count}', String(withPlans.length)),
+      'ready'
+    );
+    var installButton = global.document.querySelector('[data-mode="install"]');
+    if (installButton) {
+      installButton.click();
+    }
+  }
+
   function deleteDraft(itemId) {
     const api = workspaceApi();
     state.items = api ? api.deleteDraftItem(state.items, itemId) : state.items.filter((item) => item.workspaceId !== itemId);
@@ -242,13 +273,20 @@
       return;
     }
     elements.list.innerHTML = '';
+    var hasPlans = state.items.some(function (item) { return item.installPlan; });
     if (!state.items.length) {
       setStatus(t('draftWorkspace.empty', 'No Studio drafts saved yet.'), '');
+      if (elements.reviewAll) {
+        elements.reviewAll.disabled = true;
+      }
       if (elements.exportAll) {
         elements.exportAll.disabled = true;
       }
       dispatchUpdate();
       return;
+    }
+    if (elements.reviewAll) {
+      elements.reviewAll.disabled = !hasPlans;
     }
     if (elements.exportAll) {
       elements.exportAll.disabled = false;

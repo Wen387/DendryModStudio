@@ -48,13 +48,13 @@
     },
     {
       "path": "tools/project_map/viewer/i18n/en.js",
-      "maxLines": 3295,
-      "reason": "Catalog file; keep each language separate and avoid runtime code here. Ratcheted 2026-05-25 from 3294 for Canvas error display i18n strings."
+      "maxLines": 3299,
+      "reason": "Catalog file; keep each language separate and avoid runtime code here. Ratcheted 2026-05-25 from 3295 for Review All i18n strings."
     },
     {
       "path": "tools/project_map/viewer/i18n/zh-Hant.js",
-      "maxLines": 3295,
-      "reason": "Catalog file; keep each language separate and avoid runtime code here. Ratcheted 2026-05-25 from 3294 for Canvas error display i18n strings."
+      "maxLines": 3299,
+      "reason": "Catalog file; keep each language separate and avoid runtime code here. Ratcheted 2026-05-25 from 3295 for Review All i18n strings."
     },
     {
       "path": "tools/project_map/viewer/index.html",
@@ -68,8 +68,8 @@
     },
     {
       "path": "tools/project_map/viewer/preview_object_editor.js",
-      "maxLines": 4880,
-      "reason": "Keep field rendering here; split domain sub-renderers into sibling modules. Ratcheted 2026-05-24 from 4861 for Object Canvas audio preview player."
+      "maxLines": 4900,
+      "reason": "Keep field rendering here; split domain sub-renderers into sibling modules. Ratcheted 2026-05-25 from 4880 for audio modifier badges, expand-preview button, and music chip."
     },
     {
       "path": "tools/project_map/viewer/styles/editing.css",
