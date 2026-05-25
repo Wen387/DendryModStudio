@@ -266,7 +266,7 @@
     if (!draftModel || !draftModel.draft) {
       return false;
     }
-    const editor = global.ProjectMapObjectAuthoringCanvas || global.ProjectMapEditingWorkspace || global.ProjectMapExistingSceneEditor;
+    const editor = global.ProjectMapObjectAuthoringCanvas;
     if (!editor || typeof editor.loadDraft !== 'function') {
       return false;
     }
@@ -285,7 +285,7 @@
     const target = route && route.target || {};
     const sceneId = target.sceneId || target.itemId || candidate.sceneId || '';
     const view = target.view === 'cards' ? 'cards' : 'events';
-    const editor = global.ProjectMapObjectAuthoringCanvas || global.ProjectMapEditingWorkspace || global.ProjectMapExistingSceneEditor;
+    const editor = global.ProjectMapObjectAuthoringCanvas;
     if (!editor || typeof editor.openFromSelection !== 'function' || !sceneId) {
       return false;
     }

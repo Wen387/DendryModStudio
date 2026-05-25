@@ -2567,7 +2567,7 @@ async function closeObjectEditorIfOpen(win) {
 
 async function openObjectCanvasDraft(win, template, draft) {
   const ok = await evalInPage(win, (nextTemplate, nextDraft) => {
-    const api = window.ProjectMapObjectAuthoringCanvas || window.ProjectMapEditingWorkspace;
+    const api = window.ProjectMapObjectAuthoringCanvas;
     if (!api || typeof api.openTemplate !== 'function') {
       return false;
     }
@@ -2577,7 +2577,7 @@ async function openObjectCanvasDraft(win, template, draft) {
     throw new Error('Could not open Object Canvas draft for template: ' + template);
   }
   await waitFor(win, () => evalInPage(win, (nextTemplate) => {
-    const api = window.ProjectMapObjectAuthoringCanvas || window.ProjectMapEditingWorkspace;
+    const api = window.ProjectMapObjectAuthoringCanvas;
     return Boolean(api && typeof api.activeTemplate === 'function' && api.activeTemplate() === nextTemplate);
   }, template), 'Object Canvas should activate template: ' + template);
 }
@@ -2709,7 +2709,7 @@ async function waitForEventOutput(win, expectedId) {
       output && output.installPlanJson && output.patchPreview &&
       String(output.scene || output.sceneDry || '').includes('tags: event, world')
     );
-    const canvas = window.ProjectMapObjectAuthoringCanvas || window.ProjectMapEditingWorkspace;
+    const canvas = window.ProjectMapObjectAuthoringCanvas;
     const canvasDraft = canvas && canvas.getDraft && canvas.getDraft();
     const canvasOutput = canvas && canvas.getOutput && canvas.getOutput();
     const canvasReady = Boolean(
@@ -2724,7 +2724,7 @@ async function waitForEventOutput(win, expectedId) {
 async function syncEventWizardDraftToObjectCanvas(win) {
   const ok = await evalInPage(win, () => {
     const wizard = window.ProjectMapWizard;
-    const canvas = window.ProjectMapObjectAuthoringCanvas || window.ProjectMapEditingWorkspace;
+    const canvas = window.ProjectMapObjectAuthoringCanvas;
     if (!wizard || typeof wizard.getDraft !== 'function' || !canvas || typeof canvas.openTemplate !== 'function') {
       return false;
     }
@@ -3115,7 +3115,7 @@ async function waitForEntryOutput(win, expectedId) {
       String(output.installPlanJson || '').includes('entry_sidebar') &&
       String(output.patchPreview || '').includes('replace section')
     );
-    const canvas = window.ProjectMapObjectAuthoringCanvas || window.ProjectMapEditingWorkspace;
+    const canvas = window.ProjectMapObjectAuthoringCanvas;
     const canvasDraft = canvas && canvas.getDraft && canvas.getDraft();
     const canvasOutput = canvas && canvas.getOutput && canvas.getOutput();
     const canvasReady = Boolean(
@@ -3130,7 +3130,7 @@ async function waitForEntryOutput(win, expectedId) {
 async function syncEntryDraftToObjectCanvas(win) {
   const ok = await evalInPage(win, () => {
     const wizard = window.ProjectMapEntrySidebarWizard;
-    const canvas = window.ProjectMapObjectAuthoringCanvas || window.ProjectMapEditingWorkspace;
+    const canvas = window.ProjectMapObjectAuthoringCanvas;
     if (!wizard || typeof wizard.getDraft !== 'function' || !canvas || typeof canvas.openTemplate !== 'function') {
       return false;
     }
@@ -3161,7 +3161,7 @@ async function openAuthoringTemplate(win, template) {
     if (workspace && typeof workspace.setTemplate === 'function') {
       workspace.setTemplate(nextTemplate, {silent: true});
     }
-    const canvas = window.ProjectMapObjectAuthoringCanvas || window.ProjectMapEditingWorkspace;
+    const canvas = window.ProjectMapObjectAuthoringCanvas;
     if (!canvas || typeof canvas.openTemplate !== 'function') {
       return false;
     }
@@ -3175,7 +3175,7 @@ async function openAuthoringTemplate(win, template) {
 async function syncWizardDraftToObjectCanvas(win, template, wizardGlobalName) {
   const ok = await evalInPage(win, (nextTemplate, globalName) => {
     const wizard = window[globalName];
-    const canvas = window.ProjectMapObjectAuthoringCanvas || window.ProjectMapEditingWorkspace;
+    const canvas = window.ProjectMapObjectAuthoringCanvas;
     if (!wizard || typeof wizard.getDraft !== 'function' || !canvas || typeof canvas.openTemplate !== 'function') {
       return false;
     }
@@ -3196,7 +3196,7 @@ async function loadNewsDraft(win, draft) {
     if (workspace && typeof workspace.setTemplate === 'function') {
       workspace.setTemplate('news', {silent: true});
     }
-    const canvas = window.ProjectMapObjectAuthoringCanvas || window.ProjectMapEditingWorkspace;
+    const canvas = window.ProjectMapObjectAuthoringCanvas;
     const canvasOk = canvas && typeof canvas.openTemplate === 'function'
       ? canvas.openTemplate('news', nextDraft, {source: 'QA news draft', template: 'news'})
       : false;

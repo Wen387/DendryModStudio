@@ -12,8 +12,8 @@ const WELCOME_SURFACE_UI = path.join(ROOT, 'viewer', 'welcome_surface_ui.js');
 const RUNTIME_PREVIEW_LOADING_UI = path.join(ROOT, 'viewer', 'runtime_preview_loading_ui.js');
 const WIZARD_UI = path.join(ROOT, 'viewer', 'wizard_ui.js');
 const CARD_UI = path.join(ROOT, 'viewer', 'card_ui.js');
-const EXISTING_SCENE_EDIT_UI = path.join(ROOT, 'viewer', 'existing_scene_edit_ui.js');
-const EDITING_WORKSPACE_UI = path.join(ROOT, 'viewer', 'editing_workspace_ui.js');
+// Legacy editing_workspace_ui.js and existing_scene_edit_ui.js removed
+// 2026-05-25 — Object Canvas subsumes both.
 const AUTHORING_SURFACE_REGISTRY = path.join(ROOT, 'viewer', 'authoring_surface_registry.js');
 const AUTHORING_SURFACE_GRAPHS = path.join(ROOT, 'viewer', 'authoring_surface_graphs.js');
 const AUTHORING_REFERENCE_INDEX = path.join(ROOT, 'viewer', 'authoring_reference_index.js');
@@ -137,8 +137,7 @@ const welcomeSurface = html + '\n' + welcomeSurfaceUi;
 const runtimePreviewLoadingUi = fs.readFileSync(RUNTIME_PREVIEW_LOADING_UI, 'utf8');
 const wizardUi = fs.readFileSync(WIZARD_UI, 'utf8');
 const cardUi = fs.readFileSync(CARD_UI, 'utf8');
-const existingSceneEditUi = fs.readFileSync(EXISTING_SCENE_EDIT_UI, 'utf8');
-const editingWorkspaceUi = fs.readFileSync(EDITING_WORKSPACE_UI, 'utf8');
+// existingSceneEditUi / editingWorkspaceUi reads removed 2026-05-25.
 const authoringSurfaceRegistry = fs.readFileSync(AUTHORING_SURFACE_REGISTRY, 'utf8');
 const authoringSurfaceGraphs = fs.readFileSync(AUTHORING_SURFACE_GRAPHS, 'utf8');
 const authoringReferenceIndex = fs.readFileSync(AUTHORING_REFERENCE_INDEX, 'utf8');
@@ -308,8 +307,8 @@ assert(html.includes('../authoring/variable_editor_draft.js'), 'viewer should lo
 assert(html.includes('../authoring/semantic_ownership_graph_model.js'), 'viewer should load Semantic Ownership Graph model');
 assert(html.includes('../authoring/dynamic_semantic_workbench_model.js'), 'viewer should load Dynamic Semantic Workbench model');
 assert(html.includes('id="existing-scene-editor-host"'), 'Create mode should expose an Existing Scene Editor host');
-assert(html.includes('existing_scene_edit_ui.js'), 'viewer should load Existing Scene Editor UI');
-assert(html.includes('editing_workspace_ui.js'), 'viewer should load Contextual Editing workspace UI');
+// Legacy editing_workspace_ui.js and existing_scene_edit_ui.js script
+// assertions removed 2026-05-25 — files retired, Canvas is primary.
 assert(html.includes('authoring_surface_registry.js'), 'viewer should load Authoring Surface registry');
 assert(html.includes('authoring_surface_graphs.js'), 'viewer should load Authoring Surface graph builders');
 assert(html.includes('authoring_reference_index.js'), 'viewer should load Authoring Reference Index');
@@ -496,12 +495,8 @@ assert(authoringWorkspaceUi.includes("key: 'content'"), 'Create mode should expo
 assert(authoringWorkspaceUi.includes("key: 'system_ui'"), 'Create mode should expose System UI Authoring as a workspace');
 assert(authoringWorkspaceUi.includes("key: 'project_state'"), 'Create mode should expose Project State as a workspace');
 assert(authoringWorkspaceUi.includes('data-authoring-template-group') && authoringWorkspaceUi.includes("key: 'system_ui'"), 'Create mode should group system UI templates away from content authoring');
-assert(existingSceneEditUi.includes('data-existing-block'), 'Existing Scene Editor should expose section block editors');
-assert(existingSceneEditUi.includes('existingScene.textBlocks'), 'Existing Scene Editor should label page section editing');
-assert(existingSceneEditUi.includes('if (!state.active)') && existingSceneEditUi.includes('return;'), 'Existing Scene Editor should not hide the shared Canvas host when inactive');
-assert(editingWorkspaceUi.includes('ProjectMapEditingWorkspace'), 'Contextual Editing workspace should expose a browser API');
-assert(editingWorkspaceUi.includes('data-editing-workspace'), 'Contextual Editing workspace should expose a stable QA marker');
-assert(editingWorkspaceUi.includes('if (!state.active)') && editingWorkspaceUi.includes('return;'), 'Contextual Editing should not hide the shared Canvas host when inactive');
+// Legacy existingSceneEditUi / editingWorkspaceUi assertions removed
+// 2026-05-25 — both UI shells retired; Object Canvas is primary.
 assert(authoringWorkspaceUi.includes('ProjectMapAuthoringWorkspace'), 'Authoring Workspace navigation should expose a browser API');
 assert(authoringWorkspaceUi.includes("system_ui: 'entry'"), 'Authoring Workspace navigation should default System UI to Entry & Sidebar');
 assert(authoringWorkspaceUi.includes("project_state: 'variables'"), 'Authoring Workspace navigation should default Project State to Variables');
@@ -530,7 +525,7 @@ assert(existingSceneEditModel.includes('existingSceneTextBlockBuilder().textBloc
 assert(!existingSceneEditModel.includes("['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg']"), 'Existing Scene Edit model should not re-own asset extension classification');
 assert(objectAuthoringCanvasUi.includes('ProjectMapObjectAuthoringCanvas'), 'Object Authoring Canvas should expose a browser API');
 assert(objectAuthoringCanvasUi.includes('openTemplate'), 'Object Authoring Canvas should route template authoring through Canvas');
-assert(objectAuthoringCanvasUi.includes('ProjectMapEditingWorkspace = api'), 'Object Authoring Canvas should bridge the existing editing API');
+// EditingWorkspace bridge assertion removed 2026-05-25 — legacy bridge retired.
 assert(visibleEditActionUi.includes('ProjectMapVisibleEditActionUi'), 'Visible edit action UI should expose a browser API');
 assert(visibleEditActionUi.includes('data-visible-edit-action'), 'Visible edit action UI should render a stable edit marker');
 assert(sourceSliceWorkspaceUi.includes('ProjectMapSourceSliceWorkspace'), 'Source Slice workspace UI should expose a browser API');
@@ -834,7 +829,8 @@ assert(desktopRuntimePreview.includes('recordDebugCommandHistory'), 'Runtime Pre
 assert(draftWorkspaceUi.includes('draft-workspace-item-preview'), 'saved changes should render a player-facing preview excerpt');
 assert(draftWorkspaceUi.includes('draftWorkspace.noInstallPlanShort'), 'saved changes without install plans should explain that review is unavailable');
 assert(draftWorkspaceUi.includes('reviewButton.disabled = !item.installPlan'), 'saved changes without install plans should not switch to Install review');
-assert(draftWorkspaceUi.includes('ProjectMapExistingSceneEditor'), 'saved existing-scene edits should reopen into the Existing Scene Editor');
+// ExistingSceneEditor draft workspace assertion removed 2026-05-25 —
+// Object Canvas handles existing-scene draft loading directly.
 assert(draftWorkspaceUi.includes('ProjectMapEntrySidebarWizard'), 'saved Entry & Sidebar drafts should reopen into the Entry wizard');
 assert(draftWorkspaceUi.includes('ProjectMapPlaySurfaceWizard'), 'saved Playable Surface drafts should reopen into the Playable Surface wizard');
 assert(draftWorkspaceUi.includes('ProjectMapWorkspaceLayoutWizard'), 'saved Workspace Layout drafts should reopen into the Workspace Layout wizard');
@@ -874,7 +870,8 @@ assert(css.includes('.system-ui-evidence-row code') && css.includes('overflow-wr
 assert(html.includes('studio_shared_constants.js'), 'viewer should load shared Studio constants before UI modules');
 assert(appUi.includes('data-edit-existing'), 'Explore inspector should expose Edit existing');
 assert(appUi.includes('Copy as new draft'), 'Explore inspector should keep copy-as-new draft wording');
-assert(appUi.includes('ProjectMapExistingSceneEditor'), 'Explore should call Existing Scene Editor when editing existing Events/Cards');
+// ExistingSceneEditor Explore assertion removed 2026-05-25 —
+// Explore now routes to Object Canvas directly.
 assert(designUi.includes('data-design-edit-existing'), 'Design inspector should expose Edit existing');
 assert(designUi.includes('Copy as new draft'), 'Design inspector should keep copy-as-new draft wording');
 assert(designUi.includes('designModelStale') && designUi.includes('designModeIsActive'), 'Design should defer heavy graph rebuilds until the Design page is visible');

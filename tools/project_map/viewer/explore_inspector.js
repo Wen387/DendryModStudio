@@ -402,7 +402,7 @@
     if (!state.selected || !state.model || !canEditExisting(state.selected.view)) {
       return;
     }
-    const editor = global.ProjectMapEditingWorkspace || global.ProjectMapExistingSceneEditor;
+    const editor = global.ProjectMapObjectAuthoringCanvas;
     if (!editor || typeof editor.openFromSelection !== 'function') {
       showError(elements, t('existingScene.unavailable', 'Existing Scene Editor is not loaded.'));
       return;
@@ -484,7 +484,7 @@
     if (replacementText && target.valueKey) {
       values[target.valueKey] = replacementText;
     }
-    const editor = global.ProjectMapObjectAuthoringCanvas || global.ProjectMapEditingWorkspace || global.ProjectMapExistingSceneEditor;
+    const editor = global.ProjectMapObjectAuthoringCanvas;
     if (!editor || typeof editor.openFromSelection !== 'function' || !sceneId) {
       return false;
     }

@@ -358,14 +358,8 @@
     if (objectCanvas && typeof objectCanvas.isActive === 'function' && objectCanvas.isActive()) {
       return typeof objectCanvas.activeTemplate === 'function' ? objectCanvas.activeTemplate() : 'event';
     }
-    const editingWorkspace = global.ProjectMapEditingWorkspace;
-    if (editingWorkspace && typeof editingWorkspace.isActive === 'function' && editingWorkspace.isActive()) {
-      return 'existing';
-    }
-    const existingEditor = global.ProjectMapExistingSceneEditor;
-    if (existingEditor && typeof existingEditor.isActive === 'function' && existingEditor.isActive()) {
-      return 'existing';
-    }
+    // Legacy EditingWorkspace / ExistingSceneEditor removed 2026-05-25 —
+    // Object Canvas subsumes all existing-scene editing.
     const active = global.document.querySelector('[data-create-template].is-active');
     return active && active.dataset.createTemplate ? active.dataset.createTemplate : 'event';
   }
@@ -389,7 +383,7 @@
       entry: global.ProjectMapEntrySidebarWizard,
       project: global.ProjectMapProjectMetadataWizard,
       variables: global.ProjectMapVariableEditorWizard,
-      existing: global.ProjectMapObjectAuthoringCanvas || global.ProjectMapEditingWorkspace || global.ProjectMapExistingSceneEditor
+      existing: global.ProjectMapObjectAuthoringCanvas
     }[template] || null;
   }
 

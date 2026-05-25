@@ -259,8 +259,8 @@ function checkActionDispatchContracts() {
 
   [
     ['data-card-board-action', 'viewer/card_workspace_state.js'],
-    ['data-runtime-lens-action', 'viewer/runtime_lens_workspace_state.js'],
-    ['data-editing-action', 'viewer/editing_workspace_ui.js']
+    ['data-runtime-lens-action', 'viewer/runtime_lens_workspace_state.js']
+    // data-editing-action / editing_workspace_ui.js removed 2026-05-25
   ].forEach(([attribute, handlerPath]) => {
     const values = collectViewerDataValues(attribute);
     const handler = read(handlerPath);

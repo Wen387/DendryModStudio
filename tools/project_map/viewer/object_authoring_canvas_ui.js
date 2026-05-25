@@ -115,7 +115,6 @@
   };
 
   global.ProjectMapObjectAuthoringCanvas = api;
-  global.ProjectMapEditingWorkspace = api;
 
   if (!global || !global.document) {
     return;
