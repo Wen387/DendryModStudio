@@ -36,10 +36,22 @@
     state.storyPaletteRowHeight = STORY_PALETTE_DEFAULT_ROW_HEIGHT;
     state.storyPaletteScrollOffset = 0;
     state.storyPaletteDropContext = null;
+    // Card stacks (drag-to-snap): { anchorKey: { members: [key,...], collapsed: true } }
+    state.storyCardStacks = {};
+    // Spatial Canvas view state
+    state.spatialPanX = 0;
+    state.spatialPanY = 0;
+    state.spatialZoom = 0.5;
+    state.spatialSelectedKey = '';
+    state.spatialCollapsedStacks = {};
+    state.spatialSearchQuery = '';
+    state.spatialModel = null;
+    state.spatialOverrides = {};
   }
 
   function surfaceOptions(state) {
     return {
+      zoom: Number(state.canvasZoom || 1),
       view: state.storyboardView,
       storyCanvasCategory: state.storyCanvasCategory || 'story',
       storySearchQuery: state.storySearchQuery || '',
@@ -68,11 +80,15 @@
       runtimeLensCurrentDraftKey: state.runtimeLensCurrentDraftKey,
       runtimeLensExpanded: state.runtimeLensExpanded,
       runtimeLensCollapsed: state.runtimeLensCollapsed,
-      boardChromeCollapsed: Boolean(state.boardChromeCollapsed)
+      boardChromeCollapsed: Boolean(state.boardChromeCollapsed),
+      storyCardStacks: state.storyCardStacks || {}
     };
   }
 
   function renderStage(state, model) {
+    if (state.storyboardView === 'spatial') {
+      return renderSpatialStage(state, model);
+    }
     const surface = global.ProjectMapContentStoryboardSurface;
     return surface && typeof surface.render === 'function'
       ? surface.render(model, Object.assign({
@@ -85,11 +101,79 @@
       : '';
   }
 
+  function renderSpatialStage(state, model) {
+    var spatialModel = buildSpatialModel(state, model);
+    state.spatialModel = spatialModel;
+    var surface = global.ProjectMapSpatialCanvasSurface;
+    if (!surface || typeof surface.render !== 'function') { return ''; }
+    var animate = Boolean(state.spatialAnimateNext);
+    state.spatialAnimateNext = false; // consume the flag
+    return surface.render(spatialModel, {
+      projectIndex: state.projectIndex,
+      selected: state.spatialSelectedKey || state.selectedCanvasNode || '',
+      panX: state.spatialPanX || 0,
+      panY: state.spatialPanY || 0,
+      zoom: state.spatialZoom || 0.5,
+      collapsedStacks: state.spatialCollapsedStacks || {},
+      searchQuery: state.spatialSearchQuery || '',
+      boardChromeCollapsed: Boolean(state.boardChromeCollapsed),
+      editorOverlay: state.editorOverlay,
+      animate: animate
+    });
+  }
+
+  function buildSpatialModel(state, objectModel) {
+    var modelApi = global.ProjectMapSpatialCanvasModel;
+    if (!modelApi || typeof modelApi.buildSpatialCanvas !== 'function') { return null; }
+    return modelApi.buildSpatialCanvas(state.projectIndex, objectModel, {
+      selected: state.spatialSelectedKey || state.selectedCanvasNode || '',
+      overrides: state.spatialOverrides || {}
+    });
+  }
+
   function setView(state, view, deps) {
-    return rebuild(state, deps, {storyboardView: String(view || '') === 'chain' ? 'chain' : 'timeline'});
+    var v = String(view || '');
+    var normalized = v === 'chain' ? 'chain' : v === 'spatial' ? 'spatial' : 'timeline';
+    return rebuild(state, deps, {storyboardView: normalized});
   }
 
   function handleAction(state, action, target, deps) {
+    // Spatial Canvas actions
+    if (action === 'spatial_zoom_in') {
+      state.spatialZoom = clampSpatialZoom((state.spatialZoom || 0.5) * 1.25);
+      return rebuild(state, deps, {});
+    }
+    if (action === 'spatial_zoom_out') {
+      state.spatialZoom = clampSpatialZoom((state.spatialZoom || 0.5) * 0.8);
+      return rebuild(state, deps, {});
+    }
+    if (action === 'spatial_zoom_reset') {
+      state.spatialPanX = 0;
+      state.spatialPanY = 0;
+      state.spatialZoom = 0.5;
+      return rebuild(state, deps, {});
+    }
+    if (action === 'spatial_select_card') {
+      var cardKey = target && target.dataset && target.dataset.spatialCard || '';
+      state.spatialSelectedKey = cardKey;
+      if (cardKey && deps && typeof deps.selectCanvasNode === 'function') {
+        deps.selectCanvasNode(cardKey);
+      }
+      return rebuild(state, deps, {});
+    }
+    if (action === 'spatial_toggle_stack') {
+      var stackId = target && target.dataset && target.dataset.spatialStackId || '';
+      if (stackId) {
+        var stacks = Object.assign({}, state.spatialCollapsedStacks || {});
+        // Default is collapsed (true); toggle flips it.
+        stacks[stackId] = stacks[stackId] === false ? true : false;
+        state.spatialCollapsedStacks = stacks;
+      }
+      return rebuild(state, deps, {});
+    }
+    if (action === 'spatial_zoom_fit_all') {
+      return zoomToFitAll(state, deps);
+    }
     if (action === 'story_scope_focus') {
       return rebuild(state, deps, {storyScopeMode: 'focus'});
     }
@@ -973,6 +1057,144 @@
     return Math.max(STORY_PALETTE_MIN_ROW_HEIGHT, Math.min(STORY_PALETTE_MAX_ROW_HEIGHT, number));
   }
 
+  // ── card stacking (drag-to-snap) ────────────────────────────────────
+
+  /**
+   * Physical card stacking: move the dragged card on top of the anchor,
+   * offset down so the anchor's title peeks out from behind.
+   * Each subsequent card stacked on the same anchor offsets further.
+   */
+  var STACK_TITLE_PEEK = 64; // px — expose kicker + title of the card below
+
+  /**
+   * @param {{x:number, y:number}|null} anchorDomPos – the anchor's actual
+   *   rendered position from the DOM.  Layout-placed cards may not have
+   *   entries in state.nodePositions, so the interactions layer reads
+   *   data-canvas-x/y from the DOM and passes it here as a reliable source.
+   */
+  function stackCards(state, draggedKey, anchorKey, deps, anchorDomPos) {
+    if (!draggedKey || !anchorKey || draggedKey === anchorKey) { return false; }
+    var stacks = Object.assign({}, state.storyCardStacks || {});
+    // Resolve the effective anchor: if anchorKey is itself a member of
+    // another stack, redirect to that root anchor so we don't create
+    // confusing nested stacks (A→[B] and B→[C] independently).
+    var effectiveAnchor = anchorKey;
+    Object.keys(stacks).forEach(function (rootKey) {
+      var s = stacks[rootKey];
+      if (s && Array.isArray(s.members) && s.members.indexOf(anchorKey) >= 0) {
+        effectiveAnchor = rootKey;
+      }
+    });
+    // Remove draggedKey from any previous stack
+    Object.keys(stacks).forEach(function (key) {
+      var s = stacks[key];
+      s.members = (s.members || []).filter(function (m) { return m !== draggedKey; });
+      if (!s.members.length) { delete stacks[key]; }
+    });
+    // Add to the effective anchor's stack
+    var stack = stacks[effectiveAnchor] || {members: []};
+    if (stack.members.indexOf(draggedKey) < 0) {
+      stack.members = stack.members.concat([draggedKey]);
+    }
+    stacks[effectiveAnchor] = stack;
+    state.storyCardStacks = stacks;
+    // Resolve anchor position: prefer state override, fall back to the
+    // DOM-provided position so layout-only cards don't resolve to (0,0).
+    // When the anchor was redirected to a root, use the root's state
+    // position (which should be pinned from its own stackCards call).
+    state.nodePositions = Object.assign({}, state.nodePositions || {});
+    var useAnchorKey = effectiveAnchor;
+    var statePos = state.nodePositions[useAnchorKey];
+    var domPos = anchorDomPos && typeof anchorDomPos === 'object' ? anchorDomPos : null;
+    // If we redirected to a root anchor, domPos was for the original
+    // target, not the root — prefer the root's pinned state position.
+    if (effectiveAnchor !== anchorKey) { domPos = null; }
+    var anchorX = statePos ? Number(statePos.x || 0) : domPos ? Number(domPos.x || 0) : 0;
+    var anchorY = statePos ? Number(statePos.y || 0) : domPos ? Number(domPos.y || 0) : 0;
+    // Pin the anchor into nodePositions so future group moves and
+    // re-renders keep the stack at a stable position.
+    if (!statePos && domPos) {
+      state.nodePositions[useAnchorKey] = {x: anchorX, y: anchorY};
+    }
+    var memberIndex = stack.members.indexOf(draggedKey);
+    var offsetY = (memberIndex + 1) * STACK_TITLE_PEEK;
+    state.nodePositions[draggedKey] = {x: anchorX, y: anchorY + offsetY};
+    return rebuild(state, deps, {});
+  }
+
+  /**
+   * Move a stack group: set the anchor and every member to their explicit
+   * final positions.  The interactions layer computes these from the drag
+   * offsets captured at pointerdown, so there is no fragile delta involved.
+   *
+   * @param {Array<{key:string, x:number, y:number}>} memberPositions
+   */
+  function moveGroup(state, anchorKey, newX, newY, memberPositions, deps) {
+    if (!anchorKey) { return false; }
+    var positions = Object.assign({}, state.nodePositions || {});
+    positions[anchorKey] = {x: newX, y: newY};
+    if (Array.isArray(memberPositions)) {
+      memberPositions.forEach(function (mp) {
+        if (mp && mp.key) {
+          positions[mp.key] = {x: Number(mp.x || 0), y: Number(mp.y || 0)};
+        }
+      });
+    }
+    state.nodePositions = positions;
+    return rebuild(state, deps, {});
+  }
+
+  /**
+   * Remove a card from whatever stack it belongs to as a member.
+   * Returns true if the card was actually unstacked.
+   */
+  function unstackCard(state, key) {
+    if (!key) { return false; }
+    var stacks = state.storyCardStacks;
+    if (!stacks || typeof stacks !== 'object') { return false; }
+    var changed = false;
+    Object.keys(stacks).forEach(function (anchorKey) {
+      var s = stacks[anchorKey];
+      if (!s || !Array.isArray(s.members)) { return; }
+      var idx = s.members.indexOf(key);
+      if (idx < 0) { return; }
+      s.members = s.members.filter(function (m) { return m !== key; });
+      if (!s.members.length) { delete stacks[anchorKey]; }
+      changed = true;
+    });
+    if (changed) {
+      state.storyCardStacks = Object.assign({}, stacks);
+    }
+    return changed;
+  }
+
+  /**
+   * Zoom-to-fit for the spatial view: reset pan and set zoom to 0.5 so the
+   * entire spatial canvas is roughly centered.  Uses the spatial model bounds
+   * when available.
+   */
+  function zoomToFitAll(state, deps) {
+    var model = state.spatialModel;
+    if (!model || !model.metrics) {
+      state.spatialPanX = 0;
+      state.spatialPanY = 0;
+      state.spatialZoom = 0.5;
+      state.spatialAnimateNext = true;
+      return rebuild(state, deps, {});
+    }
+    state.spatialPanX = 20;
+    state.spatialPanY = 20;
+    state.spatialZoom = 0.35;
+    state.spatialAnimateNext = true;
+    return rebuild(state, deps, {});
+  }
+
+  function clampSpatialZoom(value) {
+    const number = Number(value);
+    if (!Number.isFinite(number)) { return 0.5; }
+    return Math.max(0.05, Math.min(2.0, number));
+  }
+
   function normalizeKeyList(value) {
     const input = Array.isArray(value) ? value : String(value || '').split(',');
     const seen = new Set();
@@ -1007,7 +1229,7 @@
     };
   }
 
-  const api = {reset, surfaceOptions, renderStage, setView, handleAction, setPaletteQuery, setSearchQuery, bindPalette, dropPaletteItem, selectObject, draftWithContext, restoreContext, createRelatedDraft};
+  const api = {reset, surfaceOptions, renderStage, setView, handleAction, setPaletteQuery, setSearchQuery, bindPalette, dropPaletteItem, selectObject, draftWithContext, restoreContext, createRelatedDraft, stackCards, moveGroup, unstackCard};
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;
   }

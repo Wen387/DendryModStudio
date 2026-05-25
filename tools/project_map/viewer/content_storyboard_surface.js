@@ -11,7 +11,8 @@
       searchQuery: String(opts.storySearchQuery || storyboard.search && storyboard.search.query || ''),
       scopeCollapsed: Boolean(opts.storyScopeCollapsed),
       overviewCollapsed: Boolean(opts.storyOverviewCollapsed),
-      cardColors: opts.storyCardColors && typeof opts.storyCardColors === 'object' ? opts.storyCardColors : {}
+      cardColors: opts.storyCardColors && typeof opts.storyCardColors === 'object' ? opts.storyCardColors : {},
+      storyCardStacks: opts.storyCardStacks && typeof opts.storyCardStacks === 'object' ? opts.storyCardStacks : {}
     };
     const view = storyboard.view || 'timeline';
     return [
@@ -172,6 +173,7 @@
     ].join('');
   }
 
+
   function renderTimelineLane(lane, laneIndex, laneWidth, laneGap, positions, storyboard) {
     const left = 36 + laneIndex * (laneWidth + laneGap);
     const cards = orderCardsForLane(lane.cards || [], storyboard);
@@ -238,6 +240,7 @@
       '</section>'
     ].join('');
   }
+
 
   function renderCanvasControls() {
     return [

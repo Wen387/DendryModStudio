@@ -358,7 +358,6 @@
   min-width: var(--content-storyboard-width, 1400px);
   min-height: var(--content-storyboard-height, 680px);
   transform-origin: 0 0;
-  will-change: transform;
 }
 
 .content-storyboard-chain-edges {
@@ -371,7 +370,6 @@
   min-height: var(--content-storyboard-height, 680px);
   pointer-events: none;
   transform-origin: 0 0;
-  will-change: transform;
 }
 
 .content-storyboard-chain-edges path {
@@ -877,4 +875,176 @@
   .content-storyboard-editor {
     max-height: none;
   }
+}
+
+/* ── CSS-driven LOD ────────────────────────────────────────────────────
+ *
+ * LOD is set on the board by the viewport module via `data-canvas-lod`.
+ * No HTML re-render — the attribute flips and CSS hides layers + bumps
+ * font sizes.  Fixed px values only (no calc/var) for zero recalc cost.
+ *
+ *   LOD 0  (zoom < 20%)   chip — kicker label + title
+ *   LOD 1  (zoom 20–35%)  overview — kicker + title + options
+ *   LOD 2  (zoom 35–60%)  working — all content, bigger fonts
+ *   LOD 3  (zoom ≥ 60%)   full detail — default styles, no override
+ * ──────────────────────────────────────────────────────────────────── */
+
+/* --- LOD 0: chip (< 20%) -------------------------------------------- */
+
+[data-canvas-lod="0"] .content-storyboard-card {
+  min-height: unset;
+  padding: 6px 10px;
+  gap: 3px;
+  align-content: center;
+}
+
+[data-canvas-lod="0"] .content-storyboard-card-kicker em,
+[data-canvas-lod="0"] .content-storyboard-card-tools,
+[data-canvas-lod="0"] .content-storyboard-card-tags,
+[data-canvas-lod="0"] .content-storyboard-source,
+[data-canvas-lod="0"] .content-storyboard-options,
+[data-canvas-lod="0"] .content-storyboard-relation-facts,
+[data-canvas-lod="0"] .content-storyboard-card p {
+  display: none;
+}
+
+[data-canvas-lod="0"] .content-storyboard-card-kicker {
+  font-size: 22px;
+}
+
+[data-canvas-lod="0"] .content-storyboard-title {
+  font-size: 52px;
+  line-height: 1.12;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+[data-canvas-lod="0"] .content-storyboard-lane > header,
+[data-canvas-lod="0"] .content-storyboard-chain-level > header {
+  padding: 6px 10px;
+  min-height: unset;
+}
+
+[data-canvas-lod="0"] .content-storyboard-lane header strong,
+[data-canvas-lod="0"] .content-storyboard-chain-level header strong {
+  font-size: 56px;
+}
+
+[data-canvas-lod="0"] .content-storyboard-lane header span,
+[data-canvas-lod="0"] .content-storyboard-chain-level header span,
+[data-canvas-lod="0"] .content-storyboard-lane header em,
+[data-canvas-lod="0"] .content-storyboard-chain-level header em {
+  font-size: 22px;
+}
+
+[data-canvas-lod="0"] .content-storyboard-create-menu {
+  display: none;
+}
+
+/* --- LOD 1: overview (20–35%) ---------------------------------------- */
+
+[data-canvas-lod="1"] .content-storyboard-card {
+  min-height: unset;
+  padding: 8px 12px;
+  gap: 4px;
+}
+
+[data-canvas-lod="1"] .content-storyboard-card-tags,
+[data-canvas-lod="1"] .content-storyboard-source,
+[data-canvas-lod="1"] .content-storyboard-relation-facts,
+[data-canvas-lod="1"] .content-storyboard-card p {
+  display: none;
+}
+
+[data-canvas-lod="1"] .content-storyboard-card-kicker {
+  font-size: 18px;
+}
+
+[data-canvas-lod="1"] .content-storyboard-title {
+  font-size: 38px;
+  line-height: 1.15;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+[data-canvas-lod="1"] .content-storyboard-lane header strong,
+[data-canvas-lod="1"] .content-storyboard-chain-level header strong {
+  font-size: 40px;
+}
+
+[data-canvas-lod="1"] .content-storyboard-lane header span,
+[data-canvas-lod="1"] .content-storyboard-chain-level header span {
+  font-size: 18px;
+}
+
+/* --- LOD 2: working range (35–60%) ----------------------------------- */
+
+[data-canvas-lod="2"] .content-storyboard-card {
+  min-height: unset;
+  padding: 10px 13px;
+  gap: 5px;
+}
+
+[data-canvas-lod="2"] .content-storyboard-card-tags,
+[data-canvas-lod="2"] .content-storyboard-source {
+  display: none;
+}
+
+[data-canvas-lod="2"] .content-storyboard-card-kicker {
+  font-size: 14px;
+}
+
+[data-canvas-lod="2"] .content-storyboard-title {
+  font-size: 24px;
+  line-height: 1.18;
+}
+
+[data-canvas-lod="2"] .content-storyboard-lane header strong,
+[data-canvas-lod="2"] .content-storyboard-chain-level header strong {
+  font-size: 30px;
+}
+
+[data-canvas-lod="2"] .content-storyboard-lane header span,
+[data-canvas-lod="2"] .content-storyboard-chain-level header span {
+  font-size: 14px;
+}
+
+/* ── snap indicator (drag proximity) ───────────────────────────────── */
+
+.content-storyboard-card.is-snap-target {
+  outline: 2.5px solid color-mix(in srgb, var(--accent) 72%, transparent);
+  outline-offset: 4px;
+  box-shadow: 0 0 0 7px color-mix(in srgb, var(--accent) 16%, transparent),
+              0 9px 24px rgba(31, 29, 24, 0.11);
+}
+
+
+/* ── lane group markers (lightweight edge labels) ──────────────────── */
+
+.content-storyboard-lane-group-marker {
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  bottom: 0;
+  border-left: 3px solid var(--group-marker-color, rgba(166, 75, 42, 0.18));
+  pointer-events: none;
+}
+
+.content-storyboard-lane-group-marker-label {
+  position: sticky;
+  top: 8px;
+  display: block;
+  padding: 4px 0 4px 8px;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--group-marker-color, rgba(166, 75, 42, 0.42));
+  white-space: nowrap;
+  writing-mode: vertical-lr;
+  text-orientation: mixed;
 }

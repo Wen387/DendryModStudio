@@ -1,6 +1,38 @@
 (function initProjectMapStoryboardCardRenderer(global) {
   'use strict';
 
+  /**
+   * Card renderer for the Content Storyboard.
+   *
+   * LOD (Level of Detail) is driven entirely by CSS on the board element
+   * via `data-canvas-lod` and `--canvas-zoom`, set by the viewport module.
+   * This renderer always emits full-detail HTML; CSS hides content layers
+   * and counter-scales fonts based on the current zoom level.
+   */
+
+  /**
+   * Compute an inline z-index for stacked cards so members render on top
+   * of the anchor and above non-stacked neighbours.
+   * Returns '' for non-stacked cards (CSS default z-index applies).
+   */
+  function stackZIndex(card, storyboard) {
+    var stacks = storyboard && storyboard.ui && storyboard.ui.storyCardStacks;
+    if (!stacks || typeof stacks !== 'object') { return ''; }
+    var key = card && card.key || '';
+    if (!key) { return ''; }
+    // Anchor: raise above non-stacked cards
+    if (stacks[key] && Array.isArray(stacks[key].members) && stacks[key].members.length) { return 5; }
+    // Member: z-index increases with stack position (later = on top)
+    var anchorKeys = Object.keys(stacks);
+    for (var i = 0; i < anchorKeys.length; i++) {
+      var s = stacks[anchorKeys[i]];
+      if (!s || !Array.isArray(s.members)) { continue; }
+      var idx = s.members.indexOf(key);
+      if (idx >= 0) { return 6 + idx; }
+    }
+    return '';
+  }
+
   function renderCard(card, pos, storyboard) {
     const value = card || {};
     const position = pos || {x: 0, y: 0};
@@ -15,14 +47,18 @@
       value.chainDistance ? 'is-chain-distance-' + safeClass(value.chainDistance) : ''
     ].filter(Boolean).join(' ');
     const color = cardColor(value, storyboard);
+    const zIndex = stackZIndex(value, storyboard);
     const style = [
       'left: ' + position.x + 'px',
       'top: ' + position.y + 'px',
-      color ? '--storyboard-card-edge: ' + color : ''
+      color ? '--storyboard-card-edge: ' + color : '',
+      zIndex ? 'z-index: ' + zIndex : ''
     ].filter(Boolean).join('; ') + ';';
     if (value.kind === 'chain_relation') {
       return renderRelationCard(value, position, classes, style, color);
     }
+
+    // Always render full detail — CSS handles LOD visibility and scaling
     return [
       '<article class="' + classes + '" tabindex="0" data-content-storyboard-card="' + escapeAttr(value.key) + '" data-storyboard-card-face="' + escapeAttr(value.kind || '') + '" data-storyboard-card-state="' + escapeAttr(stateText(value)) + '" data-object-canvas-graph-node="' + escapeAttr(value.key) + '" data-canvas-x="' + position.x + '" data-canvas-y="' + position.y + '" style="' + escapeAttr(style) + '">',
       '<div class="content-storyboard-card-kicker"><span>' + escapeHtml(kindLabel(value.kind)) + '</span><em>' + escapeHtml(value.timelineLabel || formatSchedule(value.schedule) || chainLabel(value)) + '</em>' + renderCardTools(value, color) + '</div>',
