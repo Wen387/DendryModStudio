@@ -237,9 +237,8 @@ assert(html.includes('Story content'), 'Explore navigation should include a Stor
 assert(html.includes('Quality'), 'Explore navigation should include a Quality group');
 assert(html.includes('sidebar-confidence'), 'Explore navigation should anchor the confidence legend in the sidebar');
 assert(html.includes('output-tabs'), 'Create preview should use a tabbed Output surface');
-assert(html.includes('data-preview-tab="scene"'), 'Output tabs should include the scene preview');
+// Legacy wizard scene/migration preview tabs removed with Complex Event Builder form (2026-05-25).
 assert(html.includes('data-preview-tab="draft"'), 'Output tabs should include the draft JSON preview');
-assert(html.includes('data-preview-panel="migration"'), 'Output panels should include migration snippet output');
 assert(html.includes('data-preview-panel="install"'), 'Output panels should include install notes actions');
 assert(html.includes('../authoring/asset_model.js'), 'viewer should load shared AssetModel before PreviewModel');
 assert(html.includes('../authoring/ownership_matching_model.js'), 'viewer should load shared ownership matching helper before semantic authoring models');
@@ -613,9 +612,9 @@ assert(html.includes('id="workspace-layout-form"'), 'Create mode should expose t
 assert(html.includes('id="sidebar-status-form"'), 'Create mode should expose the Sidebar / Status form');
 assert(html.includes('id="project-metadata-form"'), 'Create mode should expose the Game Info form');
 assert(html.includes('id="variable-editor-form"'), 'Create mode should expose the Variable Editor form');
-assert(html.includes('id="event-readiness-checklist"'), 'Event editor should expose playable-event readiness checks');
-assert(html.includes('id="event-route-summary"'), 'Event editor should expose routing summary chips');
-assert(html.includes('data-i18n="create.section.playerScene"'), 'Event editor should prioritize player-facing scene fields');
+// Legacy wizard event-readiness-checklist, event-route-summary, playerScene section
+// removed with Complex Event Builder form (2026-05-25). Object Canvas provides
+// equivalent functionality via its own surfaces.
 assert(html.includes('id="project-metadata-evidence"'), 'Create mode should expose Game Info source evidence');
 assert(html.includes('id="variable-editor-evidence"'), 'Create mode should expose variable source evidence');
 assert(html.includes('id="entry-playability-checklist"'), 'Entry & Sidebar should expose first-playable readiness checks');
@@ -668,10 +667,10 @@ assert(html.includes('update_notice_ui.js'), 'viewer should load Update Notice U
 assert(appUi.includes('iconForView') && appUi.includes('ProjectMapIcons'), 'Explore nav rerender should preserve shared icons');
 assert(css.includes('.nav-label') && css.includes('.nav-item .ui-icon'), 'Explore nav should style icon-and-label rows');
 assert(html.includes('wizard-field-help'), 'Create forms should explain what important fields change');
-assert(html.includes('id="wizard-variable-assistant"'), 'Event editor should expose semantic variable candidates');
+// wizard-variable-assistant removed with legacy wizard form (2026-05-25)
 assert(html.includes('id="card-variable-assistant"'), 'Card editor should expose semantic variable candidates');
 assert(html.includes('id="entry-variable-assistant"'), 'Entry editor should expose semantic variable candidates');
-assert(html.includes('data-i18n="create.guidance.event"'), 'Event editor should explain the editing intent before raw fields');
+// create.guidance.event removed with legacy wizard form (2026-05-25)
 assert(html.includes('data-i18n="create.guidance.card"'), 'Card editor should explain card routing and draw behavior before raw fields');
 assert(html.includes('data-i18n="create.guidance.surface"'), 'Text editor should explain source evidence before raw fields');
 assert(html.includes('data-i18n="create.guidance.entry"'), 'Entry editor should explain source evidence and safe apply boundaries before raw fields');
@@ -682,7 +681,7 @@ assert(html.includes('data-i18n="create.help.surfaceEditability"'), 'Text editab
 assert(html.includes('wizard-action-primary'), 'Create output actions should separate the recommended next step');
 assert(html.includes('wizard-action-advanced'), 'Create output actions should hide technical downloads behind an advanced group');
 assert(html.includes('data-i18n="create.action.recommendedNext"'), 'Create actions should label the recommended next step');
-assert(html.includes('id="wizard-review-install" class="primary-action"'), 'Event Review & Apply should be the primary output action');
+// wizard-review-install removed with legacy wizard form (2026-05-25)
 assert(html.includes('My Changes'), 'Create mode should frame saved drafts as My Changes');
 assert(html.includes('id="install-runtime-preview"'), 'Install Assistant should expose a Runtime Preview action');
 assert(html.includes('id="install-runtime-preview-result"'), 'Install Assistant should render Runtime Preview results');
@@ -892,18 +891,13 @@ assert(appUi.includes('renderAssetRepairActions'), 'Assets inspector should expo
 assert(appUi.includes('handleAssetRepairFileSelection'), 'Assets inspector should turn replacement file picks into asset install requests');
 assert(appUi.includes('ProjectMap:asset-install-request-selected'), 'Assets inspector should dispatch asset install requests to Create wizards');
 assert(appUi.includes('Missing asset reference'), 'Preview assets should surface missing asset reference diagnostics');
-assert(html.includes('id="wizard-asset-refs"'), 'Event wizard should expose an assetRefs editor');
+// wizard-asset-* removed with legacy wizard form (2026-05-25). Card surfaces retained.
 assert(html.includes('id="card-asset-refs"'), 'Card wizard should expose an assetRefs editor');
-assert(html.includes('id="wizard-draft-asset-panel"'), 'Event wizard should expose a visual draft asset panel');
 assert(html.includes('id="card-draft-asset-panel"'), 'Card wizard should expose a visual draft asset panel');
 assert(html.includes('class="asset-advanced-panel"'), 'raw asset text editors should be demoted into an advanced panel');
-assert(html.includes('id="wizard-asset-picker"'), 'Event wizard should expose an asset picker');
 assert(html.includes('id="card-asset-picker"'), 'Card wizard should expose an asset picker');
-assert(html.includes('id="wizard-asset-manifest"'), 'Event wizard should expose an asset manifest surface');
 assert(html.includes('id="card-asset-manifest"'), 'Card wizard should expose an asset manifest surface');
-assert(html.includes('id="wizard-asset-file"'), 'Event wizard should expose a graphical asset file picker');
 assert(html.includes('id="card-asset-file"'), 'Card wizard should expose a graphical asset file picker');
-assert(html.includes('id="wizard-asset-install-requests"'), 'Event wizard should expose asset install request review');
 assert(html.includes('id="card-asset-install-requests"'), 'Card wizard should expose asset install request review');
 assert(i18nUi.includes("'assets.useInEventDraft'"), 'asset use-in-event action should be localized');
 assert(i18nUi.includes("'assets.useInCardDraft'"), 'asset use-in-card action should be localized');

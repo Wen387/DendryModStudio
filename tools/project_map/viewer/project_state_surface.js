@@ -22,7 +22,6 @@
       '<button type="button" data-object-canvas-action="project_state_new_variable">' + escapeHtml(t('projectState.addVariable', 'Add variable')) + '</button>',
       '<button type="button" data-object-canvas-action="project_state_edit_selected">' + escapeHtml(t('projectState.editSelected', 'Edit selected')) + '</button>',
       '<button class="danger-action" type="button" data-object-canvas-action="project_state_delete_selected">' + escapeHtml(t('projectState.deleteSelected', 'Delete selected')) + '</button>',
-      '<button type="button" data-object-canvas-action="legacy_form">' + escapeHtml(t('objectCanvas.legacyForm', 'Advanced Form')) + '</button>',
       '</div>',
       '</header>',
       '<div class="project-state-layout">',

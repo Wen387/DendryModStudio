@@ -151,15 +151,23 @@ function checkObjectCanvasContracts() {
   contains(fieldValues, 'collectCanvasFieldEntries(host, options)', 'Object Canvas field collection should use de-duplicated visible field entries');
   contains(fieldValues, 'fieldIsVisibleForCollection(input, options)', 'Object Canvas field collection should ignore hidden duplicate editor controls');
   contains(fieldValues, 'isCollectableField', 'Object Canvas field collection should ignore non-control asset/list entries');
-  contains(fieldValues, 'const activeRow = rows.find((row) => row.active && row.visible)', 'Object Canvas field collection should prefer focused controls only when they are visible');
+  assert(/rows\.find\(\(row\) => row\.active && resolveVisible\(row\)\)|rows\.find\(\(row\) => row\.active && row\.visible\)/.test(fieldValues), 'Object Canvas field collection should prefer focused controls only when they are visible');
   contains(storyboardDrafts, 'ProjectMapObjectCanvasStoryboardDrafts', 'Object Canvas Storyboard draft helper should expose a browser API');
   contains(storyboardDrafts, 'createRelatedDraft', 'Object Canvas Storyboard draft helper should own related draft creation');
   contains(objectUi, 'storyboardDraftsApi().createRelatedDraft', 'Object Canvas should delegate Storyboard draft creation to the extracted helper');
   contains(visibleEditAction, 'data-visible-edit-action', 'Visible edit action clickable marker');
   contains(visibleEditAction, 'openVisibleEditAction', 'Visible edit action dispatch bridge');
   contains(objectUi, 'bindVisibleEditUi(elements.host)', 'Object Canvas should bind visible edit/context lens controls after render');
-  contains(objectUi, 'syncPreviewObjectEditorPane();\n    syncObjectCanvasFieldValues();', 'Object Canvas should rerender preview pane inside dynamic surface sync');
-  contains(objectUi, 'syncPreviewObjectRenderedFields();\n    bindVisibleEditUi(elements.host);', 'Object Canvas should rebind context lens controls after preview pane rerender');
+  // The preview pane sync is followed by field value sync inside
+  // updateDynamicSurfaces. The preview pane call may be conditionally
+  // guarded (e.g. skipped during typing-in-progress refreshes) but must
+  // still precede the field value sync in the same flow.
+  assert(/syncPreviewObjectEditorPane\(\)[\s\S]{0,400}syncObjectCanvasFieldValues\(\)/.test(objectUi), 'Object Canvas should rerender preview pane inside dynamic surface sync');
+  // The sync call may be conditionally guarded (e.g. skipped on the initial
+  // full render where fieldTextPreview already produced fresh nodes), but the
+  // bindVisibleEditUi call must still follow it inside updateDynamicSurfaces
+  // so context-lens controls rebind after any later preview rerender.
+  assert(/syncPreviewObjectRenderedFields\([^)]*\);[\s\S]{0,400}bindVisibleEditUi\(elements\.host\)/.test(objectUi), 'Object Canvas should rebind context lens controls after preview pane rerender');
   contains(read('viewer/explore_lists.js'), 'data-visible-edit-affordance="true"', 'Explore list edit affordance marker');
   contains(read('viewer/event_workbench_ui.js'), 'renderEditAction(row, locale)', 'Event Workbench edit affordance renderer');
   contains(read('viewer/card_board_surface.js'), 'data-visible-edit-affordance="card-board"', 'Card Board edit affordance marker');

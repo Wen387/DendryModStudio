@@ -171,7 +171,6 @@
       '<button type="button" data-object-canvas-action="save">' + escapeHtml(t('editing.saveToChanges', 'Save to My Changes')) + '</button>',
       '<button class="primary-action" type="button" data-object-canvas-action="review">' + escapeHtml(t('existingScene.review', 'Review & Apply')) + '</button>',
       '<button class="danger-action" type="button" data-object-canvas-action="delete_current_object">' + escapeHtml(t(model.mode === 'existing' ? 'objectCanvas.action.deleteExisting' : 'objectCanvas.action.discardDraft', model.mode === 'existing' ? 'Delete event' : 'Discard draft')) + '</button>',
-      model.mode !== 'existing' ? '<button type="button" data-object-canvas-action="legacy_form">' + escapeHtml(t('objectCanvas.legacyForm', 'Advanced Form')) + '</button>' : '',
       '</div>'
     ].join('');
   }

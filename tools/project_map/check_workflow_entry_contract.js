@@ -106,9 +106,13 @@ const existingCardModel = canvasModel.buildCanvasModel(knownIndex, {
 }, {});
 const renderedUi = [
   previewEditor.render(knownModel),
+  previewEditor.renderEventReviewDetailsPanels(knownModel && knownModel.eventBody || {}, knownModel),
   previewEditor.render(textEventModel),
+  previewEditor.renderEventReviewDetailsPanels(textEventModel && textEventModel.eventBody || {}, textEventModel),
   previewEditor.renderModal(existingModel),
+  previewEditor.renderEventReviewDetailsPanels(existingModel && existingModel.eventBody || {}, existingModel),
   previewEditor.renderModal(existingCardModel),
+  previewEditor.renderEventReviewDetailsPanels(existingCardModel && existingCardModel.eventBody || {}, existingCardModel),
   graphStage.render(knownModel, {state: {selectedCanvasNode: 'object'}}),
   graphStage.render(unknownModel, {state: {selectedCanvasNode: 'object'}})
 ].join('\n');
