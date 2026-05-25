@@ -1017,7 +1017,7 @@
       ? api.normalizeAssetDirective
       : (value) => {
         const text = String(value || '').trim().toLowerCase();
-        return text === 'face-image' || text === 'card-image' || text === 'set-bg' || text === 'audio' ? text : '';
+        return text === 'face-image' || text === 'card-image' || text === 'set-bg' || text === 'set-music' || text === 'audio' ? text : '';
       };
     const explicit = normalize(row && (row.directive || row.replacementDirective));
     if (explicit) {

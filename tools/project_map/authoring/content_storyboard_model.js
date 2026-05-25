@@ -703,7 +703,8 @@
   }
 
   function normalizeView(view) {
-    return String(view || '') === 'chain' ? 'chain' : 'timeline';
+    var v = String(view || '');
+    return v === 'chain' ? 'chain' : v === 'spatial' ? 'spatial' : 'timeline';
   }
 
   function sourceRef(source) {

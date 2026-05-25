@@ -388,6 +388,7 @@
       renderBadge(asset.type || 'asset', asset.type || ''),
       renderBadge(asset.status && asset.status.key || asset.editability || 'reference_only', asset.status && asset.status.key || asset.editability || ''),
       usageCount ? renderBadge(t('assets.usedCount', 'used ') + usageCount, 'info') : '',
+      renderAudioModifierBadgesExplore(asset),
       '</span>',
       '</button>'
     ].join('');
@@ -888,6 +889,16 @@
 
   function renderBadge(text, className) {
     return '<span class="badge ' + escapeAttr(className || '') + '">' + escapeHtml(labelForBadge(text)) + '</span>';
+  }
+
+  function renderAudioModifierBadgesExplore(asset) {
+    var modifiers = Array.isArray(asset && asset.audioModifiers) ? asset.audioModifiers : [];
+    if (!modifiers.length) {
+      return '';
+    }
+    return modifiers.map(function (mod) {
+      return '<span class="badge audio-modifier-badge">' + escapeHtml(mod) + '</span>';
+    }).join('');
   }
 
   function labelForBadge(text) {

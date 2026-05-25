@@ -2930,12 +2930,14 @@
         {role: 'card_image', directive: 'card-image', label: 'Add card image', type: 'image'},
         {role: 'card_portrait', directive: 'face-image', label: 'Add card portrait', type: 'image'},
         {role: 'card_background', directive: 'set-bg', label: 'Add card background', type: 'image'},
+        {role: 'card_music', directive: 'set-music', label: 'Add card music', type: 'audio'},
         {role: 'card_audio', directive: 'audio', label: 'Add card audio', type: 'audio'}
       ]
       : [
         {role: 'event_illustration', directive: 'face-image', label: 'Add event illustration', type: 'image'},
         {role: 'event_portrait', directive: 'face-image', label: 'Add event portrait', type: 'image'},
         {role: 'event_background', directive: 'set-bg', label: 'Add event background', type: 'image'},
+        {role: 'event_music', directive: 'set-music', label: 'Add event music', type: 'audio'},
         {role: 'event_audio', directive: 'audio', label: 'Add event audio', type: 'audio'}
       ];
     const globalFields = slots.filter((slot) => !existingRoles.has(slot.role)).map((slot) => {

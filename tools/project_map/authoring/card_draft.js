@@ -231,6 +231,16 @@
     return global ? global.ProjectMapInstallPlan : null;
   }
 
+  function assetContractApi() {
+    if (global && global.ProjectMapAssetContractModel) {
+      return global.ProjectMapAssetContractModel;
+    }
+    if (typeof require === 'function') {
+      try { return require('./asset_contract_model.js'); } catch (_err) { /* optional */ }
+    }
+    return null;
+  }
+
   function validateDraft(input, projectIndex) {
     const draft = normalizeDraft(input);
     const diagnostics = [];
@@ -469,8 +479,12 @@
   }
 
   function normalizeAssetDirective(value) {
+    const api = assetContractApi();
+    if (api && typeof api.normalizeAssetDirective === 'function') {
+      return api.normalizeAssetDirective(value);
+    }
     const text = String(value || '').trim().toLowerCase();
-    return text === 'face-image' || text === 'card-image' || text === 'set-bg' || text === 'audio' ? text : '';
+    return text === 'face-image' || text === 'card-image' || text === 'set-bg' || text === 'set-music' || text === 'audio' ? text : '';
   }
 
   function appendOption(lines, option) {

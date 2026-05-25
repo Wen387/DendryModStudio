@@ -616,6 +616,53 @@ input.preview-object-control[type="checkbox"] {
   font-style: normal;
 }
 
+.object-canvas-asset-slot.is-audio-slot {
+  border-left: 3px solid #8b6cc1;
+  background: color-mix(in srgb, #8b6cc1 6%, var(--surface));
+}
+
+.audio-modifier-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.audio-modifier-badge {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 4px;
+  background: color-mix(in srgb, #8b6cc1 18%, var(--surface));
+  color: #5b3d8f;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.5;
+}
+
+.object-canvas-expand-preview-btn,
+.object-canvas-expand-assets-btn {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--studio-accent, #c4956a) 10%, var(--surface));
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 720;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.object-canvas-expand-preview-btn:hover,
+.object-canvas-expand-preview-btn:focus-visible,
+.object-canvas-expand-assets-btn:hover,
+.object-canvas-expand-assets-btn:focus-visible {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--studio-accent, #c4956a) 20%, var(--surface));
+}
+
 .object-canvas-asset-picker-control {
   display: grid;
   gap: 4px;

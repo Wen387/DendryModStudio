@@ -155,12 +155,16 @@
     const options = ensureArray(value.options);
     const branches = ensureArray(value.branchSections);
     const assets = ensureArray(value.assets);
+    const audioAssetCount = assets.filter(function (a) { return a && (a.type === 'audio' || /audio|music/.test(String(a.role || ''))); }).length;
     const chips = [
       sections.length ? t('previewObjectEditor.flowSections', 'Sections') + ': ' + sections.length : '',
       options.length ? t('previewObjectEditor.flowOptions', 'Options') + ': ' + options.length : '',
       branches.length ? t('previewObjectEditor.branchText', 'Conditional and follow-up text') + ': ' + branches.length : '',
       assets.length ? t('previewObjectEditor.assets', 'Referenced assets') + ': ' + assets.length : ''
     ].filter(Boolean);
+    if (audioAssetCount) {
+      chips.push('♫ ' + t('previewObjectEditor.audioAssets', 'Audio') + ': ' + audioAssetCount);
+    }
     return [
       '<article class="object-editing-live-preview object-editing-event-preview is-large-summary" data-object-editing-large-preview-summary="true">',
       '<div class="object-editing-preview-kicker">' + escapeHtml(t('objectPreview.event', 'World Event')) + '</div>',
@@ -174,7 +178,7 @@
         showAddControls: false,
         showReplacementControls: false
       }),
-      '<small>' + escapeHtml(t('previewObjectEditor.expandPreview', 'Expand preview')) + '</small>',
+      '<button type="button" class="object-canvas-expand-preview-btn" data-object-canvas-action="toggle_preview_expanded">' + escapeHtml(t('previewObjectEditor.expandPreview', 'Expand preview')) + '</button>',
       '</article>'
     ].join('');
   }
@@ -1584,7 +1588,7 @@
       renderPreviewAssetSlots(slots, normalizedTarget, opts),
       globalRows.length ? '<div class="object-canvas-asset-row-grid" data-object-canvas-global-assets="true">' + globalRows.slice(0, 8).map((asset) => renderPreviewAsset(asset, normalizedTarget)).join('') + '</div>' : '',
       flowRows.length || flowAddFields.length ? '<div class="object-canvas-asset-row-grid" data-object-canvas-flow-asset-summary="true"><small>' + escapeHtml(t('assets.flowAssets', 'Flow assets')) + '</small>' + flowRows.slice(0, 8).map((asset) => renderFlowAssetRow(asset, normalizedTarget, opts)).join('') + flowAddControls + '</div>' : '',
-      rows.length > 8 ? '<small>' + escapeHtml(t('previewObjectEditor.moreAssets', 'More assets') + ': ' + String(rows.length - 8)) + '</small>' : '',
+      rows.length > 8 ? '<button type="button" class="object-canvas-expand-assets-btn" data-object-canvas-action="toggle_preview_expanded">' + escapeHtml(t('previewObjectEditor.moreAssets', 'More assets') + ': +' + String(rows.length - 8)) + '</button>' : '',
       '</section>'
     ].join('');
   }
@@ -1610,9 +1614,10 @@
     return [
       '<div class="object-canvas-asset-slot-grid" data-object-canvas-asset-slots="true">',
       slots.map((slot) => [
-        '<article class="object-canvas-asset-slot" data-object-canvas-asset-slot="true" data-asset-slot-role="' + escapeAttr(slot.role || '') + '" data-asset-slot-status="' + escapeAttr(slot.status || 'empty') + '">',
+        '<article class="object-canvas-asset-slot' + (isAudioSlotRole(slot.role) ? ' is-audio-slot' : '') + '" data-object-canvas-asset-slot="true" data-asset-slot-role="' + escapeAttr(slot.role || '') + '" data-asset-slot-status="' + escapeAttr(slot.status || 'empty') + '">',
         '<strong>' + escapeHtml(t('assets.role.' + slot.role, slot.roleLabel || slot.label || slot.role || t('previewObjectEditor.asset', 'Asset'))) + '</strong>',
         '<small>' + escapeHtml(t('assets.type.' + (slot.type || 'asset'), slot.type || 'asset')) + '</small>',
+        renderAudioModifierBadges(slot.assetRef),
         slot.assetRef && slot.assetRef.path ? '<code>' + escapeHtml(slot.assetRef.path) + '</code>' : '<span>' + escapeHtml(t('assets.slotEmpty', 'No asset selected for this slot.')) + '</span>',
         slot.installRequest ? '<em>' + escapeHtml(slot.installRequest.sourceName || slot.installRequest.sourcePath || t('assets.sourcePending', 'Source file selected in this browser session')) + '</em>' : '',
         opts.showControls || opts.showAddControls && slot.addField && !(slot.assetRef && slot.assetRef.path) ? renderAssetSlotControls(slot, target, opts) : '',
@@ -1637,7 +1642,9 @@
       role: row.role || row.assetRef && row.assetRef.role || '',
       directive: row.directive || row.assetRef && row.assetRef.directive || '',
       previewUrl: row.previewUrl || row.assetRef && row.assetRef.previewUrl || '',
-      fileExists: row.fileExists
+      fileExists: row.fileExists,
+      audioModifiers: row.audioModifiers || row.assetRef && row.assetRef.audioModifiers || [],
+      audioGroupId: row.audioGroupId || row.assetRef && row.assetRef.audioGroupId || ''
     }));
     const assetInstallRequests = ensureArray(rows).filter((row) => row && row.installRequest).map((row) => row.installRequest);
     return api.buildAssetSlots({assetRefs, assetInstallRequests}, {target}).map((slot) => {
@@ -1945,6 +1952,7 @@
       return [
         '<figure' + rowAttrs + ' data-asset-preview-audio="true">',
         '<audio controls preload="metadata" src="' + escapeAttr(capability.url) + '"></audio>',
+        renderAudioModifierBadges(asset),
         '<figcaption>' + escapeHtml([role, label, state].filter(Boolean).join(' / ')) + '</figcaption>',
         source ? '<small>' + escapeHtml(source) + '</small>' : '',
         '</figure>'
@@ -1954,6 +1962,7 @@
       '<div' + rowAttrs + '>',
       '<strong>' + escapeHtml(label) + '</strong>',
       role ? '<small>' + escapeHtml(role) + '</small>' : '',
+      renderAudioModifierBadges(asset),
       asset && asset.path ? '<code>' + escapeHtml(asset.path) + '</code>' : '',
       state ? '<small>' + escapeHtml(state) + '</small>' : '',
       asset && asset.installRequest && asset.installRequest.sourceName ? '<small>' + escapeHtml(asset.installRequest.sourceName) + '</small>' : '',
@@ -1979,6 +1988,20 @@
       ' data-asset-state="' + escapeAttr(state) + '"',
       asset && asset.directive ? ' data-asset-directive="' + escapeAttr(asset.directive) + '"' : ''
     ].join('');
+  }
+
+  function isAudioSlotRole(role) {
+    return /audio|music/.test(String(role || ''));
+  }
+
+  function renderAudioModifierBadges(assetRef) {
+    const modifiers = ensureArray(assetRef && assetRef.audioModifiers);
+    if (!modifiers.length) {
+      return '';
+    }
+    return '<span class="audio-modifier-badges">' + modifiers.map(function (mod) {
+      return '<span class="audio-modifier-badge" data-audio-modifier="' + escapeAttr(mod) + '">' + escapeHtml(mod) + '</span>';
+    }).join('') + '</span>';
   }
 
   function renderKindEditor(kind, body, model) {

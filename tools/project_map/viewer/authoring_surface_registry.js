@@ -37,6 +37,13 @@
       templates: ['election_results']
     },
     {
+      key: 'spatial_canvas',
+      workspace: 'content',
+      labelKey: 'authoring.surface.spatialCanvas',
+      fallback: 'Spatial Canvas',
+      templates: ['event', 'news', 'surface', 'existing']
+    },
+    {
       key: 'project_state_board',
       workspace: 'project_state',
       labelKey: 'authoring.surface.projectStateBoard',

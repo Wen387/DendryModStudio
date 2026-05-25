@@ -464,3 +464,9 @@
   white-space: normal;
   text-align: left;
 }
+
+.badge.audio-modifier-badge {
+  background: color-mix(in srgb, #8b6cc1 18%, #ffffff);
+  color: #5b3d8f;
+  font-weight: 700;
+}
