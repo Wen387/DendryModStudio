@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "channel": "dev-preview",
-  "latestVersion": "0.97.8",
-  "minimumRecommendedVersion": "0.97.8",
+  "latestVersion": "0.98.0",
+  "minimumRecommendedVersion": "0.98.0",
   "severity": "info",
   "noticeId": "v0.97.8-preview-announcement-2026-05-21",
   "title": "Dendry Mod Studio v0.97.8 preview update is ready",
@@ -42,7 +42,7 @@
         "zh-Hant": "這個預覽版讓可視物件編輯器更容易使用：更多選項條件、效果、路由、不可用文本與結果頁會靠近它們所屬的玩家選項。Route Map 與 Semantic Logic 也加強了對複雜路由狀態和條件路由編輯的支援，事件建立流程則新增了幾個編輯擴充。\n\n它也修復了數個圖片素材與 Runtime Preview 圖片處理相關問題，稍微擴充了內建 Demo 內容，並讓目前 Canvas 編輯介面的縮放與放大更平順。\n\n這仍是未簽署的預覽版。請保留真實專案備份，在套用修改前檢查 install plan；如果遇到令人困惑的編輯行為或破損預覽，也歡迎回報。"
       },
       "downloadUrl": "https://github.com/Wen387/DendryModStudio/releases",
-      "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.97.8.md",
+      "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.98.md",
       "publishedAt": "2026-05-21"
     },
     {
@@ -64,7 +64,7 @@
         "en": "The editor is becoming more capable, but it is not yet at the stage where development can focus only on polish and repairs. If something feels confusing, too manual, unsafe, or simply absent, that is useful feedback.\n\nThe most helpful report includes the Studio version, OS, mod name, source path if available, what you tried, what you expected, and what actually happened.",
         "zh-Hant": "編輯器正在變得更有能力，但專案還沒有進入只需要打磨和修繕的階段。如果某個地方讓你困惑、太手動、不放心，或乾脆缺少入口，這些都是有用回饋。\n\n最有幫助的回報會包含 Studio 版本、作業系統、Mod 名稱、可用的 source 路徑、你嘗試了什麼、原本期待什麼，以及實際發生了什麼。"
       },
-      "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.97.8.md",
+      "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.98.md",
       "publishedAt": "2026-05-21"
     },
     {
@@ -152,6 +152,6 @@
     }
   ],
   "downloadUrl": "https://github.com/Wen387/DendryModStudio/releases",
-  "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.97.8.md",
+  "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.98.md",
   "publishedAt": "2026-05-21"
 }

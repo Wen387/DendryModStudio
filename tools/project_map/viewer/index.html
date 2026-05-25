@@ -23,7 +23,7 @@
         <div class="brand-copy">
           <div class="wordmark">Dendry <span>Mod Studio</span></div>
           <div class="brand-meta">
-            <span data-i18n="topbar.version">Dendry Mod Studio v0.97.8 dev preview</span>
+            <span data-i18n="topbar.version">Dendry Mod Studio v0.98.0 dev preview</span>
             <a href="https://github.com/Wen387" target="_blank" rel="noreferrer" data-i18n="topbar.author">by Awen</a>
           </div>
           <div id="brand-subtitle" class="brand-subtitle" data-i18n="topbar.subtitle.default">Studio workspace for branching Dendry projects</div>
@@ -788,9 +788,9 @@
         </div>
       </aside>
 
-      <!-- Legacy Complex Event Builder (wizard_ui.js) removed 2026-05-25.
-           Object Canvas handles all event authoring. If Canvas fails to
-           initialize, showCanvasError() displays the error inline. -->
+      <!-- Legacy Complex Event Builder form removed 2026-05-25.
+           Mode switching and index loading extracted to shell_navigation.js.
+           wizard_ui.js retained for draft import and Create-pane rendering. -->
       <section class="wizard-form-panel hidden" data-create-template-panel="event" data-legacy-removed="true">
       </section>
       <section class="wizard-form-panel hidden" aria-labelledby="news-heading-label" data-create-template-panel="news">
@@ -2320,6 +2320,8 @@ media_reach += 1</textarea>
   <script src="../authoring/story_chain_graph_model.js"></script>
   <script src="../authoring/story_palette_model.js"></script>
   <script src="../authoring/content_storyboard_model.js"></script>
+  <script src="../authoring/spatial_canvas_layout.js"></script>
+  <script src="../authoring/spatial_canvas_model.js"></script>
   <script src="../authoring/runtime_snapshot_model.js"></script>
   <script src="../authoring/runtime_dom_map_model.js"></script>
   <script src="../authoring/runtime_visual_asset_draft_model.js"></script>
@@ -2370,6 +2372,9 @@ media_reach += 1</textarea>
   <script src="storyboard_workspace_state.js"></script>
   <script src="content_storyboard_surface.js"></script>
   <script src="content_storyboard_interactions.js"></script>
+  <script src="spatial_canvas_surface.js"></script>
+  <script src="spatial_canvas_interactions.js"></script>
+  <script src="spatial_canvas_workspace_state.js"></script>
   <script src="card_face_editor.js"></script>
   <script src="card_board_surface.js"></script>
   <script src="card_board_interactions.js"></script>
@@ -2405,6 +2410,8 @@ media_reach += 1</textarea>
   <script src="../authoring/design_model.js"></script>
   <script src="meaning_layer_ui.js"></script>
   <script src="event_workbench_ui.js"></script>
+  <script src="shell_navigation.js"></script>
+  <script src="wizard_ui.js"></script>
   <script src="news_ui.js"></script>
   <script src="card_ui.js"></script>
   <script src="surface_text_ui.js"></script>
