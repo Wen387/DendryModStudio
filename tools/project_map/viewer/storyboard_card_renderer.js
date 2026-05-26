@@ -118,7 +118,44 @@
   }
 
   function renderCardTiming(card) {
-    return '';
+    var assets = Array.isArray(card && card.audioAssets) ? card.audioAssets : [];
+    var musicState = card && card.musicState || null;
+    // If no local audio assets and no inherited music, nothing to show
+    if (!assets.length && (!musicState || musicState.source === 'none')) { return ''; }
+    var parts = [];
+    if (assets.length) {
+      // Deduplicate by groupId: keep one entry per audio group
+      var seen = {};
+      var unique = [];
+      for (var i = 0; i < assets.length; i++) {
+        var gid = assets[i].groupId;
+        if (gid && seen[gid]) { continue; }
+        if (gid) { seen[gid] = true; }
+        unique.push(assets[i]);
+      }
+      var items = unique.slice(0, 3).map(function (asset) {
+        var isBgm = asset.directive === 'set-music';
+        var label = isBgm
+          ? t('storyboard.audio.bgm', 'BGM')
+          : t('storyboard.audio.sfx', 'SFX');
+        var modText = asset.modifiers.length
+          ? ' <span class="content-storyboard-audio-mod">' + asset.modifiers.map(function (m) { return escapeHtml(m); }).join(' ') + '</span>'
+          : '';
+        return '<span class="content-storyboard-audio-chip' + (isBgm ? ' is-bgm' : '') + '" title="' + escapeAttr(asset.name) + '">' + escapeHtml(label) + ' ' + escapeHtml(asset.name) + modText + '</span>';
+      });
+      var overflow = unique.length > 3 ? '<span class="content-storyboard-audio-overflow">+' + (unique.length - 3) + '</span>' : '';
+      parts.push(items.join('') + overflow);
+    } else if (musicState && musicState.source === 'inherited' && musicState.activeTrack) {
+      // No local directive — show inherited music as a dimmed chip
+      var ambiguousFlag = musicState.ambiguous ? ' is-ambiguous' : '';
+      var inheritTitle = t('storyboard.audio.inheritedFrom', 'Inherited from') + ' ' + (musicState.inheritedFrom || '?');
+      var trackName = musicState.activeTrack.name || musicState.activeTrack.path || '?';
+      parts.push('<span class="content-storyboard-audio-chip is-inherited' + ambiguousFlag + '" title="' + escapeAttr(inheritTitle) + '">' + escapeHtml(trackName) + '</span>');
+    } else if (musicState && musicState.cleared) {
+      parts.push('<span class="content-storyboard-audio-chip is-cleared" title="' + escapeAttr(t('storyboard.audio.cleared', 'Music cleared')) + '">' + escapeHtml(t('storyboard.audio.silent', '🔇')) + '</span>');
+    }
+    if (!parts.length) { return ''; }
+    return '<div class="content-storyboard-audio-bar">' + parts.join('') + '</div>';
   }
 
   function renderStateTags(card) {

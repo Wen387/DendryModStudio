@@ -2408,6 +2408,24 @@
     refreshProgrammaticValues();
   }
 
+  function collectAudioModifiers(control) {
+    if (!control || !control.closest) { return []; }
+    // Guard against detached DOM nodes (e.g., after re-render)
+    if (control.ownerDocument && typeof control.ownerDocument.contains === 'function' && !control.ownerDocument.contains(control)) {
+      return [];
+    }
+    var slot = control.closest('.object-canvas-asset-slot');
+    if (!slot) { return []; }
+    var fieldset = slot.querySelector('[data-audio-modifier-fieldset]');
+    if (!fieldset) { return []; }
+    var checked = fieldset.querySelectorAll('input[data-audio-modifier-toggle]:checked');
+    var result = [];
+    for (var i = 0; i < checked.length; i++) {
+      result.push(String(checked[i].value || '').trim().toLowerCase());
+    }
+    return result.filter(Boolean);
+  }
+
   function updateExistingObjectCanvasAssetSelection(select) {
     const fieldId = String(select.dataset.existingAssetAddField || '').trim();
     const directive = String(select.dataset.assetDirective || '').trim();
@@ -2434,7 +2452,8 @@
       targetPath: path,
       label: ref.label || ref.name || path,
       target,
-      role
+      role,
+      modifiers: collectAudioModifiers(select)
     });
     state.proposalOptions = removeObjectCanvasAssetInstallRequestForField(state.proposalOptions, fieldId);
     state.status = t('objectCanvas.status.assetReferencePrepared', 'Asset reference prepared in Object Canvas.');
@@ -2457,7 +2476,8 @@
       targetPath: request.targetPath,
       label: request.label || request.sourceName,
       target,
-      role
+      role,
+      modifiers: collectAudioModifiers(input)
     });
     state.proposalOptions = state.proposalOptions && typeof state.proposalOptions === 'object'
       ? Object.assign({}, state.proposalOptions)
@@ -2525,6 +2545,11 @@
       }
       const label = String(opts.label || '').trim().replace(/[\]\r\n]/g, ' ');
       return '![' + label + '](' + targetPath + ')';
+    }
+    var contract = assetContractApi();
+    if (contract && typeof contract.formatDirectiveText === 'function') {
+      var formatted = contract.formatDirectiveText(directive, targetPath, opts.modifiers);
+      if (formatted) { return formatted; }
     }
     return directive + ': ' + targetPath;
   }
@@ -4538,6 +4563,10 @@
 
   function assetModelApi() {
     return global.ProjectMapAssetModel || null;
+  }
+
+  function assetContractApi() {
+    return global.ProjectMapAssetContractModel || null;
   }
 
   function sourceSliceApi() {

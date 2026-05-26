@@ -42,19 +42,24 @@
       "reason": "Object canvas model check aggregates many archetypes; split per-archetype suites before adding more. New exception 2026-05-22."
     },
     {
+      "path": "tools/project_map/desktop/runtime_preview.js",
+      "maxLines": 1851,
+      "reason": "Desktop runtime preview orchestrator; extract audio/media sub-module before adding more. New exception 2026-05-26."
+    },
+    {
       "path": "tools/project_map/qa/run_desktop_scenario.js",
       "maxLines": 3566,
       "reason": "Split desktop scenario runner before adding more scenarios. Ratcheted 2026-05-22 from 2683."
     },
     {
       "path": "tools/project_map/viewer/i18n/en.js",
-      "maxLines": 3312,
-      "reason": "Catalog file; keep each language separate and avoid runtime code here. Ratcheted 2026-05-25 from 3311 for music asset role strings."
+      "maxLines": 3319,
+      "reason": "Catalog file; keep each language separate and avoid runtime code here. Ratcheted 2026-05-26 from 3316 for music state inheritance i18n."
     },
     {
       "path": "tools/project_map/viewer/i18n/zh-Hant.js",
-      "maxLines": 3312,
-      "reason": "Catalog file; keep each language separate and avoid runtime code here. Ratcheted 2026-05-25 from 3311 for music asset role strings."
+      "maxLines": 3319,
+      "reason": "Catalog file; keep each language separate and avoid runtime code here. Ratcheted 2026-05-26 from 3316 for music state inheritance i18n."
     },
     {
       "path": "tools/project_map/viewer/index.html",
@@ -63,13 +68,13 @@
     },
     {
       "path": "tools/project_map/viewer/object_authoring_canvas_ui.js",
-      "maxLines": 4706,
-      "reason": "Keep orchestration here; split editor UI into workspace modules. Ratcheted 2026-05-25 for group-drag + unstack callbacks."
+      "maxLines": 4734,
+      "reason": "Keep orchestration here; split editor UI into workspace modules. Ratcheted 2026-05-26 from 4730 for DOM-detach guard in collectAudioModifiers."
     },
     {
       "path": "tools/project_map/viewer/preview_object_editor.js",
-      "maxLines": 4900,
-      "reason": "Keep field rendering here; split domain sub-renderers into sibling modules. Ratcheted 2026-05-25 from 4880 for audio modifier badges, expand-preview button, and music chip."
+      "maxLines": 4970,
+      "reason": "Keep field rendering here; split domain sub-renderers into sibling modules. Ratcheted 2026-05-26 from 4952 for audio modifier toggle renderer."
     },
     {
       "path": "tools/project_map/viewer/styles/editing.css",

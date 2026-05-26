@@ -8,7 +8,9 @@
     const draftBranches = ensureArray(opts.draftBranches).map((branch, index) => draftBranchCard(branch, model, index));
     const current = currentCard(model);
     const canvasCategory = normalizeCanvasCategory(opts.storyCanvasCategory || opts.storyboardCategory || opts.canvasCategory);
-    const allCards = dedupeCards(collectProjectCards(projectIndex, current).concat([current]).concat(draftBranches));
+    const rawCards = collectProjectCards(projectIndex, current);
+    enrichCardsWithMusicState(rawCards, projectIndex);
+    const allCards = dedupeCards(rawCards.concat([current]).concat(draftBranches));
     const categoryCards = filterCardsForCanvas(allCards, canvasCategory, current.key);
     const searchQuery = normalizeSearchQuery(opts.storySearchQuery || opts.searchQuery);
     const searchMatches = searchQuery ? categoryCards.filter((card) => cardMatchesSearch(card, searchQuery)) : categoryCards;
@@ -121,6 +123,7 @@
           body,
           options: ensureArray(sceneText.optionLabels)
         },
+        audioAssets: audioAssetsForScene(scene),
         stateTags: ['source'],
         editable: false,
         current: current && current.id === String(scene.id),
@@ -666,6 +669,56 @@
       return String(fallback || '');
     }
     return String(field.value !== undefined ? field.value : field.original !== undefined ? field.original : fallback || '');
+  }
+
+  function musicStateApi() {
+    if (global && global.ProjectMapMusicStateModel) {
+      return global.ProjectMapMusicStateModel;
+    }
+    if (typeof require === 'function') {
+      try { return require('./music_state_model.js'); } catch (_err) { /* optional */ }
+    }
+    return null;
+  }
+
+  function enrichCardsWithMusicState(cards, projectIndex) {
+    var api = musicStateApi();
+    if (!api || typeof api.computeMusicState !== 'function') { return; }
+    try {
+      var stateMap = api.computeMusicState(projectIndex);
+      for (var i = 0; i < cards.length; i++) {
+        var card = cards[i];
+        var entry = stateMap.get(card.id);
+        if (entry) {
+          card.musicState = entry;
+        }
+      }
+    } catch (_err) {
+      // Gracefully degrade: skip music state if computation fails
+    }
+  }
+
+  function audioAssetsForScene(scene) {
+    const refs = ensureArray(scene && scene.assetRefs);
+    const results = [];
+    for (var i = 0; i < refs.length; i++) {
+      var ref = refs[i];
+      if (!isObject(ref)) { continue; }
+      var directive = String(ref.directive || ref.assetDirective || '').trim().toLowerCase();
+      var type = String(ref.type || '').trim().toLowerCase();
+      if (directive !== 'set-music' && directive !== 'audio' && type !== 'audio') { continue; }
+      var path = String(ref.path || ref.src || ref.url || '').trim();
+      if (!path) { continue; }
+      var parts = path.split(/[\\/]/);
+      var name = parts[parts.length - 1] || path;
+      results.push({
+        name: name,
+        directive: directive || 'audio',
+        modifiers: ensureArray(ref.audioModifiers),
+        groupId: String(ref.audioGroupId || '')
+      });
+    }
+    return results;
   }
 
   function sceneKind(scene) {

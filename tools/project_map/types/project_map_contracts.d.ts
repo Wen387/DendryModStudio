@@ -50,8 +50,10 @@ export interface AssetInstallRequest {
 }
 
 export interface AssetContractModelApi {
+  AUDIO_MODIFIER_KEYWORDS: readonly string[];
   normalizeTarget(value: unknown): 'event' | 'card';
   normalizeAssetDirective(value: unknown): string;
+  formatDirectiveText(directive: unknown, path: unknown, modifiers?: unknown[]): string;
   roleForAssetDirective(directive: unknown, target: unknown): string;
   assetRoleLabel(role: unknown): string;
   assetSlotDefinitions(target: unknown): AssetSlotDefinition[];

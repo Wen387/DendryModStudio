@@ -4,6 +4,7 @@
 
   const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg']);
   const AUDIO_EXTENSIONS = new Set(['.mp3', '.ogg', '.wav', '.flac', '.m4a']);
+  const AUDIO_MODIFIER_KEYWORDS = Object.freeze(['loop', 'queue', 'shuffle', 'nofade', 'clear']);
   const ASSET_PLACEMENT_KINDS = new Set([
     'global_slot',
     'opening_visual',
@@ -76,6 +77,39 @@
       text === 'inline-asset'
       ? text
       : '';
+  }
+
+  /**
+   * Build the source-text line for a Dendry asset directive.
+   *
+   * For `audio:` directives, recognized modifier keywords (`loop`, `queue`,
+   * `shuffle`, `nofade`, `clear`) are appended after the path.
+   * Other directives produce `directive: path` with no modifiers.
+   *
+   * @param {unknown} directive
+   * @param {unknown} path
+   * @param {unknown[]} [modifiers]
+   * @returns {string}
+   */
+  function formatDirectiveText(directive, path, modifiers) {
+    var normalized = normalizeAssetDirective(directive);
+    var targetPath = String(path || '').trim();
+    if (!normalized || !targetPath) { return ''; }
+    if (normalized !== 'audio' || !Array.isArray(modifiers) || !modifiers.length) {
+      return normalized + ': ' + targetPath;
+    }
+    var seen = {};
+    var validMods = modifiers
+      .map(function (m) { return String(m || '').trim().toLowerCase(); })
+      .filter(function (m) {
+        if (seen[m] || AUDIO_MODIFIER_KEYWORDS.indexOf(m) < 0) { return false; }
+        seen[m] = true;
+        return true;
+      });
+    if (!validMods.length) {
+      return normalized + ': ' + targetPath;
+    }
+    return normalized + ': ' + targetPath + ' ' + validMods.join(' ');
   }
 
   /**
@@ -299,8 +333,10 @@
 
   /** @type {AssetContractModelApi} */
   const api = {
+    AUDIO_MODIFIER_KEYWORDS,
     normalizeTarget,
     normalizeAssetDirective,
+    formatDirectiveText,
     roleForAssetDirective,
     assetRoleLabel,
     assetSlotDefinitions,

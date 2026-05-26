@@ -621,6 +621,51 @@ input.preview-object-control[type="checkbox"] {
   background: color-mix(in srgb, #8b6cc1 6%, var(--surface));
 }
 
+.object-canvas-audio-modifier-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 4px 0 0;
+  border: none;
+}
+
+.object-canvas-audio-modifier-toggles legend {
+  float: left;
+  margin-right: 6px;
+  padding: 0;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.object-canvas-audio-modifier-toggles label {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: color-mix(in srgb, #8b6cc1 10%, var(--surface));
+  color: #5b3d8f;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+}
+
+.object-canvas-audio-modifier-toggles label:has(input:checked) {
+  background: color-mix(in srgb, #8b6cc1 24%, var(--surface));
+  font-weight: 700;
+}
+
+.object-canvas-audio-modifier-toggles input[type="checkbox"] {
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  accent-color: #8b6cc1;
+}
+
 .audio-modifier-badges {
   display: flex;
   flex-wrap: wrap;
@@ -637,6 +682,56 @@ input.preview-object-control[type="checkbox"] {
   font-weight: 700;
   letter-spacing: 0.02em;
   line-height: 1.5;
+}
+
+/* --- Audio playlist group ------------------------------------------------ */
+
+.audio-playlist-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #8b6cc1;
+}
+
+.audio-playlist-tracks {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: track;
+}
+
+.audio-playlist-tracks li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 3px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, #8b6cc1 5%, var(--surface));
+  counter-increment: track;
+}
+
+.audio-playlist-tracks li::before {
+  content: counter(track) '.';
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.audio-playlist-tracks li span {
+  font-size: 11px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.audio-playlist-tracks audio {
+  width: 100%;
+  height: 28px;
 }
 
 .object-canvas-expand-preview-btn,

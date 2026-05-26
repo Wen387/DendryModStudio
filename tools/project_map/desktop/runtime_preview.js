@@ -307,6 +307,12 @@ function createQuickSession(options) {
       runtimeReadiness: readiness
     };
   }
+  const audioCopyStarted = Date.now();
+  const audioCopy = copySourceRuntimeAudioAssets(project.root, modifiedHtmlRoot);
+  markTiming(timing, 'copy_source_runtime_audio_assets', audioCopyStarted);
+  if (!audioCopy.ok) {
+    readiness.diagnostics.push(diagnostic('warning', 'runtime_preview.audio_asset_copy_failed', 'Could not copy source audio assets into the preview session: ' + audioCopy.message));
+  }
   const patchStarted = Date.now();
   const htmlPatch = patchRuntimeHtmlCompatibility(modifiedHtmlRoot);
   markTiming(timing, 'patch_runtime_html', patchStarted);
@@ -574,6 +580,52 @@ function copySourceRuntimeAssets(root, htmlRoot) {
   }
 }
 
+/**
+ * Copy source audio/music assets into the preview HTML root.
+ *
+ * DendryNexus games may store audio under `source/audio/` or `source/music/`.
+ * The built game references them via relative paths from `out/html/`.
+ * This mirrors the image-copy behaviour of copySourceRuntimeAssets.
+ */
+function copySourceRuntimeAudioAssets(root, htmlRoot) {
+  const audioDirs = ['audio', 'music'];
+  const results = [];
+  for (var i = 0; i < audioDirs.length; i++) {
+    var dirName = audioDirs[i];
+    var sourceDir = path.join(root, 'source', dirName);
+    var targetDir = path.join(htmlRoot, dirName);
+    if (!fs.existsSync(sourceDir)) {
+      results.push({ok: true, copied: false, dir: dirName, source: sourceDir, target: targetDir});
+      continue;
+    }
+    try {
+      fs.mkdirSync(path.dirname(targetDir), {recursive: true});
+      fs.cpSync(sourceDir, targetDir, {
+        recursive: true,
+        errorOnExist: false,
+        force: true
+      });
+      results.push({ok: true, copied: true, dir: dirName, source: sourceDir, target: targetDir});
+    } catch (err) {
+      results.push({
+        ok: false,
+        copied: false,
+        dir: dirName,
+        source: sourceDir,
+        target: targetDir,
+        message: err && err.message ? err.message : String(err)
+      });
+    }
+  }
+  var failed = results.filter(function (r) { return !r.ok; });
+  return {
+    ok: failed.length === 0,
+    copied: results.some(function (r) { return r.copied; }),
+    results: results,
+    message: failed.length ? failed.map(function (r) { return r.dir + ': ' + r.message; }).join('; ') : ''
+  };
+}
+
 function patchRuntimeHtmlCompatibility(htmlRoot) {
   const cssPath = path.join(htmlRoot, 'game.css');
   if (!fs.existsSync(cssPath)) {
@@ -708,6 +760,23 @@ function runtimeDependencyReadiness(htmlRoot) {
       ));
     }
   }
+  const audioRefs = [];
+  const audioRe = /<(?:audio|source)\b[^>]*\bsrc\s*=\s*(["'])(.*?)\1[^>]*>/gi;
+  while ((match = audioRe.exec(html))) {
+    const ref = match[2] || '';
+    if (!ref) { continue; }
+    const dep = runtimeDependencyPath(htmlRoot, 'index.html', ref);
+    const line = lineForOffset(html, match.index);
+    audioRefs.push(Object.assign({src: ref, source: {path: 'out/html/index.html', line}}, dep));
+    if (!dep.external && !dep.exists) {
+      diagnostics.push(diagnostic(
+        'warning',
+        'runtime_surface.missing_audio',
+        'An audio asset referenced in the generated HTML is missing: out/html/' + dep.rel + '. Audio playback may fail in Runtime Preview.',
+        {path: 'out/html/index.html', source: {path: 'out/html/index.html', line}, missingPath: 'out/html/' + dep.rel}
+      ));
+    }
+  }
   const missingPaths = diagnostics
     .map((diag) => diag.missingPath)
     .filter(Boolean);
@@ -723,6 +792,7 @@ function runtimeDependencyReadiness(htmlRoot) {
     ok: diagnostics.every((diag) => diag.severity !== 'error'),
     scripts,
     stylesheets,
+    audioRefs,
     diagnostics
   };
 }
@@ -794,6 +864,9 @@ function runBuild(root, meta) {
   const assetCopy = ok ? copySourceRuntimeAssets(root, htmlRoot) : {ok: true, copied: false};
   if (!assetCopy.ok) {
     ok = false;
+  }
+  if (ok) {
+    copySourceRuntimeAudioAssets(root, htmlRoot);
   }
   const htmlPatch = ok ? patchRuntimeHtmlCompatibility(htmlRoot) : {ok: true, patched: false};
   if (!htmlPatch.ok) {
@@ -1759,6 +1832,7 @@ module.exports = {
   copyProject,
   copyGeneratedHtml,
   copySourceRuntimeAssets,
+  copySourceRuntimeAudioAssets,
   patchRuntimeHtmlCompatibility,
   runtimeDependencyReadiness,
   resolvePreviewSessionRoot,
