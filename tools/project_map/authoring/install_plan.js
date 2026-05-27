@@ -1172,7 +1172,9 @@
     const lineEvidence = Number(operation && (operation.line || operation.startLine) || 0);
     if (Number.isInteger(lineEvidence) && lineEvidence > 0) {
       const expected = operation.position === 'before' ? lineEvidence - 1 : lineEvidence;
-      return matches.some((index) => Math.abs(index - expected) <= 1);
+      if (matches.some((index) => Math.abs(index - expected) <= 1)) {
+        return true;
+      }
     }
     return matches.length === 1;
   }

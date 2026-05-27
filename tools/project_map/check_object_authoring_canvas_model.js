@@ -316,6 +316,7 @@ current.effects = [{
 const target = scene('target_scene', {title: 'Target Scene'});
 const rootEffectless = scene('root_effectless_event', {
   title: 'Root Effectless Event',
+  subtitle: 'No trigger yet.',
   options: [],
   effects: [],
   sourceSpan: {
@@ -1266,6 +1267,9 @@ assert(!/preview-object-structure-delete[^"]*preview-object-action-remove_effect
 assert(existingEditorHtml.includes('data-preview-object-inline-add="add_option"'), 'preview editor should place structural add controls at the end of the relevant object category');
 assert(!existingEditorHtml.includes('preview-object-structure-workbench'), 'preview editor should not isolate structural controls in a separate workbench');
 const rootEffectlessExisting = canvasModel.buildExistingCanvas(index, 'events', 'root_effectless_event', {});
+assert(rootEffectlessExisting.eventBody.subtitle && rootEffectlessExisting.eventBody.subtitle.role === 'subtitle', 'existing body should expose subtitle as a named property when the scene has a subtitle');
+assert(rootEffectlessExisting.eventBody.subtitle.value === 'No trigger yet.', 'existing body subtitle should carry the parsed subtitle value');
+assert(!rootEffectlessExisting.eventBody.sections.some((field) => field.role === 'subtitle'), 'subtitle should not leak into the sections array after extraction');
 const rootEffectlessTriggerField = rootEffectlessExisting.eventBody.structureActions.find((field) => field.structureAction === 'add_trigger_effect');
 assert(rootEffectlessTriggerField && rootEffectlessTriggerField.editability === 'guarded_apply', 'events without an existing root on-arrival line should still expose source-backed trigger-effect insertion');
 assert(rootEffectlessTriggerField.structureSourceBlock && rootEffectlessTriggerField.structureSourceBlock.kind === 'root_on_arrival_insert_anchor', 'root trigger insertion should carry a root on-arrival insert anchor');

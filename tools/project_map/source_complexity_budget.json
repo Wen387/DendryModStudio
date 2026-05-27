@@ -13,13 +13,13 @@
     },
     {
       "path": "tools/project_map/authoring/install_plan.js",
-      "maxLines": 2749,
-      "reason": "Split install-plan domains before adding more behavior. Ratcheted 2026-05-22 from 2388."
+      "maxLines": 2751,
+      "reason": "Split install-plan domains before adding more behavior. Ratcheted 2026-05-27 from 2749 for same-file insert shift tolerance fix."
     },
     {
       "path": "tools/project_map/authoring/object_authoring_canvas_model.js",
-      "maxLines": 1851,
-      "reason": "Object canvas model orchestrator; extract per-template handlers before adding more. Ratcheted 2026-05-24 from 1830 for eventBodyForExisting perfMeasure wraps."
+      "maxLines": 1861,
+      "reason": "Object canvas model orchestrator; extract per-template handlers before adding more. Ratcheted 2026-05-27 from 1851 for existing-event subtitle/heading extraction."
     },
     {
       "path": "tools/project_map/authoring/object_canvas_content_adapters.js",
@@ -38,8 +38,8 @@
     },
     {
       "path": "tools/project_map/check_object_authoring_canvas_model.js",
-      "maxLines": 2438,
-      "reason": "Object canvas model check aggregates many archetypes; split per-archetype suites before adding more. New exception 2026-05-22."
+      "maxLines": 2442,
+      "reason": "Object canvas model check aggregates many archetypes; split per-archetype suites before adding more. Ratcheted 2026-05-27 from 2438 for subtitle extraction assertions."
     },
     {
       "path": "tools/project_map/desktop/runtime_preview.js",

@@ -349,12 +349,20 @@
       allEditors.find((editor) => editor.role === 'heading' && isOpeningSectionId(sceneId, editor.sectionId)) ||
       allEditors.find((editor) => editor.role === 'heading') ||
       null;
-    const pageSectionEditors = ensureArray(editors.pageSections);
+    const subtitleEditor = allEditors.find((editor) => editor.role === 'subtitle') || null;
+    const headingEditor = (titleEditor && titleEditor.role !== 'heading')
+      ? (allEditors.find((editor) => editor.role === 'heading' && !String(editor.sectionId || '').trim()) ||
+         allEditors.find((editor) => editor.role === 'heading' && isOpeningSectionId(sceneId, editor.sectionId)) ||
+         null)
+      : null;
+    const extractedIds = [titleEditor, subtitleEditor, headingEditor].filter(Boolean).map((e) => e.id);
+    const pageSectionEditors = ensureArray(editors.pageSections)
+      .filter((editor) => !extractedIds.includes(editor.id));
     const metadataEditors = allEditors.filter((editor) => String(editor && editor.role || '') === 'metadata');
     const playerTextEditors = ensureArray(editors.playerText)
       .filter((editor) => String(editor && editor.role || '') !== 'metadata')
       .filter((editor) => String(editor && editor.role || '') !== 'asset_reference')
-      .filter((editor) => !titleEditor || editor.id !== titleEditor.id);
+      .filter((editor) => !extractedIds.includes(editor.id));
     const optionRows = optionBodyRows(context, pageSectionEditors);
     const consumedSectionIds = new Set();
     const consumedPlayerTextIds = new Set();
@@ -387,6 +395,8 @@
         status: 'read_only',
         readOnly: true
       },
+      subtitle: subtitleEditor || undefined,
+      heading: headingEditor || undefined,
       sections: sectionEditors.map((editor, index) => Object.assign({slot: 'section_' + (index + 1)}, editor)),
       branchSections: branchSectionEditors.concat(branchPlayerTextEditors).map((editor, index) => Object.assign({slot: 'branch_' + (index + 1)}, editor)),
       options: optionRows,
