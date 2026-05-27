@@ -260,13 +260,43 @@
   function extractInlineConditionals(value) {
     const out = [];
     const text = String(value || '');
-    const re = /\[\?\s*if\s+([\s\S]+?)\s*:\s*([\s\S]*?)\s*\?\]/g;
-    let match;
-    while ((match = re.exec(text)) !== null) {
-      const condition = compactVisibleText(match[1]);
-      const body = compactVisibleText(match[2]);
-      if (condition && body) {
-        out.push({condition, text: body});
+    let pos = 0;
+    while (pos < text.length) {
+      const openIndex = text.indexOf('[?', pos);
+      if (openIndex < 0) break;
+      const afterOpen = openIndex + 2;
+      const ifMatch = text.slice(afterOpen).match(/^\s*if\s+/);
+      if (!ifMatch) { pos = afterOpen; continue; }
+      const conditionStart = afterOpen + ifMatch[0].length;
+      const colonIndex = text.indexOf(':', conditionStart);
+      if (colonIndex < 0) { pos = conditionStart; continue; }
+      const condition = text.slice(conditionStart, colonIndex).trim();
+      const bodyStart = colonIndex + 1;
+      let depth = 1;
+      let i = bodyStart;
+      while (i < text.length && depth > 0) {
+        if (text[i] === '[' && i + 1 < text.length && text[i + 1] === '?') {
+          depth++;
+          i += 2;
+        } else if (text[i] === '?' && i + 1 < text.length && text[i + 1] === ']') {
+          depth--;
+          if (depth === 0) break;
+          i += 2;
+        } else {
+          i++;
+        }
+      }
+      if (depth === 0) {
+        const body = text.slice(bodyStart, i).trim();
+        const compactCondition = compactVisibleText(condition);
+        const compactBody = compactVisibleText(body);
+        if (compactCondition && compactBody) {
+          out.push({condition: compactCondition, text: compactBody});
+        }
+        extractInlineConditionals(body).forEach((inner) => out.push(inner));
+        pos = i + 2;
+      } else {
+        pos = conditionStart;
       }
     }
     return out;
