@@ -64,6 +64,8 @@ function packageDir(options) {
     'main.js',
     'preload.js',
     'studio_core.js',
+    'template_catalog.js',
+    'template_catalog.json',
     'dendry_cli_runner.js',
     'runtime_preview.js',
     'runtime_lens.js',

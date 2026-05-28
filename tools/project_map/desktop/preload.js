@@ -101,5 +101,12 @@ contextBridge.exposeInMainWorld('dendryDesktop', {
   createRuntimeLens: (options) => ipcRenderer.invoke('dendry:runtime-lens-create', options || {}),
   recordRuntimePreviewHistory: (options) => ipcRenderer.invoke('dendry:runtime-preview-history', options || {}),
   checkUpdateNotice: (options) => ipcRenderer.invoke('dendry:update-notice-check', options || {}),
-  openExternalUrl: (options) => ipcRenderer.invoke('dendry:open-external-url', options || {})
+  openExternalUrl: (options) => ipcRenderer.invoke('dendry:open-external-url', options || {}),
+  listCatalogTemplates: (options) => ipcRenderer.invoke('dendry:catalog-list', options || {}),
+  openCatalogTemplate: async (options) => {
+    const result = await ipcRenderer.invoke('dendry:catalog-open-template', options || {});
+    dispatchIndexLoaded(result);
+    return result;
+  },
+  removeCatalogTemplate: (options) => ipcRenderer.invoke('dendry:catalog-remove-template', options || {})
 });

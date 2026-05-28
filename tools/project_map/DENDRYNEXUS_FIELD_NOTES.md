@@ -378,6 +378,65 @@ Important lessons:
   `root` means the event opening node. Render it as the generated scene id;
   literal `go-to: root` jumps to the project's global root scene.
 
+Workaround for deterministic multi-condition routing:
+
+When a `go-to:` chain needs first-match-wins behavior (e.g. a monthly router
+that checks 19 event conditions then falls back to `main`), do NOT use a
+semicolon-separated `go-to:` line with an unconditional fallback — the
+unconditional clause is always valid, turning the chain into a random split.
+
+Instead, compute a **numeric** route code in `on-arrival` and use a
+semicolon-separated `go-to:` line where every clause has a mutually exclusive
+`if` predicate — including the fallback:
+
+```dry
+on-arrival: {!
+Q.next_scene_id = 0;
+if (Q.year === 1931 && Q.month === 5 && Q.node_2_seen === 0)
+  Q.next_scene_id = 2;
+!}
+go-to: node_02_jurados_mixtos if next_scene_id = 2; main if next_scene_id = 0
+```
+
+Because each clause tests for a specific numeric value, exactly one clause is
+valid at any time — no random split, deterministic first-match-wins behavior.
+The compiled predicate `(Q['next_scene_id'] || 0) === N` also provides a safe
+fallback: if the on-arrival code fails entirely, `|| 0` defaults to the
+fallback route rather than crashing.
+
+**Avoid `go-to-ref` for core routing.** The engine source implements
+`go-to-ref` (dereferences a quality as a scene id), and it compiles without
+error. However, no known production DendryNexus game (including SD:AAH Dynamic)
+uses `go-to-ref` in practice. The numeric-predicate `go-to` chain (above) is
+the proven pattern. Until `go-to-ref` with string qualities is validated in a
+real browser-running game, treat it as unproven engine code.
+
+**Terminal scenes and `set-root`:** When a scene has no valid options and no
+`go-to`, the engine's `_compileChoices` (engine.js ~L1344) adds a fallback
+"Continue..." option pointing to `this.state.rootSceneId`. At game start,
+`rootSceneId` is the game's root scene (typically `root`). For hand/deck
+games, card sub-scenes are often intentionally terminal (show result text, no
+further options). Without intervention, the fallback sends the player to the
+opening screen instead of back to the hand.
+
+Fix: add `set-root: true` to the hand scene. When the engine arrives at a
+scene with `setRoot`, it updates `rootSceneId` to that scene's id (engine.js
+~L898). All future terminal-scene fallbacks then point to the hand scene.
+
+This was the root cause of the CNT-FAI "clicking any option returns to opening
+screen" bug. The earlier `go-to-ref` replacement was a separate improvement
+(using a validated routing pattern) but did not fix the actual bug — the 43
+terminal card sub-scenes were all triggering the `_compileChoices` fallback to
+`root` because `rootSceneId` was never reassigned to the hand scene.
+
+**Hand scenes only display decks, hand cards, and pinned cards.** The
+`displayChoices` function for hand scenes (engine.js ~L327-367) categorizes
+choices into `decks` (target has `isDeck`) and `pinnedCards` (target has
+`isPinnedCard`). Choices whose target is neither a deck nor a pinned card are
+silently dropped — never rendered, never clickable. This means ANY non-card
+option in a hand scene (utility buttons like "advance month", "view status")
+MUST have `is-pinned-card: true` on the target scene, or it will be invisible.
+
 Studio lessons:
 
 - `go-to` and option targets can usually be resolved against scene ids and

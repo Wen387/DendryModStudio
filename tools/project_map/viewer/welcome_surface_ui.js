@@ -164,6 +164,13 @@
     '        </button>',
     '      </article>',
     '    </div>',
+    '    <section id="welcome-catalog" class="welcome-catalog desktop-only-control hidden" aria-label="Featured templates" data-i18n-aria-label="welcome.catalog.aria">',
+    '      <header class="welcome-catalog-header">',
+    '        <h2 data-i18n="welcome.catalog.title">Featured Templates</h2>',
+    '        <span data-i18n="welcome.catalog.subtitle">Full-scale game projects. Downloads are optional.</span>',
+    '      </header>',
+    '      <div id="welcome-catalog-list" class="welcome-catalog-list"></div>',
+    '    </section>',
     '    <section class="welcome-path" aria-label="First proposal flow" data-i18n-aria-label="welcome.stepsLabel">',
     '      <header class="welcome-path-header">',
     '        <h2 data-i18n="welcome.path.title">First proposal flow</h2>',
@@ -254,7 +261,9 @@
       indexInput: document.getElementById('index-file'),
       desktopOpen: document.getElementById('desktop-open-project'),
       desktopIncludeExcerpts: document.getElementById('desktop-include-excerpts'),
-      topbarMore: document.getElementById('topbar-more')
+      topbarMore: document.getElementById('topbar-more'),
+      catalogSection: document.getElementById('welcome-catalog'),
+      catalogList: document.getElementById('welcome-catalog-list')
     };
     if (!state.elements.dialog) {
       return;
@@ -341,6 +350,7 @@
     if (state.elements.primary) {
       state.elements.primary.classList.toggle('primary-action', !demoAvailable);
     }
+    populateCatalog();
   }
 
   function decorateIcons() {
@@ -447,5 +457,112 @@
   function t(key, fallback) {
     const i18n = global.ProjectMapI18n;
     return i18n && typeof i18n.t === 'function' ? i18n.t(key, fallback) : fallback;
+  }
+
+  function populateCatalog() {
+    const caps = global.ProjectMapDesktopCapabilities;
+    if (!caps || !caps.canListCatalogTemplates || !caps.canListCatalogTemplates(global)) {
+      if (state.elements.catalogSection) {
+        state.elements.catalogSection.classList.add('hidden');
+        state.elements.catalogSection.hidden = true;
+      }
+      return;
+    }
+    caps.listCatalogTemplates({}, global).then(function (result) {
+      if (!result || !result.ok || !result.templates || result.templates.length === 0) {
+        if (state.elements.catalogSection) {
+          state.elements.catalogSection.classList.add('hidden');
+          state.elements.catalogSection.hidden = true;
+        }
+        return;
+      }
+      if (state.elements.catalogSection) {
+        state.elements.catalogSection.classList.remove('hidden');
+        state.elements.catalogSection.hidden = false;
+      }
+      if (state.elements.catalogList) {
+        state.elements.catalogList.innerHTML = result.templates.map(renderCatalogCard).join('');
+        state.elements.catalogList.querySelectorAll('[data-catalog-action]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            handleCatalogAction(btn.getAttribute('data-template-id'), btn);
+          });
+        });
+      }
+      decorateIcons();
+      localizeDialog();
+    }).catch(function () {
+      if (state.elements.catalogSection) {
+        state.elements.catalogSection.classList.add('hidden');
+        state.elements.catalogSection.hidden = true;
+      }
+    });
+  }
+
+  function renderCatalogCard(template) {
+    var status = template.status || 'not-installed';
+    var sizeLabel = template.estimatedSizeMB
+      ? ' (' + template.estimatedSizeMB + ' MB)'
+      : '';
+    var buttonLabel, buttonClass, iconName, updateBadge;
+    if (status === 'update-available') {
+      buttonLabel = t('welcome.catalog.update', 'Update');
+      buttonClass = '';
+      iconName = 'download';
+      updateBadge = '<span class="welcome-catalog-update-badge" data-i18n="welcome.catalog.updateAvailable">' +
+        t('welcome.catalog.updateAvailable', 'Update available') + '</span>';
+    } else if (status === 'ready') {
+      buttonLabel = t('welcome.catalog.open', 'Open');
+      buttonClass = 'primary-action';
+      iconName = 'play';
+      updateBadge = '';
+    } else {
+      buttonLabel = t('welcome.catalog.download', 'Download') + sizeLabel;
+      buttonClass = '';
+      iconName = 'download';
+      updateBadge = '';
+    }
+    return [
+      '<article class="welcome-catalog-card" data-catalog-id="' + template.id + '">',
+      '  <div class="welcome-catalog-card-body">',
+      '    <h3>' + escapeHtml(template.title) + updateBadge + '</h3>',
+      '    <p>' + escapeHtml(template.description) + '</p>',
+      '    <span class="welcome-catalog-meta">' + escapeHtml(template.author) + '</span>',
+      '  </div>',
+      '  <div class="welcome-catalog-card-actions">',
+      '    <button class="' + buttonClass + '" type="button" data-catalog-action="open" data-template-id="' + template.id + '"' +
+           (status === 'update-available' ? ' data-catalog-update="true"' : '') + '>',
+      '      <span data-ui-icon="' + iconName + '"></span>',
+      '      <span>' + buttonLabel + '</span>',
+      '    </button>',
+      '  </div>',
+      '</article>'
+    ].join('');
+  }
+
+  function handleCatalogAction(templateId, button) {
+    if (!templateId) { return; }
+    var caps = global.ProjectMapDesktopCapabilities;
+    if (!caps || !caps.canOpenCatalogTemplate || !caps.canOpenCatalogTemplate(global)) { return; }
+    var includeExcerpts = Boolean(state.elements.desktopIncludeExcerpts && state.elements.desktopIncludeExcerpts.checked);
+    var forceUpdate = button && button.hasAttribute('data-catalog-update');
+    if (button) {
+      button.disabled = true;
+      button.querySelector('span:last-child').textContent = t('welcome.catalog.downloading', 'Downloading...');
+    }
+    closeDialog(true);
+    caps.openCatalogTemplate({templateId: templateId, includeExcerpts: includeExcerpts, forceUpdate: forceUpdate}, global).catch(function (err) {
+      if (global.console && typeof global.console.warn === 'function') {
+        global.console.warn('Could not open catalog template:', err && err.message ? err.message : err);
+      }
+    }).finally(function () {
+      if (button) {
+        button.disabled = false;
+      }
+      updateActionState();
+    });
+  }
+
+  function escapeHtml(text) {
+    return String(text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "templates": [
+    {
+      "id": "showcase-game",
+      "title": "Showcase Game",
+      "titleLocalized": {
+        "zh-Hant": "展示遊戲"
+      },
+      "description": "A full-scale Dendry game for learning Studio features.",
+      "descriptionLocalized": {
+        "zh-Hant": "完整規模的 Dendry 遊戲範本，用於學習 Studio 功能。"
+      },
+      "author": "Awen",
+      "repo": "Wen387/dendry-showcase-game",
+      "releaseTag": "latest",
+      "assetName": "showcase-game-source.tar.gz",
+      "estimatedSizeMB": 12,
+      "prebuiltIndex": true,
+      "indexAssetName": "project-index.json",
+      "excerptIndexAssetName": "project-index-excerpts.json",
+      "minStudioVersion": "0.98.0"
+    }
+  ]
+}

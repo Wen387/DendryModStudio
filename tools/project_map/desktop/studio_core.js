@@ -1437,6 +1437,69 @@ function closeRuntimePreviewServer(callback) {
   return runtimePreview.closePreviewServer(callback);
 }
 
+const templateCatalog = require('./template_catalog');
+
+function prepareCatalogTemplate(options) {
+  const opts = options || {};
+  const templatesRoot = opts.templatesRoot;
+  const template = opts.template;
+  if (!templatesRoot || !template || !template.id) {
+    return {ok: false, message: 'Missing templatesRoot or template entry.'};
+  }
+  const installDir = templateCatalog.templateInstallDir(templatesRoot, template.id);
+  const status = templateCatalog.checkTemplateStatus(templatesRoot, template.id);
+  if (status === 'ready') {
+    const validation = validateProjectRoot(installDir);
+    return Object.assign({
+      ok: validation.ok,
+      id: template.id,
+      title: template.title || template.id,
+      root: validation.root || installDir,
+      installDir,
+      alreadyInstalled: true,
+      message: validation.ok ? 'Catalog template opened.' : validation.message
+    }, validation.ok ? {} : {error: validation});
+  }
+  const sourceUrl = templateCatalog.resolveReleaseAssetUrl(template, 'assetName');
+  if (!sourceUrl) {
+    return {ok: false, id: template.id, message: 'Cannot resolve download URL for template.'};
+  }
+  return {
+    ok: true,
+    id: template.id,
+    title: template.title || template.id,
+    installDir,
+    sourceUrl,
+    needsDownload: true,
+    template
+  };
+}
+
+function loadCatalogTemplateIndex(options) {
+  const opts = options || {};
+  const installDir = opts.installDir;
+  if (!installDir) {
+    return {ok: false, code: 'catalog_no_install_dir', message: 'No install directory provided.'};
+  }
+  const loaded = templateCatalog.loadTemplateIndex(installDir, opts.includeExcerpts);
+  if (!loaded.ok) {
+    return loaded;
+  }
+  const root = installDir;
+  refreshCachedIndexInfo(loaded.index, root);
+  return {
+    ok: true,
+    root,
+    projectName: projectName(loaded.index, root),
+    includeExcerpts: loaded.includeExcerpts,
+    indexPath: loaded.indexPath,
+    indexSize: fileSize(loaded.indexPath),
+    index: loaded.index,
+    summary: summarizeIndex(loaded.index),
+    fromCache: true
+  };
+}
+
 module.exports = {
   resolveResourcePaths,
   validateProjectRoot,
@@ -1459,5 +1522,7 @@ module.exports = {
   readProjectInfoSource,
   refreshCachedIndexInfo,
   emitProgress,
-  summarizeIndex
+  summarizeIndex,
+  prepareCatalogTemplate,
+  loadCatalogTemplateIndex
 };

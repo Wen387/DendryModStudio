@@ -53,13 +53,13 @@
     },
     {
       "path": "tools/project_map/viewer/i18n/en.js",
-      "maxLines": 3319,
-      "reason": "Catalog file; keep each language separate and avoid runtime code here. Ratcheted 2026-05-26 from 3316 for music state inheritance i18n."
+      "maxLines": 3332,
+      "reason": "Catalog file; keep each language separate and avoid runtime code here. Ratcheted 2026-05-27 from 3319 for featured template catalog i18n + update detection."
     },
     {
       "path": "tools/project_map/viewer/i18n/zh-Hant.js",
-      "maxLines": 3319,
-      "reason": "Catalog file; keep each language separate and avoid runtime code here. Ratcheted 2026-05-26 from 3316 for music state inheritance i18n."
+      "maxLines": 3332,
+      "reason": "Catalog file; keep each language separate and avoid runtime code here. Ratcheted 2026-05-27 from 3319 for featured template catalog i18n + update detection."
     },
     {
       "path": "tools/project_map/viewer/index.html",

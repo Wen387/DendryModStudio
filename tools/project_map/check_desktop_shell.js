@@ -133,6 +133,8 @@ async function main() {
   const runtimePreviewPath = requireFile('runtime_preview.js');
   const runtimeLensPath = requireFile('runtime_lens.js');
   const runtimePreviewBridgePath = requireFile('runtime_preview_debug_bridge.js');
+  const templateCatalogPath = requireFile('template_catalog.js');
+  const templateCatalogJsonPath = requireFile('template_catalog.json');
   requireFile('runtime_session_cleanup.js');
   requireFile('main.js');
   requireFile('preload.js');
@@ -150,6 +152,8 @@ async function main() {
   fs.copyFileSync(runtimePreviewPath, path.join(packagedAppDir, 'runtime_preview.js'));
   fs.copyFileSync(runtimeLensPath, path.join(packagedAppDir, 'runtime_lens.js'));
   fs.copyFileSync(runtimePreviewBridgePath, path.join(packagedAppDir, 'runtime_preview_debug_bridge.js'));
+  fs.copyFileSync(templateCatalogPath, path.join(packagedAppDir, 'template_catalog.js'));
+  fs.copyFileSync(templateCatalogJsonPath, path.join(packagedAppDir, 'template_catalog.json'));
   fs.writeFileSync(path.join(packagedAppDir, 'project_map', 'viewer', 'index.html'), '<!doctype html>\n', 'utf8');
   fs.writeFileSync(path.join(packagedAppDir, 'project_map', 'templates', 'starter-demo', 'source', 'info.dry'), 'title: Packaged Starter\n', 'utf8');
   fs.writeFileSync(

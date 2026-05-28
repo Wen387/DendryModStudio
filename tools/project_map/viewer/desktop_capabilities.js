@@ -57,6 +57,14 @@
     return has('createRuntimeLens', env);
   }
 
+  function canListCatalogTemplates(env) {
+    return has('listCatalogTemplates', env);
+  }
+
+  function canOpenCatalogTemplate(env) {
+    return has('openCatalogTemplate', env);
+  }
+
   function getLocale(env) {
     const desktop = raw(env);
     if (!desktop || typeof desktop.getLocale !== 'function') {
@@ -125,6 +133,42 @@
     return typeof Promise !== 'undefined' ? Promise.reject(err) : null;
   }
 
+  function listCatalogTemplates(options, env) {
+    var desktop = raw(env);
+    if (!desktop || typeof desktop.listCatalogTemplates !== 'function') {
+      return resolve(null);
+    }
+    try {
+      return resolve(desktop.listCatalogTemplates(options || {}));
+    } catch (err) {
+      return reject(err);
+    }
+  }
+
+  function openCatalogTemplate(options, env) {
+    var desktop = raw(env);
+    if (!desktop || typeof desktop.openCatalogTemplate !== 'function') {
+      return resolve(null);
+    }
+    try {
+      return resolve(desktop.openCatalogTemplate(options || {}));
+    } catch (err) {
+      return reject(err);
+    }
+  }
+
+  function removeCatalogTemplate(options, env) {
+    var desktop = raw(env);
+    if (!desktop || typeof desktop.removeCatalogTemplate !== 'function') {
+      return resolve(null);
+    }
+    try {
+      return resolve(desktop.removeCatalogTemplate(options || {}));
+    } catch (err) {
+      return reject(err);
+    }
+  }
+
   const api = {
     raw,
     isDesktop,
@@ -133,11 +177,16 @@
     canCheckUpdateNotice,
     canOpenExternalUrl,
     canCreateRuntimeLens,
+    canListCatalogTemplates,
+    canOpenCatalogTemplate,
     getLocale,
     getState,
     openStarterDemo,
     checkUpdateNotice,
-    openExternalUrl
+    openExternalUrl,
+    listCatalogTemplates,
+    openCatalogTemplate,
+    removeCatalogTemplate
   };
 
   if (typeof module !== 'undefined' && module.exports) {

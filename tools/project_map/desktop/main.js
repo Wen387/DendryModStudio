@@ -5,6 +5,7 @@ const {app, BrowserWindow, Menu, dialog, ipcMain, shell} = require('electron');
 const core = require('./studio_core');
 const runtimeSessionCleanup = require('./runtime_session_cleanup');
 const updateNotice = require('./update_notice');
+const templateCatalog = require('./template_catalog');
 
 const APP_ID = 'studio.dendry.mod';
 const APP_NAME = 'Dendry Mod Studio';
@@ -336,6 +337,155 @@ ipcMain.handle('dendry:open-starter-demo', async (_event, options) => {
       reused: prepared.reused
     }
   });
+});
+
+function userDataCatalogDir() {
+  return path.join(app.getPath('userData'), 'catalog-templates');
+}
+
+ipcMain.handle('dendry:catalog-list', async (_event, options) => {
+  const catalog = templateCatalog.loadBundledCatalog({desktopDir: __dirname});
+  const evaluated = templateCatalog.evaluateCatalog(catalog, {
+    currentVersion: app.getVersion(),
+    locale: (options && options.locale) || app.getLocale()
+  });
+  if (!evaluated.ok) {
+    return evaluated;
+  }
+  const templatesRoot = userDataCatalogDir();
+  evaluated.templates.forEach(function (t) {
+    t.status = templateCatalog.checkTemplateStatus(templatesRoot, t.id);
+  });
+  const installed = evaluated.templates.filter(function (t) { return t.status === 'ready'; });
+  if (installed.length > 0) {
+    const checks = installed.map(function (t) {
+      return templateCatalog.checkUpdateAvailable(templatesRoot, t).then(function (result) {
+        if (result && result.updateAvailable) {
+          t.status = 'update-available';
+          t.updateInfo = result;
+        }
+      });
+    });
+    await Promise.all(checks);
+  }
+  return evaluated;
+});
+
+ipcMain.handle('dendry:catalog-open-template', async (_event, options) => {
+  const target = _event.sender;
+  const templateId = options && options.templateId;
+  if (!templateId) {
+    return {ok: false, message: 'No templateId provided.'};
+  }
+  const catalog = templateCatalog.loadBundledCatalog({desktopDir: __dirname});
+  const evaluated = templateCatalog.evaluateCatalog(catalog, {
+    currentVersion: app.getVersion(),
+    locale: (options && options.locale) || app.getLocale()
+  });
+  const entry = (evaluated.templates || []).find(function (t) { return t.id === templateId; });
+  if (!entry) {
+    return {ok: false, message: 'Template "' + templateId + '" not found in catalog.'};
+  }
+  const templatesRoot = userDataCatalogDir();
+  if (options && options.forceUpdate) {
+    var existingDir = templateCatalog.templateInstallDir(templatesRoot, templateId);
+    templateCatalog.removeTemplate(existingDir);
+  }
+  const prepared = core.prepareCatalogTemplate({
+    templatesRoot: templatesRoot,
+    template: entry
+  });
+  if (!prepared.ok) {
+    return prepared;
+  }
+  const installDir = prepared.installDir;
+  if (prepared.needsDownload) {
+    sendScanProgress(target, {
+      stage: 'catalog-download',
+      percent: 10,
+      label: 'Downloading template: ' + entry.title + '...'
+    });
+    try {
+      await templateCatalog.downloadAndExtract(prepared.sourceUrl, installDir, {
+        onProgress: function (received, total) {
+          var pct = total > 0 ? Math.round(10 + (received / total) * 50) : 30;
+          sendScanProgress(target, {
+            stage: 'catalog-download',
+            percent: pct,
+            label: 'Downloading... (' + Math.round(received / 1024 / 1024) + ' MB)'
+          });
+        }
+      });
+    } catch (err) {
+      return {
+        ok: false,
+        id: templateId,
+        message: 'Download failed: ' + (err && err.message ? err.message : String(err))
+      };
+    }
+    templateCatalog.writeMarker(installDir, {
+      id: entry.id,
+      title: entry.title,
+      repo: entry.repo,
+      releaseTag: entry.releaseTag,
+      sourceUrl: prepared.sourceUrl
+    });
+    if (entry.prebuiltIndex) {
+      sendScanProgress(target, {
+        stage: 'catalog-index',
+        percent: 65,
+        label: 'Downloading pre-built index...'
+      });
+      try {
+        await templateCatalog.downloadPrebuiltIndex(entry, installDir);
+      } catch (_err) {
+        // Pre-built index is optional; fall through to local scan.
+      }
+    }
+  }
+  sendScanProgress(target, {
+    stage: 'catalog-load',
+    percent: 75,
+    label: 'Loading project index...'
+  });
+  var cached = core.loadCatalogTemplateIndex({
+    installDir: installDir,
+    includeExcerpts: options && options.includeExcerpts
+  });
+  if (cached.ok) {
+    rememberProject(cached);
+    sendScanProgress(target, {
+      stage: 'complete',
+      percent: 100,
+      label: 'Project loaded.'
+    });
+    return Object.assign({}, cached, {
+      template: {
+        id: entry.id,
+        title: entry.title,
+        installDir: installDir
+      }
+    });
+  }
+  var validation = core.validateProjectRoot(installDir);
+  var scanRoot = validation.ok ? validation.root : installDir;
+  var result = await scanProject(scanRoot, options && options.includeExcerpts, target);
+  return Object.assign({}, result, {
+    template: {
+      id: entry.id,
+      title: entry.title,
+      installDir: installDir
+    }
+  });
+});
+
+ipcMain.handle('dendry:catalog-remove-template', async (_event, options) => {
+  var templateId = options && options.templateId;
+  if (!templateId) {
+    return {ok: false, message: 'No templateId provided.'};
+  }
+  var installDir = templateCatalog.templateInstallDir(userDataCatalogDir(), templateId);
+  return templateCatalog.removeTemplate(installDir);
 });
 
 ipcMain.handle('dendry:install-plan-apply', async (_event, options) => {
