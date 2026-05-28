@@ -3,6 +3,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const {spawnSync} = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..', '..');
 const PROJECT_MAP_ROOT = path.join(ROOT, 'tools', 'project_map');
@@ -141,13 +142,18 @@ function parseArgs(argv) {
   const args = {
     budgetFile: DEFAULT_BUDGET_FILE,
     enforceBudget: false,
-    printBudgetTemplate: false
+    printBudgetTemplate: false,
+    tighten: false
   };
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--enforce-budget') {
       args.enforceBudget = true;
+      continue;
+    }
+    if (arg === '--tighten') {
+      args.tighten = true;
       continue;
     }
     if (arg === '--budget-file') {
@@ -269,6 +275,9 @@ function loadBudget(filePath) {
     if (!Number.isInteger(entry.maxLines) || entry.maxLines < 0) {
       throw new Error(label + '.maxLines must be a non-negative integer');
     }
+    if (entry.allowRaise !== undefined && typeof entry.allowRaise !== 'boolean') {
+      throw new Error(label + '.allowRaise must be a boolean when present');
+    }
     if (exceptions.has(entry.path)) {
       throw new Error('Duplicate budget entry for ' + entry.path);
     }
@@ -307,6 +316,79 @@ function evaluateBudget(rows, budget) {
   return problems.sort((a, b) => a.row.path.localeCompare(b.row.path) || a.kind.localeCompare(b.kind));
 }
 
+function committedBudgetEntries(budgetRelPath) {
+  const result = spawnSync('git', ['show', 'HEAD:' + budgetRelPath], {cwd: ROOT, encoding: 'utf8'});
+  if (!result || result.status !== 0 || typeof result.stdout !== 'string') {
+    return null;
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(result.stdout);
+  } catch (_error) {
+    return null;
+  }
+  if (!parsed || !Array.isArray(parsed.exceptions)) {
+    return null;
+  }
+  const map = new Map();
+  parsed.exceptions.forEach((entry) => {
+    if (entry && typeof entry.path === 'string' && Number.isInteger(entry.maxLines)) {
+      map.set(entry.path, entry.maxLines);
+    }
+  });
+  return map;
+}
+
+function evaluateNoRaise(budget, committed) {
+  const problems = [];
+  if (!committed) {
+    return problems;
+  }
+  budget.exceptions.forEach((entry, relPath) => {
+    if (entry.allowRaise === true) {
+      return;
+    }
+    const prior = committed.get(relPath);
+    if (typeof prior === 'number' && entry.maxLines > prior) {
+      problems.push({
+        kind: 'ceiling-raised',
+        row: {path: relPath, lines: entry.maxLines},
+        entry,
+        from: prior
+      });
+    }
+  });
+  return problems.sort((a, b) => a.row.path.localeCompare(b.row.path));
+}
+
+function tightenEntries(exceptions, lineByPath) {
+  const changes = [];
+  exceptions.forEach((entry) => {
+    if (!entry || typeof entry.path !== 'string' || !Number.isInteger(entry.maxLines)) {
+      return;
+    }
+    const current = lineByPath.get(entry.path);
+    if (typeof current === 'number' && current < entry.maxLines) {
+      changes.push({path: entry.path, from: entry.maxLines, to: current});
+      entry.maxLines = current;
+    }
+  });
+  return changes;
+}
+
+function tightenBudget(budgetFile, rows) {
+  const parsed = JSON.parse(fs.readFileSync(budgetFile, 'utf8'));
+  if (!parsed || !Array.isArray(parsed.exceptions)) {
+    throw new Error('Budget file must contain an exceptions array: ' + displayPath(budgetFile));
+  }
+  const lineByPath = new Map(rows.map((row) => [row.path, row.lines]));
+  const changes = tightenEntries(parsed.exceptions, lineByPath);
+  if (changes.length) {
+    fs.writeFileSync(budgetFile, JSON.stringify(parsed, null, 2) + '\n', 'utf8');
+  }
+  return changes;
+}
+
 function formatBudgetResult(problems, budgetFile) {
   const lines = ['Budget enforcement:'];
   if (!problems.length) {
@@ -321,6 +403,11 @@ function formatBudgetResult(problems, budgetFile) {
       if (problem.row.hint) {
         lines.push('  ' + problem.row.hint);
       }
+      return;
+    }
+    if (problem.kind === 'ceiling-raised') {
+      lines.push('- CEILING RAISED maxLines ' + problem.entry.maxLines + ' > committed ' + problem.from + '  ' + problem.row.path);
+      lines.push('  maxLines may only fall. Split the file, or set "allowRaise": true on this entry to record a reviewed exception.');
       return;
     }
     lines.push('- OVER BUDGET ' + problem.row.lines + ' lines > maxLines ' + problem.entry.maxLines + '  ' + problem.row.path);
@@ -349,6 +436,26 @@ function main() {
     return;
   }
 
+  if (args.tighten) {
+    let changes;
+    try {
+      changes = tightenBudget(args.budgetFile, rows);
+    } catch (error) {
+      process.stderr.write('Budget tighten:\nFAIL ' + error.message + '\n');
+      process.exitCode = 1;
+      return;
+    }
+    if (!changes.length) {
+      process.stdout.write('Budget tighten: already tight; no maxLines lowered.\n');
+      return;
+    }
+    process.stdout.write('Budget tighten: lowered ' + changes.length + ' ceiling(s):\n');
+    changes.forEach((change) => {
+      process.stdout.write('- ' + change.path + ': ' + change.from + ' -> ' + change.to + '\n');
+    });
+    return;
+  }
+
   process.stdout.write(formatReport(rows));
 
   if (!args.enforceBudget) {
@@ -364,11 +471,23 @@ function main() {
     return;
   }
 
-  const problems = evaluateBudget(rows, budget);
+  const problems = evaluateBudget(rows, budget)
+    .concat(evaluateNoRaise(budget, committedBudgetEntries(relative(args.budgetFile))));
   process.stdout.write('\n' + formatBudgetResult(problems, args.budgetFile));
   if (problems.length) {
     process.exitCode = 1;
   }
 }
 
-main();
+if (require.main === module) {
+  main();
+}
+
+module.exports = {
+  collectRows,
+  classify,
+  evaluateBudget,
+  evaluateNoRaise,
+  tightenEntries,
+  loadBudget
+};

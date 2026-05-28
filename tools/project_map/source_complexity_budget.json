@@ -8,7 +8,7 @@
     },
     {
       "path": "tools/project_map/authoring/existing_scene_edit_model.js",
-      "maxLines": 3530,
+      "maxLines": 3281,
       "reason": "Split scene edit logic before adding more behavior."
     },
     {
@@ -53,17 +53,17 @@
     },
     {
       "path": "tools/project_map/viewer/i18n/en.js",
-      "maxLines": 3332,
+      "maxLines": 3331,
       "reason": "Catalog file; keep each language separate and avoid runtime code here. Ratcheted 2026-05-27 from 3319 for featured template catalog i18n + update detection."
     },
     {
       "path": "tools/project_map/viewer/i18n/zh-Hant.js",
-      "maxLines": 3332,
+      "maxLines": 3331,
       "reason": "Catalog file; keep each language separate and avoid runtime code here. Ratcheted 2026-05-27 from 3319 for featured template catalog i18n + update detection."
     },
     {
       "path": "tools/project_map/viewer/index.html",
-      "maxLines": 2863,
+      "maxLines": 2438,
       "reason": "Extract large template blocks into dedicated panels."
     },
     {
@@ -83,7 +83,7 @@
     },
     {
       "path": "tools/project_map/viewer/wizard_ui.js",
-      "maxLines": 2211,
+      "maxLines": 2069,
       "reason": "Route new wizard domains to dedicated UI modules."
     }
   ]

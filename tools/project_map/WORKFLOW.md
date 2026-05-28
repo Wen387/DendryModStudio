@@ -95,9 +95,21 @@ npm run check:complexity
 ```
 
 Budget enforcement reads `tools/project_map/source_complexity_budget.json` and
-fails only when a new exception-sized file appears or a baseline exception grows
-past its `maxLines`. Warn-level files remain advisory unless they cross into
-exception size. This check is not currently wired into `check:ci`.
+fails when a new exception-sized file appears, a file grows past its `maxLines`,
+or a `maxLines` ceiling is raised above its committed value. The budget is a
+one-way ratchet: ceilings may only fall. After shrinking a file, run
+
+```bash
+node tools/project_map/check_source_complexity.js --tighten
+```
+
+which lowers each `maxLines` to the current line count and never raises one. If a
+file genuinely must grow, that is a deliberate, reviewed exception: set
+`"allowRaise": true` on its budget entry. `check_source_complexity.js
+--enforce-budget` runs as the second step of `check:ci`, so these rules are
+enforced on every CI run (the no-raise comparison is skipped only when git
+history is unavailable). `check_source_complexity_model.js` guards the ratchet
+logic itself.
 
 Desktop checks after `npm ci` in `tools/project_map/desktop`:
 
