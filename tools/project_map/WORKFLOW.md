@@ -3,6 +3,9 @@
 This file describes the local development checks and boundaries for the Studio
 code in this repository.
 
+For surface responsibilities and module ownership (the architecture contract),
+see `ARCHITECTURE.md`.
+
 ## Current Shape
 
 - `tools/project_map/build_project_map.py` builds a ProjectIndex from a Dendry project.

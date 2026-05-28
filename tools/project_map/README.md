@@ -10,6 +10,10 @@ For practical DendryNexus parser and authoring lessons gathered from real
 projects and community modding experience, see
 `tools/project_map/DENDRYNEXUS_FIELD_NOTES.md`.
 
+For the canonical map of Studio surfaces and module ownership (which surface
+does what, and where new code should go), see
+`tools/project_map/ARCHITECTURE.md`.
+
 ## Repository Layout
 
 This directory contains the shared Project Map scanner, browser viewer, desktop
