@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "channel": "dev-preview",
-  "latestVersion": "0.98.0",
+  "latestVersion": "0.98.1",
   "minimumRecommendedVersion": "0.98.0",
   "severity": "warning",
   "noticeId": "v0.98-preview-announcement-2026-05-25",
@@ -42,7 +42,7 @@
         "zh-Hant": "這是自首次預覽以來最大的功能更新。主要變化：\n\n• 音樂資產管理——在 Object Canvas 和 Explore 素材庫中直接瀏覽、預聽和編輯 set-music 指令，搭配音訊修飾符標記。\n\n• Canvas 故事板改進——4 級縮放搭配自動細節層次，從 10% 鳥瞰圖到完整細節都保持卡牌可讀；拖拽磁吸卡牌堆疊讓你像整理桌上撲克牌一樣組織故事卡牌。\n\n• 效能提升——更快的專案索引與渲染、更流暢的縮放動畫、Canvas 編輯時更低的記憶體佔用。\n\n• 複雜條件判斷——Route Map 和 Semantic Logic 面板對多分支路由狀態、巢狀條件和條件路由編輯有更好的支援。\n\n⚠️ 相容性提醒：使用 v0.97.x 或更早版本編輯過的專案可能無法在 v0.98 中正確載入。更新前請務必保留 source 檔案備份。\n\n⚠️ 這是一次大型功能更新，預期會有新的 Bug 出現。如果發現問題，請回報——你的回饋直接決定下一步修什麼。"
       },
       "downloadUrl": "https://github.com/Wen387/DendryModStudio/releases",
-      "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.98.md",
+      "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.98.1.md",
       "publishedAt": "2026-05-25"
     },
     {
@@ -172,6 +172,6 @@
     }
   ],
   "downloadUrl": "https://github.com/Wen387/DendryModStudio/releases",
-  "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.98.md",
+  "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.98.1.md",
   "publishedAt": "2026-05-25"
 }
