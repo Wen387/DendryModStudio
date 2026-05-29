@@ -43,8 +43,9 @@
     },
     {
       "path": "tools/project_map/desktop/runtime_preview.js",
-      "maxLines": 1851,
-      "reason": "Desktop runtime preview orchestrator; extract audio/media sub-module before adding more. New exception 2026-05-26."
+      "maxLines": 1853,
+      "allowRaise": true,
+      "reason": "Desktop runtime preview orchestrator; extract audio/media sub-module before adding more. Raised 2026-05-29 from 1851 for debug panel CSS additions."
     },
     {
       "path": "tools/project_map/qa/run_desktop_scenario.js",

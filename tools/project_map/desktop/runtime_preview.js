@@ -1077,6 +1077,8 @@ function comparePageHtml(session, report) {
     '.runtime-debug-count{font-size:12px;margin:4px 0 8px}',
     '.runtime-debug-scene,.runtime-debug-preset{display:block;width:100%;margin:5px 0;text-align:left}',
     '.runtime-debug-history{padding-left:20px;color:#4d4438}',
+    '.runtime-debug-no-results{color:#6b6255;font-style:italic;font-size:12px;margin:8px 0}',
+    '.runtime-debug-history li[data-debug-error]{color:#9a3412}',
     '@media (max-width: 900px){.runtime-debug-console{position:static;width:auto;max-width:none;margin:0 8px 8px;border:1px solid #cdbfa8}.runtime-debug-resizer{display:none}main{margin-right:0!important;height:55vh}}',
     hasDebug ? 'main{margin-right:calc(var(--runtime-debug-width) + 12px)}' : '',
     '</style>',
@@ -1647,7 +1649,7 @@ function servePreviewRequest(root, req, res) {
         res.end(JSON.stringify({ok: false, message: 'Forbidden debug history path.'}));
         return;
       }
-      const recorded = recordDebugCommandHistory(session.root, body && body.command || {}, {ok: true});
+      const recorded = recordDebugCommandHistory(session.root, body && body.command || {}, {ok: undefined});
       res.writeHead(recorded.ok ? 200 : 400, {'content-type': 'application/json'});
       res.end(JSON.stringify(recorded));
     });
