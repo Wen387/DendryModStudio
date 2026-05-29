@@ -53,22 +53,22 @@
     },
     {
       "path": "tools/project_map/viewer/i18n/en.js",
-      "maxLines": 3331,
+      "maxLines": 3318,
       "reason": "Catalog file; keep each language separate and avoid runtime code here. Ratcheted 2026-05-27 from 3319 for featured template catalog i18n + update detection."
     },
     {
       "path": "tools/project_map/viewer/i18n/zh-Hant.js",
-      "maxLines": 3331,
+      "maxLines": 3318,
       "reason": "Catalog file; keep each language separate and avoid runtime code here. Ratcheted 2026-05-27 from 3319 for featured template catalog i18n + update detection."
     },
     {
       "path": "tools/project_map/viewer/index.html",
-      "maxLines": 2438,
+      "maxLines": 2433,
       "reason": "Extract large template blocks into dedicated panels."
     },
     {
       "path": "tools/project_map/viewer/object_authoring_canvas_ui.js",
-      "maxLines": 4734,
+      "maxLines": 4687,
       "reason": "Keep orchestration here; split editor UI into workspace modules. Ratcheted 2026-05-26 from 4730 for DOM-detach guard in collectAudioModifiers."
     },
     {
