@@ -58,6 +58,7 @@ const OBJECT_CANVAS_STORYBOARD_DRAFTS = path.join(ROOT, 'viewer', 'object_canvas
 const OBJECT_CANVAS_PREVIEW_EDITOR_SYNC = path.join(ROOT, 'viewer', 'object_canvas_preview_editor_sync.js');
 const VISIBLE_EDIT_ACTION_UI = path.join(ROOT, 'viewer', 'visible_edit_action_ui.js');
 const PREVIEW_OBJECT_STRUCTURE_UI = path.join(ROOT, 'viewer', 'preview_object_structure_ui.js');
+const PREVIEW_ASSET_EDITOR = path.join(ROOT, 'viewer', 'preview_asset_editor.js');
 const SOURCE_SLICE_WORKSPACE_UI = path.join(ROOT, 'viewer', 'source_slice_workspace_ui.js');
 const AUTHORING_WORKSPACE_UI = path.join(ROOT, 'viewer', 'authoring_workspace_ui.js');
 const EDITING_CONTEXT_MODEL = path.join(ROOT, 'authoring', 'editing_context_model.js');
@@ -225,6 +226,7 @@ const objectCanvasContentBodies = fs.readFileSync(OBJECT_CANVAS_CONTENT_BODIES, 
 const objectCanvasContentAdapters = fs.readFileSync(OBJECT_CANVAS_CONTENT_ADAPTERS, 'utf8');
 const objectAuthoringCanvasModel = fs.readFileSync(OBJECT_AUTHORING_CANVAS_MODEL, 'utf8');
 const previewObjectStructureUi = fs.readFileSync(PREVIEW_OBJECT_STRUCTURE_UI, 'utf8');
+const previewAssetEditor = fs.readFileSync(PREVIEW_ASSET_EDITOR, 'utf8');
 
 assert(html.includes('data-studio-surface="direction-b"'), 'viewer should mark Direction B Studio as the active surface');
 assert(html.includes('brand-mark branch-mark'), 'viewer should expose a Branch brand mark');
@@ -365,6 +367,14 @@ assertHtmlOrder(
 );
 assert(previewObjectStructureUi.includes('ProjectMapPreviewObjectStructureUi'), 'Preview Object structure UI helper should expose a browser API');
 assert(previewObjectStructureUi.includes('create(deps)'), 'Preview Object structure UI helper should expose a dependency-injected factory');
+assert(html.includes('preview_asset_editor.js'), 'viewer should load extracted Preview Asset Editor helper');
+assertHtmlOrder(
+  'preview_asset_editor.js',
+  'preview_object_editor.js',
+  'viewer should load Preview Asset Editor before Preview Object Editor'
+);
+assert(previewAssetEditor.includes('ProjectMapPreviewAssetEditor'), 'Preview Asset Editor helper should expose a browser API');
+assert(previewAssetEditor.includes('create(deps)'), 'Preview Asset Editor helper should expose a dependency-injected factory');
 assert(html.includes('source_slice_workspace_ui.js'), 'viewer should load extracted Source Slice workspace UI');
 assert(html.includes('authoring_workspace_ui.js'), 'viewer should load Authoring Workspace navigation UI');
 assert(html.includes('object_authoring_canvas_ui.js'), 'viewer should load Object Authoring Canvas UI');

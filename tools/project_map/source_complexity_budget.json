@@ -63,8 +63,9 @@
     },
     {
       "path": "tools/project_map/viewer/index.html",
-      "maxLines": 2433,
-      "reason": "Extract large template blocks into dedicated panels."
+      "maxLines": 2434,
+      "allowRaise": true,
+      "reason": "Script + template manifest; grows by one <script> registration line per extracted sibling module (the intended convergence direction). The budget's real target here is large template blocks, not registration lines, so allowRaise records this as a reviewed manifest exception. Raised 2026-05-29 from 2433 to register preview_asset_editor.js."
     },
     {
       "path": "tools/project_map/viewer/object_authoring_canvas_ui.js",
@@ -73,8 +74,8 @@
     },
     {
       "path": "tools/project_map/viewer/preview_object_editor.js",
-      "maxLines": 4970,
-      "reason": "Keep field rendering here; split domain sub-renderers into sibling modules. Ratcheted 2026-05-26 from 4952 for audio modifier toggle renderer."
+      "maxLines": 4364,
+      "reason": "Keep field rendering here; split domain sub-renderers into sibling modules. Ratcheted 2026-05-29 from 4970 after extracting the asset editor into preview_asset_editor.js."
     },
     {
       "path": "tools/project_map/viewer/styles/editing.css",

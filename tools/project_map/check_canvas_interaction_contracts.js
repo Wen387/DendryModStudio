@@ -173,9 +173,9 @@ function checkObjectCanvasContracts() {
   contains(read('viewer/card_board_surface.js'), 'data-visible-edit-affordance="card-board"', 'Card Board edit affordance marker');
   contains(read('viewer/preview_object_editor.js'), 'data-visible-edit-affordance="object-canvas-preview"', 'Object Canvas preview edit affordance marker');
   contains(read('viewer/preview_object_metadata_ui.js'), 'data-metadata-kind="', 'Object Canvas preview metadata layout marker');
-  contains(read('viewer/preview_object_editor.js'), 'data-object-canvas-asset-replacement="true"', 'Object Canvas exact asset directive replacement marker');
-  contains(read('viewer/preview_object_editor.js'), 'data-object-canvas-asset-filter="true"', 'Object Canvas asset selectors should expose an inline filter for large project catalogs');
-  contains(read('viewer/preview_object_editor.js'), 'data-existing-asset-field="', 'Object Canvas asset replacement should preserve the existing source field id');
+  contains(read('viewer/preview_asset_editor.js'), 'data-object-canvas-asset-replacement="true"', 'Object Canvas exact asset directive replacement marker');
+  contains(read('viewer/preview_asset_editor.js'), 'data-object-canvas-asset-filter="true"', 'Object Canvas asset selectors should expose an inline filter for large project catalogs');
+  contains(read('viewer/preview_asset_editor.js'), 'data-existing-asset-field="', 'Object Canvas asset replacement should preserve the existing source field id');
   contains(objectUi, 'filterObjectCanvasAssetSelect', 'Object Canvas should filter large indexed asset selects without rebuilding the editor');
   contains(objectUi, 'input.dataset.existingAssetField', 'Object Canvas asset file handler should route existing source-backed asset replacements');
   contains(objectUi, 'focusDraftField, render, showWorkspace', 'Object Canvas should export the field focus callback into Card Board deps');
