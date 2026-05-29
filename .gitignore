@@ -31,6 +31,8 @@ social_democracy_alternate_history-main/
 studio_contract/
 tools/check_studio_contract.js
 docs/goals/
+# cnt-fai: author's local-only creative mod, intentionally kept out of the public repo
+tools/project_map/templates/cnt-fai/
 
 # Local private development notes
 .studio-local/
