@@ -2053,17 +2053,6 @@
         onStackToggle: (anchorKey) => { handleAction('toggle_story_card_stack', {dataset: {storyboardStackBadge: anchorKey}}); }
       }), {});
     }
-    const spatialInteractions = global.ProjectMapSpatialCanvasInteractions;
-    if (spatialInteractions && typeof spatialInteractions.bind === 'function' && state.storyboardView === 'spatial' && elements.host.querySelector('[data-spatial-canvas]')) {
-      perfMeasure('bindCanvasEvents.spatialInteractions', () => spatialInteractions.bind(elements.host, {
-        getViewport: () => ({x: state.spatialPanX || 0, y: state.spatialPanY || 0, zoom: state.spatialZoom || 0.5}),
-        onSelect: (key, opts) => { state.spatialSelectedKey = key; if (opts && opts.zoomToFit) { spatialZoomToCard(key); } else { selectCanvasNode(key); render(); } },
-        onCardMove: (key, x, y, opts) => { state.spatialOverrides = Object.assign({}, state.spatialOverrides || {}, {[key]: {x, y}}); if (!(opts && opts.preview)) { render(); } else { applySpatialCardDomPosition(key, x, y); } },
-        onViewport: (x, y, opts) => { state.spatialPanX = x; state.spatialPanY = y; if (!(opts && opts.preview)) { render(); } else { applySpatialViewportDom(); } },
-        onZoom: (action) => { state.spatialZoom = clampSpatialZoom((state.spatialZoom || 0.5) * (action === 'in' ? 1.15 : 0.87)); render(); },
-        onAction: (action, target) => { handleAction(action, target); }
-      }), {});
-    }
     const interactions = global.ProjectMapContentGraphInteractions;
     if (interactions && typeof interactions.bind === 'function' && (state.workspace || 'content') === 'content' && elements.host.querySelector('[data-object-canvas-graph-canvas]')) {
       perfMeasure('bindCanvasEvents.graphInteractions', () => interactions.bind(elements.host, {
@@ -3079,42 +3068,6 @@
     const viewport = global.ProjectMapObjectCanvasViewport;
     if (viewport && typeof viewport.apply === 'function') {
       viewport.apply(elements && elements.host, state);
-    }
-  }
-
-  // ── Spatial Canvas helpers ──────────────────────────────────────────────
-
-  function clampSpatialZoom(value) {
-    const number = Number(value);
-    if (!Number.isFinite(number)) { return 0.5; }
-    return Math.max(0.05, Math.min(2.0, number));
-  }
-
-  function spatialZoomToCard(cardKey) {
-    const spatialState = global.ProjectMapSpatialCanvasWorkspaceState;
-    if (spatialState && typeof spatialState.zoomToCard === 'function') {
-      spatialState.zoomToCard(state, cardKey, storyboardDeps());
-    } else {
-      selectCanvasNode(cardKey);
-      render();
-    }
-  }
-
-  function applySpatialCardDomPosition(key, x, y) {
-    const card = elements && elements.host && elements.host.querySelector('[data-spatial-card="' + key + '"]');
-    if (card) {
-      card.style.left = x + 'px';
-      card.style.top = y + 'px';
-    }
-  }
-
-  function applySpatialViewportDom() {
-    const inner = elements && elements.host && elements.host.querySelector('[data-spatial-canvas-inner]');
-    if (inner) {
-      const zoom = state.spatialZoom || 0.5;
-      const panX = state.spatialPanX || 0;
-      const panY = state.spatialPanY || 0;
-      inner.style.transform = 'translate3d(' + panX + 'px, ' + panY + 'px, 0) scale(' + zoom + ')';
     }
   }
 

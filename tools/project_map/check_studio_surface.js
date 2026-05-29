@@ -318,11 +318,6 @@ assert(html.includes('storyboard_palette_sidebar.js'), 'viewer should load Story
 assert(html.includes('storyboard_workspace_state.js'), 'viewer should load Storyboard workspace state');
 assert(html.includes('content_storyboard_surface.js'), 'viewer should load Content Storyboard surface');
 assert(html.includes('content_storyboard_interactions.js'), 'viewer should load Content Storyboard interactions');
-assert(html.includes('../authoring/spatial_canvas_layout.js'), 'viewer should load Spatial Canvas layout engine');
-assert(html.includes('../authoring/spatial_canvas_model.js'), 'viewer should load Spatial Canvas model');
-assert(html.includes('spatial_canvas_surface.js'), 'viewer should load Spatial Canvas surface renderer');
-assert(html.includes('spatial_canvas_interactions.js'), 'viewer should load Spatial Canvas interactions');
-assert(html.includes('spatial_canvas_workspace_state.js'), 'viewer should load Spatial Canvas workspace state');
 assert(html.includes('shell_navigation.js'), 'viewer should load shell_navigation.js for mode switching and index loading');
 assert(html.includes('wizard_ui.js'), 'viewer should load wizard_ui.js for draft import and Create-pane rendering');
 assert(html.includes('card_face_editor.js'), 'viewer should load Card Face editor');
@@ -384,7 +379,6 @@ assert(authoringSurfaceRegistry.includes('card_board'), 'Authoring Surface regis
 assert(authoringSurfaceRegistry.includes('system_ui_preview'), 'Authoring Surface registry should define System UI Preview');
 assert(authoringSurfaceRegistry.includes('election_results_board'), 'Authoring Surface registry should define Election Results as a dedicated authoring surface');
 assert(authoringSurfaceRegistry.includes('project_state_board'), 'Authoring Surface registry should define Project State Board');
-assert(authoringSurfaceRegistry.includes('spatial_canvas'), 'Authoring Surface registry should define Spatial Canvas');
 assert(authoringSurfaceGraphs.includes('ProjectMapAuthoringSurfaceGraphs'), 'Authoring Surface graph builders should expose a browser API');
 assert(authoringReferenceIndex.includes('ProjectMapAuthoringReferenceIndex'), 'Authoring Reference Index should expose a browser API');
 assert(objectCanvasSurfaceAdapter.includes('ProjectMapObjectCanvasSurfaceAdapter'), 'Object Canvas surface adapter should expose a browser API');

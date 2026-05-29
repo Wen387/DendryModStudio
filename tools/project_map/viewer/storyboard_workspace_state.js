@@ -38,15 +38,6 @@
     state.storyPaletteDropContext = null;
     // Card stacks (drag-to-snap): { anchorKey: { members: [key,...], collapsed: true } }
     state.storyCardStacks = {};
-    // Spatial Canvas view state
-    state.spatialPanX = 0;
-    state.spatialPanY = 0;
-    state.spatialZoom = 0.5;
-    state.spatialSelectedKey = '';
-    state.spatialCollapsedStacks = {};
-    state.spatialSearchQuery = '';
-    state.spatialModel = null;
-    state.spatialOverrides = {};
   }
 
   function surfaceOptions(state) {
@@ -86,9 +77,6 @@
   }
 
   function renderStage(state, model) {
-    if (state.storyboardView === 'spatial') {
-      return renderSpatialStage(state, model);
-    }
     const surface = global.ProjectMapContentStoryboardSurface;
     return surface && typeof surface.render === 'function'
       ? surface.render(model, Object.assign({
@@ -101,79 +89,13 @@
       : '';
   }
 
-  function renderSpatialStage(state, model) {
-    var spatialModel = buildSpatialModel(state, model);
-    state.spatialModel = spatialModel;
-    var surface = global.ProjectMapSpatialCanvasSurface;
-    if (!surface || typeof surface.render !== 'function') { return ''; }
-    var animate = Boolean(state.spatialAnimateNext);
-    state.spatialAnimateNext = false; // consume the flag
-    return surface.render(spatialModel, {
-      projectIndex: state.projectIndex,
-      selected: state.spatialSelectedKey || state.selectedCanvasNode || '',
-      panX: state.spatialPanX || 0,
-      panY: state.spatialPanY || 0,
-      zoom: state.spatialZoom || 0.5,
-      collapsedStacks: state.spatialCollapsedStacks || {},
-      searchQuery: state.spatialSearchQuery || '',
-      boardChromeCollapsed: Boolean(state.boardChromeCollapsed),
-      editorOverlay: state.editorOverlay,
-      animate: animate
-    });
-  }
-
-  function buildSpatialModel(state, objectModel) {
-    var modelApi = global.ProjectMapSpatialCanvasModel;
-    if (!modelApi || typeof modelApi.buildSpatialCanvas !== 'function') { return null; }
-    return modelApi.buildSpatialCanvas(state.projectIndex, objectModel, {
-      selected: state.spatialSelectedKey || state.selectedCanvasNode || '',
-      overrides: state.spatialOverrides || {}
-    });
-  }
-
   function setView(state, view, deps) {
     var v = String(view || '');
-    var normalized = v === 'chain' ? 'chain' : v === 'spatial' ? 'spatial' : 'timeline';
+    var normalized = v === 'chain' ? 'chain' : 'timeline';
     return rebuild(state, deps, {storyboardView: normalized});
   }
 
   function handleAction(state, action, target, deps) {
-    // Spatial Canvas actions
-    if (action === 'spatial_zoom_in') {
-      state.spatialZoom = clampSpatialZoom((state.spatialZoom || 0.5) * 1.25);
-      return rebuild(state, deps, {});
-    }
-    if (action === 'spatial_zoom_out') {
-      state.spatialZoom = clampSpatialZoom((state.spatialZoom || 0.5) * 0.8);
-      return rebuild(state, deps, {});
-    }
-    if (action === 'spatial_zoom_reset') {
-      state.spatialPanX = 0;
-      state.spatialPanY = 0;
-      state.spatialZoom = 0.5;
-      return rebuild(state, deps, {});
-    }
-    if (action === 'spatial_select_card') {
-      var cardKey = target && target.dataset && target.dataset.spatialCard || '';
-      state.spatialSelectedKey = cardKey;
-      if (cardKey && deps && typeof deps.selectCanvasNode === 'function') {
-        deps.selectCanvasNode(cardKey);
-      }
-      return rebuild(state, deps, {});
-    }
-    if (action === 'spatial_toggle_stack') {
-      var stackId = target && target.dataset && target.dataset.spatialStackId || '';
-      if (stackId) {
-        var stacks = Object.assign({}, state.spatialCollapsedStacks || {});
-        // Default is collapsed (true); toggle flips it.
-        stacks[stackId] = stacks[stackId] === false ? true : false;
-        state.spatialCollapsedStacks = stacks;
-      }
-      return rebuild(state, deps, {});
-    }
-    if (action === 'spatial_zoom_fit_all') {
-      return zoomToFitAll(state, deps);
-    }
     if (action === 'story_scope_focus') {
       return rebuild(state, deps, {storyScopeMode: 'focus'});
     }
@@ -1166,33 +1088,6 @@
       state.storyCardStacks = Object.assign({}, stacks);
     }
     return changed;
-  }
-
-  /**
-   * Zoom-to-fit for the spatial view: reset pan and set zoom to 0.5 so the
-   * entire spatial canvas is roughly centered.  Uses the spatial model bounds
-   * when available.
-   */
-  function zoomToFitAll(state, deps) {
-    var model = state.spatialModel;
-    if (!model || !model.metrics) {
-      state.spatialPanX = 0;
-      state.spatialPanY = 0;
-      state.spatialZoom = 0.5;
-      state.spatialAnimateNext = true;
-      return rebuild(state, deps, {});
-    }
-    state.spatialPanX = 20;
-    state.spatialPanY = 20;
-    state.spatialZoom = 0.35;
-    state.spatialAnimateNext = true;
-    return rebuild(state, deps, {});
-  }
-
-  function clampSpatialZoom(value) {
-    const number = Number(value);
-    if (!Number.isFinite(number)) { return 0.5; }
-    return Math.max(0.05, Math.min(2.0, number));
   }
 
   function normalizeKeyList(value) {

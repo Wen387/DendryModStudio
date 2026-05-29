@@ -100,9 +100,9 @@ budget number.
    **`authoring/install_plan.js` (~2751)** — split by domain after the two viewer
    monsters.
 
-**Dead code to remove:** the Spatial Canvas modules (`viewer/spatial_canvas_*`,
-`authoring/spatial_canvas_*`) are superseded by Storyboard and are not wired to
-any live view — remove them.
+**Removed:** the Spatial Canvas modules (`viewer/spatial_canvas_*`,
+`authoring/spatial_canvas_*`) were superseded by Storyboard and have been deleted.
+The storyboard view toggle offers Timeline and Chain only.
 
 ## Governance triad
 
