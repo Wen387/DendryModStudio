@@ -105,10 +105,25 @@ function main() {
   const stale = registry.knownChecks.filter((checkPath) => discoveredPaths.indexOf(checkPath) === -1);
   assert(stale.length === 0, 'Stale knownChecks entries: ' + stale.join(', '));
 
+  // ciSequence is the ordered check:ci command list run by run_checks.js. Every
+  // `node tools/project_map/check_*.js` target must exist and be classified in
+  // knownChecks so the data-driven CI gate cannot reference a stray check.
+  assert(Array.isArray(registry.ciSequence), 'Registry must define a ciSequence array.');
+  assert(registry.ciSequence.length > 0, 'ciSequence must include at least one command.');
+  registry.ciSequence.forEach((command, index) => {
+    assert(typeof command === 'string' && command.trim().length > 0,
+      'ciSequence[' + index + '] must be a non-empty command string.');
+    const match = /^node\s+(tools\/project_map\/check_[^\s]+\.js)(?:$|\s)/.exec(command);
+    if (match) {
+      assert(fs.existsSync(path.join(ROOT, match[1])), 'ciSequence references a missing check: ' + match[1]);
+      assert(knownChecks.has(match[1]), 'ciSequence references an unclassified check (add to knownChecks): ' + match[1]);
+    }
+  });
+
   const toolCheckPaths = new Set(toolIds.map((id) => registry.tools[id].path).filter((item) => /^tools\/project_map\/check_.+\.js$/.test(String(item || ''))));
   const unroutedKnownCount = discoveredPaths.filter((checkPath) => !toolCheckPaths.has(checkPath)).length;
 
-  process.stdout.write('Tool registry OK: ' + taskIds.length + ' tasks, ' + toolIds.length + ' tools, ' + discoveredPaths.length + ' known checks, ' + unroutedKnownCount + ' known-unrouted checks.\n');
+  process.stdout.write('Tool registry OK: ' + taskIds.length + ' tasks, ' + toolIds.length + ' tools, ' + discoveredPaths.length + ' known checks, ' + unroutedKnownCount + ' known-unrouted checks, ' + registry.ciSequence.length + ' ci-sequence steps.\n');
 }
 
 if (require.main === module) {

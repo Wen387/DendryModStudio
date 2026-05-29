@@ -364,6 +364,34 @@ function runGovernanceParityCheck(options) {
     'package-script-node-target-outside-export-file-set'
   );
 
+  // check:ci is manifest-driven: package.json now delegates to run_checks.js,
+  // which executes the registry's ordered ciSequence. Validate every node
+  // target in that sequence the same way (exists + tracked). nodeTargetsFromScript
+  // skips non-node steps such as `npm run check:types`, exactly as it did when
+  // the chain lived inline in the package.json script string.
+  const registryPath = 'tools/project_map/tool_registry.json';
+  let ciSequenceTargets = [];
+  if (exists(registryPath, root)) {
+    const registry = parseJson(registryPath, failures, root);
+    const ciSequence = registry && Array.isArray(registry.ciSequence) ? registry.ciSequence : null;
+    if (!ciSequence) {
+      failures.push({
+        code: 'missing-ci-sequence',
+        path: registryPath,
+        message: 'tool_registry.json must define a ciSequence array'
+      });
+    } else {
+      ciSequenceTargets = nodeTargetsFromScript('tool_registry.ciSequence', ciSequence.join(' && '));
+    }
+  }
+  appendMissingFailures(ciSequenceTargets, failures, root, 'missing-ci-sequence-node-target');
+  appendUntrackedWarnings(
+    ciSequenceTargets.filter((reference) => exists(reference.path, root)),
+    warnings,
+    tracked.files,
+    'ci-sequence-node-target-outside-export-file-set'
+  );
+
   const indexPath = 'tools/project_map/viewer/index.html';
   const htmlRefs = exists(indexPath, root) ? htmlLocalReferences(indexPath, read(indexPath, root)) : [];
   appendMissingFailures(htmlRefs, failures, root, 'missing-viewer-index-reference');

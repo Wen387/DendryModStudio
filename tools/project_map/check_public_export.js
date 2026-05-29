@@ -165,6 +165,13 @@ function main() {
   assert(packageJson.scripts && packageJson.scripts['dist:linux'] && packageJson.scripts['dist:win'], 'desktop package should expose release build scripts');
   assert(packageJson.scripts['dist:linux'].includes('deb'), 'desktop Linux release script should build Deb artifacts');
   assert(packageJson.devDependencies && packageJson.devDependencies['electron-builder'], 'desktop package should declare electron-builder for release builds');
+  // check:ci is manifest-driven: package.json delegates to run_checks.js, which
+  // runs the ordered ciSequence in tool_registry.json. Assert membership against
+  // that sequence (the source of truth) rather than the package.json script.
+  const ciSequence = JSON.parse(read('tools/project_map/tool_registry.json')).ciSequence;
+  assert(Array.isArray(ciSequence) && ciSequence.length > 0, 'tool_registry.json should define the check:ci ciSequence');
+  const ciSequenceText = ciSequence.join('\n');
+  assert(rootPackageJson.scripts['check:ci'].includes('run_checks.js'), 'check:ci should delegate to run_checks.js');
   [
     'check_public_export.js',
     'check_localization_surface.js',
@@ -181,7 +188,7 @@ function main() {
     'check_player_like_qa_model.js',
     'check_release_links_model.js'
   ].forEach((needle) => {
-    assert(rootPackageJson.scripts['check:ci'].includes(needle), 'check:ci should run ' + needle);
+    assert(ciSequenceText.includes(needle), 'check:ci ciSequence should run ' + needle);
     assert(ciWorkflow.includes(needle) || ciWorkflow.includes('npm run check:ci'), 'CI workflow should cover ' + needle);
   });
   assert(

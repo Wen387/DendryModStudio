@@ -77,6 +77,15 @@ npm ci --ignore-scripts
 npm run check:ci
 ```
 
+`check:ci` is data-driven: `package.json` delegates to
+`tools/project_map/run_checks.js`, which runs the ordered `ciSequence` in
+`tool_registry.json` and stops at the first failure. To add or reorder a check
+in the broad gate, edit that `ciSequence` array (not a shell chain). The list is
+validated by `check_tool_registry.js` (every `node` target must exist and be in
+`knownChecks`) and `check_governance_parity.js` (targets must exist and be
+tracked). Run `node tools/project_map/run_checks.js --list` to print the
+resolved sequence.
+
 For large Studio feature work or refactors, also run the advisory source-size
 report before and after the change:
 
