@@ -1,5 +1,6 @@
 'use strict';
 
+const crypto = require('crypto');
 const fs = require('fs');
 const https = require('https');
 const path = require('path');
@@ -7,7 +8,8 @@ const {spawnSync} = require('child_process');
 
 const CATALOG_MARKER = '.dendry-studio-catalog-template.json';
 const MAX_REDIRECTS = 5;
-const DOWNLOAD_TIMEOUT_MS = 5 * 60 * 1000;
+const DOWNLOAD_TIMEOUT_MS = 3 * 60 * 1000;
+const DOWNLOAD_CONNECT_TIMEOUT_MS = 15000;
 const RELEASE_CHECK_TIMEOUT_MS = 5000;
 
 function loadBundledCatalog(options) {
@@ -49,6 +51,9 @@ function validateTemplateEntry(entry, index, diagnostics) {
       diagnostics.push(prefix + '.' + key + ' is required and must be a non-empty string');
     }
   });
+  if (typeof entry.id === 'string' && entry.id.trim() && !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(entry.id)) {
+    diagnostics.push(prefix + '.id must contain only letters, digits, hyphens, and underscores');
+  }
   ['description', 'author', 'releaseTag', 'indexAssetName', 'excerptIndexAssetName', 'minStudioVersion'].forEach(function (key) {
     if (entry[key] !== undefined && typeof entry[key] !== 'string') {
       diagnostics.push(prefix + '.' + key + ' must be a string when present');
@@ -203,9 +208,36 @@ function checkTemplateStatus(templatesRoot, templateId) {
   return hasSource ? 'ready' : 'corrupted';
 }
 
+function preflightCheck(url, _redirectsLeft) {
+  var remaining = typeof _redirectsLeft === 'number' ? _redirectsLeft : MAX_REDIRECTS;
+  return new Promise(function (resolve) {
+    var request = https.request(url, {method: 'HEAD'}, function (response) {
+      response.resume();
+      var location = response.headers.location;
+      if ([301, 302, 303, 307, 308].indexOf(response.statusCode) >= 0 && location) {
+        if (remaining <= 0) {
+          resolve({ok: false, statusCode: response.statusCode, reason: 'too-many-redirects'});
+          return;
+        }
+        preflightCheck(new URL(location, url).toString(), remaining - 1).then(resolve);
+        return;
+      }
+      resolve({ok: response.statusCode === 200, statusCode: response.statusCode});
+    });
+    request.setTimeout(DOWNLOAD_CONNECT_TIMEOUT_MS, function () {
+      request.destroy();
+      resolve({ok: false, statusCode: 0, reason: 'timeout'});
+    });
+    request.on('error', function () { resolve({ok: false, statusCode: 0, reason: 'network'}); });
+    request.end();
+  });
+}
+
 function download(url, dest, redirectsLeft, onProgress) {
   return new Promise(function (resolve, reject) {
+    var connected = false;
     var request = https.get(url, function (response) {
+      connected = true;
       var location = response.headers.location;
       if ([301, 302, 303, 307, 308].indexOf(response.statusCode) >= 0 && location) {
         response.resume();
@@ -233,11 +265,20 @@ function download(url, dest, redirectsLeft, onProgress) {
         }
       });
       response.pipe(file);
+      response.on('error', function (err) { file.destroy(); reject(err); });
       file.on('finish', function () { file.close(resolve); });
       file.on('error', reject);
     });
-    request.setTimeout(DOWNLOAD_TIMEOUT_MS, function () {
-      request.destroy(new Error('Template download timed out.'));
+    request.setTimeout(DOWNLOAD_CONNECT_TIMEOUT_MS, function () {
+      if (!connected) {
+        request.destroy(new Error('Template download connection timed out. The release may not exist yet.'));
+      }
+    });
+    request.on('socket', function (socket) {
+      socket.setTimeout(DOWNLOAD_TIMEOUT_MS);
+      socket.on('timeout', function () {
+        request.destroy(new Error('Template download timed out.'));
+      });
     });
     request.on('error', reject);
   });
@@ -258,28 +299,88 @@ function extractTarGz(archivePath, targetDir) {
   }
 }
 
+function checkDiskSpace(targetDir, requiredBytes) {
+  if (!requiredBytes || typeof fs.statfsSync !== 'function') { return; }
+  try {
+    var dir = fs.existsSync(targetDir) ? targetDir : path.dirname(targetDir);
+    var stat = fs.statfsSync(dir);
+    var availableBytes = stat.bavail * stat.bsize;
+    if (availableBytes < requiredBytes) {
+      throw new Error('Insufficient disk space: need ' +
+        Math.ceil(requiredBytes / 1048576) + ' MB, have ' +
+        Math.ceil(availableBytes / 1048576) + ' MB.');
+    }
+  } catch (err) {
+    if (err && err.message && err.message.indexOf('Insufficient disk space') === 0) { throw err; }
+  }
+}
+
+function moveDir(src, dest) {
+  try {
+    fs.renameSync(src, dest);
+  } catch (err) {
+    if (err.code === 'EXDEV') {
+      fs.cpSync(src, dest, {recursive: true});
+      fs.rmSync(src, {recursive: true, force: true});
+    } else {
+      throw err;
+    }
+  }
+}
+
 function downloadAndExtract(url, installDir, options) {
   var opts = options || {};
   var tmpDir = path.join(path.dirname(installDir), '.tmp-' + path.basename(installDir));
   var archivePath = tmpDir + '.tar.gz';
+  var stashDir = installDir + '.updating';
   if (fs.existsSync(tmpDir)) {
     fs.rmSync(tmpDir, {recursive: true, force: true});
   }
   if (fs.existsSync(archivePath)) {
     fs.rmSync(archivePath, {force: true});
   }
-  return download(url, archivePath, MAX_REDIRECTS, opts.onProgress)
+  if (fs.existsSync(stashDir)) {
+    fs.rmSync(stashDir, {recursive: true, force: true});
+  }
+  return preflightCheck(url)
+    .then(function (check) {
+      if (!check.ok) {
+        var reason = check.reason === 'timeout'
+          ? 'Connection timed out — the release may not exist yet.'
+          : 'Release asset not found (HTTP ' + check.statusCode + '). Ensure the repository has a published release.';
+        throw new Error(reason);
+      }
+    })
+    .then(function () {
+      if (opts.estimatedSizeMB) {
+        checkDiskSpace(path.dirname(installDir), opts.estimatedSizeMB * 2 * 1048576);
+      }
+      return download(url, archivePath, MAX_REDIRECTS, opts.onProgress);
+    })
     .then(function () {
       extractTarGz(archivePath, tmpDir);
       if (fs.existsSync(installDir)) {
-        fs.rmSync(installDir, {recursive: true, force: true});
+        moveDir(installDir, stashDir);
       }
-      fs.renameSync(tmpDir, installDir);
+      try {
+        moveDir(tmpDir, installDir);
+      } catch (renameErr) {
+        try {
+          if (fs.existsSync(stashDir) && !fs.existsSync(installDir)) {
+            moveDir(stashDir, installDir);
+          }
+        } catch (_rollback) { /* best effort */ }
+        throw renameErr;
+      }
+      if (fs.existsSync(stashDir)) {
+        fs.rmSync(stashDir, {recursive: true, force: true});
+      }
       fs.rmSync(archivePath, {force: true});
     })
     .catch(function (err) {
       try { fs.rmSync(archivePath, {force: true}); } catch (_e) { /* best effort */ }
       try { fs.rmSync(tmpDir, {recursive: true, force: true}); } catch (_e) { /* best effort */ }
+      try { fs.rmSync(stashDir, {recursive: true, force: true}); } catch (_e) { /* best effort */ }
       throw err;
     });
 }
@@ -396,7 +497,12 @@ function checkUpdateAvailable(templatesRoot, template) {
     var localInstalledAt = marker.installedAt || '';
     var remotePublishedAt = release.publishedAt || '';
     var tagChanged = localTag && localTag !== 'latest' && release.tagName !== localTag;
-    var newerPublish = remotePublishedAt && localInstalledAt && remotePublishedAt > localInstalledAt;
+    var newerPublish = false;
+    if (remotePublishedAt && localInstalledAt) {
+      var remoteMs = new Date(remotePublishedAt).getTime();
+      var localMs = new Date(localInstalledAt).getTime();
+      newerPublish = remoteMs > localMs && !isNaN(remoteMs) && !isNaN(localMs);
+    }
     return {
       updateAvailable: tagChanged || newerPublish,
       localTag: localTag,
@@ -421,6 +527,95 @@ function removeTemplate(installDir) {
   return {ok: true, message: 'Template removed.'};
 }
 
+function snapshotSourceFiles(installDir) {
+  var sourceDir = path.join(installDir, 'source');
+  if (!fs.existsSync(sourceDir)) { return []; }
+  var snapshot = [];
+  (function walk(dir) {
+    var entries;
+    try { entries = fs.readdirSync(dir, {withFileTypes: true}); } catch (_e) { return; }
+    for (var i = 0; i < entries.length; i++) {
+      var full = path.join(dir, entries[i].name);
+      if (entries[i].isDirectory()) { walk(full); }
+      else if (entries[i].isFile()) {
+        try {
+          var stat = fs.statSync(full);
+          var content = fs.readFileSync(full);
+          var hash = crypto.createHash('sha256').update(content).digest('hex');
+          snapshot.push({
+            rel: path.relative(installDir, full).replace(/\\/g, '/'),
+            size: stat.size,
+            mtimeMs: Math.round(stat.mtimeMs),
+            sha256: hash
+          });
+        } catch (_e) { /* skip unreadable */ }
+      }
+    }
+  })(sourceDir);
+  return snapshot;
+}
+
+function detectLocalEdits(installDir) {
+  var marker = readMarker(installDir);
+  if (!marker || !Array.isArray(marker.fileSnapshot)) {
+    return {hasEdits: false, reason: 'no-snapshot'};
+  }
+  var snapshotMap = {};
+  var snap = marker.fileSnapshot;
+  for (var i = 0; i < snap.length; i++) { snapshotMap[snap[i].rel] = snap[i]; }
+  var current = snapshotSourceFiles(installDir);
+  var currentMap = {};
+  for (var j = 0; j < current.length; j++) { currentMap[current[j].rel] = current[j]; }
+  var added = [];
+  var modified = [];
+  var removed = [];
+  var rel;
+  for (rel in currentMap) {
+    if (!snapshotMap[rel]) {
+      added.push(rel);
+    } else if (snapshotMap[rel].sha256
+      ? currentMap[rel].sha256 !== snapshotMap[rel].sha256
+      : (currentMap[rel].size !== snapshotMap[rel].size ||
+         currentMap[rel].mtimeMs !== snapshotMap[rel].mtimeMs)) {
+      modified.push(rel);
+    }
+  }
+  for (rel in snapshotMap) {
+    if (!currentMap[rel]) { removed.push(rel); }
+  }
+  var hasEdits = added.length > 0 || modified.length > 0 || removed.length > 0;
+  return {
+    hasEdits: hasEdits,
+    added: added,
+    modified: modified,
+    removed: removed,
+    summary: hasEdits
+      ? (modified.length + ' modified, ' + added.length + ' added, ' + removed.length + ' removed')
+      : 'no changes'
+  };
+}
+
+function backupModifiedFiles(installDir, edits) {
+  if (!edits || !edits.hasEdits) { return {ok: true, backupDir: ''}; }
+  var id = path.basename(installDir);
+  var ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  var backupsRoot = path.join(path.dirname(installDir), '.backups');
+  var backupDir = path.join(backupsRoot, id + '-' + ts);
+  fs.mkdirSync(backupDir, {recursive: true});
+  var files = (edits.modified || []).concat(edits.added || []);
+  var copied = 0;
+  for (var i = 0; i < files.length; i++) {
+    var src = path.join(installDir, files[i]);
+    var dest = path.join(backupDir, files[i]);
+    if (fs.existsSync(src)) {
+      fs.mkdirSync(path.dirname(dest), {recursive: true});
+      fs.copyFileSync(src, dest);
+      copied++;
+    }
+  }
+  return {ok: true, backupDir: backupDir, fileCount: copied};
+}
+
 module.exports = {
   CATALOG_MARKER: CATALOG_MARKER,
   loadBundledCatalog: loadBundledCatalog,
@@ -438,5 +633,10 @@ module.exports = {
   compareVersions: compareVersions,
   resolveLocalizedText: resolveLocalizedText,
   fetchLatestReleaseTag: fetchLatestReleaseTag,
-  checkUpdateAvailable: checkUpdateAvailable
+  checkUpdateAvailable: checkUpdateAvailable,
+  preflightCheck: preflightCheck,
+  snapshotSourceFiles: snapshotSourceFiles,
+  detectLocalEdits: detectLocalEdits,
+  backupModifiedFiles: backupModifiedFiles,
+  checkDiskSpace: checkDiskSpace
 };

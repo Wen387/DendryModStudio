@@ -31,6 +31,12 @@ const missingFields = catalog.validateCatalog({schemaVersion: 1, templates: [{}]
 assert(!missingFields.ok, 'template entry missing required fields should fail');
 assert(missingFields.diagnostics.some((d) => d.includes('id')), 'diagnostics should mention missing id');
 
+const badId = catalog.validateCatalog({schemaVersion: 1, templates: [{
+  id: '../escape', title: 'X', repo: 'x/x', assetName: 'x.tar.gz'
+}]});
+assert(!badId.ok, 'path-traversal id should fail validation');
+assert(badId.diagnostics.some((d) => d.includes('letters')), 'diagnostics should mention valid characters');
+
 const badSchema = catalog.validateCatalog({schemaVersion: 2, templates: []});
 assert(!badSchema.ok, 'wrong schemaVersion should fail validation');
 
@@ -40,9 +46,12 @@ const evaluated = catalog.evaluateCatalog(bundled, {currentVersion: '0.98.0', lo
 assert(evaluated.ok, 'evaluateCatalog should succeed for the bundled catalog');
 assert(evaluated.templates.length > 0, 'bundled catalog should contain at least one template');
 
+assert(evaluated.templates.length === 3, 'bundled catalog should contain three templates');
 const first = evaluated.templates[0];
 assert(first.id === 'showcase-game', 'first template id should be showcase-game');
 assert(first.title && first.title.length > 0, 'template title should be non-empty');
+assert(evaluated.templates.some((t) => t.id === 'biennio-rosso'), 'catalog should contain biennio-rosso');
+assert(evaluated.templates.some((t) => t.id === 'dynamic-sdaah'), 'catalog should contain dynamic-sdaah');
 
 const evaluatedZh = catalog.evaluateCatalog(bundled, {currentVersion: '0.98.0', locale: 'zh-Hant'});
 assert(evaluatedZh.templates[0].title === '展示遊戲', 'zh-Hant locale should resolve titleLocalized');
@@ -124,6 +133,71 @@ const marker = catalog.readMarker(readyDir);
 assert(marker && marker.id === 'ready-test', 'readMarker should return written marker data');
 assert(marker.installedAt, 'marker should have installedAt timestamp');
 
+// --- snapshotSourceFiles ---
+
+const snapshot = catalog.snapshotSourceFiles(readyDir);
+assert(Array.isArray(snapshot), 'snapshotSourceFiles should return an array');
+assert(snapshot.length === 1, 'readyDir should have 1 source file');
+assert(snapshot[0].rel === 'source/info.dry', 'snapshot should track source/info.dry');
+assert(snapshot[0].size > 0, 'snapshot file should have positive size');
+assert(typeof snapshot[0].mtimeMs === 'number', 'snapshot should record mtime');
+assert(typeof snapshot[0].sha256 === 'string' && snapshot[0].sha256.length === 64, 'snapshot should include sha256 hash');
+
+// --- detectLocalEdits (no snapshot in marker) ---
+
+const noSnapshotEdits = catalog.detectLocalEdits(readyDir);
+assert(!noSnapshotEdits.hasEdits, 'marker without snapshot should report no edits');
+assert(noSnapshotEdits.reason === 'no-snapshot', 'should indicate missing snapshot');
+
+// Rewrite marker with snapshot for subsequent tests
+catalog.writeMarker(readyDir, {id: 'ready-test', fileSnapshot: snapshot});
+
+// --- detectLocalEdits (clean) ---
+
+const cleanEdits = catalog.detectLocalEdits(readyDir);
+assert(!cleanEdits.hasEdits, 'clean install should have no local edits');
+
+// --- detectLocalEdits (same content rewritten — hash unchanged) ---
+
+fs.writeFileSync(path.join(readyDir, 'source', 'info.dry'), 'title: Test\nauthor: Test');
+const sameContentEdits = catalog.detectLocalEdits(readyDir);
+assert(!sameContentEdits.hasEdits, 'rewriting same content should report no edits (hash-based)');
+
+// --- detectLocalEdits (backward compat — old marker without sha256) ---
+
+const freshSnap = catalog.snapshotSourceFiles(readyDir);
+const legacySnapshot = freshSnap.map(function (e) { return {rel: e.rel, size: e.size, mtimeMs: e.mtimeMs}; });
+catalog.writeMarker(readyDir, {id: 'ready-test', fileSnapshot: legacySnapshot});
+const legacyClean = catalog.detectLocalEdits(readyDir);
+assert(!legacyClean.hasEdits, 'legacy snapshot without sha256 should detect clean via size+mtime fallback');
+catalog.writeMarker(readyDir, {id: 'ready-test', fileSnapshot: snapshot});
+
+// --- detectLocalEdits (modified + added) ---
+
+fs.writeFileSync(path.join(readyDir, 'source', 'info.dry'), 'title: Modified\nauthor: Test');
+fs.writeFileSync(path.join(readyDir, 'source', 'new_scene.dry'), 'title: New Scene');
+const modifiedEdits = catalog.detectLocalEdits(readyDir);
+assert(modifiedEdits.hasEdits, 'should detect local edits after modification');
+assert(modifiedEdits.modified.length === 1, 'should detect 1 modified file');
+assert(modifiedEdits.added.length === 1, 'should detect 1 added file');
+assert(modifiedEdits.summary.length > 0, 'summary should be non-empty');
+
+// --- backupModifiedFiles ---
+
+const backupResult = catalog.backupModifiedFiles(readyDir, modifiedEdits);
+assert(backupResult.ok, 'backupModifiedFiles should succeed');
+assert(fs.existsSync(backupResult.backupDir), 'backup directory should exist');
+assert(backupResult.fileCount === 2, 'should backup 2 files (1 modified + 1 added)');
+assert(fs.existsSync(path.join(backupResult.backupDir, 'source', 'info.dry')), 'backup should contain modified file');
+assert(fs.existsSync(path.join(backupResult.backupDir, 'source', 'new_scene.dry')), 'backup should contain added file');
+
+const noEditsBackup = catalog.backupModifiedFiles(readyDir, {hasEdits: false});
+assert(noEditsBackup.ok, 'backupModifiedFiles with no edits should succeed');
+assert(noEditsBackup.backupDir === '', 'no-edits backup should have empty backupDir');
+
+// cleanup backups
+fs.rmSync(path.join(tmpRoot, '.backups'), {recursive: true, force: true});
+
 // --- removeTemplate ---
 
 const removeResult = catalog.removeTemplate(readyDir);
@@ -190,6 +264,7 @@ assert(catalog.resolveLocalizedText('base', null, 'en') === 'base', 'null map re
 
 assert(typeof catalog.checkUpdateAvailable === 'function', 'checkUpdateAvailable should be exported');
 assert(typeof catalog.fetchLatestReleaseTag === 'function', 'fetchLatestReleaseTag should be exported');
+assert(typeof catalog.preflightCheck === 'function', 'preflightCheck should be exported');
 
 const updateDir = path.join(tmpRoot, 'update-test');
 fs.mkdirSync(path.join(updateDir, 'source'), {recursive: true});
@@ -203,6 +278,20 @@ const updateMarker = catalog.readMarker(updateDir);
 assert(updateMarker.releaseTag === 'v1.0.0', 'marker should store releaseTag');
 assert(updateMarker.installedAt, 'marker should store installedAt');
 
+// --- checkDiskSpace ---
+
+assert(typeof catalog.checkDiskSpace === 'function', 'checkDiskSpace should be exported');
+catalog.checkDiskSpace(tmpRoot, 1);
+let diskSpaceThrown = false;
+try {
+  catalog.checkDiskSpace(tmpRoot, Number.MAX_SAFE_INTEGER);
+} catch (_e) {
+  diskSpaceThrown = true;
+}
+if (typeof fs.statfsSync === 'function') {
+  assert(diskSpaceThrown, 'checkDiskSpace should throw when space is insufficient');
+}
+
 const noMarkerUpdate = catalog.checkUpdateAvailable(tmpRoot, {id: 'nonexistent', repo: 'test/test'});
 assert(typeof noMarkerUpdate.then === 'function', 'checkUpdateAvailable should return a promise');
 
@@ -212,7 +301,7 @@ noMarkerUpdate.then(function (noMarkerResult) {
   // --- Cleanup ---
   fs.rmSync(tmpRoot, {recursive: true, force: true});
 
-  console.log('PASS: template catalog model (' + 35 + ' assertions)');
+  console.log('PASS: template catalog model (' + 78 + ' assertions)');
 }).catch(function (err) {
   fs.rmSync(tmpRoot, {recursive: true, force: true});
   process.stderr.write('FAIL: ' + (err && err.message ? err.message : String(err)) + '\n');

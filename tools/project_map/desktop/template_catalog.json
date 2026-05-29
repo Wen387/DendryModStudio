@@ -7,18 +7,52 @@
       "titleLocalized": {
         "zh-Hant": "展示遊戲"
       },
-      "description": "A full-scale Dendry game for learning Studio features.",
+      "description": "A Dendry game scaffold based on SDAAH, for learning and modding.",
       "descriptionLocalized": {
-        "zh-Hant": "完整規模的 Dendry 遊戲範本，用於學習 Studio 功能。"
+        "zh-Hant": "基於 SDAAH 的 Dendry 遊戲框架，用於學習與 Mod 開發。"
       },
       "author": "Awen",
       "repo": "Wen387/dendry-showcase-game",
       "releaseTag": "latest",
       "assetName": "showcase-game-source.tar.gz",
-      "estimatedSizeMB": 12,
-      "prebuiltIndex": true,
-      "indexAssetName": "project-index.json",
-      "excerptIndexAssetName": "project-index-excerpts.json",
+      "estimatedSizeMB": 1,
+      "prebuiltIndex": false,
+      "minStudioVersion": "0.98.0"
+    },
+    {
+      "id": "biennio-rosso",
+      "title": "Biennio Rosso",
+      "titleLocalized": {
+        "zh-Hant": "紅色兩年"
+      },
+      "description": "An Italian-setting SDAAH mod. Full game with unique mechanics and events.",
+      "descriptionLocalized": {
+        "zh-Hant": "義大利背景的 SDAAH Mod，完整遊戲含獨有機制與事件。"
+      },
+      "author": "Community (based on SDAAH by Autumn Chen)",
+      "repo": "Wen387/biennio_rosso_StudioRepo",
+      "releaseTag": "latest",
+      "assetName": "biennio-rosso-source.tar.gz",
+      "estimatedSizeMB": 1,
+      "prebuiltIndex": false,
+      "minStudioVersion": "0.98.0"
+    },
+    {
+      "id": "dynamic-sdaah",
+      "title": "Dynamic SDAAH",
+      "titleLocalized": {
+        "zh-Hant": "動態社會民主"
+      },
+      "description": "An expanded SDAAH mod with dynamic events and extended content.",
+      "descriptionLocalized": {
+        "zh-Hant": "擴展版 SDAAH Mod，含動態事件與延伸內容。"
+      },
+      "author": "Community (based on SDAAH by Autumn Chen)",
+      "repo": "Wen387/dynamic_social_democracy_StudioRepo",
+      "releaseTag": "latest",
+      "assetName": "dynamic-sdaah-source.tar.gz",
+      "estimatedSizeMB": 2,
+      "prebuiltIndex": false,
       "minStudioVersion": "0.98.0"
     }
   ]

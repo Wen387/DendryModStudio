@@ -89,6 +89,14 @@ function buildApplicationMenuTemplate() {
     {
       label: 'File',
       submenu: [
+        {
+          label: 'Featured Templates…',
+          click: () => {
+            const win = BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0];
+            if (win) { win.webContents.send('dendry:show-catalog'); }
+          }
+        },
+        {type: 'separator'},
         process.platform === 'darwin' ? {role: 'close'} : {role: 'quit'}
       ]
     },
@@ -389,6 +397,19 @@ ipcMain.handle('dendry:catalog-open-template', async (_event, options) => {
   const templatesRoot = userDataCatalogDir();
   if (options && options.forceUpdate) {
     var existingDir = templateCatalog.templateInstallDir(templatesRoot, templateId);
+    var edits = templateCatalog.detectLocalEdits(existingDir);
+    if (edits.hasEdits && !(options && options.acknowledgeEdits)) {
+      return {
+        ok: false,
+        code: 'local_edits_detected',
+        hasLocalEdits: true,
+        edits: edits,
+        message: 'This template has local modifications (' + edits.summary + '). Your changes will be backed up before updating.'
+      };
+    }
+    if (edits.hasEdits) {
+      templateCatalog.backupModifiedFiles(existingDir, edits);
+    }
     templateCatalog.removeTemplate(existingDir);
   }
   const prepared = core.prepareCatalogTemplate({
@@ -428,7 +449,8 @@ ipcMain.handle('dendry:catalog-open-template', async (_event, options) => {
       title: entry.title,
       repo: entry.repo,
       releaseTag: entry.releaseTag,
-      sourceUrl: prepared.sourceUrl
+      sourceUrl: prepared.sourceUrl,
+      fileSnapshot: templateCatalog.snapshotSourceFiles(installDir)
     });
     if (entry.prebuiltIndex) {
       sendScanProgress(target, {
@@ -485,6 +507,19 @@ ipcMain.handle('dendry:catalog-remove-template', async (_event, options) => {
     return {ok: false, message: 'No templateId provided.'};
   }
   var installDir = templateCatalog.templateInstallDir(userDataCatalogDir(), templateId);
+  var edits = templateCatalog.detectLocalEdits(installDir);
+  if (edits.hasEdits && !(options && options.acknowledgeEdits)) {
+    return {
+      ok: false,
+      code: 'local_edits_detected',
+      hasLocalEdits: true,
+      edits: edits,
+      message: 'This template has local modifications (' + edits.summary + '). Your changes will be backed up before removing.'
+    };
+  }
+  if (edits.hasEdits) {
+    templateCatalog.backupModifiedFiles(installDir, edits);
+  }
   return templateCatalog.removeTemplate(installDir);
 });
 

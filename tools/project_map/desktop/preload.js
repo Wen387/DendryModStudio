@@ -75,6 +75,10 @@ ipcRenderer.on('dendry:scan-progress', (_event, update) => {
   }));
 });
 
+ipcRenderer.on('dendry:show-catalog', () => {
+  window.dispatchEvent(new CustomEvent('ProjectMap:show-catalog'));
+});
+
 contextBridge.exposeInMainWorld('dendryDesktop', {
   isDesktop: true,
   getState: () => ipcRenderer.invoke('dendry:desktop-state'),

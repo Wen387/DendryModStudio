@@ -112,6 +112,14 @@
     elements: null
   };
 
+  var CATALOG_ICON_GRADIENTS = [
+    'linear-gradient(135deg, #c27040, #a05530)',
+    'linear-gradient(135deg, #4e7a9e, #3a5e80)',
+    'linear-gradient(135deg, #6b8e4e, #4a7a38)',
+    'linear-gradient(135deg, #8e6bb0, #6a4e8e)',
+    'linear-gradient(135deg, #c0785a, #9e5c40)'
+  ];
+
   const WELCOME_MARKUP = [
     '<section id="studio-welcome" class="welcome-surface hidden" role="dialog" aria-modal="true" aria-labelledby="welcome-title">',
     '  <div class="welcome-dialog">',
@@ -164,12 +172,13 @@
     '        </button>',
     '      </article>',
     '    </div>',
-    '    <section id="welcome-catalog" class="welcome-catalog desktop-only-control hidden" aria-label="Featured templates" data-i18n-aria-label="welcome.catalog.aria">',
+    '    <section id="welcome-catalog" class="welcome-catalog desktop-only-control hidden" aria-label="Template Hub" data-i18n-aria-label="welcome.catalog.aria">',
     '      <header class="welcome-catalog-header">',
-    '        <h2 data-i18n="welcome.catalog.title">Featured Templates</h2>',
+    '        <h2><span class="welcome-catalog-header-icon" data-ui-icon="download"></span><span data-i18n="welcome.catalog.title">Template Hub</span></h2>',
     '        <span data-i18n="welcome.catalog.subtitle">Full-scale game projects. Downloads are optional.</span>',
     '      </header>',
     '      <div id="welcome-catalog-list" class="welcome-catalog-list"></div>',
+    '      <div class="welcome-catalog-live sr-only" aria-live="polite" aria-atomic="true"></div>',
     '    </section>',
     '    <section class="welcome-path" aria-label="First proposal flow" data-i18n-aria-label="welcome.stepsLabel">',
     '      <header class="welcome-path-header">',
@@ -311,6 +320,14 @@
       }
     });
     document.addEventListener(openEventName(), () => openDialog(true));
+    document.addEventListener('ProjectMap:show-catalog', () => {
+      openDialog(true);
+      setTimeout(function () {
+        if (state.elements.catalogSection && !state.elements.catalogSection.hidden) {
+          state.elements.catalogSection.scrollIntoView({behavior: 'smooth', block: 'start'});
+        }
+      }, 200);
+    });
     document.addEventListener('project-map:locale-changed', () => {
       updateActionState();
       decorateIcons();
@@ -468,12 +485,26 @@
       }
       return;
     }
+    if (state.elements.catalogSection) {
+      state.elements.catalogSection.classList.remove('hidden');
+      state.elements.catalogSection.hidden = false;
+    }
+    if (state.elements.catalogList && !state.elements.catalogList.querySelector('.welcome-catalog-card')) {
+      state.elements.catalogList.innerHTML =
+        '<div class="welcome-catalog-skeleton"></div>' +
+        '<div class="welcome-catalog-skeleton"></div>' +
+        '<div class="welcome-catalog-skeleton"></div>';
+    }
+    state._catalogLoadId = (state._catalogLoadId || 0) + 1;
+    var loadId = state._catalogLoadId;
     caps.listCatalogTemplates({}, global).then(function (result) {
+      if (loadId !== state._catalogLoadId) { return; }
       if (!result || !result.ok || !result.templates || result.templates.length === 0) {
         if (state.elements.catalogSection) {
           state.elements.catalogSection.classList.add('hidden');
           state.elements.catalogSection.hidden = true;
         }
+        if (state.elements.catalogList) { state.elements.catalogList.innerHTML = ''; }
         return;
       }
       if (state.elements.catalogSection) {
@@ -484,47 +515,74 @@
         state.elements.catalogList.innerHTML = result.templates.map(renderCatalogCard).join('');
         state.elements.catalogList.querySelectorAll('[data-catalog-action]').forEach(function (btn) {
           btn.addEventListener('click', function () {
-            handleCatalogAction(btn.getAttribute('data-template-id'), btn);
+            var action = btn.getAttribute('data-catalog-action');
+            if (action === 'remove') {
+              handleCatalogRemove(btn.getAttribute('data-template-id'), btn);
+            } else {
+              handleCatalogAction(btn.getAttribute('data-template-id'), btn);
+            }
           });
         });
       }
       decorateIcons();
       localizeDialog();
     }).catch(function () {
+      if (loadId !== state._catalogLoadId) { return; }
       if (state.elements.catalogSection) {
         state.elements.catalogSection.classList.add('hidden');
         state.elements.catalogSection.hidden = true;
       }
+      if (state.elements.catalogList) { state.elements.catalogList.innerHTML = ''; }
     });
   }
 
-  function renderCatalogCard(template) {
+  function renderCatalogCard(template, index) {
     var status = template.status || 'not-installed';
     var sizeLabel = template.estimatedSizeMB
       ? ' (' + template.estimatedSizeMB + ' MB)'
       : '';
-    var buttonLabel, buttonClass, iconName, updateBadge;
+    var delay = (index || 0) * 60;
+    var initial = (template.title || '?').charAt(0).toUpperCase();
+    var gradient = CATALOG_ICON_GRADIENTS[(index || 0) % CATALOG_ICON_GRADIENTS.length];
+    var statusBadge = '';
+    if (status === 'update-available') {
+      statusBadge = '<span class="welcome-catalog-status welcome-catalog-status--update">' +
+        t('welcome.catalog.updateAvailable', 'Update available') + '</span>';
+    } else if (status === 'ready') {
+      statusBadge = '<span class="welcome-catalog-status welcome-catalog-status--ready">' +
+        t('welcome.catalog.installed', 'Installed') + '</span>';
+    }
+    var buttonLabel, buttonClass, iconName;
     if (status === 'update-available') {
       buttonLabel = t('welcome.catalog.update', 'Update');
       buttonClass = '';
       iconName = 'download';
-      updateBadge = '<span class="welcome-catalog-update-badge" data-i18n="welcome.catalog.updateAvailable">' +
-        t('welcome.catalog.updateAvailable', 'Update available') + '</span>';
     } else if (status === 'ready') {
       buttonLabel = t('welcome.catalog.open', 'Open');
       buttonClass = 'primary-action';
       iconName = 'play';
-      updateBadge = '';
     } else {
       buttonLabel = t('welcome.catalog.download', 'Download') + sizeLabel;
       buttonClass = '';
       iconName = 'download';
-      updateBadge = '';
     }
+    var isInstalled = (status === 'ready' || status === 'update-available');
+    var removeButton = isInstalled
+      ? '    <button class="welcome-catalog-remove" type="button" data-catalog-action="remove" data-template-id="' + template.id + '">' +
+        '<span data-ui-icon="trash"></span>' +
+        '<span>' + t('welcome.catalog.remove', 'Remove') + '</span>' +
+        '</button>'
+      : '';
     return [
-      '<article class="welcome-catalog-card" data-catalog-id="' + template.id + '">',
+      '<article class="welcome-catalog-card" data-catalog-id="' + template.id + '" style="animation-delay:' + delay + 'ms">',
+      '  <div class="welcome-catalog-icon" style="background:' + gradient + '">',
+      '    <span>' + escapeHtml(initial) + '</span>',
+      '  </div>',
       '  <div class="welcome-catalog-card-body">',
-      '    <h3>' + escapeHtml(template.title) + updateBadge + '</h3>',
+      '    <div class="welcome-catalog-title-row">',
+      '      <h3>' + escapeHtml(template.title) + '</h3>',
+      statusBadge,
+      '    </div>',
       '    <p>' + escapeHtml(template.description) + '</p>',
       '    <span class="welcome-catalog-meta">' + escapeHtml(template.author) + '</span>',
       '  </div>',
@@ -534,32 +592,181 @@
       '      <span data-ui-icon="' + iconName + '"></span>',
       '      <span>' + buttonLabel + '</span>',
       '    </button>',
+      removeButton,
       '  </div>',
       '</article>'
     ].join('');
   }
 
-  function handleCatalogAction(templateId, button) {
+  function handleCatalogAction(templateId, button, acknowledgeEdits) {
     if (!templateId) { return; }
+    if (state._catalogBusy) { return; }
     var caps = global.ProjectMapDesktopCapabilities;
     if (!caps || !caps.canOpenCatalogTemplate || !caps.canOpenCatalogTemplate(global)) { return; }
     var includeExcerpts = Boolean(state.elements.desktopIncludeExcerpts && state.elements.desktopIncludeExcerpts.checked);
     var forceUpdate = button && button.hasAttribute('data-catalog-update');
+    state._catalogBusy = true;
     if (button) {
       button.disabled = true;
-      button.querySelector('span:last-child').textContent = t('welcome.catalog.downloading', 'Downloading...');
+      button.classList.add('is-loading');
+      button.querySelector('span:last-child').textContent = t('welcome.catalog.downloading', 'Downloading…');
     }
-    closeDialog(true);
-    caps.openCatalogTemplate({templateId: templateId, includeExcerpts: includeExcerpts, forceUpdate: forceUpdate}, global).catch(function (err) {
-      if (global.console && typeof global.console.warn === 'function') {
-        global.console.warn('Could not open catalog template:', err && err.message ? err.message : err);
+    caps.openCatalogTemplate({
+      templateId: templateId,
+      includeExcerpts: includeExcerpts,
+      forceUpdate: forceUpdate,
+      acknowledgeEdits: acknowledgeEdits || false
+    }, global).then(function (result) {
+      if (result && result.hasLocalEdits) {
+        showLocalEditsWarning(templateId, result, 'update', button);
+        return;
       }
+      if (result && result.template && result.template.id) {
+        state._currentTemplateId = result.template.id;
+      }
+      closeDialog(true);
+    }).catch(function (err) {
+      var msg = err && err.message ? err.message : String(err);
+      if (global.console && typeof global.console.warn === 'function') {
+        global.console.warn('Could not open catalog template:', msg);
+      }
+      if (state.elements.catalogList) {
+        var card = state.elements.catalogList.querySelector('[data-catalog-id="' + templateId + '"]');
+        if (card) {
+          var existing = card.querySelector('.welcome-catalog-error');
+          if (existing) { existing.remove(); }
+          var errorEl = document.createElement('p');
+          errorEl.className = 'welcome-catalog-error';
+          errorEl.textContent = msg;
+          card.querySelector('.welcome-catalog-card-body').appendChild(errorEl);
+        }
+      }
+    }).finally(function () {
+      state._catalogBusy = false;
+      if (button) {
+        button.disabled = false;
+        button.classList.remove('is-loading');
+      }
+      updateActionState();
+    });
+  }
+
+  function handleCatalogRemove(templateId, button, acknowledgeEdits) {
+    if (!templateId) { return; }
+    if (state._catalogBusy) { return; }
+    var caps = global.ProjectMapDesktopCapabilities;
+    if (!caps || typeof caps.removeCatalogTemplate !== 'function') { return; }
+    if (state._currentTemplateId === templateId) {
+      showCardFeedback(templateId, 'warning',
+        t('welcome.catalog.cannotRemoveLoaded', 'Cannot remove the currently loaded template.'));
+      return;
+    }
+    if (button) {
+      button.disabled = true;
+    }
+    caps.removeCatalogTemplate({
+      templateId: templateId,
+      acknowledgeEdits: acknowledgeEdits || false
+    }, global).then(function (result) {
+      if (result && result.hasLocalEdits) {
+        showLocalEditsWarning(templateId, result, 'remove', button);
+        return;
+      }
+      populateCatalog();
+    }).catch(function (err) {
+      var msg = err && err.message ? err.message : String(err);
+      if (global.console && typeof global.console.warn === 'function') {
+        global.console.warn('Could not remove catalog template:', msg);
+      }
+      showCardFeedback(templateId, 'error', msg);
     }).finally(function () {
       if (button) {
         button.disabled = false;
       }
-      updateActionState();
     });
+  }
+
+  function trapFocus(container) {
+    function handler(e) {
+      if (e.key !== 'Tab') { return; }
+      var focusable = container.querySelectorAll(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusable.length === 0) { return; }
+      var first = focusable[0];
+      var last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
+    container.addEventListener('keydown', handler);
+    return function release() { container.removeEventListener('keydown', handler); };
+  }
+
+  function announceCatalogStatus(message) {
+    var section = state.elements.catalogList && state.elements.catalogList.closest('.welcome-catalog');
+    if (!section) { return; }
+    var live = section.querySelector('.welcome-catalog-live');
+    if (live) { live.textContent = message; }
+  }
+
+  function showLocalEditsWarning(templateId, result, action, originalButton) {
+    if (!state.elements.catalogList) { return; }
+    var card = state.elements.catalogList.querySelector('[data-catalog-id="' + templateId + '"]');
+    if (!card) { return; }
+    var body = card.querySelector('.welcome-catalog-card-body');
+    if (!body) { return; }
+    var existing = card.querySelector('.welcome-catalog-warning');
+    if (existing) { existing.remove(); }
+    var summary = result.edits ? result.edits.summary : '';
+    var notice = action === 'update'
+      ? t('welcome.catalog.backupNotice', 'Your changes will be backed up before updating.')
+      : t('welcome.catalog.backupNoticeRemove', 'Your changes will be backed up before removing.');
+    var confirmLabel = action === 'update'
+      ? t('welcome.catalog.confirmUpdate', 'Confirm Update')
+      : t('welcome.catalog.confirmRemove', 'Confirm Remove');
+    var warning = document.createElement('div');
+    warning.className = 'welcome-catalog-warning';
+    warning.setAttribute('role', 'alertdialog');
+    warning.setAttribute('aria-modal', 'true');
+    warning.innerHTML =
+      '<p>' + escapeHtml(t('welcome.catalog.localEditsWarning', 'Local modifications detected')) +
+      ' (' + escapeHtml(summary) + '). ' + escapeHtml(notice) + '</p>' +
+      '<button type="button">' + escapeHtml(confirmLabel) + '</button>';
+    body.appendChild(warning);
+    var releaseTrap = trapFocus(warning);
+    var confirmBtn = warning.querySelector('button');
+    confirmBtn.focus();
+    announceCatalogStatus(t('welcome.catalog.localEditsWarning', 'Local modifications detected'));
+    confirmBtn.addEventListener('click', function () {
+      releaseTrap();
+      warning.remove();
+      if (action === 'update') {
+        handleCatalogAction(templateId, originalButton, true);
+      } else {
+        handleCatalogRemove(templateId, originalButton, true);
+      }
+    });
+  }
+
+  function showCardFeedback(templateId, type, message) {
+    if (!state.elements.catalogList) { return; }
+    var card = state.elements.catalogList.querySelector('[data-catalog-id="' + templateId + '"]');
+    if (!card) { return; }
+    var body = card.querySelector('.welcome-catalog-card-body');
+    if (!body) { return; }
+    var className = type === 'warning' ? 'welcome-catalog-warning' : 'welcome-catalog-error';
+    var existing = card.querySelector('.' + className);
+    if (existing) { existing.remove(); }
+    var el = document.createElement('div');
+    el.className = className;
+    el.innerHTML = '<p>' + escapeHtml(message) + '</p>';
+    body.appendChild(el);
+    announceCatalogStatus(message);
   }
 
   function escapeHtml(text) {

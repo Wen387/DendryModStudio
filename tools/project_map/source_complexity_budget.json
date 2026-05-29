@@ -53,13 +53,15 @@
     },
     {
       "path": "tools/project_map/viewer/i18n/en.js",
-      "maxLines": 3318,
-      "reason": "Catalog file; keep each language separate and avoid runtime code here. Ratcheted 2026-05-27 from 3319 for featured template catalog i18n + update detection."
+      "maxLines": 3325,
+      "allowRaise": true,
+      "reason": "Catalog file; keep each language separate. Raised 2026-05-29 for Template Hub safeguard i18n keys."
     },
     {
       "path": "tools/project_map/viewer/i18n/zh-Hant.js",
-      "maxLines": 3318,
-      "reason": "Catalog file; keep each language separate and avoid runtime code here. Ratcheted 2026-05-27 from 3319 for featured template catalog i18n + update detection."
+      "maxLines": 3325,
+      "allowRaise": true,
+      "reason": "Catalog file; keep each language separate. Raised 2026-05-29 for Template Hub safeguard i18n keys."
     },
     {
       "path": "tools/project_map/viewer/index.html",

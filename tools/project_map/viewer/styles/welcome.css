@@ -396,7 +396,9 @@
 
 .welcome-catalog-header h2 {
   margin: 0;
-  font-size: 15px;
+  display: flex;
+  align-items: center;
+  font-size: 16px;
   line-height: 1.25;
 }
 
@@ -404,6 +406,15 @@
   color: var(--muted);
   font-size: 12px;
   line-height: 1.35;
+}
+
+.welcome-catalog-header-icon {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  vertical-align: -1px;
+  color: var(--accent-strong);
 }
 
 .welcome-catalog-list {
@@ -415,11 +426,18 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 12px 14px;
+  padding: 14px 16px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--surface);
   animation: welcome-card-in var(--motion-slow) var(--motion-ease) both;
+  transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
+}
+
+.welcome-catalog-card:hover {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--accent) 36%, var(--border));
+  box-shadow: 0 8px 24px rgba(31, 29, 24, 0.10);
 }
 
 .welcome-catalog-card-body {
@@ -438,6 +456,50 @@
   font-size: 12px;
   line-height: 1.35;
   color: var(--muted);
+}
+
+.welcome-catalog-icon {
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 10px;
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.3px;
+  box-shadow: 0 2px 6px rgba(31, 29, 24, 0.12);
+}
+
+.welcome-catalog-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.welcome-catalog-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.welcome-catalog-status--ready {
+  background: rgba(34, 139, 34, 0.10);
+  color: #2d7a2d;
+}
+
+.welcome-catalog-status--update {
+  background: rgba(200, 130, 30, 0.12);
+  color: #a06a18;
+  animation: catalog-pulse 2.5s ease-in-out infinite;
 }
 
 .welcome-catalog-meta {
@@ -486,6 +548,61 @@
   cursor: default;
 }
 
+.welcome-catalog-error {
+  margin: 4px 0 0;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--error-bg, #fef2f2);
+  color: var(--error-text, #991b1b);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.welcome-catalog-warning {
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: rgba(200, 150, 40, 0.10);
+  border: 1px solid rgba(200, 150, 40, 0.25);
+  color: #7a5a10;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.welcome-catalog-warning p {
+  margin: 0;
+}
+
+.welcome-catalog-warning button {
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: 1px solid rgba(180, 130, 30, 0.35);
+  border-radius: 5px;
+  background: rgba(200, 150, 40, 0.14);
+  color: #7a5a10;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.welcome-catalog-warning button:hover {
+  background: rgba(200, 150, 40, 0.24);
+  border-color: rgba(180, 130, 30, 0.50);
+}
+
+.welcome-catalog-remove {
+  background: transparent;
+  opacity: 0.6;
+}
+
+.welcome-catalog-remove:hover,
+.welcome-catalog-remove:focus-visible {
+  opacity: 1;
+}
+
 .welcome-catalog-update-badge {
   display: inline-block;
   margin-left: 8px;
@@ -498,11 +615,80 @@
   vertical-align: middle;
 }
 
+.welcome-catalog-skeleton {
+  height: 68px;
+  border-radius: 10px;
+  background: linear-gradient(90deg,
+    rgba(200, 195, 185, 0.22) 0%,
+    rgba(200, 195, 185, 0.42) 40%,
+    rgba(200, 195, 185, 0.22) 60%
+  );
+  background-size: 200% 100%;
+  animation: catalog-shimmer 1.5s ease-in-out infinite;
+}
+
+.welcome-catalog-skeleton + .welcome-catalog-skeleton {
+  animation-delay: 100ms;
+}
+
+.welcome-catalog-skeleton + .welcome-catalog-skeleton + .welcome-catalog-skeleton {
+  animation-delay: 200ms;
+}
+
+.welcome-catalog-card-actions button.is-loading {
+  position: relative;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+.welcome-catalog-card-actions button.is-loading::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  border-radius: 0 0 5px 5px;
+  background: var(--accent);
+  animation: catalog-progress 1.8s ease-in-out infinite;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@keyframes catalog-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.65; }
+}
+
+@keyframes catalog-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes catalog-progress {
+  0% { width: 0; }
+  50% { width: 70%; }
+  100% { width: 100%; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .welcome-dialog,
   .welcome-action-card,
   .welcome-step,
-  .welcome-catalog-card {
+  .welcome-catalog-card,
+  .welcome-catalog-skeleton,
+  .welcome-catalog-status--update,
+  .welcome-catalog-card-actions button.is-loading::after {
     animation: none;
   }
 }
