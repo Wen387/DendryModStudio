@@ -8,8 +8,9 @@
     },
     {
       "path": "tools/project_map/authoring/existing_scene_edit_model.js",
-      "maxLines": 3281,
-      "reason": "Split scene edit logic before adding more behavior."
+      "maxLines": 3287,
+      "allowRaise": true,
+      "reason": "Raised 2026-05-30 from 3281 for asset directive deduplication guard (global + flow paths)."
     },
     {
       "path": "tools/project_map/authoring/install_plan.js",

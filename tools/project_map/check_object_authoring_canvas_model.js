@@ -1646,14 +1646,14 @@ assert(existingAssetEvent.eventBody.assets.some((asset) => asset.directive === '
 assert(existingAssetEvent.eventBody.assets.some((asset) => asset.directive === 'set-bg' && asset.role === 'event_background' && asset.assetEditFieldId === 'asset_set_bg_8'), 'existing set-bg directive should map to a source-backed asset edit field');
 assert(existingAssetEvent.eventBody.assets.some((asset) => asset.directive === 'audio' && asset.role === 'event_audio' && asset.assetEditFieldId === 'asset_audio_9'), 'existing audio directive should map to a source-backed asset edit field');
 assert(existingAssetEvent.eventBody.assets.some((asset) => asset.directive === 'inline-image' && asset.role === 'event_illustration' && asset.assetEditFieldId === 'asset_inline_image_10'), 'existing inline image evidence should map into the managed event illustration slot');
-assert(existingAssetEvent.eventBody.assetAddFields.some((field) => field.id === 'asset_add_event_illustration' && field.role === 'event_illustration' && field.directive === 'face-image'), 'existing opening inline images should not hide the event illustration add slot and should add a runtime image directive');
+assert(!existingAssetEvent.eventBody.assetAddFields.some((field) => field.directive === 'face-image'), 'existing face-image directive should block all add slots that would duplicate the face-image directive');
 const existingAssetPreviewHtml = previewEditor.renderPreviewPane(existingAssetEvent);
 assert(existingAssetPreviewHtml.includes('data-object-canvas-asset-replacement="true"'), 'existing exact asset directives should expose Object Canvas replacement controls');
 assert(existingAssetPreviewHtml.includes('data-existing-asset-field="asset_face_image_7"'), 'existing asset replacement control should carry the source-backed field id');
 assert(existingAssetPreviewHtml.includes('data-asset-directive="face-image"'), 'existing asset replacement control should preserve the source directive marker');
 assert(existingAssetPreviewHtml.includes('data-existing-asset-field="asset_inline_image_10"'), 'existing inline image slot should expose replacement/removal controls');
 assert(existingAssetPreviewHtml.includes('data-asset-directive="inline-image"'), 'existing inline image controls should preserve the inline directive marker');
-assert(existingAssetPreviewHtml.includes('data-existing-asset-add-field="asset_add_event_illustration"'), 'existing event illustration slot should expose a source-backed add control when current inline images are flow assets');
+assert(!existingAssetPreviewHtml.includes('data-existing-asset-add-field="asset_add_event_illustration"'), 'existing face-image directive should prevent duplicate illustration add controls in the preview pane');
 assert(existingAssetPreviewHtml.includes('data-object-canvas-action="remove_asset_reference"'), 'existing exact asset references should expose a remove-reference action');
 const existingAssetEditorHtml = previewEditor.render(existingAssetEvent);
 assert(existingAssetEditorHtml.includes('data-object-canvas-asset-replacement="true"'), 'existing event editor should expose exact asset replacement controls in the editing pane');
@@ -1729,8 +1729,8 @@ const existingIllustrationAdd = canvasModel.buildExistingCanvas(index, 'events',
     asset_add_event_illustration: 'face-image: img/events/indexed-portrait.png'
   }
 });
-assert(existingIllustrationAdd.eventBody.assets.some((asset) => asset.path === 'img/events/indexed-portrait.png' && asset.role === 'event_illustration' && asset.status === 'pending_addition' && asset.flowAsset === false), 'existing event illustration add should render as a pending slot asset instead of disappearing into flow summary');
-assert(existingIllustrationAdd.changeState.installPlan.operations.some((operation) => operation.type === 'insert_text' && operation.content.includes('face-image: img/events/indexed-portrait.png')), 'existing event illustration add should write a runtime face-image directive');
+assert(!existingIllustrationAdd.eventBody.assetAddFields.some((field) => field.directive === 'face-image'), 'existing scene with face-image should not offer a duplicate face-image add slot');
+assert(!existingIllustrationAdd.changeState.installPlan.operations.some((operation) => operation.type === 'insert_text' && operation.content && operation.content.includes('face-image: img/events/indexed-portrait.png')), 'stale illustration add value should not produce an operation when the face-image directive already exists');
 const branchReplacementTarget = 'assets/studio/events/labor_unrest/iron-front-new.png';
 const existingBranchAssetReplacement = canvasModel.buildExistingCanvas(index, 'events', 'labor_unrest', {
   values: {

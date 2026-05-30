@@ -2920,10 +2920,14 @@
 
   function assetAddReferenceFields(scene, sceneSourcePath, existingFields, textRows, sceneKind, options) {
     const target = String(sceneKind || '') === 'card' ? 'card' : 'event';
-    const existingRoles = new Set(ensureArray(scene && scene.assetRefs)
+    const existingGlobalAssets = ensureArray(scene && scene.assetRefs)
       .filter((asset) => isGlobalExistingAssetRef(asset, scene))
-      .filter((asset) => !isInlineExistingAssetRef(asset))
+      .filter((asset) => !isInlineExistingAssetRef(asset));
+    const existingRoles = new Set(existingGlobalAssets
       .map((asset) => assetRoleForExistingAsset(asset, target))
+      .filter(Boolean));
+    const existingDirectives = new Set(existingGlobalAssets
+      .map((asset) => normalizeAssetDirective(asset && (asset.directive || asset.assetDirective || asset.role)))
       .filter(Boolean));
     const slots = target === 'card'
       ? [
@@ -2940,7 +2944,7 @@
         {role: 'event_music', directive: 'set-music', label: 'Add event music', type: 'audio'},
         {role: 'event_audio', directive: 'audio', label: 'Add event audio', type: 'audio'}
       ];
-    const globalFields = slots.filter((slot) => !existingRoles.has(slot.role)).map((slot) => {
+    const globalFields = slots.filter((slot) => !existingRoles.has(slot.role) && !existingDirectives.has(slot.directive)).map((slot) => {
       const anchor = assetInsertAnchorForSlot(slot, existingFields, textRows, options && options.textBlocks);
       if (!anchor || !anchor.source || !anchor.source.path || !anchor.anchorText) {
         return null;
@@ -2980,7 +2984,9 @@
         reason: 'Source-backed anchor can be checked before inserting a new asset reference.'
       };
     }).filter(Boolean);
-    return globalFields.concat(flowAssetAddReferenceFields(scene, sceneSourcePath, options));
+    const flowFields = flowAssetAddReferenceFields(scene, sceneSourcePath, options)
+      .filter((field) => !existingDirectives.has(field && field.assetDirective));
+    return globalFields.concat(flowFields);
   }
 
   function isGlobalExistingAssetRef(asset, scene) {
