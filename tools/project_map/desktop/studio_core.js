@@ -1068,11 +1068,11 @@ function checkProjectCache(outDir, root, includeExcerpts, toolPaths) {
   } catch (_err) { return result; }
 }
 
-function saveProjectCache(outDir, root, includeExcerpts, srcIndexPath, fingerprint) {
+function saveProjectCache(outDir, root, includeExcerpts, srcIndexPath, fingerprint, toolPaths) {
   try {
     const cacheDir = projectCacheDir(outDir, root);
     fs.mkdirSync(cacheDir, {recursive: true});
-    const fp = fingerprint || computeProjectFingerprint(root);
+    const fp = fingerprint || computeProjectFingerprint(root, toolPaths);
     fs.writeFileSync(path.join(cacheDir, 'fingerprint.json'), JSON.stringify(fp, null, 2) + '\n', 'utf8');
     const indexName = includeExcerpts ? 'project-index-excerpts.json' : 'project-index.json';
     fs.copyFileSync(srcIndexPath, path.join(cacheDir, indexName));
@@ -1334,7 +1334,7 @@ async function buildProjectIndex(options) {
     };
   }
 
-  saveProjectCache(scratch, root, includeExcerpts, indexPath, cache.fingerprint);
+  saveProjectCache(scratch, root, includeExcerpts, indexPath, cache.fingerprint, paths);
 
   emitProgress(options, {
     stage: 'complete',
