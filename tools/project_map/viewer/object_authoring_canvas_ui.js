@@ -650,6 +650,11 @@
   function setProjectIndex(index) {
     if (index && typeof index === 'object') {
       state.projectIndex = index;
+      const root = index.project && index.project.root || '';
+      const storyApi = storyboardWorkspaceApi();
+      if (root && storyApi && typeof storyApi.setProjectId === 'function') {
+        storyApi.setProjectId(root);
+      }
       if (state.active) {
         refresh();
       }

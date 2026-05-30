@@ -441,8 +441,10 @@ assert(storyboardWorkspaceState.includes("'state', 'draft'"), 'Storyboard worksp
 assert(storyboardWorkspaceState.includes('refreshPaletteOnly'), 'Storyboard workspace state should narrow-refresh palette search and filters');
 assert(storyboardWorkspaceState.includes('shouldRefreshPaletteWindow'), 'Storyboard workspace state should avoid re-rendering the palette on every scroll tick');
 assert(storyboardWorkspaceState.includes('STORY_PALETTE_WIDTH_STORAGE_KEY'), 'Storyboard workspace state should keep palette width local');
-assert(storyboardWorkspaceState.includes('STORY_PALETTE_PIN_STORAGE_KEY'), 'Storyboard workspace state should keep palette pins local');
-assert(storyboardWorkspaceState.includes('STORY_PALETTE_RECENT_STORAGE_KEY'), 'Storyboard workspace state should keep palette recents local');
+assert(storyboardWorkspaceState.includes('STORY_PALETTE_PIN_BASE_KEY'), 'Storyboard workspace state should keep palette pins local with project scope');
+assert(storyboardWorkspaceState.includes('STORY_PALETTE_RECENT_BASE_KEY'), 'Storyboard workspace state should keep palette recents local with project scope');
+assert(storyboardWorkspaceState.includes('scopedKey('), 'Storyboard workspace state should scope project-specific keys per project');
+assert(storyboardWorkspaceState.includes('setProjectId'), 'Storyboard workspace state should expose setProjectId for cross-mod isolation');
 assert(contentStoryboardInteractions.includes('ProjectMapContentStoryboardInteractions'), 'Content Storyboard interactions should expose a browser API');
 assert(contentStoryboardInteractions.includes('onPaletteDrop'), 'Content Storyboard interactions should support Palette drops');
 assert(contentGraphInteractions.includes('ProjectMapContentGraphInteractions'), 'Content Graph interactions should expose a browser API');

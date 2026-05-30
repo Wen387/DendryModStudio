@@ -75,9 +75,9 @@
     },
     {
       "path": "tools/project_map/viewer/object_authoring_canvas_ui.js",
-      "maxLines": 4750,
+      "maxLines": 4755,
       "allowRaise": true,
-      "reason": "Keep orchestration here; split editor UI into workspace modules. Raised 2026-05-30 from 4687 for route target picker insert and search filtering."
+      "reason": "Keep orchestration here; split editor UI into workspace modules. Raised 2026-05-30 from 4750 for project-scoped storyboard storage wiring."
     },
     {
       "path": "tools/project_map/viewer/preview_object_editor.js",

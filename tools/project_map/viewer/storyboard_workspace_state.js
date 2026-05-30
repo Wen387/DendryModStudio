@@ -1,11 +1,33 @@
 (function initProjectMapStoryboardWorkspaceState(global) {
   'use strict';
 
-  const STORY_CARD_COLOR_STORAGE_KEY = 'dendry-mod-studio-storyboard-card-colors-v1';
-  const STORY_PALETTE_PIN_STORAGE_KEY = 'dendry-mod-studio-story-palette-pins-v1';
-  const STORY_PALETTE_RECENT_STORAGE_KEY = 'dendry-mod-studio-story-palette-recent-v1';
+  const STORY_CARD_COLOR_BASE_KEY = 'dendry-mod-studio-storyboard-card-colors-v1';
+  const STORY_PALETTE_PIN_BASE_KEY = 'dendry-mod-studio-story-palette-pins-v1';
+  const STORY_PALETTE_RECENT_BASE_KEY = 'dendry-mod-studio-story-palette-recent-v1';
   const STORY_PALETTE_WIDTH_STORAGE_KEY = 'dendry-mod-studio-story-palette-width-v1';
   const STORY_PALETTE_CHROME_STORAGE_KEY = 'dendry-mod-studio-story-palette-chrome-collapsed-v1';
+
+  let activeProjectHash = '';
+
+  function simpleHash(value) {
+    const text = String(value || '');
+    let hash = 0;
+    for (let index = 0; index < text.length; index += 1) {
+      const ch = text.charCodeAt(index);
+      hash = ((hash << 5) - hash) + ch;
+      hash = hash & hash;
+    }
+    return Math.abs(hash).toString(36);
+  }
+
+  function scopedKey(baseKey) {
+    return activeProjectHash ? baseKey + '.' + activeProjectHash : baseKey;
+  }
+
+  function setProjectId(projectId) {
+    const id = String(projectId || '').trim();
+    activeProjectHash = id ? simpleHash(id) : '';
+  }
   const STORY_PALETTE_DEFAULT_WIDTH = 376;
   const STORY_PALETTE_MIN_WIDTH = 300;
   const STORY_PALETTE_MAX_WIDTH = 620;
@@ -29,8 +51,8 @@
     state.storyPaletteType = 'all';
     state.storyPaletteScopeFilter = 'all';
     state.storyPaletteSelectedKey = '';
-    state.storyPalettePinnedKeys = readStoredKeyList(STORY_PALETTE_PIN_STORAGE_KEY);
-    state.storyPaletteRecentKeys = readStoredKeyList(STORY_PALETTE_RECENT_STORAGE_KEY);
+    state.storyPalettePinnedKeys = readStoredKeyList(scopedKey(STORY_PALETTE_PIN_BASE_KEY));
+    state.storyPaletteRecentKeys = readStoredKeyList(scopedKey(STORY_PALETTE_RECENT_BASE_KEY));
     state.storyPaletteWidth = readStoredNumber(STORY_PALETTE_WIDTH_STORAGE_KEY, STORY_PALETTE_DEFAULT_WIDTH);
     state.storyPaletteChromeCollapsed = readStoredBool(STORY_PALETTE_CHROME_STORAGE_KEY, false);
     state.storyPaletteRowHeight = STORY_PALETTE_DEFAULT_ROW_HEIGHT;
@@ -57,8 +79,8 @@
       storyPaletteType: state.storyPaletteType,
       storyPaletteScopeFilter: state.storyPaletteScopeFilter,
       storyPaletteSelectedKey: state.storyPaletteSelectedKey,
-      storyPalettePinnedKeys: state.storyPalettePinnedKeys || readStoredKeyList(STORY_PALETTE_PIN_STORAGE_KEY),
-      storyPaletteRecentKeys: state.storyPaletteRecentKeys || readStoredKeyList(STORY_PALETTE_RECENT_STORAGE_KEY),
+      storyPalettePinnedKeys: state.storyPalettePinnedKeys || readStoredKeyList(scopedKey(STORY_PALETTE_PIN_BASE_KEY)),
+      storyPaletteRecentKeys: state.storyPaletteRecentKeys || readStoredKeyList(scopedKey(STORY_PALETTE_RECENT_BASE_KEY)),
       storyPaletteWidth: clampPaletteWidth(state.storyPaletteWidth || readStoredNumber(STORY_PALETTE_WIDTH_STORAGE_KEY, STORY_PALETTE_DEFAULT_WIDTH)),
       storyPaletteChromeCollapsed: state.storyPaletteChromeCollapsed === undefined ? readStoredBool(STORY_PALETTE_CHROME_STORAGE_KEY, false) : Boolean(state.storyPaletteChromeCollapsed),
       storyPaletteRowHeight: clampPaletteRowHeight(state.storyPaletteRowHeight || STORY_PALETTE_DEFAULT_ROW_HEIGHT),
@@ -624,8 +646,8 @@
     state.storyPaletteType = normalizePaletteType(context.storyPaletteType);
     state.storyPaletteScopeFilter = normalizePaletteScopeFilter(context.storyPaletteScopeFilter);
     state.storyPaletteSelectedKey = String(context.storyPaletteSelectedKey || '');
-    state.storyPalettePinnedKeys = normalizeKeyList(context.storyPalettePinnedKeys || readStoredKeyList(STORY_PALETTE_PIN_STORAGE_KEY));
-    state.storyPaletteRecentKeys = normalizeKeyList(context.storyPaletteRecentKeys || readStoredKeyList(STORY_PALETTE_RECENT_STORAGE_KEY));
+    state.storyPalettePinnedKeys = normalizeKeyList(context.storyPalettePinnedKeys || readStoredKeyList(scopedKey(STORY_PALETTE_PIN_BASE_KEY)));
+    state.storyPaletteRecentKeys = normalizeKeyList(context.storyPaletteRecentKeys || readStoredKeyList(scopedKey(STORY_PALETTE_RECENT_BASE_KEY)));
     state.storyPaletteWidth = clampPaletteWidth(context.storyPaletteWidth || readStoredNumber(STORY_PALETTE_WIDTH_STORAGE_KEY, STORY_PALETTE_DEFAULT_WIDTH));
     state.storyPaletteChromeCollapsed = context.storyPaletteChromeCollapsed === undefined
       ? readStoredBool(STORY_PALETTE_CHROME_STORAGE_KEY, false)
@@ -678,8 +700,8 @@
       cancelPaletteCloseTimer(state);
     }
     Object.assign(state, patch || {});
-    state.storyPalettePinnedKeys = normalizeKeyList(state.storyPalettePinnedKeys || readStoredKeyList(STORY_PALETTE_PIN_STORAGE_KEY));
-    state.storyPaletteRecentKeys = normalizeKeyList(state.storyPaletteRecentKeys || readStoredKeyList(STORY_PALETTE_RECENT_STORAGE_KEY));
+    state.storyPalettePinnedKeys = normalizeKeyList(state.storyPalettePinnedKeys || readStoredKeyList(scopedKey(STORY_PALETTE_PIN_BASE_KEY)));
+    state.storyPaletteRecentKeys = normalizeKeyList(state.storyPaletteRecentKeys || readStoredKeyList(scopedKey(STORY_PALETTE_RECENT_BASE_KEY)));
     state.storyPaletteWidth = clampPaletteWidth(state.storyPaletteWidth || readStoredNumber(STORY_PALETTE_WIDTH_STORAGE_KEY, STORY_PALETTE_DEFAULT_WIDTH));
     state.storyPaletteRowHeight = clampPaletteRowHeight(state.storyPaletteRowHeight || STORY_PALETTE_DEFAULT_ROW_HEIGHT);
     const root = state.__storyPaletteRoot;
@@ -766,9 +788,9 @@
     if (!itemKey) {
       return false;
     }
-    const recent = pushKey(state.storyPaletteRecentKeys || readStoredKeyList(STORY_PALETTE_RECENT_STORAGE_KEY), itemKey, 20);
+    const recent = pushKey(state.storyPaletteRecentKeys || readStoredKeyList(scopedKey(STORY_PALETTE_RECENT_BASE_KEY)), itemKey, 20);
     state.storyPaletteRecentKeys = recent;
-    writeStoredKeyList(STORY_PALETTE_RECENT_STORAGE_KEY, recent);
+    writeStoredKeyList(scopedKey(STORY_PALETTE_RECENT_BASE_KEY), recent);
     return refreshPaletteOnly(state, deps, {storyPaletteOpen: true, storyPaletteSelectedKey: itemKey});
   }
 
@@ -777,10 +799,10 @@
     if (!itemKey) {
       return false;
     }
-    const current = normalizeKeyList(state.storyPalettePinnedKeys || readStoredKeyList(STORY_PALETTE_PIN_STORAGE_KEY));
+    const current = normalizeKeyList(state.storyPalettePinnedKeys || readStoredKeyList(scopedKey(STORY_PALETTE_PIN_BASE_KEY)));
     const next = current.includes(itemKey) ? current.filter((value) => value !== itemKey) : [itemKey].concat(current);
     state.storyPalettePinnedKeys = normalizeKeyList(next).slice(0, 40);
-    writeStoredKeyList(STORY_PALETTE_PIN_STORAGE_KEY, state.storyPalettePinnedKeys);
+    writeStoredKeyList(scopedKey(STORY_PALETTE_PIN_BASE_KEY), state.storyPalettePinnedKeys);
     return refreshPaletteOnly(state, deps, {storyPaletteOpen: true, storyPaletteSelectedKey: itemKey});
   }
 
@@ -791,9 +813,9 @@
       deps.render();
       return true;
     }
-    const recent = pushKey(state.storyPaletteRecentKeys || readStoredKeyList(STORY_PALETTE_RECENT_STORAGE_KEY), itemKey, 20);
+    const recent = pushKey(state.storyPaletteRecentKeys || readStoredKeyList(scopedKey(STORY_PALETTE_RECENT_BASE_KEY)), itemKey, 20);
     state.storyPaletteRecentKeys = recent;
-    writeStoredKeyList(STORY_PALETTE_RECENT_STORAGE_KEY, recent);
+    writeStoredKeyList(scopedKey(STORY_PALETTE_RECENT_BASE_KEY), recent);
     if (deps && typeof deps.selectCanvasNode === 'function') {
       deps.selectCanvasNode(itemKey);
       return true;
@@ -872,7 +894,7 @@
       return {};
     }
     try {
-      return trimColorMap(JSON.parse(global.localStorage.getItem(STORY_CARD_COLOR_STORAGE_KEY) || '{}'));
+      return trimColorMap(JSON.parse(global.localStorage.getItem(scopedKey(STORY_CARD_COLOR_BASE_KEY)) || '{}'));
     } catch (_err) {
       return {};
     }
@@ -883,7 +905,7 @@
       return;
     }
     try {
-      global.localStorage.setItem(STORY_CARD_COLOR_STORAGE_KEY, JSON.stringify(trimColorMap(map)));
+      global.localStorage.setItem(scopedKey(STORY_CARD_COLOR_BASE_KEY), JSON.stringify(trimColorMap(map)));
     } catch (_err) {
       // Visual annotations are best-effort local cache; project edits remain unaffected.
     }
@@ -1124,7 +1146,7 @@
     };
   }
 
-  const api = {reset, surfaceOptions, renderStage, setView, handleAction, setPaletteQuery, setSearchQuery, bindPalette, dropPaletteItem, selectObject, draftWithContext, restoreContext, createRelatedDraft, stackCards, moveGroup, unstackCard};
+  const api = {reset, setProjectId, surfaceOptions, renderStage, setView, handleAction, setPaletteQuery, setSearchQuery, bindPalette, dropPaletteItem, selectObject, draftWithContext, restoreContext, createRelatedDraft, stackCards, moveGroup, unstackCard};
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;
   }
