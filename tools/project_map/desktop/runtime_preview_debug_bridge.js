@@ -34,7 +34,20 @@ const LABELS_ZH = {
   noScenesMatch: '沒有符合篩選條件的場景。',
   showAllN: '顯示全部 {n} 個變數',
   pin: '釘選',
-  unpin: '取消釘選'
+  unpin: '取消釘選',
+  stateValues: '{n} 個狀態值',
+  showingScenes: '顯示 {shown} / {total}',
+  deeperJumpsHint: '。使用焦點 Runtime Lens 進行更深層的跳轉。',
+  textValuePlaceholder: '文字值',
+  resultOk: '成功',
+  resultAttention: '需要注意',
+  resultCommand: '命令',
+  resultDone: '完成',
+  groupEventFlag: '事件旗標',
+  groupTimeGate: '時間與閘門',
+  groupRelationship: '關係',
+  groupResource: '資源',
+  groupGameState: '遊戲狀態'
 };
 const LABELS_EN = {
   consoleTitle: 'Preview Debug Console',
@@ -68,7 +81,20 @@ const LABELS_EN = {
   noScenesMatch: 'No scenes match the filter.',
   showAllN: 'Show all {n} variables',
   pin: 'Pin',
-  unpin: 'Unpin'
+  unpin: 'Unpin',
+  stateValues: '{n} state values',
+  showingScenes: 'Showing {shown} of {total}',
+  deeperJumpsHint: '. Use the focused Runtime Lens for deeper jumps.',
+  textValuePlaceholder: 'text value',
+  resultOk: 'OK',
+  resultAttention: 'Needs attention',
+  resultCommand: 'command',
+  resultDone: 'done',
+  groupEventFlag: 'Event Flags',
+  groupTimeGate: 'Time & Gates',
+  groupRelationship: 'Relationships',
+  groupResource: 'Resources',
+  groupGameState: 'Game State'
 };
 
 function comparePageLabels(locale) {
@@ -153,7 +179,7 @@ function debugPanelHtml(options) {
     const detail = [
       item && item.type,
       item && item.sourcePath,
-      item && item.variables && item.variables.length ? (item.variables.length + ' state values') : ''
+      item && item.variables && item.variables.length ? L.stateValues.replace('{n}', item.variables.length) : ''
     ].filter(Boolean).join(' · ');
     return '<button type="button" class="runtime-debug-preset" data-debug-focus-preset="' + escapeAttr(item.id) + '" data-debug-focus-scene="' + escapeAttr(item.sceneId) + '" data-debug-focus-variables="' + escapeAttr(variables) + '">' +
       '<strong>' + escapeHtml(item.label || item.title || item.sceneId) + '</strong>' +
@@ -174,7 +200,7 @@ function debugPanelHtml(options) {
       '</button>';
   }).join('');
   const sceneSummary = '<p class="runtime-debug-count">' +
-    escapeHtml('Showing ' + renderedScenes.length + ' of ' + sceneRows.length + (hiddenSceneCount ? '. Use the focused Runtime Lens for deeper jumps.' : '')) +
+    escapeHtml(L.showingScenes.replace('{shown}', renderedScenes.length).replace('{total}', sceneRows.length) + (hiddenSceneCount ? L.deeperJumpsHint : '')) +
     '</p>';
   const links = (controls.links || []).slice(0, 20).map((item) => {
     return '<li>' + escapeHtml((item.from || '') + ' -> ' + (item.to || '')) + '</li>';
@@ -217,7 +243,12 @@ function parentDebugScript(options) {
     noScenesMatch: L.noScenesMatch,
     showAllN: L.showAllN,
     pin: L.pin,
-    unpin: L.unpin
+    unpin: L.unpin,
+    textValuePlaceholder: L.textValuePlaceholder,
+    resultOk: L.resultOk,
+    resultAttention: L.resultAttention,
+    resultCommand: L.resultCommand,
+    resultDone: L.resultDone
   });
   return [
     '(function(){',
@@ -228,7 +259,13 @@ function parentDebugScript(options) {
     'var PINNED_KEY="dms-debug-pinned-vars";',
     'var GROUP_BATCH=30;',
     'var GROUP_ORDER=["event flag","time gate","relationship or support","resource or capacity","game state"];',
-    'var GROUP_LABELS={"event flag":"Event Flags","time gate":"Time & Gates","relationship or support":"Relationships","resource or capacity":"Resources","game state":"Game State"};',
+    'var GROUP_LABELS=' + JSON.stringify({
+      'event flag': L.groupEventFlag,
+      'time gate': L.groupTimeGate,
+      'relationship or support': L.groupRelationship,
+      'resource or capacity': L.groupResource,
+      'game state': L.groupGameState
+    }) + ';',
     'function modifiedFrame(){return document.querySelector("iframe.modified");}',
     'function historyList(){return document.querySelector(".runtime-debug-history");}',
     'function appendHistory(text,isError){var list=historyList();if(!list)return;var li=document.createElement("li");li.textContent=text;if(isError)li.setAttribute("data-debug-error","1");list.prepend(li);}',
@@ -243,7 +280,7 @@ function parentDebugScript(options) {
     'function loadPinned(){try{return JSON.parse(localStorage.getItem(PINNED_KEY)||"[]");}catch(_e){return [];}}',
     'function savePinned(names){try{localStorage.setItem(PINNED_KEY,JSON.stringify(names));}catch(_e){}}',
     'function togglePin(name){var pins=loadPinned();var idx=pins.indexOf(name);if(idx>=0)pins.splice(idx,1);else pins.push(name);savePinned(pins);renderPinned();updatePinStates();}',
-    'function varRow(item,pinned){var div=document.createElement("div");div.className="runtime-debug-row";div.setAttribute("data-debug-var-name",item.name);var info=document.createElement("div");info.innerHTML="<strong>"+esc(item.label||item.name)+"</strong> <span class=\\"runtime-debug-type\\">"+esc(item.valueType||"string")+"</span><small>"+esc(item.reason||item.summary||"")+"</small>";var wrap=document.createElement("div");wrap.className="runtime-debug-input-wrap";var input;if(item.valueType==="booleanNumber"){input=document.createElement("input");input.type="checkbox";input.className="runtime-debug-toggle";input.setAttribute("data-debug-variable-input",item.name);input.value="0";input.addEventListener("change",function(){this.value=this.checked?"1":"0";this.setAttribute("data-debug-dirty","1");});}else if(item.valueType==="number"){input=document.createElement("input");input.type="number";input.step="1";input.value="0";input.setAttribute("data-debug-variable-input",item.name);}else{input=document.createElement("input");input.type="text";input.maxLength=80;input.placeholder="text value";input.value="";input.setAttribute("data-debug-variable-input",item.name);}var pin=document.createElement("button");pin.type="button";pin.className="runtime-debug-pin"+(pinned?" is-pinned":"");pin.textContent=pinned?"\\u2605":"\\u2606";pin.title=pinned?L.unpin:L.pin;pin.setAttribute("data-debug-pin",item.name);wrap.appendChild(input);wrap.appendChild(pin);div.appendChild(info);div.appendChild(wrap);return div;}',
+    'function varRow(item,pinned){var div=document.createElement("div");div.className="runtime-debug-row";div.setAttribute("data-debug-var-name",item.name);var info=document.createElement("div");info.innerHTML="<strong>"+esc(item.label||item.name)+"</strong> <span class=\\"runtime-debug-type\\">"+esc(item.valueType||"string")+"</span><small>"+esc(item.reason||item.summary||"")+"</small>";var wrap=document.createElement("div");wrap.className="runtime-debug-input-wrap";var input;if(item.valueType==="booleanNumber"){input=document.createElement("input");input.type="checkbox";input.className="runtime-debug-toggle";input.setAttribute("data-debug-variable-input",item.name);input.value="0";input.addEventListener("change",function(){this.value=this.checked?"1":"0";this.setAttribute("data-debug-dirty","1");});}else if(item.valueType==="number"){input=document.createElement("input");input.type="number";input.step="1";input.value="0";input.setAttribute("data-debug-variable-input",item.name);}else{input=document.createElement("input");input.type="text";input.maxLength=80;input.placeholder=L.textValuePlaceholder;input.value="";input.setAttribute("data-debug-variable-input",item.name);}var pin=document.createElement("button");pin.type="button";pin.className="runtime-debug-pin"+(pinned?" is-pinned":"");pin.textContent=pinned?"\\u2605":"\\u2606";pin.title=pinned?L.unpin:L.pin;pin.setAttribute("data-debug-pin",item.name);wrap.appendChild(input);wrap.appendChild(pin);div.appendChild(info);div.appendChild(wrap);return div;}',
     'function groupVars(vars){var groups={};vars.forEach(function(v){var k=v.meaning||"game state";if(!groups[k])groups[k]={key:k,label:GROUP_LABELS[k]||k,variables:[]};groups[k].variables.push(v);});var ordered=GROUP_ORDER.filter(function(k){return groups[k];}).map(function(k){return groups[k];});Object.keys(groups).forEach(function(k){if(GROUP_ORDER.indexOf(k)<0)ordered.push(groups[k]);});return ordered;}',
     'function renderGroups(){var container=document.querySelector(".runtime-debug-variable-groups");if(!container)return;container.innerHTML="";var vars=loadVarData();if(!vars.length){container.innerHTML="<p class=\\"runtime-debug-no-results\\">"+esc(L.noVarsAvailable)+"</p>";return;}var pinned=loadPinned();var groups=groupVars(vars);groups.forEach(function(group){var details=document.createElement("details");details.className="runtime-debug-group";details.setAttribute("data-debug-group",group.key);var summary=document.createElement("summary");summary.innerHTML=esc(group.label)+" <span class=\\"runtime-debug-group-count\\">"+group.variables.length+"</span>";details.appendChild(summary);var body=document.createElement("div");body.className="runtime-debug-group-body";var batch=group.variables.slice(0,GROUP_BATCH);var rest=group.variables.slice(GROUP_BATCH);batch.forEach(function(item){body.appendChild(varRow(item,pinned.indexOf(item.name)>=0));});if(rest.length){var more=document.createElement("button");more.type="button";more.className="runtime-debug-show-more";more.textContent=L.showAllN.replace("{n}",group.variables.length);more.addEventListener("click",function(){rest.forEach(function(item){body.insertBefore(varRow(item,pinned.indexOf(item.name)>=0),more);});more.remove();});body.appendChild(more);}details.appendChild(body);container.appendChild(details);});}',
     'function renderPinned(){var section=document.querySelector(".runtime-debug-pinned");var list=document.querySelector(".runtime-debug-pinned-list");if(!section||!list)return;var pinned=loadPinned();var vars=loadVarData();list.innerHTML="";if(!pinned.length){section.hidden=true;return;}section.hidden=false;var byName={};vars.forEach(function(v){byName[v.name]=v;});pinned.forEach(function(name){var item=byName[name];if(!item)return;list.appendChild(varRow(item,true));});}',
@@ -252,7 +289,7 @@ function parentDebugScript(options) {
     'renderGroups();renderPinned();',
     'document.addEventListener("input",function(event){var varFilter=event.target.closest&&event.target.closest("[data-runtime-debug-variable-filter]");if(varFilter){filterVars(varFilter.value);return;}var filter=event.target.closest&&event.target.closest("[data-runtime-debug-scene-filter]");if(filter){var query=String(filter.value||"").toLowerCase();Array.prototype.slice.call(document.querySelectorAll("[data-debug-scene]")).forEach(function(button){var haystack=button.getAttribute("data-debug-scene-search")||"";button.hidden=Boolean(query)&&haystack.indexOf(query)<0;});updateSceneFilterHint();return;}var input=event.target.closest&&event.target.closest("[data-debug-variable-input]");if(input)input.setAttribute("data-debug-dirty","1");});',
     'document.addEventListener("click",function(event){var navBtn=event.target.closest&&event.target.closest("[data-debug-nav]");if(navBtn){var sid=navBtn.getAttribute("data-debug-nav");var sec=document.querySelector("[data-debug-section=\\""+sid+"\\"]");if(sec){sec.open=true;sec.scrollIntoView({behavior:"smooth",block:"start"});}return;}var pinBtn=event.target.closest&&event.target.closest("[data-debug-pin]");if(pinBtn){togglePin(pinBtn.getAttribute("data-debug-pin"));return;}var action=event.target.closest("[data-runtime-debug-action]");if(action&&action.getAttribute("data-runtime-debug-action")==="apply-variables"){var variables=commandVariables();if(!variables.length){appendHistory(L.noChangedVars);return;}send({type:"applyVariables",variables:variables});clearDirtyFlags();return;}if(action&&action.getAttribute("data-runtime-debug-action")==="reset"){send({type:"resetToInitialState"});clearDirtyFlags();return;}var preset=event.target.closest("[data-debug-focus-preset]");if(preset){send({type:"applyFocusPreset",sceneId:preset.getAttribute("data-debug-focus-scene"),variables:jsonAttr(preset,"data-debug-focus-variables",[])});clearDirtyFlags();return;}var scene=event.target.closest("[data-debug-scene]");if(scene){send({type:"jumpToScene",sceneId:scene.getAttribute("data-debug-scene")});}});',
-    'window.addEventListener("message",function(event){var data=event.data||{};if(data.kind!=="dms-runtime-preview-result")return;var result=data.result||{};var command=pendingCommands[data.requestId]||{};delete pendingCommands[data.requestId];var label=command.type||"command";var detail=result.message||result.sceneId||((result.applied||[]).join(", "))||"done";appendHistory((result.ok?"OK":"Needs attention")+" ["+label+"]: "+detail,!result.ok);});',
+    'window.addEventListener("message",function(event){var data=event.data||{};if(data.kind!=="dms-runtime-preview-result")return;var result=data.result||{};var command=pendingCommands[data.requestId]||{};delete pendingCommands[data.requestId];var label=command.type||L.resultCommand;var detail=result.message||result.sceneId||((result.applied||[]).join(", "))||L.resultDone;appendHistory((result.ok?L.resultOk:L.resultAttention)+" ["+label+"]: "+detail,!result.ok);});',
     '})();'
   ].join('\n') + '\n';
 }
