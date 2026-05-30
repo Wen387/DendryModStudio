@@ -99,6 +99,11 @@ contextBridge.exposeInMainWorld('dendryDesktop', {
     dispatchIndexLoaded(result);
     return result;
   },
+  rebuildProjectIndex: async (options) => {
+    const result = await ipcRenderer.invoke('dendry:rebuild-project-index', options || {});
+    dispatchIndexLoaded(result);
+    return result;
+  },
   applyInstallPlan: (options) => ipcRenderer.invoke('dendry:install-plan-apply', options || {}),
   createRuntimePreview: (options) => ipcRenderer.invoke('dendry:runtime-preview-create', options || {}),
   closeRuntimePreview: (options) => ipcRenderer.invoke('dendry:runtime-preview-close', options || {}),

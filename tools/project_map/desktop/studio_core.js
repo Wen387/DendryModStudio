@@ -1076,6 +1076,13 @@ function saveProjectCache(outDir, root, includeExcerpts, srcIndexPath, fingerpri
     fs.writeFileSync(path.join(cacheDir, 'fingerprint.json'), JSON.stringify(fp, null, 2) + '\n', 'utf8');
     const indexName = includeExcerpts ? 'project-index-excerpts.json' : 'project-index.json';
     fs.copyFileSync(srcIndexPath, path.join(cacheDir, indexName));
+    // Remove the other variant so a stale index from a previous build cannot
+    // be served when the user switches the excerpts toggle.
+    const staleName = includeExcerpts ? 'project-index.json' : 'project-index-excerpts.json';
+    const stalePath = path.join(cacheDir, staleName);
+    if (fs.existsSync(stalePath)) {
+      fs.unlinkSync(stalePath);
+    }
   } catch (_err) { /* cache save is non-fatal */ }
 }
 
@@ -1512,6 +1519,7 @@ module.exports = {
   checkScratchDir,
   runDesktopDoctor,
   buildProjectIndex,
+  projectCacheDir,
   pruneIndexCache,
   loadStarterDemoIndex,
   applyInstallPlan,

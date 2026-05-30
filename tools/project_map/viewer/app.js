@@ -304,6 +304,7 @@
       desktopOnlyControls: Array.from(document.querySelectorAll('.desktop-only-control')),
       desktopRunDoctor: document.getElementById('desktop-run-doctor'),
       desktopOpenProject: document.getElementById('desktop-open-project'),
+      desktopRebuildIndex: document.getElementById('desktop-rebuild-index'),
       desktopIncludeExcerpts: document.getElementById('desktop-include-excerpts'),
       desktopStatus: document.getElementById('desktop-status'),
       desktopProgress: document.getElementById('desktop-progress'),
@@ -727,6 +728,12 @@
       });
     }
 
+    if (elements.desktopRebuildIndex) {
+      elements.desktopRebuildIndex.addEventListener('click', () => {
+        rebuildDesktopIndex(desktop, elements);
+      });
+    }
+
     if (typeof desktop.getState === 'function') {
       desktop.getState().then((stateInfo) => {
         if (stateInfo && stateInfo.lastProject) {
@@ -795,6 +802,32 @@
       const check = result.checks[key];
       return labels[key] + ': ' + (check.message || t('desktop.needsAttention', 'needs attention'));
     }).join(' ');
+  }
+
+  function rebuildDesktopIndex(desktop, elements) {
+    if (!desktop || typeof desktop.rebuildProjectIndex !== 'function') {
+      showError(elements, t('desktop.rebuildUnavailable', 'Rebuild not available.'));
+      return;
+    }
+    if (elements.desktopRebuildIndex) {
+      elements.desktopRebuildIndex.disabled = true;
+    }
+    const includeExcerpts = Boolean(elements.desktopIncludeExcerpts && elements.desktopIncludeExcerpts.checked);
+    setDesktopStatus(elements, t('desktop.rebuildingIndex', 'Rebuilding index (cache cleared)...'));
+    setDesktopProgress(elements, {
+      stage: 'rebuild',
+      percent: 5,
+      label: t('desktop.rebuildingIndex', 'Rebuilding index (cache cleared)...')
+    });
+    desktop.rebuildProjectIndex({includeExcerpts}).catch((err) => {
+      const message = err && err.message ? err.message : t('desktop.rebuildFailed', 'Index rebuild failed.');
+      setDesktopStatus(elements, message, true);
+      showError(elements, message);
+    }).finally(() => {
+      if (elements.desktopRebuildIndex) {
+        elements.desktopRebuildIndex.disabled = false;
+      }
+    });
   }
 
   function openDesktopProject(desktop, elements) {

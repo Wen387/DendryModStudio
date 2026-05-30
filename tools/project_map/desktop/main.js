@@ -1,5 +1,6 @@
 'use strict';
 
+const fs = require('fs');
 const path = require('path');
 const {app, BrowserWindow, Menu, dialog, ipcMain, shell} = require('electron');
 const core = require('./studio_core');
@@ -297,6 +298,20 @@ ipcMain.handle('dendry:scan-project', async (_event, options) => {
   return scanProject(options && options.root, options && options.includeExcerpts, _event.sender);
 });
 
+ipcMain.handle('dendry:rebuild-project-index', async (_event, options) => {
+  const root = (options && options.root) || (lastProject && lastProject.root);
+  if (!root) {
+    return {ok: false, message: 'No project root available.'};
+  }
+  // Invalidate the fingerprint cache for this project so buildProjectIndex
+  // performs a full parser + indexer rebuild.
+  const scratch = userDataScratchDir();
+  const cacheDir = core.projectCacheDir(scratch, root);
+  const fpPath = path.join(cacheDir, 'fingerprint.json');
+  try { fs.unlinkSync(fpPath); } catch (_err) { /* ok if missing */ }
+  return scanProject(root, options && options.includeExcerpts, _event.sender);
+});
+
 ipcMain.handle('dendry:open-starter-demo', async (_event, options) => {
   const target = _event.sender;
   const prepared = core.prepareStarterDemo({
@@ -517,24 +532,27 @@ ipcMain.handle('dendry:catalog-open-template', async (_event, options) => {
     percent: 96,
     label: 'Loading project index...'
   });
-  var cached = core.loadCatalogTemplateIndex({
-    installDir: installDir,
-    includeExcerpts: options && options.includeExcerpts
-  });
-  if (cached.ok) {
-    rememberProject(cached);
-    sendScanProgress(target, {
-      stage: 'complete',
-      percent: 100,
-      label: 'Project loaded.'
+  var hasLocalEdits = templateCatalog.detectLocalEdits(installDir).hasEdits;
+  if (!hasLocalEdits) {
+    var cached = core.loadCatalogTemplateIndex({
+      installDir: installDir,
+      includeExcerpts: options && options.includeExcerpts
     });
-    return Object.assign({}, cached, {
-      template: {
-        id: entry.id,
-        title: entry.title,
-        installDir: installDir
-      }
-    });
+    if (cached.ok) {
+      rememberProject(cached);
+      sendScanProgress(target, {
+        stage: 'complete',
+        percent: 100,
+        label: 'Project loaded.'
+      });
+      return Object.assign({}, cached, {
+        template: {
+          id: entry.id,
+          title: entry.title,
+          installDir: installDir
+        }
+      });
+    }
   }
   var validation = core.validateProjectRoot(installDir);
   var scanRoot = validation.ok ? validation.root : installDir;

@@ -57,21 +57,21 @@
     },
     {
       "path": "tools/project_map/viewer/i18n/en.js",
-      "maxLines": 3348,
+      "maxLines": 3352,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-05-30 from 3347 for install clear-plan i18n key."
+      "reason": "Catalog file; keep each language separate. Raised 2026-05-30 from 3348 for desktop rebuild-index and cache-fix i18n keys."
     },
     {
       "path": "tools/project_map/viewer/i18n/zh-Hant.js",
-      "maxLines": 3348,
+      "maxLines": 3352,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-05-30 from 3347 for install clear-plan i18n key."
+      "reason": "Catalog file; keep each language separate. Raised 2026-05-30 from 3348 for desktop rebuild-index and cache-fix i18n keys."
     },
     {
       "path": "tools/project_map/viewer/index.html",
-      "maxLines": 2436,
+      "maxLines": 2437,
       "allowRaise": true,
-      "reason": "Script + template manifest. Raised 2026-05-30 from 2435 for install clear-plan button."
+      "reason": "Script + template manifest. Raised 2026-05-30 from 2436 for rebuild-index button."
     },
     {
       "path": "tools/project_map/viewer/object_authoring_canvas_ui.js",
