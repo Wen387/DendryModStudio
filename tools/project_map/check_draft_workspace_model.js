@@ -86,6 +86,38 @@ assert(reloaded.length === 0, 'delete should remove item');
 const corrupt = memoryStorage({[workspace.STORAGE_KEY]: '{not json'});
 assert(workspace.loadDraftItems(corrupt).length === 0, 'corrupt storage should be ignored safely');
 
+// Project-scoped storage key
+assert(typeof workspace.storageKeyForProject === 'function', 'workspace should expose storageKeyForProject');
+const projectKey = workspace.storageKeyForProject('/home/user/MyMod');
+assert(projectKey !== workspace.STORAGE_KEY, 'project key should differ from global key');
+assert(projectKey.startsWith(workspace.STORAGE_KEY + '.'), 'project key should extend global key');
+assert(workspace.storageKeyForProject('') === workspace.STORAGE_KEY, 'empty project id should fall back to global key');
+assert(workspace.storageKeyForProject('/home/user/MyMod') === workspace.storageKeyForProject('/home/user/MyMod'), 'same project should produce same key');
+assert(workspace.storageKeyForProject('/home/user/MyMod') !== workspace.storageKeyForProject('/home/user/OtherMod'), 'different projects should produce different keys');
+
+// Project-scoped load/save isolation
+const scopedStore = memoryStorage();
+const projectA = '/home/user/ProjectA';
+const projectB = '/home/user/ProjectB';
+workspace.saveDraftItems(scopedStore, [item], {projectId: projectA});
+const loadedA = workspace.loadDraftItems(scopedStore, {projectId: projectA});
+assert(loadedA.length === 1, 'project-scoped save should be loadable for same project');
+const loadedB = workspace.loadDraftItems(scopedStore, {projectId: projectB});
+assert(loadedB.length === 0, 'project-scoped save should not leak to different project');
+
+// Migration from global key
+const migrationStore = memoryStorage();
+const migrationDraft = workspace.makeDraftItem({
+  template: 'existing',
+  draft: {id: 'migration_test', sceneId: 'test_scene', sourcePath: '/home/user/ModX/source/scenes/test.scene.dry'},
+  output: {}
+}, {now: '2026-05-30T00:00:00.000Z'});
+workspace.saveDraftItems(migrationStore, [migrationDraft]);
+assert(migrationStore.getItem(workspace.STORAGE_KEY), 'unscoped save should use global key');
+const migratedItems = workspace.loadDraftItems(migrationStore, {projectId: '/home/user/ModX'});
+assert(migratedItems.length === 1, 'loading with project id should migrate matching items from global key');
+assert(!migrationStore.getItem(workspace.STORAGE_KEY), 'global key should be cleared after full migration');
+
 const newsItem = workspace.makeDraftItem({
   draft: {schemaVersion: '0.1', kind: 'news_item', id: 'news_a', headline: 'Headline A'}
 });

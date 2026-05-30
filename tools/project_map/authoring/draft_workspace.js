@@ -53,13 +53,37 @@
     });
   }
 
-  function loadDraftItems(storage) {
+  function storageKeyForProject(projectId) {
+    const id = String(projectId || '').trim();
+    if (!id) {
+      return STORAGE_KEY;
+    }
+    return STORAGE_KEY + '.' + simpleHash(id);
+  }
+
+  function simpleHash(value) {
+    const text = String(value || '');
+    let hash = 0;
+    for (let index = 0; index < text.length; index += 1) {
+      const ch = text.charCodeAt(index);
+      hash = ((hash << 5) - hash) + ch;
+      hash = hash & hash;
+    }
+    return Math.abs(hash).toString(36);
+  }
+
+  function loadDraftItems(storage, options) {
+    const opts = isObject(options) ? options : {};
     const driver = storage || defaultStorage();
     if (!driver || typeof driver.getItem !== 'function') {
       return [];
     }
+    const key = storageKeyForProject(opts.projectId);
     try {
-      const raw = driver.getItem(STORAGE_KEY);
+      let raw = driver.getItem(key);
+      if (!raw && key !== STORAGE_KEY) {
+        raw = migrateFromGlobalKey(driver, key, opts.projectId);
+      }
       if (!raw) {
         return [];
       }
@@ -71,14 +95,62 @@
     }
   }
 
-  function saveDraftItems(storage, items) {
+  function saveDraftItems(storage, items, options) {
+    const opts = isObject(options) ? options : {};
     const driver = storage || defaultStorage();
     if (!driver || typeof driver.setItem !== 'function') {
       return false;
     }
+    const key = storageKeyForProject(opts.projectId);
     const normalized = normalizeDraftItems(items).slice(0, MAX_ITEMS);
-    driver.setItem(STORAGE_KEY, JSON.stringify({schemaVersion: DRAFT_WORKSPACE_VERSION, items: normalized}, null, 2));
+    driver.setItem(key, JSON.stringify({schemaVersion: DRAFT_WORKSPACE_VERSION, items: normalized}, null, 2));
     return true;
+  }
+
+  function migrateFromGlobalKey(driver, projectKey, projectId) {
+    try {
+      const globalRaw = driver.getItem(STORAGE_KEY);
+      if (!globalRaw) {
+        return null;
+      }
+      const parsed = JSON.parse(globalRaw);
+      const items = Array.isArray(parsed) ? parsed : ensureArray(parsed.items);
+      if (!items.length) {
+        return null;
+      }
+      const projectRoot = String(projectId || '').trim();
+      const matching = items.filter((item) => draftBelongsToProject(item, projectRoot));
+      const remaining = items.filter((item) => !draftBelongsToProject(item, projectRoot));
+      if (matching.length) {
+        driver.setItem(projectKey, JSON.stringify({schemaVersion: DRAFT_WORKSPACE_VERSION, items: matching}, null, 2));
+      }
+      if (remaining.length) {
+        driver.setItem(STORAGE_KEY, JSON.stringify({schemaVersion: DRAFT_WORKSPACE_VERSION, items: remaining}, null, 2));
+      } else {
+        driver.removeItem(STORAGE_KEY);
+      }
+      return matching.length ? driver.getItem(projectKey) : null;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  function draftBelongsToProject(item, projectRoot) {
+    if (!isObject(item) || !projectRoot) {
+      return false;
+    }
+    const draft = isObject(item.draft) ? item.draft : {};
+    const sourcePath = String(draft.sourcePath || draft.path || '');
+    if (sourcePath && sourcePath.indexOf(projectRoot) >= 0) {
+      return true;
+    }
+    const sceneId = String(draft.sceneId || '');
+    const installPlan = isObject(item.installPlan) ? item.installPlan : {};
+    const planPath = String(installPlan.sourcePath || installPlan.targetPath || '');
+    if (planPath && planPath.indexOf(projectRoot) >= 0) {
+      return true;
+    }
+    return !sourcePath && !planPath && !sceneId;
   }
 
   function upsertDraftItem(items, item) {
@@ -356,6 +428,7 @@
   const api = {
     DRAFT_WORKSPACE_VERSION,
     STORAGE_KEY,
+    storageKeyForProject,
     makeDraftItem,
     loadDraftItems,
     saveDraftItems,

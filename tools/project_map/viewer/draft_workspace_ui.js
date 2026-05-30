@@ -18,7 +18,8 @@
 
   const state = {
     items: [],
-    activeDraftWorkspaceId: ''
+    activeDraftWorkspaceId: '',
+    projectId: ''
   };
 
   let elements = null;
@@ -76,6 +77,7 @@
     }
     global.document.addEventListener('ProjectMap:create-template-changed', render);
     global.document.addEventListener('project-map:locale-changed', render);
+    global.document.addEventListener('project-map:index-loaded', handleProjectChanged);
   }
 
   function handleDraftListClick(event) {
@@ -117,13 +119,25 @@
 
   function load() {
     const api = workspaceApi();
-    state.items = api ? api.loadDraftItems() : [];
+    state.items = api ? api.loadDraftItems(null, {projectId: state.projectId}) : [];
   }
 
   function persist() {
     const api = workspaceApi();
     if (api) {
-      api.saveDraftItems(null, state.items);
+      api.saveDraftItems(null, state.items, {projectId: state.projectId});
+    }
+  }
+
+  function handleProjectChanged(event) {
+    const detail = event && event.detail || {};
+    const index = detail.index || {};
+    const project = index.project || {};
+    const root = String(project.root || '').trim();
+    if (root && root !== state.projectId) {
+      state.projectId = root;
+      load();
+      render();
     }
   }
 
