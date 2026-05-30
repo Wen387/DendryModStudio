@@ -1,14 +1,14 @@
 # Dendry Mod Studio v0.98.1 Dev Preview Notes
 
-Date: 2026-05-29
+Date: 2026-05-30
 
 ## Status
 
-v0.98.1 is an unsigned developer-facing preview build. It is a maintenance and
-internal-hardening patch on the v0.98 preview line. It carries forward the
-spatial canvas LOD zoom, drag-to-snap card stacking, music asset editing, and
-all previous route-understanding, guided editing, object editor, install
-review, Runtime Preview, Starter Demo, and governance work.
+v0.98.1 is an unsigned developer-facing preview build on the v0.98 preview
+line. It carries forward the spatial canvas LOD zoom, drag-to-snap card
+stacking, music asset editing, and all previous route-understanding, guided
+editing, object editor, install review, Runtime Preview, Starter Demo, and
+governance work.
 
 Release artifacts use these names:
 
@@ -23,20 +23,75 @@ must be rebuilt and retested before sharing.
 
 ## What Changed Since v0.98
 
-v0.98.1 has no new user-facing features. It bundles internal architecture and
-governance hardening completed since the v0.98 preview:
+### Template Hub
 
-- **Architecture ownership contract**: `ARCHITECTURE.md` documents surface and
-  module ownership boundaries.
-- **Complexity-budget ratchet**: a one-way downward source-complexity budget
-  that cannot be raised, guarded by its own model check.
-- **Data-driven CI**: `check:ci` runs an ordered `ciSequence` from
-  `tool_registry.json` through a single runner, validated by registry and
-  governance-parity checks.
-- **Dead-surface removal**: the unreachable Spatial Canvas surface was removed;
-  the storyboard view toggle now offers Timeline and Chain only.
-- **Editor module extraction**: the asset-editor group was extracted into a
-  `preview_asset_editor` sibling module.
+The Studio can now download and manage game template projects directly from
+within the app. The Template Hub panel on the Welcome Surface lets you browse
+available community templates, download them from GitHub Releases, and open
+them with one click.
+
+- **Split asset archives** — templates with large art assets (images and music)
+  download a separate asset archive after the source archive, so small
+  source-only updates don't re-download hundreds of megabytes of art.
+- **Data-loss safeguards** — SHA-256 file snapshot tracking, local-edit
+  detection before destructive operations, automatic backup of modified files,
+  and stash-swap extraction rollback.
+- **Template info cards** — installed templates show scene, variable, event,
+  and file counts for a quick project overview.
+- **Standalone entry** — the Template Hub is accessible from a topbar button in
+  catalog-only mode, not just from the Welcome Surface.
+
+### Runtime Preview Debug Panel
+
+The debug panel for Runtime Preview was overhauled from a static 24-variable
+HTML list into a full interactive sidebar.
+
+- **Typed inputs** — boolean variables use a toggle switch, numeric variables
+  get a number input, and text variables get a text field.
+- **Grouped by meaning** — variables are automatically categorized into
+  Event Flags, Time & Gates, Relationships, Resources, and Game State.
+- **Pin and search** — pin frequently used variables to a persistent favorites
+  section; search across all groups by name.
+- **Known-value autocomplete** — text-type variables show a dropdown of known
+  values extracted from project source files, so you don't have to remember
+  exact strings like chancellor names.
+- **Full localization** — the entire debug sidebar is localized in both
+  Traditional Chinese and English.
+- **Fullscreen debug** — baseline and modified fullscreen views access the
+  debug toolbar through the compare page URL parameter.
+
+### Object Canvas Editing
+
+Condition, route, and effect editing in the Object Canvas received targeted
+improvements.
+
+- **Route target picker** — autocomplete scene search for go-to and set-jump
+  targets, with semantic distinction for set-jump, call, and on-departure
+  route types.
+- **Inline condition editing** — compound condition structural preview for
+  and/or chains; editable condition cards replace read-only chips.
+- **Variable picker** — expression-parsed effect cards and structure builder
+  forms now offer a variable picker for choosing target variables.
+- **Condition remove** — remove button placed next to condition cards for
+  quick deletion.
+
+### Bug Fixes
+
+- **Cross-mod install plan leak** — switching to a different mod now
+  automatically clears a stale install plan that belongs to the previous
+  project. A manual "Clear plan" button is also available.
+- **Cross-mod draft workspace leak** — draft workspace localStorage is now
+  scoped per project; old global-key items are migrated on first load.
+- **Storyboard cross-project pollution** — card colors, palette pins, and
+  recent items are now scoped per project instead of shared globally.
+- **Duplicate face-image directives** — the asset add slot checks existing
+  directives (not just roles), preventing DendryNexus metadata errors.
+- **Project cache reliability** — the fingerprint computation is now
+  consistent between save and check, so caching actually works on the next
+  startup. Locally edited templates force a fresh scan instead of serving a
+  stale pre-built index.
+- **Manual index rebuild** — a "Rebuild Index" button forces a full project
+  rescan without restarting the app, useful when the cache appears stale.
 
 ## Known Limitations
 

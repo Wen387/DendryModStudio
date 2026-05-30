@@ -23,6 +23,29 @@
   "announcementOnly": true,
   "notices": [
     {
+      "noticeId": "v0.98.1-update-2026-05-30",
+      "kind": "release",
+      "severity": "info",
+      "title": "v0.98.1 — Template Hub, debug panel overhaul, editing improvements",
+      "titleLocalized": {
+        "en": "v0.98.1 — Template Hub, debug panel overhaul, editing improvements",
+        "zh-Hant": "v0.98.1 — 範本中心、偵錯面板全面改版、編輯功能改進"
+      },
+      "body": "Download and manage game templates directly from the Studio. Runtime Preview debug panel rebuilt with typed inputs, grouped variables, pinning, search, and known-value autocomplete. Object Canvas gains route target picker, inline condition editing, and variable picker. Seven cross-mod and cache bugs fixed.",
+      "bodyLocalized": {
+        "en": "Download and manage game templates directly from the Studio. Runtime Preview debug panel rebuilt with typed inputs, grouped variables, pinning, search, and known-value autocomplete. Object Canvas gains route target picker, inline condition editing, and variable picker. Seven cross-mod and cache bugs fixed.",
+        "zh-Hant": "直接在 Studio 內下載和管理遊戲範本。實機預覽偵錯面板全面改版，支援型別輸入、分組變數、固定、搜尋和已知值自動完成。物件編輯器新增路由目標選擇器、內嵌條件編輯和變數選擇器。修復七個跨 Mod 與快取錯誤。"
+      },
+      "details": "Key changes in v0.98.1:\n\n• Template Hub — browse, download, and manage game template projects from within the Studio. Split asset archives keep large art downloads separate from source updates. Edit detection, backup, and stash-swap rollback protect against data loss.\n\n• Debug panel overhaul — typed inputs (toggle/number/text), variables grouped by meaning, pin and search, known-value autocomplete dropdown for text variables, full zh-Hant/en localization, and fullscreen debug access.\n\n• Object Canvas editing — route target autocomplete with scene search, compound condition structural preview, inline editable condition cards, variable picker for effect cards, and condition remove buttons.\n\n• Bug fixes — cross-mod install plan leak, cross-mod draft workspace leak, storyboard cross-project data pollution, duplicate face-image directives, project cache reliability improvements, stale template index after local edits, and manual index rebuild button.",
+      "detailsLocalized": {
+        "en": "Key changes in v0.98.1:\n\n• Template Hub — browse, download, and manage game template projects from within the Studio. Split asset archives keep large art downloads separate from source updates. Edit detection, backup, and stash-swap rollback protect against data loss.\n\n• Debug panel overhaul — typed inputs (toggle/number/text), variables grouped by meaning, pin and search, known-value autocomplete dropdown for text variables, full zh-Hant/en localization, and fullscreen debug access.\n\n• Object Canvas editing — route target autocomplete with scene search, compound condition structural preview, inline editable condition cards, variable picker for effect cards, and condition remove buttons.\n\n• Bug fixes — cross-mod install plan leak, cross-mod draft workspace leak, storyboard cross-project data pollution, duplicate face-image directives, project cache reliability improvements, stale template index after local edits, and manual index rebuild button.",
+        "zh-Hant": "v0.98.1 主要變化：\n\n• 範本中心——直接在 Studio 內瀏覽、下載和管理遊戲範本專案。分離式素材壓縮包讓大型美術下載與 source 更新分開。編輯偵測、備份和暫存交換回滾保護資料安全。\n\n• 偵錯面板全面改版——型別化輸入（開關/數字/文字）、按語義分組、固定和搜尋、文字變數已知值自動完成下拉選單、完整繁體中文/英文本地化，以及全螢幕偵錯存取。\n\n• 物件編輯器改進——路由目標自動完成場景搜尋、複合條件結構預覽、可編輯的內嵌條件卡片、效果卡片變數選擇器，以及條件移除按鈕。\n\n• 錯誤修復——跨 Mod 安裝計畫殘留、跨 Mod 草稿工作區洩漏、故事板跨專案資料污染、face-image 指令重複、專案快取可靠性改善、本地編輯後模板索引過期，以及手動重建索引按鈕。"
+      },
+      "downloadUrl": "https://github.com/Wen387/DendryModStudio/releases",
+      "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.98.1.md",
+      "publishedAt": "2026-05-30"
+    },
+    {
       "noticeId": "v0.98-release-2026-05-25",
       "kind": "release",
       "severity": "warning",
