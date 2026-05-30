@@ -1156,13 +1156,35 @@ function debugResizeScript() {
   ].join('\n');
 }
 
+function sourceLineReader(projectRoot) {
+  const cache = new Map();
+  return function readSourceLine(filePath, lineNumber) {
+    if (!filePath || !lineNumber) {
+      return '';
+    }
+    const fullPath = path.resolve(projectRoot, filePath);
+    if (!cache.has(fullPath)) {
+      try {
+        cache.set(fullPath, fs.readFileSync(fullPath, 'utf8').split('\n'));
+      } catch (_err) {
+        cache.set(fullPath, []);
+      }
+    }
+    const lines = cache.get(fullPath);
+    return lines && lines[lineNumber - 1] || '';
+  };
+}
+
 function createDebugSession(session, options) {
   const opts = options || {};
+  const projectIndex = opts.projectIndex || {};
   const controls = augmentDebugControlsWithPlan(
-    debugModel.buildDebugControls(opts.projectIndex || {}, {}),
+    debugModel.buildDebugControls(projectIndex, {}),
     opts.plan,
-    opts.projectIndex || {}
+    projectIndex
   );
+  const projectRoot = projectIndex.project && projectIndex.project.root || session.paths.modifiedRoot;
+  debugModel.enrichVariablesWithKnownValues(controls, projectIndex.variables, sourceLineReader(projectRoot));
   const enabled = Boolean(opts.projectIndex && opts.modifiedBuild && opts.modifiedBuild.ok);
   if (!enabled) {
     return {

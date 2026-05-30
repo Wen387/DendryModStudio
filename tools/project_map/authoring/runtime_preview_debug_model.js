@@ -328,8 +328,51 @@
     return ordered;
   }
 
+  var MAX_KNOWN_VALUES = 40;
+  var MAX_WRITE_LOCATIONS = 200;
+  var STRING_LITERAL_PATTERN = /=\s*"([^"]{1,80})"/g;
+
+  function enrichVariablesWithKnownValues(controls, indexVariables, readSourceLine) {
+    if (typeof readSourceLine !== 'function') {
+      return controls;
+    }
+    const variables = ensureArray(controls && controls.variables);
+    const indexByName = new Map(ensureArray(indexVariables).map((v) => [String(v && v.name || ''), v]));
+    variables.forEach((control) => {
+      if (control.valueType !== 'string') {
+        return;
+      }
+      const meta = indexByName.get(control.name);
+      const writes = ensureArray(meta && meta.writes).slice(0, MAX_WRITE_LOCATIONS);
+      if (!writes.length) {
+        return;
+      }
+      const seen = new Set();
+      for (var i = 0; i < writes.length && seen.size < MAX_KNOWN_VALUES; i++) {
+        const loc = writes[i];
+        const line = readSourceLine(loc && loc.path, loc && loc.line);
+        if (!line) {
+          continue;
+        }
+        var match;
+        STRING_LITERAL_PATTERN.lastIndex = 0;
+        while ((match = STRING_LITERAL_PATTERN.exec(line)) !== null) {
+          var left = line.slice(0, match.index).trim();
+          if (left.endsWith(control.name) || left.endsWith(control.name + ' ')) {
+            seen.add(match[1]);
+          }
+        }
+      }
+      if (seen.size) {
+        control.knownValues = Array.from(seen).sort();
+      }
+    });
+    return controls;
+  }
+
   const api = {
     buildDebugControls,
+    enrichVariablesWithKnownValues,
     validateVariableCommand,
     validateJumpCommand,
     commandHistoryEntry,

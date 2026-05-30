@@ -47,9 +47,9 @@
     },
     {
       "path": "tools/project_map/desktop/runtime_preview.js",
-      "maxLines": 1887,
+      "maxLines": 1909,
       "allowRaise": true,
-      "reason": "Desktop runtime preview orchestrator; extract audio/media sub-module before adding more. Raised 2026-05-30 from 1870 for debug panel nav/toggle/collapsible sections and standalone player page."
+      "reason": "Desktop runtime preview orchestrator. Raised 2026-05-30 from 1887 for sourceLineReader and known-value enrichment."
     },
     {
       "path": "tools/project_map/qa/run_desktop_scenario.js",

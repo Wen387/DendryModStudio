@@ -118,10 +118,45 @@ if (flagGroup) {
   assert(flagGroup.variables.some((v) => v.name === 'labor_law_seen'), 'event flag group should contain labor_law_seen');
 }
 
+// --- enrichVariablesWithKnownValues ---
+const enrichIndex = {
+  variables: [
+    {name: 'chancellor', writeCount: 3, writes: [
+      {path: 'source/scenes/events/cabinet.scene.dry', line: 5},
+      {path: 'source/scenes/events/cabinet.scene.dry', line: 12},
+      {path: 'source/scenes/events/cabinet.scene.dry', line: 20}
+    ]},
+    {name: 'year', writeCount: 1, writes: [
+      {path: 'source/scenes/root.scene.dry', line: 3}
+    ]}
+  ]
+};
+const enrichControls = {
+  variables: [
+    {name: 'chancellor', valueType: 'string', meaning: 'game state'},
+    {name: 'year', valueType: 'number', meaning: 'time gate'}
+  ]
+};
+const fakeLines = {
+  'source/scenes/events/cabinet.scene.dry:5': 'on-arrival: chancellor = "Brüning"; crisis += 1',
+  'source/scenes/events/cabinet.scene.dry:12': 'on-arrival: chancellor = "Hitler"',
+  'source/scenes/events/cabinet.scene.dry:20': 'on-arrival: chancellor = "Wirth"; chancellor = "Müller" if spd_majority',
+  'source/scenes/root.scene.dry:3': 'on-arrival: year = 1928'
+};
+debugModel.enrichVariablesWithKnownValues(enrichControls, enrichIndex.variables, (filePath, line) => fakeLines[filePath + ':' + line] || '');
+const chancellorCtl = enrichControls.variables.find((v) => v.name === 'chancellor');
+assert(chancellorCtl.knownValues && chancellorCtl.knownValues.length >= 3, 'enrichment should extract at least 3 known values for chancellor');
+assert(chancellorCtl.knownValues.includes('Brüning'), 'known values should include Brüning');
+assert(chancellorCtl.knownValues.includes('Hitler'), 'known values should include Hitler');
+assert(chancellorCtl.knownValues.includes('Müller'), 'known values should extract multiple assignments from a single line');
+const yearCtl = enrichControls.variables.find((v) => v.name === 'year');
+assert(!yearCtl.knownValues, 'number-type variables should not receive knownValues');
+
 process.stdout.write(JSON.stringify({
   ok: true,
   variables: controls.variables.length,
   scenes: controls.scenes.length,
   links: controls.links.length,
-  groups: grouped.length
+  groups: grouped.length,
+  knownValuesSample: chancellorCtl.knownValues
 }, null, 2) + '\n');
