@@ -34,14 +34,5 @@ docs/goals/
 # cnt-fai: author's local-only creative mod, intentionally kept out of the public repo
 tools/project_map/templates/cnt-fai/
 
-# Local private development notes
-.studio-local/
-AGENTS.md
-CLAUDE.md
-.agents/
-.codex
-.claude
-LLM
-HANDOVER.md
-SESSION_LOG.md
-*.local.md
+# Local private development notes are excluded via .git/info/exclude
+# so their paths stay invisible in the public repo.

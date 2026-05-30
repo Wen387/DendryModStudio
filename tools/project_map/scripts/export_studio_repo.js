@@ -223,13 +223,6 @@ function publicGitignore() {
     '',
     '# Local private development notes',
     '.studio-local/',
-    'AGENTS.md',
-    '.agents/',
-    '.codex',
-    '.claude',
-    'LLM',
-    'HANDOVER.md',
-    'SESSION_LOG.md',
     '*.local.md',
     ''
   ].join('\n');
