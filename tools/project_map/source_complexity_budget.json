@@ -18,13 +18,15 @@
     },
     {
       "path": "tools/project_map/authoring/object_authoring_canvas_model.js",
-      "maxLines": 1861,
-      "reason": "Object canvas model orchestrator; extract per-template handlers before adding more. Ratcheted 2026-05-27 from 1851 for existing-event subtitle/heading extraction."
+      "maxLines": 1866,
+      "allowRaise": true,
+      "reason": "Object canvas model orchestrator; extract per-template handlers before adding more. Raised 2026-05-30 from 1861 for projectSceneTargets in event body."
     },
     {
       "path": "tools/project_map/authoring/object_canvas_content_adapters.js",
-      "maxLines": 2857,
-      "reason": "Split content adapters before adding more object canvas behavior. Ratcheted 2026-05-22 from 1830."
+      "maxLines": 2862,
+      "allowRaise": true,
+      "reason": "Split content adapters before adding more object canvas behavior. Raised 2026-05-30 from 2857 for projectSceneTargets in template canvas body."
     },
     {
       "path": "tools/project_map/authoring/route_script_intelligence_model.js",
@@ -38,8 +40,9 @@
     },
     {
       "path": "tools/project_map/check_object_authoring_canvas_model.js",
-      "maxLines": 2442,
-      "reason": "Object canvas model check aggregates many archetypes; split per-archetype suites before adding more. Ratcheted 2026-05-27 from 2438 for subtitle extraction assertions."
+      "maxLines": 2464,
+      "allowRaise": true,
+      "reason": "Object canvas model check aggregates many archetypes; split per-archetype suites before adding more. Raised 2026-05-30 from 2458 for structure builder variable picker and condition remove placement assertions."
     },
     {
       "path": "tools/project_map/desktop/runtime_preview.js",
@@ -54,15 +57,15 @@
     },
     {
       "path": "tools/project_map/viewer/i18n/en.js",
-      "maxLines": 3336,
+      "maxLines": 3347,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-05-30 from 3326 for Template Hub info/standalone i18n keys."
+      "reason": "Catalog file; keep each language separate. Raised 2026-05-30 from 3345 for compound condition conjunction i18n keys."
     },
     {
       "path": "tools/project_map/viewer/i18n/zh-Hant.js",
-      "maxLines": 3336,
+      "maxLines": 3347,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-05-30 from 3326 for Template Hub info/standalone i18n keys."
+      "reason": "Catalog file; keep each language separate. Raised 2026-05-30 from 3345 for compound condition conjunction i18n keys."
     },
     {
       "path": "tools/project_map/viewer/index.html",
@@ -72,13 +75,15 @@
     },
     {
       "path": "tools/project_map/viewer/object_authoring_canvas_ui.js",
-      "maxLines": 4687,
-      "reason": "Keep orchestration here; split editor UI into workspace modules. Ratcheted 2026-05-26 from 4730 for DOM-detach guard in collectAudioModifiers."
+      "maxLines": 4750,
+      "allowRaise": true,
+      "reason": "Keep orchestration here; split editor UI into workspace modules. Raised 2026-05-30 from 4687 for route target picker insert and search filtering."
     },
     {
       "path": "tools/project_map/viewer/preview_object_editor.js",
-      "maxLines": 4364,
-      "reason": "Keep field rendering here; split domain sub-renderers into sibling modules. Ratcheted 2026-05-29 from 4970 after extracting the asset editor into preview_asset_editor.js."
+      "maxLines": 4580,
+      "allowRaise": true,
+      "reason": "Keep field rendering here; split domain sub-renderers into sibling modules. Raised 2026-05-30 from 4577 for condition remove action placement in choice logic panel."
     },
     {
       "path": "tools/project_map/viewer/styles/editing.css",

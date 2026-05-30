@@ -71,6 +71,7 @@
       return advancedEffectCard(field, row, options, parsed ? '' : 'unparsed_effect_expression');
     }
     const variable = normalizeVariableDisplay(parsed.variable);
+    const variableFieldId = fieldId(field) ? fieldId(field) + '.variable' : '';
     return {
       kind: 'state_change',
       sourceKind: 'expression',
@@ -87,7 +88,21 @@
       editability: effectEditability(field),
       removeAction: row && row.removeAction || null,
       variableEvidence: variables[bareVariableName(variable)] || null,
-      field
+      field,
+      fields: {
+        variable: {
+          value: variable,
+          original: variable,
+          role: 'effect',
+          semanticRole: 'effect_variable',
+          variablePicker: variableFieldId ? {
+            enabled: true,
+            mode: 'effect_variable',
+            targetFieldId: variableFieldId,
+            candidates: buildVariableCandidatesFromMap(variables)
+          } : {enabled: false, candidates: []}
+        }
+      }
     };
   }
 
@@ -318,6 +333,23 @@
       return 'advanced_source';
     }
     return 'guarded';
+  }
+
+  function buildVariableCandidatesFromMap(variables) {
+    if (!variables || typeof variables !== 'object') {
+      return [];
+    }
+    return Object.keys(variables).map(function(name) {
+      var evidence = variables[name];
+      return {
+        insertValue: name,
+        name: name,
+        label: name,
+        meaning: evidence && evidence.meaning || '',
+        summary: evidence && evidence.summary || '',
+        searchText: [name, evidence && evidence.meaning || '', evidence && evidence.summary || ''].join(' ')
+      };
+    }).filter(function(candidate) { return candidate.insertValue; });
   }
 
   function variableEvidenceMap(projectIndex) {

@@ -183,6 +183,13 @@ assert(semanticEventHtml.includes('data-semantic-intent="choice_condition"'), 'O
 assert(semanticEventHtml.includes('data-object-canvas-variable-target="option.0.chooseIf"'), 'Object Canvas event editor should render variable picker targets beside condition fields');
 assert(semanticEventHtml.includes('data-object-canvas-semantic-card="condition"'), 'Object Canvas should render conditions as semantic condition cards');
 assert(semanticEventHtml.includes('data-object-canvas-condition-structure="true"'), 'Object Canvas should show simple condition structure without guessing variable meaning');
+assert(previewObjectEditorSource.includes('function parseCondition('), 'Object Canvas should include a compound condition parser');
+assert(previewObjectEditorSource.includes('function parseConditionClause('), 'Object Canvas should include a clause parser for individual condition terms');
+assert(previewObjectEditorSource.includes('function renderCompoundConditionPreview('), 'Object Canvas should include a compound condition renderer');
+assert(previewObjectEditorSource.includes('function renderEditableOptionConditions('), 'Object Canvas should include inline editable condition rendering for option chips');
+assert(previewObjectEditorSource.includes('function findMatchingMetaCondition('), 'Object Canvas should include metadata condition field lookup for option chips');
+assert(/\.preview-object-condition-clause\s*\{/.test(previewObjectCss), 'Object Canvas should style individual condition clause rows');
+assert(/\.preview-object-condition-conjunction\s*\{/.test(previewObjectCss), 'Object Canvas should style condition conjunction labels');
 assert(semanticEventHtml.includes('data-object-canvas-semantic-card="route_outcome"'), 'Object Canvas should render route fields as semantic route cards');
 assert(semanticEventHtml.includes('preview-object-semantic-logic-overview is-route') && semanticEventHtml.includes('After this choice, go to'), 'Object Canvas route cards should lead with a route outcome summary, not raw source chrome');
 assert(previewObjectEditorSource.includes('<details class="preview-object-route-state-summary"'), 'Object Canvas route-state diagnostics should be collapsed evidence, not primary route chrome');
@@ -192,6 +199,10 @@ assert(semanticEventModel.eventBody.variablePickerCandidates.some((item) => item
 assert(!semanticEventHtml.includes('data-object-canvas-variable-pool'), 'Object Canvas render should not duplicate the full variable pool into every picker');
 assert(!semanticEventHtml.includes('data-object-canvas-variable-target="option.0.gotoAfter"'), 'Object Canvas route target should not render a variable picker target');
 assert(!semanticEventHtml.includes('data-object-canvas-variable-target="option.0.effect.0.op"'), 'Object Canvas effect operator should not render a variable picker target');
+assert(semanticRouteField.routeTargetPicker && semanticRouteField.routeTargetPicker.enabled, 'Object Canvas route target fields should expose route target candidates');
+assert(semanticRouteField.routeTargetPicker.candidates.length > 0, 'Object Canvas route target picker should have scene candidates from the project index');
+assert(semanticEventHtml.includes('data-object-canvas-route-target-picker="true"'), 'Object Canvas should render a route target picker beside route fields');
+assert(semanticEventHtml.includes('data-object-canvas-route-target-insert='), 'Object Canvas route target picker should render insertable candidate buttons');
 assert(/\.preview-object-choice-logic-group\s*\{[\s\S]{0,160}grid-template-columns:\s*minmax\(0,\s*1fr\)/.test(previewObjectCss), 'Object Canvas choice logic groups should be single-column so semantic cards do not collapse into a narrow sidebar');
 assert(/\.preview-object-semantic-effect-grid\s*\{[\s\S]{0,160}grid-template-columns:\s*minmax\(0,\s*1fr\)/.test(previewObjectCss), 'Object Canvas state-change editors should be single-column to avoid horizontal overflow');
 const semanticEffectOps = semanticOperations.buildEffectOperations([
@@ -205,6 +216,11 @@ const semanticEffectOps = semanticOperations.buildEffectOperations([
 assert(semanticEffectOps.cards.length === 5, 'semantic operations should build state-change cards for simple assignment/increment/decrement/multiply effects');
 assert(semanticEffectOps.cards.some((card) => card.variable === 'Q.XYADWNISA'), 'semantic operations should preserve unknown variable ids without guessing names');
 assert(semanticEffectOps.advancedItems.length === 1, 'semantic operations should keep compound raw effect lines in advanced source');
+const semanticOpsSource = fs.readFileSync(path.join(__dirname, 'authoring', 'object_semantic_operations_model.js'), 'utf8');
+assert(semanticOpsSource.includes('buildVariableCandidatesFromMap'), 'Semantic operations model should build variable picker candidates from the evidence map');
+const exprCard = semanticEffectOps.cards.find((card) => card.sourceKind === 'expression' && card.variable === 'Q.foo');
+assert(exprCard && exprCard.fields && exprCard.fields.variable, 'Expression-parsed effect cards should include a synthetic variable field for variable picker');
+assert(exprCard.fields.variable.variablePicker, 'Expression-parsed effect variable field should carry a variablePicker configuration');
 const menuCardDraft = {
   schemaVersion: '0.1',
   kind: 'card',
@@ -2016,7 +2032,7 @@ assert(newEvent.eventBody.eventStructure && newEvent.eventBody.eventStructure.pr
 assert(newEvent.eventBody.structureActions.some((field) => field.structureAction === 'add_option'), 'new Event should expose EventStructure add-option controls');
 assert(newEvent.eventBody.structureActions.some((field) => field.structureAction === 'add_branch'), 'new Event should expose EventStructure add-section controls');
 const newEventHtml = previewEditor.render(newEvent);
-assert(newEventHtml.includes('data-preview-object-condition-chips="true"') && newEventHtml.includes('public_order &gt;= 0'), 'new Event editor should render option conditions as scan-friendly chips');
+assert(newEventHtml.includes('public_order &gt;= 0'), 'new Event editor should render option conditions as inline editable cards or scan-friendly chips');
 assert(newEventHtml.includes('Updates the current draft.'), 'new Event structural creators should clearly show draft-update safety');
 assert(newEventHtml.includes('data-object-canvas-assets-panel="true"'), 'new Event editor should render Object Canvas asset slots in the editing pane');
 assert(newEventHtml.includes('data-object-canvas-asset-select="true"'), 'new Event editor should expose indexed asset selectors in the editing pane');
@@ -2432,6 +2448,12 @@ const removedNestedStructure = eventStructureModel.applyCommand(
 );
 const removedNestedDraft = eventStructureModel.toDraft(removedNestedStructure, sectionOptionNewEvent.changeState.draft);
 assert(removedNestedDraft.sections[0].options.length === 1 && removedNestedDraft.sections[0].options[0].id === 'nested_a', 'section-owned remove-option should remove only the targeted nested option');
+
+const structureUiSource = fs.readFileSync(path.join(__dirname, 'viewer', 'preview_object_structure_ui.js'), 'utf8');
+assert(structureUiSource.includes('function builderInputWithVariables('), 'Structure UI should include a builder input with variable picker');
+assert(structureUiSource.includes('object-canvas-variable-picker'), 'Structure UI builder should reuse existing variable picker markup');
+assert(previewObjectEditorSource.includes('conditionRemoveActions'), 'Object Canvas should separate condition remove actions from general choice delete actions');
+assert(previewObjectEditorSource.includes('preview-object-condition-actions'), 'Object Canvas should render condition remove actions inside the condition section');
 
 process.stdout.write(JSON.stringify({
   ok: true,

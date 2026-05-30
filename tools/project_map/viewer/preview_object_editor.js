@@ -2159,9 +2159,7 @@
       return [
         '<details class="preview-object-logic-details" open data-preview-object-logic="true" data-event-archetype="pure_event">',
         '<summary>' + escapeHtml(t('previewObjectEditor.textEventLogic', 'Text event conditions and effects')) + '</summary>',
-        triggerEffects.length || triggerActions.length
-          ? '<section class="preview-object-logic-section"><h4>' + escapeHtml(t('previewObjectEditor.triggerEffects', 'Trigger effects')) + '</h4>' + renderEffectFields(triggerEffects.concat(triggerActions), body) + '</section>'
-          : '',
+        renderGroupedTriggerEffects(triggerEffects, triggerActions, body),
         meta.length
           ? '<section class="preview-object-logic-section"><h4>' + escapeHtml(t('previewObjectEditor.conditions', 'Conditions and scheduling')) + '</h4>' + meta.map((field) => renderInlineField(field, {
             role: 'logic',
@@ -2192,11 +2190,30 @@
       backgroundEffects.length
         ? '<section class="preview-object-logic-section"><h4>' + escapeHtml(t('previewObjectEditor.backgroundEffects', 'Background writes')) + '</h4>' + renderBackgroundEffectRows(backgroundEffects) + '</section>'
         : '',
-      triggerEffects.length || triggerActions.length
-        ? '<section class="preview-object-logic-section"><h4>' + escapeHtml(t('previewObjectEditor.triggerEffects', 'Trigger effects')) + '</h4>' + renderEffectFields(triggerEffects.concat(triggerActions), body) + '</section>'
-        : '',
+      renderGroupedTriggerEffects(triggerEffects, triggerActions, body),
       '</details>'
     ].join('');
+  }
+
+  function effectHookName(field) {
+    return String(field && (field.effectHook || field.hook) || '').trim().toLowerCase();
+  }
+
+  function renderGroupedTriggerEffects(effects, actions, body) {
+    var arrival = effects.filter(function(field) { return effectHookName(field) !== 'on-departure' && effectHookName(field) !== 'on-display'; });
+    var departure = effects.filter(function(field) { return effectHookName(field) === 'on-departure'; });
+    var display = effects.filter(function(field) { return effectHookName(field) === 'on-display'; });
+    var parts = [];
+    if (arrival.length || actions.length) {
+      parts.push('<section class="preview-object-logic-section"><h4>' + escapeHtml(t('previewObjectEditor.triggerEffects', 'Trigger effects')) + '</h4>' + renderEffectFields(arrival.concat(actions), body) + '</section>');
+    }
+    if (departure.length) {
+      parts.push('<section class="preview-object-logic-section"><h4>' + escapeHtml(t('previewObjectEditor.departureEffects', 'Departure effects')) + '</h4>' + renderEffectFields(departure, body) + '</section>');
+    }
+    if (display.length) {
+      parts.push('<section class="preview-object-logic-section"><h4>' + escapeHtml(t('previewObjectEditor.displayEffects', 'Display effects')) + '</h4>' + renderEffectFields(display, body) + '</section>');
+    }
+    return parts.join('');
   }
 
   function choiceOwnedLogicFieldIds(body) {
@@ -2658,7 +2675,8 @@
     const optionAssetAddFields = assetAddFieldsForOption(option, eventBody, resultFields);
     const choiceActions = structureUi().optionStructureActions(option, eventBody);
     const effectGroup = choiceCardEffectGroup(structureUi().optionEffectGroup(option, eventBody), option, nextSection, eventBody);
-    const choiceDeleteActions = choiceActions.filter((field) => ['remove_option', 'remove_option_condition', 'move_option_up', 'move_option_down'].includes(String(field && field.structureAction || '')));
+    const conditionRemoveActions = choiceActions.filter((field) => String(field && field.structureAction || '') === 'remove_option_condition');
+    const choiceDeleteActions = choiceActions.filter((field) => ['remove_option', 'move_option_up', 'move_option_down'].includes(String(field && field.structureAction || '')));
     const choiceEffectActions = choiceActions.filter((field) => choiceEffectActionBelongsOnChoice(field, option, nextSection, eventBody));
     const resultActions = structureUi().resultSectionActions(resultFields, eventBody);
     const logicFields = choiceLogicFields(fields);
@@ -2681,7 +2699,7 @@
         role: 'choice-subtitle',
         element: 'input'
       }) : '',
-      renderChoiceLogicPanel(option, fields, resultFields, effectGroup, choiceEffectActions, eventBody, model),
+      renderChoiceLogicPanel(option, fields, resultFields, effectGroup, choiceEffectActions, eventBody, model, conditionRemoveActions),
       resultField ? renderInlineField(resultField, {
         role: 'choice-body',
         element: 'textarea'
@@ -2859,11 +2877,13 @@
     return String(field && [field.id, field.key, field.role, field.semanticRole, field.branchKind, field.transform, field.structureAction].filter(Boolean).join(' ') || '');
   }
 
-  function renderChoiceLogicPanel(option, fields, resultFields, effectGroup, choiceEffectActions, eventBody, model) {
+  function renderChoiceLogicPanel(option, fields, resultFields, effectGroup, choiceEffectActions, eventBody, model, conditionRemoveActions) {
     const logic = choiceLogicFields(fields);
+    const conditionRemoves = ensureArray(conditionRemoveActions);
     const conditionContent = [
-      renderOptionConditionChips(option, resultFields),
-      logic.conditions.length ? renderLogicFields(logic.conditions, 'choice-condition') : ''
+      renderEditableOptionConditions(option, resultFields, logic.conditions, eventBody),
+      logic.conditions.length ? renderLogicFields(logic.conditions, 'choice-condition') : '',
+      conditionRemoves.length ? '<div class="preview-object-entry-actions preview-object-condition-actions">' + conditionRemoves.map(function(field) { return structureUi().renderCompactStructureAction(field, eventBody); }).join('') + '</div>' : ''
     ].join('');
     const routeTarget = option && (option.targetId || option.gotoAfter || option.returnTarget || '');
     const routeContent = [
@@ -2969,12 +2989,12 @@
       placeholder: field && field.placeholder
     });
     const overview = kind === 'route'
-      ? renderSemanticRouteOverview(value, label)
+      ? renderSemanticRouteOverview(value, label, field)
       : renderSemanticConditionOverview(value, label);
     return [
       '<article class="preview-object-semantic-logic-card is-' + escapeAttr(safeClass(kind)) + '" data-object-canvas-semantic-card="' + escapeAttr(kind === 'route' ? 'route_outcome' : 'condition') + '"' + (presentation ? ' data-semantic-intent="' + escapeAttr(presentation.intent || '') + '" data-semantic-group="' + escapeAttr(presentation.group || '') + '"' : '') + '>',
       '<header>',
-      '<span>' + escapeHtml(kind === 'route' ? t('previewObjectEditor.semanticRoute.title', 'Route outcome') : t('previewObjectEditor.semanticCondition.title', 'Condition')) + '</span>',
+      '<span>' + escapeHtml(kind === 'route' ? routeCardTitle(field) : t('previewObjectEditor.semanticCondition.title', 'Condition')) + '</span>',
       renderSemanticStatusBadge(presentation, readOnly),
       '</header>',
       overview,
@@ -2984,19 +3004,46 @@
       '</label>',
       kind === 'condition' ? renderConditionStructurePreview(value) : '',
       kind === 'condition' ? renderFieldVariablePicker(field, presentation, readOnly) : '',
+      kind === 'route' ? renderFieldRouteTargetPicker(field, presentation, readOnly) : '',
       renderSemanticLogicEvidence(field),
       '</article>'
     ].join('');
   }
 
-  function renderSemanticRouteOverview(value, label) {
+  function routeOverviewPrefix(field) {
+    var intent = String(field && (field.semanticIntent || field.semanticPresentation && field.semanticPresentation.intent) || '');
+    if (intent === 'jump_return_route') {
+      return t('previewObjectEditor.semanticRoute.jumpPrefix', 'Set return point to');
+    }
+    if (intent === 'call_route') {
+      return t('previewObjectEditor.semanticRoute.callPrefix', 'Call utility scene');
+    }
+    return t('previewObjectEditor.semanticRoute.summaryPrefix', 'After this choice, go to');
+  }
+
+  function routeCardTitle(field) {
+    var intent = String(field && (field.semanticIntent || field.semanticPresentation && field.semanticPresentation.intent) || '');
+    if (intent === 'jump_return_route') {
+      return t('previewObjectEditor.semanticRoute.jumpTitle', 'Return point');
+    }
+    if (intent === 'call_route') {
+      return t('previewObjectEditor.semanticRoute.callTitle', 'Scene call');
+    }
+    return t('previewObjectEditor.semanticRoute.title', 'Route outcome');
+  }
+
+  function renderSemanticRouteOverview(value, label, field) {
     const target = String(value || '').trim();
     const description = String(label || '').trim();
+    const candidates = ensureArray(field && field.routeTargetPicker && field.routeTargetPicker.candidates);
+    const match = candidates.find((c) => String(c && (c.insertValue || c.name) || '') === target);
+    const titleDisplay = match && match.meaning ? String(match.meaning) : '';
     return [
-      '<div class="preview-object-semantic-logic-overview is-route">',
-      '<span>' + escapeHtml(t('previewObjectEditor.semanticRoute.summaryPrefix', 'After this choice, go to')) + '</span>',
+      '<div class="preview-object-semantic-logic-overview is-route' + (target && !match && candidates.length ? ' is-unknown-target' : '') + '">',
+      '<span>' + escapeHtml(routeOverviewPrefix(field)) + '</span>',
       target ? '<code>' + escapeHtml(target) + '</code>' : '<em>' + escapeHtml(t('previewObjectEditor.semanticRoute.missingTarget', 'choose a target')) + '</em>',
-      description && description !== target ? '<small>' + escapeHtml(description) + '</small>' : '',
+      titleDisplay ? '<small class="preview-object-route-target-title">' + escapeHtml(titleDisplay) + '</small>' : '',
+      description && description !== target && description !== titleDisplay ? '<small>' + escapeHtml(description) + '</small>' : '',
       '</div>'
     ].join('');
   }
@@ -3015,30 +3062,113 @@
   }
 
   function renderConditionStructurePreview(value) {
-    const parsed = parseSimpleCondition(value);
+    const parsed = parseCondition(value);
     if (!parsed) {
       return '';
     }
+    if (parsed.compound) {
+      return renderCompoundConditionPreview(parsed);
+    }
+    return renderSingleClausePreview(parsed);
+  }
+
+  function renderSingleClausePreview(clause) {
     return [
       '<div class="preview-object-condition-structure" data-object-canvas-condition-structure="true">',
-      '<span><strong>' + escapeHtml(t('previewObjectEditor.semanticCondition.variable', 'Variable')) + '</strong><em>' + escapeHtml(parsed.variable) + '</em></span>',
-      '<span><strong>' + escapeHtml(t('previewObjectEditor.semanticCondition.operator', 'Operator')) + '</strong><em>' + escapeHtml(parsed.operator) + '</em></span>',
-      '<span><strong>' + escapeHtml(t('previewObjectEditor.semanticCondition.value', 'Value')) + '</strong><em>' + escapeHtml(parsed.value) + '</em></span>',
+      renderClauseColumns(clause),
       '</div>'
     ].join('');
   }
 
-  function parseSimpleCondition(value) {
+  function renderCompoundConditionPreview(parsed) {
+    const conjunctionLabel = parsed.conjunction === 'or'
+      ? t('previewObjectEditor.semanticCondition.or', 'OR')
+      : t('previewObjectEditor.semanticCondition.and', 'AND');
+    return [
+      '<div class="preview-object-condition-structure is-compound" data-object-canvas-condition-structure="true" data-condition-conjunction="' + escapeAttr(parsed.conjunction) + '">',
+      parsed.clauses.map(function(clause, index) {
+        return (index > 0 ? '<span class="preview-object-condition-conjunction"><em>' + escapeHtml(conjunctionLabel) + '</em></span>' : '') +
+          '<div class="preview-object-condition-clause">' + renderClauseColumns(clause) + '</div>';
+      }).join(''),
+      '</div>'
+    ].join('');
+  }
+
+  function renderClauseColumns(clause) {
+    return [
+      '<span><strong>' + escapeHtml(t('previewObjectEditor.semanticCondition.variable', 'Variable')) + '</strong><em>' + escapeHtml(clause.variable) + '</em></span>',
+      '<span><strong>' + escapeHtml(t('previewObjectEditor.semanticCondition.operator', 'Operator')) + '</strong><em>' + escapeHtml(clause.operator) + '</em></span>',
+      '<span><strong>' + escapeHtml(t('previewObjectEditor.semanticCondition.value', 'Value')) + '</strong><em>' + escapeHtml(clause.value) + '</em></span>'
+    ].join('');
+  }
+
+  function parseCondition(value) {
     const text = String(value || '').trim();
-    const match = text.match(/^(Q\.)?([A-Za-z_][A-Za-z0-9_]*)\s*(>=|<=|==|=|>|<)\s*(.+)$/);
-    if (!match || /\s+(?:and|or)\s+/i.test(match[4])) {
+    if (!text) {
       return null;
     }
-    return {
-      variable: (match[1] || 'Q.') + match[2],
-      operator: match[3],
-      value: match[4].trim()
-    };
+    if (/[()]/.test(text)) {
+      return null;
+    }
+    const hasAnd = /\s+and\s+/i.test(text);
+    const hasOr = /\s+or\s+/i.test(text);
+    if (hasAnd && hasOr) {
+      return null;
+    }
+    if (hasAnd || hasOr) {
+      const conjunction = hasAnd ? 'and' : 'or';
+      const parts = text.split(new RegExp('\\s+' + conjunction + '\\s+', 'i'));
+      const clauses = parts.map(parseConditionClause).filter(Boolean);
+      if (clauses.length !== parts.length || clauses.length < 2) {
+        return null;
+      }
+      return {compound: true, conjunction: conjunction, clauses: clauses};
+    }
+    return parseConditionClause(text);
+  }
+
+  function parseConditionClause(text) {
+    const trimmed = String(text || '').trim();
+    if (!trimmed) {
+      return null;
+    }
+    const negatedBare = trimmed.match(/^not\s+(Q\.)?([A-Za-z_][A-Za-z0-9_]*)$/i);
+    if (negatedBare) {
+      return {
+        variable: (negatedBare[1] || 'Q.') + negatedBare[2],
+        operator: 'is',
+        value: 'false'
+      };
+    }
+    const comparison = trimmed.match(/^(Q\.)?([A-Za-z_][A-Za-z0-9_]*)\s*(>=|<=|!=|==|=|>|<)\s*(.+)$/);
+    if (comparison) {
+      const compValue = comparison[4].trim();
+      if (/\s+(?:and|or)\s+/i.test(compValue)) {
+        return null;
+      }
+      return {
+        variable: (comparison[1] || 'Q.') + comparison[2],
+        operator: comparison[3],
+        value: compValue
+      };
+    }
+    const bare = trimmed.match(/^(Q\.)?([A-Za-z_][A-Za-z0-9_]*)$/);
+    if (bare) {
+      return {
+        variable: (bare[1] || 'Q.') + bare[2],
+        operator: 'is',
+        value: 'true'
+      };
+    }
+    return null;
+  }
+
+  function parseSimpleCondition(value) {
+    const result = parseCondition(value);
+    if (result && result.compound) {
+      return null;
+    }
+    return result;
   }
 
   function renderSemanticLogicEvidence(field) {
@@ -3182,6 +3312,59 @@
         '</span>'
       ].join('')).join(''),
       '</div>'
+    ].join('');
+  }
+
+  function renderEditableOptionConditions(option, resultFields, existingConditionFields, eventBody) {
+    const chipRows = optionConditionSummaries(option, resultFields);
+    if (!chipRows.length) {
+      return '';
+    }
+    const coveredValues = new Set(ensureArray(existingConditionFields).map(function(field) {
+      return normalizeSummaryValue(field && (field.original || field.value));
+    }).filter(Boolean));
+    var parts = [];
+    chipRows.forEach(function(row) {
+      var normalized = normalizeSummaryValue(row.value);
+      if (normalized && coveredValues.has(normalized)) {
+        return;
+      }
+      if (row.kind === 'choose-if' || row.kind === 'view-if' || row.kind === 'condition') {
+        var metaField = findMatchingMetaCondition(row, eventBody);
+        if (metaField) {
+          parts.push(renderSemanticLogicField(metaField, 'condition', 'inline-choice-condition'));
+          coveredValues.add(normalized);
+          return;
+        }
+      }
+      parts.push(renderConditionChip(row));
+    });
+    return parts.length
+      ? '<div class="preview-object-condition-chips" data-preview-object-condition-chips="true">' + parts.join('') + '</div>'
+      : '';
+  }
+
+  function findMatchingMetaCondition(chipRow, eventBody) {
+    var metaFields = ensureArray(eventBody && eventBody.metaFields);
+    var chipValue = normalizeSummaryValue(chipRow && chipRow.value);
+    if (!chipValue) {
+      return null;
+    }
+    return metaFields.find(function(field) {
+      if (String(field && field.role || '') !== 'condition') {
+        return false;
+      }
+      var fieldValue = normalizeSummaryValue(field && (field.original || field.value));
+      return fieldValue === chipValue;
+    }) || null;
+  }
+
+  function renderConditionChip(row) {
+    return [
+      '<span data-condition-kind="' + escapeAttr(row.kind || 'condition') + '">',
+      '<strong>' + escapeHtml(row.label) + '</strong>',
+      '<em>' + escapeHtml(row.value) + '</em>',
+      '</span>'
     ].join('');
   }
 
@@ -3368,7 +3551,7 @@
 
   function renderFieldVariablePicker(field, presentation, readOnly) {
     const picker = field && field.variablePicker || {};
-    const id = fieldId(field);
+    const id = fieldId(field) || String(picker.targetFieldId || '');
     if (readOnly || !picker.enabled || !id || !ensureArray(picker.candidates).length) {
       return '';
     }
@@ -3396,6 +3579,39 @@
       candidate && candidate.meaning ? '<span>' + escapeHtml(candidate.meaning) + '</span>' : '',
       candidate && candidate.summary ? '<small>' + escapeHtml(candidate.summary) + '</small>' : '',
       presentation && presentation.variablePicker && presentation.variablePicker.mode ? '<code>' + escapeHtml(value) + '</code>' : '',
+      '</button>'
+    ].join('');
+  }
+
+  function renderFieldRouteTargetPicker(field, presentation, readOnly) {
+    const picker = field && field.routeTargetPicker || {};
+    const id = fieldId(field);
+    if (readOnly || !picker.enabled || !id || !ensureArray(picker.candidates).length) {
+      return '';
+    }
+    const searchId = 'route_target_picker_' + safeClass(id);
+    return [
+      '<details class="object-canvas-route-target-picker" data-object-canvas-route-target-picker="true" data-route-target-field="' + escapeAttr(id) + '" data-route-target-picker-limit="12">',
+      '<summary>' + escapeHtml(t('previewObjectEditor.routeTargetPicker', 'Scene target picker')) + '</summary>',
+      '<label class="object-canvas-variable-search"><span>' + escapeHtml(t('previewObjectEditor.routeTargetSearch', 'Search scenes')) + '</span><input id="' + escapeAttr(searchId) + '" type="search" data-object-canvas-route-target-search="true" placeholder="' + escapeAttr(t('previewObjectEditor.routeTargetSearchPlaceholder', 'type to filter scenes')) + '"></label>',
+      '<div class="object-canvas-route-target-candidates" data-object-canvas-route-target-candidates="true">',
+      ensureArray(picker.candidates).slice(0, 12).map((candidate) => renderRouteTargetCandidate(candidate, id)).join(''),
+      '</div>',
+      '</details>'
+    ].join('');
+  }
+
+  function renderRouteTargetCandidate(candidate, targetFieldId) {
+    const value = String(candidate && (candidate.insertValue || candidate.name) || '');
+    if (!value) {
+      return '';
+    }
+    const search = String(candidate && (candidate.searchText || [candidate.name, candidate.label, candidate.meaning, candidate.summary].join(' ')) || '').toLowerCase();
+    return [
+      '<button type="button" class="object-canvas-route-target-candidate" data-object-canvas-route-target-insert="' + escapeAttr(value) + '" data-object-canvas-route-target-field="' + escapeAttr(targetFieldId) + '" data-object-canvas-route-target-search-text="' + escapeAttr(search) + '">',
+      '<strong>' + escapeHtml(value) + '</strong>',
+      candidate && candidate.meaning ? '<span>' + escapeHtml(candidate.meaning) + '</span>' : '',
+      candidate && candidate.summary ? '<small>' + escapeHtml(candidate.summary) + '</small>' : '',
       '</button>'
     ].join('');
   }

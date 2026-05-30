@@ -1953,7 +1953,12 @@
     const next = Object.assign({}, body, {
       assets: assets.length ? assets : ensureArray(body && body.assets),
       assetAddFields: ensureArray(body && body.assetAddFields).concat(assetAddFields),
-      assetCatalog: assetCatalog(projectIndex, def)
+      assetCatalog: assetCatalog(projectIndex, def),
+      projectSceneTargets: body && body.projectSceneTargets || ensureArray(projectIndex && projectIndex.scenes).map((scene) => ({
+        id: String(scene && scene.id || ''),
+        title: String(scene && scene.title || ''),
+        tags: ensureArray(scene && scene.tags).map(String)
+      })).filter((target) => target.id)
     });
     const presentation = fieldPresentationApi();
     return presentation && typeof presentation.enrichEventBody === 'function'

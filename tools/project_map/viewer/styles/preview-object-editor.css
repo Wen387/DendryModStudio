@@ -2002,6 +2002,67 @@ input.preview-object-control[type="checkbox"] {
   line-height: 1.35;
 }
 
+.object-canvas-route-target-picker {
+  display: grid;
+  gap: 7px;
+  padding: 7px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-alt) 72%, #ffffff);
+}
+
+.object-canvas-route-target-picker summary {
+  cursor: pointer;
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.object-canvas-route-target-candidates {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 6px;
+}
+
+.object-canvas-route-target-candidate {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 7px 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.object-canvas-route-target-candidate:hover,
+.object-canvas-route-target-candidate:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.object-canvas-route-target-candidate strong,
+.object-canvas-route-target-candidate code {
+  overflow-wrap: anywhere;
+}
+
+.object-canvas-route-target-candidate span,
+.object-canvas-route-target-candidate small {
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.preview-object-route-target-title {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.preview-object-semantic-logic-overview.is-route.is-unknown-target code {
+  color: var(--warning, #b86b00);
+}
+
 .preview-object-effect-fields.is-semantic-effects {
   display: grid;
   gap: 10px;
@@ -2229,6 +2290,52 @@ input.preview-object-control[type="checkbox"] {
   color: var(--text);
   font-style: normal;
   overflow-wrap: anywhere;
+}
+
+.preview-object-condition-structure.is-compound {
+  grid-template-columns: 1fr;
+  gap: 4px;
+}
+
+.preview-object-condition-clause {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.preview-object-condition-clause span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px 7px;
+  border: 1px solid var(--border-soft);
+  border-radius: 7px;
+  background: var(--surface-alt);
+}
+
+.preview-object-condition-clause strong {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.preview-object-condition-clause em {
+  color: var(--text);
+  font-style: normal;
+  overflow-wrap: anywhere;
+}
+
+.preview-object-condition-conjunction {
+  display: flex;
+  justify-content: center;
+  padding: 2px 0;
+}
+
+.preview-object-condition-conjunction em {
+  color: var(--accent-strong);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 850;
+  letter-spacing: 0.5px;
 }
 
 .preview-object-route-state-summary {

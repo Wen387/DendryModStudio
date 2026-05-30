@@ -411,6 +411,11 @@
       scriptRows: ensureArray(context.editModel && context.editModel.scriptRows),
       opaqueJsBlocks: ensureArray(context.editModel && context.editModel.opaqueJsBlocks),
       projectSceneIds: ensureArray(projectIndex && projectIndex.scenes).map((scene) => String(scene && scene.id || '')).filter(Boolean),
+      projectSceneTargets: ensureArray(projectIndex && projectIndex.scenes).map((scene) => ({
+        id: String(scene && scene.id || ''),
+        title: String(scene && scene.title || ''),
+        tags: ensureArray(scene && scene.tags).map(String)
+      })).filter((target) => target.id),
       flow: context.flow || context.editModel && context.editModel.flow || {nodes: [], edges: [], summary: {}},
       sourceStructureGraph: context.sourceStructureGraph || context.editModel && context.editModel.sourceStructureGraph || null,
       effects: effectEditors.filter((editor) => !editor.optionId && !editor.sectionId),

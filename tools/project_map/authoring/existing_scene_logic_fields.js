@@ -88,7 +88,7 @@
           fields.push({
             id: safeId('route_' + owner.id + '_' + fieldName + '_' + (index + 1)),
             role: 'route',
-            label: 'Go-to target: ' + owner.label,
+            label: routeFieldLabel(fieldName) + ': ' + owner.label,
             original: rawTarget,
             value: rawTarget,
             source,
@@ -143,6 +143,19 @@
       });
     });
     return fields;
+  }
+
+  function routeFieldLabel(fieldName) {
+    if (fieldName === 'setJump') {
+      return 'Return target';
+    }
+    if (fieldName === 'call') {
+      return 'Call scene';
+    }
+    if (fieldName === 'goToRef') {
+      return 'Go-to ref';
+    }
+    return 'Go-to target';
   }
 
   function collectRouteOwners(scene) {

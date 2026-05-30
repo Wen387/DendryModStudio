@@ -1849,6 +1849,13 @@
         if (event.__dmsObjectCanvasHandled) {
           return;
         }
+        const routeTargetButton = event.target && event.target.closest ? event.target.closest('[data-object-canvas-route-target-insert]') : null;
+        if (routeTargetButton && elements.host.contains(routeTargetButton)) {
+          event.preventDefault();
+          event.__dmsObjectCanvasHandled = true;
+          handleRouteTargetInsert(routeTargetButton);
+          return;
+        }
         const variableButton = event.target && event.target.closest ? event.target.closest('[data-object-canvas-variable-copy]') : null;
         if (variableButton && elements.host.contains(variableButton)) {
           event.preventDefault();
@@ -2004,6 +2011,10 @@
         const input = target && target.closest ? target.closest('[data-object-canvas-variable-search]') : null;
         if (input) {
           filterObjectCanvasVariablePicker(input);
+        }
+        const routeTargetSearch = target && target.closest ? target.closest('[data-object-canvas-route-target-search]') : null;
+        if (routeTargetSearch) {
+          filterRouteTargetPicker(target);
         }
       });
     }
@@ -2726,6 +2737,37 @@
     return text ? 'Q.' + text : '';
   }
 
+  function handleRouteTargetInsert(button) {
+    if (!button) {
+      return;
+    }
+    const value = button.dataset && button.dataset.objectCanvasRouteTargetInsert || '';
+    const targetFieldId = button.dataset && button.dataset.objectCanvasRouteTargetField || '';
+    if (!value || !targetFieldId) {
+      return;
+    }
+    const roots = collectCanvasValueRoots();
+    let input = null;
+    for (let index = 0; index < roots.length; index += 1) {
+      input = roots[index].querySelector('[data-object-canvas-field="' + targetFieldId + '"]');
+      if (input) {
+        break;
+      }
+    }
+    if (!input) {
+      return;
+    }
+    input.value = value;
+    input.dispatchEvent(new (global.Event || Event)('input', {bubbles: true}));
+    input.dispatchEvent(new (global.Event || Event)('change', {bubbles: true}));
+    state.values = collectValues();
+    scheduleRefresh({source: 'route_target_insert', changedFieldKey: targetFieldId});
+    const picker = button.closest('[data-object-canvas-route-target-picker]');
+    if (picker && picker.open !== undefined) {
+      picker.open = false;
+    }
+  }
+
   function handleVariableCopy(button) {
     if (!button) {
       return;
@@ -2777,6 +2819,27 @@
     button.setAttribute('aria-label', stateName === 'copied'
       ? t('previewObjectEditor.variableCopied', 'Copied variable snippet')
       : t('previewObjectEditor.variableCopyManual', 'Copy this variable snippet'));
+  }
+
+  function filterRouteTargetPicker(input) {
+    if (!input || !input.closest) {
+      return;
+    }
+    const picker = input.closest('[data-object-canvas-route-target-picker]');
+    if (!picker) {
+      return;
+    }
+    const terms = String(input.value || '').toLowerCase().trim().split(/\s+/).filter(Boolean);
+    const limit = Math.max(1, Number(picker.dataset && picker.dataset.routeTargetPickerLimit || 12));
+    let shown = 0;
+    picker.querySelectorAll('[data-object-canvas-route-target-insert]').forEach((button) => {
+      const haystack = String(button.dataset && button.dataset.objectCanvasRouteTargetSearchText || button.textContent || '').toLowerCase();
+      const visible = (!terms.length || terms.every((term) => haystack.indexOf(term) >= 0)) && shown < limit;
+      button.hidden = !visible;
+      if (visible) {
+        shown += 1;
+      }
+    });
   }
 
   function filterObjectCanvasVariablePicker(input) {

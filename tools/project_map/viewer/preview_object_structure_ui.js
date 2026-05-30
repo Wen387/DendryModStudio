@@ -51,6 +51,7 @@
       renderStructureBuilder,
       structureActionHelp,
       builderInput,
+      builderInputWithVariables,
       builderTextarea,
       builderSelect
     };
@@ -446,12 +447,12 @@
         builderInput('option_label', t('previewObjectEditor.structureOptionText', 'Option text'), draft.label, t('previewObjectEditor.structureOptionTextPlaceholder', 'What the player clicks')),
         builderInput('target_id', t('previewObjectEditor.structureTargetId', 'Target section ID'), draft.target, 'new_option'),
         builderSelect('result_mode', t('previewObjectEditor.structureResultMode', 'Result routing'), draft.resultMode || 'native', ['native', 'continue']),
-        builderInput('choose_if', t('previewObjectEditor.chooseIf', 'Choose if'), draft.chooseIf, 'Q.variable >= 1'),
+        builderInputWithVariables('choose_if', t('previewObjectEditor.chooseIf', 'Choose if'), draft.chooseIf, 'Q.variable >= 1', body),
         builderInput('unavailable_text', t('previewObjectEditor.unavailableText', 'Unavailable text'), draft.unavailableText, t('previewObjectEditor.unavailableTextPlaceholder', 'Requirement not met')),
-        builderInput('effect_variable', t('previewObjectEditor.structureVariable', 'Variable'), draft.effect && draft.effect.variable || '', 'public_order'),
+        builderInputWithVariables('effect_variable', t('previewObjectEditor.structureVariable', 'Variable'), draft.effect && draft.effect.variable || '', 'public_order', body),
         builderSelect('effect_operation', t('previewObjectEditor.structureOperation', 'Operation'), draft.effect && draft.effect.op || '+=', ['=', '+=', '-=']),
         builderInput('effect_value', t('previewObjectEditor.structureValue', 'Value'), draft.effect && draft.effect.value || '', '1'),
-        builderInput('effect_condition', t('previewObjectEditor.structureConditionOptional', 'Condition (optional)'), draft.effect && draft.effect.condition || '', 'Q.flag'),
+        builderInputWithVariables('effect_condition', t('previewObjectEditor.structureConditionOptional', 'Condition (optional)'), draft.effect && draft.effect.condition || '', 'Q.flag', body),
         builderTextarea('result_text', t('previewObjectEditor.structureResultText', 'Result text'), draft.result, t('previewObjectEditor.structureResultTextPlaceholder', 'What happens after this choice'))
       ], body);
     }
@@ -470,10 +471,10 @@
       return renderStructureBuilder(field, action, action === 'add_option_effect'
         ? t('previewObjectEditor.structureChoiceEffectTitle', 'New choice effect')
         : t('previewObjectEditor.structureTriggerEffectTitle', 'New on-arrival effect'), [
-        builderInput('variable', t('previewObjectEditor.structureVariable', 'Variable'), draft.variable, 'public_order'),
+        builderInputWithVariables('variable', t('previewObjectEditor.structureVariable', 'Variable'), draft.variable, 'public_order', body),
         builderSelect('operation', t('previewObjectEditor.structureOperation', 'Operation'), draft.op || '+=', ['=', '+=', '-=']),
         builderInput('value', t('previewObjectEditor.structureValue', 'Value'), draft.value, '1'),
-        builderInput('condition', t('previewObjectEditor.structureConditionOptional', 'Condition (optional)'), draft.condition, 'Q.flag')
+        builderInputWithVariables('condition', t('previewObjectEditor.structureConditionOptional', 'Condition (optional)'), draft.condition, 'Q.flag', body)
       ], body);
     }
 
@@ -516,6 +517,39 @@
         '<span>' + escapeHtml(label) + '</span>',
         '<input type="text" data-preview-object-structure-part="' + escapeAttr(part) + '" value="' + escapeAttr(value) + '"' + (placeholder ? ' placeholder="' + escapeAttr(placeholder) + '"' : '') + '>',
         '</label>'
+      ].join('');
+    }
+
+    function builderInputWithVariables(part, label, value, placeholder, body) {
+      var candidates = ensureArray(body && body.variablePickerCandidates);
+      if (!candidates.length) {
+        return builderInput(part, label, value, placeholder);
+      }
+      var pickerId = 'structure_var_picker_' + safeClass(part);
+      var limit = 12;
+      return [
+        '<label>',
+        '<span>' + escapeHtml(label) + '</span>',
+        '<input type="text" data-preview-object-structure-part="' + escapeAttr(part) + '" value="' + escapeAttr(value) + '"' + (placeholder ? ' placeholder="' + escapeAttr(placeholder) + '"' : '') + '>',
+        '</label>',
+        '<details class="object-canvas-variable-picker" data-object-canvas-variable-picker="true" data-variable-target-field="" data-variable-picker-mode="effect_variable" data-variable-picker-limit="' + String(limit) + '">',
+        '<summary>' + escapeHtml(t('previewObjectEditor.variablePicker', 'Variable picker')) + '</summary>',
+        '<label class="object-canvas-variable-search"><span>' + escapeHtml(t('previewObjectEditor.variableSearch', 'Search variables')) + '</span><input id="' + escapeAttr(pickerId) + '" type="search" data-object-canvas-variable-search="true" placeholder="' + escapeAttr(t('previewObjectEditor.variableSearchPlaceholder', 'type to filter')) + '"></label>',
+        '<div class="object-canvas-variable-candidates" data-object-canvas-variable-candidates="true">',
+        candidates.slice(0, limit).map(function(candidate) {
+          var insertValue = String(candidate && (candidate.insertValue || candidate.name) || '');
+          if (!insertValue) { return ''; }
+          var searchText = String(candidate && (candidate.searchText || [candidate.name, candidate.label, candidate.meaning, candidate.summary].join(' ')) || '').toLowerCase();
+          return [
+            '<button type="button" class="object-canvas-variable-candidate" data-object-canvas-variable-copy="' + escapeAttr(insertValue) + '" data-object-canvas-variable-search-text="' + escapeAttr(searchText) + '">',
+            '<strong>' + escapeHtml(candidate && (candidate.label || candidate.name) || insertValue) + '</strong>',
+            candidate && candidate.meaning ? '<span>' + escapeHtml(candidate.meaning) + '</span>' : '',
+            candidate && candidate.summary ? '<small>' + escapeHtml(candidate.summary) + '</small>' : '',
+            '</button>'
+          ].join('');
+        }).join(''),
+        '</div>',
+        '</details>'
       ].join('');
     }
 

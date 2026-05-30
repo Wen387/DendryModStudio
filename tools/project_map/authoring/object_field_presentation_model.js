@@ -70,7 +70,10 @@
         enabled: true,
         mode: variableMode,
         targetFieldId: id
-      } : {enabled: false, mode: '', targetFieldId: id}
+      } : {enabled: false, mode: '', targetFieldId: id},
+      routeTargetPicker: (group === 'routes' && intent !== 'route_predicate')
+        ? {enabled: true, targetFieldId: id}
+        : {enabled: false, targetFieldId: ''}
     };
   }
 
@@ -78,6 +81,7 @@
     const next = cloneBody(body);
     const opts = isObject(options) ? options : {};
     const candidates = buildVariableCandidates(projectIndex, opts);
+    const sceneTargets = buildSceneTargetCandidates(body);
     next.variablePickerCandidates = candidates;
     if (opts.routeState) {
       next.routeState = opts.routeState;
@@ -85,25 +89,26 @@
     } else if (next.routeState && !next.routeStateSummaries) {
       next.routeStateSummaries = routeStateSummaries(next.routeState);
     }
-    next.title = enrichField(next.title, candidates);
-    next.subtitle = enrichField(next.subtitle, candidates);
-    next.heading = enrichField(next.heading, candidates);
+    next.title = enrichField(next.title, candidates, {sceneTargets});
+    next.subtitle = enrichField(next.subtitle, candidates, {sceneTargets});
+    next.heading = enrichField(next.heading, candidates, {sceneTargets});
     ['sections', 'branchSections', 'metaFields', 'effects', 'sectionEffects', 'backgroundEffects', 'assetAddFields'].forEach((key) => {
-      next[key] = ensureArray(next[key]).map((field) => enrichField(field, candidates));
+      next[key] = ensureArray(next[key]).map((field) => enrichField(field, candidates, {sceneTargets}));
     });
-    next.options = ensureArray(next.options).map((option) => enrichOption(option, candidates));
+    next.options = ensureArray(next.options).map((option) => enrichOption(option, candidates, {sceneTargets}));
     next.optionEffects = ensureArray(next.optionEffects).map((group) => Object.assign({}, group, {
-      fields: ensureArray(group && group.fields).map((field) => enrichField(field, candidates, {optionId: group && (group.optionId || group.id)}))
+      fields: ensureArray(group && group.fields).map((field) => enrichField(field, candidates, {optionId: group && (group.optionId || group.id), sceneTargets}))
     }));
-    next.structureActions = ensureArray(next.structureActions).map((field) => enrichField(field, candidates));
+    next.structureActions = ensureArray(next.structureActions).map((field) => enrichField(field, candidates, {sceneTargets}));
     return next;
   }
 
-  function enrichOption(option, candidates) {
+  function enrichOption(option, candidates, options) {
     const value = isObject(option) ? option : {};
+    const opts = isObject(options) ? options : {};
     return Object.assign({}, value, {
-      fields: ensureArray(value.fields).map((field) => enrichField(field, candidates, {optionId: value.id})),
-      resultFields: ensureArray(value.resultFields).map((field) => enrichField(field, candidates, {optionId: value.id}))
+      fields: ensureArray(value.fields).map((field) => enrichField(field, candidates, {optionId: value.id, sceneTargets: opts.sceneTargets})),
+      resultFields: ensureArray(value.resultFields).map((field) => enrichField(field, candidates, {optionId: value.id, sceneTargets: opts.sceneTargets}))
     });
   }
 
@@ -111,13 +116,16 @@
     if (!isObject(field)) {
       return field;
     }
-    const presentation = classifyField(field, options);
+    const opts = isObject(options) ? options : {};
+    const presentation = classifyField(field, opts);
     const picker = buildVariablePicker(candidates, field, {presentation});
+    const routeTargetPicker = buildRouteTargetPicker(opts.sceneTargets || [], field, {presentation});
     return Object.assign({}, field, {
       semanticIntent: presentation.intent,
       semanticGroup: presentation.group,
       semanticPresentation: presentation,
-      variablePicker: picker
+      variablePicker: picker,
+      routeTargetPicker: routeTargetPicker
     });
   }
 
@@ -151,6 +159,31 @@
       result.searchCandidates = candidates.map((candidate) => variablePickerCandidate(candidate, picker.mode));
     }
     return result;
+  }
+
+  function buildSceneTargetCandidates(body) {
+    return ensureArray(body && body.projectSceneTargets).map((target) => ({
+      insertValue: String(target && target.id || ''),
+      name: String(target && target.id || ''),
+      label: String(target && target.title || target && target.id || ''),
+      meaning: target && target.title && target.title !== target.id ? String(target.title) : '',
+      summary: ensureArray(target && target.tags).join(', '),
+      searchText: [target && target.id || '', target && target.title || '', ensureArray(target && target.tags).join(' ')].join(' ')
+    })).filter((candidate) => candidate.insertValue);
+  }
+
+  function buildRouteTargetPicker(sceneTargets, field, options) {
+    const opts = isObject(options) ? options : {};
+    const presentation = opts.presentation || classifyField(field, opts);
+    const picker = presentation.routeTargetPicker || {};
+    if (!picker.enabled || !ensureArray(sceneTargets).length) {
+      return {enabled: false, candidates: []};
+    }
+    return {
+      enabled: true,
+      targetFieldId: picker.targetFieldId || stringValue(field && (field.id || field.fieldId)),
+      candidates: ensureArray(sceneTargets)
+    };
   }
 
   function routeStateSummaries(routeState) {
@@ -372,14 +405,18 @@
       /(?:title|heading|intro|body|label|subtitle|paragraph)/i.test(id);
   }
 
-  function routeIntent(_field, id, _role, semanticRole, _action) {
+  function routeIntent(field, id, _role, semanticRole, _action) {
+    var routeKind = String(field && field.routeKind || '');
     if (/predicate/i.test(id)) {
       return 'route_predicate';
     }
-    if (/setJump|set-jump/i.test(id) || semanticRole.indexOf('jump') >= 0) {
+    if (routeKind === 'setJump' || /setJump|set-jump/i.test(id) || semanticRole.indexOf('jump') >= 0) {
       return 'jump_return_route';
     }
-    if (/rawRoutes|calls/i.test(id) || semanticRole.indexOf('call') >= 0) {
+    if (routeKind === 'call' || /\bcalls?\b/i.test(id) || semanticRole.indexOf('call_route') >= 0) {
+      return 'call_route';
+    }
+    if (/rawRoutes/i.test(id) || semanticRole.indexOf('raw_route') >= 0) {
       return 'advanced_route_source';
     }
     return 'route_target';
@@ -443,8 +480,14 @@
     if (intent === 'jump_return_route') {
       return 'Return target';
     }
+    if (intent === 'call_route') {
+      return 'Call scene';
+    }
     if (intent === 'route_predicate') {
       return 'Route condition';
+    }
+    if (intent === 'advanced_route_source') {
+      return 'Advanced route source';
     }
     return label && !/^route$/i.test(label) ? label : 'Route target';
   }
