@@ -464,7 +464,12 @@ ipcMain.handle('dendry:catalog-open-template', async (_event, options) => {
         // Pre-built index is optional; fall through to local scan.
       }
     }
-    if (entry.assetsAssetName) {
+  }
+  // Asset download runs for both fresh installs and already-installed templates
+  // whose assets haven't been fetched yet.
+  if (entry.assetsAssetName) {
+    var assetMarker = templateCatalog.readMarker(installDir);
+    if (!assetMarker || !assetMarker.assetsInstalled) {
       sendScanProgress(target, {
         stage: 'catalog-assets',
         percent: 62,
@@ -483,13 +488,19 @@ ipcMain.handle('dendry:catalog-open-template', async (_event, options) => {
           }
         });
         if (assetsResult && !assetsResult.skipped) {
-          var existingMarker = templateCatalog.readMarker(installDir);
-          if (existingMarker) {
-            templateCatalog.writeMarker(installDir, Object.assign({}, existingMarker, {
+          var updatedMarker = templateCatalog.readMarker(installDir);
+          if (updatedMarker) {
+            templateCatalog.writeMarker(installDir, Object.assign({}, updatedMarker, {
               assetsInstalled: true,
               assetsAssetName: entry.assetsAssetName
             }));
           }
+        } else if (assetsResult && assetsResult.skipped) {
+          sendScanProgress(target, {
+            stage: 'catalog-assets',
+            percent: 95,
+            label: 'Art assets not yet available on this release.'
+          });
         }
       } catch (_err) {
         // Assets are supplementary; the template is still usable without them.
