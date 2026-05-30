@@ -689,7 +689,8 @@
         plan: state.plan || emptyRuntimePreviewPlan(projectRoot),
         projectRoot,
         allowAdvanced,
-        projectIndex: state.projectIndex || null
+        projectIndex: state.projectIndex || null,
+        locale: currentLocale()
       });
       setRuntimePreviewResult(result);
       return result;
