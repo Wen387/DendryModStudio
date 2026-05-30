@@ -3087,6 +3087,7 @@
       'install.loadPlan': '載入修改計畫',
       'install.loadPlanButton': '載入計畫',
       'install.replacePlanButton': '更換計畫',
+      'install.clearPlanButton': '清除',
       'install.loadedPlan': '已載入修改計畫',
       'install.loadedDraftExport': '已從 Studio 草稿匯出載入 {count} 份已儲存的草稿計畫：{name}',
       'install.loadedSingleDraftExport': '已從 Studio 草稿匯出載入一份已儲存的草稿計畫：{name}',

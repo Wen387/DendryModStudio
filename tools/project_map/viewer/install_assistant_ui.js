@@ -27,6 +27,7 @@
 
   const api = {
     loadPlan,
+    clearPlan,
     renderInstallAssistantPlan,
     buildReviewApplyReadiness,
     buildReviewApplyUiState,
@@ -91,7 +92,8 @@
       operationSection: document.getElementById('install-operation-section'),
       diffSection: document.getElementById('install-diff-section'),
       runtimePreviewSection: document.getElementById('install-runtime-preview-section'),
-      resultSection: document.getElementById('install-result-section')
+      resultSection: document.getElementById('install-result-section'),
+      clearPlanButton: document.getElementById('install-clear-plan-button')
     };
     if (!elements.file) {
       return;
@@ -99,6 +101,11 @@
     bindIndexEvents();
     bindLocaleEvents();
     bindRuntimeLifecycle(document);
+    if (elements.clearPlanButton) {
+      elements.clearPlanButton.addEventListener('click', () => {
+        clearPlan();
+      });
+    }
     elements.file.addEventListener('change', (event) => {
       const file = event.target.files && event.target.files[0];
       if (file) {
@@ -205,6 +212,10 @@
       if (elements && elements.runtimePreview && !elements.runtimePreview.disabled) {
         elements.runtimePreview.click();
       }
+      return;
+    }
+    if (action === 'clear-plan') {
+      clearPlan();
     }
   }
 
@@ -230,8 +241,16 @@
     const handler = (event) => {
       const detail = event.detail || {};
       const index = detail.index || (detail.model && detail.model.index) || null;
+      const previousRoot = state.projectRoot;
       state.projectIndex = index || state.projectIndex || null;
       state.projectRoot = detail.root || (index && index.project && index.project.root) || state.projectRoot || '';
+      if (state.plan && previousRoot && state.projectRoot && previousRoot !== state.projectRoot) {
+        const planRoot = installPlanProjectRoot(state.plan);
+        if (planRoot && planRoot !== state.projectRoot) {
+          clearPlan();
+          return;
+        }
+      }
       renderInstallHeaderContext();
     };
     EVENT_NAMES.forEach((name) => {
@@ -328,6 +347,20 @@
     setStatus(loadPlanStatusMessage(loaded), state.plan ? 'ready' : 'error');
     render();
     return renderInstallAssistantPlan(state.plan);
+  }
+
+  function clearPlan() {
+    state.plan = null;
+    state.planFileName = '';
+    state.lastCheckKey = '';
+    state.lastCheckAllowAdvanced = false;
+    state.lastResult = null;
+    state.postApplyVerification = null;
+    state.runtimePreviewResult = null;
+    state.runtimePreviewSuspended = false;
+    removeRuntimePreviewFrames();
+    setStatus(t('install.noPlan', 'No change plan loaded.'), '');
+    render();
   }
 
   function normalizeLoadedPlan(input, meta) {
@@ -1188,6 +1221,9 @@
       elements.loadPlanButton.textContent = state.plan
         ? t('install.replacePlanButton', 'Change plan')
         : t('install.loadPlanButton', 'Load plan');
+    }
+    if (elements.clearPlanButton) {
+      toggleElement(elements.clearPlanButton, Boolean(state.plan));
     }
     if (elements.projectRootName) {
       const rootName = root ? projectRootName(root) : t('install.projectMissingShort', 'No project');

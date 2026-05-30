@@ -327,6 +327,24 @@ assert(pendingRuntimeHtml.includes('<progress'), 'pending runtime preview should
 assert(!pendingRuntimeHtml.includes('<ol>'), 'pending runtime preview should stay compact');
 assert(!pendingRuntimeHtml.includes('full deployment preview'), 'pending runtime preview should avoid verbose inline copy');
 
+// --- clearPlan resets state ---
+assistant.loadPlan(plan, {fileName: 'test-plan.json'});
+assert(assistant.getState().plan !== null, 'plan should be loaded before clearPlan');
+assistant.clearPlan();
+const cleared = assistant.getState();
+assert(cleared.plan === null, 'clearPlan should null out the plan');
+assert(cleared.planFileName === '', 'clearPlan should reset the plan filename');
+assert(cleared.lastResult === null, 'clearPlan should reset the last result');
+assert(cleared.runtimePreviewResult === null, 'clearPlan should reset runtime preview result');
+
+// --- clearPlan is exposed in the API ---
+assert(typeof assistant.clearPlan === 'function', 'clearPlan should be a public API method');
+
+// --- source should contain the auto-clear logic ---
+assert(assistantSource.includes('clearPlan()'), 'assistant should expose clearPlan for manual and automatic plan clearing');
+assert(assistantSource.includes('planRoot !== state.projectRoot'), 'assistant should auto-clear stale plans when the project root changes');
+assert(assistantSource.includes('install-clear-plan-button'), 'assistant should bind the clear-plan button element');
+
 process.stdout.write(JSON.stringify({
   ok: true,
   operations: plan.operations.length,

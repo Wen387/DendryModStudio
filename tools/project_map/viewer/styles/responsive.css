@@ -271,6 +271,7 @@
   }
 
   .install-plan-button,
+  .install-clear-plan-button,
   .install-context-status {
     justify-self: stretch;
   }

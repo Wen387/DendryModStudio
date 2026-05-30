@@ -3087,6 +3087,7 @@
       'install.loadPlan': 'Load change plan',
       'install.loadPlanButton': 'Load plan',
       'install.replacePlanButton': 'Change plan',
+      'install.clearPlanButton': 'Clear',
       'install.loadedPlan': 'Loaded change plan',
       'install.loadedDraftExport': 'Loaded {count} saved draft plan(s) from Studio drafts export: {name}',
       'install.loadedSingleDraftExport': 'Loaded one saved draft plan from Studio drafts export: {name}',

@@ -57,21 +57,21 @@
     },
     {
       "path": "tools/project_map/viewer/i18n/en.js",
-      "maxLines": 3347,
+      "maxLines": 3348,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-05-30 from 3345 for compound condition conjunction i18n keys."
+      "reason": "Catalog file; keep each language separate. Raised 2026-05-30 from 3347 for install clear-plan i18n key."
     },
     {
       "path": "tools/project_map/viewer/i18n/zh-Hant.js",
-      "maxLines": 3347,
+      "maxLines": 3348,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-05-30 from 3345 for compound condition conjunction i18n keys."
+      "reason": "Catalog file; keep each language separate. Raised 2026-05-30 from 3347 for install clear-plan i18n key."
     },
     {
       "path": "tools/project_map/viewer/index.html",
-      "maxLines": 2435,
+      "maxLines": 2436,
       "allowRaise": true,
-      "reason": "Script + template manifest; grows by one <script> registration line per extracted sibling module (the intended convergence direction). Raised 2026-05-29 from 2434 for Template Hub topbar button."
+      "reason": "Script + template manifest. Raised 2026-05-30 from 2435 for install clear-plan button."
     },
     {
       "path": "tools/project_map/viewer/object_authoring_canvas_ui.js",
