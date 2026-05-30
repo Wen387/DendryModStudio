@@ -372,6 +372,15 @@
   }
 }
 
+/* --- Catalog-only mode (opened via Template Hub topbar button) --- */
+
+.welcome-dialog.is-catalog-only .welcome-hero,
+.welcome-dialog.is-catalog-only .welcome-actions,
+.welcome-dialog.is-catalog-only .welcome-path,
+.welcome-dialog.is-catalog-only .welcome-support-row {
+  display: none;
+}
+
 /* --- Featured template catalog --- */
 
 .welcome-catalog {

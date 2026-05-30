@@ -20,6 +20,7 @@
       'topbar.more': '更多',
       'topbar.quickStart': '快速開始',
       'topbar.welcome': '新手起點',
+      'topbar.templateHub': '範本庫',
       'topbar.tutorialLibrary': '教學圖書館',
       'topbar.announcements': '公告預覽',
       'topbar.checkUpdates': '檢查公告',

@@ -20,6 +20,7 @@
       'topbar.more': 'More',
       'topbar.quickStart': 'Quick Start',
       'topbar.welcome': 'Welcome Hub',
+      'topbar.templateHub': 'Template Hub',
       'topbar.tutorialLibrary': 'Tutorial Library',
       'topbar.announcements': 'Notice Preview',
       'topbar.checkUpdates': 'Check Notices',

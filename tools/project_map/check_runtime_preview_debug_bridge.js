@@ -58,7 +58,12 @@ const panel = bridge.debugPanelHtml({
   }
 });
 assert(panel.includes('runtime-debug-console'), 'debug panel should have a stable container class');
-assert(panel.includes('data-debug-variable="year"'), 'debug panel should render variable controls');
+assert(panel.includes('runtime-debug-variable-data'), 'debug panel should embed variable data as JSON');
+assert(panel.includes('"name":"year"'), 'debug panel JSON should include variable name year');
+assert(panel.includes('"name":"labor_law_seen"'), 'debug panel JSON should include variable name labor_law_seen');
+assert(panel.includes('runtime-debug-variable-filter'), 'debug panel should provide variable search input');
+assert(panel.includes('runtime-debug-variable-groups'), 'debug panel should have variable groups container');
+assert(panel.includes('runtime-debug-pinned'), 'debug panel should have pinned variables section');
 assert(panel.includes('data-debug-scene="labor_law_crisis"'), 'debug panel should render scene controls');
 assert(panel.includes('data-runtime-debug-scene-filter'), 'debug panel should offer scene filtering for larger projects');
 assert(panel.includes('data-debug-scene="news_scene_39"'), 'debug panel should render well beyond the previous 32-scene cap');
@@ -71,9 +76,33 @@ assert(parentScript.includes('dms-runtime-preview-result'), 'parent script shoul
 assert(parentScript.includes('/api/debug-command-history'), 'parent script should write command history to the preview server');
 assert(parentScript.includes('data-debug-dirty'), 'parent script should apply only variable inputs the player changed');
 assert(parentScript.includes('data-runtime-debug-scene-filter'), 'parent script should filter scene jump controls');
+assert(parentScript.includes('renderGroups'), 'parent script should render variable groups client-side');
+assert(parentScript.includes('renderPinned'), 'parent script should render pinned variables client-side');
+assert(parentScript.includes('filterVars'), 'parent script should support variable search filtering');
+assert(parentScript.includes('togglePin'), 'parent script should support pin/unpin interaction');
+assert(parentScript.includes('runtime-debug-toggle'), 'parent script should render boolean toggle inputs');
+assert(parentScript.includes('runtime-debug-group'), 'parent script should render group accordions');
+assert(parentScript.includes('data-debug-pin'), 'parent script should render pin buttons');
+assert(parentScript.includes('GROUP_ORDER'), 'parent script should group variables by meaning in defined order');
 assert(parentScript.includes('No changed variable values'), 'parent script should explain when Apply has no changed values');
 assert(!/\beval\s*\(/.test(parentScript), 'parent script must not use eval');
 assert(!/\bnew Function\b/.test(parentScript), 'parent script must not use new Function');
+
+const manyVariables = Array.from({length: 40}, (_unused, offset) => ({
+  name: 'var_' + offset,
+  valueType: offset < 10 ? 'booleanNumber' : 'number',
+  label: 'Variable ' + offset,
+  reason: 'test',
+  meaning: offset < 10 ? 'event flag' : 'game state'
+}));
+const largePanel = bridge.debugPanelHtml({
+  controls: {variables: manyVariables, scenes: []}
+});
+const panelData = JSON.parse(
+  largePanel.match(/<script[^>]*id="runtime-debug-variable-data"[^>]*>([\s\S]*?)<\/script>/)[1]
+);
+assert(panelData.length === 40, 'JSON data block should contain all 40 variables without truncation');
+assert(panelData[0].name === 'var_0', 'JSON data should preserve variable order');
 
 function runBridgeWithFakeEngine(fakeEngine, fakeDocument) {
   const listeners = {};

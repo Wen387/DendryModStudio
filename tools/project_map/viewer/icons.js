@@ -149,6 +149,7 @@
     }
     const mappings = [
       ['#studio-open-onboarding', 'map'],
+      ['#studio-open-template-hub', 'download'],
       ['#studio-open-tutorial-library', 'book'],
       ['#studio-open-announcements', 'info'],
       ['#studio-check-updates', 'refresh'],

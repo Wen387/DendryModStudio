@@ -4,7 +4,7 @@
 
   const MODEL_VERSION = '0.1';
   const MAX_STRING_LENGTH = 80;
-  const DEFAULT_VARIABLE_LIMIT = 80;
+  const DEFAULT_VARIABLE_LIMIT = 2000;
   const DEFAULT_SCENE_LIMIT = 1000;
   const DEFAULT_LINK_LIMIT = 1000;
 
@@ -307,11 +307,35 @@
     return Array.from(new Set(values.filter(Boolean)));
   }
 
+  const GROUP_ORDER = ['event flag', 'time gate', 'relationship or support', 'resource or capacity', 'game state'];
+  const GROUP_LABELS = {
+    'event flag': 'Event Flags',
+    'time gate': 'Time & Gates',
+    'relationship or support': 'Relationships',
+    'resource or capacity': 'Resources',
+    'game state': 'Game State'
+  };
+
+  function groupVariables(variables) {
+    const groups = {};
+    ensureArray(variables).forEach((v) => {
+      const key = String(v && v.meaning || 'game state');
+      if (!groups[key]) { groups[key] = {key, label: GROUP_LABELS[key] || key, variables: []}; }
+      groups[key].variables.push(v);
+    });
+    var ordered = GROUP_ORDER.filter((k) => groups[k]).map((k) => groups[k]);
+    Object.keys(groups).forEach((k) => { if (GROUP_ORDER.indexOf(k) < 0) ordered.push(groups[k]); });
+    return ordered;
+  }
+
   const api = {
     buildDebugControls,
     validateVariableCommand,
     validateJumpCommand,
-    commandHistoryEntry
+    commandHistoryEntry,
+    groupVariables,
+    GROUP_ORDER,
+    GROUP_LABELS
   };
 
   if (typeof module !== 'undefined' && module.exports) {

@@ -89,9 +89,39 @@ assert(history.type === 'applyVariables', 'history should keep command type');
 assert(history.variableNames.join(',') === 'year,labor_law_seen,worker_support', 'history should store variable names');
 assert(!JSON.stringify(history).includes('1932'), 'history should not store large/raw variable values');
 
+assert(typeof debugModel.groupVariables === 'function', 'groupVariables should be exported');
+assert(Array.isArray(debugModel.GROUP_ORDER), 'GROUP_ORDER should be exported as array');
+assert(typeof debugModel.GROUP_LABELS === 'object', 'GROUP_LABELS should be exported as object');
+
+const grouped = debugModel.groupVariables(controls.variables);
+assert(Array.isArray(grouped), 'groupVariables should return an array');
+assert(grouped.length > 0, 'groupVariables should produce at least one group from fixture data');
+assert(grouped[0].key && grouped[0].label && Array.isArray(grouped[0].variables), 'each group should have key, label, and variables');
+
+const allGroupKeys = grouped.map((g) => g.key);
+for (let g = 1; g < allGroupKeys.length; g++) {
+  assert(
+    debugModel.GROUP_ORDER.indexOf(allGroupKeys[g - 1]) <= debugModel.GROUP_ORDER.indexOf(allGroupKeys[g]),
+    'groups should follow GROUP_ORDER: ' + allGroupKeys[g - 1] + ' before ' + allGroupKeys[g]
+  );
+}
+
+const totalGrouped = grouped.reduce((sum, g) => sum + g.variables.length, 0);
+assert(totalGrouped === controls.variables.length, 'all variables should appear in exactly one group');
+
+const emptyGroups = debugModel.groupVariables([]);
+assert(emptyGroups.length === 0, 'groupVariables on empty input should return empty array');
+
+const flagGroup = grouped.find((g) => g.key === 'event flag');
+if (flagGroup) {
+  assert(flagGroup.label === 'Event Flags', 'event flag group should have correct display label');
+  assert(flagGroup.variables.some((v) => v.name === 'labor_law_seen'), 'event flag group should contain labor_law_seen');
+}
+
 process.stdout.write(JSON.stringify({
   ok: true,
   variables: controls.variables.length,
   scenes: controls.scenes.length,
-  links: controls.links.length
+  links: controls.links.length,
+  groups: grouped.length
 }, null, 2) + '\n');

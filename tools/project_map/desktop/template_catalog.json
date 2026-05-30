@@ -15,7 +15,7 @@
       "repo": "Wen387/dendry-showcase-game",
       "releaseTag": "latest",
       "assetName": "showcase-game-source.tar.gz",
-      "estimatedSizeMB": 1,
+      "estimatedSizeMB": 0,
       "prebuiltIndex": false,
       "minStudioVersion": "0.98.0"
     },
@@ -33,7 +33,7 @@
       "repo": "Wen387/biennio_rosso_StudioRepo",
       "releaseTag": "latest",
       "assetName": "biennio-rosso-source.tar.gz",
-      "estimatedSizeMB": 1,
+      "estimatedSizeMB": 0,
       "prebuiltIndex": false,
       "minStudioVersion": "0.98.0"
     },
@@ -51,7 +51,7 @@
       "repo": "Wen387/dynamic_social_democracy_StudioRepo",
       "releaseTag": "latest",
       "assetName": "dynamic-sdaah-source.tar.gz",
-      "estimatedSizeMB": 2,
+      "estimatedSizeMB": 1,
       "prebuiltIndex": false,
       "minStudioVersion": "0.98.0"
     }

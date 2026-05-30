@@ -261,6 +261,7 @@
     state.elements = {
       dialog: document.getElementById('studio-welcome'),
       openButton: document.getElementById('studio-open-onboarding'),
+      templateHubButton: document.getElementById('studio-open-template-hub'),
       primary: document.getElementById('welcome-primary'),
       primaryLabel: document.getElementById('welcome-primary-label'),
       demoCard: document.getElementById('welcome-demo-card'),
@@ -302,6 +303,11 @@
     if (state.elements.openButton) {
       state.elements.openButton.addEventListener('click', () => openDialog(true));
     }
+    if (state.elements.templateHubButton) {
+      state.elements.templateHubButton.addEventListener('click', () => {
+        document.dispatchEvent(new Event('ProjectMap:show-catalog'));
+      });
+    }
     if (state.elements.primary) {
       state.elements.primary.addEventListener('click', handlePrimaryAction);
     }
@@ -321,12 +327,19 @@
     });
     document.addEventListener(openEventName(), () => openDialog(true));
     document.addEventListener('ProjectMap:show-catalog', () => {
-      openDialog(true);
-      setTimeout(function () {
-        if (state.elements.catalogSection && !state.elements.catalogSection.hidden) {
-          state.elements.catalogSection.scrollIntoView({behavior: 'smooth', block: 'start'});
+      openDialog(true, {catalogOnly: true});
+    });
+    global.addEventListener('ProjectMap:desktop-scan-progress', (event) => {
+      if (!state._catalogBusy || !state._catalogActiveButton) { return; }
+      var detail = event.detail || {};
+      var stage = String(detail.stage || '');
+      if (stage === 'catalog-download' || stage === 'catalog-index' || stage === 'catalog-load' || stage === 'complete') {
+        var label = String(detail.label || '');
+        if (label) {
+          var span = state._catalogActiveButton.querySelector('span:last-child');
+          if (span) { span.textContent = label; }
         }
-      }, 200);
+      }
     });
     document.addEventListener('project-map:locale-changed', () => {
       updateActionState();
@@ -387,18 +400,23 @@
     }
   }
 
-  function openDialog(fromMenu) {
+  function openDialog(fromMenu, opts) {
     if (!state.elements || !state.elements.dialog) {
       return false;
     }
+    var catalogOnly = opts && opts.catalogOnly;
     updateActionState();
     decorateIcons();
+    state.elements.dialog.classList.toggle('is-catalog-only', !!catalogOnly);
     state.elements.dialog.classList.remove('hidden');
     if (fromMenu && state.elements.topbarMore) {
       state.elements.topbarMore.open = false;
     }
+    if (catalogOnly && state.elements.catalogSection && !state.elements.catalogSection.hidden) {
+      state.elements.dialog.scrollTop = 0;
+    }
     const focusTarget = visiblePrimaryAction();
-    if (focusTarget && typeof focusTarget.focus === 'function') {
+    if (!catalogOnly && focusTarget && typeof focusTarget.focus === 'function') {
       focusTarget.focus();
     }
     return true;
@@ -409,6 +427,7 @@
       return false;
     }
     state.elements.dialog.classList.add('hidden');
+    state.elements.dialog.classList.remove('is-catalog-only');
     if (markSeen && state.controller) {
       state.controller.markSeen();
     }
@@ -606,6 +625,7 @@
     var includeExcerpts = Boolean(state.elements.desktopIncludeExcerpts && state.elements.desktopIncludeExcerpts.checked);
     var forceUpdate = button && button.hasAttribute('data-catalog-update');
     state._catalogBusy = true;
+    state._catalogActiveButton = button || null;
     if (button) {
       button.disabled = true;
       button.classList.add('is-loading');
@@ -643,6 +663,7 @@
       }
     }).finally(function () {
       state._catalogBusy = false;
+      state._catalogActiveButton = null;
       if (button) {
         button.disabled = false;
         button.classList.remove('is-loading');
