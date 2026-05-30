@@ -69,6 +69,30 @@ assert(panel.includes('data-runtime-debug-scene-filter'), 'debug panel should of
 assert(panel.includes('data-debug-scene="news_scene_39"'), 'debug panel should render well beyond the previous 32-scene cap');
 assert(panel.includes('data-debug-scene-search='), 'debug panel should expose safe client-side search text');
 assert(panel.includes('This only changes the temporary modified preview'), 'debug panel should explain preview-only scope');
+assert(panel.includes('runtime-debug-nav'), 'debug panel should include a sticky section navigation strip');
+assert(panel.includes('data-debug-nav="jump"'), 'debug panel nav should include a jump section link');
+assert(panel.includes('data-debug-nav="conditions"'), 'debug panel nav should include a variables section link');
+assert(panel.includes('data-debug-section="jump"'), 'debug panel should wrap jump in a collapsible details section');
+assert(panel.includes('data-debug-section="history"'), 'debug panel should wrap history in a collapsible details section');
+assert(panel.includes('<details'), 'debug panel sections should use details/summary for collapsibility');
+
+assert(typeof bridge.comparePageLabels === 'function', 'bridge should export comparePageLabels');
+const enLabels = bridge.comparePageLabels('en');
+assert(enLabels.consoleTitle === 'Preview Debug Console', 'English labels should include consoleTitle');
+const zhLabels = bridge.comparePageLabels('zh-Hant');
+assert(zhLabels.consoleTitle === '預覽除錯控制台', 'zh-Hant labels should localize consoleTitle');
+assert(zhLabels.sectionConditions === '測試條件', 'zh-Hant labels should localize sectionConditions');
+
+const zhPanel = bridge.debugPanelHtml({
+  controls: {variables: [{name: 'year', valueType: 'number'}], scenes: []},
+  labels: zhLabels
+});
+assert(zhPanel.includes('預覽除錯控制台'), 'debug panel with zh-Hant labels should use localized title');
+assert(zhPanel.includes('測試條件'), 'debug panel with zh-Hant labels should use localized section name');
+assert(zhPanel.includes('搜尋變數'), 'debug panel with zh-Hant labels should use localized placeholder');
+
+const zhParentScript = bridge.parentDebugScript({sessionId: 'debug-session', labels: zhLabels});
+assert(zhParentScript.includes('沒有已變更的變數值可套用'), 'zh-Hant parent script should embed localized noChangedVars label');
 
 const parentScript = bridge.parentDebugScript({sessionId: 'debug-session'});
 assert(parentScript.includes('postMessage'), 'parent script should send iframe commands');
@@ -85,6 +109,8 @@ assert(parentScript.includes('runtime-debug-group'), 'parent script should rende
 assert(parentScript.includes('data-debug-pin'), 'parent script should render pin buttons');
 assert(parentScript.includes('GROUP_ORDER'), 'parent script should group variables by meaning in defined order');
 assert(parentScript.includes('No changed variable values'), 'parent script should explain when Apply has no changed values');
+assert(parentScript.includes('data-debug-nav'), 'parent script should handle section nav clicks');
+assert(parentScript.includes('scrollIntoView'), 'parent script should scroll to sections on nav click');
 assert(!/\beval\s*\(/.test(parentScript), 'parent script must not use eval');
 assert(!/\bnew Function\b/.test(parentScript), 'parent script must not use new Function');
 

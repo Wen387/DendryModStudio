@@ -43,9 +43,9 @@
     },
     {
       "path": "tools/project_map/desktop/runtime_preview.js",
-      "maxLines": 1870,
+      "maxLines": 1887,
       "allowRaise": true,
-      "reason": "Desktop runtime preview orchestrator; extract audio/media sub-module before adding more. Raised 2026-05-29 from 1853 for debug panel group/toggle/pin CSS."
+      "reason": "Desktop runtime preview orchestrator; extract audio/media sub-module before adding more. Raised 2026-05-30 from 1870 for debug panel nav/toggle/collapsible sections and standalone player page."
     },
     {
       "path": "tools/project_map/qa/run_desktop_scenario.js",
@@ -54,15 +54,15 @@
     },
     {
       "path": "tools/project_map/viewer/i18n/en.js",
-      "maxLines": 3326,
+      "maxLines": 3336,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-05-29 for Template Hub topbar entry i18n key."
+      "reason": "Catalog file; keep each language separate. Raised 2026-05-30 from 3326 for Template Hub info/standalone i18n keys."
     },
     {
       "path": "tools/project_map/viewer/i18n/zh-Hant.js",
-      "maxLines": 3326,
+      "maxLines": 3336,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-05-29 for Template Hub topbar entry i18n key."
+      "reason": "Catalog file; keep each language separate. Raised 2026-05-30 from 3326 for Template Hub info/standalone i18n keys."
     },
     {
       "path": "tools/project_map/viewer/index.html",

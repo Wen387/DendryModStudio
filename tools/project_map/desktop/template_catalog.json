@@ -34,6 +34,8 @@
       "releaseTag": "latest",
       "assetName": "biennio-rosso-source.tar.gz",
       "estimatedSizeMB": 0,
+      "assetsAssetName": "biennio-rosso-assets.tar.gz",
+      "assetsEstimatedSizeMB": 78,
       "prebuiltIndex": false,
       "minStudioVersion": "0.98.0"
     },
@@ -52,6 +54,8 @@
       "releaseTag": "latest",
       "assetName": "dynamic-sdaah-source.tar.gz",
       "estimatedSizeMB": 1,
+      "assetsAssetName": "dynamic-sdaah-assets.tar.gz",
+      "assetsEstimatedSizeMB": 246,
       "prebuiltIndex": false,
       "minStudioVersion": "0.98.0"
     }

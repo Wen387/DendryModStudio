@@ -2,6 +2,81 @@
 
 const MAX_RENDERED_SCENES = 1000;
 
+const LABELS_ZH = {
+  consoleTitle: '預覽除錯控制台',
+  consoleDisclaimer: '此操作僅更改暫時的修改預覽，不會編輯原始檔案或實際存檔。',
+  navEntry: '入口',
+  navVariables: '變數',
+  navJump: '跳轉',
+  navChain: '事件鏈',
+  navHistory: '歷史',
+  sectionEntry: '焦點入口',
+  sectionEntryDesc: '開啟新建或已變更的內容，並套用對應的暫時狀態。',
+  sectionConditions: '測試條件',
+  sectionJump: '跳轉',
+  sectionChain: '事件鏈',
+  sectionHistory: '命令歷史',
+  pinnedVars: '已釘選變數',
+  searchVars: '搜尋變數…',
+  applyBtn: '套用至修改預覽',
+  resetBtn: '重設修改預覽',
+  filterScenes: '篩選場景、卡片、新聞…',
+  pageTitle: '實機預覽',
+  modeBaseline: '原版',
+  modeModified: '修改版',
+  modeSplit: '對照',
+  modeDebug: '除錯',
+  sandboxLabel: '暫時沙盒：',
+  notLoaded: '修改預覽尚未載入。',
+  noChangedVars: '沒有已變更的變數值可套用。',
+  noVarsAvailable: '沒有可用的變數。',
+  noVarsMatch: '沒有符合篩選條件的變數。',
+  noScenesMatch: '沒有符合篩選條件的場景。',
+  showAllN: '顯示全部 {n} 個變數',
+  pin: '釘選',
+  unpin: '取消釘選'
+};
+const LABELS_EN = {
+  consoleTitle: 'Preview Debug Console',
+  consoleDisclaimer: 'This only changes the temporary modified preview. It does not edit source files or real saves.',
+  navEntry: 'Entry',
+  navVariables: 'Variables',
+  navJump: 'Jump',
+  navChain: 'Chain',
+  navHistory: 'History',
+  sectionEntry: 'Focused Entry',
+  sectionEntryDesc: 'Open newly created or changed content with matching temporary state.',
+  sectionConditions: 'Test Conditions',
+  sectionJump: 'Jump',
+  sectionChain: 'Event Chain',
+  sectionHistory: 'Command History',
+  pinnedVars: 'Pinned Variables',
+  searchVars: 'Search variables...',
+  applyBtn: 'Apply to modified preview',
+  resetBtn: 'Reset modified preview',
+  filterScenes: 'Filter scenes, cards, news...',
+  pageTitle: 'Runtime Preview',
+  modeBaseline: 'Baseline',
+  modeModified: 'Modified',
+  modeSplit: 'Split',
+  modeDebug: 'Debug',
+  sandboxLabel: 'Temporary sandbox:',
+  notLoaded: 'Modified preview is not loaded.',
+  noChangedVars: 'No changed variable values to apply.',
+  noVarsAvailable: 'No variables available.',
+  noVarsMatch: 'No variables match the filter.',
+  noScenesMatch: 'No scenes match the filter.',
+  showAllN: 'Show all {n} variables',
+  pin: 'Pin',
+  unpin: 'Unpin'
+};
+
+function comparePageLabels(locale) {
+  var lang = String(locale || '').toLowerCase();
+  if (lang === 'zh-hant' || lang.startsWith('zh')) return LABELS_ZH;
+  return LABELS_EN;
+}
+
 function bridgeScript(options) {
   const opts = options || {};
   const allowedOrigin = JSON.stringify(String(opts.allowedOrigin || ''));
@@ -69,6 +144,7 @@ function bridgeScript(options) {
 
 function debugPanelHtml(options) {
   const controls = options && options.controls || {};
+  const L = options && options.labels || LABELS_EN;
   const sceneRows = controls.scenes || [];
   const renderedScenes = sceneRows.slice(0, MAX_RENDERED_SCENES);
   const hiddenSceneCount = Math.max(0, sceneRows.length - renderedScenes.length);
@@ -103,31 +179,51 @@ function debugPanelHtml(options) {
   const links = (controls.links || []).slice(0, 20).map((item) => {
     return '<li>' + escapeHtml((item.from || '') + ' -> ' + (item.to || '')) + '</li>';
   }).join('');
+  const navItems = [
+    presets ? '<button type="button" data-debug-nav="entry">' + escapeHtml(L.navEntry) + '</button>' : '',
+    '<button type="button" data-debug-nav="conditions">' + escapeHtml(L.navVariables) + '</button>',
+    '<button type="button" data-debug-nav="jump">' + escapeHtml(L.navJump) + '</button>',
+    '<button type="button" data-debug-nav="chain">' + escapeHtml(L.navChain) + '</button>',
+    '<button type="button" data-debug-nav="history">' + escapeHtml(L.navHistory) + '</button>'
+  ].filter(Boolean).join('');
   return [
-    '<aside class="runtime-debug-console" aria-label="Preview Debug Console">',
-    '<h2>Preview Debug Console</h2>',
-    '<p>This only changes the temporary modified preview. It does not edit source files or real saves.</p>',
-    presets ? '<section><h3>Focused Entry</h3><p>Open newly created or changed content with matching temporary state.</p>' + presets + '</section>' : '',
-    '<section class="runtime-debug-pinned" hidden><h3>Pinned Variables</h3><div class="runtime-debug-pinned-list"></div></section>',
-    '<section><h3>Test Conditions</h3>',
-    '<input type="search" class="runtime-debug-variable-filter" data-runtime-debug-variable-filter placeholder="Search variables...">',
+    '<aside class="runtime-debug-console" aria-label="' + escapeAttr(L.consoleTitle) + '">',
+    '<h2>' + escapeHtml(L.consoleTitle) + '</h2>',
+    '<p>' + escapeHtml(L.consoleDisclaimer) + '</p>',
+    '<nav class="runtime-debug-nav">' + navItems + '</nav>',
+    presets ? '<details class="runtime-debug-section" open data-debug-section="entry"><summary>' + escapeHtml(L.sectionEntry) + '</summary><p>' + escapeHtml(L.sectionEntryDesc) + '</p>' + presets + '</details>' : '',
+    '<details class="runtime-debug-section" data-debug-section="conditions"><summary>' + escapeHtml(L.sectionConditions) + '</summary>',
+    '<div class="runtime-debug-pinned" hidden><h3>' + escapeHtml(L.pinnedVars) + '</h3><div class="runtime-debug-pinned-list"></div></div>',
+    '<input type="search" class="runtime-debug-variable-filter" data-runtime-debug-variable-filter placeholder="' + escapeAttr(L.searchVars) + '">',
     '<div class="runtime-debug-variable-groups"></div>',
-    '<button type="button" data-runtime-debug-action="apply-variables">Apply to modified preview</button>',
-    '<button type="button" data-runtime-debug-action="reset">Reset modified preview</button></section>',
+    '<button type="button" data-runtime-debug-action="apply-variables">' + escapeHtml(L.applyBtn) + '</button>',
+    '<button type="button" data-runtime-debug-action="reset">' + escapeHtml(L.resetBtn) + '</button></details>',
     '<script type="application/json" id="runtime-debug-variable-data">' + variableData + '</script>',
-    '<section><h3>Jump</h3><input type="search" class="runtime-debug-filter" data-runtime-debug-scene-filter placeholder="Filter scenes, cards, news...">' + sceneSummary + '<div class="runtime-debug-scenes">' + scenes + '</div></section>',
-    '<section><h3>Event Chain</h3><ul>' + links + '</ul></section>',
-    '<section><h3>Command History</h3><ol class="runtime-debug-history"></ol></section>',
+    '<details class="runtime-debug-section" data-debug-section="jump"><summary>' + escapeHtml(L.sectionJump) + '</summary><input type="search" class="runtime-debug-filter" data-runtime-debug-scene-filter placeholder="' + escapeAttr(L.filterScenes) + '">' + sceneSummary + '<div class="runtime-debug-scenes">' + scenes + '</div></details>',
+    '<details class="runtime-debug-section" data-debug-section="chain"><summary>' + escapeHtml(L.sectionChain) + '</summary><ul>' + links + '</ul></details>',
+    '<details class="runtime-debug-section" open data-debug-section="history"><summary>' + escapeHtml(L.sectionHistory) + '</summary><ol class="runtime-debug-history"></ol></details>',
     '</aside>'
   ].join('\n');
 }
 
 function parentDebugScript(options) {
   const sessionId = JSON.stringify(String(options && options.sessionId || ''));
+  const L = options && options.labels || LABELS_EN;
+  const labelsJson = JSON.stringify({
+    notLoaded: L.notLoaded,
+    noChangedVars: L.noChangedVars,
+    noVarsAvailable: L.noVarsAvailable,
+    noVarsMatch: L.noVarsMatch,
+    noScenesMatch: L.noScenesMatch,
+    showAllN: L.showAllN,
+    pin: L.pin,
+    unpin: L.unpin
+  });
   return [
     '(function(){',
     '"use strict";',
     'var SESSION_ID=' + sessionId + ';',
+    'var L=' + labelsJson + ';',
     'var seq=0;',
     'var PINNED_KEY="dms-debug-pinned-vars";',
     'var GROUP_BATCH=30;',
@@ -139,23 +235,23 @@ function parentDebugScript(options) {
     'function commandVariables(){return Array.prototype.slice.call(document.querySelectorAll("[data-debug-variable-input][data-debug-dirty=\\"1\\"]")).map(function(input){return {name:input.getAttribute("data-debug-variable-input"),value:input.value};});}',
     'function jsonAttr(el,name,fallback){try{return JSON.parse(el.getAttribute(name)||"");}catch(_err){return fallback;}}',
     'var pendingCommands={};',
-    'function send(command){var frame=modifiedFrame();if(!frame||!frame.contentWindow){appendHistory("Modified preview is not loaded.",true);return;}var requestId="debug-"+(++seq);pendingCommands[requestId]=command;frame.contentWindow.postMessage({kind:"dms-runtime-preview-command",requestId:requestId,command:command}, window.location.origin);fetch("./api/debug-command-history",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({sessionId:SESSION_ID,command:command})}).catch(function(){});}',
-    'function updateSceneFilterHint(){var container=document.querySelector(".runtime-debug-scenes");if(!container)return;var buttons=container.querySelectorAll("[data-debug-scene]");var visible=0;for(var i=0;i<buttons.length;i++){if(!buttons[i].hidden)visible++;}var hint=container.querySelector(".runtime-debug-no-results");if(visible===0&&buttons.length>0){if(!hint){hint=document.createElement("p");hint.className="runtime-debug-no-results";hint.textContent="No scenes match the filter.";container.prepend(hint);}}else if(hint){hint.remove();}}',
+    'function send(command){var frame=modifiedFrame();if(!frame||!frame.contentWindow){appendHistory(L.notLoaded,true);return;}var requestId="debug-"+(++seq);pendingCommands[requestId]=command;frame.contentWindow.postMessage({kind:"dms-runtime-preview-command",requestId:requestId,command:command}, window.location.origin);fetch("./api/debug-command-history",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({sessionId:SESSION_ID,command:command})}).catch(function(){});}',
+    'function updateSceneFilterHint(){var container=document.querySelector(".runtime-debug-scenes");if(!container)return;var buttons=container.querySelectorAll("[data-debug-scene]");var visible=0;for(var i=0;i<buttons.length;i++){if(!buttons[i].hidden)visible++;}var hint=container.querySelector(".runtime-debug-no-results");if(visible===0&&buttons.length>0){if(!hint){hint=document.createElement("p");hint.className="runtime-debug-no-results";hint.textContent=L.noScenesMatch;container.prepend(hint);}}else if(hint){hint.remove();}}',
     'function clearDirtyFlags(){Array.prototype.slice.call(document.querySelectorAll("[data-debug-dirty]")).forEach(function(input){input.removeAttribute("data-debug-dirty");});}',
     'function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}',
     'function loadVarData(){var el=document.getElementById("runtime-debug-variable-data");if(!el)return [];try{return JSON.parse(el.textContent||"[]");}catch(_e){return [];}}',
     'function loadPinned(){try{return JSON.parse(localStorage.getItem(PINNED_KEY)||"[]");}catch(_e){return [];}}',
     'function savePinned(names){try{localStorage.setItem(PINNED_KEY,JSON.stringify(names));}catch(_e){}}',
     'function togglePin(name){var pins=loadPinned();var idx=pins.indexOf(name);if(idx>=0)pins.splice(idx,1);else pins.push(name);savePinned(pins);renderPinned();updatePinStates();}',
-    'function varRow(item,pinned){var div=document.createElement("div");div.className="runtime-debug-row";div.setAttribute("data-debug-var-name",item.name);var info=document.createElement("div");info.innerHTML="<strong>"+esc(item.label||item.name)+"</strong> <span class=\\"runtime-debug-type\\">"+esc(item.valueType||"string")+"</span><small>"+esc(item.reason||item.summary||"")+"</small>";var wrap=document.createElement("div");wrap.className="runtime-debug-input-wrap";var input;if(item.valueType==="booleanNumber"){input=document.createElement("input");input.type="checkbox";input.className="runtime-debug-toggle";input.setAttribute("data-debug-variable-input",item.name);input.value="0";input.addEventListener("change",function(){this.value=this.checked?"1":"0";this.setAttribute("data-debug-dirty","1");});}else if(item.valueType==="number"){input=document.createElement("input");input.type="number";input.step="1";input.value="0";input.setAttribute("data-debug-variable-input",item.name);}else{input=document.createElement("input");input.type="text";input.maxLength=80;input.placeholder="text value";input.value="";input.setAttribute("data-debug-variable-input",item.name);}var pin=document.createElement("button");pin.type="button";pin.className="runtime-debug-pin"+(pinned?" is-pinned":"");pin.textContent=pinned?"\\u2605":"\\u2606";pin.title=pinned?"Unpin":"Pin";pin.setAttribute("data-debug-pin",item.name);wrap.appendChild(input);wrap.appendChild(pin);div.appendChild(info);div.appendChild(wrap);return div;}',
+    'function varRow(item,pinned){var div=document.createElement("div");div.className="runtime-debug-row";div.setAttribute("data-debug-var-name",item.name);var info=document.createElement("div");info.innerHTML="<strong>"+esc(item.label||item.name)+"</strong> <span class=\\"runtime-debug-type\\">"+esc(item.valueType||"string")+"</span><small>"+esc(item.reason||item.summary||"")+"</small>";var wrap=document.createElement("div");wrap.className="runtime-debug-input-wrap";var input;if(item.valueType==="booleanNumber"){input=document.createElement("input");input.type="checkbox";input.className="runtime-debug-toggle";input.setAttribute("data-debug-variable-input",item.name);input.value="0";input.addEventListener("change",function(){this.value=this.checked?"1":"0";this.setAttribute("data-debug-dirty","1");});}else if(item.valueType==="number"){input=document.createElement("input");input.type="number";input.step="1";input.value="0";input.setAttribute("data-debug-variable-input",item.name);}else{input=document.createElement("input");input.type="text";input.maxLength=80;input.placeholder="text value";input.value="";input.setAttribute("data-debug-variable-input",item.name);}var pin=document.createElement("button");pin.type="button";pin.className="runtime-debug-pin"+(pinned?" is-pinned":"");pin.textContent=pinned?"\\u2605":"\\u2606";pin.title=pinned?L.unpin:L.pin;pin.setAttribute("data-debug-pin",item.name);wrap.appendChild(input);wrap.appendChild(pin);div.appendChild(info);div.appendChild(wrap);return div;}',
     'function groupVars(vars){var groups={};vars.forEach(function(v){var k=v.meaning||"game state";if(!groups[k])groups[k]={key:k,label:GROUP_LABELS[k]||k,variables:[]};groups[k].variables.push(v);});var ordered=GROUP_ORDER.filter(function(k){return groups[k];}).map(function(k){return groups[k];});Object.keys(groups).forEach(function(k){if(GROUP_ORDER.indexOf(k)<0)ordered.push(groups[k]);});return ordered;}',
-    'function renderGroups(){var container=document.querySelector(".runtime-debug-variable-groups");if(!container)return;container.innerHTML="";var vars=loadVarData();if(!vars.length){container.innerHTML="<p class=\\"runtime-debug-no-results\\">No variables available.</p>";return;}var pinned=loadPinned();var groups=groupVars(vars);groups.forEach(function(group){var details=document.createElement("details");details.className="runtime-debug-group";details.setAttribute("data-debug-group",group.key);var summary=document.createElement("summary");summary.innerHTML=esc(group.label)+" <span class=\\"runtime-debug-group-count\\">"+group.variables.length+"</span>";details.appendChild(summary);var body=document.createElement("div");body.className="runtime-debug-group-body";var batch=group.variables.slice(0,GROUP_BATCH);var rest=group.variables.slice(GROUP_BATCH);batch.forEach(function(item){body.appendChild(varRow(item,pinned.indexOf(item.name)>=0));});if(rest.length){var more=document.createElement("button");more.type="button";more.className="runtime-debug-show-more";more.textContent="Show all "+group.variables.length+" variables";more.addEventListener("click",function(){rest.forEach(function(item){body.insertBefore(varRow(item,pinned.indexOf(item.name)>=0),more);});more.remove();});body.appendChild(more);}details.appendChild(body);container.appendChild(details);});}',
+    'function renderGroups(){var container=document.querySelector(".runtime-debug-variable-groups");if(!container)return;container.innerHTML="";var vars=loadVarData();if(!vars.length){container.innerHTML="<p class=\\"runtime-debug-no-results\\">"+esc(L.noVarsAvailable)+"</p>";return;}var pinned=loadPinned();var groups=groupVars(vars);groups.forEach(function(group){var details=document.createElement("details");details.className="runtime-debug-group";details.setAttribute("data-debug-group",group.key);var summary=document.createElement("summary");summary.innerHTML=esc(group.label)+" <span class=\\"runtime-debug-group-count\\">"+group.variables.length+"</span>";details.appendChild(summary);var body=document.createElement("div");body.className="runtime-debug-group-body";var batch=group.variables.slice(0,GROUP_BATCH);var rest=group.variables.slice(GROUP_BATCH);batch.forEach(function(item){body.appendChild(varRow(item,pinned.indexOf(item.name)>=0));});if(rest.length){var more=document.createElement("button");more.type="button";more.className="runtime-debug-show-more";more.textContent=L.showAllN.replace("{n}",group.variables.length);more.addEventListener("click",function(){rest.forEach(function(item){body.insertBefore(varRow(item,pinned.indexOf(item.name)>=0),more);});more.remove();});body.appendChild(more);}details.appendChild(body);container.appendChild(details);});}',
     'function renderPinned(){var section=document.querySelector(".runtime-debug-pinned");var list=document.querySelector(".runtime-debug-pinned-list");if(!section||!list)return;var pinned=loadPinned();var vars=loadVarData();list.innerHTML="";if(!pinned.length){section.hidden=true;return;}section.hidden=false;var byName={};vars.forEach(function(v){byName[v.name]=v;});pinned.forEach(function(name){var item=byName[name];if(!item)return;list.appendChild(varRow(item,true));});}',
-    'function updatePinStates(){var pinned=loadPinned();Array.prototype.slice.call(document.querySelectorAll("[data-debug-pin]")).forEach(function(btn){var name=btn.getAttribute("data-debug-pin");var isPinned=pinned.indexOf(name)>=0;btn.className="runtime-debug-pin"+(isPinned?" is-pinned":"");btn.textContent=isPinned?"\\u2605":"\\u2606";btn.title=isPinned?"Unpin":"Pin";});}',
-    'function filterVars(query){var q=String(query||"").toLowerCase();if(q){Array.prototype.slice.call(document.querySelectorAll(".runtime-debug-show-more")).forEach(function(btn){btn.click();});}var groups=document.querySelectorAll(".runtime-debug-group");var total=0;for(var i=0;i<groups.length;i++){var rows=groups[i].querySelectorAll("[data-debug-var-name]");var vis=0;for(var j=0;j<rows.length;j++){var name=(rows[j].getAttribute("data-debug-var-name")||"").toLowerCase();var text=rows[j].textContent.toLowerCase();var match=!q||name.indexOf(q)>=0||text.indexOf(q)>=0;rows[j].hidden=!match;if(match)vis++;}groups[i].hidden=vis===0&&Boolean(q);if(vis>0&&q)groups[i].open=true;total+=vis;}var container=document.querySelector(".runtime-debug-variable-groups");if(!container)return;var hint=container.querySelector(".runtime-debug-no-results");if(total===0&&q){if(!hint){hint=document.createElement("p");hint.className="runtime-debug-no-results";hint.textContent="No variables match the filter.";container.prepend(hint);}}else if(hint){hint.remove();}}',
+    'function updatePinStates(){var pinned=loadPinned();Array.prototype.slice.call(document.querySelectorAll("[data-debug-pin]")).forEach(function(btn){var name=btn.getAttribute("data-debug-pin");var isPinned=pinned.indexOf(name)>=0;btn.className="runtime-debug-pin"+(isPinned?" is-pinned":"");btn.textContent=isPinned?"\\u2605":"\\u2606";btn.title=isPinned?L.unpin:L.pin;});}',
+    'function filterVars(query){var q=String(query||"").toLowerCase();if(q){Array.prototype.slice.call(document.querySelectorAll(".runtime-debug-show-more")).forEach(function(btn){btn.click();});}var groups=document.querySelectorAll(".runtime-debug-group");var total=0;for(var i=0;i<groups.length;i++){var rows=groups[i].querySelectorAll("[data-debug-var-name]");var vis=0;for(var j=0;j<rows.length;j++){var name=(rows[j].getAttribute("data-debug-var-name")||"").toLowerCase();var text=rows[j].textContent.toLowerCase();var match=!q||name.indexOf(q)>=0||text.indexOf(q)>=0;rows[j].hidden=!match;if(match)vis++;}groups[i].hidden=vis===0&&Boolean(q);if(vis>0&&q)groups[i].open=true;total+=vis;}var container=document.querySelector(".runtime-debug-variable-groups");if(!container)return;var hint=container.querySelector(".runtime-debug-no-results");if(total===0&&q){if(!hint){hint=document.createElement("p");hint.className="runtime-debug-no-results";hint.textContent=L.noVarsMatch;container.prepend(hint);}}else if(hint){hint.remove();}}',
     'renderGroups();renderPinned();',
     'document.addEventListener("input",function(event){var varFilter=event.target.closest&&event.target.closest("[data-runtime-debug-variable-filter]");if(varFilter){filterVars(varFilter.value);return;}var filter=event.target.closest&&event.target.closest("[data-runtime-debug-scene-filter]");if(filter){var query=String(filter.value||"").toLowerCase();Array.prototype.slice.call(document.querySelectorAll("[data-debug-scene]")).forEach(function(button){var haystack=button.getAttribute("data-debug-scene-search")||"";button.hidden=Boolean(query)&&haystack.indexOf(query)<0;});updateSceneFilterHint();return;}var input=event.target.closest&&event.target.closest("[data-debug-variable-input]");if(input)input.setAttribute("data-debug-dirty","1");});',
-    'document.addEventListener("click",function(event){var pinBtn=event.target.closest&&event.target.closest("[data-debug-pin]");if(pinBtn){togglePin(pinBtn.getAttribute("data-debug-pin"));return;}var action=event.target.closest("[data-runtime-debug-action]");if(action&&action.getAttribute("data-runtime-debug-action")==="apply-variables"){var variables=commandVariables();if(!variables.length){appendHistory("No changed variable values to apply.");return;}send({type:"applyVariables",variables:variables});clearDirtyFlags();return;}if(action&&action.getAttribute("data-runtime-debug-action")==="reset"){send({type:"resetToInitialState"});clearDirtyFlags();return;}var preset=event.target.closest("[data-debug-focus-preset]");if(preset){send({type:"applyFocusPreset",sceneId:preset.getAttribute("data-debug-focus-scene"),variables:jsonAttr(preset,"data-debug-focus-variables",[])});clearDirtyFlags();return;}var scene=event.target.closest("[data-debug-scene]");if(scene){send({type:"jumpToScene",sceneId:scene.getAttribute("data-debug-scene")});}});',
+    'document.addEventListener("click",function(event){var navBtn=event.target.closest&&event.target.closest("[data-debug-nav]");if(navBtn){var sid=navBtn.getAttribute("data-debug-nav");var sec=document.querySelector("[data-debug-section=\\""+sid+"\\"]");if(sec){sec.open=true;sec.scrollIntoView({behavior:"smooth",block:"start"});}return;}var pinBtn=event.target.closest&&event.target.closest("[data-debug-pin]");if(pinBtn){togglePin(pinBtn.getAttribute("data-debug-pin"));return;}var action=event.target.closest("[data-runtime-debug-action]");if(action&&action.getAttribute("data-runtime-debug-action")==="apply-variables"){var variables=commandVariables();if(!variables.length){appendHistory(L.noChangedVars);return;}send({type:"applyVariables",variables:variables});clearDirtyFlags();return;}if(action&&action.getAttribute("data-runtime-debug-action")==="reset"){send({type:"resetToInitialState"});clearDirtyFlags();return;}var preset=event.target.closest("[data-debug-focus-preset]");if(preset){send({type:"applyFocusPreset",sceneId:preset.getAttribute("data-debug-focus-scene"),variables:jsonAttr(preset,"data-debug-focus-variables",[])});clearDirtyFlags();return;}var scene=event.target.closest("[data-debug-scene]");if(scene){send({type:"jumpToScene",sceneId:scene.getAttribute("data-debug-scene")});}});',
     'window.addEventListener("message",function(event){var data=event.data||{};if(data.kind!=="dms-runtime-preview-result")return;var result=data.result||{};var command=pendingCommands[data.requestId]||{};delete pendingCommands[data.requestId];var label=command.type||"command";var detail=result.message||result.sceneId||((result.applied||[]).join(", "))||"done";appendHistory((result.ok?"OK":"Needs attention")+" ["+label+"]: "+detail,!result.ok);});',
     '})();'
   ].join('\n') + '\n';
@@ -178,5 +274,6 @@ function escapeAttr(value) {
 module.exports = {
   bridgeScript,
   debugPanelHtml,
-  parentDebugScript
+  parentDebugScript,
+  comparePageLabels
 };

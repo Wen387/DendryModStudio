@@ -374,11 +374,69 @@
 
 /* --- Catalog-only mode (opened via Template Hub topbar button) --- */
 
+.welcome-catalog-standalone-header {
+  display: none;
+}
+
+.welcome-surface.is-catalog-only .welcome-catalog-standalone-header {
+  display: block;
+  padding-right: 42px;
+}
+
+.welcome-catalog-standalone-header h2 {
+  margin: 0;
+  font-size: 26px;
+  line-height: 1.15;
+  color: var(--text);
+}
+
+.welcome-catalog-standalone-header p:last-child {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
 .welcome-surface.is-catalog-only .welcome-hero,
 .welcome-surface.is-catalog-only .welcome-actions,
 .welcome-surface.is-catalog-only .welcome-path,
-.welcome-surface.is-catalog-only .welcome-support-row {
+.welcome-surface.is-catalog-only .welcome-support-row,
+.welcome-surface.is-catalog-only .welcome-catalog-header {
   display: none;
+}
+
+/* --- Template info row & edit badge --- */
+
+.welcome-catalog-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.welcome-catalog-info-loading {
+  opacity: 0.5;
+}
+
+.welcome-catalog-edits-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 7px;
+  border-radius: 4px;
+  background: rgba(200, 150, 40, 0.12);
+  color: #a06a18;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.welcome-catalog-edits-badge .ui-icon {
+  width: 11px;
+  height: 11px;
 }
 
 /* --- Featured template catalog --- */

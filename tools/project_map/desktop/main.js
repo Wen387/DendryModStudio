@@ -455,7 +455,7 @@ ipcMain.handle('dendry:catalog-open-template', async (_event, options) => {
     if (entry.prebuiltIndex) {
       sendScanProgress(target, {
         stage: 'catalog-index',
-        percent: 65,
+        percent: 62,
         label: 'Downloading pre-built index...'
       });
       try {
@@ -464,10 +464,46 @@ ipcMain.handle('dendry:catalog-open-template', async (_event, options) => {
         // Pre-built index is optional; fall through to local scan.
       }
     }
+    if (entry.assetsAssetName) {
+      sendScanProgress(target, {
+        stage: 'catalog-assets',
+        percent: 62,
+        label: 'Downloading art assets (' + (entry.assetsEstimatedSizeMB || '?') + ' MB)...'
+      });
+      try {
+        var assetsResult = await templateCatalog.downloadAssets(entry, installDir, {
+          estimatedSizeMB: entry.assetsEstimatedSizeMB,
+          onProgress: function (received, total) {
+            var pct = total > 0 ? Math.round(62 + (received / total) * 33) : 70;
+            sendScanProgress(target, {
+              stage: 'catalog-assets',
+              percent: pct,
+              label: 'Downloading art assets... (' + Math.round(received / 1024 / 1024) + ' MB)'
+            });
+          }
+        });
+        if (assetsResult && !assetsResult.skipped) {
+          var existingMarker = templateCatalog.readMarker(installDir);
+          if (existingMarker) {
+            templateCatalog.writeMarker(installDir, Object.assign({}, existingMarker, {
+              assetsInstalled: true,
+              assetsAssetName: entry.assetsAssetName
+            }));
+          }
+        }
+      } catch (_err) {
+        // Assets are supplementary; the template is still usable without them.
+        sendScanProgress(target, {
+          stage: 'catalog-assets',
+          percent: 95,
+          label: 'Art assets unavailable — template loaded without images/music.'
+        });
+      }
+    }
   }
   sendScanProgress(target, {
     stage: 'catalog-load',
-    percent: 75,
+    percent: 96,
     label: 'Loading project index...'
   });
   var cached = core.loadCatalogTemplateIndex({
@@ -523,6 +559,37 @@ ipcMain.handle('dendry:catalog-remove-template', async (_event, options) => {
   return templateCatalog.removeTemplate(installDir);
 });
 
+ipcMain.handle('dendry:catalog-template-info', async (_event, options) => {
+  var templateId = options && options.templateId;
+  if (!templateId) {
+    return {ok: false, message: 'No templateId provided.'};
+  }
+  var installDir = templateCatalog.templateInstallDir(userDataCatalogDir(), templateId);
+  var marker = templateCatalog.readMarker(installDir);
+  if (!marker) {
+    return {ok: false, code: 'not_installed'};
+  }
+  var edits = templateCatalog.detectLocalEdits(installDir);
+  var info = {
+    ok: true,
+    id: templateId,
+    installedAt: marker.installedAt || '',
+    releaseTag: marker.releaseTag || '',
+    edits: edits,
+    fileCount: Array.isArray(marker.fileSnapshot) ? marker.fileSnapshot.length : 0
+  };
+  var cached = core.loadCatalogTemplateIndex({installDir: installDir, includeExcerpts: false});
+  if (cached.ok && cached.index) {
+    var idx = cached.index;
+    info.indexStats = {
+      scenes: Array.isArray(idx.scenes) ? idx.scenes.length : 0,
+      variables: Array.isArray(idx.variables) ? idx.variables.length : 0,
+      events: idx.semantic && idx.semantic.events ? (idx.semantic.events.items || []).length : 0
+    };
+  }
+  return info;
+});
+
 ipcMain.handle('dendry:install-plan-apply', async (_event, options) => {
   const projectRoot = chooseProjectRootForOperation(options || {});
   if (!projectRoot) {
@@ -567,7 +634,8 @@ ipcMain.handle('dendry:runtime-preview-create', async (_event, options) => {
     projectRoot,
     allowAdvanced: options && options.allowAdvanced === true,
     projectIndex: options && options.projectIndex,
-    sessionsRoot: path.join(app.getPath('userData'), 'runtime-previews')
+    sessionsRoot: path.join(app.getPath('userData'), 'runtime-previews'),
+    locale: (options && options.locale) || app.getLocale()
   });
   pruneRuntimeSessions();
   return result;

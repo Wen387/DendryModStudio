@@ -290,6 +290,9 @@ assert(createdPreset.variables.some((item) => item.name === 'dnvp_leader' && ite
 assert(createdPreset.variables.some((item) => item.name === 'runtime_created_scene_seen' && item.value === 0 && item.valueType === 'booleanNumber'), 'focused entry preset should reset generated seen flags');
 assert(createScenePreview.debug.controls.variables.some((item) => item.name === 'demo_public_attention'), 'debug controls should include variables referenced only by created scene choice conditions');
 assert(fs.readFileSync(createScenePreview.comparePage.path, 'utf8').includes('data-debug-focus-preset="focus_runtime_created_scene"'), 'compare page should render focused entry buttons');
+assert(fs.readFileSync(createScenePreview.comparePage.path, 'utf8').includes('data-toggle-debug'), 'compare page should include a debug panel toggle button');
+assert(fs.readFileSync(createScenePreview.comparePage.path, 'utf8').includes('runtime-debug-nav'), 'compare page should include the debug section navigation strip');
+assert(fs.readFileSync(createScenePreview.comparePage.path, 'utf8').includes('URLSearchParams'), 'compare page should support ?mode= URL parameter for direct fullscreen access');
 assert(debugBridge.bridgeScript({controls: createScenePreview.debug.controls}).includes('applyFocusPreset'), 'preview bridge should expose an atomic focused-entry command');
 assert(debugBridge.bridgeScript({controls: createScenePreview.debug.controls}).includes('type==="string"'), 'preview bridge should accept string-valued condition presets');
 
@@ -382,6 +385,7 @@ assert(!modifiedOnlySession.paths.baselineRoot, 'modified-only preview should no
 assert(!modifiedOnlySession.compareUrl, 'modified-only preview should not expose a compare URL');
 assert(modifiedOnlySession.modifiedUrl.includes('/modified/out/html/'), 'modified-only preview should expose the modified runtime URL');
 assert(!modifiedOnlySession.timings.stages.some((item) => item.stage === 'build_baseline'), 'modified-only preview timings should omit baseline build work');
+assert(!modifiedOnlySession.debug.enabled || Boolean(modifiedOnlySession.debugUrl), 'modified-only preview should expose debugUrl when debug is enabled');
 
 const mismatchPreview = runtimePreview.createRuntimePreview({
   projectRoot: sourceRoot,

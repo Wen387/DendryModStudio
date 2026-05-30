@@ -400,7 +400,7 @@ function finalizeRuntimePreview(context) {
     baselineBuild,
     modifiedBuild,
     debug
-  });
+  }, opts.locale);
   const diagnostics = session.diagnostics
     .concat(installResult.diagnostics || [])
     .concat(baselineBuild.diagnostics || [])
@@ -446,6 +446,7 @@ function finalizeModifiedRuntimePreview(context) {
     modifiedBuild,
     serverOrigin: opts.serverOrigin || serverOrigin
   });
+  const comparePage = debug.enabled ? writeComparePage(session, {installResult, modifiedBuild, debug}, opts.locale) : null;
   const diagnostics = session.diagnostics
     .concat(installResult.diagnostics || [])
     .concat(modifiedBuild.diagnostics || [])
@@ -460,9 +461,10 @@ function finalizeModifiedRuntimePreview(context) {
     baselineBuild: null,
     modifiedBuild,
     debug,
-    comparePage: null,
+    comparePage,
     server,
     compareUrl: '',
+    debugUrl: comparePage && baseUrl ? baseUrl + '/compare/' : '',
     baselineUrl: '',
     modifiedUrl: baseUrl ? baseUrl + '/modified/out/html/' : '',
     diagnostics,
@@ -504,6 +506,7 @@ function finalizeQuickRuntimePreview(context) {
     results: [],
     diagnostics: [diagnostic('info', 'runtime_preview.quick_mode', 'Quick Lens reused the latest generated out/html without rebuilding the project.')]
   };
+  const comparePage = debug.enabled ? writeComparePage(session, {installResult, modifiedBuild, debug}, opts.locale) : null;
   const diagnostics = session.diagnostics
     .concat(installResult.diagnostics || [])
     .concat(modifiedBuild.diagnostics || [])
@@ -519,9 +522,10 @@ function finalizeQuickRuntimePreview(context) {
     baselineBuild: null,
     modifiedBuild,
     debug,
-    comparePage: null,
+    comparePage,
     server,
     compareUrl: '',
+    debugUrl: comparePage && baseUrl ? baseUrl + '/compare/' : '',
     baselineUrl: '',
     modifiedUrl: baseUrl ? baseUrl + '/modified/out/html/' : '',
     diagnostics,
@@ -1026,7 +1030,7 @@ function firstBuildFailureLine(value) {
     ) || '';
 }
 
-function writeComparePage(session, report) {
+function writeComparePage(session, report, locale) {
   const compareRoot = path.join(session.paths.root, 'compare');
   fs.mkdirSync(compareRoot, {recursive: true});
   const metadata = Object.assign({}, session.metadata, {
@@ -1037,16 +1041,18 @@ function writeComparePage(session, report) {
   });
   fs.writeFileSync(path.join(session.paths.root, 'metadata.json'), JSON.stringify(metadata, null, 2) + '\n', 'utf8');
   const filePath = path.join(compareRoot, 'index.html');
-  fs.writeFileSync(filePath, comparePageHtml(session, report || {}), 'utf8');
+  fs.writeFileSync(filePath, comparePageHtml(session, report || {}, locale), 'utf8');
   return {path: filePath};
 }
 
-function comparePageHtml(session, report) {
-  const title = escapeHtml(session.metadata.title || 'Runtime Preview');
+function comparePageHtml(session, report, locale) {
+  const L = debugBridge.comparePageLabels(locale);
+  const title = escapeHtml(session.metadata.title || L.pageTitle);
   const hasDebug = Boolean(report && report.debug && report.debug.enabled);
+  const hasBaseline = Boolean(report && report.baselineBuild);
   return [
     '<!doctype html>',
-    '<html lang="en">',
+    '<html lang="' + escapeHtml(String(locale || 'en').split('-')[0]) + '">',
     '<head>',
     '<meta charset="utf-8">',
     '<meta name="viewport" content="width=device-width, initial-scale=1">',
@@ -1095,28 +1101,38 @@ function comparePageHtml(session, report) {
     '.runtime-debug-type{font-size:10px;padding:1px 5px;border-radius:3px;background:#f0ebe3;color:#6b6255;margin-left:4px}',
     '.runtime-debug-input-wrap{display:flex;align-items:center;gap:4px}',
     '.runtime-debug-row input[type="number"]{width:72px}',
+    '.runtime-debug-nav{position:sticky;top:0;z-index:1;display:flex;flex-wrap:wrap;gap:4px;padding:6px 0 8px;margin:0 0 4px;background:#fffdf8;border-bottom:1px solid #e8e0d0}',
+    '.runtime-debug-nav button{font-size:11px;padding:3px 8px;border:1px solid #d8cbb7;border-radius:4px;background:#f8f4ed;cursor:pointer;white-space:nowrap}',
+    '.runtime-debug-nav button:hover{background:#eee8dd}',
+    '.runtime-debug-section{border:none;margin:2px 0 0}',
+    '.runtime-debug-section>summary{padding:8px 0 4px;cursor:pointer;list-style:none;font-size:13px;font-weight:600;color:#28231c}',
+    '.runtime-debug-section>summary::-webkit-details-marker{display:none}',
+    '.runtime-debug-section>summary::before{content:"\\25b8";display:inline-block;margin-right:6px;font-size:11px;transition:transform 0.15s}',
+    '.runtime-debug-section[open]>summary::before{transform:rotate(90deg)}',
+    'body.runtime-debug-hidden .runtime-debug-console,body.runtime-debug-hidden .runtime-debug-resizer{display:none}',
+    'body.runtime-debug-hidden main{margin-right:0!important}',
+    '[data-toggle-debug]{margin-left:auto}',
     '@media (max-width: 900px){.runtime-debug-console{position:static;width:auto;max-width:none;margin:0 8px 8px;border:1px solid #cdbfa8}.runtime-debug-resizer{display:none}main{margin-right:0!important;height:55vh}}',
     hasDebug ? 'main{margin-right:calc(var(--runtime-debug-width) + 12px)}' : '',
     '</style>',
     '</head>',
-    '<body data-preview-mode="split">',
+    '<body data-preview-mode="' + (hasBaseline ? 'split' : 'modified') + '"' + (!hasBaseline && hasDebug ? ' class="runtime-debug-hidden"' : '') + '>',
     '<header>',
-    '<strong>Runtime Preview</strong>',
+    '<strong>' + escapeHtml(L.pageTitle) + '</strong>',
     '<span>' + title + '</span>',
-    '<button type="button" data-mode="baseline">Baseline</button>',
-    '<button type="button" data-mode="modified">Modified</button>',
-    '<button type="button" data-mode="split">Split</button>',
-    '<span>Temporary sandbox: ' + escapeHtml(session.sessionId) + '</span>',
+    hasBaseline ? '<button type="button" data-mode="baseline">' + escapeHtml(L.modeBaseline) + '</button><button type="button" data-mode="modified">' + escapeHtml(L.modeModified) + '</button><button type="button" data-mode="split">' + escapeHtml(L.modeSplit) + '</button>' : '',
+    hasDebug ? '<button type="button" data-toggle-debug data-debug-label="' + escapeHtml(L.modeDebug) + '">' + escapeHtml(L.modeDebug) + ' ' + (hasBaseline ? '◂' : '▸') + '</button>' : '',
+    '<span>' + escapeHtml(L.sandboxLabel) + ' ' + escapeHtml(session.sessionId) + '</span>',
     '</header>',
-    '<main data-preview-mode="split">',
-    '<iframe class="baseline" title="Baseline" src="../baseline/out/html/index.html"></iframe>',
+    '<main>',
+    hasBaseline ? '<iframe class="baseline" title="Baseline" src="../baseline/out/html/index.html"></iframe>' : '',
     '<iframe class="modified" title="Modified" src="../modified/out/html/index.html"></iframe>',
     '</main>',
     hasDebug ? '<div class="runtime-debug-resizer" data-runtime-debug-resizer aria-hidden="true"></div>' : '',
-    hasDebug ? debugBridge.debugPanelHtml({controls: report.debug.controls}) : '',
-    '<script>document.addEventListener("click",function(e){var b=e.target.closest("[data-mode]");if(b)document.body.dataset.previewMode=b.dataset.mode;});</script>',
+    hasDebug ? debugBridge.debugPanelHtml({controls: report.debug.controls, labels: L}) : '',
+    '<script>try{var um=new URLSearchParams(window.location.search).get("mode");if(um&&["baseline","modified","split"].indexOf(um)>=0)document.body.dataset.previewMode=um;}catch(_e){}document.addEventListener("click",function(e){var b=e.target.closest("[data-mode]");if(b)document.body.dataset.previewMode=b.dataset.mode;});</script>',
     hasDebug ? '<script>' + debugResizeScript() + '</script>' : '',
-    hasDebug ? '<script>' + debugBridge.parentDebugScript({sessionId: session.sessionId}) + '</script>' : '',
+    hasDebug ? '<script>' + debugBridge.parentDebugScript({sessionId: session.sessionId, labels: L}) + '</script>' : '',
     '</body>',
     '</html>'
   ].join('\n') + '\n';
@@ -1132,6 +1148,8 @@ function debugResizeScript() {
     'function clamp(value){var max=Math.max(320,Math.floor(window.innerWidth*0.65));return Math.max(280,Math.min(max,Math.floor(value)));}',
     'function apply(value){var width=clamp(value);root.style.setProperty("--runtime-debug-width",width+"px");try{localStorage.setItem(KEY,String(width));}catch(_err){}}',
     'try{var saved=Number(localStorage.getItem(KEY));if(saved)apply(saved);}catch(_err){}',
+    'var toggle=document.querySelector("[data-toggle-debug]");',
+    'if(toggle){var dbl=toggle.getAttribute("data-debug-label")||"Debug";try{var dv=localStorage.getItem("dms-debug-panel-visible");if(dv==="0")document.body.classList.add("runtime-debug-hidden");if(dv==="1")document.body.classList.remove("runtime-debug-hidden");}catch(_e){}toggle.addEventListener("click",function(){document.body.classList.toggle("runtime-debug-hidden");var h=document.body.classList.contains("runtime-debug-hidden");toggle.textContent=h?dbl+" \\u25b8":dbl+" \\u25c2";try{localStorage.setItem("dms-debug-panel-visible",h?"0":"1");}catch(_e){}});if(document.body.classList.contains("runtime-debug-hidden"))toggle.textContent=dbl+" \\u25b8";else toggle.textContent=dbl+" \\u25c2";}',
     'if(!handle)return;',
     'handle.addEventListener("pointerdown",function(event){event.preventDefault();document.body.classList.add("runtime-debug-resizing");handle.setPointerCapture&&handle.setPointerCapture(event.pointerId);function move(moveEvent){apply(window.innerWidth-moveEvent.clientX);}function up(){document.body.classList.remove("runtime-debug-resizing");window.removeEventListener("pointermove",move);window.removeEventListener("pointerup",up);}window.addEventListener("pointermove",move);window.addEventListener("pointerup",up);});',
     '})();'

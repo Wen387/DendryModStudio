@@ -169,6 +169,18 @@
     }
   }
 
+  function catalogTemplateInfo(options, env) {
+    var desktop = raw(env);
+    if (!desktop || typeof desktop.catalogTemplateInfo !== 'function') {
+      return resolve(null);
+    }
+    try {
+      return resolve(desktop.catalogTemplateInfo(options || {}));
+    } catch (err) {
+      return reject(err);
+    }
+  }
+
   const api = {
     raw,
     isDesktop,
@@ -186,7 +198,8 @@
     openExternalUrl,
     listCatalogTemplates,
     openCatalogTemplate,
-    removeCatalogTemplate
+    removeCatalogTemplate,
+    catalogTemplateInfo
   };
 
   if (typeof module !== 'undefined' && module.exports) {

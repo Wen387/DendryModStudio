@@ -112,5 +112,6 @@ contextBridge.exposeInMainWorld('dendryDesktop', {
     dispatchIndexLoaded(result);
     return result;
   },
-  removeCatalogTemplate: (options) => ipcRenderer.invoke('dendry:catalog-remove-template', options || {})
+  removeCatalogTemplate: (options) => ipcRenderer.invoke('dendry:catalog-remove-template', options || {}),
+  catalogTemplateInfo: (options) => ipcRenderer.invoke('dendry:catalog-template-info', options || {})
 });

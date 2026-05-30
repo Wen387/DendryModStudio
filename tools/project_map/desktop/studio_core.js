@@ -1404,7 +1404,8 @@ function createRuntimePreview(options) {
     allowAdvanced: opts.allowAdvanced === true,
     allowProjectBuildWrapper: opts.allowProjectBuildWrapper === true,
     dryRun: false,
-    projectIndex: opts.projectIndex || null
+    projectIndex: opts.projectIndex || null,
+    locale: opts.locale || ''
   });
 }
 

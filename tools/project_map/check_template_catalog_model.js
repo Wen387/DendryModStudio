@@ -40,6 +40,22 @@ assert(badId.diagnostics.some((d) => d.includes('letters')), 'diagnostics should
 const badSchema = catalog.validateCatalog({schemaVersion: 2, templates: []});
 assert(!badSchema.ok, 'wrong schemaVersion should fail validation');
 
+const badAssetsType = catalog.validateCatalog({schemaVersion: 1, templates: [{
+  id: 'a', title: 'A', repo: 'x/x', assetName: 'a.tar.gz', assetsAssetName: 123
+}]});
+assert(!badAssetsType.ok, 'non-string assetsAssetName should fail validation');
+
+const badAssetsSizeMB = catalog.validateCatalog({schemaVersion: 1, templates: [{
+  id: 'a', title: 'A', repo: 'x/x', assetName: 'a.tar.gz', assetsEstimatedSizeMB: -5
+}]});
+assert(!badAssetsSizeMB.ok, 'negative assetsEstimatedSizeMB should fail validation');
+
+const validWithAssets = catalog.validateCatalog({schemaVersion: 1, templates: [{
+  id: 'a', title: 'A', repo: 'x/x', assetName: 'a.tar.gz',
+  assetsAssetName: 'a-assets.tar.gz', assetsEstimatedSizeMB: 100
+}]});
+assert(validWithAssets.ok, 'valid template with assets fields should pass validation');
+
 // --- evaluateCatalog filters and localizes ---
 
 const evaluated = catalog.evaluateCatalog(bundled, {currentVersion: '0.98.0', locale: 'zh-Hant'});
@@ -52,6 +68,17 @@ assert(first.id === 'showcase-game', 'first template id should be showcase-game'
 assert(first.title && first.title.length > 0, 'template title should be non-empty');
 assert(evaluated.templates.some((t) => t.id === 'biennio-rosso'), 'catalog should contain biennio-rosso');
 assert(evaluated.templates.some((t) => t.id === 'dynamic-sdaah'), 'catalog should contain dynamic-sdaah');
+
+const dynamicEntry = evaluated.templates.find((t) => t.id === 'dynamic-sdaah');
+assert(dynamicEntry.assetsAssetName === 'dynamic-sdaah-assets.tar.gz', 'dynamic-sdaah should carry assetsAssetName');
+assert(dynamicEntry.assetsEstimatedSizeMB === 246, 'dynamic-sdaah should carry assetsEstimatedSizeMB');
+
+const biennioEntry = evaluated.templates.find((t) => t.id === 'biennio-rosso');
+assert(biennioEntry.assetsAssetName === 'biennio-rosso-assets.tar.gz', 'biennio-rosso should carry assetsAssetName');
+
+const showcaseEntry = evaluated.templates.find((t) => t.id === 'showcase-game');
+assert(showcaseEntry.assetsAssetName === '', 'showcase-game without assets should have empty assetsAssetName');
+assert(showcaseEntry.assetsEstimatedSizeMB === 0, 'showcase-game without assets should have zero assetsEstimatedSizeMB');
 
 const evaluatedZh = catalog.evaluateCatalog(bundled, {currentVersion: '0.98.0', locale: 'zh-Hant'});
 assert(evaluatedZh.templates[0].title === '展示遊戲', 'zh-Hant locale should resolve titleLocalized');
@@ -101,6 +128,16 @@ const indexUrl = catalog.resolveReleaseAssetUrl({
 assert(
   indexUrl === 'https://github.com/Wen387/dendry-showcase-game/releases/latest/download/project-index.json',
   'index asset URL should resolve correctly: ' + indexUrl
+);
+
+const assetsUrl = catalog.resolveReleaseAssetUrl({
+  repo: 'Wen387/dynamic_social_democracy_StudioRepo',
+  releaseTag: 'latest',
+  assetsAssetName: 'dynamic-sdaah-assets.tar.gz'
+}, 'assetsAssetName');
+assert(
+  assetsUrl === 'https://github.com/Wen387/dynamic_social_democracy_StudioRepo/releases/latest/download/dynamic-sdaah-assets.tar.gz',
+  'assetsAssetName URL should resolve correctly: ' + assetsUrl
 );
 
 const emptyUrl = catalog.resolveReleaseAssetUrl({repo: '', assetName: ''}, 'assetName');
@@ -262,6 +299,11 @@ assert(catalog.resolveLocalizedText('base', null, 'en') === 'base', 'null map re
 
 // --- checkUpdateAvailable (offline, no network) ---
 
+assert(typeof catalog.downloadAssets === 'function', 'downloadAssets should be exported');
+
+const skipResult = catalog.downloadAssets({assetsAssetName: ''}, tmpRoot, {});
+assert(typeof skipResult.then === 'function', 'downloadAssets should return a promise');
+
 assert(typeof catalog.checkUpdateAvailable === 'function', 'checkUpdateAvailable should be exported');
 assert(typeof catalog.fetchLatestReleaseTag === 'function', 'fetchLatestReleaseTag should be exported');
 assert(typeof catalog.preflightCheck === 'function', 'preflightCheck should be exported');
@@ -298,10 +340,19 @@ assert(typeof noMarkerUpdate.then === 'function', 'checkUpdateAvailable should r
 noMarkerUpdate.then(function (noMarkerResult) {
   assert(!noMarkerResult.updateAvailable, 'checkUpdateAvailable without marker should return false');
 
+  // --- downloadAssets skips when no asset name ---
+  return catalog.downloadAssets({assetsAssetName: ''}, tmpRoot, {});
+}).then(function (skipEmpty) {
+  assert(skipEmpty.skipped === true, 'downloadAssets should skip when assetsAssetName is empty');
+
+  return catalog.downloadAssets({}, tmpRoot, {});
+}).then(function (skipUndefined) {
+  assert(skipUndefined.skipped === true, 'downloadAssets should skip when assetsAssetName is undefined');
+
   // --- Cleanup ---
   fs.rmSync(tmpRoot, {recursive: true, force: true});
 
-  console.log('PASS: template catalog model (' + 78 + ' assertions)');
+  console.log('PASS: template catalog model (' + 91 + ' assertions)');
 }).catch(function (err) {
   fs.rmSync(tmpRoot, {recursive: true, force: true});
   process.stderr.write('FAIL: ' + (err && err.message ? err.message : String(err)) + '\n');

@@ -1370,10 +1370,12 @@
     const message = result.message || (result.ok && result.installResult && result.installResult.ok === false
       ? t('install.runtimePreviewReadyWithInstallWarnings', 'Runtime preview was created, but some proposed changes could not be applied to the temporary modified copy. Check diagnostics below.')
       : '');
+    const debugCompare = result.compareUrl || result.debugUrl || '';
     const links = [
       !result.ended && result.compareUrl ? ['install.runtimePreviewOpenCompare', t('install.runtimePreviewOpenCompare', 'Open comparison'), result.compareUrl] : null,
-      !result.ended && result.baselineUrl ? ['install.runtimePreviewOpenBaseline', t('install.runtimePreviewOpenBaseline', 'Open original'), result.baselineUrl] : null,
-      !result.ended && result.modifiedUrl ? ['install.runtimePreviewOpenModified', t('install.runtimePreviewOpenModified', 'Open modified'), result.modifiedUrl] : null
+      !result.ended && result.baselineUrl ? ['install.runtimePreviewOpenBaseline', t('install.runtimePreviewOpenBaseline', 'Open original'), debugCompare ? debugCompare + '?mode=baseline' : result.baselineUrl] : null,
+      !result.ended && result.modifiedUrl ? ['install.runtimePreviewOpenModified', t('install.runtimePreviewOpenModified', 'Open modified'), debugCompare ? debugCompare + '?mode=modified' : result.modifiedUrl] : null,
+      !result.ended && !result.compareUrl && result.debugUrl ? ['install.runtimePreviewOpenDebug', t('install.runtimePreviewOpenDebug', 'Open with Debug'), result.debugUrl] : null
     ].filter(Boolean);
     return [
       '<article class="runtime-preview-card ' + runtimePreviewCardClass(result) + '">',

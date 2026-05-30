@@ -54,14 +54,16 @@ function validateTemplateEntry(entry, index, diagnostics) {
   if (typeof entry.id === 'string' && entry.id.trim() && !/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(entry.id)) {
     diagnostics.push(prefix + '.id must contain only letters, digits, hyphens, and underscores');
   }
-  ['description', 'author', 'releaseTag', 'indexAssetName', 'excerptIndexAssetName', 'minStudioVersion'].forEach(function (key) {
+  ['description', 'author', 'releaseTag', 'indexAssetName', 'excerptIndexAssetName', 'assetsAssetName', 'minStudioVersion'].forEach(function (key) {
     if (entry[key] !== undefined && typeof entry[key] !== 'string') {
       diagnostics.push(prefix + '.' + key + ' must be a string when present');
     }
   });
-  if (entry.estimatedSizeMB !== undefined && (typeof entry.estimatedSizeMB !== 'number' || entry.estimatedSizeMB < 0)) {
-    diagnostics.push(prefix + '.estimatedSizeMB must be a non-negative number when present');
-  }
+  ['estimatedSizeMB', 'assetsEstimatedSizeMB'].forEach(function (key) {
+    if (entry[key] !== undefined && (typeof entry[key] !== 'number' || entry[key] < 0)) {
+      diagnostics.push(prefix + '.' + key + ' must be a non-negative number when present');
+    }
+  });
   if (entry.prebuiltIndex !== undefined && typeof entry.prebuiltIndex !== 'boolean') {
     diagnostics.push(prefix + '.prebuiltIndex must be a boolean when present');
   }
@@ -153,6 +155,8 @@ function evaluateCatalog(catalog, options) {
         prebuiltIndex: entry.prebuiltIndex === true,
         indexAssetName: entry.indexAssetName || '',
         excerptIndexAssetName: entry.excerptIndexAssetName || '',
+        assetsAssetName: entry.assetsAssetName || '',
+        assetsEstimatedSizeMB: entry.assetsEstimatedSizeMB || 0,
         minStudioVersion: entry.minStudioVersion || ''
       };
     });
@@ -408,6 +412,37 @@ function downloadPrebuiltIndex(template, installDir) {
   return Promise.all(promises);
 }
 
+function downloadAssets(template, installDir, options) {
+  var assetName = template.assetsAssetName;
+  if (!assetName) { return Promise.resolve({skipped: true}); }
+  var url = resolveReleaseAssetUrl(template, 'assetsAssetName');
+  if (!url) { return Promise.resolve({skipped: true}); }
+  var opts = options || {};
+  var archivePath = path.join(path.dirname(installDir), '.tmp-assets-' + path.basename(installDir) + '.tar.gz');
+  if (fs.existsSync(archivePath)) {
+    fs.rmSync(archivePath, {force: true});
+  }
+  return preflightCheck(url)
+    .then(function (check) {
+      if (!check.ok) {
+        return {skipped: true, reason: 'preflight-failed', statusCode: check.statusCode};
+      }
+      if (opts.estimatedSizeMB) {
+        checkDiskSpace(path.dirname(installDir), opts.estimatedSizeMB * 2 * 1048576);
+      }
+      return download(url, archivePath, MAX_REDIRECTS, opts.onProgress)
+        .then(function () {
+          extractTarGz(archivePath, installDir);
+          fs.rmSync(archivePath, {force: true});
+          return {skipped: false};
+        });
+    })
+    .catch(function (err) {
+      try { fs.rmSync(archivePath, {force: true}); } catch (_e) { /* best effort */ }
+      throw err;
+    });
+}
+
 function loadTemplateIndex(installDir, includeExcerpts) {
   var excerptPath = path.join(installDir, 'project-index-excerpts.json');
   var indexPath = path.join(installDir, 'project-index.json');
@@ -626,6 +661,7 @@ module.exports = {
   checkTemplateStatus: checkTemplateStatus,
   downloadAndExtract: downloadAndExtract,
   downloadPrebuiltIndex: downloadPrebuiltIndex,
+  downloadAssets: downloadAssets,
   loadTemplateIndex: loadTemplateIndex,
   removeTemplate: removeTemplate,
   readMarker: readMarker,
