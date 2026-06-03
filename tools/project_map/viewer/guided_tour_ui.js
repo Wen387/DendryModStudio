@@ -97,6 +97,11 @@
     return '<span class="guided-tour-mascot-face">' + MASCOT_FACE + '</span>';
   }
 
+  // A warm full-screen flourish that streaks across before the fairy greeting,
+  // used when opening the orientation tour (and on the first-run offer). Plain
+  // emoji — no asset, no dependency. Skipped under reduced-motion.
+  const OPENING_EMOJI = ['✨', '🗺️', '📖', '🌿', '⭐', '💡', '🎈', '🍀', '🪄', '💫'];
+
   const state = {
     running: false,
     mode: 'linear',
@@ -113,7 +118,11 @@
     curtainKind: 'intro',
     curtainLastFocus: null,
     curtainSecondaryFn: null,
-    curtainPrimaryFn: null
+    curtainPrimaryFn: null,
+    openingEl: null,
+    openingActive: false,
+    openingTimer: 0,
+    openingDoneTimer: 0
   };
 
   const api = {
@@ -262,9 +271,16 @@
     if (!m) {
       return false;
     }
-    // Open on the landing curtain (a friendly intro from the mascot) instead of
-    // dropping straight into the spotlight. "Let's go" begins the steps.
-    return showCurtain('intro');
+    if (!global || !global.document) {
+      return false;
+    }
+    // A full-screen welcome flourish (emoji streak + warm wash), then the fairy
+    // greeting curtain — instead of dropping straight into the spotlight.
+    return openIntro();
+  }
+
+  function openIntro() {
+    return playOpening(function () { showCurtain('intro'); });
   }
 
   function beginLinearSteps() {
@@ -955,13 +971,79 @@
   // dismissed. Gated so it never stacks on the Welcome Hub or an active tour,
   // and never reappears once seen.
   function maybeOfferFirstRunIntro() {
-    if (state.running || isCurtainOpen() || isWelcomeOpen()) {
+    if (state.running || state.openingActive || isCurtainOpen() || isWelcomeOpen()) {
       return;
     }
     if (hasSeenLinear()) {
       return;
     }
-    showCurtain('intro');
+    // The first run gets the full welcome flourish too — this is meant to feel
+    // warmer than landing on a plain page.
+    openIntro();
+  }
+
+  // --- Opening flourish -----------------------------------------------------
+  // A brief full-screen layer: emoji streak diagonally across over a warm wash,
+  // and the fairy greeting curtain rises in while they are still clearing.
+
+  function ensureOpeningLayer(document) {
+    if (state.openingEl) {
+      return;
+    }
+    const mount = document.getElementById('studio-guided-tour-root') || document.body;
+    if (!mount) {
+      return;
+    }
+    const layer = document.createElement('div');
+    layer.id = 'studio-guided-tour-opening';
+    layer.className = 'guided-tour-opening hidden';
+    layer.setAttribute('aria-hidden', 'true');
+    mount.appendChild(layer);
+    state.openingEl = layer;
+  }
+
+  function buildOpeningMarkup() {
+    const wash = '<div class="guided-tour-opening-wash"></div>';
+    const emojis = OPENING_EMOJI.map(function (glyph, i) {
+      const top = 8 + ((i * 9) % 78);
+      const size = 22 + ((i * 7) % 18);
+      const delay = (i * 0.06).toFixed(2);
+      return '<span class="guided-tour-opening-emoji" style="top:' + top +
+        '%;font-size:' + size + 'px;animation-delay:' + delay + 's">' + glyph + '</span>';
+    }).join('');
+    return wash + emojis;
+  }
+
+  function playOpening(onDone) {
+    if (prefersReducedMotion() || !global || !global.document) {
+      return onDone();
+    }
+    if (state.openingActive) {
+      return true;
+    }
+    ensureOpeningLayer(global.document);
+    if (!state.openingEl) {
+      return onDone();
+    }
+    const layer = state.openingEl;
+    layer.innerHTML = buildOpeningMarkup();
+    layer.classList.remove('hidden');
+    state.openingActive = true;
+    if (state.openingDoneTimer) { global.clearTimeout(state.openingDoneTimer); }
+    if (state.openingTimer) { global.clearTimeout(state.openingTimer); }
+    // Bring the fairy greeting in partway through so it emerges as the streak
+    // clears, then tear the layer down once the animation has finished.
+    state.openingDoneTimer = global.setTimeout(function () {
+      state.openingActive = false;
+      onDone();
+    }, 520);
+    state.openingTimer = global.setTimeout(function () {
+      if (state.openingEl) {
+        state.openingEl.classList.add('hidden');
+        state.openingEl.innerHTML = '';
+      }
+    }, 1100);
+    return true;
   }
 
   function hasSeenLinear() {

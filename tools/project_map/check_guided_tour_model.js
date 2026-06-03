@@ -163,6 +163,9 @@ assert(tourUi.includes('maybeOfferFirstRunIntro'), 'guided tour should offer a f
 assert(tourUi.includes('welcomeDismissed') || tourUi.includes('welcome-dismissed'),
   'guided tour should listen for Welcome Hub dismissal to offer the first-run intro');
 assert(tourUi.includes('hasSeenLinear'), 'first-run offer should respect a seen flag so it never nags');
+assert(tourUi.includes('playOpening') && tourUi.includes('OPENING_EMOJI'),
+  'opening the tour should play a full-screen emoji flourish before the greeting');
+assert(tourUi.includes('prefersReducedMotion'), 'the opening flourish should be skipped under reduced-motion');
 
 // --- Deep create hints reference real, dynamically-rendered anchors --------
 const createHints = model.surfaceHints('create');
@@ -184,6 +187,7 @@ assert(tourCss.includes('.guided-tour-spotlight'), 'guided tour styles should de
 assert(tourCss.includes('box-shadow'), 'guided tour spotlight should dim via box-shadow');
 assert(tourCss.includes('.guided-tour-curtain'), 'guided tour styles should define the landing/ending curtain');
 assert(tourCss.includes('.guided-tour-mascot'), 'guided tour styles should define the mascot');
+assert(tourCss.includes('.guided-tour-opening'), 'guided tour styles should define the opening flourish');
 assert(tourCss.includes('prefers-reduced-motion'), 'guided tour styles should respect reduced-motion');
 
 // --- Fail-closed without a DOM ---------------------------------------------
