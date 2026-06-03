@@ -76,9 +76,9 @@
     },
     {
       "path": "tools/project_map/viewer/object_authoring_canvas_ui.js",
-      "maxLines": 4822,
+      "maxLines": 4871,
       "allowRaise": true,
-      "reason": "Keep orchestration here; split editor UI into workspace modules. Raised 2026-06-03 from 4755 for conditional what-if live badge wiring + inline leaf edit input collection."
+      "reason": "Keep orchestration here; split editor UI into workspace modules. Raised 2026-06-03 from 4822 for condition-edit AST re-bake + what-if badge live refresh (P3b #2)."
     },
     {
       "path": "tools/project_map/viewer/preview_object_editor.js",

@@ -2211,14 +2211,59 @@
     if (!target || !target.closest || !elements || !elements.host) {
       return;
     }
-    const input = target.closest('[data-conditional-whatif-var]');
-    if (!input || !elements.host.contains(input)) {
+    const varInput = target.closest('[data-conditional-whatif-var]');
+    if (varInput && elements.host.contains(varInput)) {
+      const scope = varInput.closest('[data-conditional-whatif-scope="true"]');
+      if (scope) {
+        applyConditionalWhatIf(scope);
+      }
       return;
+    }
+    // A live condition edit must re-bake the branch's predicate AST: the AST
+    // baked into data-conditional-branch-ast at render time still reflects the
+    // OLD condition, so without re-parsing the badge would keep showing the
+    // pre-edit shows/hidden verdict. We re-parse with the same predicate model
+    // the renderer used, rewrite the branch AST, then re-run the scope.
+    const condInput = target.closest('[data-conditional-leaf-input="condition"]');
+    if (condInput && elements.host.contains(condInput)) {
+      handleConditionalConditionEdit(condInput);
+    }
+  }
+
+  function handleConditionalConditionEdit(input) {
+    const branch = input.closest('.preview-object-conditional-branch');
+    if (!branch) {
+      return;
+    }
+    const ast = rebakeBranchConditionAst(branch, String(input.value || ''));
+    if (!ast) {
+      // Empty or unparseable condition: we cannot simulate it, so degrade the
+      // badge to the honest "state unknown" rather than leave a stale verdict.
+      setConditionalBranchState(branch, null);
     }
     const scope = input.closest('[data-conditional-whatif-scope="true"]');
     if (scope) {
       applyConditionalWhatIf(scope);
     }
+  }
+
+  function rebakeBranchConditionAst(branch, conditionText) {
+    const model = global.ProjectMapPredicateConditionModel;
+    let ast = null;
+    if (model && typeof model.summarizePredicate === 'function' && conditionText.trim()) {
+      try {
+        const summary = model.summarizePredicate(conditionText);
+        ast = summary && summary.ast ? summary.ast : null;
+      } catch (_err) {
+        ast = null;
+      }
+    }
+    if (ast) {
+      branch.dataset.conditionalBranchAst = JSON.stringify(ast);
+    } else if (branch.dataset) {
+      delete branch.dataset.conditionalBranchAst;
+    }
+    return ast;
   }
 
   function applyConditionalWhatIf(scope) {
@@ -2255,13 +2300,17 @@
     if (!badge) {
       return;
     }
-    const stateName = active ? 'active' : 'hidden';
+    // active === null marks an unknown verdict (empty/unparseable condition),
+    // mirroring branchStateBadge(null) in preview_object_editor.js.
+    const stateName = active === null ? 'opaque' : (active ? 'active' : 'hidden');
     badge.dataset.conditionalBranchState = stateName;
     badge.classList.remove('is-active', 'is-hidden', 'is-opaque');
     badge.classList.add('is-' + stateName);
-    badge.textContent = active
-      ? t('previewObjectEditor.whatIfShows', 'shows')
-      : t('previewObjectEditor.whatIfHidden', 'hidden');
+    badge.textContent = stateName === 'opaque'
+      ? t('previewObjectEditor.whatIfUnknown', 'state unknown')
+      : (active
+        ? t('previewObjectEditor.whatIfShows', 'shows')
+        : t('previewObjectEditor.whatIfHidden', 'hidden'));
   }
 
   function handleObjectCanvasAssetChange(event) {

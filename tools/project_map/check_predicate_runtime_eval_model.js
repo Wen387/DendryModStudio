@@ -115,6 +115,38 @@ const readOnlyLeafField = {conditionalTree: [{condition: 'Q.metInspector >= 1', 
 const readOnlyHtml = previewObjectEditor.renderConditionalAlternatives(readOnlyLeafField, {});
 assert(readOnlyHtml.indexOf('data-conditional-leaf-edit') === -1, 'a leaf without stamped field ids must stay read-only (no inline editor)');
 
+// What-if live refresh contract (P3b #2): editing a branch condition must re-bake
+// the predicate AST so the shows/hidden badge tracks the NEW condition rather than
+// the one baked at render. We pin the two halves the live wiring composes: (a)
+// re-parsing an edited condition yields a fresh evaluable AST that flips with the
+// what-if state, and (b) an empty or unparseable condition yields no AST, which is
+// the honest "unknown" badge path (missing variables still evaluate as 0).
+const rebakedSummary = predicateModel.summarizePredicate('Q.metInspector >= 1');
+assert(rebakedSummary.ast && evalModel.evaluateAst(rebakedSummary.ast, {metInspector: 1}) === true,
+  'an edited condition should re-parse to an AST that re-evaluates true under a satisfying what-if state');
+assert(evalModel.evaluateAst(rebakedSummary.ast, {metInspector: 0}) === false,
+  'the re-baked AST must flip to hidden once the what-if state no longer satisfies it');
+assert(!predicateModel.summarizePredicate('').ast,
+  'an empty edited condition must yield no AST so the live wiring degrades the badge to unknown');
+assert(!predicateModel.summarizePredicate('Q.a >=').ast,
+  'an unparseable edited condition must yield no AST rather than a stale verdict');
+
+// Live wiring drift guard: the condition-edit handler in object_authoring_canvas_ui.js
+// must target the leaf condition input, re-bake through the shared predicate model,
+// rewrite/clear data-conditional-branch-ast, re-run the scope evaluator, and degrade
+// an unparseable condition to the opaque/unknown badge.
+const canvasUiSource = require('fs').readFileSync(require('path').join(__dirname, 'viewer', 'object_authoring_canvas_ui.js'), 'utf8');
+assert(canvasUiSource.indexOf('data-conditional-leaf-input="condition"') !== -1,
+  'the canvas UI must listen for condition-leaf edits to refresh badges');
+assert(/rebakeBranchConditionAst/.test(canvasUiSource) && /ProjectMapPredicateConditionModel/.test(canvasUiSource) && /summarizePredicate/.test(canvasUiSource),
+  'condition edits must re-bake the branch AST through the shared predicate model summarizePredicate');
+assert(/conditionalBranchAst\s*=\s*JSON\.stringify/.test(canvasUiSource) && /delete branch\.dataset\.conditionalBranchAst/.test(canvasUiSource),
+  'a valid re-baked condition must rewrite data-conditional-branch-ast; an invalid one must clear it');
+assert(/setConditionalBranchState\(branch,\s*null\)/.test(canvasUiSource) && /active === null \? 'opaque'/.test(canvasUiSource),
+  'an unparseable edited condition must degrade the branch badge to the opaque/unknown state');
+assert(/handleConditionalConditionEdit\([^)]*\)[\s\S]{0,900}applyConditionalWhatIf\(scope\)/.test(canvasUiSource),
+  'after re-baking, the condition-edit handler must re-run applyConditionalWhatIf over the what-if scope');
+
 function previewObjectEditorWithoutModels(field) {
   const savedModel = global.ProjectMapPredicateConditionModel;
   const savedEval = global.ProjectMapPredicateRuntimeEval;
