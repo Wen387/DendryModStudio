@@ -109,10 +109,34 @@
       titleKey: 'tour.linear.install.title',
       titleFallback: 'Install — check, then apply',
       bodyKey: 'tour.linear.install.body',
-      bodyFallback: 'Install is where a proposal becomes a real change. The order is always check first, apply second: read the diff, confirm the scope, then apply.',
+      bodyFallback: 'Install is where a proposal becomes a real change. Until you apply, your real files stay untouched — every edit waits as a draft. The order is always check first, apply second: read the diff, confirm the scope, then apply. Studio backs up what it replaces, so a change can be undone.',
       advanceOn: 'next',
       placement: 'bottom',
       tutorialArticle: 'install-flow'
+    }),
+    step({
+      id: 'preview',
+      surface: 'install',
+      anchor: '#install-runtime-preview',
+      fallbackAnchor: '#mode-install',
+      titleKey: 'tour.linear.preview.title',
+      titleFallback: 'See your change actually run',
+      bodyKey: 'tour.linear.preview.body',
+      bodyFallback: 'Runtime Preview plays a proposal in a sandbox so you can watch how it behaves before it touches anything — a safe way to sanity-check a change without leaving Studio.',
+      advanceOn: 'next',
+      placement: 'top',
+      tutorialArticle: 'install-flow'
+    }),
+    step({
+      id: 'mode',
+      surface: 'explore',
+      anchor: '',
+      titleKey: 'tour.linear.mode.title',
+      titleFallback: 'Desktop app vs the browser',
+      bodyKey: 'tour.linear.mode.body',
+      bodyFallback: 'In the browser you can browse and review freely. The verified diff, applying changes, and Runtime Preview need the desktop app, which can reach your project files directly. If a button looks unavailable, that is usually why.',
+      advanceOn: 'next',
+      placement: 'auto'
     }),
     step({
       id: 'language',

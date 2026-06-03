@@ -43,6 +43,32 @@
       : 'ProjectMap:open-onboarding';
   }
 
+  function guidedTourSeenKey() {
+    const api = contracts();
+    return api && api.STORAGE_KEYS && api.STORAGE_KEYS.guidedTourSeen
+      ? api.STORAGE_KEYS.guidedTourSeen
+      : 'dendry-mod-studio-guided-tour-seen';
+  }
+
+  // On a fresh install the guided tour greets first and reopens this hub at the
+  // end (the Welcome Hub reads as a toolbox/board, not an intro). So we defer our
+  // own auto-open and let the tour own the first impression. Only applies before
+  // the tour has been seen; afterward the hub auto-opens as usual.
+  function guidedTourGreetsFirst() {
+    if (!global || !global.ProjectMapGuidedTour) {
+      return false;
+    }
+    const storage = safeStorage();
+    if (!storage || typeof storage.getItem !== 'function') {
+      return false;
+    }
+    try {
+      return storage.getItem(guidedTourSeenKey()) !== '1';
+    } catch (_err) {
+      return false;
+    }
+  }
+
   function safeStorage() {
     try {
       return global && global.localStorage ? global.localStorage : null;
@@ -297,7 +323,7 @@
     localizeDialog();
     updateActionState();
     decorateIcons();
-    if (state.controller.shouldAutoOpen()) {
+    if (state.controller.shouldAutoOpen() && !guidedTourGreetsFirst()) {
       openDialog(false);
     }
   }

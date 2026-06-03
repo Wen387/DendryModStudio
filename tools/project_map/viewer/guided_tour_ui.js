@@ -138,7 +138,10 @@
     openingEl: null,
     openingActive: false,
     openingTimer: 0,
-    openingDoneTimer: 0
+    openingDoneTimer: 0,
+    // True while the fresh-install greeting is in flight: the tour greets first,
+    // then hands off to the Welcome Hub as the actionable landing.
+    firstRunFlow: false
   };
 
   const api = {
@@ -197,6 +200,65 @@
     document.addEventListener(eventName('welcomeDismissed', 'ProjectMap:welcome-dismissed'), function () {
       global.setTimeout(maybeOfferFirstRunIntro, 500);
     });
+    // On a truly fresh install the tour is the warm first thing the user sees;
+    // the Welcome Hub (a toolbox/board, not an intro) is deferred until the tour
+    // ends or is declined, where it lands as the "what next" surface.
+    maybeGreetFirstRun();
+  }
+
+  // The fresh-install greeting: only when neither onboarding nor the tour has
+  // been seen. The Welcome Hub suppresses its own auto-open in this case
+  // (guidedTourGreetsFirst), so we own the first impression here.
+  function isFreshFirstRun() {
+    const storage = safeStorage();
+    if (!storage || typeof storage.getItem !== 'function') {
+      return false;
+    }
+    try {
+      const onboarding = storageKey('onboardingSeen', 'dendry-mod-studio-onboarding-seen');
+      const tour = storageKey('guidedTourSeen', 'dendry-mod-studio-guided-tour-seen');
+      return storage.getItem(onboarding) !== '1' && storage.getItem(tour) !== '1';
+    } catch (_err) {
+      return false;
+    }
+  }
+
+  function maybeGreetFirstRun() {
+    if (!isFreshFirstRun()) {
+      return;
+    }
+    // A short beat so the shell paints before the flourish.
+    global.setTimeout(function () {
+      if (isWelcomeOpen() || state.running || isCurtainOpen() || state.openingActive || hasSeenLinear()) {
+        return;
+      }
+      state.firstRunFlow = true;
+      const started = openIntro();
+      if (started === false) {
+        // The tour could not start (no mount/model) — fall back to the hub so
+        // the user is never stranded on a blank shell.
+        state.firstRunFlow = false;
+        openWelcomeHub();
+      }
+    }, 400);
+  }
+
+  function openWelcomeHub() {
+    if (!global || !global.document) {
+      return;
+    }
+    global.document.dispatchEvent(new global.Event(eventName('openOnboarding', 'ProjectMap:open-onboarding')));
+  }
+
+  // Terminal step of the fresh-install flow: when the greeting ends or is
+  // declined, open the Welcome Hub as the actionable landing. A no-op outside
+  // the first-run flow (manual replays from the menu never pop the hub).
+  function finishFirstRunFlow() {
+    if (!state.firstRunFlow) {
+      return;
+    }
+    state.firstRunFlow = false;
+    openWelcomeHub();
   }
 
   function wireMenu(document) {
@@ -438,7 +500,7 @@
       nextLabel: bubble.querySelector('[data-guided-tour-next-label]')
     };
 
-    state.els.skip.addEventListener('click', function () { stop(true); });
+    state.els.skip.addEventListener('click', function () { stop(true); finishFirstRunFlow(); });
     state.els.prev.addEventListener('click', function () { prev(); });
     state.els.next.addEventListener('click', function () { next(); });
     state.els.learn.addEventListener('click', openLearnMore);
@@ -771,6 +833,7 @@
     if (event.key === 'Escape') {
       event.preventDefault();
       stop(false);
+      finishFirstRunFlow();
       return;
     }
     if (event.key === 'Tab') {
@@ -877,7 +940,7 @@
       els.secondary.textContent = t('tour.intro.later', 'Maybe later');
       els.primary.textContent = t('tour.intro.start', "Let's go");
       setCurtainActions(
-        function onLater() { markSeenLinear(); closeCurtain(); },
+        function onLater() { markSeenLinear(); closeCurtain(); finishFirstRunFlow(); },
         function onStart() { state.curtainLastFocus = null; closeCurtain(); beginLinearSteps(); }
       );
     } else {
@@ -888,8 +951,15 @@
       els.secondary.textContent = t('tour.ending.hints', 'Show hints as I go');
       els.primary.textContent = t('tour.ending.close', 'Start exploring');
       setCurtainActions(
-        function onHints() { state.curtainLastFocus = null; closeCurtain(); startSurfaceHints(currentMode()); },
-        function onClose() { closeCurtain(); }
+        function onHints() {
+          // The user chose to keep going with hints — a continuation, not an
+          // exit, so consume the first-run flag without popping the hub.
+          state.firstRunFlow = false;
+          state.curtainLastFocus = null;
+          closeCurtain();
+          startSurfaceHints(currentMode());
+        },
+        function onClose() { closeCurtain(); finishFirstRunFlow(); }
       );
       // Reaching the sign-off counts as having seen the orientation tour.
       markSeenLinear();
@@ -950,6 +1020,7 @@
       markSeenLinear();
     }
     closeCurtain();
+    finishFirstRunFlow();
   }
 
   function isCurtainOpen() {

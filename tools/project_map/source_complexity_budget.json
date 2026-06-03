@@ -58,15 +58,15 @@
     },
     {
       "path": "tools/project_map/viewer/i18n/en.js",
-      "maxLines": 3419,
+      "maxLines": 3423,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-06-03 from 3411 for guided tour language/comfort step keys (More-menu + zoom/refresh)."
+      "reason": "Catalog file; keep each language separate. Raised 2026-06-03 from 3411 for guided tour first-run step keys (language/more/comfort/preview/mode + ending handoff)."
     },
     {
       "path": "tools/project_map/viewer/i18n/zh-Hant.js",
-      "maxLines": 3419,
+      "maxLines": 3423,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-06-03 from 3411 for guided tour language/comfort step keys (More-menu + zoom/refresh)."
+      "reason": "Catalog file; keep each language separate. Raised 2026-06-03 from 3411 for guided tour first-run step keys (language/more/comfort/preview/mode + ending handoff)."
     },
     {
       "path": "tools/project_map/viewer/index.html",

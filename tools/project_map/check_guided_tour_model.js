@@ -59,6 +59,10 @@ assert(linear.some((step) => step.anchor === '#locale-select'),
   'linear tour should point out the language switch');
 assert(linear.some((step) => step.id === 'comfort' && step.anchor === ''),
   'linear tour should include an anchorless comfort-tips step (zoom + refresh)');
+assert(linear.some((step) => step.id === 'preview' && step.anchor === '#install-runtime-preview'),
+  'linear tour should cover Runtime Preview (playtest a change safely)');
+assert(linear.some((step) => step.id === 'mode' && step.anchor === ''),
+  'linear tour should explain desktop app vs browser capabilities');
 
 const surfaces = model.surfaces();
 ['explore', 'create', 'install'].forEach((surface) => {
@@ -116,6 +120,7 @@ model.referencedI18nKeys().forEach((key) => {
   'id="mode-explore"',
   'id="mode-create"',
   'id="mode-install"',
+  'id="install-runtime-preview"',
   'id="locale-select"',
   'id="topbar-more"',
   'id="explore-pane"',
@@ -171,6 +176,16 @@ assert(tourUi.includes('maybeOfferFirstRunIntro'), 'guided tour should offer a f
 assert(tourUi.includes('welcomeDismissed') || tourUi.includes('welcome-dismissed'),
   'guided tour should listen for Welcome Hub dismissal to offer the first-run intro');
 assert(tourUi.includes('hasSeenLinear'), 'first-run offer should respect a seen flag so it never nags');
+// First-run choreography (Option B): the tour greets first on a fresh install,
+// then hands off to the Welcome Hub as the actionable landing.
+assert(tourUi.includes('maybeGreetFirstRun') && tourUi.includes('isFreshFirstRun'),
+  'the tour should greet first on a fresh install (onboarding + tour unseen)');
+assert(tourUi.includes('finishFirstRunFlow') && tourUi.includes('openWelcomeHub'),
+  'ending or declining the first-run tour should open the Welcome Hub as the landing');
+assert(tourUi.includes('openOnboarding') || tourUi.includes('open-onboarding'),
+  'the first-run landing should reuse the Welcome Hub open event');
+assert(welcomeUi.includes('guidedTourGreetsFirst'),
+  'Welcome Hub should defer its first-run auto-open when the guided tour greets first');
 assert(tourUi.includes('playOpening') && tourUi.includes('OPENING_EMOJI'),
   'opening the tour should play a full-screen emoji flourish before the greeting');
 assert(tourUi.includes('prefersReducedMotion'), 'the opening flourish should be skipped under reduced-motion');
