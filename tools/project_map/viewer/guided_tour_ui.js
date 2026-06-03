@@ -87,20 +87,36 @@
     }
   }
 
-  // The tour's guide, "Tour Fairy" (導遊仙子), shown as a kaomoji face. Plain
-  // text so it renders in any font with no asset, no SVG, and no new dependency.
-  // Purely decorative, so its container is marked aria-hidden (the name is read
-  // from the adjacent localized label instead).
-  const MASCOT_FACE = '(*・ω・)';
+  // The tour's guide, "Tour Fairy" (導遊仙子), shown as kaomoji faces. Plain text
+  // so they render in any font with no asset, no SVG, and no new dependency.
+  // Different faces for different moments so it is not always the same look:
+  //   hello — waving greeting on the intro curtain
+  //   bye   — waving sign-off on the ending curtain
+  //   step  — cycles per step in the spotlight bubble (eyes/gesture vary)
+  // Containers are aria-hidden (decorative); the name is read from a label.
+  const MASCOT_FACES = {
+    idle: '(*・ω・)',
+    hello: '(*・ω・)ﾉ',
+    bye: '(*・ω・*)ﾉ',
+    step: ['(*・ω・)', '(・ω・*)', '(*・ω・)b', '(*°ω°)', '(*・ω・)ﾉ']
+  };
 
-  function mascotMarkup() {
-    return '<span class="guided-tour-mascot-face">' + MASCOT_FACE + '</span>';
+  function stepFace(index) {
+    const list = MASCOT_FACES.step;
+    return list[((index % list.length) + list.length) % list.length];
   }
 
-  // A warm full-screen flourish that streaks across before the fairy greeting,
-  // used when opening the orientation tour (and on the first-run offer). Plain
-  // emoji — no asset, no dependency. Skipped under reduced-motion.
-  const OPENING_EMOJI = ['✨', '🗺️', '📖', '🌿', '⭐', '💡', '🎈', '🍀', '🪄', '💫'];
+  function mascotMarkup(face) {
+    return '<span class="guided-tour-mascot-face">' + (face || MASCOT_FACES.idle) + '</span>';
+  }
+
+  // A warm full-screen flourish that washes across before the fairy greeting,
+  // used when opening the orientation tour (and on the first-run offer). A wave
+  // of plain emoji drifts across the background — no asset, no dependency.
+  // Skipped under reduced-motion. Laid out as a grid so it reads as a tide.
+  const OPENING_EMOJI = ['✨', '🗺️', '📖', '🌿', '⭐', '💡', '🎈', '🍀', '🪄', '💫', '🌸', '🎐'];
+  const OPENING_ROWS = 5;
+  const OPENING_COLS = 10;
 
   const state = {
     running: false,
@@ -378,7 +394,7 @@
     bubble.className = 'guided-tour-bubble';
 
     bubble.innerHTML = [
-      '<div class="guided-tour-mascot guided-tour-mascot--corner" aria-hidden="true">' + mascotMarkup() + '</div>',
+      '<div class="guided-tour-mascot guided-tour-mascot--corner" aria-hidden="true">' + mascotMarkup(MASCOT_FACES.idle) + '</div>',
       '<div class="guided-tour-progress" data-guided-tour-progress aria-hidden="true"></div>',
       '<h2 id="guided-tour-title" class="guided-tour-title" data-guided-tour-title></h2>',
       '<p class="guided-tour-body" data-guided-tour-body></p>',
@@ -411,6 +427,7 @@
       overlay: overlay,
       spotlight: spotlight,
       bubble: bubble,
+      mascotFace: bubble.querySelector('.guided-tour-mascot-face'),
       progress: bubble.querySelector('[data-guided-tour-progress]'),
       title: bubble.querySelector('[data-guided-tour-title]'),
       body: bubble.querySelector('[data-guided-tour-body]'),
@@ -480,6 +497,10 @@
     state.els.title.textContent = t(current.titleKey, current.titleFallback);
     state.els.body.textContent = t(current.bodyKey, current.bodyFallback);
     state.els.progress.textContent = (state.index + 1) + ' / ' + state.steps.length;
+    // The fairy's expression changes as you progress, so it never looks frozen.
+    if (state.els.mascotFace) {
+      state.els.mascotFace.textContent = stepFace(state.index);
+    }
 
     const isLast = state.index === state.steps.length - 1;
     state.els.nextLabel.textContent = isLast
@@ -796,7 +817,7 @@
     curtain.innerHTML = [
       '<div class="guided-tour-curtain-backdrop" aria-hidden="true"></div>',
       '<div class="guided-tour-curtain-card">',
-      '  <div class="guided-tour-mascot guided-tour-mascot--hero" aria-hidden="true">' + mascotMarkup() + '</div>',
+      '  <div class="guided-tour-mascot guided-tour-mascot--hero" aria-hidden="true">' + mascotMarkup(MASCOT_FACES.hello) + '</div>',
       '  <div class="guided-tour-mascot-name" data-i18n="tour.mascot.name"></div>',
       '  <p class="guided-tour-curtain-recommend" data-guided-tour-curtain-recommend></p>',
       '  <h2 id="guided-tour-curtain-title" class="guided-tour-curtain-title" data-guided-tour-curtain-title></h2>',
@@ -811,6 +832,7 @@
     state.curtainEls = {
       curtain: curtain,
       card: curtain.querySelector('.guided-tour-curtain-card'),
+      heroFace: curtain.querySelector('.guided-tour-mascot--hero .guided-tour-mascot-face'),
       recommend: curtain.querySelector('[data-guided-tour-curtain-recommend]'),
       title: curtain.querySelector('[data-guided-tour-curtain-title]'),
       body: curtain.querySelector('[data-guided-tour-curtain-body]'),
@@ -836,6 +858,11 @@
     }
     const els = state.curtainEls;
     state.curtainKind = kind === 'ending' ? 'ending' : 'intro';
+    if (state.curtainEls.heroFace) {
+      // Wave hello on the way in, wave goodbye on the way out.
+      state.curtainEls.heroFace.textContent =
+        state.curtainKind === 'ending' ? MASCOT_FACES.bye : MASCOT_FACES.hello;
+    }
     if (!isCurtainOpen()) {
       state.curtainLastFocus = global.document.activeElement;
     }
