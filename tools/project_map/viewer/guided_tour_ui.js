@@ -87,20 +87,15 @@
     }
   }
 
-  // A tiny, friendly page-sprite (the tour's guide "Quill"). Inline SVG so there
-  // is no asset file to 404 and no new dependency; two-tone via the shared CSS
-  // custom properties. Purely decorative, so it is marked aria-hidden.
-  const MASCOT_SVG = [
-    '<svg class="guided-tour-mascot-svg" viewBox="0 0 48 48" width="44" height="44" aria-hidden="true" focusable="false">',
-    '<rect x="10" y="6" width="26" height="34" rx="6" fill="var(--surface-alt)" stroke="var(--accent-strong)" stroke-width="2"></rect>',
-    '<path d="M30 6h6v6z" fill="var(--accent)"></path>',
-    '<line x1="15" y1="13" x2="26" y2="13" stroke="var(--border)" stroke-width="1.6" stroke-linecap="round"></line>',
-    '<line x1="15" y1="17" x2="23" y2="17" stroke="var(--border)" stroke-width="1.6" stroke-linecap="round"></line>',
-    '<circle cx="19" cy="26" r="2.2" fill="var(--accent-strong)"></circle>',
-    '<circle cx="29" cy="26" r="2.2" fill="var(--accent-strong)"></circle>',
-    '<path d="M19 31q5 3.5 10 0" stroke="var(--accent-strong)" stroke-width="2" fill="none" stroke-linecap="round"></path>',
-    '</svg>'
-  ].join('');
+  // The tour's guide, "Tour Fairy" (導遊仙子), shown as a kaomoji face. Plain
+  // text so it renders in any font with no asset, no SVG, and no new dependency.
+  // Purely decorative, so its container is marked aria-hidden (the name is read
+  // from the adjacent localized label instead).
+  const MASCOT_FACE = '(*・ω・)';
+
+  function mascotMarkup() {
+    return '<span class="guided-tour-mascot-face">' + MASCOT_FACE + '</span>';
+  }
 
   const state = {
     running: false,
@@ -328,6 +323,17 @@
     state.index = 0;
     state.lastFocus = global.document.activeElement;
     state.els.overlay.classList.remove('hidden');
+    // One-shot entrance so the dim and bubble ease in rather than snap. Removed
+    // shortly after so it does not replay on every reposition. Skipped under
+    // reduced-motion (the stylesheet also disables the animation there).
+    if (!prefersReducedMotion()) {
+      state.els.overlay.classList.add('guided-tour-overlay--entering');
+      global.setTimeout(function () {
+        if (state.els) {
+          state.els.overlay.classList.remove('guided-tour-overlay--entering');
+        }
+      }, 380);
+    }
     bindWindowListeners();
     renderStep();
     return true;
@@ -356,7 +362,7 @@
     bubble.className = 'guided-tour-bubble';
 
     bubble.innerHTML = [
-      '<div class="guided-tour-mascot guided-tour-mascot--corner" aria-hidden="true">' + MASCOT_SVG + '</div>',
+      '<div class="guided-tour-mascot guided-tour-mascot--corner" aria-hidden="true">' + mascotMarkup() + '</div>',
       '<div class="guided-tour-progress" data-guided-tour-progress aria-hidden="true"></div>',
       '<h2 id="guided-tour-title" class="guided-tour-title" data-guided-tour-title></h2>',
       '<p class="guided-tour-body" data-guided-tour-body></p>',
@@ -774,7 +780,7 @@
     curtain.innerHTML = [
       '<div class="guided-tour-curtain-backdrop" aria-hidden="true"></div>',
       '<div class="guided-tour-curtain-card">',
-      '  <div class="guided-tour-mascot guided-tour-mascot--hero" aria-hidden="true">' + MASCOT_SVG + '</div>',
+      '  <div class="guided-tour-mascot guided-tour-mascot--hero" aria-hidden="true">' + mascotMarkup() + '</div>',
       '  <div class="guided-tour-mascot-name" data-i18n="tour.mascot.name"></div>',
       '  <p class="guided-tour-curtain-recommend" data-guided-tour-curtain-recommend></p>',
       '  <h2 id="guided-tour-curtain-title" class="guided-tour-curtain-title" data-guided-tour-curtain-title></h2>',

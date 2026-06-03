@@ -153,7 +153,8 @@ assert(tourUi.includes('ProjectMap:mode-changed'), 'guided tour should auto-fire
 assert(tourUi.includes('hasSeenSurface'), 'auto-fire should respect a per-surface seen flag');
 assert(tourUi.includes('isWelcomeOpen'), 'auto-fire should not stack on the Welcome Hub');
 // Phase 3 behaviours: mascot, landing/ending curtain, first-run offer.
-assert(tourUi.includes('MASCOT_SVG'), 'guided tour should render an inline mascot');
+assert(tourUi.includes('guided-tour-mascot-face') && tourUi.includes('MASCOT_FACE'),
+  'guided tour should render the kaomoji mascot face');
 assert(tourUi.includes('guided-tour-curtain'), 'guided tour should build a landing/ending curtain');
 assert(tourUi.includes("showCurtain('intro')"), 'startLinear should open on the intro curtain');
 assert(tourUi.includes("showCurtain('ending')"), 'finishing the linear tour should show the ending curtain');

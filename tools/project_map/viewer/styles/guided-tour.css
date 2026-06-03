@@ -145,35 +145,45 @@
   border: 1px solid var(--accent-strong);
 }
 
-/* Mascot ("Quill") ---------------------------------------------------------
-   A small page-sprite that gives the tour a friendly face. Decorative only. */
+/* Mascot ("Tour Fairy" / 導遊仙子) ------------------------------------------
+   A kaomoji face that gives the tour a friendly guide. Decorative only. */
 .guided-tour-mascot {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  line-height: 0;
+  line-height: 1;
+}
+
+.guided-tour-mascot-face {
+  display: inline-block;
+  font-weight: 700;
+  color: var(--accent-strong);
+  white-space: nowrap;
+  line-height: 1;
 }
 
 .guided-tour-mascot--corner {
   position: absolute;
-  top: -18px;
-  right: 16px;
-  width: 44px;
-  height: 44px;
-  filter: drop-shadow(0 4px 10px rgba(20, 18, 14, 0.22));
+  top: -16px;
+  right: 14px;
   animation: guided-tour-bob 3.2s ease-in-out infinite;
+}
+
+.guided-tour-mascot--corner .guided-tour-mascot-face {
+  font-size: 15px;
+  padding: 5px 9px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px 12px 12px 4px;
+  box-shadow: 0 4px 10px rgba(20, 18, 14, 0.22);
 }
 
 .guided-tour-mascot--hero {
-  width: 64px;
-  height: 64px;
   margin: 0 auto;
-  animation: guided-tour-bob 3.2s ease-in-out infinite;
 }
 
-.guided-tour-mascot--hero .guided-tour-mascot-svg {
-  width: 64px;
-  height: 64px;
+.guided-tour-mascot--hero .guided-tour-mascot-face {
+  font-size: 30px;
 }
 
 .guided-tour-mascot-name {
@@ -188,6 +198,12 @@
 @keyframes guided-tour-bob {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-3px); }
+}
+
+@keyframes guided-tour-mascot-pop {
+  0% { transform: scale(0.3) translateY(8px); opacity: 0; }
+  60% { transform: scale(1.12) translateY(0); opacity: 1; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
 }
 
 /* Landing / ending curtain -------------------------------------------------
@@ -232,12 +248,23 @@
   box-shadow: 0 18px 60px rgba(20, 18, 14, 0.4);
   padding: 26px 26px 22px;
   text-align: center;
-  transform: scale(0.96);
-  transition: transform var(--motion-medium) var(--motion-ease);
+  opacity: 0;
+  transform: translateY(16px) scale(0.94);
+  transition:
+    opacity var(--motion-medium) var(--motion-ease),
+    transform var(--motion-medium) cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 .guided-tour-curtain.is-open .guided-tour-curtain-card {
-  transform: scale(1);
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* The fairy pops in with a little overshoot, then settles into the idle bob. */
+.guided-tour-curtain.is-open .guided-tour-mascot--hero {
+  animation:
+    guided-tour-mascot-pop var(--motion-medium) cubic-bezier(0.34, 1.56, 0.64, 1) both,
+    guided-tour-bob 3.2s ease-in-out 0.55s infinite;
 }
 
 .guided-tour-curtain-recommend {
@@ -318,13 +345,29 @@
   color: var(--muted);
 }
 
+/* One-shot entrance for the spotlight overlay: the dim and bubble ease in
+   rather than snapping into place. The class is added on open and removed
+   shortly after by the UI so it never replays on reposition. */
+.guided-tour-overlay--entering .guided-tour-spotlight,
+.guided-tour-overlay--entering .guided-tour-bubble {
+  animation: guided-tour-fade-in 0.3s var(--motion-ease) both;
+}
+
+@keyframes guided-tour-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .guided-tour-spotlight {
     transition: none;
   }
 
   .guided-tour-mascot--corner,
-  .guided-tour-mascot--hero {
+  .guided-tour-mascot--hero,
+  .guided-tour-curtain.is-open .guided-tour-mascot--hero,
+  .guided-tour-overlay--entering .guided-tour-spotlight,
+  .guided-tour-overlay--entering .guided-tour-bubble {
     animation: none;
   }
 
