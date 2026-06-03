@@ -58,21 +58,21 @@
     },
     {
       "path": "tools/project_map/viewer/i18n/en.js",
-      "maxLines": 3423,
+      "maxLines": 3427,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-06-03 from 3411 for guided tour first-run step keys (language/more/comfort/preview/mode + ending handoff)."
+      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3423 for More-menu section-label keys (start/content/notices/advanced)."
     },
     {
       "path": "tools/project_map/viewer/i18n/zh-Hant.js",
-      "maxLines": 3423,
+      "maxLines": 3427,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-06-03 from 3411 for guided tour first-run step keys (language/more/comfort/preview/mode + ending handoff)."
+      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3423 for More-menu section-label keys (start/content/notices/advanced)."
     },
     {
       "path": "tools/project_map/viewer/index.html",
-      "maxLines": 2443,
+      "maxLines": 2455,
       "allowRaise": true,
-      "reason": "Script + template manifest. Raised 2026-06-03 from 2438 for guided tour scripts, mount, and menu actions."
+      "reason": "Script + template manifest. Raised 2026-06-04 from 2443 for More-menu grouped sections + advanced disclosure."
     },
     {
       "path": "tools/project_map/viewer/object_authoring_canvas_ui.js",

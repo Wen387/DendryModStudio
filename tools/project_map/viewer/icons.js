@@ -43,9 +43,9 @@
       '<path d="M12 8h.01"></path>'
     ],
     book: [
-      '<path d="M5 4h9a3 3 0 0 1 3 3v13H8a3 3 0 0 0-3 3Z"></path>',
-      '<path d="M5 4v19"></path>',
-      '<path d="M17 7h2v13h-2"></path>'
+      '<path d="M12 7C10 5.8 7.2 5.3 4.5 5.6V17c2.7-.3 5.5.2 7.5 1.4"></path>',
+      '<path d="M12 7c2-1.2 4.8-1.7 7.5-1.4V17c-2.7-.3-5.5.2-7.5 1.4"></path>',
+      '<path d="M12 7v11.4"></path>'
     ],
     plus: [
       '<circle cx="12" cy="12" r="9"></circle>',
@@ -90,10 +90,9 @@
       '<path d="M5.5 15A7 7 0 0 0 17.6 17.8L20 15.5"></path>'
     ],
     text: [
-      '<path d="M5 6h14"></path>',
-      '<path d="M8 6v12"></path>',
-      '<path d="M16 6v12"></path>',
-      '<path d="M6 18h12"></path>'
+      '<path d="M5 7h14"></path>',
+      '<path d="M5 12h14"></path>',
+      '<path d="M5 17h9"></path>'
     ],
     spark: [
       '<path d="M12 3l1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5Z"></path>',
@@ -149,11 +148,14 @@
     }
     const mappings = [
       ['#studio-open-onboarding', 'map'],
+      ['#studio-open-guided-tour', 'play'],
+      ['#studio-open-surface-hints', 'info'],
       ['#studio-open-template-hub', 'download'],
       ['#studio-open-tutorial-library', 'book'],
       ['#studio-open-announcements', 'info'],
       ['#studio-check-updates', 'refresh'],
       ['#desktop-run-doctor', 'check'],
+      ['#desktop-rebuild-index', 'refresh'],
       ['.nav-item[data-view="overview"]', 'map'],
       ['.nav-item[data-view="scenes"]', 'map'],
       ['.nav-item[data-view="events"]', 'play'],

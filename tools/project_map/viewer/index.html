@@ -51,26 +51,38 @@
         <details id="topbar-more" class="topbar-more">
           <summary><span data-i18n="topbar.more">More</span></summary>
           <div class="topbar-more-menu">
-            <button id="studio-open-onboarding" class="desktop-secondary-button" type="button"><span data-i18n="topbar.welcome">Welcome Hub</span></button>
-            <button id="studio-open-guided-tour" class="desktop-secondary-button" type="button"><span data-i18n="topbar.guidedTour">Guided Tour</span></button>
-            <button id="studio-open-surface-hints" class="desktop-secondary-button" type="button"><span data-i18n="topbar.surfaceHints">Show hints</span></button>
-            <button id="studio-open-template-hub" class="desktop-secondary-button desktop-only-control hidden" type="button"><span data-i18n="topbar.templateHub">Template Hub</span></button>
-            <button id="studio-open-tutorial-library" class="desktop-secondary-button" type="button"><span data-i18n="topbar.tutorialLibrary">Tutorial Library</span></button>
-            <button id="studio-open-announcements" class="desktop-secondary-button desktop-only-control hidden" type="button">
-              <span data-i18n="topbar.announcements">Notice Preview</span>
-              <span id="announcement-board-badge" class="announcement-board-badge hidden" aria-hidden="true"></span>
-            </button>
-            <button id="studio-check-updates" class="desktop-secondary-button desktop-only-control hidden" type="button"><span data-i18n="topbar.checkUpdates">Check Notices</span></button>
-            <button id="desktop-run-doctor" class="desktop-secondary-button desktop-only-control hidden" type="button"><span data-i18n="topbar.checkSetup">Check Setup</span></button>
-            <button id="desktop-rebuild-index" class="desktop-secondary-button desktop-only-control hidden" type="button"><span data-i18n="topbar.rebuildIndex">Rebuild Index</span></button>
-            <label class="desktop-excerpt-toggle desktop-only-control hidden">
-              <input id="desktop-include-excerpts" type="checkbox">
-              <span data-i18n="topbar.includeExcerpts">Include source excerpts</span>
-            </label>
-            <label id="index-drop-target" class="file-picker drop-target">
-              <span class="file-picker-label" data-i18n="topbar.projectIndexJson">Project index JSON</span>
-              <input id="index-file" type="file" accept="application/json,.json">
-            </label>
+            <div class="topbar-more-group" data-more-group="start">
+              <div class="topbar-more-group-label" data-i18n="topbar.group.start">Get started</div>
+              <button id="studio-open-onboarding" class="desktop-secondary-button" type="button"><span data-i18n="topbar.welcome">Welcome Hub</span></button>
+              <button id="studio-open-guided-tour" class="desktop-secondary-button" type="button"><span data-i18n="topbar.guidedTour">Guided Tour</span></button>
+              <button id="studio-open-surface-hints" class="desktop-secondary-button" type="button"><span data-i18n="topbar.surfaceHints">Show hints</span></button>
+              <button id="studio-open-tutorial-library" class="desktop-secondary-button" type="button"><span data-i18n="topbar.tutorialLibrary">Tutorial Library</span></button>
+            </div>
+            <div class="topbar-more-group" data-more-group="content">
+              <div class="topbar-more-group-label" data-i18n="topbar.group.content">Content</div>
+              <button id="studio-open-template-hub" class="desktop-secondary-button desktop-only-control hidden" type="button"><span data-i18n="topbar.templateHub">Template Hub</span></button>
+              <label id="index-drop-target" class="file-picker drop-target">
+                <span class="file-picker-label" data-i18n="topbar.projectIndexJson">Project index JSON</span>
+                <input id="index-file" type="file" accept="application/json,.json">
+              </label>
+            </div>
+            <div class="topbar-more-group" data-more-group="notices">
+              <div class="topbar-more-group-label" data-i18n="topbar.group.notices">Notices</div>
+              <button id="studio-open-announcements" class="desktop-secondary-button desktop-only-control hidden" type="button">
+                <span data-i18n="topbar.announcements">Notice Preview</span>
+                <span id="announcement-board-badge" class="announcement-board-badge hidden" aria-hidden="true"></span>
+              </button>
+              <button id="studio-check-updates" class="desktop-secondary-button desktop-only-control hidden" type="button"><span data-i18n="topbar.checkUpdates">Check Notices</span></button>
+            </div>
+            <details class="topbar-more-advanced desktop-only-control hidden" data-more-group="advanced">
+              <summary><span data-i18n="topbar.group.advanced">Advanced</span></summary>
+              <button id="desktop-run-doctor" class="desktop-secondary-button desktop-only-control hidden" type="button"><span data-i18n="topbar.checkSetup">Check Setup</span></button>
+              <button id="desktop-rebuild-index" class="desktop-secondary-button desktop-only-control hidden" type="button"><span data-i18n="topbar.rebuildIndex">Rebuild Index</span></button>
+              <label class="desktop-excerpt-toggle desktop-only-control hidden">
+                <input id="desktop-include-excerpts" type="checkbox">
+                <span data-i18n="topbar.includeExcerpts">Include source excerpts</span>
+              </label>
+            </details>
           </div>
         </details>
       </div>

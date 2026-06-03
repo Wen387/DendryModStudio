@@ -369,6 +369,77 @@ code {
   display: none;
 }
 
+/* More menu: group the actions into labelled sections so a long flat list is
+   easier to scan, with the rarely-used maintenance items folded away. */
+.topbar-more-group {
+  display: grid;
+  gap: 6px;
+}
+
+.topbar-more-group-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 2px 2px 0;
+}
+
+.topbar-more-menu > .topbar-more-group,
+.topbar-more-menu > .topbar-more-advanced {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.topbar-more-menu > .topbar-more-group:first-child {
+  border-top: none;
+  padding-top: 0;
+}
+
+/* Hide a whole section (label and divider included) when none of its actions
+   apply to the current environment — e.g. desktop-only groups in the browser. */
+.topbar-more-group:not(:has(button:not(.hidden), label:not(.hidden))) {
+  display: none;
+}
+
+.topbar-more-advanced[open] {
+  display: grid;
+  gap: 6px;
+}
+
+.topbar-more-advanced > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  cursor: pointer;
+  list-style: none;
+}
+
+.topbar-more-advanced > summary::-webkit-details-marker {
+  display: none;
+}
+
+.topbar-more-advanced > summary::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  margin-left: auto;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform var(--motion-fast, 0.15s) ease;
+}
+
+.topbar-more-advanced[open] > summary::after {
+  transform: rotate(-135deg);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
