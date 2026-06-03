@@ -15,6 +15,7 @@ const VIEWER_HTML = path.join(ROOT, 'viewer', 'index.html');
 const TOUR_UI = path.join(ROOT, 'viewer', 'guided_tour_ui.js');
 const TOUR_CSS = path.join(ROOT, 'viewer', 'styles', 'guided-tour.css');
 const WELCOME_UI = path.join(ROOT, 'viewer', 'welcome_surface_ui.js');
+const WELCOME_CSS = path.join(ROOT, 'viewer', 'styles', 'welcome.css');
 
 const PREVIEW_EDITOR = path.join(ROOT, 'viewer', 'preview_object_editor.js');
 const CANVAS_SHELL = path.join(ROOT, 'viewer', 'object_canvas_shell_ui.js');
@@ -28,6 +29,7 @@ const dynamicAnchorSource = [PREVIEW_EDITOR, CANVAS_SHELL, CANVAS_UI, SYSTEM_UI_
   .join('\n');
 const tourCss = fs.existsSync(TOUR_CSS) ? fs.readFileSync(TOUR_CSS, 'utf8') : '';
 const welcomeUi = fs.readFileSync(WELCOME_UI, 'utf8');
+const welcomeCss = fs.existsSync(WELCOME_CSS) ? fs.readFileSync(WELCOME_CSS, 'utf8') : '';
 const i18nUi = readViewerI18n(path.join(ROOT, 'viewer'));
 
 const VALID_ADVANCE = ['next', 'click-anchor', 'event'];
@@ -145,6 +147,8 @@ assert(welcomeUi.includes('id="welcome-start-tour"'), 'Welcome Hub should offer 
 assert(welcomeUi.includes('startLinear') || welcomeUi.includes('open-guided-tour'),
   'Welcome Hub should hand off to the guided tour');
 assert(welcomeUi.includes('welcome-tour-invite'), 'Welcome Hub should give the tour a prominent invite block');
+assert(welcomeCss.includes('.welcome-surface.is-catalog-only .welcome-tour-invite'),
+  'the tour invite should be hidden in the Template Hub (catalog-only) view, not just the full Welcome Hub');
 assert(welcomeUi.includes('welcome.startTourHint'), 'Welcome Hub should show a newcomer hint next to the tour button');
 assert(welcomeUi.includes('welcomeDismissed'), 'Welcome Hub should announce dismissal so the tour can offer a first run');
 
@@ -180,8 +184,8 @@ assert(tourUi.includes('hasSeenLinear'), 'first-run offer should respect a seen 
 // then hands off to the Welcome Hub as the actionable landing.
 assert(tourUi.includes('maybeGreetFirstRun') && tourUi.includes('isFreshFirstRun'),
   'the tour should greet first on a fresh install (onboarding + tour unseen)');
-assert(tourUi.includes('finishFirstRunFlow') && tourUi.includes('openWelcomeHub'),
-  'ending or declining the first-run tour should open the Welcome Hub as the landing');
+assert(tourUi.includes('finishHubLanding') && tourUi.includes('openWelcomeHub') && tourUi.includes('pendingHubLanding'),
+  'ending or declining any linear tour should open the Welcome Hub as the landing');
 assert(tourUi.includes('openOnboarding') || tourUi.includes('open-onboarding'),
   'the first-run landing should reuse the Welcome Hub open event');
 assert(welcomeUi.includes('guidedTourGreetsFirst'),

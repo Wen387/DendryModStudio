@@ -139,9 +139,9 @@
     openingActive: false,
     openingTimer: 0,
     openingDoneTimer: 0,
-    // True while the fresh-install greeting is in flight: the tour greets first,
-    // then hands off to the Welcome Hub as the actionable landing.
-    firstRunFlow: false
+    // Armed when a linear tour's intro curtain shows: when that tour ends or is
+    // declined we hand off to the Welcome Hub as the actionable landing.
+    pendingHubLanding: false
   };
 
   const api = {
@@ -232,12 +232,11 @@
       if (isWelcomeOpen() || state.running || isCurtainOpen() || state.openingActive || hasSeenLinear()) {
         return;
       }
-      state.firstRunFlow = true;
       const started = openIntro();
       if (started === false) {
         // The tour could not start (no mount/model) — fall back to the hub so
-        // the user is never stranded on a blank shell.
-        state.firstRunFlow = false;
+        // the user is never stranded on a blank shell. (openIntro normally sets
+        // the pending-landing flag itself once the intro curtain shows.)
         openWelcomeHub();
       }
     }, 400);
@@ -250,14 +249,16 @@
     global.document.dispatchEvent(new global.Event(eventName('openOnboarding', 'ProjectMap:open-onboarding')));
   }
 
-  // Terminal step of the fresh-install flow: when the greeting ends or is
-  // declined, open the Welcome Hub as the actionable landing. A no-op outside
-  // the first-run flow (manual replays from the menu never pop the hub).
-  function finishFirstRunFlow() {
-    if (!state.firstRunFlow) {
+  // The Welcome Hub is the actionable landing after any linear tour: when the
+  // tour ends or is declined we open it (its Template Hub is how a user loads a
+  // project). Armed when the intro curtain shows, so it covers both the
+  // first-run greeting and manual replays from the menu, but never surface
+  // hints. Choosing "Show hints" disarms it (a continuation, not an exit).
+  function finishHubLanding() {
+    if (!state.pendingHubLanding) {
       return;
     }
-    state.firstRunFlow = false;
+    state.pendingHubLanding = false;
     openWelcomeHub();
   }
 
@@ -500,7 +501,7 @@
       nextLabel: bubble.querySelector('[data-guided-tour-next-label]')
     };
 
-    state.els.skip.addEventListener('click', function () { stop(true); finishFirstRunFlow(); });
+    state.els.skip.addEventListener('click', function () { stop(true); finishHubLanding(); });
     state.els.prev.addEventListener('click', function () { prev(); });
     state.els.next.addEventListener('click', function () { next(); });
     state.els.learn.addEventListener('click', openLearnMore);
@@ -833,7 +834,7 @@
     if (event.key === 'Escape') {
       event.preventDefault();
       stop(false);
-      finishFirstRunFlow();
+      finishHubLanding();
       return;
     }
     if (event.key === 'Tab') {
@@ -933,6 +934,9 @@
       global.ProjectMapI18n.applyTranslations(els.card);
     }
     if (state.curtainKind === 'intro') {
+      // A linear tour is beginning — arm the Welcome Hub landing for whenever it
+      // ends or is declined (covers both first-run and manual replays).
+      state.pendingHubLanding = true;
       els.recommend.hidden = false;
       els.recommend.textContent = t('tour.intro.recommend', '');
       els.title.textContent = t('tour.intro.title', 'Shall we look around together?');
@@ -940,7 +944,7 @@
       els.secondary.textContent = t('tour.intro.later', 'Maybe later');
       els.primary.textContent = t('tour.intro.start', "Let's go");
       setCurtainActions(
-        function onLater() { markSeenLinear(); closeCurtain(); finishFirstRunFlow(); },
+        function onLater() { markSeenLinear(); closeCurtain(); finishHubLanding(); },
         function onStart() { state.curtainLastFocus = null; closeCurtain(); beginLinearSteps(); }
       );
     } else {
@@ -953,13 +957,13 @@
       setCurtainActions(
         function onHints() {
           // The user chose to keep going with hints — a continuation, not an
-          // exit, so consume the first-run flag without popping the hub.
-          state.firstRunFlow = false;
+          // exit, so disarm the hub landing without popping it.
+          state.pendingHubLanding = false;
           state.curtainLastFocus = null;
           closeCurtain();
           startSurfaceHints(currentMode());
         },
-        function onClose() { closeCurtain(); finishFirstRunFlow(); }
+        function onClose() { closeCurtain(); finishHubLanding(); }
       );
       // Reaching the sign-off counts as having seen the orientation tour.
       markSeenLinear();
@@ -1020,7 +1024,7 @@
       markSeenLinear();
     }
     closeCurtain();
-    finishFirstRunFlow();
+    finishHubLanding();
   }
 
   function isCurtainOpen() {
