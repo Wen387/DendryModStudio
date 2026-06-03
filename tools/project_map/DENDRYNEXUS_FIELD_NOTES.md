@@ -329,6 +329,44 @@ goTo
 However, edit output should follow the surrounding file style when possible.
 If no local style is clear, prefer common Dendry kebab-case directive names.
 
+## Hyphens In Logic Expressions Need Surrounding Spaces
+
+The DendryNexus logic tokenizer (`lib/parsers/logic.js`, driven by
+`lib/parsers/gp.js`) defines the `name` token with a character class that
+includes `-`: `/[a-zA-Z][\-a-zA-Z0-9_]*/`. The tokenizer keeps the
+earliest-position match and breaks ties by length, so an identifier written
+with no space before a following `-` greedily swallows that `-` into the name
+token.
+
+Because of this, a condition like:
+
+```dry
+View-if: bourgeois_power-(socialism/100) < 0.5
+```
+
+does not compile as subtraction. The `name` token becomes `bourgeois_power-`,
+the parser then matches the `name open-paren ... close-paren` function-call rule
+instead of the quality rule, and the generated source diverges:
+
+```javascript
+// bourgeois_power-(socialism/100) < 0.5    -> WRONG (parsed as a function call)
+return (this.bourgeois_power-(((Q['socialism'] || 0) / 100)) < 0.5);
+
+// bourgeois_power - (socialism/100) < 0.5  -> correct subtraction
+return (((Q['bourgeois_power'] || 0) - ((Q['socialism'] || 0) / 100)) < 0.5);
+```
+
+In the wrong form `this.bourgeois_power` reads off the engine instance, not the
+qualities map, so it is `undefined` and the comparison becomes `NaN < 0.5` —
+always false. The predicate fails silently with no parse error, and the quality
+value is never read.
+
+Lesson for Studio: when indexing or editing condition/effect logic, treat a `-`
+that touches an identifier with no surrounding space as suspect. Prefer spaced
+operators (`a - b`) in generated output, and warn instead of trusting a
+`quality-(...)` shaped predicate. Confirm any specific case with
+`logic.compilePredicate(source, cb)` and inspect the compiled `source`.
+
 ## Routes And Dynamic References
 
 Not every route-like directive names a static scene.
