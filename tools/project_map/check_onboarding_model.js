@@ -128,7 +128,7 @@ assert(i18nUi.includes("'welcome.action.loadIndex.cta'"), 'browser primary actio
   'post_event',
   'out/html/index.html',
   '找不到實體資產',
-  '解析模式',
+  '解析設定檔',
   '上游',
   'parser',
   '語義候選'

@@ -1,0 +1,976 @@
+(function initProjectMapGuidedTour(global) {
+  'use strict';
+
+  // Spotlight-style guided tour overlay. Reads its step data from
+  // authoring/guided_tour_model.js and renders a dimmed backdrop with a bright
+  // cut-out over the current anchor plus a guidance bubble. Two entry points:
+  //   - startLinear():          the cross-surface orientation walkthrough.
+  //   - startSurfaceHints(name): the per-surface "what's here" hint subset.
+  // Phase 1 is modal (the backdrop captures clicks) and advances via the Next
+  // button; click-through anchors are reserved for a later pass.
+
+  function model() {
+    if (global && global.ProjectMapGuidedTourModel) {
+      return global.ProjectMapGuidedTourModel;
+    }
+    if (typeof module !== 'undefined' && module.exports && typeof require === 'function') {
+      try {
+        return require('../authoring/guided_tour_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function contracts() {
+    if (global && global.ProjectMapStudioSharedConstants) {
+      return global.ProjectMapStudioSharedConstants;
+    }
+    if (typeof module !== 'undefined' && module.exports && typeof require === 'function') {
+      try {
+        return require('../authoring/studio_shared_constants.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function eventName(key, fallback) {
+    const api = contracts();
+    return api && api.EVENT_NAMES && api.EVENT_NAMES[key] ? api.EVENT_NAMES[key] : fallback;
+  }
+
+  function storageKey(key, fallback) {
+    const api = contracts();
+    return api && api.STORAGE_KEYS && api.STORAGE_KEYS[key] ? api.STORAGE_KEYS[key] : fallback;
+  }
+
+  function shellNav() {
+    return global && global.ProjectMapShellNavigation ? global.ProjectMapShellNavigation : null;
+  }
+
+  function t(key, fallback) {
+    const i18n = global && global.ProjectMapI18n;
+    return i18n && typeof i18n.t === 'function' ? i18n.t(key, fallback) : fallback;
+  }
+
+  function decorateIcons(root) {
+    const i = global && global.ProjectMapIcons;
+    if (i && typeof i.decorate === 'function' && root) {
+      i.decorate(root);
+    }
+  }
+
+  function prefersReducedMotion() {
+    return Boolean(global.matchMedia && global.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+
+  function safeStorage() {
+    try {
+      return global && global.localStorage ? global.localStorage : null;
+    } catch (_err) {
+      return null;
+    }
+  }
+
+  function markSeen(key) {
+    const storage = safeStorage();
+    if (!storage || typeof storage.setItem !== 'function') {
+      return;
+    }
+    try {
+      storage.setItem(key, '1');
+    } catch (_err) {
+      // best effort only
+    }
+  }
+
+  // A tiny, friendly page-sprite (the tour's guide "Quill"). Inline SVG so there
+  // is no asset file to 404 and no new dependency; two-tone via the shared CSS
+  // custom properties. Purely decorative, so it is marked aria-hidden.
+  const MASCOT_SVG = [
+    '<svg class="guided-tour-mascot-svg" viewBox="0 0 48 48" width="44" height="44" aria-hidden="true" focusable="false">',
+    '<rect x="10" y="6" width="26" height="34" rx="6" fill="var(--surface-alt)" stroke="var(--accent-strong)" stroke-width="2"></rect>',
+    '<path d="M30 6h6v6z" fill="var(--accent)"></path>',
+    '<line x1="15" y1="13" x2="26" y2="13" stroke="var(--border)" stroke-width="1.6" stroke-linecap="round"></line>',
+    '<line x1="15" y1="17" x2="23" y2="17" stroke="var(--border)" stroke-width="1.6" stroke-linecap="round"></line>',
+    '<circle cx="19" cy="26" r="2.2" fill="var(--accent-strong)"></circle>',
+    '<circle cx="29" cy="26" r="2.2" fill="var(--accent-strong)"></circle>',
+    '<path d="M19 31q5 3.5 10 0" stroke="var(--accent-strong)" stroke-width="2" fill="none" stroke-linecap="round"></path>',
+    '</svg>'
+  ].join('');
+
+  const state = {
+    running: false,
+    mode: 'linear',
+    surface: '',
+    steps: [],
+    index: 0,
+    els: null,
+    rafId: 0,
+    lastFocus: null,
+    advanceHandler: null,
+    advanceEventName: '',
+    reposition: null,
+    curtainEls: null,
+    curtainKind: 'intro',
+    curtainLastFocus: null,
+    curtainSecondaryFn: null,
+    curtainPrimaryFn: null
+  };
+
+  const api = {
+    startLinear: startLinear,
+    startSurfaceHints: startSurfaceHints,
+    next: next,
+    prev: prev,
+    stop: stop,
+    isRunning: function isRunning() { return state.running; },
+    currentStep: function currentStep() {
+      return state.running ? state.steps[state.index] || null : null;
+    }
+  };
+
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = api;
+  }
+  if (global) {
+    global.ProjectMapGuidedTour = api;
+  }
+  if (!global || !global.document) {
+    return;
+  }
+
+  onReady(function () { start(global.document); });
+
+  function onReady(callback) {
+    if (global.document.readyState === 'loading') {
+      global.document.addEventListener('DOMContentLoaded', callback);
+    } else {
+      callback();
+    }
+  }
+
+  function start(document) {
+    wireMenu(document);
+    document.addEventListener(eventName('openGuidedTour', 'ProjectMap:open-guided-tour'), function () {
+      startLinear();
+    });
+    document.addEventListener(eventName('openSurfaceHints', 'ProjectMap:open-surface-hints'), function (event) {
+      const detail = event && event.detail ? event.detail : {};
+      startSurfaceHints(detail.surface || '');
+    });
+    document.addEventListener('project-map:locale-changed', function () {
+      if (state.running) {
+        renderStep();
+      }
+      if (isCurtainOpen()) {
+        showCurtain(state.curtainKind);
+      }
+    });
+    document.addEventListener('ProjectMap:mode-changed', onModeChanged);
+    // When the Welcome Hub is dismissed without handing off elsewhere, offer the
+    // orientation tour once. Deferred a beat so the dismissal settles first; the
+    // offer is gated on a per-user "seen" flag so it never nags.
+    document.addEventListener(eventName('welcomeDismissed', 'ProjectMap:welcome-dismissed'), function () {
+      global.setTimeout(maybeOfferFirstRunIntro, 500);
+    });
+  }
+
+  function wireMenu(document) {
+    const tourButton = document.getElementById('studio-open-guided-tour');
+    if (tourButton) {
+      tourButton.addEventListener('click', function () {
+        closeMoreMenu(document);
+        startLinear();
+      });
+    }
+    const hintsButton = document.getElementById('studio-open-surface-hints');
+    if (hintsButton) {
+      hintsButton.addEventListener('click', function () {
+        closeMoreMenu(document);
+        startSurfaceHints(currentMode());
+      });
+    }
+  }
+
+  function currentMode() {
+    const body = global.document.body;
+    return body && body.dataset && body.dataset.mode ? body.dataset.mode : 'explore';
+  }
+
+  function isWelcomeOpen() {
+    const el = global.document.getElementById('studio-welcome');
+    return Boolean(el && !el.classList.contains('hidden'));
+  }
+
+  function hasSeenSurface(surface) {
+    const storage = safeStorage();
+    if (!storage || typeof storage.getItem !== 'function') {
+      return false;
+    }
+    try {
+      const prefix = storageKey('surfaceHintsSeenPrefix', 'dendry-mod-studio-surface-hints-seen.');
+      return storage.getItem(prefix + surface) === '1';
+    } catch (_err) {
+      return false;
+    }
+  }
+
+  // Auto-fire a surface's hints the first time the user clicks into that
+  // workspace, but only when there is content to point at and nothing else is
+  // in the way. Marked seen up front so it never nags on later visits — the More
+  // menu's "Show hints" can always bring it back on demand.
+  function onModeChanged(event) {
+    const detail = event && event.detail ? event.detail : {};
+    if (detail.reason !== 'user' || state.running) {
+      return;
+    }
+    const surface = detail.nextMode || '';
+    const m = model();
+    if (!m || !m.hasSurfaceHints(surface)) {
+      return;
+    }
+    if (!tourState().projectLoaded || isWelcomeOpen() || hasSeenSurface(surface)) {
+      return;
+    }
+    const prefix = storageKey('surfaceHintsSeenPrefix', 'dendry-mod-studio-surface-hints-seen.');
+    markSeen(prefix + surface);
+    startSurfaceHints(surface);
+  }
+
+  function anchorResolves(stepItem) {
+    if (!stepItem) {
+      return false;
+    }
+    if (!stepItem.anchor) {
+      return true;
+    }
+    let el = safeQuery(stepItem.anchor);
+    if (!el && stepItem.fallbackAnchor) {
+      el = safeQuery(stepItem.fallbackAnchor);
+    }
+    return isVisible(el);
+  }
+
+  function closeMoreMenu(document) {
+    const more = document.getElementById('topbar-more');
+    if (more) {
+      more.open = false;
+    }
+  }
+
+  function startLinear() {
+    const m = model();
+    if (!m) {
+      return false;
+    }
+    // Open on the landing curtain (a friendly intro from the mascot) instead of
+    // dropping straight into the spotlight. "Let's go" begins the steps.
+    return showCurtain('intro');
+  }
+
+  function beginLinearSteps() {
+    const m = model();
+    if (!m) {
+      return false;
+    }
+    return run('linear', '', m.linearTour());
+  }
+
+  function startSurfaceHints(surface) {
+    const m = model();
+    if (!m) {
+      return false;
+    }
+    const name = String(surface || '');
+    if (!m.hasSurfaceHints(name)) {
+      return false;
+    }
+    return run('hints', name, m.surfaceHints(name));
+  }
+
+  function tourState() {
+    const nav = shellNav();
+    const index = nav && typeof nav.getProjectIndex === 'function' ? nav.getProjectIndex() : null;
+    return {projectLoaded: Boolean(index)};
+  }
+
+  function run(mode, surface, rawSteps) {
+    if (!global || !global.document) {
+      return false;
+    }
+    const m = model();
+    let steps = m ? m.visibleSteps(rawSteps, tourState()) : rawSteps;
+    // In hint mode the dataset blends always-present chrome with steps that only
+    // exist once the user opens the Object Editor / UI Editor. Show only the
+    // steps whose anchor currently resolves, so the same group adapts to what is
+    // actually on screen ("you act, then it speaks").
+    if (mode === 'hints') {
+      steps = (steps || []).filter(anchorResolves);
+    }
+    if (!steps || steps.length === 0) {
+      return false;
+    }
+    if (state.running) {
+      teardownStepListeners();
+    }
+    ensureOverlay(global.document);
+    if (!state.els) {
+      return false;
+    }
+    state.running = true;
+    state.mode = mode;
+    state.surface = surface;
+    state.steps = steps;
+    state.index = 0;
+    state.lastFocus = global.document.activeElement;
+    state.els.overlay.classList.remove('hidden');
+    bindWindowListeners();
+    renderStep();
+    return true;
+  }
+
+  function ensureOverlay(document) {
+    if (state.els) {
+      return;
+    }
+    const mount = document.getElementById('studio-guided-tour-root') || document.body;
+    if (!mount) {
+      return;
+    }
+    const overlay = document.createElement('div');
+    overlay.id = 'studio-guided-tour';
+    overlay.className = 'guided-tour-overlay hidden';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-labelledby', 'guided-tour-title');
+
+    const spotlight = document.createElement('div');
+    spotlight.className = 'guided-tour-spotlight';
+    spotlight.setAttribute('aria-hidden', 'true');
+
+    const bubble = document.createElement('div');
+    bubble.className = 'guided-tour-bubble';
+
+    bubble.innerHTML = [
+      '<div class="guided-tour-mascot guided-tour-mascot--corner" aria-hidden="true">' + MASCOT_SVG + '</div>',
+      '<div class="guided-tour-progress" data-guided-tour-progress aria-hidden="true"></div>',
+      '<h2 id="guided-tour-title" class="guided-tour-title" data-guided-tour-title></h2>',
+      '<p class="guided-tour-body" data-guided-tour-body></p>',
+      '<div class="guided-tour-learn-more">',
+      '  <button type="button" class="guided-tour-learn-more-button" data-guided-tour-learn hidden>',
+      '    <span data-ui-icon="book"></span>',
+      '    <span data-i18n="tour.learnMore">Learn more</span>',
+      '  </button>',
+      '</div>',
+      '<div class="guided-tour-actions">',
+      '  <button type="button" class="guided-tour-skip" data-guided-tour-skip>',
+      '    <span data-i18n="tour.skip">Skip tour</span>',
+      '  </button>',
+      '  <div class="guided-tour-actions-right">',
+      '    <button type="button" class="guided-tour-prev" data-guided-tour-prev>',
+      '      <span data-i18n="tour.prev">Back</span>',
+      '    </button>',
+      '    <button type="button" class="primary-action guided-tour-next" data-guided-tour-next>',
+      '      <span data-guided-tour-next-label></span>',
+      '    </button>',
+      '  </div>',
+      '</div>'
+    ].join('');
+
+    overlay.appendChild(spotlight);
+    overlay.appendChild(bubble);
+    mount.appendChild(overlay);
+
+    state.els = {
+      overlay: overlay,
+      spotlight: spotlight,
+      bubble: bubble,
+      progress: bubble.querySelector('[data-guided-tour-progress]'),
+      title: bubble.querySelector('[data-guided-tour-title]'),
+      body: bubble.querySelector('[data-guided-tour-body]'),
+      learn: bubble.querySelector('[data-guided-tour-learn]'),
+      skip: bubble.querySelector('[data-guided-tour-skip]'),
+      prev: bubble.querySelector('[data-guided-tour-prev]'),
+      next: bubble.querySelector('[data-guided-tour-next]'),
+      nextLabel: bubble.querySelector('[data-guided-tour-next-label]')
+    };
+
+    state.els.skip.addEventListener('click', function () { stop(true); });
+    state.els.prev.addEventListener('click', function () { prev(); });
+    state.els.next.addEventListener('click', function () { next(); });
+    state.els.learn.addEventListener('click', openLearnMore);
+    overlay.addEventListener('keydown', onOverlayKeydown);
+    // Capture clicks on the dim so the page behind is not triggered by accident,
+    // but never advance from a stray backdrop click.
+    overlay.addEventListener('click', function (event) {
+      if (event.target === overlay) {
+        event.stopPropagation();
+      }
+    });
+  }
+
+  function bindWindowListeners() {
+    if (state.reposition) {
+      return;
+    }
+    state.reposition = function () {
+      if (state.rafId) {
+        global.cancelAnimationFrame(state.rafId);
+      }
+      state.rafId = global.requestAnimationFrame(function () {
+        state.rafId = 0;
+        layoutStep();
+      });
+    };
+    global.addEventListener('resize', state.reposition, true);
+    global.addEventListener('scroll', state.reposition, true);
+  }
+
+  function unbindWindowListeners() {
+    if (!state.reposition) {
+      return;
+    }
+    global.removeEventListener('resize', state.reposition, true);
+    global.removeEventListener('scroll', state.reposition, true);
+    state.reposition = null;
+    if (state.rafId) {
+      global.cancelAnimationFrame(state.rafId);
+      state.rafId = 0;
+    }
+  }
+
+  function step() {
+    return state.steps[state.index] || null;
+  }
+
+  function renderStep() {
+    const current = step();
+    if (!current || !state.els) {
+      return;
+    }
+    switchSurface(current.surface);
+    teardownStepListeners();
+
+    state.els.title.textContent = t(current.titleKey, current.titleFallback);
+    state.els.body.textContent = t(current.bodyKey, current.bodyFallback);
+    state.els.progress.textContent = (state.index + 1) + ' / ' + state.steps.length;
+
+    const isLast = state.index === state.steps.length - 1;
+    state.els.nextLabel.textContent = isLast
+      ? t('tour.done', 'Done')
+      : t('tour.next', 'Next');
+    state.els.prev.hidden = state.index === 0;
+
+    if (current.tutorialArticle) {
+      state.els.learn.hidden = false;
+      state.els.learn.setAttribute('data-tutorial-article', current.tutorialArticle);
+    } else {
+      state.els.learn.hidden = true;
+      state.els.learn.removeAttribute('data-tutorial-article');
+    }
+
+    if (global.ProjectMapI18n && typeof global.ProjectMapI18n.applyTranslations === 'function') {
+      global.ProjectMapI18n.applyTranslations(state.els.bubble);
+    }
+    decorateIcons(state.els.bubble);
+
+    // Scroll the anchor into view, then position. Lay out synchronously first so
+    // the spotlight is correct even when requestAnimationFrame is throttled (for
+    // example when the window is backgrounded as the tour starts); refine once
+    // more on the next frame after a smooth scroll settles.
+    const anchor = resolveAnchor(current);
+    if (anchor && typeof anchor.scrollIntoView === 'function') {
+      anchor.scrollIntoView({
+        block: 'center',
+        inline: 'center',
+        behavior: prefersReducedMotion() ? 'auto' : 'smooth'
+      });
+    }
+    layoutStep();
+    focusBubble();
+    global.requestAnimationFrame(function () {
+      layoutStep();
+    });
+
+    setupStepListeners(current);
+  }
+
+  function switchSurface(surface) {
+    if (!surface) {
+      return;
+    }
+    const nav = shellNav();
+    if (nav && typeof nav.setMode === 'function') {
+      nav.setMode(surface, {reason: 'guided-tour'});
+    }
+  }
+
+  function resolveAnchor(current) {
+    if (!current || !current.anchor) {
+      return null;
+    }
+    let anchor = safeQuery(current.anchor);
+    if (!anchor && current.fallbackAnchor) {
+      anchor = safeQuery(current.fallbackAnchor);
+    }
+    return isVisible(anchor) ? anchor : null;
+  }
+
+  function safeQuery(selector) {
+    try {
+      return global.document.querySelector(selector);
+    } catch (_err) {
+      return null;
+    }
+  }
+
+  function isVisible(element) {
+    if (!element) {
+      return false;
+    }
+    const rect = element.getBoundingClientRect();
+    if (rect.width <= 0 && rect.height <= 0) {
+      return false;
+    }
+    if (element.closest && element.closest('[hidden], .hidden')) {
+      return false;
+    }
+    return true;
+  }
+
+  function layoutStep() {
+    const current = step();
+    if (!current || !state.els) {
+      return;
+    }
+    const anchor = resolveAnchor(current);
+    if (!anchor) {
+      placeAnchorless();
+      return;
+    }
+    const rect = anchor.getBoundingClientRect();
+    placeSpotlight(rect);
+    placeBubble(rect, current.placement);
+  }
+
+  function placeSpotlight(rect) {
+    const pad = 6;
+    const s = state.els.spotlight.style;
+    s.display = 'block';
+    s.left = Math.max(0, rect.left - pad) + 'px';
+    s.top = Math.max(0, rect.top - pad) + 'px';
+    s.width = (rect.width + pad * 2) + 'px';
+    s.height = (rect.height + pad * 2) + 'px';
+  }
+
+  function placeAnchorless() {
+    state.els.spotlight.style.display = 'none';
+    const bubble = state.els.bubble;
+    bubble.classList.add('is-centered');
+    bubble.style.left = '';
+    bubble.style.top = '';
+  }
+
+  function placeBubble(rect, placement) {
+    const bubble = state.els.bubble;
+    bubble.classList.remove('is-centered');
+    const gap = 14;
+    const margin = 12;
+    const vw = global.innerWidth || global.document.documentElement.clientWidth;
+    const vh = global.innerHeight || global.document.documentElement.clientHeight;
+    const bw = bubble.offsetWidth || 320;
+    const bh = bubble.offsetHeight || 160;
+
+    let where = placement && placement !== 'auto' ? placement : 'bottom';
+    if (where === 'bottom' && rect.bottom + gap + bh > vh) {
+      where = rect.top - gap - bh > 0 ? 'top' : 'bottom';
+    } else if (where === 'top' && rect.top - gap - bh < 0) {
+      where = 'bottom';
+    }
+
+    let left;
+    let top;
+    if (where === 'left' || where === 'right') {
+      top = rect.top + (rect.height - bh) / 2;
+      left = where === 'left' ? rect.left - gap - bw : rect.right + gap;
+      if (where === 'right' && left + bw + margin > vw) {
+        left = rect.left - gap - bw;
+      }
+      if (where === 'left' && left < margin) {
+        left = rect.right + gap;
+      }
+    } else {
+      left = rect.left + (rect.width - bw) / 2;
+      top = where === 'top' ? rect.top - gap - bh : rect.bottom + gap;
+    }
+
+    left = clamp(left, margin, Math.max(margin, vw - bw - margin));
+    top = clamp(top, margin, Math.max(margin, vh - bh - margin));
+    bubble.style.left = Math.round(left) + 'px';
+    bubble.style.top = Math.round(top) + 'px';
+  }
+
+  function clamp(value, min, max) {
+    return Math.min(Math.max(value, min), max);
+  }
+
+  function focusBubble() {
+    if (!state.els) {
+      return;
+    }
+    const target = state.els.next && !state.els.next.disabled ? state.els.next : state.els.skip;
+    if (target && typeof target.focus === 'function') {
+      target.focus();
+    }
+  }
+
+  function setupStepListeners(current) {
+    if (current.advanceOn === 'event' && current.advanceEvent) {
+      state.advanceEventName = current.advanceEvent;
+      state.advanceHandler = function () { next(); };
+      global.document.addEventListener(current.advanceEvent, state.advanceHandler, {once: true});
+    }
+  }
+
+  function teardownStepListeners() {
+    if (state.advanceHandler && state.advanceEventName) {
+      global.document.removeEventListener(state.advanceEventName, state.advanceHandler);
+    }
+    state.advanceHandler = null;
+    state.advanceEventName = '';
+  }
+
+  function next() {
+    if (!state.running) {
+      return;
+    }
+    if (state.index >= state.steps.length - 1) {
+      completeTour();
+      return;
+    }
+    state.index += 1;
+    renderStep();
+  }
+
+  function completeTour() {
+    const wasLinear = state.mode === 'linear';
+    stop(true);
+    // The linear orientation ends on a warm sign-off curtain; per-surface hints
+    // just close quietly.
+    if (wasLinear) {
+      showCurtain('ending');
+    }
+  }
+
+  function prev() {
+    if (!state.running || state.index === 0) {
+      return;
+    }
+    state.index -= 1;
+    renderStep();
+  }
+
+  function stop(completed) {
+    if (!state.running) {
+      return;
+    }
+    teardownStepListeners();
+    unbindWindowListeners();
+    state.running = false;
+    if (state.els) {
+      state.els.overlay.classList.add('hidden');
+      state.els.spotlight.style.display = 'none';
+    }
+    if (completed) {
+      recordSeen();
+    }
+    restoreFocus();
+  }
+
+  function recordSeen() {
+    if (state.mode === 'linear') {
+      markSeen(storageKey('guidedTourSeen', 'dendry-mod-studio-guided-tour-seen'));
+    } else if (state.mode === 'hints' && state.surface) {
+      const prefix = storageKey('surfaceHintsSeenPrefix', 'dendry-mod-studio-surface-hints-seen.');
+      markSeen(prefix + state.surface);
+    }
+  }
+
+  function restoreFocus() {
+    const last = state.lastFocus;
+    state.lastFocus = null;
+    if (last && typeof last.focus === 'function' && global.document.contains(last)) {
+      last.focus();
+    }
+  }
+
+  function openLearnMore() {
+    const current = step();
+    if (!current || !current.tutorialArticle) {
+      return;
+    }
+    const articleId = current.tutorialArticle;
+    stop(true);
+    const library = global.ProjectMapTutorialLibrary;
+    if (library && typeof library.open === 'function') {
+      library.open(articleId);
+    }
+  }
+
+  function onOverlayKeydown(event) {
+    if (!state.running) {
+      return;
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      stop(false);
+      return;
+    }
+    if (event.key === 'Tab') {
+      trapTab(event);
+    }
+  }
+
+  function trapTab(event) {
+    const focusable = state.els.bubble.querySelectorAll(
+      'button:not([hidden]):not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+    );
+    if (!focusable.length) {
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && global.document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && global.document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
+  // --- Landing / ending curtain ---------------------------------------------
+  // A friendly full-screen card (the mascot greeting) shown before the linear
+  // tour begins and after it finishes. Built lazily into the same mount as the
+  // spotlight overlay, so it never touches the page chrome.
+
+  function ensureCurtain(document) {
+    if (state.curtainEls) {
+      return;
+    }
+    const mount = document.getElementById('studio-guided-tour-root') || document.body;
+    if (!mount) {
+      return;
+    }
+    const curtain = document.createElement('div');
+    curtain.className = 'guided-tour-curtain hidden';
+    curtain.setAttribute('role', 'dialog');
+    curtain.setAttribute('aria-modal', 'true');
+    curtain.setAttribute('aria-labelledby', 'guided-tour-curtain-title');
+    curtain.innerHTML = [
+      '<div class="guided-tour-curtain-backdrop" aria-hidden="true"></div>',
+      '<div class="guided-tour-curtain-card">',
+      '  <div class="guided-tour-mascot guided-tour-mascot--hero" aria-hidden="true">' + MASCOT_SVG + '</div>',
+      '  <div class="guided-tour-mascot-name" data-i18n="tour.mascot.name"></div>',
+      '  <p class="guided-tour-curtain-recommend" data-guided-tour-curtain-recommend></p>',
+      '  <h2 id="guided-tour-curtain-title" class="guided-tour-curtain-title" data-guided-tour-curtain-title></h2>',
+      '  <p class="guided-tour-curtain-body" data-guided-tour-curtain-body></p>',
+      '  <div class="guided-tour-curtain-actions">',
+      '    <button type="button" class="guided-tour-curtain-secondary" data-guided-tour-curtain-secondary></button>',
+      '    <button type="button" class="primary-action guided-tour-curtain-primary" data-guided-tour-curtain-primary></button>',
+      '  </div>',
+      '</div>'
+    ].join('');
+    mount.appendChild(curtain);
+    state.curtainEls = {
+      curtain: curtain,
+      card: curtain.querySelector('.guided-tour-curtain-card'),
+      recommend: curtain.querySelector('[data-guided-tour-curtain-recommend]'),
+      title: curtain.querySelector('[data-guided-tour-curtain-title]'),
+      body: curtain.querySelector('[data-guided-tour-curtain-body]'),
+      secondary: curtain.querySelector('[data-guided-tour-curtain-secondary]'),
+      primary: curtain.querySelector('[data-guided-tour-curtain-primary]')
+    };
+    curtain.addEventListener('keydown', onCurtainKeydown);
+    curtain.addEventListener('click', function (event) {
+      const target = event.target;
+      if (target === curtain || (target.classList && target.classList.contains('guided-tour-curtain-backdrop'))) {
+        dismissCurtain();
+      }
+    });
+  }
+
+  function showCurtain(kind) {
+    if (!global || !global.document) {
+      return false;
+    }
+    ensureCurtain(global.document);
+    if (!state.curtainEls) {
+      return false;
+    }
+    const els = state.curtainEls;
+    state.curtainKind = kind === 'ending' ? 'ending' : 'intro';
+    if (!isCurtainOpen()) {
+      state.curtainLastFocus = global.document.activeElement;
+    }
+    if (global.ProjectMapI18n && typeof global.ProjectMapI18n.applyTranslations === 'function') {
+      global.ProjectMapI18n.applyTranslations(els.card);
+    }
+    if (state.curtainKind === 'intro') {
+      els.recommend.hidden = false;
+      els.recommend.textContent = t('tour.intro.recommend', '');
+      els.title.textContent = t('tour.intro.title', 'Shall we look around together?');
+      els.body.textContent = t('tour.intro.body', '');
+      els.secondary.textContent = t('tour.intro.later', 'Maybe later');
+      els.primary.textContent = t('tour.intro.start', "Let's go");
+      setCurtainActions(
+        function onLater() { markSeenLinear(); closeCurtain(); },
+        function onStart() { state.curtainLastFocus = null; closeCurtain(); beginLinearSteps(); }
+      );
+    } else {
+      els.recommend.hidden = true;
+      els.recommend.textContent = '';
+      els.title.textContent = t('tour.ending.title', 'That is the lay of the land');
+      els.body.textContent = t('tour.ending.body', '');
+      els.secondary.textContent = t('tour.ending.hints', 'Show hints as I go');
+      els.primary.textContent = t('tour.ending.close', 'Start exploring');
+      setCurtainActions(
+        function onHints() { state.curtainLastFocus = null; closeCurtain(); startSurfaceHints(currentMode()); },
+        function onClose() { closeCurtain(); }
+      );
+      // Reaching the sign-off counts as having seen the orientation tour.
+      markSeenLinear();
+    }
+    decorateIcons(els.card);
+    els.curtain.classList.remove('hidden');
+    requestCurtainEnter(els.curtain);
+    if (els.primary && typeof els.primary.focus === 'function') {
+      els.primary.focus();
+    }
+    return true;
+  }
+
+  function setCurtainActions(secondaryFn, primaryFn) {
+    const els = state.curtainEls;
+    if (!els) {
+      return;
+    }
+    if (state.curtainSecondaryFn) {
+      els.secondary.removeEventListener('click', state.curtainSecondaryFn);
+    }
+    if (state.curtainPrimaryFn) {
+      els.primary.removeEventListener('click', state.curtainPrimaryFn);
+    }
+    state.curtainSecondaryFn = secondaryFn;
+    state.curtainPrimaryFn = primaryFn;
+    els.secondary.addEventListener('click', secondaryFn);
+    els.primary.addEventListener('click', primaryFn);
+  }
+
+  function requestCurtainEnter(curtain) {
+    if (prefersReducedMotion()) {
+      curtain.classList.add('is-open');
+      return;
+    }
+    global.requestAnimationFrame(function () {
+      curtain.classList.add('is-open');
+    });
+  }
+
+  function closeCurtain() {
+    const els = state.curtainEls;
+    if (!els) {
+      return;
+    }
+    els.curtain.classList.remove('is-open');
+    const finish = function () { els.curtain.classList.add('hidden'); };
+    if (prefersReducedMotion()) {
+      finish();
+    } else {
+      global.setTimeout(finish, 220);
+    }
+    restoreCurtainFocus();
+  }
+
+  function dismissCurtain() {
+    if (state.curtainKind === 'intro') {
+      markSeenLinear();
+    }
+    closeCurtain();
+  }
+
+  function isCurtainOpen() {
+    return Boolean(state.curtainEls && !state.curtainEls.curtain.classList.contains('hidden'));
+  }
+
+  function onCurtainKeydown(event) {
+    if (!isCurtainOpen()) {
+      return;
+    }
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      dismissCurtain();
+      return;
+    }
+    if (event.key === 'Tab') {
+      trapCurtainTab(event);
+    }
+  }
+
+  function trapCurtainTab(event) {
+    const focusable = state.curtainEls.card.querySelectorAll('button:not([hidden]):not([disabled])');
+    if (!focusable.length) {
+      return;
+    }
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (event.shiftKey && global.document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && global.document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
+  function restoreCurtainFocus() {
+    const last = state.curtainLastFocus;
+    state.curtainLastFocus = null;
+    if (last && typeof last.focus === 'function' && global.document.contains(last)) {
+      last.focus();
+    }
+  }
+
+  // First-run offer: the orientation tour, shown once after the Welcome Hub is
+  // dismissed. Gated so it never stacks on the Welcome Hub or an active tour,
+  // and never reappears once seen.
+  function maybeOfferFirstRunIntro() {
+    if (state.running || isCurtainOpen() || isWelcomeOpen()) {
+      return;
+    }
+    if (hasSeenLinear()) {
+      return;
+    }
+    showCurtain('intro');
+  }
+
+  function hasSeenLinear() {
+    const storage = safeStorage();
+    if (!storage || typeof storage.getItem !== 'function') {
+      return false;
+    }
+    try {
+      return storage.getItem(storageKey('guidedTourSeen', 'dendry-mod-studio-guided-tour-seen')) === '1';
+    } catch (_err) {
+      return false;
+    }
+  }
+
+  function markSeenLinear() {
+    markSeen(storageKey('guidedTourSeen', 'dendry-mod-studio-guided-tour-seen'));
+  }
+})(typeof window !== 'undefined' ? window : globalThis);

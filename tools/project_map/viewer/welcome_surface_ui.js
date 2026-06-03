@@ -179,6 +179,13 @@
     '        </button>',
     '      </article>',
     '    </div>',
+    '    <div class="welcome-tour-invite">',
+    '      <button id="welcome-start-tour" class="primary-action guided-tour-welcome-cta" type="button">',
+    '        <span data-ui-icon="map"></span>',
+    '        <span data-i18n="welcome.startTour">Take the guided tour</span>',
+    '      </button>',
+    '      <span class="welcome-tour-invite-hint" data-i18n="welcome.startTourHint">New here? A 1-minute guided tour shows you around.</span>',
+    '    </div>',
     '    <section id="welcome-catalog" class="welcome-catalog desktop-only-control hidden" aria-label="Template Hub" data-i18n-aria-label="welcome.catalog.aria">',
     '      <header class="welcome-catalog-header">',
     '        <h2><span class="welcome-catalog-header-icon" data-ui-icon="download"></span><span data-i18n="welcome.catalog.title">Template Hub</span></h2>',
@@ -274,6 +281,7 @@
       demoCard: document.getElementById('welcome-demo-card'),
       demo: document.getElementById('onboarding-load-demo'),
       browse: document.getElementById('welcome-browse-workspace'),
+      startTour: document.getElementById('welcome-start-tour'),
       tutorial: document.getElementById('onboarding-open-tutorial-library'),
       indexInput: document.getElementById('index-file'),
       desktopOpen: document.getElementById('desktop-open-project'),
@@ -323,6 +331,9 @@
     }
     if (state.elements.browse) {
       state.elements.browse.addEventListener('click', () => closeDialog(true));
+    }
+    if (state.elements.startTour) {
+      state.elements.startTour.addEventListener('click', handleStartTourAction);
     }
     if (state.elements.tutorial) {
       state.elements.tutorial.addEventListener('click', handleTutorialAction);
@@ -445,7 +456,7 @@
     return true;
   }
 
-  function closeDialog(markSeen) {
+  function closeDialog(markSeen, opts) {
     if (!state.elements || !state.elements.dialog) {
       return false;
     }
@@ -453,6 +464,16 @@
     state.elements.dialog.classList.remove('is-catalog-only');
     if (markSeen && state.controller) {
       state.controller.markSeen();
+    }
+    // Let the guided tour offer a one-time orientation once the Welcome Hub is
+    // dismissed. Handoffs to the tour or Tutorial Library pass {silent: true} so
+    // the offer never stacks on top of them.
+    if (!(opts && opts.silent)) {
+      try {
+        global.document.dispatchEvent(new Event(welcomeDismissedEventName()));
+      } catch (_err) {
+        // best effort only
+      }
     }
     return true;
   }
@@ -503,12 +524,39 @@
     });
   }
 
+  function guidedTourEventName() {
+    const api = contracts();
+    return api && api.EVENT_NAMES && api.EVENT_NAMES.openGuidedTour
+      ? api.EVENT_NAMES.openGuidedTour
+      : 'ProjectMap:open-guided-tour';
+  }
+
+  function welcomeDismissedEventName() {
+    const api = contracts();
+    return api && api.EVENT_NAMES && api.EVENT_NAMES.welcomeDismissed
+      ? api.EVENT_NAMES.welcomeDismissed
+      : 'ProjectMap:welcome-dismissed';
+  }
+
+  function handleStartTourAction() {
+    // Silent close: we are handing straight off to the tour, so the first-run
+    // offer must not also fire on top of it.
+    closeDialog(true, {silent: true});
+    if (global.ProjectMapGuidedTour && typeof global.ProjectMapGuidedTour.startLinear === 'function') {
+      global.ProjectMapGuidedTour.startLinear();
+      return;
+    }
+    global.document.dispatchEvent(new Event(guidedTourEventName()));
+  }
+
   function handleTutorialAction() {
     // Remember to bring the Welcome Hub back when the user closes the Tutorial
     // Library, otherwise opening the tutorial strands a first-time user in an
     // empty Studio with no Quick Start to return to.
     state._reopenAfterTutorial = true;
-    closeDialog(true);
+    // Silent close: handing off to the Tutorial Library, so do not also offer
+    // the guided tour over it.
+    closeDialog(true, {silent: true});
     if (global.ProjectMapTutorialLibrary && typeof global.ProjectMapTutorialLibrary.open === 'function') {
       global.ProjectMapTutorialLibrary.open(true);
       return;

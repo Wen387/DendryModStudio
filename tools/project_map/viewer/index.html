@@ -52,6 +52,8 @@
           <summary><span data-i18n="topbar.more">More</span></summary>
           <div class="topbar-more-menu">
             <button id="studio-open-onboarding" class="desktop-secondary-button" type="button"><span data-i18n="topbar.welcome">Welcome Hub</span></button>
+            <button id="studio-open-guided-tour" class="desktop-secondary-button" type="button"><span data-i18n="topbar.guidedTour">Guided Tour</span></button>
+            <button id="studio-open-surface-hints" class="desktop-secondary-button" type="button"><span data-i18n="topbar.surfaceHints">Show hints</span></button>
             <button id="studio-open-template-hub" class="desktop-secondary-button desktop-only-control hidden" type="button"><span data-i18n="topbar.templateHub">Template Hub</span></button>
             <button id="studio-open-tutorial-library" class="desktop-secondary-button" type="button"><span data-i18n="topbar.tutorialLibrary">Tutorial Library</span></button>
             <button id="studio-open-announcements" class="desktop-secondary-button desktop-only-control hidden" type="button">
@@ -146,6 +148,7 @@
     </div>
 
     <div id="studio-welcome-root"></div>
+    <div id="studio-guided-tour-root"></div>
 
     <div id="studio-tutorial-library" class="tutorial-library-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="tutorial-library-title">
       <section class="tutorial-library-dialog">
@@ -2344,6 +2347,7 @@ media_reach += 1</textarea>
   <script src="../authoring/dynamic_semantic_workbench_model.js"></script>
   <script src="../authoring/draft_workspace.js"></script>
   <script src="../authoring/studio_shared_constants.js"></script>
+  <script src="../authoring/guided_tour_model.js"></script>
   <script src="i18n/en.js"></script>
   <script src="i18n/zh-Hant.js"></script>
   <script src="desktop_capabilities.js"></script>
@@ -2431,6 +2435,7 @@ media_reach += 1</textarea>
   <script src="onboarding_ui.js"></script>
   <script src="update_notice_ui.js"></script>
   <script src="tutorial_library_ui.js"></script>
+  <script src="guided_tour_ui.js"></script>
   <script src="design_graph_renderer.js"></script>
   <script src="design_interactions.js"></script>
   <script src="design_ui.js"></script>

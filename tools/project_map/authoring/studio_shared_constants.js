@@ -7,7 +7,9 @@
     locale: 'dendry-mod-studio-locale',
     designHelpSeen: 'dendry-mod-studio-design-help-seen',
     designInspectorWidth: 'dendry-mod-studio-design-inspector-width',
-    onboardingSeen: 'dendry-mod-studio-onboarding-seen'
+    onboardingSeen: 'dendry-mod-studio-onboarding-seen',
+    guidedTourSeen: 'dendry-mod-studio-guided-tour-seen',
+    surfaceHintsSeenPrefix: 'dendry-mod-studio-surface-hints-seen.'
   };
 
   const EVENT_NAMES = {
@@ -18,7 +20,10 @@
     localeChanged: 'project-map:locale-changed',
     desktopIndexLoaded: 'ProjectMap:desktop-index-loaded',
     desktopScanProgress: 'ProjectMap:desktop-scan-progress',
-    openOnboarding: 'ProjectMap:open-onboarding'
+    openOnboarding: 'ProjectMap:open-onboarding',
+    openGuidedTour: 'ProjectMap:open-guided-tour',
+    openSurfaceHints: 'ProjectMap:open-surface-hints',
+    welcomeDismissed: 'ProjectMap:welcome-dismissed'
   };
 
   const TEXT_ROLE_LABELS = {

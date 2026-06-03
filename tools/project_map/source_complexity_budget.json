@@ -58,21 +58,21 @@
     },
     {
       "path": "tools/project_map/viewer/i18n/en.js",
-      "maxLines": 3362,
+      "maxLines": 3411,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-06-03 from 3355 for conditional what-if + inline leaf editor i18n keys."
+      "reason": "Catalog file; keep each language separate. Raised 2026-06-03 from 3362 for guided tour i18n keys (intro/ending/mascot + chrome)."
     },
     {
       "path": "tools/project_map/viewer/i18n/zh-Hant.js",
-      "maxLines": 3362,
+      "maxLines": 3411,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-06-03 from 3355 for conditional what-if + inline leaf editor i18n keys."
+      "reason": "Catalog file; keep each language separate. Raised 2026-06-03 from 3362 for guided tour i18n keys (intro/ending/mascot + chrome)."
     },
     {
       "path": "tools/project_map/viewer/index.html",
-      "maxLines": 2438,
+      "maxLines": 2443,
       "allowRaise": true,
-      "reason": "Script + template manifest. Raised 2026-06-03 from 2437 for predicate runtime eval script tag."
+      "reason": "Script + template manifest. Raised 2026-06-03 from 2438 for guided tour scripts, mount, and menu actions."
     },
     {
       "path": "tools/project_map/viewer/object_authoring_canvas_ui.js",
