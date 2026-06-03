@@ -171,6 +171,15 @@
     return groups;
   }
 
+  function normalizeConditionalTree(nodes) {
+    return ensureArray(nodes).map((node) => ({
+      condition: String(node && node.condition || ''),
+      text: String(node && node.text || ''),
+      source: sourceRef(node && node.source || {}),
+      children: normalizeConditionalTree(node && node.children)
+    })).filter((node) => node.condition || node.text || node.children.length);
+  }
+
   function editorFromBlock(block, values) {
     const id = 'block:' + String(block.id || '');
     const relatedOptionIds = ensureArray(block.relatedOptionIds).map(String).filter(Boolean);
@@ -207,6 +216,8 @@
         source: sourceRef(item && item.source || {})
       })).filter((item) => item.condition || item.text),
       hasConditionalAlternatives: Boolean(block.hasConditionalAlternatives),
+      conditionalTree: normalizeConditionalTree(block.conditionalTree),
+      hasNestedConditionals: Boolean(block.hasNestedConditionals),
       operationType: 'replace_section',
       status: editorStatus(block.editability || 'guarded_replace_section')
     };

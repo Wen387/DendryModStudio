@@ -392,6 +392,19 @@ export interface ExistingSceneTextBlockHelperDeps {
   humanSectionId?: (sectionId: string) => string;
 }
 
+export interface InlineConditionalTreeNode {
+  condition: string;
+  text: string;
+  children: InlineConditionalTreeNode[];
+}
+
+export interface ExistingSceneConditionalTreeNode {
+  condition: string;
+  text: string;
+  children: ExistingSceneConditionalTreeNode[];
+  source: SourceRef;
+}
+
 export interface ExistingSceneTextBlockHelpersApi {
   textBlockSemantics(
     scene: ProjectIndexScene,
@@ -401,6 +414,8 @@ export interface ExistingSceneTextBlockHelpersApi {
   ): ExistingSceneTextBlockSemantics;
   detectVisualKinds(value: unknown): string[];
   conditionalAlternativesForRows(rows: ExistingSceneTextBlockRow[]): ExistingSceneConditionalAlternative[];
+  conditionalTreeForRows(rows: ExistingSceneTextBlockRow[]): ExistingSceneConditionalTreeNode[];
+  extractInlineConditionalTree(value: unknown): InlineConditionalTreeNode[];
   lastMeaningfulCondition(values: unknown[]): string;
   isBlockTextRole(role: unknown): boolean;
   logicalTextRuns(rows: ExistingSceneTextBlockRow[]): ExistingSceneLogicalTextRun[];

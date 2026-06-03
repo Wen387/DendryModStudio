@@ -68,6 +68,55 @@
     }
 
     /**
+     * Nesting-aware companion to conditionalAlternativesForRows. Returns a tree
+     * of branches so the editor can render parent -> child conditional layers
+     * instead of a flattened list.
+     * @param {ExistingSceneTextBlockRow[]} rows
+     * @returns {Array<object>}
+     */
+    function conditionalTreeForRows(rows) {
+      const seen = new Set();
+      /** @type {Array<object>} */
+      const out = [];
+      /**
+       * @param {unknown} conditionInput
+       * @param {unknown} textInput
+       * @param {Array<object>} children
+       * @param {SourceRef} source
+       */
+      function pushNode(conditionInput, textInput, children, source) {
+        const condition = compactVisibleText(conditionInput);
+        if (!condition) {
+          return;
+        }
+        const text = compactVisibleText(textInput);
+        const kids = ensureArray(children);
+        if (!text && !kids.length) {
+          return;
+        }
+        const key = [condition, text, source.path || '', source.line || ''].join('|');
+        if (seen.has(key)) {
+          return;
+        }
+        seen.add(key);
+        out.push({condition, text, children: kids, source});
+      }
+      ensureArray(rows).forEach((row) => {
+        const source = sourceRef(row && row.source || {});
+        if (String(row && row.role || '') === 'conditional_body') {
+          pushNode(lastMeaningfulCondition(row && row.conditions), row && row.text, [], source);
+        }
+        if (row && row.hasInlineConditionals) {
+          const raw = String(source.anchorText || row.originalText || row.text || '').trim();
+          extractInlineConditionalTree(raw).forEach((node) => {
+            pushNode(node.condition, node.text, node.children, source);
+          });
+        }
+      });
+      return out;
+    }
+
+    /**
      * @param {ProjectIndexScene} scene
      * @param {string} sectionId
      * @param {ExistingSceneTextBlockRow[]} rows
@@ -195,6 +244,8 @@
       textBlockSemantics,
       detectVisualKinds,
       conditionalAlternativesForRows,
+      conditionalTreeForRows,
+      extractInlineConditionalTree,
       lastMeaningfulCondition,
       isBlockTextRole,
       logicalTextRuns,
@@ -297,6 +348,99 @@
         pos = i + 2;
       } else {
         pos = conditionStart;
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Nesting-aware variant of extractInlineConditionals. Unlike the flat
+   * extractor (which spreads inner conditionals into sibling rows), this keeps
+   * the parent -> child structure so the editor can render the branch tree.
+   * @param {unknown} value
+   * @returns {Array<{condition: string, text: string, children: Array<object>}>}
+   */
+  function extractInlineConditionalTree(value) {
+    const out = [];
+    const text = String(value || '');
+    let pos = 0;
+    while (pos < text.length) {
+      const openIndex = text.indexOf('[?', pos);
+      if (openIndex < 0) break;
+      const afterOpen = openIndex + 2;
+      const ifMatch = text.slice(afterOpen).match(/^\s*if\s+/);
+      if (!ifMatch) { pos = afterOpen; continue; }
+      const conditionStart = afterOpen + ifMatch[0].length;
+      const colonIndex = text.indexOf(':', conditionStart);
+      if (colonIndex < 0) { pos = conditionStart; continue; }
+      const condition = text.slice(conditionStart, colonIndex).trim();
+      const bodyStart = colonIndex + 1;
+      let depth = 1;
+      let i = bodyStart;
+      while (i < text.length && depth > 0) {
+        if (text[i] === '[' && i + 1 < text.length && text[i + 1] === '?') {
+          depth++;
+          i += 2;
+        } else if (text[i] === '?' && i + 1 < text.length && text[i + 1] === ']') {
+          depth--;
+          if (depth === 0) break;
+          i += 2;
+        } else {
+          i++;
+        }
+      }
+      if (depth === 0) {
+        const body = text.slice(bodyStart, i).trim();
+        const children = extractInlineConditionalTree(body);
+        const ownText = compactVisibleText(stripNestedConditionals(body));
+        const compactCondition = compactVisibleText(condition);
+        if (compactCondition && (ownText || children.length)) {
+          out.push({condition: compactCondition, text: ownText, children});
+        }
+        pos = i + 2;
+      } else {
+        pos = conditionStart;
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Removes balanced [? ... ?] spans so a branch can report only its own
+   * directly-visible text, leaving nested branches to the children entries.
+   * @param {unknown} value
+   * @returns {string}
+   */
+  function stripNestedConditionals(value) {
+    const text = String(value || '');
+    let out = '';
+    let pos = 0;
+    while (pos < text.length) {
+      const openIndex = text.indexOf('[?', pos);
+      if (openIndex < 0) {
+        out += text.slice(pos);
+        break;
+      }
+      out += text.slice(pos, openIndex);
+      let depth = 1;
+      let i = openIndex + 2;
+      while (i < text.length && depth > 0) {
+        if (text[i] === '[' && i + 1 < text.length && text[i + 1] === '?') {
+          depth++;
+          i += 2;
+        } else if (text[i] === '?' && i + 1 < text.length && text[i + 1] === ']') {
+          depth--;
+          i += 2;
+        } else {
+          i++;
+        }
+      }
+      if (depth === 0) {
+        pos = i;
+      } else {
+        // Unbalanced: keep the remainder verbatim rather than dropping text.
+        out += text.slice(openIndex);
+        break;
       }
     }
     return out;

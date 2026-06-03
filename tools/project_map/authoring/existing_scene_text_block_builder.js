@@ -180,6 +180,7 @@
       const visualKinds = detectVisualKinds(original);
       const inlineConditions = uniqueStrings(usable.flatMap((row) => ensureArray(row && row.inlineConditions)));
       const conditionalAlternatives = conditionalAlternativesForRows(usable);
+      const conditionalTree = conditionalTreeForRows(usable);
       const conditionVariables = uniqueStrings(semantics.conditions.flatMap(variablesFromCondition));
       const inlineConditionVariables = uniqueStrings(inlineConditions.flatMap(variablesFromCondition));
       const textVariables = variablesFromDendryText(original);
@@ -216,11 +217,14 @@
           textVariables,
           conditionVariables,
           inlineConditionVariables,
-          conditionalAlternatives
+          conditionalAlternatives,
+          conditionalTree
         },
         hasConditionalRows: semantics.hasConditionalRows,
         hasConditionalAlternatives: conditionalAlternatives.length > 1,
         conditionalAlternatives,
+        conditionalTree,
+        hasNestedConditionals: conditionalTree.some((node) => ensureArray(node && node.children).length > 0),
         fieldIds: usable.map((row) => safeId(row.id || [row.role || 'text', sectionId, sourceLine(row.source)].filter(Boolean).join('_'))),
         original,
         value: original,
@@ -335,6 +339,10 @@
 
     function conditionalAlternativesForRows(rows) {
       return textBlockHelpers.conditionalAlternativesForRows(rows);
+    }
+
+    function conditionalTreeForRows(rows) {
+      return textBlockHelpers.conditionalTreeForRows(rows);
     }
 
     function detectVisualKinds(value) {

@@ -58,15 +58,15 @@
     },
     {
       "path": "tools/project_map/viewer/i18n/en.js",
-      "maxLines": 3352,
+      "maxLines": 3355,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-05-30 from 3348 for desktop rebuild-index and cache-fix i18n keys."
+      "reason": "Catalog file; keep each language separate. Raised 2026-06-03 from 3354 for conditional-layers tree heading i18n key."
     },
     {
       "path": "tools/project_map/viewer/i18n/zh-Hant.js",
-      "maxLines": 3352,
+      "maxLines": 3355,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-05-30 from 3348 for desktop rebuild-index and cache-fix i18n keys."
+      "reason": "Catalog file; keep each language separate. Raised 2026-06-03 from 3354 for conditional-layers tree heading i18n key."
     },
     {
       "path": "tools/project_map/viewer/index.html",
@@ -82,9 +82,9 @@
     },
     {
       "path": "tools/project_map/viewer/preview_object_editor.js",
-      "maxLines": 4580,
+      "maxLines": 4620,
       "allowRaise": true,
-      "reason": "Keep field rendering here; split domain sub-renderers into sibling modules. Raised 2026-05-30 from 4577 for condition remove action placement in choice logic panel."
+      "reason": "Keep field rendering here; split domain sub-renderers into sibling modules. Raised 2026-06-03 from 4580 for nested conditional-layers tree renderer."
     },
     {
       "path": "tools/project_map/viewer/styles/editing.css",

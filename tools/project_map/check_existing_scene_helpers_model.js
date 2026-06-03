@@ -59,6 +59,25 @@ const alternatives = textBlockHelpers.conditionalAlternativesForRows([
 assert(alternatives.length === 2, 'text block helper should dedupe conditional alternatives by condition/text/source path/source line');
 assert(alternatives.every((item) => item.condition === 'Q.flag' && item.text === 'Same line text' && item.source.path && item.source.line), 'conditional alternatives should keep condition, text, and injected sourceRef shape');
 
+const flatTree = textBlockHelpers.extractInlineConditionalTree('Base text [? if Q.a : Alpha ?] tail');
+assert(flatTree.length === 1, 'tree parser should find a single top-level conditional');
+assert(flatTree[0].condition === 'Q.a' && flatTree[0].text === 'Alpha' && flatTree[0].children.length === 0, 'depth-1 conditional should expose condition/text and no children');
+
+const nestedTree = textBlockHelpers.extractInlineConditionalTree('Lead [? if Q.a : Alpha [? if Q.b : Beta ?] ?]');
+assert(nestedTree.length === 1 && nestedTree[0].condition === 'Q.a', 'depth-2 parser should keep the outer branch at the top level');
+assert(nestedTree[0].text === 'Alpha', 'depth-2 outer branch should report only its own directly-visible text');
+assert(nestedTree[0].children.length === 1 && nestedTree[0].children[0].condition === 'Q.b' && nestedTree[0].children[0].text === 'Beta', 'depth-2 parser should nest the inner branch under its parent');
+
+const deepTree = textBlockHelpers.extractInlineConditionalTree('[? if Q.a : A [? if Q.b : B [? if Q.c : C ?] ?] ?]');
+assert(deepTree[0].children[0].children[0].condition === 'Q.c' && deepTree[0].children[0].children[0].text === 'C', 'depth-3 nesting should be preserved end to end');
+
+const siblingTree = textBlockHelpers.extractInlineConditionalTree('[? if Q.a : A ?] middle [? if Q.b : B ?]');
+assert(siblingTree.length === 2 && siblingTree[0].condition === 'Q.a' && siblingTree[1].condition === 'Q.b', 'adjacent conditionals should become sibling top-level nodes');
+
+const malformedTree = textBlockHelpers.extractInlineConditionalTree('[? if Q.a : unterminated body without close');
+assert(Array.isArray(malformedTree) && malformedTree.length === 0, 'unbalanced conditional should yield no branches and must not throw');
+assert(textBlockHelpers.extractInlineConditionalTree('plain prose with no conditionals').length === 0, 'plain prose should produce an empty tree');
+
 const ownedOption = {id: '@owned', sectionId: 'demo.menu', targetId: 'elsewhere'};
 const incomingOption = {id: '@incoming', sectionId: 'demo.start', targetId: '@menu'};
 assert(!textBlockHelpers.sectionTargetedByOption('demo', 'demo.menu', ownedOption), 'owned choices must not count as incoming targeted options');

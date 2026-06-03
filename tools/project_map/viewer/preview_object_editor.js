@@ -1426,12 +1426,52 @@
     return node && (node.label || node.localId) || endpointDisplay(id, model);
   }
 
-  function renderConditionalAlternatives(field, options) {
-    const rows = ensureArray(field && field.conditionalAlternatives).filter((item) => item && (item.condition || item.text));
+  function conditionalTreeRows(nodes) {
+    return ensureArray(nodes).filter((node) => node && (node.condition || node.text || ensureArray(node.children).length));
+  }
+
+  function renderConditionalTree(nodes, options, depth) {
+    const rows = conditionalTreeRows(nodes);
     if (!rows.length) {
       return '';
     }
     const opts = options || {};
+    const level = Number(depth || 0);
+    const cap = level === 0 ? 24 : 12;
+    const shown = rows.slice(0, cap);
+    const hidden = rows.length - shown.length;
+    return [
+      '<ul class="preview-object-conditional-branches" data-depth="' + escapeAttr(String(level)) + '">',
+      shown.map((node) => {
+        const children = renderConditionalTree(node.children, opts, level + 1);
+        return [
+          '<li class="preview-object-conditional-branch"' + (children ? ' data-has-children="true"' : '') + '>',
+          node.condition ? '<code class="preview-object-conditional-when">' + escapeHtml(t('previewObjectEditor.when', 'When') + ': ' + node.condition) + '</code>' : '',
+          node.text ? '<div class="preview-object-conditional-text">' + renderTextBlocks(node.text, {empty: false, assetBaseUrl: opts.assetBaseUrl || ''}) + '</div>' : '',
+          children,
+          '</li>'
+        ].join('');
+      }).join(''),
+      hidden > 0 ? '<li class="preview-object-conditional-more"><small>' + escapeHtml(t('previewObjectEditor.moreAlternatives', 'More alternatives') + ': ' + String(hidden)) + '</small></li>' : '',
+      '</ul>'
+    ].join('');
+  }
+
+  function renderConditionalAlternatives(field, options) {
+    const opts = options || {};
+    const tree = conditionalTreeRows(field && field.conditionalTree);
+    if (tree.length) {
+      return [
+        '<details class="preview-object-conditional-alternatives preview-object-conditional-tree" open data-preview-object-conditional-alternatives="true" data-preview-object-conditional-tree="true">',
+        '<summary>' + escapeHtml(t('previewObjectEditor.conditionalLayers', 'Conditional layers')) + '</summary>',
+        renderConditionalTree(tree, opts, 0),
+        '</details>'
+      ].join('');
+    }
+    const rows = ensureArray(field && field.conditionalAlternatives).filter((item) => item && (item.condition || item.text));
+    if (!rows.length) {
+      return '';
+    }
     return [
       '<details class="preview-object-conditional-alternatives" open data-preview-object-conditional-alternatives="true">',
       '<summary>' + escapeHtml(t('previewObjectEditor.conditionalAlternatives', 'Conditional alternatives')) + '</summary>',

@@ -1379,6 +1379,48 @@ input.preview-object-control[type="checkbox"] {
   overflow-wrap: anywhere;
 }
 
+.preview-object-conditional-branches {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.preview-object-conditional-branch {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.preview-object-conditional-when {
+  width: fit-content;
+  max-width: 100%;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-alt) 86%, #ffffff);
+  color: var(--accent-strong);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+
+.preview-object-conditional-text {
+  min-width: 0;
+}
+
+/* Nested conditional layers indent under their parent branch. */
+.preview-object-conditional-branch > .preview-object-conditional-branches {
+  margin-left: 12px;
+  padding-left: 10px;
+  border-left: 2px solid color-mix(in srgb, var(--warning) 30%, var(--border-soft));
+}
+
+.preview-object-conditional-more small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
 .preview-object-creation-section {
   padding: 10px;
   border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--border-soft));
