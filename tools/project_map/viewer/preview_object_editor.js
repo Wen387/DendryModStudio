@@ -1505,6 +1505,7 @@
       '<label class="preview-object-conditional-edit-field">',
       '<span>' + escapeHtml(t('previewObjectEditor.editBranchText', 'Branch text')) + '</span>',
       '<textarea class="preview-object-conditional-edit-input" rows="2" data-object-canvas-field="' + escapeAttr(node.textFieldId) + '" data-object-canvas-original="' + escapeAttr(rawText) + '" data-conditional-leaf-input="text">' + escapeHtml(rawText) + '</textarea>',
+      '<small class="preview-object-conditional-edit-note" data-conditional-leaf-note="text" role="status" aria-live="polite" hidden></small>',
       '</label>'
     ];
     if (node.conditionFieldId) {
@@ -1512,6 +1513,7 @@
         '<label class="preview-object-conditional-edit-field">',
         '<span>' + escapeHtml(t('previewObjectEditor.editBranchCondition', 'Branch condition')) + '</span>',
         '<input type="text" class="preview-object-conditional-edit-input" value="' + escapeAttr(rawCondition) + '" data-object-canvas-field="' + escapeAttr(node.conditionFieldId) + '" data-object-canvas-original="' + escapeAttr(rawCondition) + '" data-conditional-leaf-input="condition">',
+        '<small class="preview-object-conditional-edit-note" data-conditional-leaf-note="condition" role="status" aria-live="polite" hidden></small>',
         '</label>'
       );
     }

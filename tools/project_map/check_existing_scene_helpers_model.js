@@ -136,6 +136,22 @@ assert(textBlockHelpers.isEditableInlineLeafValue('Q.a >= 1', 'condition') === t
 assert(textBlockHelpers.isEditableInlineLeafValue('Q.a : 1', 'condition') === false, 'a condition carrying a colon body separator must be rejected');
 assert(textBlockHelpers.isEditableInlineLeafValue('', 'condition') === false, 'an empty condition must be rejected');
 
+// describeInlineLeafValue (P3b #5): the reason-carrying form behind the boolean
+// gate, so the editor can show inline feedback. Codes must be stable and the
+// boolean facade must stay in lockstep (single source of truth). Exposed both as
+// a factory static and on the instance so the viewer can validate without deps.
+assert(typeof textBlockHelpersModule.describeInlineLeafValue === 'function', 'the grammar gate must be exposed as a factory static for dependency-free viewer validation');
+assert(textBlockHelpers.describeInlineLeafValue('Zentrum', 'text').ok === true && textBlockHelpers.describeInlineLeafValue('Zentrum', 'text').code === '', 'a clean text value reports ok with no reason code');
+assert(textBlockHelpers.describeInlineLeafValue('a [? if', 'text').code === 'delimiter', 'a [? delimiter in text reports the delimiter code');
+assert(textBlockHelpers.describeInlineLeafValue('a ?] b', 'condition').code === 'delimiter', 'a ?] delimiter in a condition reports the delimiter code');
+assert(textBlockHelpers.describeInlineLeafValue('   ', 'condition').code === 'empty_condition', 'an empty condition reports the empty_condition code');
+assert(textBlockHelpers.describeInlineLeafValue('Q.a : 1', 'condition').code === 'condition_colon', 'a colon in a condition reports the condition_colon code');
+['Zentrum', 'a [? if', 'a ?] b', '   ', 'Q.a : 1', 'Q.a >= 1'].forEach((value) => {
+  ['text', 'condition'].forEach((kind) => {
+    assert(textBlockHelpers.describeInlineLeafValue(value, kind).ok === textBlockHelpers.isEditableInlineLeafValue(value, kind), 'describeInlineLeafValue.ok must agree with isEditableInlineLeafValue for ' + JSON.stringify({value, kind}));
+  });
+});
+
 // conditionalTreeForRows enrichment (P3a Pillar B): inline leaves carry the
 // verbatim line + splice span + an editable flag; parents with children and
 // the source-uniqueness guard stay non-editable for leaf-only P3a editing.

@@ -260,6 +260,7 @@
       extractInlineConditionalTreeWithSpans,
       spliceInlineLeaf,
       isEditableInlineLeafValue,
+      describeInlineLeafValue,
       lastMeaningfulCondition,
       isBlockTextRole,
       logicalTextRuns,
@@ -577,28 +578,42 @@
   }
 
   /**
+   * Explains whether a proposed leaf condition/text value can be safely spliced
+   * back into the inline-conditional grammar. A value carrying a '[?' or '?]'
+   * delimiter could split or merge branches; an empty or ':'-carrying condition
+   * could be read as a body separator. Returns a stable reason code so the
+   * editor can surface inline feedback instead of silently downgrading to a
+   * manual snippet. This is the single source of truth for the guard.
+   * @param {unknown} value
+   * @param {"text"|"condition"} kind
+   * @returns {{ok: boolean, code: string}}
+   */
+  function describeInlineLeafValue(value, kind) {
+    const text = String(value == null ? '' : value);
+    if (text.indexOf('[?') !== -1 || text.indexOf('?]') !== -1) {
+      return {ok: false, code: 'delimiter'};
+    }
+    if (kind === 'condition') {
+      if (!text.trim()) {
+        return {ok: false, code: 'empty_condition'};
+      }
+      if (text.indexOf(':') !== -1) {
+        return {ok: false, code: 'condition_colon'};
+      }
+    }
+    return {ok: true, code: ''};
+  }
+
+  /**
    * Guards a proposed leaf condition/text value against characters that would
-   * break the inline-conditional grammar when spliced back. A value carrying a
-   * '[?' or '?]' delimiter could split or merge branches; a condition carrying a
-   * ':' could be read as a body separator. Such edits must stay manual.
+   * break the inline-conditional grammar when spliced back. Such edits must stay
+   * manual. Boolean facade over describeInlineLeafValue.
    * @param {unknown} value
    * @param {"text"|"condition"} kind
    * @returns {boolean}
    */
   function isEditableInlineLeafValue(value, kind) {
-    const text = String(value == null ? '' : value);
-    if (text.indexOf('[?') !== -1 || text.indexOf('?]') !== -1) {
-      return false;
-    }
-    if (kind === 'condition') {
-      if (!text.trim()) {
-        return false;
-      }
-      if (text.indexOf(':') !== -1) {
-        return false;
-      }
-    }
-    return true;
+    return describeInlineLeafValue(value, kind).ok;
   }
 
   /**
@@ -928,7 +943,7 @@
   }
 
   /** @type {ExistingSceneTextBlockHelpersFactory} */
-  const api = {create};
+  const api = {create, describeInlineLeafValue, isEditableInlineLeafValue};
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;

@@ -450,6 +450,7 @@ export interface ExistingSceneTextBlockHelpersApi {
   extractInlineConditionalTreeWithSpans(value: unknown, base?: number): InlineConditionalSpanNode[];
   spliceInlineLeaf(line: unknown, leaf: InlineConditionalSpanNode, next: {condition?: string; text?: string}): string;
   isEditableInlineLeafValue(value: unknown, kind: 'text' | 'condition'): boolean;
+  describeInlineLeafValue(value: unknown, kind: 'text' | 'condition'): {ok: boolean; code: string};
   lastMeaningfulCondition(values: unknown[]): string;
   isBlockTextRole(role: unknown): boolean;
   logicalTextRuns(rows: ExistingSceneTextBlockRow[]): ExistingSceneLogicalTextRun[];
@@ -469,6 +470,8 @@ export interface ExistingSceneTextBlockHelpersApi {
 
 export interface ExistingSceneTextBlockHelpersFactory {
   create(deps?: ExistingSceneTextBlockHelperDeps): ExistingSceneTextBlockHelpersApi;
+  describeInlineLeafValue(value: unknown, kind: 'text' | 'condition'): {ok: boolean; code: string};
+  isEditableInlineLeafValue(value: unknown, kind: 'text' | 'condition'): boolean;
 }
 
 export interface ExistingSceneLogicFieldOwner {

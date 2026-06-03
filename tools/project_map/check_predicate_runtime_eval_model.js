@@ -111,6 +111,11 @@ assert(editableHtml.indexOf('data-conditional-leaf-edit="true"') !== -1, 'an edi
 assert(editableHtml.indexOf('data-object-canvas-field="cond_leaf_text_demo_8_0"') !== -1, 'the branch text input must bind to the stamped text field id for collectValues');
 assert(editableHtml.indexOf('data-object-canvas-field="cond_leaf_condition_demo_8_0"') !== -1, 'the branch condition input must bind to the stamped condition field id');
 assert(editableHtml.indexOf('data-object-canvas-original="A figure waits."') !== -1, 'the text input must carry the verbatim original so unchanged values are not collected as edits');
+// Inline validation feedback slot (P3b #5): each editable input renders a live
+// note region the canvas UI fills when a value would break the grammar.
+assert(editableHtml.indexOf('data-conditional-leaf-note="text"') !== -1, 'the editable text field must render an inline validation note slot');
+assert(editableHtml.indexOf('data-conditional-leaf-note="condition"') !== -1, 'the editable condition field must render an inline validation note slot');
+assert(editableHtml.indexOf('aria-live="polite"') !== -1, 'the validation note must be an aria-live region so feedback is announced');
 const readOnlyLeafField = {conditionalTree: [{condition: 'Q.metInspector >= 1', text: 'A figure waits.', children: []}]};
 const readOnlyHtml = previewObjectEditor.renderConditionalAlternatives(readOnlyLeafField, {});
 assert(readOnlyHtml.indexOf('data-conditional-leaf-edit') === -1, 'a leaf without stamped field ids must stay read-only (no inline editor)');
@@ -146,6 +151,16 @@ assert(/setConditionalBranchState\(branch,\s*null\)/.test(canvasUiSource) && /ac
   'an unparseable edited condition must degrade the branch badge to the opaque/unknown state');
 assert(/handleConditionalConditionEdit\([^)]*\)[\s\S]{0,900}applyConditionalWhatIf\(scope\)/.test(canvasUiSource),
   'after re-baking, the condition-edit handler must re-run applyConditionalWhatIf over the what-if scope');
+
+// Inline validation drift guard (P3b #5): the leaf-validation handler must reuse
+// the shared describeInlineLeafValue gate, target the rendered note slot, and
+// toggle the invalid affordance so the UI and the apply-time gate never disagree.
+assert(/handleConditionalLeafValidation/.test(canvasUiSource) && /describeInlineLeafValue/.test(canvasUiSource),
+  'the canvas UI must validate leaf edits through the shared describeInlineLeafValue gate');
+assert(/data-conditional-leaf-note/.test(canvasUiSource) && /is-leaf-invalid/.test(canvasUiSource),
+  'leaf validation must drive the rendered note slot and an invalid affordance class');
+assert(/addEventListener\('input', handleConditionalLeafValidation\)/.test(canvasUiSource),
+  'leaf validation must run live on input');
 
 function previewObjectEditorWithoutModels(field) {
   const savedModel = global.ProjectMapPredicateConditionModel;

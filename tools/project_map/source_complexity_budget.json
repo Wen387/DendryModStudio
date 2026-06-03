@@ -76,15 +76,15 @@
     },
     {
       "path": "tools/project_map/viewer/object_authoring_canvas_ui.js",
-      "maxLines": 4871,
+      "maxLines": 4921,
       "allowRaise": true,
-      "reason": "Keep orchestration here; split editor UI into workspace modules. Raised 2026-06-03 from 4822 for condition-edit AST re-bake + what-if badge live refresh (P3b #2)."
+      "reason": "Keep orchestration here; split editor UI into workspace modules. Raised 2026-06-03 from 4871 for inline leaf-edit validation feedback (P3b #5)."
     },
     {
       "path": "tools/project_map/viewer/preview_object_editor.js",
-      "maxLines": 4736,
+      "maxLines": 4738,
       "allowRaise": true,
-      "reason": "Keep field rendering here; split domain sub-renderers into sibling modules. Raised 2026-06-03 from 4620 for what-if simulator strip + branch badges + inline leaf editor (P3a)."
+      "reason": "Keep field rendering here; split domain sub-renderers into sibling modules. Raised 2026-06-03 from 4736 for inline leaf-edit validation note slots (P3b #5)."
     },
     {
       "path": "tools/project_map/viewer/styles/editing.css",

@@ -1882,6 +1882,7 @@
     if (!elements.host.__dmsObjectCanvasWhatIfDelegated) {
       elements.host.__dmsObjectCanvasWhatIfDelegated = true;
       elements.host.addEventListener('input', handleConditionalWhatIfInput);
+      elements.host.addEventListener('input', handleConditionalLeafValidation);
     }
     if (!elements.host.__dmsObjectCanvasReviewDetailsDelegated) {
       elements.host.__dmsObjectCanvasReviewDetailsDelegated = true;
@@ -2311,6 +2312,55 @@
       : (active
         ? t('previewObjectEditor.whatIfShows', 'shows')
         : t('previewObjectEditor.whatIfHidden', 'hidden'));
+  }
+
+  // Inline validation feedback (P3b #5): a leaf edit whose value breaks the
+  // inline-conditional grammar silently downgrades to a manual snippet at apply
+  // time. Surface that verdict live so the author understands why the edit will
+  // not become a clean guarded replace, instead of being surprised later. The
+  // grammar check reuses the shared describeInlineLeafValue helper so the UI and
+  // the apply-time gate can never disagree.
+  function handleConditionalLeafValidation(event) {
+    const target = event && event.target;
+    if (!target || !target.closest || !elements || !elements.host) {
+      return;
+    }
+    const input = target.closest('[data-conditional-leaf-input]');
+    if (!input || !elements.host.contains(input)) {
+      return;
+    }
+    const helpers = global.ProjectMapExistingSceneTextBlockHelpers;
+    const label = input.closest('.preview-object-conditional-edit-field');
+    const note = label ? label.querySelector('[data-conditional-leaf-note]') : null;
+    if (!helpers || typeof helpers.describeInlineLeafValue !== 'function' || !note) {
+      return;
+    }
+    const kind = input.dataset.conditionalLeafInput === 'condition' ? 'condition' : 'text';
+    const verdict = helpers.describeInlineLeafValue(input.value, kind);
+    if (verdict.ok) {
+      note.hidden = true;
+      note.textContent = '';
+      input.classList.remove('is-leaf-invalid');
+      input.removeAttribute('aria-invalid');
+      return;
+    }
+    note.textContent = conditionalLeafNoteMessage(verdict.code);
+    note.hidden = false;
+    input.classList.add('is-leaf-invalid');
+    input.setAttribute('aria-invalid', 'true');
+  }
+
+  function conditionalLeafNoteMessage(code) {
+    if (code === 'delimiter') {
+      return t('previewObjectEditor.leafInvalidDelimiter', 'Inline markers [? and ?] cannot be edited here — this branch will stay a manual snippet.');
+    }
+    if (code === 'empty_condition') {
+      return t('previewObjectEditor.leafInvalidEmptyCondition', 'A branch condition cannot be empty.');
+    }
+    if (code === 'condition_colon') {
+      return t('previewObjectEditor.leafInvalidColon', 'A condition cannot contain ":" — it would be read as a text separator.');
+    }
+    return t('previewObjectEditor.leafInvalidGeneric', 'This value cannot be applied safely and will stay a manual snippet.');
   }
 
   function handleObjectCanvasAssetChange(event) {

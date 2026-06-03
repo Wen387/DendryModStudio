@@ -1531,6 +1531,23 @@ input.preview-object-control[type="checkbox"] {
   color: inherit;
 }
 
+.preview-object-conditional-edit-input.is-leaf-invalid {
+  border-color: var(--danger, #d04545);
+  background: color-mix(in srgb, var(--danger, #d04545) 8%, var(--surface));
+}
+
+.preview-object-conditional-edit-note {
+  display: block;
+  margin-top: 3px;
+  font-size: 0.82em;
+  line-height: 1.35;
+  color: var(--danger, #d04545);
+}
+
+.preview-object-conditional-edit-note[hidden] {
+  display: none;
+}
+
 .preview-object-creation-section {
   padding: 10px;
   border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--border-soft));
