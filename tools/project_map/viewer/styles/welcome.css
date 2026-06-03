@@ -439,6 +439,31 @@
   height: 11px;
 }
 
+.welcome-catalog-assets-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 7px;
+  border-radius: 4px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.welcome-catalog-assets-badge--ready {
+  background: rgba(60, 150, 90, 0.14);
+  color: #2f7d4f;
+}
+
+.welcome-catalog-assets-badge--pending {
+  background: rgba(90, 120, 200, 0.12);
+  color: #45619c;
+}
+
+.welcome-catalog-assets-badge .ui-icon {
+  width: 11px;
+  height: 11px;
+}
+
 /* --- Featured template catalog --- */
 
 .welcome-catalog {

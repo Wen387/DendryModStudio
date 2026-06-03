@@ -348,6 +348,15 @@
         }
       }
     });
+    document.addEventListener('project-map:tutorial-library-closed', () => {
+      if (!state._reopenAfterTutorial) { return; }
+      state._reopenAfterTutorial = false;
+      // Only restore the Welcome Hub if the user has not already moved on to a
+      // loaded project in the meantime.
+      if (!state._userInitiatedLoad) {
+        openDialog(false);
+      }
+    });
     document.addEventListener('project-map:locale-changed', () => {
       updateActionState();
       decorateIcons();
@@ -356,7 +365,14 @@
       if (state.controller) {
         state.controller.markSeen();
       }
-      closeDialog(false);
+      // Only auto-close for an index load the user actually initiated. A
+      // background project scan finishing must not dismiss a Welcome Hub the
+      // user is still reading — otherwise Quick Start vanishes before the user
+      // can click its primary action (the first_time_user race).
+      if (state._userInitiatedLoad || state._catalogBusy) {
+        closeDialog(false);
+      }
+      state._userInitiatedLoad = false;
     });
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape' && !state.elements.dialog.classList.contains('hidden')) {
@@ -454,6 +470,7 @@
   }
 
   function handlePrimaryAction() {
+    state._userInitiatedLoad = true;
     closeDialog(true);
     if (primaryActionKind(global) === 'desktop' && state.elements.desktopOpen) {
       state.elements.desktopOpen.click();
@@ -473,6 +490,7 @@
     if (!desktop) {
       return;
     }
+    state._userInitiatedLoad = true;
     closeDialog(true);
     state.elements.demo.disabled = true;
     desktop.openStarterDemo({includeExcerpts}, global).catch((err) => {
@@ -486,6 +504,10 @@
   }
 
   function handleTutorialAction() {
+    // Remember to bring the Welcome Hub back when the user closes the Tutorial
+    // Library, otherwise opening the tutorial strands a first-time user in an
+    // empty Studio with no Quick Start to return to.
+    state._reopenAfterTutorial = true;
     closeDialog(true);
     if (global.ProjectMapTutorialLibrary && typeof global.ProjectMapTutorialLibrary.open === 'function') {
       global.ProjectMapTutorialLibrary.open(true);
@@ -592,7 +614,22 @@
             escapeHtml(info.edits.summary || t('welcome.catalog.locallyModified', 'locally modified')) +
             '</span>';
         }
-        el.innerHTML = (parts.length ? '<span>' + escapeHtml(parts.join(' · ')) + '</span>' : '') + editsHtml;
+        var assetsHtml = '';
+        if (info.assets && info.assets.available) {
+          if (info.assets.installed) {
+            assetsHtml = '<span class="welcome-catalog-assets-badge welcome-catalog-assets-badge--ready">' +
+              '<span data-ui-icon="image"></span> ' +
+              escapeHtml(t('welcome.catalog.assetsInstalled', 'Art assets installed')) +
+              '</span>';
+          } else {
+            var sizeHint = info.assets.estimatedSizeMB ? ' (' + info.assets.estimatedSizeMB + ' MB)' : '';
+            assetsHtml = '<span class="welcome-catalog-assets-badge welcome-catalog-assets-badge--pending">' +
+              '<span data-ui-icon="download"></span> ' +
+              escapeHtml(t('welcome.catalog.assetsPending', 'Art assets not downloaded') + sizeHint) +
+              '</span>';
+          }
+        }
+        el.innerHTML = (parts.length ? '<span>' + escapeHtml(parts.join(' · ')) + '</span>' : '') + assetsHtml + editsHtml;
         decorateIcons();
       }).catch(function () {
         var el = state.elements.catalogList &&
@@ -678,6 +715,7 @@
     var forceUpdate = button && button.hasAttribute('data-catalog-update');
     state._catalogBusy = true;
     state._catalogActiveButton = button || null;
+    state._userInitiatedLoad = true;
     // Close dialog immediately so topbar progress bar is visible.
     closeDialog(true);
     caps.openCatalogTemplate({

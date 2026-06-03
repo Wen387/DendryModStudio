@@ -29,9 +29,9 @@ async function run(win, args, artifactDir, log, helpers) {
   fs.writeFileSync(sourceAssetPath, sourceAssetBytes, 'utf8');
   args.projectRoot = workspaceRoot;
 
-  await helpers.expectVisible(win, '#studio-onboarding', 'Quick Start overlay should be visible on first launch');
-  await helpers.click(win, '#onboarding-primary');
-  await helpers.waitForHidden(win, '#studio-onboarding', 'Quick Start should close after opening the writable copy');
+  await helpers.expectVisible(win, '#studio-welcome', 'Quick Start overlay should be visible on first launch');
+  await helpers.click(win, '#welcome-primary');
+  await helpers.waitForHidden(win, '#studio-welcome', 'Quick Start should close after opening the writable copy');
   const loaded = await helpers.waitForProjectLoaded(win, workspaceRoot, args.timeoutMs);
   await helpers.screenshot(win, artifactDir, '01-project-copy-loaded');
   log('Writable QA mini copy loads', 'PASS', JSON.stringify(loaded.summary || {}));

@@ -112,7 +112,7 @@ const postEvent = read(path.join(QA_FIXTURE, 'source', 'scenes', 'post_event.sce
   'guided_ui_qa_offline',
   'Civic Reform Office Briefing',
   'qa_persistent_event',
-  'install_plan.project_mismatch',
+  'clear the stale install plan',
   'openProjectViaDialog',
   'deterministic test dialog adapter for native folder selection',
   'replace_section'

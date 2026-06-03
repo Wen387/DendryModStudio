@@ -321,7 +321,14 @@
     if (!state.elements || !state.elements.dialog) {
       return false;
     }
+    var wasOpen = !state.elements.dialog.classList.contains('hidden');
     state.elements.dialog.classList.add('hidden');
+    // Let surfaces that handed off to the Tutorial Library (e.g. the Welcome
+    // Hub) restore themselves when it closes, so a first-time user who only
+    // peeked at the tutorial is not stranded in an empty Studio.
+    if (wasOpen && global.document && typeof global.document.dispatchEvent === 'function') {
+      global.document.dispatchEvent(new CustomEvent('project-map:tutorial-library-closed'));
+    }
     return true;
   }
 

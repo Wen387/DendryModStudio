@@ -616,6 +616,21 @@ ipcMain.handle('dendry:catalog-template-info', async (_event, options) => {
       events: idx.semantic && idx.semantic.events ? (idx.semantic.events.items || []).length : 0
     };
   }
+  // Report split art-asset archive state so the catalog card can show whether
+  // the large image/audio assets are present, still downloadable, or absent for
+  // this template. The download itself is driven by the marker.assetsInstalled
+  // flag in the catalog open flow.
+  var catalog = templateCatalog.loadBundledCatalog({desktopDir: __dirname});
+  var entry = (catalog.templates || []).find(function (e) { return e && e.id === templateId; });
+  if (entry && entry.assetsAssetName) {
+    info.assets = {
+      available: true,
+      installed: Boolean(marker.assetsInstalled),
+      estimatedSizeMB: entry.assetsEstimatedSizeMB || 0
+    };
+  } else {
+    info.assets = {available: false, installed: false, estimatedSizeMB: 0};
+  }
   return info;
 });
 

@@ -37,8 +37,10 @@ Each run contains:
 5. The proposal is saved to My Changes.
 6. The saved draft is sent to Review & Apply.
 7. Desktop dry-run succeeds against the QA fixture.
-8. Switching to a different valid project root through Open Project refuses the
-   same plan with a `project_mismatch` diagnostic.
+8. Switching to a different valid project root through Open Project clears the
+   stale install plan and disables dry-run, so a plan built for one project
+   cannot be applied to another. The `project_mismatch` safety diagnostic
+   itself is covered by `check_install_plan_model.js`.
 
 `explore_design_existing_edit` covers the next most important player journey:
 

@@ -745,16 +745,16 @@ async function scenarioFirstTimeUser(win, args, artifactDir, log) {
   await click(win, '#desktop-open-project');
   const wrongLoaded = await waitForProjectLoaded(win, args.wrongProjectRoot, args.timeoutMs);
   log('Wrong project loads through project picker', 'PASS', JSON.stringify(wrongLoaded.summary || {}));
-  await click(win, '#install-dry-run');
+  // Switching projects clears the stale plan (commit 7100320); the install_plan.project_mismatch diagnostic is covered by check_install_plan_model.js.
   await waitFor(win, async () => {
     return evalInPage(win, () => {
       const state = window.ProjectMapInstallAssistant && window.ProjectMapInstallAssistant.getState();
-      const diagnostics = state && state.lastResult && state.lastResult.diagnostics;
-      return Array.isArray(diagnostics) && diagnostics.some((item) => item.code === 'install_plan.project_mismatch');
+      const dryRunButton = document.querySelector('#install-dry-run');
+      return Boolean(state) && state.plan === null && Boolean(dryRunButton && dryRunButton.disabled);
     });
-  }, 'Wrong project dry-run should produce project_mismatch diagnostic');
+  }, 'Switching to a different project should clear the stale install plan and disable dry-run');
   await screenshot(win, artifactDir, '08-wrong-project-refusal');
-  log('Wrong-project plan is refused', 'PASS', '08-wrong-project-refusal.png');
+  log('Wrong-project switch clears the stale install plan', 'PASS', '08-wrong-project-refusal.png');
 }
 
 async function scenarioExploreDesignExistingEdit(win, args, artifactDir, log) {
