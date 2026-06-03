@@ -55,6 +55,10 @@ const linear = model.linearTour();
 assert(Array.isArray(linear) && linear.length >= 5,
   'linear tour should cover at least the five orientation steps');
 assert(linear[0].anchor === '.mode-switch', 'linear tour should open on the mode switch bar');
+assert(linear.some((step) => step.anchor === '#locale-select'),
+  'linear tour should point out the language switch');
+assert(linear.some((step) => step.id === 'comfort' && step.anchor === ''),
+  'linear tour should include an anchorless comfort-tips step (zoom + refresh)');
 
 const surfaces = model.surfaces();
 ['explore', 'create', 'install'].forEach((surface) => {
@@ -112,6 +116,7 @@ model.referencedI18nKeys().forEach((key) => {
   'id="mode-explore"',
   'id="mode-create"',
   'id="mode-install"',
+  'id="locale-select"',
   'id="topbar-more"',
   'id="explore-pane"',
   'data-view="events"',

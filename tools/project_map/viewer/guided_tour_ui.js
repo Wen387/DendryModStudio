@@ -1031,14 +1031,26 @@
 
   function buildOpeningMarkup() {
     const wash = '<div class="guided-tour-opening-wash"></div>';
-    const emojis = OPENING_EMOJI.map(function (glyph, i) {
-      const top = 8 + ((i * 9) % 78);
-      const size = 22 + ((i * 7) % 18);
-      const delay = (i * 0.06).toFixed(2);
-      return '<span class="guided-tour-opening-emoji" style="top:' + top +
-        '%;font-size:' + size + 'px;animation-delay:' + delay + 's">' + glyph + '</span>';
-    }).join('');
-    return wash + emojis;
+    // A full grid of emoji so it reads as a tide washing across the background
+    // rather than a thin line. Delay is mostly column-driven (a left-to-right
+    // sweep) with a small per-row offset so the front edge is staggered, not a
+    // rigid wall. The CSS streak runs ~2s; the latest cell starts ~1.1s in, so
+    // the whole wave clears around 3.1s — before playOpening tears the layer
+    // down, which is what stops it from vanishing mid-screen.
+    const cells = [];
+    let n = 0;
+    for (let row = 0; row < OPENING_ROWS; row += 1) {
+      for (let col = 0; col < OPENING_COLS; col += 1) {
+        const glyph = OPENING_EMOJI[n % OPENING_EMOJI.length];
+        const top = ((row + 0.5) / OPENING_ROWS) * 92 + (col % 2 ? -3.2 : 3.2);
+        const size = 24 + ((n * 5) % 20);
+        const delay = (col * 0.11 + row * 0.04).toFixed(2);
+        cells.push('<span class="guided-tour-opening-emoji" style="top:' + top.toFixed(1) +
+          '%;font-size:' + size + 'px;animation-delay:' + delay + 's">' + glyph + '</span>');
+        n += 1;
+      }
+    }
+    return wash + cells.join('');
   }
 
   function playOpening(onDone) {
@@ -1058,18 +1070,20 @@
     state.openingActive = true;
     if (state.openingDoneTimer) { global.clearTimeout(state.openingDoneTimer); }
     if (state.openingTimer) { global.clearTimeout(state.openingTimer); }
-    // Bring the fairy greeting in partway through so it emerges as the streak
-    // clears, then tear the layer down once the animation has finished.
+    // Bring the fairy greeting in as the wave is exiting (most cells past
+    // center, only the rightmost columns still clearing), then tear the layer
+    // down once every cell has finished its ~2s streak. Keeping teardown after
+    // the last cell finishes is what fixes the "vanishes mid-screen" bug.
     state.openingDoneTimer = global.setTimeout(function () {
       state.openingActive = false;
       onDone();
-    }, 520);
+    }, 2800);
     state.openingTimer = global.setTimeout(function () {
       if (state.openingEl) {
         state.openingEl.classList.add('hidden');
         state.openingEl.innerHTML = '';
       }
-    }, 1100);
+    }, 3500);
     return true;
   }
 

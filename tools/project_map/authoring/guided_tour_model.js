@@ -115,16 +115,39 @@
       tutorialArticle: 'install-flow'
     }),
     step({
+      id: 'language',
+      surface: 'explore',
+      anchor: '#locale-select',
+      fallbackAnchor: '.topbar-locale-switch',
+      titleKey: 'tour.linear.language.title',
+      titleFallback: 'Switch language any time',
+      bodyKey: 'tour.linear.language.body',
+      bodyFallback: 'Prefer another language? This switch in the top bar changes the whole interface between English and Traditional Chinese. Auto follows your system setting.',
+      advanceOn: 'next',
+      placement: 'bottom'
+    }),
+    step({
       id: 'more',
       surface: 'explore',
       anchor: '#topbar-more',
       fallbackAnchor: '#studio-open-onboarding',
       titleKey: 'tour.linear.more.title',
-      titleFallback: 'You can come back any time',
+      titleFallback: 'The More menu holds the rest',
       bodyKey: 'tour.linear.more.body',
-      bodyFallback: 'That is the whole map. From the More menu you can reopen this tour, open the Tutorial Library for deeper reading, or revisit the Welcome Hub.',
+      bodyFallback: 'This More menu is your back pocket: reopen this tour, open the Tutorial Library for deeper reading, revisit the Welcome Hub, and check for new versions and notices. Nothing here is one-time — it is all here whenever you need it.',
       advanceOn: 'next',
       placement: 'bottom'
+    }),
+    step({
+      id: 'comfort',
+      surface: 'explore',
+      anchor: '',
+      titleKey: 'tour.linear.comfort.title',
+      titleFallback: 'A couple of comfort tips',
+      bodyKey: 'tour.linear.comfort.body',
+      bodyFallback: 'Two handy things: zoom the whole interface with Ctrl and plus or minus (Cmd on Mac), and reset with Ctrl and 0. And if Studio ever seems stuck, it is almost always just loading — give it a moment, or refresh with Ctrl and R.',
+      advanceOn: 'next',
+      placement: 'auto'
     })
   ];
 
