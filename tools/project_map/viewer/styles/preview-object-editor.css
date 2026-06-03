@@ -1421,6 +1421,116 @@ input.preview-object-control[type="checkbox"] {
   font-size: 11px;
 }
 
+/* What-if simulator strip: editable quality state that drives the live badges. */
+.preview-object-conditional-whatif {
+  display: grid;
+  gap: 6px;
+  padding: 7px 8px;
+  border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--border-soft));
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+}
+
+.preview-object-conditional-whatif-label {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 760;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.preview-object-conditional-whatif-vars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+
+.preview-object-conditional-whatif-var {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+}
+
+.preview-object-conditional-whatif-var span {
+  color: var(--accent-strong);
+  font-family: var(--mono, monospace);
+}
+
+.preview-object-conditional-whatif-var input {
+  width: 64px;
+  padding: 2px 6px;
+  border: 1px solid var(--border-soft);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+}
+
+/* Live branch state badge driven by the what-if evaluation. */
+.preview-object-conditional-state {
+  width: fit-content;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 720;
+}
+
+.preview-object-conditional-state.is-active {
+  background: color-mix(in srgb, var(--success, #2e7d32) 18%, var(--surface));
+  color: var(--success, #2e7d32);
+}
+
+.preview-object-conditional-state.is-hidden {
+  background: color-mix(in srgb, var(--muted) 16%, var(--surface));
+  color: var(--muted);
+}
+
+.preview-object-conditional-state.is-opaque {
+  background: color-mix(in srgb, var(--warning) 16%, var(--surface));
+  color: var(--warning);
+}
+
+/* Dim a hidden branch's text so the active layer reads as the visible one. */
+.preview-object-conditional-branch:has(> .preview-object-conditional-state.is-hidden) > .preview-object-conditional-text {
+  opacity: 0.55;
+}
+
+.preview-object-conditional-edit {
+  margin: 4px 0 2px;
+  font-size: 0.85em;
+}
+
+.preview-object-conditional-edit > summary {
+  cursor: pointer;
+  color: var(--accent);
+  opacity: 0.85;
+}
+
+.preview-object-conditional-edit-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 6px;
+}
+
+.preview-object-conditional-edit-field > span {
+  font-size: 0.85em;
+  opacity: 0.7;
+}
+
+.preview-object-conditional-edit-input {
+  width: 100%;
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: 0.95em;
+  padding: 4px 6px;
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  background: var(--surface);
+  color: inherit;
+}
+
 .preview-object-creation-section {
   padding: 10px;
   border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--border-soft));

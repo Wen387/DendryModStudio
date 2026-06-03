@@ -398,11 +398,42 @@ export interface InlineConditionalTreeNode {
   children: InlineConditionalTreeNode[];
 }
 
+export interface InlineConditionalSpanNode {
+  condition: string;
+  text: string;
+  children: InlineConditionalSpanNode[];
+  hasChildren: boolean;
+  spanStart: number;
+  spanEnd: number;
+  condStart: number;
+  condEnd: number;
+  rawCondition: string;
+  textStart: number;
+  textEnd: number;
+  rawText: string;
+}
+
+export interface InlineConditionalLeafSpan {
+  spanStart: number;
+  spanEnd: number;
+  condStart: number;
+  condEnd: number;
+  textStart: number;
+  textEnd: number;
+}
+
 export interface ExistingSceneConditionalTreeNode {
   condition: string;
   text: string;
   children: ExistingSceneConditionalTreeNode[];
   source: SourceRef;
+  rawCondition?: string;
+  rawText?: string;
+  span?: InlineConditionalLeafSpan;
+  lineText?: string;
+  editable?: boolean;
+  textFieldId?: string;
+  conditionFieldId?: string;
 }
 
 export interface ExistingSceneTextBlockHelpersApi {
@@ -416,6 +447,9 @@ export interface ExistingSceneTextBlockHelpersApi {
   conditionalAlternativesForRows(rows: ExistingSceneTextBlockRow[]): ExistingSceneConditionalAlternative[];
   conditionalTreeForRows(rows: ExistingSceneTextBlockRow[]): ExistingSceneConditionalTreeNode[];
   extractInlineConditionalTree(value: unknown): InlineConditionalTreeNode[];
+  extractInlineConditionalTreeWithSpans(value: unknown, base?: number): InlineConditionalSpanNode[];
+  spliceInlineLeaf(line: unknown, leaf: InlineConditionalSpanNode, next: {condition?: string; text?: string}): string;
+  isEditableInlineLeafValue(value: unknown, kind: 'text' | 'condition'): boolean;
   lastMeaningfulCondition(values: unknown[]): string;
   isBlockTextRole(role: unknown): boolean;
   logicalTextRuns(rows: ExistingSceneTextBlockRow[]): ExistingSceneLogicalTextRun[];

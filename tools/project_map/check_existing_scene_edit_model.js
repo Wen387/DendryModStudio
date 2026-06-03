@@ -1058,6 +1058,38 @@ assert(inlineOpening.conditionalAlternatives.some((item) => item.condition === '
 assert(inlineOpening.logicContext && inlineOpening.logicContext.conditionalAlternatives.length === 2, 'mixed inline logic context should include conditional alternatives');
 assert(!inlineModel.textBlocks.some((block) => block.semanticRole === 'conditional_text' && String(block.original || '').includes('Center Party')), 'mixed inline conditionals should not become standalone branch cards');
 
+// Inline conditional leaf editing (P3a Pillar C): each editable branch exposes
+// a text + condition field whose guarded edit splices only that branch's range.
+const inlineLeafTextFields = inlineModel.fields.filter((field) => field.role === 'conditional_leaf_text');
+const inlineLeafConditionFields = inlineModel.fields.filter((field) => field.role === 'conditional_leaf_condition');
+assert(inlineLeafTextFields.length === 2 && inlineLeafConditionFields.length === 2, 'each inline conditional branch should expose an editable text field and condition field');
+const centerTextField = inlineLeafTextFields.find((field) => field.original === '<span style="color: #000000;">Center Party</span>');
+assert(centerTextField && centerTextField.editability === 'guarded_replace_text', 'the Center Party branch text should be a guarded inline-leaf field');
+const centerConditionField = inlineLeafConditionFields.find((field) => field.original === 'party_name != "CVP"');
+assert(centerConditionField && centerConditionField.editability === 'guarded_replace_text', 'the Center Party branch condition should be a guarded inline-leaf field');
+assert(centerTextField.inlineLeaf && centerTextField.inlineLeaf.lineText === inlineConditionalLine, 'inline-leaf fields should carry the verbatim source line to splice against');
+
+// Text edit -> guarded single-line replace that changes only this branch.
+const leafTextProposal = existingEdit.buildProposal(inlineModel, {[centerTextField.id]: 'Zentrum'}, {});
+const leafTextChange = leafTextProposal.changes.find((change) => change.fieldId === centerTextField.id);
+assert(leafTextChange && leafTextChange.before === inlineConditionalLine, 'inline-leaf text edit should anchor on the verbatim original line');
+assert(leafTextChange.after === inlineConditionalLine.replace('<span style="color: #000000;">Center Party</span>', 'Zentrum'), 'inline-leaf text edit should splice only the edited branch and keep every other byte');
+const leafTextBundle = existingEdit.buildExportBundle(leafTextProposal, index);
+const leafTextOp = leafTextBundle.installPlan.operations.find((op) => op.line === 8 && op.type === 'replace_text');
+assert(leafTextOp && leafTextOp.safety === 'guarded_apply' && leafTextOp.search === inlineConditionalLine && leafTextOp.replace.includes('Zentrum') && !leafTextOp.replace.includes('Center Party'), 'inline-leaf text edit should become a guarded exact-line replace_text operation');
+
+// Condition edit -> splice only the condition range.
+const leafConditionProposal = existingEdit.buildProposal(inlineModel, {[centerConditionField.id]: 'party_name != "ZEN"'}, {});
+const leafConditionChange = leafConditionProposal.changes.find((change) => change.fieldId === centerConditionField.id);
+assert(leafConditionChange && leafConditionChange.after === inlineConditionalLine.replace('party_name != "CVP"', 'party_name != "ZEN"'), 'inline-leaf condition edit should splice only the condition range');
+
+// Gate fallback: a value that would break the grammar must not auto-guard.
+const leafGateProposal = existingEdit.buildProposal(inlineModel, {[centerTextField.id]: 'broken ?] inject'}, {});
+const leafGateChange = leafGateProposal.changes.find((change) => change.fieldId === centerTextField.id);
+assert(leafGateChange && leafGateChange.operationType === 'manual_snippet', 'a grammar-breaking inline-leaf value must downgrade to manual review, not a guarded replace');
+const leafGateBundle = existingEdit.buildExportBundle(leafGateProposal, index);
+assert(!leafGateBundle.installPlan.operations.some((op) => op.type === 'replace_text' && op.safety === 'guarded_apply' && op.line === 8 && op.replace.includes('?] inject')), 'a grammar-breaking inline-leaf edit must never produce a guarded replace_text operation');
+
 const menuPath = 'source/scenes/events/menu_branch_fixture.scene.dry';
 index.scenes.push({
   id: 'menu_branch_fixture',

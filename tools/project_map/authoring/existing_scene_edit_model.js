@@ -283,6 +283,7 @@
     const eventOptions = optionRows(scene, fields);
     const textBlocks = textBlocksForScene(scene, visibleTextRows, source.path, eventOptions);
     fields = fields.concat(assetAddReferenceFields(scene, source.path, fields, textRows, sceneKind, {textBlocks, eventOptions}));
+    fields = fields.concat(conditionalLeafFields(textBlocks, source.path));
     const effects = effectRows(index, scene, scriptRows);
     const routeFields = routeEditableFields(scene, eventOptions);
     const flow = flowForScene(scene, eventOptions, effects, routeFields);
@@ -477,6 +478,96 @@
       (!Number.isInteger(endLine) || endLine <= 0 || endLine === line) &&
       String(original || '').trim()
     );
+  }
+
+  // Inline conditional leaf editing (P3a). textBlocks carry a conditionalTree
+  // whose leaves the helper marked structurally editable (no children, balanced
+  // line, grammar-safe values, valid offsets). Each editable leaf becomes a
+  // text field + a condition field whose source is the verbatim line. The op is
+  // a guarded single-line replace built by splicing only the recorded span, so
+  // every other byte of the line is preserved (see inlineLeafChangeFromField).
+  function collectEditableLeaves(nodes, acc) {
+    acc = acc || [];
+    ensureArray(nodes).forEach((node) => {
+      if (node && node.children && node.children.length) {
+        collectEditableLeaves(node.children, acc);
+      } else if (node && node.editable && node.span && typeof node.lineText === 'string') {
+        acc.push(node);
+      }
+    });
+    return acc;
+  }
+
+  function conditionalLeafFields(textBlocks, scenePath) {
+    const fields = [];
+    const seen = new Set();
+    ensureArray(textBlocks).forEach((block) => {
+      collectEditableLeaves(block && block.conditionalTree).forEach((leaf) => {
+        const source = sourceRef(leaf.source || {});
+        const lineText = String(leaf.lineText || source.anchorText || '');
+        const line = Number(source.line || source.startLine || 0);
+        const span = isObject(leaf.span) ? leaf.span : {};
+        if (!lineText || !Number.isInteger(line) || line <= 0) {
+          return;
+        }
+        // Offset relocate guard: the recorded ranges must still hold the leaf's
+        // current verbatim values, or the offsets have drifted and we skip.
+        if (lineText.slice(span.textStart, span.textEnd) !== String(leaf.rawText || '')) {
+          return;
+        }
+        if (lineText.slice(span.condStart, span.condEnd) !== String(leaf.rawCondition || '')) {
+          return;
+        }
+        const guardSource = sourceRef({path: source.path || scenePath, line, anchorText: lineText});
+        const guarded = canGuardField(guardSource, lineText);
+        [
+          {kind: 'text', role: 'conditional_leaf_text', label: 'Conditional branch text', original: String(leaf.rawText || '')},
+          {kind: 'condition', role: 'conditional_leaf_condition', label: 'Conditional branch condition', original: String(leaf.rawCondition || '')}
+        ].forEach((spec) => {
+          const id = safeId(['cond_leaf', spec.kind, source.path || scenePath, line, span.spanStart].join('_'));
+          if (seen.has(id)) {
+            return;
+          }
+          seen.add(id);
+          // Stamp the id onto the shared tree node so the viewer can bind an
+          // inline editor input to this field without recomputing the id.
+          if (spec.kind === 'text') {
+            leaf.textFieldId = id;
+          } else {
+            leaf.conditionFieldId = id;
+          }
+          fields.push({
+            id,
+            role: spec.role,
+            label: spec.label,
+            original: spec.original,
+            value: spec.original,
+            source: guardSource,
+            sourcePath: guardSource.path || scenePath || '',
+            editability: guarded ? 'guarded_replace_text' : 'advanced_source_patch',
+            sectionId: '',
+            optionId: '',
+            confidence: guarded ? 'exact' : 'approximate',
+            inlineLeaf: {
+              kind: spec.kind,
+              lineText,
+              span: {
+                spanStart: Number(span.spanStart),
+                spanEnd: Number(span.spanEnd),
+                condStart: Number(span.condStart),
+                condEnd: Number(span.condEnd),
+                textStart: Number(span.textStart),
+                textEnd: Number(span.textEnd)
+              }
+            },
+            reason: guarded
+              ? 'Exact source line can be checked before replacing only this inline conditional branch.'
+              : 'Needs advanced source apply because Studio lacks safe single-line evidence for this inline branch.'
+          });
+        });
+      });
+    });
+    return fields;
   }
 
   function optionRows(scene, fields) {
@@ -1753,6 +1844,9 @@
     if (String(field && field.transform || '') === 'structure_action') {
       return structuralChangeFromField(field, afterValue);
     }
+    if (field && isObject(field.inlineLeaf)) {
+      return inlineLeafChangeFromField(field, afterValue);
+    }
     const api = logicFieldsApi();
     if (api && typeof api.changeForLogicField === 'function') {
       const logicChange = api.changeForLogicField(field, afterValue, baseFieldChange);
@@ -1762,6 +1856,39 @@
     }
     const afterText = String(afterValue === undefined || afterValue === null ? '' : afterValue);
     return baseFieldChange(field, String(field.original || ''), afterText);
+  }
+
+  // Turns an inline-conditional leaf edit into a single-line replace by splicing
+  // the new value into the recorded span. before = the verbatim source line,
+  // after = the same line with only the edited branch range changed. When the
+  // new value would break the grammar, the offsets have drifted, or the splice
+  // is a no-op, the change is downgraded to manual review rather than auto-apply.
+  function inlineLeafChangeFromField(field, afterValue) {
+    const helpers = existingSceneTextBlockHelpers();
+    const leaf = isObject(field.inlineLeaf) ? field.inlineLeaf : {};
+    const kind = leaf.kind === 'condition' ? 'condition' : 'text';
+    const span = isObject(leaf.span) ? leaf.span : {};
+    const lineText = String(leaf.lineText || (field.source && field.source.anchorText) || '');
+    const afterText = String(afterValue === undefined || afterValue === null ? '' : afterValue);
+    const rangeStart = kind === 'condition' ? span.condStart : span.textStart;
+    const rangeEnd = kind === 'condition' ? span.condEnd : span.textEnd;
+    const currentRange = lineText.slice(rangeStart, rangeEnd);
+    // Offset relocate guard: the recorded range must still hold the field's
+    // current value, otherwise the line drifted since the model was built.
+    if (!lineText || currentRange !== String(field.original || '')) {
+      const drift = baseFieldChange(field, lineText, lineText);
+      drift.operationType = 'manual_snippet';
+      return drift;
+    }
+    const next = kind === 'condition' ? {condition: afterText} : {text: afterText};
+    const splicedLine = helpers.spliceInlineLeaf(lineText, span, next);
+    const change = baseFieldChange(field, lineText, splicedLine);
+    if (helpers.isEditableInlineLeafValue(afterText, kind) && splicedLine !== lineText) {
+      change.operationType = 'replace_text';
+    } else {
+      change.operationType = 'manual_snippet';
+    }
+    return change;
   }
 
   function conditionWindowDiagnosticsForScene(scene) {

@@ -1879,6 +1879,10 @@
       elements.host.__dmsObjectCanvasAssetDelegated = true;
       elements.host.addEventListener('change', handleObjectCanvasAssetChange);
     }
+    if (!elements.host.__dmsObjectCanvasWhatIfDelegated) {
+      elements.host.__dmsObjectCanvasWhatIfDelegated = true;
+      elements.host.addEventListener('input', handleConditionalWhatIfInput);
+    }
     if (!elements.host.__dmsObjectCanvasReviewDetailsDelegated) {
       elements.host.__dmsObjectCanvasReviewDetailsDelegated = true;
       elements.host.addEventListener('toggle', (event) => {
@@ -2195,6 +2199,69 @@
   function refreshProgrammaticValues() {
     state.preserveScrollOnNextRefresh = true;
     refresh({preserveStateValues: true});
+  }
+
+  // Conditional what-if simulator: when an author edits a quality in the
+  // what-if strip, re-evaluate every branch predicate in that scope and flip
+  // its state badge between "shows" and "hidden". Evaluation reuses the shared
+  // browser predicate evaluator; the predicate AST is carried per branch in a
+  // data-attribute by preview_object_editor.js.
+  function handleConditionalWhatIfInput(event) {
+    const target = event && event.target;
+    if (!target || !target.closest || !elements || !elements.host) {
+      return;
+    }
+    const input = target.closest('[data-conditional-whatif-var]');
+    if (!input || !elements.host.contains(input)) {
+      return;
+    }
+    const scope = input.closest('[data-conditional-whatif-scope="true"]');
+    if (scope) {
+      applyConditionalWhatIf(scope);
+    }
+  }
+
+  function applyConditionalWhatIf(scope) {
+    const evaler = global.ProjectMapPredicateRuntimeEval;
+    if (!scope || !evaler || typeof evaler.evaluateAst !== 'function') {
+      return;
+    }
+    const runtimeState = {};
+    scope.querySelectorAll('[data-conditional-whatif-var]').forEach((input) => {
+      const name = input.dataset.conditionalWhatifVar || '';
+      if (!name) {
+        return;
+      }
+      const raw = input.value;
+      const num = Number(raw);
+      runtimeState[name] = raw !== '' && Number.isFinite(num) ? num : raw;
+    });
+    scope.querySelectorAll('[data-conditional-branch-ast]').forEach((branch) => {
+      let ast = null;
+      try {
+        ast = JSON.parse(branch.dataset.conditionalBranchAst || 'null');
+      } catch (_err) {
+        ast = null;
+      }
+      if (!ast) {
+        return;
+      }
+      setConditionalBranchState(branch, Boolean(evaler.evaluateAst(ast, runtimeState)));
+    });
+  }
+
+  function setConditionalBranchState(branch, active) {
+    const badge = branch.querySelector(':scope > [data-conditional-branch-state]');
+    if (!badge) {
+      return;
+    }
+    const stateName = active ? 'active' : 'hidden';
+    badge.dataset.conditionalBranchState = stateName;
+    badge.classList.remove('is-active', 'is-hidden', 'is-opaque');
+    badge.classList.add('is-' + stateName);
+    badge.textContent = active
+      ? t('previewObjectEditor.whatIfShows', 'shows')
+      : t('previewObjectEditor.whatIfHidden', 'hidden');
   }
 
   function handleObjectCanvasAssetChange(event) {

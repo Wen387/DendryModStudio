@@ -78,6 +78,85 @@ const malformedTree = textBlockHelpers.extractInlineConditionalTree('[? if Q.a :
 assert(Array.isArray(malformedTree) && malformedTree.length === 0, 'unbalanced conditional should yield no branches and must not throw');
 assert(textBlockHelpers.extractInlineConditionalTree('plain prose with no conditionals').length === 0, 'plain prose should produce an empty tree');
 
+// --- Position-preserving span parser + byte-exact leaf splice (P3a) ---
+function spanLeaves(nodes, acc) {
+  acc = acc || [];
+  (nodes || []).forEach((node) => {
+    if (node.children && node.children.length) spanLeaves(node.children, acc);
+    else acc.push(node);
+  });
+  return acc;
+}
+
+const spanLine = 'Base text [? if Q.a : Alpha ?] tail';
+const spanTree = textBlockHelpers.extractInlineConditionalTreeWithSpans(spanLine);
+assert(spanTree.length === 1 && spanTree[0].rawCondition === 'Q.a' && spanTree[0].rawText === 'Alpha', 'span parser should record verbatim condition/text for a depth-1 leaf');
+assert(spanLine.slice(spanTree[0].condStart, spanTree[0].condEnd) === 'Q.a', 'condStart/condEnd should bracket the verbatim condition');
+assert(spanLine.slice(spanTree[0].textStart, spanTree[0].textEnd) === 'Alpha', 'textStart/textEnd should bracket the verbatim own-text');
+assert(spanLine.slice(spanTree[0].spanStart, spanTree[0].spanEnd) === '[? if Q.a : Alpha ?]', 'spanStart/spanEnd should bracket the whole [? ?] span');
+
+// Identity: splicing a leaf with its own current values reproduces the line byte-for-byte.
+const spanCorpus = [
+  spanLine,
+  '[? if Q.a : A ?] middle [? if Q.b : B ?]',
+  '[? if act = 1 and year <= 1933 : First ?][? if act = 2 : Second ?]',
+  '[? if a = 1 : outer [? if b = 2 : inner ?] tail ?]',
+  '[? if p : one [? if q : two [? if r : three ?] ?] ?]',
+  '[? if  spaced  :  padded text  ?]'
+];
+spanCorpus.forEach((line) => {
+  spanLeaves(textBlockHelpers.extractInlineConditionalTreeWithSpans(line)).forEach((leaf) => {
+    assert(textBlockHelpers.spliceInlineLeaf(line, leaf, {condition: leaf.rawCondition, text: leaf.rawText}) === line, 'identity splice should reproduce the source line byte-for-byte: ' + JSON.stringify(line));
+  });
+});
+
+// Isolation: editing one leaf changes only its own region; siblings + nested branches stay intact and re-parse cleanly.
+const isoLine = '[? if Q.a : A ?] middle [? if Q.b : B ?]';
+const isoLeaves = spanLeaves(textBlockHelpers.extractInlineConditionalTreeWithSpans(isoLine));
+const isoEdited = textBlockHelpers.spliceInlineLeaf(isoLine, isoLeaves[0], {text: 'EDITED'});
+assert(isoEdited === '[? if Q.a : EDITED ?] middle [? if Q.b : B ?]', 'editing one sibling leaf must leave every other byte (delimiters, prose, sibling) identical');
+const isoReparsed = spanLeaves(textBlockHelpers.extractInlineConditionalTreeWithSpans(isoEdited));
+assert(isoReparsed.length === 2 && isoReparsed[0].rawText === 'EDITED' && isoReparsed[1].rawText === 'B', 're-parse after a leaf edit should read back the edit and keep siblings unchanged');
+
+// Condition edit isolation.
+const condEdited = textBlockHelpers.spliceInlineLeaf(isoLine, isoLeaves[1], {condition: 'Q.zz >= 3'});
+assert(condEdited === '[? if Q.a : A ?] middle [? if Q.zz >= 3 : B ?]', 'editing a leaf condition must splice only the condition range');
+
+// Nested-leaf edit leaves the parent own-text and delimiters intact.
+const nestLine = '[? if a = 1 : outer [? if b = 2 : inner ?] tail ?]';
+const nestLeaves = spanLeaves(textBlockHelpers.extractInlineConditionalTreeWithSpans(nestLine));
+const innerLeaf = nestLeaves.find((leaf) => leaf.rawText === 'inner');
+assert(textBlockHelpers.spliceInlineLeaf(nestLine, innerLeaf, {text: 'NEW'}) === '[? if a = 1 : outer [? if b = 2 : NEW ?] tail ?]', 'editing a nested leaf must preserve the parent own-text and surrounding delimiters');
+
+// Input-validation gate: values that would corrupt the grammar must be rejected.
+assert(textBlockHelpers.isEditableInlineLeafValue('plain prose', 'text') === true, 'plain text should be editable');
+assert(textBlockHelpers.isEditableInlineLeafValue('contains [? if x', 'text') === false, 'text carrying an opening [? delimiter must be rejected');
+assert(textBlockHelpers.isEditableInlineLeafValue('contains ?] close', 'text') === false, 'text carrying a closing ?] delimiter must be rejected');
+assert(textBlockHelpers.isEditableInlineLeafValue('Q.a >= 1', 'condition') === true, 'a clean predicate should be an editable condition');
+assert(textBlockHelpers.isEditableInlineLeafValue('Q.a : 1', 'condition') === false, 'a condition carrying a colon body separator must be rejected');
+assert(textBlockHelpers.isEditableInlineLeafValue('', 'condition') === false, 'an empty condition must be rejected');
+
+// conditionalTreeForRows enrichment (P3a Pillar B): inline leaves carry the
+// verbatim line + splice span + an editable flag; parents with children and
+// the source-uniqueness guard stay non-editable for leaf-only P3a editing.
+const enrichLine = 'Base [? if Q.a : Alpha ?] mid [? if Q.b : Beta [? if Q.c : Gamma ?] ?]';
+const enrichTree = textBlockHelpers.conditionalTreeForRows([
+  {role: 'body', hasInlineConditionals: true, text: enrichLine, originalText: enrichLine, source: {path: 'source/scenes/x.scene.dry', line: 7, anchorText: enrichLine}}
+]);
+const enrichLeaves = spanLeaves(enrichTree);
+const alphaNode = enrichLeaves.find((node) => node.rawText === 'Alpha');
+assert(alphaNode && alphaNode.editable === true && alphaNode.lineText === enrichLine, 'a depth-1 inline leaf should be editable and carry the verbatim source line');
+assert(enrichLine.slice(alphaNode.span.textStart, alphaNode.span.textEnd) === 'Alpha', 'the carried span should index the verbatim own-text within lineText');
+assert(textBlockHelpers.spliceInlineLeaf(alphaNode.lineText, {textStart: alphaNode.span.textStart, textEnd: alphaNode.span.textEnd, condStart: alphaNode.span.condStart, condEnd: alphaNode.span.condEnd}, {text: 'EDITED'}) === 'Base [? if Q.a : EDITED ?] mid [? if Q.b : Beta [? if Q.c : Gamma ?] ?]', 'editing via the carried span must leave siblings and nested branches byte-identical');
+const gammaNode = enrichLeaves.find((node) => node.rawText === 'Gamma');
+assert(gammaNode && gammaNode.editable === true, 'a nested leaf should still be editable');
+const betaNode = enrichTree.find((node) => node.condition === 'Q.b');
+assert(betaNode && betaNode.editable === false, 'a parent branch with children must not be editable under leaf-only P3a editing');
+const unbalancedTree = textBlockHelpers.conditionalTreeForRows([
+  {role: 'body', hasInlineConditionals: true, text: '[? if Q.a : Alpha', originalText: '[? if Q.a : Alpha', source: {path: 'source/scenes/x.scene.dry', line: 8, anchorText: '[? if Q.a : Alpha [? if Q.b : Beta ?]'}}
+]);
+assert(spanLeaves(unbalancedTree).every((node) => node.editable !== true), 'leaves on an unbalanced line must not be marked editable');
+
 const ownedOption = {id: '@owned', sectionId: 'demo.menu', targetId: 'elsewhere'};
 const incomingOption = {id: '@incoming', sectionId: 'demo.start', targetId: '@menu'};
 assert(!textBlockHelpers.sectionTargetedByOption('demo', 'demo.menu', ownedOption), 'owned choices must not count as incoming targeted options');

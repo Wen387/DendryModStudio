@@ -14,6 +14,7 @@
    * @typedef {import('../types/project_map_contracts').ProjectIndexScene} ProjectIndexScene
    * @typedef {import('../types/project_map_contracts').ProjectIndexSection} ProjectIndexSection
    * @typedef {import('../types/project_map_contracts').SourceRef} SourceRef
+   * @typedef {import('../types/project_map_contracts').InlineConditionalSpanNode} InlineConditionalSpanNode
    */
 
   /**
@@ -83,8 +84,9 @@
        * @param {unknown} textInput
        * @param {Array<object>} children
        * @param {SourceRef} source
+       * @param {object} [extra] Optional edit metadata (span/raw/editable/lineText).
        */
-      function pushNode(conditionInput, textInput, children, source) {
+      function pushNode(conditionInput, textInput, children, source, extra) {
         const condition = compactVisibleText(conditionInput);
         if (!condition) {
           return;
@@ -99,7 +101,7 @@
           return;
         }
         seen.add(key);
-        out.push({condition, text, children: kids, source});
+        out.push(Object.assign({condition, text, children: kids, source}, extra || {}));
       }
       ensureArray(rows).forEach((row) => {
         const source = sourceRef(row && row.source || {});
@@ -107,9 +109,18 @@
           pushNode(lastMeaningfulCondition(row && row.conditions), row && row.text, [], source);
         }
         if (row && row.hasInlineConditionals) {
-          const raw = String(source.anchorText || row.originalText || row.text || '').trim();
-          extractInlineConditionalTree(raw).forEach((node) => {
-            pushNode(node.condition, node.text, node.children, source);
+          // Parse against the verbatim source line (NOT trimmed) so recorded
+          // offsets align with the exact string a guarded replace will splice.
+          const lineText = String(source.anchorText || row.originalText || row.text || '');
+          extractInlineConditionalTreeWithSpans(lineText).forEach((spanNode) => {
+            const enriched = enrichEditableSpanNode(spanNode, lineText);
+            pushNode(enriched.condition, enriched.text, enriched.children, source, {
+              rawCondition: enriched.rawCondition,
+              rawText: enriched.rawText,
+              span: enriched.span,
+              lineText: enriched.lineText,
+              editable: enriched.editable
+            });
           });
         }
       });
@@ -246,6 +257,9 @@
       conditionalAlternativesForRows,
       conditionalTreeForRows,
       extractInlineConditionalTree,
+      extractInlineConditionalTreeWithSpans,
+      spliceInlineLeaf,
+      isEditableInlineLeafValue,
       lastMeaningfulCondition,
       isBlockTextRole,
       logicalTextRuns,
@@ -444,6 +458,207 @@
       }
     }
     return out;
+  }
+
+  /**
+   * Position-preserving variant of extractInlineConditionalTree. In addition to
+   * the display condition/text, every node records absolute offsets (UTF-16
+   * code units) into the original line so the editor can rewrite a single leaf
+   * by splicing only the trimmed condition/text range and leave every other
+   * byte of the line byte-identical. Offsets are rebased into `base` for nested
+   * children so they remain valid against the top-level line.
+   * @param {unknown} value
+   * @param {number} [base]
+   * @returns {Array<InlineConditionalSpanNode>}
+   */
+  function extractInlineConditionalTreeWithSpans(value, base) {
+    const offset = Number(base || 0);
+    const text = String(value || '');
+    /** @type {Array<InlineConditionalSpanNode>} */
+    const out = [];
+    let pos = 0;
+    while (pos < text.length) {
+      const openIndex = text.indexOf('[?', pos);
+      if (openIndex < 0) break;
+      const afterOpen = openIndex + 2;
+      const ifMatch = text.slice(afterOpen).match(/^\s*if\s+/);
+      if (!ifMatch) { pos = afterOpen; continue; }
+      const conditionStart = afterOpen + ifMatch[0].length;
+      const colonIndex = text.indexOf(':', conditionStart);
+      if (colonIndex < 0) { pos = conditionStart; continue; }
+      const condTrim = trimmedRange(text, conditionStart, colonIndex);
+      const bodyStart = colonIndex + 1;
+      let depth = 1;
+      let i = bodyStart;
+      while (i < text.length && depth > 0) {
+        if (text[i] === '[' && i + 1 < text.length && text[i + 1] === '?') { depth += 1; i += 2; }
+        else if (text[i] === '?' && i + 1 < text.length && text[i + 1] === ']') { depth -= 1; if (depth === 0) break; i += 2; }
+        else { i += 1; }
+      }
+      if (depth === 0) {
+        const bodyEnd = i;
+        const bodyText = text.slice(bodyStart, bodyEnd);
+        const children = extractInlineConditionalTreeWithSpans(bodyText, offset + bodyStart);
+        const textTrim = trimmedRange(text, bodyStart, bodyEnd);
+        const rawCondition = text.slice(condTrim.start, condTrim.end);
+        const rawText = text.slice(textTrim.start, textTrim.end);
+        if (compactVisibleText(rawCondition) && (compactVisibleText(stripNestedConditionals(rawText)) || children.length)) {
+          out.push({
+            condition: compactVisibleText(rawCondition),
+            text: compactVisibleText(stripNestedConditionals(rawText)),
+            children,
+            hasChildren: children.length > 0,
+            spanStart: offset + openIndex,
+            spanEnd: offset + i + 2,
+            condStart: offset + condTrim.start,
+            condEnd: offset + condTrim.end,
+            rawCondition,
+            textStart: offset + textTrim.start,
+            textEnd: offset + textTrim.end,
+            rawText
+          });
+        }
+        pos = i + 2;
+      } else {
+        pos = conditionStart;
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Trims surrounding whitespace from a [start, end) slice and returns the
+   * tightened range so callers splice only the meaningful condition/text.
+   * @param {string} text
+   * @param {number} start
+   * @param {number} end
+   * @returns {{start: number, end: number}}
+   */
+  function trimmedRange(text, start, end) {
+    let s = start;
+    let e = end;
+    while (s < e && /\s/.test(text[s])) s += 1;
+    while (e > s && /\s/.test(text[e - 1])) e -= 1;
+    return {start: s, end: e};
+  }
+
+  /**
+   * Rewrites a single inline-conditional leaf by replacing only its recorded
+   * trimmed condition/text ranges. Edits are applied later-range-first so
+   * earlier offsets stay valid, which keeps every unedited byte (delimiters,
+   * spacing, sibling and nested branches) identical. Callers must validate the
+   * incoming values with isEditableInlineLeafValue first.
+   * @param {unknown} line
+   * @param {InlineConditionalSpanNode} leaf
+   * @param {{condition?: string, text?: string}} next
+   * @returns {string}
+   */
+  function spliceInlineLeaf(line, leaf, next) {
+    const source = String(line || '');
+    if (!leaf || !next) {
+      return source;
+    }
+    const edits = [];
+    if (Object.prototype.hasOwnProperty.call(next, 'text') && typeof next.text === 'string') {
+      edits.push({start: leaf.textStart, end: leaf.textEnd, value: next.text});
+    }
+    if (Object.prototype.hasOwnProperty.call(next, 'condition') && typeof next.condition === 'string') {
+      edits.push({start: leaf.condStart, end: leaf.condEnd, value: next.condition});
+    }
+    edits.sort((a, b) => b.start - a.start);
+    let out = source;
+    for (const ed of edits) {
+      if (!Number.isInteger(ed.start) || !Number.isInteger(ed.end) || ed.start < 0 || ed.end > out.length || ed.start > ed.end) {
+        return source;
+      }
+      out = out.slice(0, ed.start) + ed.value + out.slice(ed.end);
+    }
+    return out;
+  }
+
+  /**
+   * Guards a proposed leaf condition/text value against characters that would
+   * break the inline-conditional grammar when spliced back. A value carrying a
+   * '[?' or '?]' delimiter could split or merge branches; a condition carrying a
+   * ':' could be read as a body separator. Such edits must stay manual.
+   * @param {unknown} value
+   * @param {"text"|"condition"} kind
+   * @returns {boolean}
+   */
+  function isEditableInlineLeafValue(value, kind) {
+    const text = String(value == null ? '' : value);
+    if (text.indexOf('[?') !== -1 || text.indexOf('?]') !== -1) {
+      return false;
+    }
+    if (kind === 'condition') {
+      if (!text.trim()) {
+        return false;
+      }
+      if (text.indexOf(':') !== -1) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * True when every '[?' opener in the line has a matching '?]' closer and no
+   * closer appears before its opener. A leaf is only structurally editable when
+   * its line is balanced, so a malformed line stays manual.
+   * @param {unknown} value
+   * @returns {boolean}
+   */
+  function inlineConditionalsBalanced(value) {
+    const text = String(value || '');
+    let depth = 0;
+    let i = 0;
+    while (i < text.length) {
+      if (text[i] === '[' && text[i + 1] === '?') { depth += 1; i += 2; }
+      else if (text[i] === '?' && text[i + 1] === ']') { depth -= 1; if (depth < 0) return false; i += 2; }
+      else { i += 1; }
+    }
+    return depth === 0;
+  }
+
+  /**
+   * Maps a raw span node (from extractInlineConditionalTreeWithSpans) into the
+   * display node shape used by the conditional tree, attaching per-leaf edit
+   * metadata: the verbatim condition/text, the splice span, the source line the
+   * offsets index into, and an `editable` flag. Only leaves (no children) on a
+   * balanced line with grammar-safe current values are marked editable; the
+   * final source-uniqueness guard is applied later by the edit model.
+   * @param {InlineConditionalSpanNode} spanNode
+   * @param {string} lineText
+   * @returns {object}
+   */
+  function enrichEditableSpanNode(spanNode, lineText) {
+    const children = ensureArray(spanNode && spanNode.children).map((child) => enrichEditableSpanNode(child, lineText));
+    const isLeaf = children.length === 0;
+    const span = {
+      spanStart: spanNode.spanStart,
+      spanEnd: spanNode.spanEnd,
+      condStart: spanNode.condStart,
+      condEnd: spanNode.condEnd,
+      textStart: spanNode.textStart,
+      textEnd: spanNode.textEnd
+    };
+    const offsetsValid = [span.spanStart, span.spanEnd, span.condStart, span.condEnd, span.textStart, span.textEnd]
+      .every((value) => Number.isInteger(value) && value >= 0);
+    const editable = isLeaf
+      && offsetsValid
+      && inlineConditionalsBalanced(lineText)
+      && isEditableInlineLeafValue(spanNode.rawText, 'text')
+      && isEditableInlineLeafValue(spanNode.rawCondition, 'condition');
+    return {
+      condition: spanNode.condition,
+      text: spanNode.text,
+      children,
+      rawCondition: spanNode.rawCondition,
+      rawText: spanNode.rawText,
+      span,
+      lineText,
+      editable
+    };
   }
 
   /**

@@ -128,6 +128,7 @@ const runtimeTypedLoadStrategy = Object.freeze({
   'authoring/event_structure_effect_source_helpers.js': 'direct',
   'authoring/event_choice_path_model.js': 'direct',
   'authoring/predicate_condition_model.js': 'loader',
+  'authoring/predicate_runtime_eval.js': 'direct',
   'authoring/route_runtime_trial_model.js': 'loader',
   'authoring/route_runtime_semantics_model.js': 'loader',
   'authoring/route_understanding_model.js': 'loader',

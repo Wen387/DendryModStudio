@@ -29,6 +29,7 @@
     "authoring/event_structure_effect_source_helpers.js",
     "authoring/event_choice_path_model.js",
     "authoring/predicate_condition_model.js",
+    "authoring/predicate_runtime_eval.js",
     "authoring/route_runtime_trial_model.js",
     "authoring/route_runtime_semantics_model.js",
     "authoring/route_understanding_model.js",

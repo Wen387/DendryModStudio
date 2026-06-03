@@ -8,9 +8,9 @@
     },
     {
       "path": "tools/project_map/authoring/existing_scene_edit_model.js",
-      "maxLines": 3287,
+      "maxLines": 3414,
       "allowRaise": true,
-      "reason": "Raised 2026-05-30 from 3281 for asset directive deduplication guard (global + flow paths)."
+      "reason": "Raised 2026-06-03 to 3414 for inline conditional leaf editing (conditionalLeafFields + inlineLeafChangeFromField + field-id stamping, P3a)."
     },
     {
       "path": "tools/project_map/authoring/install_plan.js",
@@ -58,33 +58,33 @@
     },
     {
       "path": "tools/project_map/viewer/i18n/en.js",
-      "maxLines": 3355,
+      "maxLines": 3362,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-06-03 from 3354 for conditional-layers tree heading i18n key."
+      "reason": "Catalog file; keep each language separate. Raised 2026-06-03 from 3355 for conditional what-if + inline leaf editor i18n keys."
     },
     {
       "path": "tools/project_map/viewer/i18n/zh-Hant.js",
-      "maxLines": 3355,
+      "maxLines": 3362,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-06-03 from 3354 for conditional-layers tree heading i18n key."
+      "reason": "Catalog file; keep each language separate. Raised 2026-06-03 from 3355 for conditional what-if + inline leaf editor i18n keys."
     },
     {
       "path": "tools/project_map/viewer/index.html",
-      "maxLines": 2437,
+      "maxLines": 2438,
       "allowRaise": true,
-      "reason": "Script + template manifest. Raised 2026-05-30 from 2436 for rebuild-index button."
+      "reason": "Script + template manifest. Raised 2026-06-03 from 2437 for predicate runtime eval script tag."
     },
     {
       "path": "tools/project_map/viewer/object_authoring_canvas_ui.js",
-      "maxLines": 4755,
+      "maxLines": 4822,
       "allowRaise": true,
-      "reason": "Keep orchestration here; split editor UI into workspace modules. Raised 2026-05-30 from 4750 for project-scoped storyboard storage wiring."
+      "reason": "Keep orchestration here; split editor UI into workspace modules. Raised 2026-06-03 from 4755 for conditional what-if live badge wiring + inline leaf edit input collection."
     },
     {
       "path": "tools/project_map/viewer/preview_object_editor.js",
-      "maxLines": 4620,
+      "maxLines": 4736,
       "allowRaise": true,
-      "reason": "Keep field rendering here; split domain sub-renderers into sibling modules. Raised 2026-06-03 from 4580 for nested conditional-layers tree renderer."
+      "reason": "Keep field rendering here; split domain sub-renderers into sibling modules. Raised 2026-06-03 from 4620 for what-if simulator strip + branch badges + inline leaf editor (P3a)."
     },
     {
       "path": "tools/project_map/viewer/styles/editing.css",

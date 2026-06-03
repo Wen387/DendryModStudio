@@ -47,6 +47,7 @@
     renderModalPreviewPane,
     renderPreviewPane,
     renderTextBlocks,
+    renderConditionalAlternatives,
     renderEventReviewDetailsPanels,
     hydrateLazyReviewDetails
   };
@@ -1430,7 +1431,95 @@
     return ensureArray(nodes).filter((node) => node && (node.condition || node.text || ensureArray(node.children).length));
   }
 
-  function renderConditionalTree(nodes, options, depth) {
+  // What-if simulator: parse each branch condition with the predicate model and
+  // evaluate it against an editable quality state so the author sees which
+  // layers show. Gated on BOTH browser globals so Node checks stay on the
+  // Phase-1 (no-simulator) rendering path.
+  function whatIfModels() {
+    if (!global) {
+      return null;
+    }
+    const model = global.ProjectMapPredicateConditionModel;
+    const evaler = global.ProjectMapPredicateRuntimeEval;
+    if (model && typeof model.summarizePredicate === 'function' && evaler && typeof evaler.evaluateAst === 'function') {
+      return {model, evaler};
+    }
+    return null;
+  }
+
+  function collectWhatIfVariables(nodes, model, acc) {
+    ensureArray(nodes).forEach((node) => {
+      const condition = node && node.condition;
+      if (condition) {
+        const summary = model.summarizePredicate(condition);
+        if (summary && summary.ast) {
+          ensureArray(summary.dependencies).forEach((dep) => {
+            const name = String(dep || '').trim();
+            if (name) {
+              acc.add(name);
+            }
+          });
+        }
+      }
+      collectWhatIfVariables(node && node.children, model, acc);
+    });
+  }
+
+  function renderWhatIfStrip(variables) {
+    return [
+      '<div class="preview-object-conditional-whatif" data-conditional-whatif="true">',
+      '<span class="preview-object-conditional-whatif-label">' + escapeHtml(t('previewObjectEditor.whatIfLabel', 'What-if state')) + '</span>',
+      '<div class="preview-object-conditional-whatif-vars">',
+      variables.map((name) => [
+        '<label class="preview-object-conditional-whatif-var">',
+        '<span>Q.' + escapeHtml(name) + '</span>',
+        '<input type="number" step="1" value="0" data-conditional-whatif-var="' + escapeAttr(name) + '" aria-label="' + escapeAttr('Q.' + name) + '">',
+        '</label>'
+      ].join('')).join(''),
+      '</div>',
+      '</div>'
+    ].join('');
+  }
+
+  function branchStateBadge(active) {
+    const state = active === null ? 'opaque' : (active ? 'active' : 'hidden');
+    const label = state === 'opaque'
+      ? t('previewObjectEditor.whatIfUnknown', 'state unknown')
+      : (state === 'active' ? t('previewObjectEditor.whatIfShows', 'shows') : t('previewObjectEditor.whatIfHidden', 'hidden'));
+    return '<span class="preview-object-conditional-state is-' + state + '" data-conditional-branch-state="' + state + '">' + escapeHtml(label) + '</span>';
+  }
+
+  // Inline editor for a structurally-editable conditional leaf (P3a). The
+  // inputs carry data-object-canvas-field so the existing collectValues() pass
+  // picks up edits; the model splices only this branch's span into a guarded
+  // single-line replace. Rendered only when the edit model stamped field ids.
+  function renderConditionalLeafEditor(node) {
+    if (!node || !node.editable || !node.textFieldId) {
+      return '';
+    }
+    const rawText = String(node.rawText || '');
+    const rawCondition = String(node.rawCondition || '');
+    const rows = [
+      '<details class="preview-object-conditional-edit" data-conditional-leaf-edit="true">',
+      '<summary>' + escapeHtml(t('previewObjectEditor.editBranch', 'Edit this branch')) + '</summary>',
+      '<label class="preview-object-conditional-edit-field">',
+      '<span>' + escapeHtml(t('previewObjectEditor.editBranchText', 'Branch text')) + '</span>',
+      '<textarea class="preview-object-conditional-edit-input" rows="2" data-object-canvas-field="' + escapeAttr(node.textFieldId) + '" data-object-canvas-original="' + escapeAttr(rawText) + '" data-conditional-leaf-input="text">' + escapeHtml(rawText) + '</textarea>',
+      '</label>'
+    ];
+    if (node.conditionFieldId) {
+      rows.push(
+        '<label class="preview-object-conditional-edit-field">',
+        '<span>' + escapeHtml(t('previewObjectEditor.editBranchCondition', 'Branch condition')) + '</span>',
+        '<input type="text" class="preview-object-conditional-edit-input" value="' + escapeAttr(rawCondition) + '" data-object-canvas-field="' + escapeAttr(node.conditionFieldId) + '" data-object-canvas-original="' + escapeAttr(rawCondition) + '" data-conditional-leaf-input="condition">',
+        '</label>'
+      );
+    }
+    rows.push('</details>');
+    return rows.join('');
+  }
+
+  function renderConditionalTree(nodes, options, depth, whatIf) {
     const rows = conditionalTreeRows(nodes);
     if (!rows.length) {
       return '';
@@ -1443,11 +1532,26 @@
     return [
       '<ul class="preview-object-conditional-branches" data-depth="' + escapeAttr(String(level)) + '">',
       shown.map((node) => {
-        const children = renderConditionalTree(node.children, opts, level + 1);
+        const children = renderConditionalTree(node.children, opts, level + 1, whatIf);
+        let astAttr = '';
+        let badge = '';
+        if (whatIf && node.condition) {
+          const summary = whatIf.model.summarizePredicate(node.condition);
+          const ast = summary && summary.ast;
+          if (ast) {
+            const active = Boolean(whatIf.evaler.evaluateAst(ast, whatIf.state));
+            astAttr = ' data-conditional-branch-ast="' + escapeAttr(JSON.stringify(ast)) + '"';
+            badge = branchStateBadge(active);
+          } else {
+            badge = branchStateBadge(null);
+          }
+        }
         return [
-          '<li class="preview-object-conditional-branch"' + (children ? ' data-has-children="true"' : '') + '>',
+          '<li class="preview-object-conditional-branch"' + (children ? ' data-has-children="true"' : '') + astAttr + '>',
           node.condition ? '<code class="preview-object-conditional-when">' + escapeHtml(t('previewObjectEditor.when', 'When') + ': ' + node.condition) + '</code>' : '',
+          badge,
           node.text ? '<div class="preview-object-conditional-text">' + renderTextBlocks(node.text, {empty: false, assetBaseUrl: opts.assetBaseUrl || ''}) + '</div>' : '',
+          renderConditionalLeafEditor(node),
           children,
           '</li>'
         ].join('');
@@ -1461,10 +1565,22 @@
     const opts = options || {};
     const tree = conditionalTreeRows(field && field.conditionalTree);
     if (tree.length) {
+      const models = whatIfModels();
+      let whatIf = null;
+      let strip = '';
+      if (models) {
+        const acc = new Set();
+        collectWhatIfVariables(tree, models.model, acc);
+        if (acc.size) {
+          whatIf = {model: models.model, evaler: models.evaler, state: {}};
+          strip = renderWhatIfStrip(Array.from(acc).sort());
+        }
+      }
       return [
-        '<details class="preview-object-conditional-alternatives preview-object-conditional-tree" open data-preview-object-conditional-alternatives="true" data-preview-object-conditional-tree="true">',
+        '<details class="preview-object-conditional-alternatives preview-object-conditional-tree" open data-preview-object-conditional-alternatives="true" data-preview-object-conditional-tree="true"' + (whatIf ? ' data-conditional-whatif-scope="true"' : '') + '>',
         '<summary>' + escapeHtml(t('previewObjectEditor.conditionalLayers', 'Conditional layers')) + '</summary>',
-        renderConditionalTree(tree, opts, 0),
+        strip,
+        renderConditionalTree(tree, opts, 0, whatIf),
         '</details>'
       ].join('');
     }

@@ -172,12 +172,37 @@
   }
 
   function normalizeConditionalTree(nodes) {
-    return ensureArray(nodes).map((node) => ({
-      condition: String(node && node.condition || ''),
-      text: String(node && node.text || ''),
-      source: sourceRef(node && node.source || {}),
-      children: normalizeConditionalTree(node && node.children)
-    })).filter((node) => node.condition || node.text || node.children.length);
+    return ensureArray(nodes).map((node) => {
+      const normalized = {
+        condition: String(node && node.condition || ''),
+        text: String(node && node.text || ''),
+        source: sourceRef(node && node.source || {}),
+        children: normalizeConditionalTree(node && node.children)
+      };
+      // Preserve per-leaf edit metadata (P3a) when the helper marked the leaf
+      // structurally editable, so the viewer can offer an inline editor.
+      if (node && node.editable && node.span && typeof node.lineText === 'string') {
+        normalized.editable = true;
+        normalized.rawCondition = String(node.rawCondition || '');
+        normalized.rawText = String(node.rawText || '');
+        normalized.lineText = node.lineText;
+        if (node.textFieldId) {
+          normalized.textFieldId = String(node.textFieldId);
+        }
+        if (node.conditionFieldId) {
+          normalized.conditionFieldId = String(node.conditionFieldId);
+        }
+        normalized.span = {
+          spanStart: Number(node.span.spanStart),
+          spanEnd: Number(node.span.spanEnd),
+          condStart: Number(node.span.condStart),
+          condEnd: Number(node.span.condEnd),
+          textStart: Number(node.span.textStart),
+          textEnd: Number(node.span.textEnd)
+        };
+      }
+      return normalized;
+    }).filter((node) => node.condition || node.text || node.children.length);
   }
 
   function editorFromBlock(block, values) {
