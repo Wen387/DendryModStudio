@@ -1883,6 +1883,8 @@
       elements.host.__dmsObjectCanvasWhatIfDelegated = true;
       elements.host.addEventListener('input', handleConditionalWhatIfInput);
       elements.host.addEventListener('input', handleConditionalLeafValidation);
+      elements.host.addEventListener('input', handleConditionalFilterInput);
+      elements.host.addEventListener('change', handleConditionalFilterInput);
     }
     if (!elements.host.__dmsObjectCanvasReviewDetailsDelegated) {
       elements.host.__dmsObjectCanvasReviewDetailsDelegated = true;
@@ -2248,6 +2250,61 @@
     }
   }
 
+  // Density governance: a dense conditional layer renders a filter toolbar
+  // (preview_object_editor.renderConditionalFilterToolbar). Narrow the top-level
+  // branch list by free text and, when the what-if simulator is live, to only
+  // the branches that currently show. Pure DOM show/hide — no model mutation.
+  function handleConditionalFilterInput(event) {
+    const target = event && event.target;
+    if (!target || !target.closest || !elements || !elements.host) {
+      return;
+    }
+    const control = target.closest('[data-conditional-filter-input], [data-conditional-filter-shows]');
+    if (!control || !elements.host.contains(control)) {
+      return;
+    }
+    const toolbar = control.closest('[data-conditional-filter]');
+    if (toolbar) {
+      applyConditionalFilter(toolbar);
+    }
+  }
+
+  function applyConditionalFilter(toolbar) {
+    if (!toolbar || typeof toolbar.querySelector !== 'function') {
+      return;
+    }
+    const layer = toolbar.closest('[data-preview-object-conditional-tree]') || toolbar.parentElement;
+    if (!layer) {
+      return;
+    }
+    const queryInput = toolbar.querySelector('[data-conditional-filter-input]');
+    const showsInput = toolbar.querySelector('[data-conditional-filter-shows]');
+    const query = String(queryInput && queryInput.value || '').trim().toLowerCase();
+    const showsOnly = Boolean(showsInput && showsInput.checked);
+    const branches = layer.querySelectorAll(':scope > ul > li.preview-object-conditional-branch');
+    let shown = 0;
+    branches.forEach((branch) => {
+      let visible = !query || (branch.textContent || '').toLowerCase().indexOf(query) !== -1;
+      if (visible && showsOnly) {
+        const badge = branch.querySelector(':scope > [data-conditional-branch-state]');
+        const state = badge && badge.dataset ? badge.dataset.conditionalBranchState : '';
+        if (state !== 'active') {
+          visible = false;
+        }
+      }
+      branch.classList.toggle('is-filtered-out', !visible);
+      if (visible) {
+        shown += 1;
+      }
+    });
+    const count = toolbar.querySelector('[data-conditional-filter-count]');
+    if (count) {
+      count.textContent = t('previewObjectEditor.filterCount', 'Showing {shown} of {total}')
+        .replace('{shown}', String(shown))
+        .replace('{total}', String(branches.length));
+    }
+  }
+
   function rebakeBranchConditionAst(branch, conditionText) {
     const model = global.ProjectMapPredicateConditionModel;
     let ast = null;
@@ -2294,6 +2351,15 @@
       }
       setConditionalBranchState(branch, Boolean(evaler.evaluateAst(ast, runtimeState)));
     });
+    // If a "only branches that show" filter is active, re-run it so the visible
+    // set tracks the freshly evaluated what-if verdicts.
+    const filterToolbar = scope.querySelector('[data-conditional-filter]');
+    if (filterToolbar) {
+      const showsInput = filterToolbar.querySelector('[data-conditional-filter-shows]');
+      if (showsInput && showsInput.checked) {
+        applyConditionalFilter(filterToolbar);
+      }
+    }
   }
 
   function setConditionalBranchState(branch, active) {

@@ -129,6 +129,25 @@ assert(readOnlyHtml.indexOf('data-conditional-leaf-edit') === -1, 'a leaf withou
 assert(readOnlyHtml.indexOf('data-conditional-editable="true"') === -1, 'a read-only leaf must not be marked editable');
 assert(readOnlyHtml.indexOf('data-conditional-editable-count') === -1, 'a read-only layer must not show an editable-branch count');
 
+// Density governance (UX #2): a dense conditional layer renders a filter toolbar
+// (search input + live count) so authors can narrow a 30+ branch list; a small
+// layer stays toolbar-free; and no branch is silently truncated.
+const denseTree = [];
+for (let i = 0; i < 11; i += 1) {
+  denseTree.push({condition: 'Q.flag' + i + ' >= 1', text: 'Branch ' + i + ' prose.', children: []});
+}
+const denseHtml = previewObjectEditor.renderConditionalAlternatives({conditionalTree: denseTree}, {});
+assert(denseHtml.indexOf('data-conditional-filter="true"') !== -1, 'a dense conditional layer (>8 branches) must render the density filter toolbar');
+assert(denseHtml.indexOf('data-conditional-filter-input="true"') !== -1, 'the filter toolbar must expose a search input to narrow branches');
+assert(denseHtml.indexOf('data-conditional-filter-count="true"') !== -1, 'the filter toolbar must expose a live shown/total count');
+assert(denseHtml.indexOf('Showing 11 of 11') !== -1, 'the filter count must start by announcing every branch is shown');
+assert((denseHtml.match(/preview-object-conditional-branch"/g) || []).length >= 11, 'every dense-layer branch must render (no silent truncation under the raised cap)');
+// What-if dense layer also offers the "only branches that show" toggle.
+const denseWhatIfHtml = previewObjectEditor.renderConditionalAlternatives({conditionalTree: denseTree.map((n) => Object.assign({}, n, {condition: 'Q.metInspector >= 1'}))}, {});
+assert(denseWhatIfHtml.indexOf('data-conditional-filter-shows="true"') !== -1, 'a dense what-if layer must offer a "only branches that show" filter toggle');
+const sparseHtml = previewObjectEditor.renderConditionalAlternatives({conditionalTree: [{condition: 'Q.a >= 1', text: 'Only one.', children: []}]}, {});
+assert(sparseHtml.indexOf('data-conditional-filter') === -1, 'a short conditional layer must not render the filter toolbar');
+
 // What-if live refresh contract (P3b #2): editing a branch condition must re-bake
 // the predicate AST so the shows/hidden badge tracks the NEW condition rather than
 // the one baked at render. We pin the two halves the live wiring composes: (a)
@@ -160,6 +179,21 @@ assert(/setConditionalBranchState\(branch,\s*null\)/.test(canvasUiSource) && /ac
   'an unparseable edited condition must degrade the branch badge to the opaque/unknown state');
 assert(/handleConditionalConditionEdit\([^)]*\)[\s\S]{0,900}applyConditionalWhatIf\(scope\)/.test(canvasUiSource),
   'after re-baking, the condition-edit handler must re-run applyConditionalWhatIf over the what-if scope');
+
+// Density filter drift guard (UX #2): the filter handler must narrow top-level
+// branches by text + (when active) the live what-if shows state, listen for
+// change so the checkbox applies, and re-run an active shows-only filter when
+// the what-if state is recomputed so the visible set tracks new verdicts.
+assert(/handleConditionalFilterInput/.test(canvasUiSource) && /function applyConditionalFilter/.test(canvasUiSource),
+  'the canvas UI must wire a conditional-filter handler and applyConditionalFilter');
+assert(/data-conditional-filter-input/.test(canvasUiSource) && /is-filtered-out/.test(canvasUiSource),
+  'the filter handler must read the search input and toggle the is-filtered-out branch class');
+assert(/addEventListener\('change', handleConditionalFilterInput\)/.test(canvasUiSource),
+  'the filter handler must also listen for change so the shows-only checkbox applies');
+assert(/conditionalBranchState[\s\S]{0,80}!==\s*'active'/.test(canvasUiSource),
+  'the shows-only filter must hide branches whose live state is not active');
+assert(/applyConditionalWhatIf[\s\S]{0,600}data-conditional-filter[\s\S]{0,200}applyConditionalFilter/.test(canvasUiSource),
+  'recomputing the what-if state must re-run an active shows-only filter');
 
 // Inline validation drift guard (P3b #5): the leaf-validation handler must reuse
 // the shared describeInlineLeafValue gate, target the rendered note slot, and

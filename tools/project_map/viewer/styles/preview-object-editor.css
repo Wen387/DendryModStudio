@@ -1555,6 +1555,54 @@ input.preview-object-control[type="checkbox"] {
   border-left: 2px solid color-mix(in srgb, var(--accent) 38%, transparent);
 }
 
+/* Filter toolbar for dense conditional layers (density governance). */
+.preview-object-conditional-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 2px 0 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--surface-alt) 60%, var(--surface));
+}
+
+.preview-object-conditional-filter-input {
+  flex: 1 1 160px;
+  min-width: 120px;
+  font-family: inherit;
+  font-size: 0.9em;
+  padding: 4px 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 6px;
+  background: var(--surface);
+  color: inherit;
+}
+
+.preview-object-conditional-filter-shows {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.preview-object-conditional-filter-count {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 640;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* Branch hidden by the active filter. */
+.preview-object-conditional-branch.is-filtered-out {
+  display: none;
+}
+
 .preview-object-conditional-edit-field {
   display: flex;
   flex-direction: column;

@@ -1516,6 +1516,32 @@
     return total;
   }
 
+  // Dense conditional layers (30+ branches in one layer is common in large
+  // mods) get a filter toolbar so authors can narrow the list by text and, when
+  // the what-if simulator is live, to only the branches that currently show.
+  // Below the threshold the list is short enough that a toolbar is just noise.
+  var CONDITIONAL_FILTER_THRESHOLD = 8;
+  function renderConditionalFilterToolbar(tree, whatIf) {
+    const total = conditionalTreeRows(tree).length;
+    if (total <= CONDITIONAL_FILTER_THRESHOLD) {
+      return '';
+    }
+    const placeholder = t('previewObjectEditor.filterPlaceholder', 'Filter branches');
+    const showsToggle = whatIf
+      ? '<label class="preview-object-conditional-filter-shows"><input type="checkbox" data-conditional-filter-shows="true"><span>' + escapeHtml(t('previewObjectEditor.filterOnlyShows', 'Only branches that show')) + '</span></label>'
+      : '';
+    const countText = t('previewObjectEditor.filterCount', 'Showing {shown} of {total}')
+      .replace('{shown}', String(total))
+      .replace('{total}', String(total));
+    return [
+      '<div class="preview-object-conditional-filter" data-conditional-filter="true">',
+      '<input type="search" class="preview-object-conditional-filter-input" data-conditional-filter-input="true" placeholder="' + escapeAttr(placeholder) + '" aria-label="' + escapeAttr(placeholder) + '">',
+      showsToggle,
+      '<span class="preview-object-conditional-filter-count" data-conditional-filter-count="true" aria-live="polite">' + escapeHtml(countText) + '</span>',
+      '</div>'
+    ].join('');
+  }
+
   function renderConditionalLeafEditor(node) {
     if (!node || !node.editable || !node.textFieldId) {
       return '';
@@ -1551,7 +1577,10 @@
     }
     const opts = options || {};
     const level = Number(depth || 0);
-    const cap = level === 0 ? 24 : 12;
+    // Top-level layers render every branch (a single dense layer can hold 30+):
+    // the filter toolbar, not silent truncation, governs density so no branch is
+    // hidden behind a dead "More alternatives" line the author cannot reach.
+    const cap = level === 0 ? 120 : 12;
     const shown = rows.slice(0, cap);
     const hidden = rows.length - shown.length;
     return [
@@ -1610,6 +1639,7 @@
         '<details class="preview-object-conditional-alternatives preview-object-conditional-tree" open data-preview-object-conditional-alternatives="true" data-preview-object-conditional-tree="true"' + (whatIf ? ' data-conditional-whatif-scope="true"' : '') + '>',
         '<summary><span class="preview-object-conditional-summary-label">' + escapeHtml(t('previewObjectEditor.conditionalLayers', 'Conditional layers')) + '</span>' + editableChip + '</summary>',
         strip,
+        renderConditionalFilterToolbar(tree, whatIf),
         renderConditionalTree(tree, opts, 0, whatIf),
         '</details>'
       ].join('');
