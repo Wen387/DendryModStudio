@@ -3282,12 +3282,25 @@
     return '';
   }
 
+  // Memoized: id mapping calls safeId ~336k times but with only ~2k distinct
+  // inputs on a large event (99% repeats), and its three regex passes cost
+  // ~1.8s of self time. Pure string -> string, so cache it (bounded by the
+  // event/project id vocabulary, with a defensive size cap).
+  const safeIdCache = new Map();
   function safeId(value) {
+    const key = String(value);
+    if (safeIdCache.has(key)) {
+      return safeIdCache.get(key);
+    }
     const text = stringValue(value).trim()
       .replace(/^[@#]/, '')
       .replace(/[^A-Za-z0-9_]+/g, '_')
       .replace(/^_+|_+$/g, '');
-    return /^[A-Za-z_]/.test(text) ? text : 'draft_' + (text || 'item');
+    const result = /^[A-Za-z_]/.test(text) ? text : 'draft_' + (text || 'item');
+    if (safeIdCache.size < 100000) {
+      safeIdCache.set(key, result);
+    }
+    return result;
   }
 
   function optionalSafeId(value) {
