@@ -3809,21 +3809,23 @@
     // the rendered view.
     const hasConditionalLadder = Boolean(field && ensureArray(field.conditionalTree).length);
     const renderedPreview = hasConditionalLadder ? '' : fieldTextPreview(value, id, element, opts);
-    // When the per-branch ladder owns this field, its diagnostic chrome (status
-    // badge, condition/variable chips, the "When: ..." context hint, and the
-    // raw-source variable picker) just repeats what the ladder shows per branch,
-    // so suppress it here and let the ladder carry the meaning. The field label,
-    // context lens, and media badges stay so the row is still identifiable.
+    // Suppress the diagnostic chrome (status badge, condition/variable chips,
+    // "When: ..." context hint, raw-source variable picker) on conditional rows:
+    // a field that owns a ladder shows it per branch below, and a flat
+    // conditional leaf is already a terse one-line branch fragment that the
+    // chrome would bury. The field label, context lens, and media badges stay so
+    // the row is still identifiable.
+    const suppressFieldDiagnostics = hasConditionalLadder || isConditionalLeafField(field);
     return [
       '<label class="' + escapeAttr(className) + '" data-preview-object-field-role="' + escapeAttr(opts.role || 'field') + '"' + structureData + semanticData + '>',
       label ? renderEditorFieldLabel(label, rawLabel, presentation) : '',
       renderFieldContextLens(field, opts.role || 'field'),
       fieldVisualBadges(field),
-      hasConditionalLadder ? '' : renderSemanticStatusBadge(presentation, readOnly),
-      hasConditionalLadder || !fieldContextHint(field) ? '' : '<small class="preview-object-field-context">' + escapeHtml(fieldContextHint(field)) + '</small>',
-      hasConditionalLadder ? '' : fieldLogicChips(field),
+      suppressFieldDiagnostics ? '' : renderSemanticStatusBadge(presentation, readOnly),
+      suppressFieldDiagnostics || !fieldContextHint(field) ? '' : '<small class="preview-object-field-context">' + escapeHtml(fieldContextHint(field)) + '</small>',
+      suppressFieldDiagnostics ? '' : fieldLogicChips(field),
       control,
-      hasConditionalLadder ? '' : renderFieldVariablePicker(field, presentation, readOnly),
+      suppressFieldDiagnostics ? '' : renderFieldVariablePicker(field, presentation, readOnly),
       renderedPreview,
       field && field.status ? '<small>' + escapeHtml(statusLabel(field.status, readOnly)) + '</small>' : '',
       '</label>'

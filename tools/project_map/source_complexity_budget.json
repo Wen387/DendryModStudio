@@ -84,9 +84,9 @@
     },
     {
       "path": "tools/project_map/viewer/preview_object_editor.js",
-      "maxLines": 4897,
+      "maxLines": 4899,
       "allowRaise": true,
-      "reason": "Keep field rendering here; split domain sub-renderers into sibling modules. Raised 2026-06-04 from 4796 for condition-variable insert chips (UX #3), then to 4886 for the conditional-leaf ladder de-duplication (suppress redundant flat leaf rows, render one compact condition->text ladder + read-only preview ladder), then to 4892 for skipping the mashed all-branches inline preview on conditional-tree fields (ladder owns the per-branch rendered view), then to 4897 for suppressing redundant diagnostic chrome (status badge / logic chips / context hint / variable picker) on conditional-tree fields where the ladder already carries the meaning."
+      "reason": "Keep field rendering here; split domain sub-renderers into sibling modules. Raised 2026-06-04 from 4796 for condition-variable insert chips (UX #3), then to 4886 for the conditional-leaf ladder de-duplication (suppress redundant flat leaf rows, render one compact condition->text ladder + read-only preview ladder), then to 4892 for skipping the mashed all-branches inline preview on conditional-tree fields (ladder owns the per-branch rendered view), then to 4897 for suppressing redundant diagnostic chrome on conditional-tree fields, then to 4899 for extending that chrome suppression to flat conditional-leaf rows (status badge / logic chips / context hint / variable picker) while keeping their label + editable input."
     },
     {
       "path": "tools/project_map/viewer/styles/editing.css",
