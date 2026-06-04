@@ -110,6 +110,8 @@
   // The result is a pure function of the two endpoint strings. Only memoize
   // when both args are primitives (the array call shape goes through intersects
   // directly and is left untouched). Bounded by the id-pair vocabulary.
+  // Nested map (left -> right -> bool) avoids allocating a joined key string on
+  // every one of the millions of calls, which keeps GC pressure down.
   const endpointMatchPairCache = new Map();
   function endpointMatches(left, right) {
     const leftPrimitive = left == null || typeof left !== 'object';
@@ -117,13 +119,21 @@
     if (!leftPrimitive || !rightPrimitive) {
       return intersects(left, right);
     }
-    const key = String(left) + '\x00' + String(right);
-    if (endpointMatchPairCache.has(key)) {
-      return endpointMatchPairCache.get(key);
+    const leftKey = String(left);
+    const rightKey = String(right);
+    let byRight = endpointMatchPairCache.get(leftKey);
+    if (byRight) {
+      const cached = byRight.get(rightKey);
+      if (cached !== undefined) {
+        return cached;
+      }
+    } else if (endpointMatchPairCache.size < 20000) {
+      byRight = new Map();
+      endpointMatchPairCache.set(leftKey, byRight);
     }
     const result = intersects(left, right);
-    if (endpointMatchPairCache.size < 200000) {
-      endpointMatchPairCache.set(key, result);
+    if (byRight && byRight.size < 20000) {
+      byRight.set(rightKey, result);
     }
     return result;
   }
