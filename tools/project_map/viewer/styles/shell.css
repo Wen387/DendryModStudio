@@ -42,7 +42,7 @@ body[data-mode="create"] .topbar {
   border: 1px solid var(--accent);
   border-radius: 6px;
   background: var(--accent);
-  color: #ffffff;
+  color: var(--on-accent);
   font-weight: 650;
 }
 
@@ -54,8 +54,8 @@ body[data-mode="create"] .topbar {
 
 .drop-target.is-drag-over {
   border-color: var(--warn);
-  outline-color: #f3c767;
-  background: #7a4f06;
+  outline-color: var(--warn);
+  background: var(--warn-text);
 }
 
 .file-picker-label {
@@ -65,7 +65,7 @@ body[data-mode="create"] .topbar {
 .file-picker input {
   width: 220px;
   max-width: 34vw;
-  color: #ffffff;
+  color: var(--text);
 }
 
 .file-picker input::file-selector-button {
@@ -73,7 +73,7 @@ body[data-mode="create"] .topbar {
   border: 0;
   border-radius: 4px;
   padding: 4px 8px;
-  background: #ffffff;
+  background: var(--surface);
   color: var(--accent-strong);
   font-weight: 650;
 }

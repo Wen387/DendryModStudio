@@ -131,7 +131,7 @@
   border-radius: 8px 8px 0 0;
   overflow: auto;
   overscroll-behavior: contain;
-  background: #fff;
+  background: var(--surface);
   contain: paint;
   isolation: isolate;
 }
@@ -150,7 +150,7 @@
   min-width: var(--runtime-lens-frame-min-width);
   height: 100%;
   border: 0;
-  background: #fff;
+  background: var(--surface);
 }
 
 .runtime-lens-resize-grip {

@@ -16,7 +16,7 @@
   border: 1px solid var(--border);
   border-left: 0;
   border-radius: 0 7px 7px 0;
-  background: rgba(251, 250, 246, 0.98);
+  background: var(--surface);
   color: var(--accent-strong);
   font-size: 11px;
   font-weight: 850;
@@ -32,7 +32,7 @@
 .storyboard-palette-handle:hover,
 .storyboard-palette-handle:focus-visible {
   border-color: var(--accent);
-  background: #fffefa;
+  background: var(--surface);
   transform: translateX(1px);
 }
 
@@ -61,7 +61,7 @@
   border: 1px solid var(--border);
   border-left: 0;
   border-radius: 0 8px 8px 0;
-  background: rgba(248, 247, 242, 0.99);
+  background: var(--surface);
   box-shadow: 0 18px 42px rgba(31, 29, 24, 0.16);
   animation: storyboard-palette-enter var(--motion-medium, 180ms) var(--motion-ease, ease-out) both;
   transform-origin: left center;
@@ -477,23 +477,23 @@
 }
 
 .storyboard-palette-item-event {
-  --storyboard-palette-accent: #9d5a28;
+  --storyboard-palette-accent: var(--accent);
 }
 
 .storyboard-palette-item-news {
-  --storyboard-palette-accent: #4c7a8a;
+  --storyboard-palette-accent: var(--info);
 }
 
 .storyboard-palette-item-card {
-  --storyboard-palette-accent: #7a6a32;
+  --storyboard-palette-accent: var(--warn-text);
 }
 
 .storyboard-palette-item-advisor {
-  --storyboard-palette-accent: #765b8e;
+  --storyboard-palette-accent: var(--violet);
 }
 
 .storyboard-palette-item-state {
-  --storyboard-palette-accent: #45705f;
+  --storyboard-palette-accent: var(--success);
 }
 
 .storyboard-palette-item-draft {
@@ -513,7 +513,7 @@
 .storyboard-palette-item:focus-visible {
   border-color: var(--accent);
   border-left-color: var(--storyboard-palette-accent, var(--accent));
-  background: #fffefa;
+  background: var(--surface);
 }
 
 .storyboard-palette-item-type {

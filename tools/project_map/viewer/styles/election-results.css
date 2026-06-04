@@ -8,19 +8,19 @@
   overflow: visible;
   background:
     linear-gradient(90deg, rgba(224, 218, 195, 0.24), rgba(255, 255, 255, 0) 18% 82%, rgba(201, 214, 204, 0.18)),
-    #f8f7f2;
+    var(--surface);
 }
 
 .system-election-results-header {
   justify-items: center;
   padding: 8px 10px 12px;
-  border-bottom: 1px solid #d4cab7;
+  border-bottom: 1px solid var(--border);
   text-align: center;
 }
 
 .system-election-results-header h1 {
   margin: 0;
-  color: #3f3522;
+  color: var(--text);
   font-family: Georgia, "Times New Roman", serif;
   font-size: 34px;
   letter-spacing: 0;
@@ -29,7 +29,7 @@
 
 .system-election-results-header p {
   margin: 2px 0 0;
-  color: #786f5f;
+  color: var(--muted);
   font-family: Georgia, "Times New Roman", serif;
   font-size: 17px;
 }
@@ -66,14 +66,14 @@
   width: 13px;
   height: 13px;
   flex: 0 0 13px;
-  border: 1px solid #17130f;
+  border: 1px solid var(--text);
   border-radius: 999px;
-  background: var(--party-color, #999999);
+  background: var(--party-color, var(--muted));
 }
 
 .system-election-results-chart-region small {
   justify-self: center;
-  color: #756d5d;
+  color: var(--muted);
   font-family: Georgia, "Times New Roman", serif;
 }
 
@@ -81,7 +81,7 @@
   display: grid;
   gap: 4px;
   font-family: Georgia, "Times New Roman", serif;
-  color: #3f3522;
+  color: var(--text);
 }
 
 .system-election-table-head,
@@ -93,7 +93,7 @@
 }
 
 .system-election-table-head {
-  color: #5f5544;
+  color: var(--muted);
   font-size: 15px;
   font-weight: 700;
 }
@@ -115,7 +115,7 @@
   height: 18px;
   flex: 0 0 18px;
   border: 1px solid rgba(31, 29, 24, 0.58);
-  background: var(--party-color, #999999);
+  background: var(--party-color, var(--muted));
 }
 
 .system-election-delta {
@@ -123,17 +123,17 @@
 }
 
 .system-election-delta.is-positive {
-  color: #52bc4f;
+  color: var(--success-text);
 }
 
 .system-election-delta.is-negative {
-  color: #ed4431;
+  color: var(--danger);
 }
 
 .system-election-coalitions {
   display: grid;
   gap: 10px;
-  color: #3f3522;
+  color: var(--text);
   font-family: Georgia, "Times New Roman", serif;
   font-size: 19px;
   line-height: 1.35;
@@ -154,21 +154,21 @@
 }
 
 .system-election-coalition-row small {
-  color: #756d5d;
+  color: var(--muted);
 }
 
 .system-election-party-name {
-  color: var(--party-color, #3f3522);
+  color: var(--party-color, var(--text));
   font-weight: 800;
 }
 
 .system-election-plus {
-  color: #786f5f;
+  color: var(--muted);
 }
 
 .system-election-choice-list {
   display: grid;
-  border: 1px solid #887d6a;
+  border: 1px solid var(--muted);
   border-radius: 4px;
   overflow: hidden;
   font-family: Georgia, "Times New Roman", serif;
@@ -179,17 +179,17 @@
   grid-template-columns: 34px minmax(0, 1fr);
   gap: 8px 12px;
   padding: 13px 12px;
-  color: #9c1f11;
-  background: #fbfaf6;
+  color: var(--danger);
+  background: var(--surface);
 }
 
 .system-election-choice + .system-election-choice {
-  border-top: 1px solid #887d6a;
+  border-top: 1px solid var(--muted);
 }
 
 .system-election-choice.is-disabled {
-  color: #9a9a96;
-  background: #deddda;
+  color: var(--muted);
+  background: var(--border);
 }
 
 .system-election-choice-index {
@@ -199,12 +199,12 @@
   height: 26px;
   border-radius: 999px;
   background: rgba(166, 75, 42, 0.11);
-  color: #9c1f11;
+  color: var(--danger);
   font-weight: 800;
 }
 
 .system-election-choice.is-disabled .system-election-choice-index {
-  color: #9a9a96;
+  color: var(--muted);
   background: rgba(255, 255, 255, 0.42);
 }
 
@@ -221,7 +221,7 @@
 
 .system-election-choice em {
   grid-column: 2;
-  color: #3f3522;
+  color: var(--text);
   font-size: 18px;
   font-style: italic;
 }
@@ -247,7 +247,7 @@
   padding: 4px 8px;
   border: 1px solid var(--border-soft);
   border-radius: 999px;
-  background: rgba(251, 250, 246, 0.72);
+  background: var(--surface);
   color: var(--muted);
   font-size: 11px;
   font-weight: 800;
@@ -268,7 +268,7 @@
 
 .election-results-preview-panel {
   border-right: 1px solid var(--border);
-  background: linear-gradient(180deg, #f5f5ee, #e7e6d8);
+  background: linear-gradient(180deg, var(--surface), var(--surface-alt));
 }
 
 .election-results-paper {
@@ -277,8 +277,8 @@
   max-width: 860px;
   margin: 10px auto 16px;
   padding: 34px 42px;
-  border: 1px solid #d4cab7;
-  background: #fbfaf6;
+  border: 1px solid var(--border);
+  background: var(--surface);
   box-shadow: 0 16px 38px rgba(31, 29, 24, 0.11);
 }
 
@@ -287,7 +287,7 @@
   justify-items: center;
   gap: 5px;
   padding-bottom: 16px;
-  border-bottom: 1px solid #d4cab7;
+  border-bottom: 1px solid var(--border);
   text-align: center;
 }
 
@@ -304,7 +304,7 @@
 
 .election-results-paper-header h1 {
   margin: 0;
-  color: #3f3522;
+  color: var(--text);
   font-family: Georgia, "Times New Roman", serif;
   font-size: 37px;
   letter-spacing: 0;
@@ -313,7 +313,7 @@
 
 .election-results-paper-header p {
   margin: 0;
-  color: #786f5f;
+  color: var(--muted);
   font-family: Georgia, "Times New Roman", serif;
   font-size: 18px;
 }
@@ -329,7 +329,7 @@
   min-width: 0;
   border: 1px solid var(--border-soft);
   border-radius: 8px;
-  background: rgba(255, 254, 250, 0.82);
+  background: var(--surface);
 }
 
 .election-results-chart-card,
@@ -344,7 +344,7 @@
 }
 
 .election-results-chart-card small {
-  color: #756d5d;
+  color: var(--muted);
   font-family: Georgia, "Times New Roman", serif;
 }
 
@@ -366,7 +366,7 @@
 }
 
 .election-results-coalition-card {
-  color: #3f3522;
+  color: var(--text);
   font-family: Georgia, "Times New Roman", serif;
   font-size: 19px;
   line-height: 1.35;
@@ -401,8 +401,8 @@
   max-width: 100%;
   padding: 3px 7px;
   border-radius: 999px;
-  background: #eee8dd;
-  color: #7b3a22;
+  background: var(--surface-alt);
+  color: var(--accent-strong);
   font-family: var(--font-mono);
   font-size: 12px;
   overflow-wrap: anywhere;
@@ -411,7 +411,7 @@
 .election-results-logic-card p,
 .system-election-choice p {
   margin: 0;
-  color: #554d3f;
+  color: var(--text);
   line-height: 1.45;
 }
 
@@ -441,7 +441,7 @@
   display: grid;
   align-content: start;
   gap: 12px;
-  background: #efede4;
+  background: var(--surface-alt);
 }
 
 .election-results-source-selector {

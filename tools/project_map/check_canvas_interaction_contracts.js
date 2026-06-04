@@ -315,7 +315,7 @@ function checkReviewAndLensContracts() {
   contains(installCss, '.install-human-op details', 'Review & Apply details style');
   contains(installAssistant, 'confirmEnableAdvanced()', 'Install assistant should confirm before enabling advanced operations');
   contains(installAssistant, 'install.confirmEnableAdvanced', 'Install assistant should explain advanced-operation risk');
-  contains(installCss, 'background: #fff7d6', 'Advanced operation toggle should use a visible but restrained warning block');
+  contains(installCss, 'background: var(--warn-soft)', 'Advanced operation toggle should use a visible but restrained warning block');
   contains(installCss, '.install-advanced-toggle.is-disabled', 'Advanced operation toggle should stay visible but disabled when no advanced operations exist');
   contains(installCss, '.wizard-actions.install-actions', 'Install action bar should override generic wizard action layout');
   contains(read('viewer/index.html'), 'class="install-action-icon" data-ui-icon="search"', 'Install action buttons should include inline icons');

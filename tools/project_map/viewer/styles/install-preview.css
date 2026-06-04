@@ -83,9 +83,9 @@
   gap: 7px;
   justify-items: stretch;
   padding: 10px 12px;
-  border: 1px solid #ddd2c1;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: rgba(255, 250, 241, .72);
+  background: var(--surface);
 }
 
 .install-plan-file-input {
@@ -105,7 +105,7 @@
 }
 
 .install-context-label {
-  color: #8c6f4b;
+  color: var(--muted);
   font-size: 11px;
   font-weight: 850;
   letter-spacing: .04em;
@@ -129,7 +129,7 @@
 
 .install-context-path {
   min-width: 0;
-  color: #5f4a32;
+  color: var(--muted);
   font-size: 12px;
   line-height: 1.35;
   white-space: normal;
@@ -181,9 +181,9 @@
 }
 
 .install-flow {
-  border: 1px solid #ddd2c1;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fffaf1;
+  background: var(--surface);
   padding: 10px;
 }
 
@@ -202,27 +202,27 @@
   gap: 9px;
   align-items: flex-start;
   padding: 9px;
-  border: 1px solid #ded4c2;
+  border: 1px solid var(--border);
   border-radius: 7px;
   background: rgba(255, 255, 255, .7);
   color: var(--muted);
 }
 
 .install-flow-step.is-active {
-  border-color: #b56a3f;
-  background: #fff7ed;
+  border-color: var(--accent);
+  background: var(--warn-soft);
   color: var(--text);
 }
 
 .install-flow-step.is-done {
-  border-color: #b5cfbc;
-  background: #f3faf4;
+  border-color: var(--success-border);
+  background: var(--success-soft);
 }
 
 .install-flow-step.is-blocked {
-  border-color: #e2ad96;
-  background: #fff4ef;
-  color: #7b2e16;
+  border-color: var(--danger-border);
+  background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .install-flow-index {
@@ -261,7 +261,7 @@
 
 .install-next-card,
 .install-empty-panel {
-  border: 1px solid #ddd2c1;
+  border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
   box-shadow: 0 8px 22px rgba(66, 50, 30, .08);
@@ -290,9 +290,9 @@
   place-items: center;
   width: 34px;
   height: 34px;
-  border: 1px solid #decfb8;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #f6efe2;
+  background: var(--surface-alt);
   color: var(--accent);
 }
 
@@ -303,7 +303,7 @@
 }
 
 .install-next-copy small {
-  color: #8c6f4b;
+  color: var(--muted);
   font-size: 11px;
   font-weight: 850;
   letter-spacing: .06em;
@@ -348,15 +348,15 @@
 
 .install-next-card button:hover,
 .install-empty-option button:hover {
-  border-color: #b56a3f;
-  background: #fff7ed;
+  border-color: var(--accent);
+  background: var(--warn-soft);
 }
 
 .install-next-card button.primary-action,
 .install-empty-option button.primary-action {
   border-color: var(--accent);
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .install-empty-panel {
@@ -388,9 +388,9 @@
   gap: 8px;
   align-content: start;
   padding: 12px;
-  border: 1px solid #ddd2c1;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fffefa;
+  background: var(--surface);
 }
 
 .install-empty-option-icon {
@@ -416,24 +416,24 @@
 }
 
 .install-summary-safe {
-  border-color: #adcdb7;
-  background: #eff8f1;
+  border-color: var(--success-border);
+  background: var(--success-soft);
 }
 
 .install-summary-guarded {
-  border-color: #b9c9e6;
-  background: #f1f6ff;
+  border-color: var(--info-border);
+  background: var(--info-soft);
 }
 
 .install-summary-advanced,
 .install-summary-manual {
-  border-color: #e0c581;
-  background: #fff5d6;
+  border-color: var(--warn-border);
+  background: var(--warn-soft);
 }
 
 .install-summary-refused {
-  border-color: #e7b7a4;
-  background: #fff1eb;
+  border-color: var(--danger-border);
+  background: var(--danger-soft);
 }
 
 .install-summary-value {
@@ -469,9 +469,9 @@
   justify-content: space-between;
   gap: 12px;
   padding: 14px;
-  border: 1px solid #decfb8;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fffaf1;
+  background: var(--surface);
 }
 
 .event-workbench-header h2 {
@@ -488,7 +488,7 @@
 
 .event-workbench-eyebrow,
 .event-workbench-section-title {
-  color: #8c6f4b;
+  color: var(--muted);
   font-size: 11px;
   font-weight: 800;
   letter-spacing: .08em;
@@ -510,10 +510,10 @@
   align-items: center;
   width: fit-content;
   padding: 4px 8px;
-  border: 1px solid #d8cbb7;
+  border: 1px solid var(--border);
   border-radius: 6px;
-  background: #f6efe2;
-  color: #69563d;
+  background: var(--surface-alt);
+  color: var(--muted);
   font-size: 12px;
 }
 
@@ -524,13 +524,13 @@
 
 .event-workbench-collapsible {
   padding: 10px;
-  border: 1px solid #d9ceb9;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fffaf1;
+  background: var(--surface);
 }
 
 .event-workbench-collapsible[open] {
-  background: #fffdf7;
+  background: var(--surface);
 }
 
 .event-workbench-collapsible summary {
@@ -551,10 +551,10 @@
   place-items: center;
   width: 18px;
   height: 18px;
-  border: 1px solid #d8cbb7;
+  border: 1px solid var(--border);
   border-radius: 5px;
-  background: #f6efe2;
-  color: #6d5536;
+  background: var(--surface-alt);
+  color: var(--muted);
   font-size: 12px;
   font-weight: 900;
   line-height: 1;
@@ -565,7 +565,7 @@
 }
 
 .event-workbench-collapsible summary:focus-visible {
-  outline: 2px solid #b56a3f;
+  outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
 
@@ -586,10 +586,10 @@
   min-width: 24px;
   height: 22px;
   padding: 0 7px;
-  border: 1px solid #d8cbb7;
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: #f6efe2;
-  color: #69563d;
+  background: var(--surface-alt);
+  color: var(--muted);
   font-size: 11px;
   font-weight: 800;
   line-height: 1;
@@ -602,9 +602,9 @@
   display: grid;
   gap: 5px;
   padding: 10px;
-  border: 1px solid #d9ceb9;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fffdf7;
+  background: var(--surface);
 }
 
 .event-workbench-action-row {
@@ -626,8 +626,8 @@
 
 .event-workbench-action-row button:hover,
 .event-workbench-action-row button:focus-visible {
-  background: #f5ead9;
-  outline: 2px solid #b56a3f;
+  background: var(--warn-soft);
+  outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
 
@@ -675,7 +675,7 @@
   align-items: flex-start;
   flex-direction: column;
   width: auto;
-  background: #f3f7ee;
+  background: var(--success-soft);
 }
 
 .event-workbench-effect-row,
@@ -684,9 +684,9 @@
   grid-template-columns: minmax(120px, .8fr) minmax(0, 1fr) auto;
   align-items: center;
   padding: 8px;
-  border: 1px solid #d8cbb7;
+  border: 1px solid var(--border);
   border-radius: 6px;
-  background: #fcf8ee;
+  background: var(--surface);
 }
 
 .event-workbench-effect-row strong,
@@ -696,19 +696,19 @@
 
 .event-workbench-empty {
   padding: 10px;
-  border: 1px dashed #d8cbb7;
+  border: 1px dashed var(--border);
   border-radius: 6px;
   color: var(--muted);
 }
 
 .event-workbench-advanced {
   border-style: dashed;
-  background: #fbf7ef;
+  background: var(--surface);
 }
 
 .event-workbench-advanced summary {
   cursor: pointer;
-  color: #6d5536;
+  color: var(--muted);
   font-weight: 700;
 }
 
@@ -724,10 +724,10 @@
   gap: 8px;
   min-height: 34px;
   padding: 6px 10px;
-  border: 1px solid #e6c36a;
+  border: 1px solid var(--warn-border);
   border-radius: 6px;
-  background: #fff7d6;
-  color: #5f3b00;
+  background: var(--warn-soft);
+  color: var(--warn-text);
   font-size: 13px;
   line-height: 1.25;
   box-shadow: 0 1px 2px rgba(92, 51, 0, 0.08);
@@ -741,12 +741,12 @@
 .install-advanced-toggle input {
   width: 15px;
   height: 15px;
-  accent-color: #b45309;
+  accent-color: var(--warn);
 }
 
 .install-advanced-toggle.is-disabled {
   border-color: var(--border);
-  background: #f8f5ee;
+  background: var(--surface);
   color: var(--muted);
   cursor: not-allowed;
   box-shadow: none;
@@ -757,18 +757,18 @@
 }
 
 .install-advanced-toggle:hover {
-  border-color: #d99d31;
-  background: #fff1b8;
+  border-color: var(--warn-border);
+  background: var(--warn-soft);
 }
 
 .install-advanced-toggle.is-disabled:hover {
   border-color: var(--border);
-  background: #f8f5ee;
+  background: var(--surface);
 }
 
 .install-advanced-toggle:has(input:checked) {
-  border-color: #c97316;
-  background: #ffed9f;
+  border-color: var(--warn-border);
+  background: var(--warn-soft);
 }
 
 .install-actions[hidden],
@@ -791,9 +791,9 @@
   align-items: center;
   gap: 8px;
   padding: 10px;
-  border: 1px solid #ddd2c1;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: rgba(255, 254, 250, .96);
+  background: var(--surface);
   box-shadow: 0 10px 24px rgba(66, 50, 30, .12);
   backdrop-filter: blur(6px);
 }
@@ -866,9 +866,9 @@
   gap: 12px;
   align-items: center;
   padding: 10px;
-  border: 1px solid #ded4c2;
+  border: 1px solid var(--border);
   border-radius: 6px;
-  background: #fffaf1;
+  background: var(--surface);
 }
 
 .install-empty-help {
@@ -912,24 +912,24 @@
 }
 
 .install-human-safe-apply {
-  border-color: #adcdb7;
-  background: #f3faf4;
+  border-color: var(--success-border);
+  background: var(--success-soft);
 }
 
 .install-human-guarded-apply {
-  border-color: #b9c9e6;
-  background: #f4f8ff;
+  border-color: var(--info-border);
+  background: var(--info-soft);
 }
 
 .install-human-advanced-apply,
 .install-human-manual-review {
-  border-color: #e0c581;
-  background: #fff8df;
+  border-color: var(--warn-border);
+  background: var(--warn-soft);
 }
 
 .install-human-refused {
-  border-color: #e7b7a4;
-  background: #fff4ef;
+  border-color: var(--danger-border);
+  background: var(--danger-soft);
 }
 
 .install-human-ops {
@@ -970,14 +970,14 @@
 .install-op-result-applied,
 .install-op-result-already-applied,
 .install-op-result-would-apply {
-  border-color: #a8c8b0;
-  background: #edf8ef;
-  color: #2c6a45;
+  border-color: var(--success-border);
+  background: var(--success-soft);
+  color: var(--success-text);
 }
 
 .install-op-result-failed {
-  border-color: #e7b7a4;
-  background: #fff4ef;
+  border-color: var(--danger-border);
+  background: var(--danger-soft);
   color: var(--danger);
 }
 
@@ -1013,7 +1013,7 @@
   overflow: auto;
   border: 1px solid rgba(0, 0, 0, .08);
   border-radius: 5px;
-  background: rgba(255, 254, 250, .88);
+  background: var(--surface);
   color: var(--text);
   font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   white-space: pre-wrap;
@@ -1039,13 +1039,13 @@
   display: grid;
   gap: 6px;
   padding: 7px;
-  border: 1px solid #c7d7c9;
+  border: 1px solid var(--success-border);
   border-radius: 5px;
-  background: #f4fbf5;
+  background: var(--success-soft);
 }
 
 .install-op-evidence-title {
-  color: #2d6843;
+  color: var(--success-text);
   font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
@@ -1087,7 +1087,7 @@
   padding: 7px;
   border: 1px solid rgba(59, 90, 138, .18);
   border-radius: 5px;
-  background: rgba(246, 249, 255, .72);
+  background: var(--info-soft);
 }
 
 .install-dry-run-recap {
@@ -1146,7 +1146,7 @@
 }
 
 .install-op-confidence-title {
-  color: #304f82;
+  color: var(--info-text);
   font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
@@ -1154,7 +1154,7 @@
 
 .install-runtime-recommendation {
   border-color: rgba(181, 106, 63, .24);
-  background: rgba(255, 248, 237, .72);
+  background: var(--warn-soft);
 }
 
 .install-human-none {
@@ -1188,9 +1188,9 @@
 
 .runtime-preview-empty {
   padding: 10px;
-  border: 1px dashed #d8cbb7;
+  border: 1px dashed var(--border);
   border-radius: 6px;
-  background: #fffaf1;
+  background: var(--surface);
   color: var(--muted);
 }
 
@@ -1198,29 +1198,29 @@
   display: grid;
   gap: 10px;
   padding: 10px;
-  border: 1px solid #d8cbb7;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fffefa;
+  background: var(--surface);
 }
 
 .runtime-preview-card.is-ready {
-  border-color: #adcdb7;
-  background: #f3faf4;
+  border-color: var(--success-border);
+  background: var(--success-soft);
 }
 
 .runtime-preview-card.is-pending {
-  border-color: #c8b68f;
-  background: #fff9ec;
+  border-color: var(--border);
+  background: var(--warn-soft);
 }
 
 .runtime-preview-card.is-ended {
-  border-color: #d8cbb7;
-  background: #f8f4eb;
+  border-color: var(--border);
+  background: var(--surface);
 }
 
 .runtime-preview-card.is-error {
-  border-color: #e7b7a4;
-  background: #fff4ef;
+  border-color: var(--danger-border);
+  background: var(--danger-soft);
 }
 
 .runtime-preview-card header {
@@ -1269,8 +1269,8 @@
 
 .runtime-preview-actions button:hover,
 .runtime-preview-links a:hover {
-  border-color: #b56a3f;
-  background: #fff7ed;
+  border-color: var(--accent);
+  background: var(--warn-soft);
 }
 
 .runtime-preview-progress {
@@ -1285,7 +1285,7 @@
 .runtime-preview-progress progress {
   width: 100%;
   height: 12px;
-  accent-color: #b56a3f;
+  accent-color: var(--accent);
 }
 
 .runtime-preview-ended-note {

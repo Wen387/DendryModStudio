@@ -1,25 +1,25 @@
 {
   "note": "Baseline ratchet for raw CSS color literals. Fail only on NEW additions; lower counts and re-run with --update-baseline to tighten.",
   "counts": {
-    "assets.css": 20,
+    "assets.css": 1,
     "base.css": 1,
     "card-board.css": 2,
-    "content-storyboard-palette.css": 11,
+    "content-storyboard-palette.css": 2,
     "content-storyboard.css": 21,
     "create.css": 3,
     "design.css": 10,
     "dialogs.css": 7,
-    "editing.css": 149,
-    "election-results.css": 47,
+    "editing.css": 53,
+    "election-results.css": 7,
     "explore.css": 1,
     "guided-tour.css": 8,
-    "install-preview.css": 124,
+    "install-preview.css": 18,
     "meaning.css": 0,
-    "preview-object-editor.css": 84,
+    "preview-object-editor.css": 49,
     "responsive.css": 0,
     "route-script-review.css": 0,
-    "runtime-lens.css": 3,
-    "shell.css": 7,
+    "runtime-lens.css": 1,
+    "shell.css": 2,
     "welcome.css": 14
   }
 }

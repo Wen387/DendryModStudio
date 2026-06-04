@@ -75,7 +75,7 @@
   padding: 16px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fffefa;
+  background: var(--surface);
 }
 
 .preview-object-card-shell {
@@ -617,8 +617,8 @@ input.preview-object-control[type="checkbox"] {
 }
 
 .object-canvas-asset-slot.is-audio-slot {
-  border-left: 3px solid #8b6cc1;
-  background: color-mix(in srgb, #8b6cc1 6%, var(--surface));
+  border-left: 3px solid var(--violet);
+  background: color-mix(in srgb, var(--violet) 6%, var(--surface));
 }
 
 .object-canvas-audio-modifier-toggles {
@@ -646,8 +646,8 @@ input.preview-object-control[type="checkbox"] {
   gap: 3px;
   padding: 1px 6px;
   border-radius: 4px;
-  background: color-mix(in srgb, #8b6cc1 10%, var(--surface));
-  color: #5b3d8f;
+  background: color-mix(in srgb, var(--violet) 10%, var(--surface));
+  color: var(--violet);
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
@@ -655,7 +655,7 @@ input.preview-object-control[type="checkbox"] {
 }
 
 .object-canvas-audio-modifier-toggles label:has(input:checked) {
-  background: color-mix(in srgb, #8b6cc1 24%, var(--surface));
+  background: color-mix(in srgb, var(--violet) 24%, var(--surface));
   font-weight: 700;
 }
 
@@ -663,7 +663,7 @@ input.preview-object-control[type="checkbox"] {
   width: 12px;
   height: 12px;
   margin: 0;
-  accent-color: #8b6cc1;
+  accent-color: var(--violet);
 }
 
 .audio-modifier-badges {
@@ -676,8 +676,8 @@ input.preview-object-control[type="checkbox"] {
   display: inline-block;
   padding: 1px 7px;
   border-radius: 4px;
-  background: color-mix(in srgb, #8b6cc1 18%, var(--surface));
-  color: #5b3d8f;
+  background: color-mix(in srgb, var(--violet) 18%, var(--surface));
+  color: var(--violet);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -692,7 +692,7 @@ input.preview-object-control[type="checkbox"] {
   gap: 6px;
   font-size: 12px;
   font-weight: 700;
-  color: #8b6cc1;
+  color: var(--violet);
 }
 
 .audio-playlist-tracks {
@@ -710,7 +710,7 @@ input.preview-object-control[type="checkbox"] {
   gap: 3px;
   padding: 4px 8px;
   border-radius: 6px;
-  background: color-mix(in srgb, #8b6cc1 5%, var(--surface));
+  background: color-mix(in srgb, var(--violet) 5%, var(--surface));
   counter-increment: track;
 }
 
@@ -741,7 +741,7 @@ input.preview-object-control[type="checkbox"] {
   padding: 10px 16px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: color-mix(in srgb, var(--studio-accent, #c4956a) 10%, var(--surface));
+  background: color-mix(in srgb, var(--studio-accent) 10%, var(--surface));
   color: var(--text);
   font-size: 14px;
   font-weight: 720;
@@ -755,7 +755,7 @@ input.preview-object-control[type="checkbox"] {
 .object-canvas-expand-assets-btn:hover,
 .object-canvas-expand-assets-btn:focus-visible {
   border-color: var(--accent);
-  background: color-mix(in srgb, var(--studio-accent, #c4956a) 20%, var(--surface));
+  background: color-mix(in srgb, var(--studio-accent) 20%, var(--surface));
 }
 
 .object-canvas-asset-picker-control {
@@ -808,10 +808,10 @@ input.preview-object-control[type="checkbox"] {
 .object-canvas-asset-remove-control {
   justify-self: start;
   min-width: 0;
-  border: 1px solid color-mix(in srgb, var(--danger, #b84a4a) 55%, var(--border));
+  border: 1px solid color-mix(in srgb, var(--danger, var(--danger)) 55%, var(--border));
   border-radius: 7px;
-  background: color-mix(in srgb, var(--danger, #b84a4a) 8%, var(--surface));
-  color: var(--danger, #9f3131);
+  background: color-mix(in srgb, var(--danger, var(--danger)) 8%, var(--surface));
+  color: var(--danger, var(--danger));
   font: inherit;
   font-size: 12px;
   font-weight: 720;
@@ -820,18 +820,18 @@ input.preview-object-control[type="checkbox"] {
 
 .object-canvas-asset-remove-control:hover,
 .object-canvas-asset-remove-control:focus-visible {
-  background: color-mix(in srgb, var(--danger, #b84a4a) 14%, var(--surface));
+  background: color-mix(in srgb, var(--danger, var(--danger)) 14%, var(--surface));
 }
 
 .object-canvas-asset-remove-control.is-pending-removal {
-  border-color: color-mix(in srgb, var(--accent, #2f6f57) 55%, var(--border));
-  background: color-mix(in srgb, var(--accent, #2f6f57) 9%, var(--surface));
-  color: var(--accent-strong, #245a46);
+  border-color: color-mix(in srgb, var(--accent, var(--success-text)) 55%, var(--border));
+  background: color-mix(in srgb, var(--accent, var(--success-text)) 9%, var(--surface));
+  color: var(--accent-strong, var(--success-text));
 }
 
 .object-canvas-asset-remove-control.is-pending-removal:hover,
 .object-canvas-asset-remove-control.is-pending-removal:focus-visible {
-  background: color-mix(in srgb, var(--accent, #2f6f57) 15%, var(--surface));
+  background: color-mix(in srgb, var(--accent, var(--success-text)) 15%, var(--surface));
 }
 
 .object-canvas-asset-row {
@@ -1477,8 +1477,8 @@ input.preview-object-control[type="checkbox"] {
 }
 
 .preview-object-conditional-state.is-active {
-  background: color-mix(in srgb, var(--success, #2e7d32) 18%, var(--surface));
-  color: var(--success, #2e7d32);
+  background: color-mix(in srgb, var(--success, var(--success-text)) 18%, var(--surface));
+  color: var(--success, var(--success-text));
 }
 
 .preview-object-conditional-state.is-hidden {
@@ -1603,6 +1603,39 @@ input.preview-object-control[type="checkbox"] {
   display: none;
 }
 
+/* One-click variable inserts under a condition input (demystify raw syntax). */
+.preview-object-conditional-var-insert {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.preview-object-conditional-var-insert-label {
+  font-size: 11px;
+  color: var(--muted);
+  margin-right: 2px;
+}
+
+.preview-object-conditional-var-token {
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 11px;
+  padding: 1px 7px;
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border-soft));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  color: var(--accent-strong, var(--accent));
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.preview-object-conditional-var-token:hover,
+.preview-object-conditional-var-token:focus-visible {
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border-soft));
+}
+
 .preview-object-conditional-edit-field {
   display: flex;
   flex-direction: column;
@@ -1628,8 +1661,8 @@ input.preview-object-control[type="checkbox"] {
 }
 
 .preview-object-conditional-edit-input.is-leaf-invalid {
-  border-color: var(--danger, #d04545);
-  background: color-mix(in srgb, var(--danger, #d04545) 8%, var(--surface));
+  border-color: var(--danger, var(--danger));
+  background: color-mix(in srgb, var(--danger, var(--danger)) 8%, var(--surface));
 }
 
 .preview-object-conditional-edit-note {
@@ -1637,7 +1670,7 @@ input.preview-object-control[type="checkbox"] {
   margin-top: 3px;
   font-size: 0.82em;
   line-height: 1.35;
-  color: var(--danger, #d04545);
+  color: var(--danger, var(--danger));
 }
 
 .preview-object-conditional-edit-note[hidden] {
@@ -1804,7 +1837,7 @@ input.preview-object-control[type="checkbox"] {
 .preview-object-structure-builder.preview-object-action-add_trigger_effect,
 .preview-object-structure-builder.preview-object-action-add_option_effect {
   border-left-color: var(--success);
-  background: color-mix(in srgb, #edf7ef 58%, var(--surface));
+  background: color-mix(in srgb, var(--success-soft) 58%, var(--surface));
 }
 
 .preview-object-inline-add {
@@ -1926,7 +1959,7 @@ input.preview-object-control[type="checkbox"] {
   padding: 7px 9px;
   border: 1px solid color-mix(in srgb, var(--danger) 24%, var(--border));
   border-radius: 8px;
-  background: color-mix(in srgb, #fff1ee 42%, var(--surface));
+  background: color-mix(in srgb, var(--danger-soft) 42%, var(--surface));
   color: var(--text);
 }
 
@@ -1970,7 +2003,7 @@ input.preview-object-control[type="checkbox"] {
   padding: 8px 9px;
   border: 1px solid color-mix(in srgb, var(--success) 18%, var(--border-soft));
   border-radius: 8px;
-  background: color-mix(in srgb, #edf7ef 36%, var(--surface));
+  background: color-mix(in srgb, var(--success-soft) 36%, var(--surface));
 }
 
 .preview-object-choice-effects h5 {
@@ -2005,7 +2038,7 @@ input.preview-object-control[type="checkbox"] {
 .preview-object-creation-grid .preview-object-action-add_trigger_effect,
 .preview-object-creation-grid .preview-object-action-add_option_effect {
   border-left-color: var(--success);
-  background: color-mix(in srgb, #edf7ef 58%, var(--surface));
+  background: color-mix(in srgb, var(--success-soft) 58%, var(--surface));
 }
 
 .preview-object-creation-grid .preview-object-action-remove_option,
@@ -2013,12 +2046,12 @@ input.preview-object-control[type="checkbox"] {
 .preview-object-creation-grid .preview-object-action-remove_layer,
 .preview-object-creation-grid .preview-object-action-remove_effect {
   border-left-color: var(--danger);
-  background: color-mix(in srgb, #fff1ee 54%, var(--surface));
+  background: color-mix(in srgb, var(--danger-soft) 54%, var(--surface));
 }
 
 .preview-object-creation-grid .preview-object-action-remove_option_condition {
   border-left-color: var(--warn);
-  background: color-mix(in srgb, #fff7e7 54%, var(--surface));
+  background: color-mix(in srgb, var(--warn-soft) 54%, var(--surface));
 }
 
 .preview-object-effect-group > strong {
@@ -2036,7 +2069,7 @@ input.preview-object-control[type="checkbox"] {
   padding: 0;
   border: 1px solid color-mix(in srgb, var(--success) 14%, var(--border-soft));
   border-radius: 8px;
-  background: color-mix(in srgb, #edf7ef 28%, var(--surface));
+  background: color-mix(in srgb, var(--success-soft) 28%, var(--surface));
 }
 
 .preview-object-effect-row > .preview-object-field {
@@ -2070,7 +2103,7 @@ input.preview-object-control[type="checkbox"] {
 
 .preview-object-effect-row:has(.preview-object-effect-delete input:checked) {
   border-color: color-mix(in srgb, var(--danger) 34%, var(--border));
-  background: color-mix(in srgb, #fff1ee 50%, var(--surface));
+  background: color-mix(in srgb, var(--danger-soft) 50%, var(--surface));
 }
 
 .preview-object-effect-delete {
@@ -2325,7 +2358,7 @@ input.preview-object-control[type="checkbox"] {
 }
 
 .preview-object-semantic-logic-overview.is-route.is-unknown-target code {
-  color: var(--warning, #b86b00);
+  color: var(--warning, var(--warn));
 }
 
 .preview-object-effect-fields.is-semantic-effects {
