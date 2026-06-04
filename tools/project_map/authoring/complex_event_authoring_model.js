@@ -823,7 +823,17 @@
     return ids.has(local) || Array.from(ids).some((id) => id.split('.').pop() === local);
   }
 
+  // Memoized per body: normalizeTrialTarget/targetResolves call this once per
+  // target and it rebuilt the whole anchor set (sections/options/graph nodes +
+  // ~all project scene ids) each time -> O(targets x anchors). body is a single
+  // per-build clone, stable in these fields; the WeakMap keys on it. Callers
+  // only read the returned Set (.has / Array.from), so sharing it is safe.
+  const eventAnchorsCache = new WeakMap();
+
   function eventAnchors(body) {
+    if (isObject(body) && eventAnchorsCache.has(body)) {
+      return eventAnchorsCache.get(body);
+    }
     const ids = new Set(['root']);
     ensureArray(body && body.branchSections).forEach((field) => {
       addAnchorId(ids, field && field.sectionId);
@@ -849,6 +859,9 @@
       });
     });
     ensureArray(body && body.projectSceneIds || body && body.knownSceneIds || body && body.globalSceneIds).forEach((id) => addAnchorId(ids, id));
+    if (isObject(body)) {
+      eventAnchorsCache.set(body, ids);
+    }
     return ids;
   }
 
