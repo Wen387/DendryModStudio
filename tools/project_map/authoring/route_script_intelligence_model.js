@@ -1582,7 +1582,17 @@
     };
   }
 
+  // Memoized per body: resolveStaticTarget runs once per route and rebuilt this
+  // whole list (sections/options/graph nodes + ~all project scene ids) each
+  // time, making resolution O(routes x targets) (~51s of a 89s build on a
+  // 213-section event). body is a single per-build clone, stable in these
+  // fields; the WeakMap keys on it so fresh clones never see stale rows.
+  const routeTargetRowsCache = new WeakMap();
+
   function routeTargetRows(body) {
+    if (isObject(body) && routeTargetRowsCache.has(body)) {
+      return routeTargetRowsCache.get(body);
+    }
     /** @type {Array<Record<string, any>>} */
     const rows = [];
     const structureId = stringValue(body && body.eventStructure && body.eventStructure.id || body && body.id);
@@ -1618,7 +1628,11 @@
       if (id) rows.push(targetRow(id, 'global_scene', {global: true, proof: 'projectSceneIds[' + index + ']'}));
     });
     staticAliasRows(body && body.profileEvidence).forEach((row) => rows.push(row));
-    return uniqueRowsById(rows);
+    const result = uniqueRowsById(rows);
+    if (isObject(body)) {
+      routeTargetRowsCache.set(body, result);
+    }
+    return result;
   }
 
   function targetRow(id, scope, options) {

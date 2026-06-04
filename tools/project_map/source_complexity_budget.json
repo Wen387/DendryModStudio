@@ -31,8 +31,9 @@
     },
     {
       "path": "tools/project_map/authoring/route_script_intelligence_model.js",
-      "maxLines": 1898,
-      "reason": "Route script intelligence aggregator; extract per-evidence-kind sub-models before adding more. New exception 2026-05-22."
+      "maxLines": 1912,
+      "allowRaise": true,
+      "reason": "Route script intelligence aggregator; extract per-evidence-kind sub-models before adding more. Ratcheted 2026-06-04 from 1898 for routeTargetRows per-body memo (O(routes x targets) -> O(routes) target resolution)."
     },
     {
       "path": "tools/project_map/check_install_plan_model.js",
@@ -58,15 +59,15 @@
     },
     {
       "path": "tools/project_map/viewer/i18n/en.js",
-      "maxLines": 3437,
+      "maxLines": 3438,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3436 for previewObjectEditor.insertVariable (condition-variable insert chips, UX #3)."
+      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3437 for objectCanvas.moreActions (command-dock More options menu)."
     },
     {
       "path": "tools/project_map/viewer/i18n/zh-Hant.js",
-      "maxLines": 3437,
+      "maxLines": 3438,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3436 for previewObjectEditor.insertVariable (condition-variable insert chips, UX #3)."
+      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3437 for objectCanvas.moreActions (command-dock More options menu)."
     },
     {
       "path": "tools/project_map/viewer/index.html",
@@ -88,8 +89,9 @@
     },
     {
       "path": "tools/project_map/viewer/styles/editing.css",
-      "maxLines": 4255,
-      "reason": "Split new selectors into focused domain CSS files. Ratcheted 2026-05-22 from 3375."
+      "maxLines": 4324,
+      "allowRaise": true,
+      "reason": "Split new selectors into focused domain CSS files. Ratcheted 2026-05-22 from 3375. Raised 2026-06-04 from 4255 for the retired-board-banner hide rule + command-dock More options disclosure styles."
     },
     {
       "path": "tools/project_map/viewer/wizard_ui.js",
