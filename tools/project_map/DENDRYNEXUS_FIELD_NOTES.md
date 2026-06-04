@@ -292,10 +292,16 @@ Lessons for Studio:
 - `is-hand`, `is-deck`, and `is-card` are structural evidence, not just labels.
 - `max-cards` should be retained in ProjectIndex as part of hand behavior.
 - Tags can drive deck membership and bulk option routing.
-- Hand scene deck/card/advisor display still uses ordinary choice filtering,
-  including priority. If one always-visible pinned/control choice has a higher
-  `priority` than the deck or advisor choices, DendryNexus can render only that
-  highest-priority group and hide the rest of the hand surface.
+- Choice priority filtering applies to EVERY scene, not just hands. The engine
+  sorts options by descending priority and, when no `min-choices` is set, keeps
+  only the single highest-priority group — lower-priority options are dropped
+  before rendering even though they are valid choices. In a hand this hides
+  decks or advisors behind a higher-priority pinned control; in an ordinary
+  menu it hides the lower-priority options just the same. Setting `min-choices`
+  high enough re-includes the dropped group. Worth a Studio warning whenever a
+  choice list mixes priorities without `min-choices`. (Note: option-level
+  `priority` only attaches with the hyphen sub-property form `- priority: 2`;
+  see the indentation trap under Scene Shape.)
 - A deck may be a section-owned anchor such as `hand.deck1`, not only an
   independent top-level scene. In build output, DendryNexus fully qualifies
   that section id and keeps `isDeck: true` on the section scene.
@@ -303,6 +309,17 @@ Lessons for Studio:
   the section's own option/source anchors when the deck is section-owned.
 - Pinned or always-visible choices may behave like UI controls even when they
   are written as normal scene options.
+- Hand draw/play is a separate method API (`drawCard`, `playCard`), not the
+  normal `choose()` option path. `drawCard` pulls a random drawable `is-card`
+  from the deck that is not already in the hand (no duplicates); drawing past
+  `max-cards` returns a `no_space_in_hand` sentinel, and an empty or
+  fully-gated deck returns `no_card_in_deck`. `playCard` removes the card from
+  the hand and navigates to it.
+- A card already in the hand is re-filtered on each display by `view-if` (and
+  max-visits) only — NOT `choose-if`. Flipping a held card's `view-if` false
+  removes it on the next display, but flipping its `choose-if` false leaves it
+  in the hand. So "card is in the hand" does not imply "card still passes
+  choose-if"; held-card availability is governed by view-if and max-visits.
 
 Do not assume every card-like object has an image, every deck is in a deck
 folder, or every scene in a card folder is selectable.
@@ -539,6 +556,16 @@ screen" bug. The earlier `go-to-ref` replacement was a separate improvement
 terminal card sub-scenes were all triggering the `_compileChoices` fallback to
 `root` because `rootSceneId` was never reassigned to the hand scene.
 
+Two further edges of this fallback are worth knowing. The "Continue..." option
+is added only when the root scene differs from the current scene AND the root
+scene's `choose-if` passes; if the root's `choose-if` is false, or the scene IS
+the root, no fallback is synthesized and an option-less scene ends the game
+instead. A scene that declares `game-over: false` suppresses even that ending,
+leaving the player on an empty choice list (a soft-lock). So an option-less
+scene has three possible fates — an implicit Continue edge to the current
+`rootSceneId` (which `set-root` can move), a game over, or a soft-lock — and
+reachability analysis should model all three.
+
 **Hand scenes only display decks, hand cards, and pinned cards.** The
 `displayChoices` function for hand scenes (engine.js ~L327-367) categorizes
 choices into `decks` (target has `isDeck`) and `pinnedCards` (target has
@@ -561,6 +588,11 @@ Studio lessons:
 - Multiple valid `go-to-ref` entries follow the same multi-valid behavior as
   `go-to`: one valid ref jumps through that quality value, while multiple valid
   refs are randomly selected before dereferencing the chosen quality.
+- A `go-to` and a `go-to-ref` in the same scene are an if/else-if: the `go-to`
+  takes precedence and the `go-to-ref` is ignored. And because a `go-to-ref`
+  target is a runtime quality value, an invalid or undefined value is a runtime
+  crash rather than a build error (the static-vs-dynamic asymmetry noted under
+  Scene Shape). This reinforces keeping `go-to-ref` out of core routing.
 - Direct `go-to` bypasses normal choice compilation and does not use target
   `view-if` as a filter. Choice compilation filters option visibility using the
   option `view-if` and target scene `view-if`, then determines clickability from
