@@ -3156,14 +3156,31 @@
     return leftTokens.some((token) => rightTokens.includes(token));
   }
 
+  // Memoized: matchingGraphRoute compares every route against every graph edge,
+  // recomputing endpointMatchTokens for the same handful of edge/target id
+  // strings O(routes x edges) times (~1.2s self time on a large event). Pure
+  // string -> string[], and callers only read the result (some/includes/
+  // length/flatMap), so a shared cached array is safe. Bounded by the project
+  // endpoint id vocabulary with a defensive size cap.
+  const endpointMatchTokenCache = new Map();
   function endpointMatchTokens(value) {
-    const text = stringValue(value).trim().replace(/^[@#]/, '');
-    if (!text) {
-      return [];
+    const key = String(value);
+    if (endpointMatchTokenCache.has(key)) {
+      return endpointMatchTokenCache.get(key);
     }
-    const parts = text.split('.');
-    const local = parts[parts.length - 1] || text;
-    return uniqueStrings([text, local, safeId(text), safeId(local)]);
+    const text = stringValue(value).trim().replace(/^[@#]/, '');
+    let result;
+    if (!text) {
+      result = [];
+    } else {
+      const parts = text.split('.');
+      const local = parts[parts.length - 1] || text;
+      result = uniqueStrings([text, local, safeId(text), safeId(local)]);
+    }
+    if (endpointMatchTokenCache.size < 100000) {
+      endpointMatchTokenCache.set(key, result);
+    }
+    return result;
   }
 
   function normalizeResultMode(value, gotoAfter) {
