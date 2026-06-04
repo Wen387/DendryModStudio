@@ -90,6 +90,7 @@
             <div class="topbar-more-group" data-more-group="content">
               <div class="topbar-more-group-label" data-i18n="topbar.group.content">Content</div>
               <button id="studio-open-template-hub" class="desktop-secondary-button desktop-only-control hidden" type="button"><span data-i18n="topbar.templateHub">Template Hub</span></button>
+              <button id="studio-open-publish" class="desktop-secondary-button desktop-only-control hidden" type="button"><span data-i18n="topbar.publish">Publish to GitHub</span></button>
               <label id="index-drop-target" class="file-picker drop-target">
                 <span class="file-picker-label" data-i18n="topbar.projectIndexJson">Project index JSON</span>
                 <input id="index-file" type="file" accept="application/json,.json">
@@ -190,6 +191,7 @@
 
     <div id="studio-welcome-root"></div>
     <div id="studio-guided-tour-root"></div>
+    <div id="studio-publish-root"></div>
 
     <div id="studio-tutorial-library" class="tutorial-library-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="tutorial-library-title">
       <section class="tutorial-library-dialog">
@@ -2479,6 +2481,7 @@ media_reach += 1</textarea>
   <script src="tutorial_library_ui.js"></script>
   <script src="theme_ui.js"></script>
   <script src="guided_tour_ui.js"></script>
+  <script src="publish_ui.js"></script>
   <script src="design_graph_renderer.js"></script>
   <script src="design_interactions.js"></script>
   <script src="design_ui.js"></script>
