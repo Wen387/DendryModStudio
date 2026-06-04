@@ -1515,9 +1515,9 @@ input.preview-object-control[type="checkbox"] {
   gap: 5px;
   width: fit-content;
   padding: 2px 9px 2px 7px;
-  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--border-soft));
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  background: var(--studio-accent-soft);
   color: var(--accent-strong, var(--accent));
   font-weight: 640;
   opacity: 1;
@@ -1526,8 +1526,8 @@ input.preview-object-control[type="checkbox"] {
 
 .preview-object-conditional-edit-toggle:hover,
 .preview-object-conditional-edit[open] > .preview-object-conditional-edit-toggle {
-  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
-  border-color: color-mix(in srgb, var(--accent) 50%, var(--border-soft));
+  background: color-mix(in srgb, var(--accent) 14%, var(--studio-accent-soft));
+  border-color: var(--accent);
 }
 
 .preview-object-conditional-edit-icon {
@@ -1542,7 +1542,7 @@ input.preview-object-control[type="checkbox"] {
   margin-left: 8px;
   padding: 1px 8px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  background: var(--studio-accent-soft);
   color: var(--accent-strong, var(--accent));
   font-size: 11px;
   font-weight: 680;
@@ -1563,9 +1563,9 @@ input.preview-object-control[type="checkbox"] {
   gap: 8px;
   margin: 2px 0 4px;
   padding: 6px 8px;
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--border);
   border-radius: 7px;
-  background: color-mix(in srgb, var(--surface-alt) 60%, var(--surface));
+  background: var(--surface-alt);
 }
 
 .preview-object-conditional-filter-input {
@@ -1574,7 +1574,7 @@ input.preview-object-control[type="checkbox"] {
   font-family: inherit;
   font-size: 0.9em;
   padding: 4px 8px;
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--border);
   border-radius: 6px;
   background: var(--surface);
   color: inherit;
@@ -1622,9 +1622,9 @@ input.preview-object-control[type="checkbox"] {
   font-family: var(--mono, ui-monospace, monospace);
   font-size: 11px;
   padding: 1px 7px;
-  border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--border-soft));
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  background: var(--studio-accent-soft);
   color: var(--accent-strong, var(--accent));
   cursor: pointer;
   transition: background 0.12s ease, border-color 0.12s ease;
@@ -1632,8 +1632,8 @@ input.preview-object-control[type="checkbox"] {
 
 .preview-object-conditional-var-token:hover,
 .preview-object-conditional-var-token:focus-visible {
-  background: color-mix(in srgb, var(--accent) 16%, var(--surface));
-  border-color: color-mix(in srgb, var(--accent) 50%, var(--border-soft));
+  background: color-mix(in srgb, var(--accent) 14%, var(--studio-accent-soft));
+  border-color: var(--accent);
 }
 
 .preview-object-conditional-edit-field {
