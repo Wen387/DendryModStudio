@@ -180,7 +180,10 @@
   z-index: 7;
   display: grid;
   gap: 5px;
-  max-height: 33%;
+  /* Fixed px cap (never a % of the canvas, which resolves to `none` when the
+     canvas height is indefinite). Kept below the panel's natural content height
+     so the year grid actually clips and scrolls instead of filling the board. */
+  max-height: 200px;
   overflow: auto;
   padding: 6px 10px;
   border: 1px solid var(--border);
@@ -893,6 +896,21 @@
   font-style: normal;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Medium widths: the default top strip spans almost the whole board and
+   crowds the canvas. Shrink the navigator into a compact top-left corner card
+   with internal scroll, so it only occupies a corner instead of stretching to
+   the zoom cluster. Below 980px the bottom-dock rules further down take over. */
+@media (max-width: 1280px) and (min-width: 981px) {
+  .content-storyboard-navigator {
+    right: auto;
+    width: min(340px, 42vw);
+  }
+
+  .content-storyboard-navigator .content-storyboard-overview {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 980px) {
