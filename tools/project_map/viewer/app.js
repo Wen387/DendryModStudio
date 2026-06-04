@@ -295,6 +295,7 @@
       inspectorPanel: document.querySelector('#explore-pane .inspector'),
       inspectorResizer: document.getElementById('explore-inspector-resizer'),
       search: document.getElementById('search'),
+      exploreBack: document.getElementById('explore-back'),
       sortField: document.getElementById('sort-field'),
       sortDir: document.getElementById('sort-dir'),
       dropZone: document.getElementById('index-drop-zone') || document.getElementById('index-drop-target'),
@@ -315,6 +316,60 @@
     };
     let searchRenderTimer = null;
     let listScrollFrame = null;
+
+    // Browser-style back for Explore: each in-pane navigation records the page
+    // being left, and the back control / Alt+Left re-opens it. Holds the live
+    // `selected` reference (session-scoped), so going back re-opens the exact
+    // item without re-deriving it.
+    state.navHistory = global.ProjectMapNavigationHistory
+      ? global.ProjectMapNavigationHistory.create({limit: 25})
+      : null;
+
+    function exploreLocation() {
+      return {
+        id: 'explore:' + String(state.view) + ':' + String(state.selectedKey || ''),
+        mode: 'explore',
+        view: state.view,
+        selectedKey: state.selectedKey,
+        selected: state.selected,
+        sortField: state.sortField,
+        sortDir: state.sortDir,
+        query: state.query
+      };
+    }
+
+    function recordNavigation() {
+      if (state.navHistory) {
+        state.navHistory.record(exploreLocation());
+        updateBackControl();
+      }
+    }
+
+    function updateBackControl() {
+      if (elements.exploreBack) {
+        elements.exploreBack.disabled = !(state.navHistory && state.navHistory.canGoBack());
+      }
+    }
+
+    function goBack() {
+      if (!state.navHistory || !state.navHistory.canGoBack()) {
+        return;
+      }
+      const prev = state.navHistory.back();
+      if (prev && prev.mode === 'explore') {
+        state.view = prev.view;
+        state.selectedKey = prev.selectedKey;
+        state.selected = prev.selected;
+        state.sortField = prev.sortField;
+        state.sortDir = prev.sortDir;
+        state.query = prev.query || '';
+        if (elements.search) {
+          elements.search.value = state.query;
+        }
+        render(state, elements);
+      }
+      updateBackControl();
+    }
 
     function readStoredExploreInspectorWidth() {
       try {
@@ -516,8 +571,28 @@
       render(state, elements);
     });
 
+    if (elements.exploreBack) {
+      elements.exploreBack.addEventListener('click', goBack);
+    }
+    document.addEventListener('keydown', (event) => {
+      if (event.key !== 'ArrowLeft' || !event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+        return;
+      }
+      // Explore-only in this phase: ignore when the Explore pane is not the
+      // visible workspace, or when there is nowhere to go back to.
+      if (!elements.explorePane || elements.explorePane.offsetParent === null) {
+        return;
+      }
+      if (!state.navHistory || !state.navHistory.canGoBack()) {
+        return;
+      }
+      event.preventDefault();
+      goBack();
+    });
+
     elements.nav.forEach((button) => {
       button.addEventListener('click', () => {
+        recordNavigation();
         state.view = button.dataset.view;
         state.query = '';
         state.selectedKey = null;
@@ -546,6 +621,7 @@
       const items = state.currentItems && state.currentItems.length ? state.currentItems : currentItems(state);
       const found = items.find((item) => item.key === row.dataset.rowKey);
       if (found) {
+        recordNavigation();
         state.selectedKey = found.key;
         state.selected = {view: state.view, item: found.raw, normalized: found};
         state.draftActionMessage = '';
@@ -619,6 +695,7 @@
         }
         const scene = state.model.scenesById.get(String(sceneLink.dataset.sceneId));
         if (scene) {
+          recordNavigation();
           state.view = 'scenes';
           state.query = '';
           state.sortField = VIEW_DEFS.scenes.defaultSort;
@@ -634,6 +711,7 @@
       }
       try {
         const ref = JSON.parse(source.dataset.sourceJson);
+        recordNavigation();
         state.selectedKey = 'source:' + sourceLabel(ref);
         state.selected = {view: 'source', item: ref, normalized: null};
         state.draftActionMessage = '';
@@ -1025,6 +1103,13 @@
     state.sortField = VIEW_DEFS.overview.defaultSort;
     state.sortDir = 'desc';
     elements.search.value = '';
+    // A freshly loaded project starts a clean back history.
+    if (state.navHistory && typeof state.navHistory.clear === 'function') {
+      state.navHistory.clear();
+    }
+    if (elements.exploreBack) {
+      elements.exploreBack.disabled = true;
+    }
     setStatus(elements, t('desktop.loadedFile', 'Loaded {file} ({size}).')
       .replace('{file}', fileInfo.name)
       .replace('{size}', formatBytes(fileInfo.size || 0)));

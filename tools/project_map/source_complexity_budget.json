@@ -60,21 +60,21 @@
     },
     {
       "path": "tools/project_map/viewer/i18n/en.js",
-      "maxLines": 3443,
+      "maxLines": 3444,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3442 for storyboard.viewSwitch aria-label (segmented timeline/chain view switch)."
+      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3443 for explore.back label (Explore browser-style back control)."
     },
     {
       "path": "tools/project_map/viewer/i18n/zh-Hant.js",
-      "maxLines": 3443,
+      "maxLines": 3444,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3442 for storyboard.viewSwitch aria-label (segmented timeline/chain view switch)."
+      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3443 for explore.back label (Explore browser-style back control)."
     },
     {
       "path": "tools/project_map/viewer/index.html",
-      "maxLines": 2482,
+      "maxLines": 2484,
       "allowRaise": true,
-      "reason": "Script + template manifest. Raised 2026-06-04 from 2455 for theme bootstrap + theme switch control + theme_ui.js script."
+      "reason": "Script + template manifest. Raised 2026-06-04 from 2482 for the Explore back button + navigation_history.js script tag."
     },
     {
       "path": "tools/project_map/viewer/object_authoring_canvas_ui.js",

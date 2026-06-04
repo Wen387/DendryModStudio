@@ -1877,6 +1877,7 @@
       'explore.searchPlaceholder': 'Filter current view',
       'explore.sort': 'Sort',
       'explore.sortDirection': 'Toggle sort direction',
+      'explore.back': 'Back to previous view (Alt+Left)',
       'explore.resizeInspector': 'Resize Explore inspector',
       'explore.inspectorEmpty': 'Select an item to inspect source spans, confidence, edges, and variable usage.',
       'explore.inspectorNoIndex': 'Load a project index to inspect it.',

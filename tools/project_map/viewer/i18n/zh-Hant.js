@@ -1877,6 +1877,7 @@
       'explore.searchPlaceholder': '篩選目前視圖',
       'explore.sort': '排序',
       'explore.sortDirection': '切換排序方向',
+      'explore.back': '回到上一個視圖（Alt+←）',
       'explore.resizeInspector': '調整探索檢查面板寬度',
       'explore.inspectorEmpty': '選擇一個項目，即可檢查 source span、信心、連線與變數使用。',
       'explore.inspectorNoIndex': '載入專案 index 後即可檢查內容。',
