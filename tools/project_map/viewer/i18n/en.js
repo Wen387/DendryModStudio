@@ -1626,6 +1626,7 @@
       'storyboard.aria': 'Content Storyboard Canvas',
       'storyboard.timeline': 'Timeline',
       'storyboard.chain': 'Chain',
+      'storyboard.viewSwitch': 'Storyboard view',
       'storyboard.timeline.title': 'Timeline storyboard',
       'storyboard.chain.title': 'Story chain',
       'storyboard.year': 'Year',

@@ -113,6 +113,32 @@
   line-height: 1.4;
 }
 
+/* Segmented "pick one view" switch (timeline vs chain). Reads as a single
+   connected control so the two modes never look like independent on/off
+   toggles that could both be active. */
+.content-storyboard-view-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+}
+
+.content-storyboard-view-switch button {
+  min-height: 28px;
+  padding: 3px 10px;
+  border-color: transparent;
+  background: transparent;
+}
+
+.content-storyboard-view-switch button.is-active {
+  border-color: var(--accent);
+  background: var(--studio-accent-soft);
+  color: var(--accent-strong);
+}
+
 .content-storyboard-floating-controls {
   position: absolute;
   right: 16px;

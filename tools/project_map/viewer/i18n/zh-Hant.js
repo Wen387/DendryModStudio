@@ -1626,6 +1626,7 @@
       'storyboard.aria': '內容劇情板 Canvas',
       'storyboard.timeline': '時間線',
       'storyboard.chain': '事件鏈',
+      'storyboard.viewSwitch': '劇情板視圖',
       'storyboard.timeline.title': '時間線劇情板',
       'storyboard.chain.title': '劇情事件鏈',
       'storyboard.year': '年份',

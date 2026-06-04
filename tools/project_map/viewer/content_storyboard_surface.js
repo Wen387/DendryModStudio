@@ -81,9 +81,7 @@
       renderSearch(storyboard),
       renderCategoryFilters(storyboard),
       renderPanelButton('toggle_story_navigator', !(storyboard.ui && storyboard.ui.scopeCollapsed && storyboard.ui.overviewCollapsed), t('storyboard.navigatorShort', 'Navigator')),
-      renderViewButton('timeline', storyboard.view === 'timeline', t('storyboard.timeline', 'Timeline')),
-      renderViewButton('chain', storyboard.view === 'chain', t('storyboard.chain', 'Chain')),
-      '<button type="button" data-object-canvas-action="toggle_overlay">' + escapeHtml(options && options.editorOverlay ? t('objectCanvas.editorDock', 'Close editor') : t('objectCanvas.editorOverlay', 'Open object editor')) + '</button>',
+      renderViewSwitch(storyboard),
       '</div>',
       '</header>'
     ].join('');
@@ -132,6 +130,15 @@
       '<span>' + escapeHtml(label) + '</span>',
       count ? '<small>' + escapeHtml(String(count)) + '</small>' : '',
       '</button>'
+    ].join('');
+  }
+
+  function renderViewSwitch(storyboard) {
+    return [
+      '<div class="content-storyboard-view-switch" data-content-storyboard-view-switch="true" role="group" aria-label="' + escapeAttr(t('storyboard.viewSwitch', 'Storyboard view')) + '">',
+      renderViewButton('timeline', storyboard.view === 'timeline', t('storyboard.timeline', 'Timeline')),
+      renderViewButton('chain', storyboard.view === 'chain', t('storyboard.chain', 'Chain')),
+      '</div>'
     ].join('');
   }
 
