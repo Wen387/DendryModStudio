@@ -1376,13 +1376,6 @@
     return modelBuilderApi().buildSemanticLogicCanvasModel(editorModel, values, modelBuilderDeps());
   }
 
-  function sourceSliceReplacementText(values) {
-    const workspace = sourceSliceWorkspaceApi();
-    return workspace && typeof workspace.replacementText === 'function'
-      ? workspace.replacementText(values, state.sourceSliceModel)
-      : state.sourceSliceModel && state.sourceSliceModel.currentText || '';
-  }
-
   function withStructureCommandValues(options) {
     return modelBuilderApi().withStructureCommandValues(options, modelBuilderDeps());
   }

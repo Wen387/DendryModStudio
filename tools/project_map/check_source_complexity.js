@@ -361,6 +361,32 @@ function evaluateNoRaise(budget, committed) {
   return problems.sort((a, b) => a.row.path.localeCompare(b.row.path));
 }
 
+// Aggregate debt ceiling. The per-file no-raise rule (evaluateNoRaise) lets any
+// `allowRaise: true` entry climb forever, so a single flagged orchestrator can
+// grow unbounded one commit at a time. This rule restores the contract's intent
+// ("growth must be paid for by a split", ARCHITECTURE.md): the *sum* of budgeted
+// ceilings over files that already existed in the committed budget may only fall.
+// Raising one entry is then only possible by lowering another by at least as
+// much — i.e. by actually splitting a file. New budget entries (present now but
+// not in the committed budget) are governed by evaluateBudget's new-exception
+// rule instead, so they do not inflate this aggregate.
+function evaluateAggregate(budget, committed) {
+  if (!committed) {
+    return [];
+  }
+  let priorSum = 0;
+  let currentSum = 0;
+  committed.forEach((prior, relPath) => {
+    priorSum += prior;
+    const entry = budget.exceptions.get(relPath);
+    currentSum += entry ? entry.maxLines : 0;
+  });
+  if (currentSum > priorSum) {
+    return [{kind: 'aggregate-raised', priorSum, currentSum}];
+  }
+  return [];
+}
+
 function tightenEntries(exceptions, lineByPath) {
   const changes = [];
   exceptions.forEach((entry) => {
@@ -408,6 +434,11 @@ function formatBudgetResult(problems, budgetFile) {
     if (problem.kind === 'ceiling-raised') {
       lines.push('- CEILING RAISED maxLines ' + problem.entry.maxLines + ' > committed ' + problem.from + '  ' + problem.row.path);
       lines.push('  maxLines may only fall. Split the file, or set "allowRaise": true on this entry to record a reviewed exception.');
+      return;
+    }
+    if (problem.kind === 'aggregate-raised') {
+      lines.push('- AGGREGATE DEBT RAISED total maxLines ' + problem.currentSum + ' > committed ' + problem.priorSum);
+      lines.push('  The sum of budgeted exception ceilings may only fall. Pay for any raise (including an "allowRaise" entry) by splitting another file by at least as much.');
       return;
     }
     lines.push('- OVER BUDGET ' + problem.row.lines + ' lines > maxLines ' + problem.entry.maxLines + '  ' + problem.row.path);
@@ -471,8 +502,10 @@ function main() {
     return;
   }
 
+  const committed = committedBudgetEntries(relative(args.budgetFile));
   const problems = evaluateBudget(rows, budget)
-    .concat(evaluateNoRaise(budget, committedBudgetEntries(relative(args.budgetFile))));
+    .concat(evaluateNoRaise(budget, committed))
+    .concat(evaluateAggregate(budget, committed));
   process.stdout.write('\n' + formatBudgetResult(problems, args.budgetFile));
   if (problems.length) {
     process.exitCode = 1;
@@ -488,6 +521,7 @@ module.exports = {
   classify,
   evaluateBudget,
   evaluateNoRaise,
+  evaluateAggregate,
   tightenEntries,
   loadBudget
 };

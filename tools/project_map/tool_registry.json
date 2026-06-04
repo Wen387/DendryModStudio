@@ -703,8 +703,8 @@
       "writes": "temp",
       "requires": ["node", "python"],
       "duration": "medium",
-      "gate": "contract",
-      "when": "ProjectIndex fixture assumptions changed."
+      "gate": "ci",
+      "when": "ProjectIndex fixture assumptions changed. Golden indexer-output gate: exact scene/edge/variable/event counts for generic-mini and sdaah-mini."
     },
     "studio-contract": {
       "path": "tools/project_map/check_studio_shared_constants_model.js",
@@ -806,13 +806,13 @@
       "path": "tools/project_map/check_v067_remaining_model.js",
       "command": "node tools/project_map/check_v067_remaining_model.js",
       "kind": "fast-model",
-      "domain": ["legacy", "regression"],
+      "domain": ["install", "coverage", "regression"],
       "fixture": "synthetic",
       "writes": "none",
       "requires": ["node"],
       "duration": "fast",
-      "gate": "focused",
-      "when": "Legacy v0.67 remaining regression areas changed."
+      "gate": "ci",
+      "when": "Install mode UI, coverage safety tiers, card-to-install-plan wiring, or desktop dry-run no-mutation behavior changes. (Name is historical; the assertions are current.)"
     },
     "runtime-preview-sandbox": {
       "path": "tools/project_map/check_runtime_preview_sandbox_model.js",
@@ -1228,8 +1228,164 @@
     "tools/project_map/check_workflow_entry_contract.js",
     "tools/project_map/check_workspace_layout_model.js"
   ],
+  "ciExempt": [
+    {
+      "path": "tools/project_map/check_advisor_controller_model.js",
+      "reason": "Behavioral/model check not currently wired into the check:ci gate; candidate to add. Listed here so the omission is an explicit, reviewed decision rather than silent drift."
+    },
+    {
+      "path": "tools/project_map/check_advisor_controller_object_canvas_model.js",
+      "reason": "Behavioral/model check not currently wired into the check:ci gate; candidate to add. Listed here so the omission is an explicit, reviewed decision rather than silent drift."
+    },
+    {
+      "path": "tools/project_map/check_asset_model.js",
+      "reason": "Behavioral/model check not currently wired into the check:ci gate; candidate to add. Listed here so the omission is an explicit, reviewed decision rather than silent drift."
+    },
+    {
+      "path": "tools/project_map/check_deck_object_canvas_model.js",
+      "reason": "Behavioral/model check not currently wired into the check:ci gate; candidate to add. Listed here so the omission is an explicit, reviewed decision rather than silent drift."
+    },
+    {
+      "path": "tools/project_map/check_deck_pool_model.js",
+      "reason": "Behavioral/model check not currently wired into the check:ci gate; candidate to add. Listed here so the omission is an explicit, reviewed decision rather than silent drift."
+    },
+    {
+      "path": "tools/project_map/check_design_view_model.js",
+      "reason": "Behavioral/model check not currently wired into the check:ci gate; candidate to add. Listed here so the omission is an explicit, reviewed decision rather than silent drift."
+    },
+    {
+      "path": "tools/project_map/check_desktop_capabilities_model.js",
+      "reason": "Desktop capabilities model check; not in check:ci. Candidate to wire into a desktop CI gate."
+    },
+    {
+      "path": "tools/project_map/check_desktop_deb.js",
+      "reason": "Desktop .deb packaging check (runs scripts/package_deb.js); not in check:ci. Candidate to wire into a desktop CI gate."
+    },
+    {
+      "path": "tools/project_map/check_desktop_packaging.js",
+      "reason": "Desktop packaging check (needs desktop build config); not in check:ci. Candidate to wire into a desktop CI gate."
+    },
+    {
+      "path": "tools/project_map/check_desktop_shell.js",
+      "reason": "Run via desktop `npm run smoke` in .github/workflows/ci.yml; not part of check:ci."
+    },
+    {
+      "path": "tools/project_map/check_draft_workspace_model.js",
+      "reason": "Behavioral/model check not currently wired into the check:ci gate; candidate to add. Listed here so the omission is an explicit, reviewed decision rather than silent drift."
+    },
+    {
+      "path": "tools/project_map/check_dynamic_mod_audit.js",
+      "reason": "Runnable via `npm run check:dynamic` (needs fixture); not yet wired into check:ci."
+    },
+    {
+      "path": "tools/project_map/check_dynamicrepo_event_authoring_parity.js",
+      "reason": "Runnable via `npm run check:dynamicrepo-events` (needs --require-fixture); not in check:ci."
+    },
+    {
+      "path": "tools/project_map/check_dynamicrepo_event_editor_samples.js",
+      "reason": "Runnable via `npm run check:dynamicrepo-event-samples` (needs --require-fixture); not in check:ci."
+    },
+    {
+      "path": "tools/project_map/check_dynamicrepo_event_install_acceptance.js",
+      "reason": "Runnable via `npm run check:dynamicrepo-event-install` (needs fixture + html build + runtime proof); not in check:ci."
+    },
+    {
+      "path": "tools/project_map/check_event_workbench_model.js",
+      "reason": "Behavioral/model check not currently wired into the check:ci gate; candidate to add. Listed here so the omission is an explicit, reviewed decision rather than silent drift."
+    },
+    {
+      "path": "tools/project_map/check_existing_draft_extraction_model.js",
+      "reason": "Behavioral/model check not currently wired into the check:ci gate; candidate to add. Listed here so the omission is an explicit, reviewed decision rather than silent drift."
+    },
+    {
+      "path": "tools/project_map/check_existing_event_roundtrip_model.js",
+      "reason": "Behavioral/model check not currently wired into the check:ci gate; candidate to add. Listed here so the omission is an explicit, reviewed decision rather than silent drift."
+    },
+    {
+      "path": "tools/project_map/check_harness.js",
+      "reason": "Shared harness library (exports fail/assert); not a standalone check."
+    },
+    {
+      "path": "tools/project_map/check_install_refresh_model.js",
+      "reason": "Behavioral/model check not currently wired into the check:ci gate; candidate to add. Listed here so the omission is an explicit, reviewed decision rather than silent drift."
+    },
+    {
+      "path": "tools/project_map/check_large_event_pressure_model.js",
+      "reason": "Behavioral/model check not currently wired into the check:ci gate; candidate to add. Listed here so the omission is an explicit, reviewed decision rather than silent drift."
+    },
+    {
+      "path": "tools/project_map/check_meaning_layer_model.js",
+      "reason": "Behavioral/model check not currently wired into the check:ci gate; candidate to add. Listed here so the omission is an explicit, reviewed decision rather than silent drift."
+    },
+    {
+      "path": "tools/project_map/check_news_wizard_model.js",
+      "reason": "Behavioral/model check not currently wired into the check:ci gate; candidate to add. Listed here so the omission is an explicit, reviewed decision rather than silent drift."
+    },
+    {
+      "path": "tools/project_map/check_preview_model.js",
+      "reason": "Behavioral/model check not currently wired into the check:ci gate; candidate to add. Listed here so the omission is an explicit, reviewed decision rather than silent drift."
+    },
+    {
+      "path": "tools/project_map/check_python_command.js",
+      "reason": "Helper library (exports pythonCommand); not a standalone check."
+    },
+    {
+      "path": "tools/project_map/check_realworld_quick_matrix.js",
+      "reason": "Behavioral/model check not currently wired into the check:ci gate; candidate to add. Listed here so the omission is an explicit, reviewed decision rather than silent drift."
+    },
+    {
+      "path": "tools/project_map/check_runtime_preview_debug_bridge.js",
+      "reason": "Behavioral/model check not currently wired into the check:ci gate; candidate to add. Listed here so the omission is an explicit, reviewed decision rather than silent drift."
+    },
+    {
+      "path": "tools/project_map/check_runtime_preview_debug_model.js",
+      "reason": "Behavioral/model check not currently wired into the check:ci gate; candidate to add. Listed here so the omission is an explicit, reviewed decision rather than silent drift."
+    },
+    {
+      "path": "tools/project_map/check_sdaah_install_write_smoke.js",
+      "reason": "Behavioral/model check not currently wired into the check:ci gate; candidate to add. Listed here so the omission is an explicit, reviewed decision rather than silent drift."
+    },
+    {
+      "path": "tools/project_map/check_sdaah_surface_assets_model.js",
+      "reason": "Behavioral/model check not currently wired into the check:ci gate; candidate to add. Listed here so the omission is an explicit, reviewed decision rather than silent drift."
+    },
+    {
+      "path": "tools/project_map/check_studio_performance_model.js",
+      "reason": "Behavioral/model check not currently wired into the check:ci gate; candidate to add. Listed here so the omission is an explicit, reviewed decision rather than silent drift."
+    },
+    {
+      "path": "tools/project_map/check_studio_shared_constants_model.js",
+      "reason": "Behavioral/model check not currently wired into the check:ci gate; candidate to add. Listed here so the omission is an explicit, reviewed decision rather than silent drift."
+    },
+    {
+      "path": "tools/project_map/check_surface_text_model.js",
+      "reason": "Behavioral/model check not currently wired into the check:ci gate; candidate to add. Listed here so the omission is an explicit, reviewed decision rather than silent drift."
+    },
+    {
+      "path": "tools/project_map/check_text_corpus_model.js",
+      "reason": "Behavioral/model check not currently wired into the check:ci gate; candidate to add. Listed here so the omission is an explicit, reviewed decision rather than silent drift."
+    },
+    {
+      "path": "tools/project_map/check_ts_ready_contracts.js",
+      "reason": "Run via `npm run check:types` (ciSequence step), not invoked directly."
+    },
+    {
+      "path": "tools/project_map/check_variable_suggestions_model.js",
+      "reason": "Behavioral/model check not currently wired into the check:ci gate; candidate to add. Listed here so the omission is an explicit, reviewed decision rather than silent drift."
+    },
+    {
+      "path": "tools/project_map/check_viewer_assets.js",
+      "reason": "Helper module, never asserts on its own (see check_harness_conformance EXEMPT_FILES); not a standalone check."
+    },
+    {
+      "path": "tools/project_map/check_viewer_model.js",
+      "reason": "Behavioral/model check not currently wired into the check:ci gate; candidate to add. Listed here so the omission is an explicit, reviewed decision rather than silent drift."
+    }
+  ],
   "ciSequence": [
     "node tools/project_map/check_harness_conformance.js",
+    "node tools/project_map/check_tool_registry.js",
+    "node tools/project_map/check_governance_parity.js",
     "node tools/project_map/check_source_complexity.js --enforce-budget",
     "node tools/project_map/check_public_export.js",
     "node tools/project_map/check_localization_surface.js",
@@ -1318,6 +1474,9 @@
     "node tools/project_map/check_install_operation_contracts_model.js",
     "node tools/project_map/check_install_plan_model.js",
     "node tools/project_map/check_install_review_ui_model.js",
+    "node tools/project_map/check_v067_remaining_model.js",
+    "node tools/project_map/check_project_map_fixture.js --generic-mini",
+    "node tools/project_map/check_project_map_fixture.js --sdaah-mini",
     "node tools/project_map/check_runtime_surface_model.js",
     "node tools/project_map/check_runtime_snapshot_model.js",
     "node tools/project_map/check_runtime_dom_map_model.js",

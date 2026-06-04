@@ -70,6 +70,13 @@ the broader UI, onboarding, authoring, and release-readiness preview. It keeps
 the previous fast Windows packaging layout while carrying the newer Studio
 authoring, Runtime Preview, and governance checks.
 
+2026-06-04 version note: the preview package version was advanced to v0.98.1 for
+the v0.98 feature preview — music asset management, Canvas storyboard zoom and
+card stacking, faster project indexing, improved complex conditional editing,
+and a dark theme. Desktop packaging is unchanged from v0.97.6: it keeps the
+`deps-in-asar` Windows layout and bundles the Python `indexer/` package beside
+`build_project_map.py`.
+
 2026-05-10 Windows install performance experiment: branch
 `exp-windows-install-performance` adds a non-release `fast-install` Windows
 builder config and measurement helpers. The experiment identified loose root

@@ -120,10 +120,46 @@ function main() {
     }
   });
 
+  // Inverse coverage: every classified check must either run in the CI gate
+  // (appear in ciSequence) or be explicitly exempted with a reason in ciExempt.
+  // Without this, a check can be added to the repo, classified in knownChecks,
+  // and silently never execute — the drift that let ~40 checks, including the
+  // governance validators themselves, fall out of CI unnoticed.
+  const ciSequenceCheckPaths = new Set();
+  registry.ciSequence.forEach((command) => {
+    const match = /^node\s+(tools\/project_map\/check_[^\s]+\.js)(?:$|\s)/.exec(command);
+    if (match) {
+      ciSequenceCheckPaths.add(match[1]);
+    }
+  });
+
+  assert(Array.isArray(registry.ciExempt),
+    'Registry must define a ciExempt array (checks intentionally not in ciSequence, each with a reason).');
+  const ciExemptPaths = new Set();
+  registry.ciExempt.forEach((entry, index) => {
+    const label = 'ciExempt[' + index + ']';
+    assert(entry && typeof entry === 'object', label + ' must be an object.');
+    assert(typeof entry.path === 'string' && entry.path.length > 0, label + ' must define a path string.');
+    assert(typeof entry.reason === 'string' && entry.reason.trim().length > 0,
+      label + ' (' + entry.path + ') must justify its exemption with a non-empty reason.');
+    assert(knownChecks.has(entry.path), label + ' is not a classified check (add to knownChecks first): ' + entry.path);
+    assert(fs.existsSync(path.join(ROOT, entry.path)), label + ' does not exist: ' + entry.path);
+    assert(!ciSequenceCheckPaths.has(entry.path),
+      label + ' is both exempt and in ciSequence; remove it from ciExempt: ' + entry.path);
+    assert(!ciExemptPaths.has(entry.path), 'ciExempt contains a duplicate entry: ' + entry.path);
+    ciExemptPaths.add(entry.path);
+  });
+
+  const unrun = registry.knownChecks.filter((checkPath) =>
+    !ciSequenceCheckPaths.has(checkPath) && !ciExemptPaths.has(checkPath));
+  assert(unrun.length === 0,
+    'Classified checks are neither in ciSequence nor ciExempt — wire each into ciSequence, ' +
+    'or add a ciExempt entry with a reason: ' + unrun.join(', '));
+
   const toolCheckPaths = new Set(toolIds.map((id) => registry.tools[id].path).filter((item) => /^tools\/project_map\/check_.+\.js$/.test(String(item || ''))));
   const unroutedKnownCount = discoveredPaths.filter((checkPath) => !toolCheckPaths.has(checkPath)).length;
 
-  process.stdout.write('Tool registry OK: ' + taskIds.length + ' tasks, ' + toolIds.length + ' tools, ' + discoveredPaths.length + ' known checks, ' + unroutedKnownCount + ' known-unrouted checks, ' + registry.ciSequence.length + ' ci-sequence steps.\n');
+  process.stdout.write('Tool registry OK: ' + taskIds.length + ' tasks, ' + toolIds.length + ' tools, ' + discoveredPaths.length + ' known checks, ' + unroutedKnownCount + ' known-unrouted checks, ' + ciExemptPaths.size + ' ci-exempt, ' + registry.ciSequence.length + ' ci-sequence steps.\n');
 }
 
 if (require.main === module) {

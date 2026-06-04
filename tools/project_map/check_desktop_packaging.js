@@ -46,7 +46,7 @@ function main() {
   assert(pkg.homepage && /github\.com\/Wen387\/DendryModStudio/.test(pkg.homepage), 'desktop package should define a release homepage');
   assert(pkg.author && pkg.author.email, 'desktop package should define maintainer email for Deb builds');
   assert(pkg.devDependencies && pkg.devDependencies['electron-builder'], 'desktop package should depend on electron-builder for release builds');
-  assert(pkg.build && pkg.build.asar === false, 'desktop builder config should keep asar disabled for filesystem resources');
+  assert(pkg.build && pkg.build.asar === true, 'desktop builder config should keep the deps-in-asar layout enabled (normal dist:win packaging since v0.9.66)');
   assert(
     pkg.build.linux && Array.isArray(pkg.build.linux.target) && pkg.build.linux.target.includes('deb'),
     'desktop builder Linux config should include Deb target'

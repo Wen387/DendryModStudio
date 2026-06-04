@@ -1,6 +1,16 @@
 (function initProjectMapPreviewObjectEditor(global) {
   'use strict';
 
+  const domTextUtils = (function () {
+    if (global && global.ProjectMapDomText) {
+      return global.ProjectMapDomText;
+    }
+    return require('./dom_text_utils.js');
+  })();
+  const ensureArray = domTextUtils.ensureArray;
+  const escapeHtml = domTextUtils.escapeHtml;
+  const escapeAttr = domTextUtils.escapeAttr;
+
   const LARGE_EVENT_CHOICE_LIMIT = 28;
   const LARGE_EVENT_BRANCH_LIMIT = 32;
   const LARGE_EVENT_CHOICE_THRESHOLD = 36;
@@ -833,18 +843,6 @@
       values.push(field && field.sectionId);
     });
     return uniqueStrings(values.map(normalizeEndpointToken).filter(Boolean));
-  }
-
-  function optionConditions(option, resultFields) {
-    const values = [
-      option && option.chooseIf,
-      option && option.sectionViewIf,
-      option && option.sectionChooseIf
-    ];
-    ensureArray(resultFields).forEach((field) => {
-      values.push.apply(values, ensureArray(field && field.conditions));
-    });
-    return uniqueStrings(values.map((value) => String(value || '').trim()).filter(Boolean));
   }
 
   function optionConditionSummaries(option, resultFields) {
@@ -2587,19 +2585,6 @@
     ].join('');
   }
 
-  function renderEffectGroup(group) {
-    const fields = ensureArray(group && group.fields);
-    if (!fields.length) {
-      return '';
-    }
-    return [
-      '<div class="preview-object-effect-group">',
-      '<strong>' + escapeHtml(group && group.label || group && group.id || t('storyboard.option', 'Option')) + '</strong>',
-      renderEffectFields(fields),
-      '</div>'
-    ].join('');
-  }
-
   function renderEffectFields(fields, body) {
     const semantic = semanticOperationsApi();
     if (semantic && typeof semantic.buildEffectOperations === 'function') {
@@ -3469,14 +3454,6 @@
     return null;
   }
 
-  function parseSimpleCondition(value) {
-    const result = parseCondition(value);
-    if (result && result.compound) {
-      return null;
-    }
-    return result;
-  }
-
   function renderSemanticLogicEvidence(field) {
     const source = field && field.source || {};
     const path = source && source.path || field && field.sourcePath || '';
@@ -3601,23 +3578,6 @@
       '<strong>' + escapeHtml(label || '') + '</strong>',
       '<em>' + escapeHtml(text) + '</em>',
       '</span>'
-    ].join('');
-  }
-
-  function renderOptionConditionChips(option, resultFields) {
-    const rows = optionConditionSummaries(option, resultFields);
-    if (!rows.length) {
-      return '';
-    }
-    return [
-      '<div class="preview-object-condition-chips" data-preview-object-condition-chips="true">',
-      rows.map((row) => [
-        '<span data-condition-kind="' + escapeAttr(row.kind || 'condition') + '">',
-        '<strong>' + escapeHtml(row.label) + '</strong>',
-        '<em>' + escapeHtml(row.value) + '</em>',
-        '</span>'
-      ].join('')).join(''),
-      '</div>'
     ].join('');
   }
 
@@ -4604,10 +4564,6 @@
     return String(Math.max(2, Math.min(maxRows, rows)));
   }
 
-  function ensureArray(value) {
-    return Array.isArray(value) ? value : [];
-  }
-
   function uniqueStrings(values) {
     const seen = new Set();
     const out = [];
@@ -4885,19 +4841,6 @@
     return i18n && typeof i18n.t === 'function' ? i18n.t(key, fallback) : fallback;
   }
 
-  function escapeAttr(value) {
-    return escapeHtml(value).replace(/`/g, '&#96;');
-  }
-
-  function escapeHtml(value) {
-    return String(value || '').replace(/[&<>"']/g, (char) => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;'
-    }[char]));
-  }
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;
