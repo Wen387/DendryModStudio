@@ -428,7 +428,7 @@
     };
     const structureApi = eventStructureApi();
     const modeledBody = structureApi && typeof structureApi.fromEditingContext === 'function' && typeof structureApi.toEventBody === 'function'
-      ? perfMeasure('structureApi.fromEditingContext+toEventBody', () => structureApi.toEventBody(structureApi.fromEditingContext(context, projectIndex, {body})), {})
+      ? perfMeasure('structureApi.fromEditingContext+toEventBody', () => structureApi.toEventBody(structureApi.fromEditingContext(context, projectIndex, {body}), {reuseSourceBody: true}), {})
       : body;
     const regrouped = perfMeasure('regroupOptionOwnedText', () => regroupOptionOwnedText(modeledBody), {options: ensureArray(modeledBody && modeledBody.options).length});
     const queued = bodyWithQueuedStructurePreviews(regrouped, values);

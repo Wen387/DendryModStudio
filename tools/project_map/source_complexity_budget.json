@@ -3,9 +3,9 @@
   "exceptions": [
     {
       "path": "tools/project_map/authoring/event_structure_model.js",
-      "maxLines": 3380,
+      "maxLines": 3384,
       "allowRaise": true,
-      "reason": "Split event structure logic before adding more behavior. Ratcheted 2026-05-22 from 2808. Raised 2026-06-04 to 3363 for reuseBody clone-elision wiring, then to 3380 for endpointMatchTokens per-string memo (O(routes x edges) graph-route matching recomputed the same token arrays)."
+      "reason": "Split event structure logic before adding more behavior. Ratcheted 2026-05-22 from 2808. Raised 2026-06-04 to 3363 for reuseBody clone-elision wiring, to 3380 for endpointMatchTokens per-string memo, then to 3384 for toEventBody reuseSourceBody (skips the second 86MB clone after fromEditingContext already cloned)."
     },
     {
       "path": "tools/project_map/authoring/existing_scene_edit_model.js",

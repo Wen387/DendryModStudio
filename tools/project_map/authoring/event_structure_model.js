@@ -176,8 +176,12 @@
 
   function toEventBody(structure, options) {
     const value = isObject(structure) ? structure : {};
+    const opts = isObject(options) ? options : {};
     if (value.sourceBody) {
-      const body = clone(value.sourceBody);
+      // fromEditingContext already deep-clones its input into sourceBody, so a
+      // caller that owns that throwaway structure (reuseSourceBody) can let us
+      // build the carrier in place instead of cloning the ~86MB body twice.
+      const body = opts.reuseSourceBody ? value.sourceBody : clone(value.sourceBody);
       body.eventStructure = compactStructure(value);
       if (!body.eventGraph) {
         body.eventGraph = eventGraph(value);
