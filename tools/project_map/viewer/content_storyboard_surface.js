@@ -691,16 +691,26 @@
   }
 
   function renderActions(model) {
+    // Keep the three primary verbs on the surface; tuck the lower-frequency
+    // create/lifecycle actions into a native disclosure so the command dock
+    // stays short on small or aggressively zoomed screens. Buttons keep their
+    // data-object-canvas-action hooks, so the existing delegated handlers work.
+    const deleteLabel = t(model.mode === 'existing' ? 'objectCanvas.action.deleteExisting' : 'objectCanvas.action.discardDraft', model.mode === 'existing' ? 'Delete event' : 'Discard draft');
     return [
       '<div class="editing-actions object-canvas-actions">',
+      '<button type="button" data-object-canvas-action="save">' + escapeHtml(t('editing.saveToChanges', 'Save to My Changes')) + '</button>',
+      '<button class="primary-action" type="button" data-object-canvas-action="review">' + escapeHtml(t('existingScene.review', 'Review & Apply')) + '</button>',
+      '<details class="object-canvas-more-actions" data-object-canvas-more-actions="true">',
+      '<summary>' + escapeHtml(t('objectCanvas.moreActions', 'More options')) + '</summary>',
+      '<div class="object-canvas-more-actions-menu">',
       '<button type="button" data-object-canvas-action="create_followup">' + escapeHtml(t('objectCanvas.action.followup', 'Create follow-up')) + '</button>',
       '<button type="button" data-object-canvas-action="create_counterfactual">' + escapeHtml(t('objectCanvas.action.counterfactual', 'Create counterfactual')) + '</button>',
       '<button type="button" data-object-canvas-action="create_card">' + escapeHtml(t('objectCanvas.action.card', 'Create related card')) + '</button>',
       '<button type="button" data-object-canvas-action="create_news">' + escapeHtml(t('objectCanvas.action.news', 'Create related news')) + '</button>',
-      '<button class="danger-action" type="button" data-object-canvas-action="delete_current_object">' + escapeHtml(t(model.mode === 'existing' ? 'objectCanvas.action.deleteExisting' : 'objectCanvas.action.discardDraft', model.mode === 'existing' ? 'Delete event' : 'Discard draft')) + '</button>',
       '<button type="button" data-object-canvas-action="refresh">' + escapeHtml(t('existingScene.refresh', 'Refresh proposal')) + '</button>',
-      '<button type="button" data-object-canvas-action="save">' + escapeHtml(t('editing.saveToChanges', 'Save to My Changes')) + '</button>',
-      '<button class="primary-action" type="button" data-object-canvas-action="review">' + escapeHtml(t('existingScene.review', 'Review & Apply')) + '</button>',
+      '<button class="danger-action" type="button" data-object-canvas-action="delete_current_object">' + escapeHtml(deleteLabel) + '</button>',
+      '</div>',
+      '</details>',
       '</div>'
     ].join('');
   }

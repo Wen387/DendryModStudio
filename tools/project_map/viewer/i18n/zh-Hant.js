@@ -803,6 +803,7 @@
       'objectCanvas.identity.outgoing': '後續',
       'objectCanvas.identity.noFlow': '沒有找到連結流程。',
       'objectCanvas.nextSteps': '下一步創建',
+      'objectCanvas.moreActions': '更多選項',
       'objectCanvas.action.followup': '建立後續',
       'objectCanvas.action.counterfactual': '建立反事實',
       'objectCanvas.action.card': '建立相關卡牌',

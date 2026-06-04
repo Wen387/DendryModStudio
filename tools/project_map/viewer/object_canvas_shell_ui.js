@@ -27,6 +27,20 @@
   function renderHeader(model, surface, state, options) {
     const opts = options || {};
     const t = translateFn(opts.translate);
+    const canCollapse = boardChromeCanCollapse(surface);
+    if (canCollapse) {
+      // Banner retired on canvas surfaces (Content Storyboard, Card board,
+      // System UI preview, Election/Project boards): the sidebar command dock
+      // already shows the object's title, kind, and source, so this header only
+      // wasted vertical height. Keep the status node mounted (the canvas UI
+      // reads/writes [data-object-canvas-status]) but visually hidden so it
+      // claims no layout space.
+      return [
+        '<header class="object-canvas-header object-canvas-header-retired" data-object-canvas-header="true">',
+        '<div class="editing-status-line" data-object-canvas-status="true">' + escapeHtml(state.status || '') + '</div>',
+        '</header>'
+      ].join('');
+    }
     const source = model.source || {};
     const systemUi = surface && surface.key === 'system_ui_preview';
     const modeLabel = model.mode === 'existing'
@@ -36,7 +50,6 @@
     const surfaceLabel = surface && labelForSurface(surface, opts) || t('objectCanvas.eyebrow', 'Object Authoring Canvas');
     const title = headerTitle(model, surface, t);
     const displayTitle = displayCompactLabel(title);
-    const canCollapse = boardChromeCanCollapse(surface);
     const collapsed = canCollapse && state.boardChromeCollapsed;
     const toggleLabel = collapsed
       ? t('objectCanvas.expandBoardChrome', 'Expand board details')

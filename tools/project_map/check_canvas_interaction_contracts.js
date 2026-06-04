@@ -102,8 +102,8 @@ function checkObjectCanvasContracts() {
   contains(viewport, 'nextZoom(previous, action, event)', 'Object Canvas viewport should centralize stepped and wheel zoom scaling');
   contains(viewport, 'viewportCanvas(root, event)', 'Object Canvas viewport should share pointer-centered zoom across Canvas surfaces');
   contains(graphInteractions, 'options.onZoom(event.deltaY < 0 ? \'in\' : \'out\', event)', 'Object Graph wheel zoom should pass the pointer event into the shared viewport');
-  contains(shell, 'data-object-canvas-action="toggle_board_chrome"', 'Object Canvas chrome toggle');
-  contains(shell, 'aria-expanded="', 'Object Canvas chrome toggle accessibility state');
+  contains(shell, 'object-canvas-header-retired', 'Object Canvas retires the redundant board banner on canvas surfaces (info lives in the sidebar command dock)');
+  contains(shell, 'data-object-canvas-status="true"', 'Object Canvas keeps the status readout node mounted for live updates even with the banner retired');
   contains(shell, 'modalActive ? \'\' : opts.bodyHtml', 'Object Canvas modal should not duplicate the full editor body behind large object editors');
   contains(objectUi, 'action === \'toggle_board_chrome\'', 'Object Canvas chrome toggle handler');
   contains(objectUi, 'toggleBoardChrome()', 'Object Canvas chrome toggle handler');

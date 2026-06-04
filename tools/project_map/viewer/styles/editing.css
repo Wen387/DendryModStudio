@@ -2995,6 +2995,75 @@
   font-weight: 780;
 }
 
+/* Retired board banner on canvas surfaces: visually hidden but kept in the DOM
+   so the canvas UI's [data-object-canvas-status] live readout still resolves. */
+.object-canvas-header-retired {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* "More options" disclosure folds the lower-frequency command-dock actions away
+   so the panel stays short on small / aggressively zoomed screens. */
+.object-canvas-more-actions {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.object-canvas-more-actions > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+
+.object-canvas-more-actions > summary::-webkit-details-marker {
+  display: none;
+}
+
+.object-canvas-more-actions > summary::after {
+  content: "\25be";
+  margin-left: auto;
+  font-size: 11px;
+}
+
+.object-canvas-more-actions > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.object-canvas-more-actions[open] > summary {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.object-canvas-more-actions[open] > summary::after {
+  content: "\25b4";
+}
+
+.object-canvas-more-actions-menu {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  gap: 6px;
+  margin-top: 6px;
+}
+
 .project-state-surface {
   display: grid;
   gap: 0;

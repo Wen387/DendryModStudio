@@ -803,6 +803,7 @@
       'objectCanvas.identity.outgoing': 'Outgoing',
       'objectCanvas.identity.noFlow': 'No linked flow found.',
       'objectCanvas.nextSteps': 'Next creation',
+      'objectCanvas.moreActions': 'More options',
       'objectCanvas.action.followup': 'Create follow-up',
       'objectCanvas.action.counterfactual': 'Create counterfactual',
       'objectCanvas.action.card': 'Create related card',
