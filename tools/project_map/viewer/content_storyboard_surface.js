@@ -80,8 +80,7 @@
       renderProfileBadge(storyboard.timeline && storyboard.timeline.profile),
       renderSearch(storyboard),
       renderCategoryFilters(storyboard),
-      renderPanelButton('toggle_story_scope_panel', !(storyboard.ui && storyboard.ui.scopeCollapsed), t('storyboard.scopeShort', 'Scope')),
-      renderPanelButton('toggle_story_overview_panel', !(storyboard.ui && storyboard.ui.overviewCollapsed), t('storyboard.years', 'Years')),
+      renderPanelButton('toggle_story_navigator', !(storyboard.ui && storyboard.ui.scopeCollapsed && storyboard.ui.overviewCollapsed), t('storyboard.navigatorShort', 'Navigator')),
       renderViewButton('timeline', storyboard.view === 'timeline', t('storyboard.timeline', 'Timeline')),
       renderViewButton('chain', storyboard.view === 'chain', t('storyboard.chain', 'Chain')),
       '<button type="button" data-object-canvas-action="toggle_overlay">' + escapeHtml(options && options.editorOverlay ? t('objectCanvas.editorDock', 'Close editor') : t('objectCanvas.editorOverlay', 'Open object editor')) + '</button>',
@@ -162,9 +161,7 @@
       '<section class="content-storyboard-canvas" data-content-storyboard-canvas="true" data-storyboard-kind="timeline" data-storyboard-drop-target="canvas" style="--content-storyboard-width: ' + width + 'px; --content-storyboard-height: ' + height + 'px;">',
       renderCanvasControls(),
       renderPalette(storyboard),
-      renderGlobalContext(storyboard),
-      renderTimelineScope(storyboard),
-      renderTimelineOverview(storyboard),
+      renderTimelineNavigator(storyboard),
       '<div class="content-storyboard-board" data-content-storyboard-board="true" data-object-canvas-graph-board="true">',
       lanes.map((lane, laneIndex) => renderTimelineLane(lane, laneIndex, laneWidth, laneGap, positions, storyboard)).join(''),
       renderUndatedLane(storyboard.timeline && storyboard.timeline.undated || [], lanes.length, laneWidth, laneGap, positions, storyboard),
@@ -228,7 +225,6 @@
       '<section class="content-storyboard-canvas" data-content-storyboard-canvas="true" data-storyboard-kind="chain" data-storyboard-drop-target="canvas" style="--content-storyboard-width: ' + width + 'px; --content-storyboard-height: ' + height + 'px;">',
       renderCanvasControls(),
       renderPalette(storyboard),
-      renderGlobalContext(storyboard),
       renderChainDepthControls(storyboard),
       '<svg class="content-storyboard-chain-edges" data-content-storyboard-chain-connectors="true" data-object-canvas-graph-edges="true" viewBox="0 0 ' + width + ' ' + height + '" aria-hidden="true">',
       renderChainConnectors(storyboard, levels, columnWidth, cardStep, positions),
@@ -253,37 +249,9 @@
     ].join('');
   }
 
-  function renderGlobalContext(storyboard) {
-    const context = storyboard.storyContext || {};
-    const selected = context.selected || {};
-    const timeline = context.timeline || {};
-    const chain = context.chain || {};
-    return [
-      '<section class="content-storyboard-global-context" data-content-storyboard-global-context="true">',
-      '<div><span>' + escapeHtml(t('storyboard.nowEditing', 'Now editing')) + '</span><strong>' + escapeHtml(selected.title || selected.id || '') + '</strong></div>',
-      '<div><span>' + escapeHtml(t('storyboard.globalPosition', 'Global position')) + '</span><strong>' + escapeHtml(selected.positionLabel || timeline.rangeLabel || '') + '</strong></div>',
-      '<div><span>' + escapeHtml(t('storyboard.nearby', 'Nearby')) + '</span><strong>' + escapeHtml([
-        (selected.beforeCount || 0) + ' ' + t('storyboard.beforeShort', 'before'),
-        (selected.sameLaneCount || 0) + ' ' + t('storyboard.hereShort', 'here'),
-        (selected.afterCount || 0) + ' ' + t('storyboard.afterShort', 'after')
-      ].join(' / ')) + '</strong></div>',
-      '<div><span>' + escapeHtml(t('storyboard.chainEvidence', 'Chain')) + '</span><strong>' + escapeHtml([
-        (chain.upstreamCount || 0) + ' ' + t('storyboard.upstreamShort', 'upstream'),
-        (chain.routeCount || 0) + ' ' + t('storyboard.routesShort', 'routes'),
-        (chain.branchCount || 0) + ' ' + t('storyboard.branchesShort', 'branches')
-      ].join(' / ')) + '</strong></div>',
-      '</section>'
-    ].join('');
-  }
-
-  function renderTimelineOverview(storyboard) {
+  function renderTimelineNavigator(storyboard) {
     const api = scopeControlsApi();
-    return api && typeof api.renderTimelineOverview === 'function' ? api.renderTimelineOverview(storyboard) : '';
-  }
-
-  function renderTimelineScope(storyboard) {
-    const api = scopeControlsApi();
-    return api && typeof api.renderTimelineScope === 'function' ? api.renderTimelineScope(storyboard) : '';
+    return api && typeof api.renderTimelineNavigator === 'function' ? api.renderTimelineNavigator(storyboard) : '';
   }
 
   function renderChainDepthControls(storyboard) {

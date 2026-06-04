@@ -130,7 +130,6 @@
   outline-offset: 4px;
 }
 
-.content-storyboard-scope,
 .content-storyboard-depth-controls {
   position: absolute;
   z-index: 7;
@@ -145,11 +144,50 @@
   box-shadow: 0 8px 22px rgba(43, 36, 23, 0.1);
 }
 
+/* Single bottom "timeline navigator" panel merging the former top scope bar
+   and bottom overview minimap (global-context chips moved to the sidebar). */
+.content-storyboard-navigator {
+  position: absolute;
+  left: 44px;
+  right: 208px;
+  top: 16px;
+  z-index: 7;
+  display: grid;
+  gap: 5px;
+  max-height: 33%;
+  overflow: auto;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--surface);
+  box-shadow: 0 8px 22px rgba(43, 36, 23, 0.12);
+}
+
+.content-storyboard-navigator-collapse {
+  position: absolute;
+  top: 5px;
+  right: 6px;
+  z-index: 2;
+  min-height: 22px;
+  padding: 1px 8px;
+  border: 1px solid var(--border-soft);
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--accent-strong);
+  font-size: 11px;
+  font-weight: 800;
+}
+
 .content-storyboard-scope {
-  left: 16px;
-  right: 16px;
-  top: 72px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  /* Reserve room on this top row so the right-aligned scope actions never
+     slide under the floating collapse button pinned to the corner. */
+  padding-right: 52px;
 }
 
 .content-storyboard-scope-summary {
@@ -219,75 +257,19 @@
   content: attr(aria-label);
 }
 
-.content-storyboard-global-context {
-  position: absolute;
-  left: 16px;
-  top: 16px;
-  z-index: 7;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(92px, 1fr));
-  gap: 5px;
-  width: min(660px, calc(100% - 184px));
-  padding: 5px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface);
-  box-shadow: 0 8px 22px rgba(43, 36, 23, 0.1);
-}
-
-.content-storyboard-global-context div {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-  padding: 4px 6px;
-  border-radius: 5px;
-  background: var(--surface-alt);
-}
-
-.content-storyboard-global-context span {
-  color: var(--muted);
-  font-size: 10px;
-  font-weight: 850;
-  text-transform: uppercase;
-}
-
-.content-storyboard-global-context strong {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 12px;
-}
-
 .content-storyboard-overview {
-  position: absolute;
-  left: 16px;
-  right: 16px;
-  bottom: 12px;
-  z-index: 7;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(86px, 1fr));
   gap: 5px;
-  padding: 6px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface);
-  box-shadow: 0 8px 22px rgba(43, 36, 23, 0.1);
-}
-
-.content-storyboard-overview-collapse {
-  border-color: var(--accent) !important;
-  color: var(--accent-strong) !important;
-  font-weight: 850;
 }
 
 .content-storyboard-overview button {
   position: relative;
   display: grid;
-  gap: 3px;
+  gap: 2px;
   min-width: 0;
-  min-height: 42px;
-  padding: 5px 7px;
+  min-height: 32px;
+  padding: 4px 7px;
   border: 1px solid var(--border-soft);
   border-radius: 5px;
   background: var(--surface);
@@ -898,22 +880,6 @@
     border-bottom: 1px solid var(--border);
   }
 
-  .content-storyboard-global-context {
-    right: 16px;
-    width: auto;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .content-storyboard-floating-controls {
-    top: 112px;
-  }
-
-  .content-storyboard-scope {
-    right: 16px;
-    top: 150px;
-    display: grid;
-  }
-
   .content-storyboard-depth-controls {
     right: 16px;
     top: 150px;
@@ -925,8 +891,16 @@
     max-width: none;
   }
 
-  .content-storyboard-overview {
+  /* No room beside the zoom cluster on a narrow canvas: dock the navigator
+     full-width at the bottom instead of top-left. */
+  .content-storyboard-navigator {
+    top: auto;
+    left: 16px;
     right: 16px;
+    bottom: 12px;
+  }
+
+  .content-storyboard-navigator .content-storyboard-overview {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 

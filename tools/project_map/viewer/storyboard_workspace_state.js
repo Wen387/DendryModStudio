@@ -151,6 +151,11 @@
     if (action === 'toggle_story_overview_panel') {
       return rebuild(state, deps, {storyOverviewCollapsed: !state.storyOverviewCollapsed});
     }
+    if (action === 'toggle_story_navigator') {
+      // The merged timeline navigator collapses scope + overview as one unit.
+      const collapsed = !(state.storyScopeCollapsed && state.storyOverviewCollapsed);
+      return rebuild(state, deps, {storyScopeCollapsed: collapsed, storyOverviewCollapsed: collapsed});
+    }
     if (action === 'set_story_card_color') {
       const key = target && target.dataset && target.dataset.storyboardCardColorKey || '';
       const color = target && target.dataset && target.dataset.storyboardCardColor || '';

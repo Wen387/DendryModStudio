@@ -1641,6 +1641,8 @@
       'storyboard.matches': '匹配',
       'storyboard.scopeShort': '範圍',
       'storyboard.years': '年份',
+      'storyboard.navigator': '時間軸導航',
+      'storyboard.navigatorShort': '導航',
       'storyboard.collapse': '收起',
       'storyboard.collapseYears': '收起年份',
       'storyboard.color.pick': '設定卡牌邊緣顏色',

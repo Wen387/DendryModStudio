@@ -1,7 +1,26 @@
 (function initProjectMapStoryboardScopeControls(global) {
   'use strict';
 
-  function renderTimelineScope(storyboard) {
+  // Single bottom "timeline navigator" merging the former top scope bar and the
+  // former bottom overview minimap into one floating panel with one collapse.
+  // Both halves share the scope/overview collapse flags (toggled together by
+  // `toggle_story_navigator`), so they appear and hide as a unit.
+  function renderTimelineNavigator(storyboard) {
+    const scopeHtml = renderScopeSection(storyboard);
+    const overviewHtml = renderOverviewSection(storyboard);
+    if (!scopeHtml && !overviewHtml) {
+      return '';
+    }
+    return [
+      '<section class="content-storyboard-navigator" data-content-storyboard-navigator="true" aria-label="' + escapeAttr(t('storyboard.navigator', 'Timeline navigator')) + '">',
+      '<button type="button" class="content-storyboard-navigator-collapse" data-object-canvas-action="toggle_story_navigator" aria-label="' + escapeAttr(t('storyboard.collapse', 'Collapse')) + '" title="' + escapeAttr(t('storyboard.collapse', 'Collapse')) + '">' + escapeHtml(t('storyboard.collapse', 'Collapse')) + '</button>',
+      scopeHtml,
+      overviewHtml,
+      '</section>'
+    ].join('');
+  }
+
+  function renderScopeSection(storyboard) {
     const ui = storyboard && storyboard.ui || {};
     if (ui.scopeCollapsed) {
       return '';
@@ -11,14 +30,13 @@
       return '';
     }
     return [
-      '<section class="content-storyboard-scope" data-content-storyboard-scope="true" aria-label="' + escapeAttr(t('storyboard.scope', 'Story scope')) + '">',
+      '<div class="content-storyboard-scope" data-content-storyboard-scope="true" aria-label="' + escapeAttr(t('storyboard.scope', 'Story scope')) + '">',
       '<div class="content-storyboard-scope-summary">',
       '<span>' + escapeHtml(t('storyboard.scope', 'Story scope')) + '</span>',
       '<strong>' + escapeHtml(scope.activeLabel || scope.activeLaneKey || '') + '</strong>',
       '<em>' + escapeHtml(scope.visibleCardCount + ' / ' + scope.totalCardCount + ' ' + t('storyboard.beats', 'beats')) + '</em>',
       '</div>',
       '<div class="content-storyboard-scope-actions">',
-      '<button type="button" data-object-canvas-action="toggle_story_scope_panel">' + escapeHtml(t('storyboard.collapse', 'Collapse')) + '</button>',
       scopeButton('story_scope_focus', scope.mode === 'focus', t('storyboard.scope.focus', 'Focus')),
       scopeButton('story_scope_expand', scope.mode === 'expanded', t('storyboard.scope.expanded', 'Expanded')),
       '<button type="button" data-object-canvas-action="story_scope_reset">' + escapeHtml(t('storyboard.scope.reset', 'Reset')) + '</button>',
@@ -28,11 +46,11 @@
       scope.hiddenAfter ? '<span>' + escapeHtml(scope.hiddenAfter + ' ' + t('storyboard.scope.afterWindow', 'after window')) + '</span>' : '',
       scope.undatedCount && !scope.showUndated ? '<span>' + escapeHtml(scope.undatedCount + ' ' + t('storyboard.undated', 'Undated')) + '</span>' : '',
       '</div>',
-      '</section>'
+      '</div>'
     ].join('');
   }
 
-  function renderTimelineOverview(storyboard) {
+  function renderOverviewSection(storyboard) {
     const ui = storyboard && storyboard.ui || {};
     if (ui.overviewCollapsed) {
       return '';
@@ -44,8 +62,7 @@
     }
     const max = lanes.reduce((value, lane) => Math.max(value, lane.count || 0), 1);
     return [
-      '<section class="content-storyboard-overview" data-content-storyboard-overview="true" aria-label="' + escapeAttr(t('storyboard.overview', 'Timeline overview')) + '">',
-      '<button type="button" class="content-storyboard-overview-collapse" data-object-canvas-action="toggle_story_overview_panel" aria-label="' + escapeAttr(t('storyboard.collapseYears', 'Collapse years')) + '">' + escapeHtml(t('storyboard.collapse', 'Collapse')) + '</button>',
+      '<div class="content-storyboard-overview" data-content-storyboard-overview="true" aria-label="' + escapeAttr(t('storyboard.overview', 'Timeline overview')) + '">',
       lanes.map((lane) => {
         const width = Math.max(10, Math.round((Number(lane.count || 0) / max) * 100));
         const className = [
@@ -54,7 +71,7 @@
         ].filter(Boolean).join(' ');
         return '<button type="button" class="' + className + '" data-object-canvas-action="focus_story_scope" data-content-storyboard-scope-lane="' + escapeAttr(lane.key || '') + '" data-content-storyboard-insert="' + escapeAttr(lane.insertionKey || lane.key || '') + '"><span>' + escapeHtml(lane.label || lane.key || '') + '</span><b style="width: ' + width + '%"></b><em>' + escapeHtml(String(lane.count || 0)) + '</em></button>';
       }).join(''),
-      '</section>'
+      '</div>'
     ].join('');
   }
 
@@ -97,7 +114,7 @@
     }[char]));
   }
 
-  const api = {renderTimelineScope, renderTimelineOverview, renderChainDepthControls};
+  const api = {renderTimelineNavigator, renderChainDepthControls};
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;
   }

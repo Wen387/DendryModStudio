@@ -1641,6 +1641,8 @@
       'storyboard.matches': 'matches',
       'storyboard.scopeShort': 'Scope',
       'storyboard.years': 'Years',
+      'storyboard.navigator': 'Timeline navigator',
+      'storyboard.navigatorShort': 'Navigator',
       'storyboard.collapse': 'Collapse',
       'storyboard.collapseYears': 'Collapse years',
       'storyboard.color.pick': 'Set card edge color',

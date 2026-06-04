@@ -364,8 +364,7 @@ assert(timelineHtml.includes('data-storyboard-kind="timeline"'), 'surface should
 assert(timelineHtml.includes('data-content-storyboard-search="true"'), 'surface should render quick Storyboard search');
 assert(timelineHtml.includes('data-content-storyboard-category-filter="true"'), 'surface should render storyboard category filters');
 assert(timelineHtml.includes('data-storyboard-canvas-category="cards"'), 'surface should expose the card/advisor category switch');
-assert(timelineHtml.includes('data-object-canvas-action="toggle_story_scope_panel"'), 'surface should expose the Story Scope collapse toggle');
-assert(timelineHtml.includes('data-object-canvas-action="toggle_story_overview_panel"'), 'surface should expose the Years overview collapse toggle');
+assert(timelineHtml.includes('data-object-canvas-action="toggle_story_navigator"'), 'surface should expose the single timeline navigator collapse toggle');
 assert(timelineHtml.includes('data-storyboard-card-color-picker="true"'), 'surface should render card edge color controls');
 assert(timelineHtml.includes('--storyboard-card-edge: #1a6f9f'), 'surface should apply cached custom card edge colors');
 assert(timelineHtml.includes('data-object-canvas-action="discard_draft_card"'), 'surface should expose draft card discard controls');
@@ -391,7 +390,8 @@ assert(timelineHtml.includes('data-storyboard-palette-kind="state"'), 'palette s
 assert(timelineHtml.includes('storyboard-palette-meta'), 'palette should render asset metadata rows');
 assert(timelineHtml.includes('data-storyboard-drop-target="timeline_lane"'), 'timeline lanes should expose palette drop targets');
 assert(timelineHtml.includes('data-content-storyboard-insert="time:1929"'), 'surface should render time-slot insertion');
-assert(timelineHtml.includes('data-content-storyboard-global-context="true"'), 'surface should render global story context in the canvas');
+assert(timelineHtml.includes('data-content-storyboard-navigator="true"'), 'surface should render the merged timeline navigator panel');
+assert(timelineHtml.includes('data-content-storyboard-story-context="true"'), 'sidebar should carry global story context (now that the canvas banner is retired)');
 assert(timelineHtml.includes('data-content-storyboard-overview="true"'), 'surface should render a timeline overview/minimap strip');
 assert(timelineHtml.includes('data-content-storyboard-scope="true"'), 'surface should render focused story scope controls');
 assert(timelineHtml.includes('data-storyboard-card-face="event"'), 'surface should render player-facing card face markers');
