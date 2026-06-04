@@ -6,17 +6,33 @@
     return Array.isArray(value) ? value : [value];
   }
 
+  // Memoized: ownership matching compares every owner against every option and
+  // section, calling this for the same handful of endpoint id strings millions
+  // of times on a large event (~4.4s of self time). The result is a pure
+  // function of the input string and is only read by callers, so cache it. The
+  // key space is the project's endpoint id vocabulary (bounded); the size guard
+  // is a defensive cap for a long-running session.
+  const endpointTokenCache = new Map();
+
   function parseEndpointToken(value) {
-    const text = String(value || '').trim().replace(/^[@#]/, '');
-    if (!text) {
-      return null;
+    const key = String(value || '');
+    if (endpointTokenCache.has(key)) {
+      return endpointTokenCache.get(key);
     }
-    const parts = text.split('.');
-    return {
-      full: text,
-      local: parts[parts.length - 1] || text,
-      qualified: parts.length > 1
-    };
+    const text = key.trim().replace(/^[@#]/, '');
+    let parsed = null;
+    if (text) {
+      const parts = text.split('.');
+      parsed = {
+        full: text,
+        local: parts[parts.length - 1] || text,
+        qualified: parts.length > 1
+      };
+    }
+    if (endpointTokenCache.size < 100000) {
+      endpointTokenCache.set(key, parsed);
+    }
+    return parsed;
   }
 
   function normalizeEndpointToken(value) {
