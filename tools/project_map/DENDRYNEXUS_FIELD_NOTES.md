@@ -45,10 +45,24 @@ two kinds of evidence:
   which shows final scene ids, qualified section ids, tags, and directives.
 - Runtime evidence: a bounded `random-test` or Runtime Preview path when the
   behavior is about play flow rather than static compilation.
+- Controlled engine evidence: a headless run of the reference engine with a
+  FIXED seed is fully reproducible and can pin exact routing, choice, and
+  variable behavior. But a hand-built game object skips the parser's
+  normalization and defaulting, so a "trap" seen that way must be re-checked
+  against a real parsed build (`compileGame` from `.dry` files) before it is
+  believed.
 
 Good field notes survive this comparison. Weak notes usually fail because a
 pattern is just a tutorial shortcut, a generated-output artifact, or a single
 project's custom runtime behavior.
+
+Also weigh real usage. A directive the engine supports but that no production
+project actually exercises — in the reference mod that includes checks,
+`go-to-ref`, `go-sub`, and the `...-var` directives — is an edge feature:
+document its semantics, but mark it as rarely used rather than core behavior.
+And remember a real game can fork the engine and write browser-coupled logic
+(scripts referencing `window`), so headless evidence proves the engine's static
+semantics, not that every project reproduces them.
 
 When using `random-test`, remember that hub/card examples can intentionally
 loop. Use bounded runs, dumps, or a timeout, and keep only the route evidence
@@ -112,6 +126,8 @@ title: Center Party
 Face-image: img/portraits/AufhauserSiegfried.jpg
 face-image: img/portraits/AufhauserSiegfried.jpg
 faceImage: img/portraits/AufhauserSiegfried.jpg
+face_image: img/portraits/AufhauserSiegfried.jpg
+face image: img/portraits/AufhauserSiegfried.jpg
 
 Set-bg: img/backgrounds/congress.jpg
 set-bg: img/backgrounds/congress.jpg
@@ -176,7 +192,10 @@ Important Studio assumptions:
   be missing the leading option marker because of chat formatting. Confirm
   before accepting it as syntax.
 - Option metadata lines after an option also need the leading `-`, such as
-  `- choose-if: ...` or `- unavailableSubtitle: ...`.
+  `- choose-if: ...` or `- unavailableSubtitle: ...`. Writing the sub-property
+  INDENTED instead (`    priority: 2`) is silently dropped: it raises no error
+  but never attaches to the option, so an indented `priority`, `frequency`, or
+  `choose-if` simply has no effect.
 - `---` is not required for normal scenes and should not be inserted unless the
   project's parser style actually requires it.
 - `= Heading` is visible body structure, not a directive.
@@ -184,6 +203,37 @@ Important Studio assumptions:
   appear before the body text of the scene or section they belong to. If a
   directive-looking line appears after prose has begun, Dendry treats it as
   rendered text rather than metadata.
+
+**Relative id resolution is near-to-far.** When a route or option uses a
+relative id, the compiler resolves it against the owning scene/section as
+context, trying candidates from local to global. A bare `foo` inside context
+`a.b.c` is tried as `a.b.c.foo`, then `a.b.foo`, then `a.foo`, then `foo`, and
+the first that exists wins — so a LOCAL `parent.foo` shadows a GLOBAL `foo`. A
+leading dot changes this: `.foo` (one dot plus a name) is an absolute global id,
+`.` means the context itself, and `..` / `...` walk up one or more levels.
+Studio route inference must carry the owning scene id as context and try
+candidates local-first, or it will mis-link an `@id` jump whenever a local
+section name collides with a global scene name.
+
+The compiler also enforces build-time guards Studio can surface as pre-build
+warnings:
+
+- A logic expression that reads a scene's visit count (`@scene_id` inside a
+  predicate) fails the build if that scene has no `count-visits-max`
+  ("Function refers to visit count ... count-visits-max undefined"), rather than
+  silently returning 0.
+- A `#tag` option must match at least one tagged scene, or the build fails.
+- Duplicate ids are rejected at two layers: two same-named sections in one file
+  fail in the parser, and two files producing the same scene id fail in the
+  compiler.
+
+A safety asymmetry worth surfacing: STATIC invalid targets are caught at build
+time — an option or `go-to` to a nonexistent scene fails compilation with
+"Couldn't find an id matching ...". But DYNAMIC targets are NOT validated: a
+`go-to-ref` whose quality holds an invalid scene id, a `go-to-ref` whose quality
+is undefined, or an `@jumpScene` used with no prior `set-jump` all build cleanly
+and then CRASH at runtime (an assertion failure). Treat dynamic route targets as
+runtime-validity risks, not build-checked links.
 
 ## Main Scene Categories
 
@@ -256,6 +306,28 @@ Lessons for Studio:
 
 Do not assume every card-like object has an image, every deck is in a deck
 folder, or every scene in a card folder is selectable.
+
+## Choice Frequency And Max-choices Selection
+
+When a scene sets `max-choices` and more equal-priority options survive than the
+limit allows, the engine keeps a frequency-weighted random subset rather than a
+fixed slice. Each candidate gets `selectionPriority = random() / frequency`, and
+the lowest values survive. The default `frequency` is 100.
+
+- The weighting is quantifiable. Two equal-priority options A and B with
+  `max-choices: 1` keep A with probability `1 - 1/(2 * (fA/fB))` when
+  `fA >= fB`. Measured over thousands of seeds, a 3:1 frequency ratio keeps A
+  about 83% of the time, 2:1 about 75%, and equal frequencies a fair 50%.
+- `frequency-var` (a dynamic, expression-valued frequency) is accepted by the
+  schema but is BROKEN in the reference engine: choice compilation calls a
+  method that does not exist and throws at runtime, so any option targeting a
+  `frequency-var` scene crashes when that scene's choices are compiled. Its
+  sibling `max-visits-var` is the correctly-wired dynamic directive. Treat
+  `frequency-var` as non-functional and confirm against the project's engine.
+
+Usage weight: no scene in the real reference mod uses `frequency-var`, so it is
+an edge directive, but `max-choices` with a static `frequency` is a real,
+quantifiable bias on which option appears.
 
 ## Hooks And Script Blocks
 
@@ -504,14 +576,30 @@ Studio lessons:
 - Collision checks should also surface zero-valid samples. A conditional route
   group can have no valid target for some state combinations, which is a
   routing coverage gap rather than a normal fallback.
-- `go-sub`, `go-sub-start`, and `go-sub-end` are parser-backed subroutine-like
-  navigation. Treat them as real behavior, but keep automated edits
-  conservative because runtime handling is more nuanced than ordinary `go-to`.
+- `go-sub`, `go-sub-start`, and `go-sub-end` parse and build, but in the
+  reference DendryNexus engine they are an unfinished feature, not working
+  navigation. The scene parser accepts all three directives (validated like
+  `go-to`) and the parser's own source carries a TODO planning their intended
+  priority (`gosub > goto > gotoref`) and start/end timing. The runtime,
+  however, never wires them: the `goSubEnd` branch gathers valid sub-targets
+  and then discards them, the `sceneStack` used for `goSub` is never pushed or
+  popped, the compiler-defined `returnScene` target has no handler in
+  `__changeScene`, and the `justReturned*` flags are never set. A controlled
+  engine run confirms the engine does NOT enter a `go-sub` target; it falls
+  through to the scene's own choices. Practical lesson: index `go-sub` as a
+  present directive, but treat it as NON-FUNCTIONAL routing evidence (a silent
+  no-op risk for authors), not as real flow. A project that relies on `go-sub`
+  may build cleanly yet do nothing at runtime. Because `package.json` can pin a
+  fork, confirm against the project's actual engine before generalizing.
 - `set-jump` records a runtime jump/return target used by subroutine-like flows
-  such as election algorithms. Show it as route evidence, but do not present it
-  as a normal immediate `go-to`. Treat it as a single-slot return target rather
-  than a call stack; nested jump patterns should remain advanced/manual unless
-  runtime/profile evidence proves the intended behavior.
+  such as election algorithms. It is the one subroutine-return mechanism the
+  reference engine actually implements: `set-jump` stores a target in a single
+  `jumpSceneId` slot, and a later `go-to: jumpScene` returns to it. Show it as
+  route evidence, but do not present it as a normal immediate `go-to`. It is a
+  single slot, not a call stack: a second `set-jump` overwrites the first, so a
+  jump after two `set-jump`s returns to the most recent target (a controlled
+  engine run confirms this). Nested jump patterns should remain advanced/manual
+  unless runtime/profile evidence proves the intended behavior.
 
 When a route field is dynamic, the useful Studio output is often "this scene
 depends on a runtime value" rather than "this target is broken."
@@ -557,6 +645,78 @@ Studio should preserve these fields as source-backed evidence. That does not
 mean every field is immediately safe to edit. In particular, stat-check routing,
 sprite layout, and custom runtime rows can depend on project-specific engine
 forks or HTML templates.
+
+A controlled engine run (reference build) pins how the check math resolves. A
+stat check only fires when four fields are all present and truthy:
+`check-quality`, one of `broad-difficulty` / `narrow-difficulty`,
+`check-success-go-to`, and `check-failure-go-to`. Miss any one and the scene
+runs no check and simply falls through to its options.
+
+- **Broad difficulty:** success probability is `scaler * (quality / difficulty)`,
+  capped at 1. The default scaler is 0.6, and a scaler greater than 1 is read as
+  a percentage (divided by 100), so an omitted scaler, `0.6`, and `60` behave
+  identically.
+- **Narrow difficulty:** success probability is
+  `(quality - difficulty) * increment + 0.5`, clamped to `[increment, 1]`, with
+  a default increment of 0.1. The clamp puts a floor of one increment (~10%)
+  under the result, so a narrow check can be made an effective certainty but can
+  NEVER be a guaranteed loss — even at impossible difficulty it still succeeds
+  about 10% of the time.
+- **`difficulty: 0` is a silent trap.** A `broad-difficulty` or
+  `narrow-difficulty` of literally `0` is falsy, so the engine's check gate
+  treats it as "no check" and silently disables the whole check rather than
+  meaning "trivial". The parser does not rescue this (unlike `max-visits`, which
+  gets a companion counter), so a `0` reaches the runtime intact and the player
+  rests on the scene instead of routing to success or failure. Worth a Studio
+  authoring warning.
+- **A check overrides a sibling `go-to`.** If a scene carries both a `go-to` and
+  a check, the check runs after the `go-to` and changes scene again, so the
+  check target wins. The engine source itself calls this "undefined behavior";
+  do not author both in one scene.
+
+Usage weight: in the real reference mod (SD:AAH source) no scene uses checks at
+all — the only `broad`/`narrow-difficulty` files are engine templates — so
+treat checks as a real but rarely exercised engine feature, and confirm
+behavior against the project's pinned engine.
+
+## Quality Limits And Variable Semantics
+
+Reading a quality in a condition is only half the story; the runtime also
+constrains how a quality is written. The reference engine installs accessors on
+the qualities object ONLY for qualities that declare `min`, `max`, `signal`, or
+`is-valid`. For those declared qualities, every write — including the `initial`
+value — goes through a setter that:
+
+- clamps the value to `[min, max]` (min applied first, then max), on EVERY
+  write, not just at setup;
+- runs `is-valid` and, if it returns false, REVERTS the write to the previous
+  value (a veto);
+- emits a quality-change signal `{event:'quality-change', id, now, was}` when
+  the value actually changed.
+
+A quality that declares none of those is a plain value: no clamp, no veto, no
+signal. Studio relevance: a source effect like `q += 100` may not actually reach
+100 (runtime clamp), and an `is-valid` rule can silently revert an effect, so
+variable analysis must not trust the raw arithmetic — limits bind only when the
+quality is declared.
+
+Visit counting follows the same opt-in shape. `state.visits[id]` is incremented
+only when the scene declares `count-visits-max`; a scene without it is never
+counted. The parser fills this in for two cases, which matters because a
+runtime-only experiment can otherwise mislead:
+
+- `max-visits: N` with no `count-visits-max` gets `count-visits-max = N`
+  auto-filled (and an explicit `count-visits-max` lower than `max-visits` is a
+  parse error). So a real `.dry` file with `max-visits` alone DOES retire, even
+  though a hand-built game object that skips the parser would not.
+- `max-visits-var` (a dynamic, expression-valued cap) forces
+  `count-visits-max = 10000`, overriding any explicit value. It is the one
+  dynamic `...Var` directive that is correctly wired; its sibling
+  `frequency-var` is parsed but crashes at runtime.
+
+The general lesson: a trap seen only at the runtime level (with a hand-built
+game object) must be re-checked against a real parsed build before it is
+believed, because the parser's normalization can paper it over.
 
 ## Images And Assets
 
