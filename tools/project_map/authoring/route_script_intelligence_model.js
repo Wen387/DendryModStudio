@@ -47,8 +47,12 @@
    * @returns {RouteScriptIntelligenceModel}
    */
   function buildRouteScriptIntelligence(eventBody, options) {
-    const body = isObject(eventBody) ? clone(eventBody) : {};
     const opts = isObject(options) ? options : {};
+    // `reuseBody` skips a redundant 86MB deep copy when the caller already
+    // owns a private clone (the enrichEventBody wrapper forwards it only from
+    // the trusted toEventBody chain, which never passes profileEvidence /
+    // projectIndex — so the in-place mutation below stays a no-op there).
+    const body = isObject(eventBody) ? (opts.reuseBody ? eventBody : clone(eventBody)) : {};
     if (!body.profileEvidence && opts.profileEvidence) {
       body.profileEvidence = opts.profileEvidence;
     }
@@ -171,8 +175,12 @@
   }
 
   function enrichEventBody(eventBody, options) {
-    const body = isObject(eventBody) ? clone(eventBody) : {};
-    const model = buildRouteScriptIntelligence(body, options || {});
+    const opts = isObject(options) ? options : {};
+    const body = isObject(eventBody) ? (opts.reuseBody ? eventBody : clone(eventBody)) : {};
+    // Forward reuseBody (not force it): in the trusted chain the build can work
+    // in place, but external callers that pass profileEvidence still need the
+    // inner clone so that mutation stays isolated from the returned body.
+    const model = buildRouteScriptIntelligence(body, opts);
     body.routeScriptIntelligence = {
       schemaVersion: model.schemaVersion,
       kind: model.kind,

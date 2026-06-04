@@ -195,7 +195,10 @@
         next = api.enrichEventBody(next, {
           structure,
           eventId: structure && structure.id,
-          options
+          options,
+          // `next` is toEventBody's private clone; let the enrich layers mutate
+          // it in place instead of each making another 86MB defensive copy.
+          reuseBody: true
         });
       } catch (_err) {
         next = body;
@@ -207,7 +210,8 @@
         next = routeScript.enrichEventBody(next, {
           structure,
           eventId: structure && structure.id,
-          options
+          options,
+          reuseBody: true
         });
       } catch (_err) {
         // Keep the authoring body usable even when optional route intelligence is unavailable.

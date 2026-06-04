@@ -3,9 +3,9 @@
   "exceptions": [
     {
       "path": "tools/project_map/authoring/event_structure_model.js",
-      "maxLines": 3359,
+      "maxLines": 3363,
       "allowRaise": true,
-      "reason": "Split event structure logic before adding more behavior. Ratcheted 2026-05-22 from 2808. Raised 2026-06-04 to 3359 for safeId per-string memo (336k calls / ~2k distinct on a large event)."
+      "reason": "Split event structure logic before adding more behavior. Ratcheted 2026-05-22 from 2808. Raised 2026-06-04 to 3363 for reuseBody clone-elision wiring (enrich chain mutates one private body instead of 86MB defensive copies)."
     },
     {
       "path": "tools/project_map/authoring/existing_scene_edit_model.js",
@@ -32,9 +32,9 @@
     },
     {
       "path": "tools/project_map/authoring/route_script_intelligence_model.js",
-      "maxLines": 1912,
+      "maxLines": 1920,
       "allowRaise": true,
-      "reason": "Route script intelligence aggregator; extract per-evidence-kind sub-models before adding more. Ratcheted 2026-06-04 from 1898 for routeTargetRows per-body memo (O(routes x targets) -> O(routes) target resolution)."
+      "reason": "Route script intelligence aggregator; extract per-evidence-kind sub-models before adding more. Ratcheted 2026-06-04 from 1898 for routeTargetRows per-body memo. Raised to 1920 for reuseBody clone-elision (forwarded private-body flag skips the redundant 86MB enrich copy)."
     },
     {
       "path": "tools/project_map/check_install_plan_model.js",
@@ -60,15 +60,15 @@
     },
     {
       "path": "tools/project_map/viewer/i18n/en.js",
-      "maxLines": 3440,
+      "maxLines": 3442,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3438 for install.empty.group.* labels (install empty-state regrouping)."
+      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3440 for storyboard.navigator labels (merged timeline navigator)."
     },
     {
       "path": "tools/project_map/viewer/i18n/zh-Hant.js",
-      "maxLines": 3440,
+      "maxLines": 3442,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3438 for install.empty.group.* labels (install empty-state regrouping)."
+      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3440 for storyboard.navigator labels (merged timeline navigator)."
     },
     {
       "path": "tools/project_map/viewer/index.html",

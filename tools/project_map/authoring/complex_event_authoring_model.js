@@ -72,8 +72,12 @@
   }
 
   function buildComplexEventAuthoringModel(eventBody, options) {
-    const body = isObject(eventBody) ? clone(eventBody) : {};
     const opts = isObject(options) ? options : {};
+    // `reuseBody` lets a caller that already owns a private clone (e.g. the
+    // enrichEventBody wrapper below, or event_structure's toEventBody chain)
+    // skip a redundant 86MB deep copy. Read-only build, so it never mutates
+    // the shared body; verified byte-identical via full-eventBody sha256.
+    const body = isObject(eventBody) ? (opts.reuseBody ? eventBody : clone(eventBody)) : {};
     const choiceUnits = buildChoiceUnits(body, opts);
     const consequences = summarizeConsequences(choiceUnits, body);
     const continuations = summarizeContinuations(body, choiceUnits);
@@ -103,8 +107,11 @@
   }
 
   function enrichEventBody(eventBody, options) {
-    const body = isObject(eventBody) ? clone(eventBody) : {};
-    const model = buildComplexEventAuthoringModel(body, Object.assign({}, options || {}, {trialRun: false}));
+    const opts = isObject(options) ? options : {};
+    const body = isObject(eventBody) ? (opts.reuseBody ? eventBody : clone(eventBody)) : {};
+    // The wrapper always owns a private body here, so the inner build can
+    // always reuse it (drops one redundant 86MB clone unconditionally).
+    const model = buildComplexEventAuthoringModel(body, Object.assign({}, opts, {trialRun: false, reuseBody: true}));
     body.choiceUnits = model.choiceUnits;
     body.consequenceGroups = model.consequences.groups;
     body.continuationMap = model.continuations;
