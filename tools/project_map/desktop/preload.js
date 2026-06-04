@@ -118,5 +118,9 @@ contextBridge.exposeInMainWorld('dendryDesktop', {
     return result;
   },
   removeCatalogTemplate: (options) => ipcRenderer.invoke('dendry:catalog-remove-template', options || {}),
-  catalogTemplateInfo: (options) => ipcRenderer.invoke('dendry:catalog-template-info', options || {})
+  catalogTemplateInfo: (options) => ipcRenderer.invoke('dendry:catalog-template-info', options || {}),
+  publishAuthStatus: () => ipcRenderer.invoke('dendry:publish-auth-status'),
+  publishSetToken: (options) => ipcRenderer.invoke('dendry:publish-set-token', options || {}),
+  publishClearToken: () => ipcRenderer.invoke('dendry:publish-clear-token'),
+  publishMod: (options) => ipcRenderer.invoke('dendry:publish-mod', options || {})
 });

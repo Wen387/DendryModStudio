@@ -7,6 +7,7 @@ const core = require('./studio_core');
 const runtimeSessionCleanup = require('./runtime_session_cleanup');
 const updateNotice = require('./update_notice');
 const templateCatalog = require('./template_catalog');
+const publish = require('./publish');
 
 const APP_ID = 'studio.dendry.mod';
 const APP_NAME = 'Dendry Mod Studio';
@@ -750,6 +751,8 @@ ipcMain.handle('dendry:open-external-url', async (_event, options) => {
   await shell.openExternal(parsed.href);
   return {ok: true};
 });
+
+publish.register({ipcMain, app, shell});
 
 if (process.platform === 'win32') {
   app.setAppUserModelId(APP_ID);

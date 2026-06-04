@@ -65,6 +65,10 @@
     return has('openCatalogTemplate', env);
   }
 
+  function canPublishMod(env) {
+    return has('publishMod', env);
+  }
+
   function getLocale(env) {
     const desktop = raw(env);
     if (!desktop || typeof desktop.getLocale !== 'function') {
@@ -181,6 +185,54 @@
     }
   }
 
+  function publishAuthStatus(options, env) {
+    var desktop = raw(env);
+    if (!desktop || typeof desktop.publishAuthStatus !== 'function') {
+      return resolve(null);
+    }
+    try {
+      return resolve(desktop.publishAuthStatus(options || {}));
+    } catch (err) {
+      return reject(err);
+    }
+  }
+
+  function publishSetToken(options, env) {
+    var desktop = raw(env);
+    if (!desktop || typeof desktop.publishSetToken !== 'function') {
+      return resolve(null);
+    }
+    try {
+      return resolve(desktop.publishSetToken(options || {}));
+    } catch (err) {
+      return reject(err);
+    }
+  }
+
+  function publishClearToken(options, env) {
+    var desktop = raw(env);
+    if (!desktop || typeof desktop.publishClearToken !== 'function') {
+      return resolve(null);
+    }
+    try {
+      return resolve(desktop.publishClearToken(options || {}));
+    } catch (err) {
+      return reject(err);
+    }
+  }
+
+  function publishMod(options, env) {
+    var desktop = raw(env);
+    if (!desktop || typeof desktop.publishMod !== 'function') {
+      return resolve(null);
+    }
+    try {
+      return resolve(desktop.publishMod(options || {}));
+    } catch (err) {
+      return reject(err);
+    }
+  }
+
   const api = {
     raw,
     isDesktop,
@@ -191,6 +243,7 @@
     canCreateRuntimeLens,
     canListCatalogTemplates,
     canOpenCatalogTemplate,
+    canPublishMod,
     getLocale,
     getState,
     openStarterDemo,
@@ -199,7 +252,11 @@
     listCatalogTemplates,
     openCatalogTemplate,
     removeCatalogTemplate,
-    catalogTemplateInfo
+    catalogTemplateInfo,
+    publishAuthStatus,
+    publishSetToken,
+    publishClearToken,
+    publishMod
   };
 
   if (typeof module !== 'undefined' && module.exports) {

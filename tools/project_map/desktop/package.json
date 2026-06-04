@@ -46,6 +46,7 @@
       "studio_core.js",
       "template_catalog.js",
       "template_catalog.json",
+      "publish/**",
       "dendry_cli_runner.js",
       "runtime_preview.js",
       "runtime_lens.js",

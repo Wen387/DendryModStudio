@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "dendrynexus": "https://github.com/aucchen/dendrynexus/archive/aa4287ed2c03940c52b190c0a8c102b795ac1c79.tar.gz",
+    "isomorphic-git": "^1.38.4",
     "parliament-svg": "^3.0.0"
   },
   "devDependencies": {
