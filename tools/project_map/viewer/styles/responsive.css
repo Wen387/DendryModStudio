@@ -158,6 +158,15 @@
     padding: 0 0 10px;
   }
 
+  .mode-nav {
+    width: 100%;
+  }
+
+  .mode-nav .mode-switch {
+    flex: 1;
+    width: auto;
+  }
+
   .mode-switch {
     width: 100%;
     grid-template-columns: repeat(2, minmax(0, 1fr));

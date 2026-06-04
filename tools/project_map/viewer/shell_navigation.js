@@ -85,6 +85,15 @@
     };
     if (changed) {
       dispatchLifecycleEvent('ProjectMap:mode-changing', detail);
+      // Browser-style back: record the page we are leaving so the shared back
+      // stack can chain mode switches with Explore page history. Skip switches
+      // that the back control itself triggers, to avoid re-recording on return.
+      if (previousMode && detail.reason !== 'nav-back') {
+        const nav = global.ProjectMapNavController;
+        if (nav && typeof nav.recordLeaving === 'function') {
+          nav.recordLeaving(previousMode);
+        }
+      }
     }
     elements.body.dataset.mode = nextMode;
     elements.explorePane.classList.toggle('hidden', nextMode !== 'explore');

@@ -1,3 +1,36 @@
+.mode-nav {
+  justify-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.nav-back:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--surface-alt);
+}
+
+.nav-back:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 .mode-switch {
   justify-self: center;
   display: inline-grid;

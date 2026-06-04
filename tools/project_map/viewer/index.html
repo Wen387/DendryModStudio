@@ -47,11 +47,14 @@
           <div id="brand-subtitle" class="brand-subtitle" data-i18n="topbar.subtitle.default">Studio workspace for branching Dendry projects</div>
         </div>
       </div>
-      <div class="mode-switch" role="tablist" aria-label="Mode" data-i18n-aria-label="aria.modeSwitch">
-        <button id="mode-explore" class="mode-button is-active" type="button" role="tab" aria-selected="true" data-mode="explore" data-i18n="mode.explore">Explore</button>
-        <button id="mode-design" class="mode-button" type="button" role="tab" aria-selected="false" data-mode="design" data-i18n="mode.design">Design</button>
-        <button id="mode-create" class="mode-button" type="button" role="tab" aria-selected="false" data-mode="create" data-i18n="mode.create">Create</button>
-        <button id="mode-install" class="mode-button" type="button" role="tab" aria-selected="false" data-mode="install" data-i18n="mode.install">Install</button>
+      <div class="mode-nav">
+        <button id="nav-back" class="nav-back" type="button" disabled title="Back to previous page" aria-label="Back to previous page" data-i18n-title="nav.back" data-i18n-aria-label="nav.back">&#8592;</button>
+        <div class="mode-switch" role="tablist" aria-label="Mode" data-i18n-aria-label="aria.modeSwitch">
+          <button id="mode-explore" class="mode-button is-active" type="button" role="tab" aria-selected="true" data-mode="explore" data-i18n="mode.explore">Explore</button>
+          <button id="mode-design" class="mode-button" type="button" role="tab" aria-selected="false" data-mode="design" data-i18n="mode.design">Design</button>
+          <button id="mode-create" class="mode-button" type="button" role="tab" aria-selected="false" data-mode="create" data-i18n="mode.create">Create</button>
+          <button id="mode-install" class="mode-button" type="button" role="tab" aria-selected="false" data-mode="install" data-i18n="mode.install">Install</button>
+        </div>
       </div>
       <div class="topbar-actions">
         <label class="locale-switch topbar-locale-switch">
@@ -247,7 +250,6 @@
 
         <section class="browser-panel">
           <div class="toolbar">
-            <button id="explore-back" class="icon-button explore-back" type="button" disabled title="Back to previous view" aria-label="Back to previous view" data-i18n-title="explore.back" data-i18n-aria-label="explore.back">&#8592;</button>
             <label class="search-box">
               <span data-i18n="explore.search">Search</span>
               <input id="search" type="search" placeholder="Filter current view" data-i18n-placeholder="explore.searchPlaceholder">

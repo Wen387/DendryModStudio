@@ -295,7 +295,7 @@
       inspectorPanel: document.querySelector('#explore-pane .inspector'),
       inspectorResizer: document.getElementById('explore-inspector-resizer'),
       search: document.getElementById('search'),
-      exploreBack: document.getElementById('explore-back'),
+      navBack: document.getElementById('nav-back'),
       sortField: document.getElementById('sort-field'),
       sortDir: document.getElementById('sort-dir'),
       dropZone: document.getElementById('index-drop-zone') || document.getElementById('index-drop-target'),
@@ -346,9 +346,27 @@
     }
 
     function updateBackControl() {
-      if (elements.exploreBack) {
-        elements.exploreBack.disabled = !(state.navHistory && state.navHistory.canGoBack());
+      if (elements.navBack) {
+        elements.navBack.disabled = !(state.navHistory && state.navHistory.canGoBack());
       }
+    }
+
+    function restoreExploreLocation(prev) {
+      const shell = global.ProjectMapShellNavigation;
+      if (shell && typeof shell.setMode === 'function'
+        && document.body && document.body.dataset.mode !== 'explore') {
+        shell.setMode('explore', {reason: 'nav-back'});
+      }
+      state.view = prev.view;
+      state.selectedKey = prev.selectedKey;
+      state.selected = prev.selected;
+      state.sortField = prev.sortField;
+      state.sortDir = prev.sortDir;
+      state.query = prev.query || '';
+      if (elements.search) {
+        elements.search.value = state.query;
+      }
+      render(state, elements);
     }
 
     function goBack() {
@@ -357,19 +375,37 @@
       }
       const prev = state.navHistory.back();
       if (prev && prev.mode === 'explore') {
-        state.view = prev.view;
-        state.selectedKey = prev.selectedKey;
-        state.selected = prev.selected;
-        state.sortField = prev.sortField;
-        state.sortDir = prev.sortDir;
-        state.query = prev.query || '';
-        if (elements.search) {
-          elements.search.value = state.query;
+        restoreExploreLocation(prev);
+      } else if (prev && prev.mode) {
+        const shell = global.ProjectMapShellNavigation;
+        if (shell && typeof shell.setMode === 'function') {
+          shell.setMode(prev.mode, {reason: 'nav-back'});
         }
-        render(state, elements);
       }
       updateBackControl();
     }
+
+    // Cross-mode bridge: shell_navigation records the page being left whenever
+    // the workspace mode changes, so the single back stack chains Explore page
+    // history and mode switches together (browser-style back, from any page).
+    global.ProjectMapNavController = {
+      recordLeaving: function recordLeaving(previousMode) {
+        if (!state.navHistory) {
+          return;
+        }
+        if (previousMode === 'explore') {
+          state.navHistory.record(exploreLocation());
+        } else if (previousMode) {
+          state.navHistory.record({id: 'mode:' + previousMode, mode: previousMode});
+        }
+        updateBackControl();
+      },
+      goBack: goBack,
+      canGoBack: function canGoBack() {
+        return !!(state.navHistory && state.navHistory.canGoBack());
+      },
+      refresh: updateBackControl
+    };
 
     function readStoredExploreInspectorWidth() {
       try {
@@ -571,18 +607,15 @@
       render(state, elements);
     });
 
-    if (elements.exploreBack) {
-      elements.exploreBack.addEventListener('click', goBack);
+    if (elements.navBack) {
+      elements.navBack.addEventListener('click', goBack);
     }
     document.addEventListener('keydown', (event) => {
       if (event.key !== 'ArrowLeft' || !event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
         return;
       }
-      // Explore-only in this phase: ignore when the Explore pane is not the
-      // visible workspace, or when there is nowhere to go back to.
-      if (!elements.explorePane || elements.explorePane.offsetParent === null) {
-        return;
-      }
+      // Global browser-style back: works from any workspace mode as long as the
+      // shared back stack has somewhere to return to.
       if (!state.navHistory || !state.navHistory.canGoBack()) {
         return;
       }
@@ -1107,8 +1140,8 @@
     if (state.navHistory && typeof state.navHistory.clear === 'function') {
       state.navHistory.clear();
     }
-    if (elements.exploreBack) {
-      elements.exploreBack.disabled = true;
+    if (elements.navBack) {
+      elements.navBack.disabled = true;
     }
     setStatus(elements, t('desktop.loadedFile', 'Loaded {file} ({size}).')
       .replace('{file}', fileInfo.name)

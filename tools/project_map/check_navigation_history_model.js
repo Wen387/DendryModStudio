@@ -9,11 +9,13 @@ const history = require('./viewer/navigation_history.js');
 
 const ROOT = __dirname;
 const APP_JS = path.join(ROOT, 'viewer', 'app.js');
+const SHELL_JS = path.join(ROOT, 'viewer', 'shell_navigation.js');
 const INDEX_HTML = path.join(ROOT, 'viewer', 'index.html');
 const EN_I18N = path.join(ROOT, 'viewer', 'i18n', 'en.js');
 const ZH_I18N = path.join(ROOT, 'viewer', 'i18n', 'zh-Hant.js');
 
 const appJs = fs.readFileSync(APP_JS, 'utf8');
+const shellJs = fs.readFileSync(SHELL_JS, 'utf8');
 const indexHtml = fs.readFileSync(INDEX_HTML, 'utf8');
 const enI18n = fs.readFileSync(EN_I18N, 'utf8');
 const zhI18n = fs.readFileSync(ZH_I18N, 'utf8');
@@ -60,12 +62,19 @@ assert(appJs.includes('ProjectMapNavigationHistory'), 'app.js should use the nav
 assert(appJs.includes('function goBack('), 'app.js should define goBack()');
 assert(appJs.includes('recordNavigation()'), 'app.js should record navigation at the chokepoints');
 assert(/ArrowLeft/.test(appJs) && /altKey/.test(appJs), 'app.js should bind the Alt+Left shortcut');
-assert(appJs.includes('exploreBack'), 'app.js should drive the Explore back control');
+assert(appJs.includes('navBack'), 'app.js should drive the global back control');
+
+// --- cross-mode bridge -----------------------------------------------------
+assert(appJs.includes('ProjectMapNavController'), 'app.js should publish the cross-mode nav controller');
+assert(appJs.includes('recordLeaving'), 'app.js controller should expose recordLeaving for mode transitions');
+assert(shellJs.includes('ProjectMapNavController') && shellJs.includes('recordLeaving'),
+  'shell_navigation should record the page being left through the nav controller');
+assert(shellJs.includes("'nav-back'"), 'shell_navigation should skip recording when the back control drives the switch');
 
 // --- markup + i18n parity --------------------------------------------------
-assert(indexHtml.includes('id="explore-back"'), 'index.html should include the Explore back button');
+assert(indexHtml.includes('id="nav-back"'), 'index.html should include the global back button');
 assert(indexHtml.includes('navigation_history.js'), 'index.html should load navigation_history.js');
-assert(enI18n.includes("'explore.back'"), 'en locale should define explore.back');
-assert(zhI18n.includes("'explore.back'"), 'zh-Hant locale should define explore.back');
+assert(enI18n.includes("'nav.back'"), 'en locale should define nav.back');
+assert(zhI18n.includes("'nav.back'"), 'zh-Hant locale should define nav.back');
 
 process.stdout.write(JSON.stringify({ok: true, defaultLimit: history.DEFAULT_LIMIT}, null, 2) + '\n');

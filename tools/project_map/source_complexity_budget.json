@@ -62,19 +62,19 @@
       "path": "tools/project_map/viewer/i18n/en.js",
       "maxLines": 3444,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3443 for explore.back label (Explore browser-style back control)."
+      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3443 for the browser-style global back-control label (nav.back)."
     },
     {
       "path": "tools/project_map/viewer/i18n/zh-Hant.js",
       "maxLines": 3444,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3443 for explore.back label (Explore browser-style back control)."
+      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3443 for the browser-style global back-control label (nav.back)."
     },
     {
       "path": "tools/project_map/viewer/index.html",
-      "maxLines": 2484,
+      "maxLines": 2486,
       "allowRaise": true,
-      "reason": "Script + template manifest. Raised 2026-06-04 from 2482 for the Explore back button + navigation_history.js script tag."
+      "reason": "Script + template manifest. Raised 2026-06-04 from 2482 for the global back button + navigation_history.js script tag, then to 2486 for the .mode-nav wrapper grouping the back button with the mode tabs."
     },
     {
       "path": "tools/project_map/viewer/object_authoring_canvas_ui.js",
