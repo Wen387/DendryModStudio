@@ -148,6 +148,13 @@ assert(denseWhatIfHtml.indexOf('data-conditional-filter-shows="true"') !== -1, '
 const sparseHtml = previewObjectEditor.renderConditionalAlternatives({conditionalTree: [{condition: 'Q.a >= 1', text: 'Only one.', children: []}]}, {});
 assert(sparseHtml.indexOf('data-conditional-filter') === -1, 'a short conditional layer must not render the filter toolbar');
 
+// Raw-syntax friendliness (UX #3): an editable condition offers the layer's
+// variables as one-click insert chips so authors do not have to recall exact
+// quality names; a read-only layer exposes no insert chips.
+assert(editableHtml.indexOf('data-conditional-var-insert="true"') !== -1, 'an editable condition must offer a variable-insert chip row');
+assert(editableHtml.indexOf('data-conditional-var-token="metInspector"') !== -1, 'the insert chips must surface the layer variable referenced by the condition');
+assert(readOnlyHtml.indexOf('data-conditional-var-insert') === -1, 'a read-only conditional layer must not render variable-insert chips');
+
 // What-if live refresh contract (P3b #2): editing a branch condition must re-bake
 // the predicate AST so the shows/hidden badge tracks the NEW condition rather than
 // the one baked at render. We pin the two halves the live wiring composes: (a)
@@ -194,6 +201,16 @@ assert(/conditionalBranchState[\s\S]{0,80}!==\s*'active'/.test(canvasUiSource),
   'the shows-only filter must hide branches whose live state is not active');
 assert(/applyConditionalWhatIf[\s\S]{0,600}data-conditional-filter[\s\S]{0,200}applyConditionalFilter/.test(canvasUiSource),
   'recomputing the what-if state must re-run an active shows-only filter');
+
+// Variable-insert drift guard (UX #3): clicking an insert chip must place the
+// token at the condition input caret and dispatch 'input' so the existing leaf
+// validation + what-if re-bake fire, keeping the guarded-splice contract intact.
+assert(/data-conditional-var-token/.test(canvasUiSource) && /handleConditionalVarInsert/.test(canvasUiSource),
+  'the canvas UI must wire a variable-insert handler for condition chips');
+assert(/handleConditionalVarInsert[\s\S]{0,900}data-conditional-leaf-input="condition"[\s\S]{0,800}setSelectionRange/.test(canvasUiSource),
+  'the insert handler must target the condition input and place the caret after the inserted token');
+assert(/dispatchEvent\(new InputCtor\('input'/.test(canvasUiSource),
+  'the insert handler must dispatch an input event so validation + what-if re-bake re-run');
 
 // Inline validation drift guard (P3b #5): the leaf-validation handler must reuse
 // the shared describeInlineLeafValue gate, target the rendered note slot, and

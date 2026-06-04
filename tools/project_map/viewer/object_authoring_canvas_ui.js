@@ -1868,6 +1868,13 @@
           handleVariableCopy(variableButton);
           return;
         }
+        const condVarButton = event.target && event.target.closest ? event.target.closest('[data-conditional-var-token]') : null;
+        if (condVarButton && elements.host.contains(condVarButton)) {
+          event.preventDefault();
+          event.__dmsObjectCanvasHandled = true;
+          handleConditionalVarInsert(condVarButton);
+          return;
+        }
         const button = event.target && event.target.closest ? event.target.closest('[data-object-canvas-action]') : null;
         if (!button || !elements.host.contains(button)) {
           return;
@@ -2303,6 +2310,35 @@
         .replace('{shown}', String(shown))
         .replace('{total}', String(branches.length));
     }
+  }
+
+  // Insert a layer variable name at the condition input's caret, then dispatch
+  // 'input' so the already-wired handlers (leaf validation + what-if re-bake +
+  // collectValues) all fire exactly as if the author had typed the token. Keeps
+  // the byte-exact guarded-splice contract intact (it is just text entry).
+  function handleConditionalVarInsert(button) {
+    const token = button && button.dataset ? String(button.dataset.conditionalVarToken || '') : '';
+    if (!token) {
+      return;
+    }
+    const editor = button.closest('.preview-object-conditional-edit');
+    const input = editor && editor.querySelector('[data-conditional-leaf-input="condition"]');
+    if (!input) {
+      return;
+    }
+    const value = String(input.value || '');
+    const start = typeof input.selectionStart === 'number' ? input.selectionStart : value.length;
+    const end = typeof input.selectionEnd === 'number' ? input.selectionEnd : start;
+    input.value = value.slice(0, start) + token + value.slice(end);
+    const caret = start + token.length;
+    input.focus();
+    try {
+      input.setSelectionRange(caret, caret);
+    } catch (_err) {
+      // selection range is best-effort; ignore unsupported inputs
+    }
+    const InputCtor = global.InputEvent || global.Event;
+    input.dispatchEvent(new InputCtor('input', {bubbles: true}));
   }
 
   function rebakeBranchConditionAst(branch, conditionText) {

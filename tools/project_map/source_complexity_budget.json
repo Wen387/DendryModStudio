@@ -58,15 +58,15 @@
     },
     {
       "path": "tools/project_map/viewer/i18n/en.js",
-      "maxLines": 3436,
+      "maxLines": 3437,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3433 for conditional-layer filter keys (filterPlaceholder/filterOnlyShows/filterCount, UX #2)."
+      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3436 for previewObjectEditor.insertVariable (condition-variable insert chips, UX #3)."
     },
     {
       "path": "tools/project_map/viewer/i18n/zh-Hant.js",
-      "maxLines": 3436,
+      "maxLines": 3437,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3433 for conditional-layer filter keys (filterPlaceholder/filterOnlyShows/filterCount, UX #2)."
+      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3436 for previewObjectEditor.insertVariable (condition-variable insert chips, UX #3)."
     },
     {
       "path": "tools/project_map/viewer/index.html",
@@ -76,15 +76,15 @@
     },
     {
       "path": "tools/project_map/viewer/object_authoring_canvas_ui.js",
-      "maxLines": 4987,
+      "maxLines": 5023,
       "allowRaise": true,
-      "reason": "Keep orchestration here; split editor UI into workspace modules. Raised 2026-06-04 from 4921 for dense conditional-layer filter handler (applyConditionalFilter + shows-only re-run, UX #2)."
+      "reason": "Keep orchestration here; split editor UI into workspace modules. Raised 2026-06-04 from 4987 for conditional condition-variable insert handler (handleConditionalVarInsert, UX #3)."
     },
     {
       "path": "tools/project_map/viewer/preview_object_editor.js",
-      "maxLines": 4796,
+      "maxLines": 4818,
       "allowRaise": true,
-      "reason": "Keep field rendering here; split domain sub-renderers into sibling modules. Raised 2026-06-04 from 4766 for dense conditional-layer filter toolbar + raised branch cap (UX #2)."
+      "reason": "Keep field rendering here; split domain sub-renderers into sibling modules. Raised 2026-06-04 from 4796 for condition-variable insert chips (UX #3)."
     },
     {
       "path": "tools/project_map/viewer/styles/editing.css",

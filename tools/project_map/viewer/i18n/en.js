@@ -1464,6 +1464,7 @@
       'previewObjectEditor.filterPlaceholder': 'Filter branches',
       'previewObjectEditor.filterOnlyShows': 'Only branches that show',
       'previewObjectEditor.filterCount': 'Showing {shown} of {total}',
+      'previewObjectEditor.insertVariable': 'Insert variable',
       'previewObjectEditor.whatIfLabel': 'What-if state',
       'previewObjectEditor.whatIfShows': 'shows',
       'previewObjectEditor.whatIfHidden': 'hidden',

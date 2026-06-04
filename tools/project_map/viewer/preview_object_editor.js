@@ -1542,10 +1542,28 @@
     ].join('');
   }
 
-  function renderConditionalLeafEditor(node) {
+  // Demystify raw condition syntax for newcomers: offer the variables this layer
+  // already references as one-click insert chips, so editing a condition does not
+  // require recalling exact quality names. The set mirrors the what-if strip
+  // (the variables in play here), keeping the suggestions contextual.
+  function renderConditionalVarInserts(variables) {
+    const names = ensureArray(variables).filter(Boolean);
+    if (!names.length) {
+      return '';
+    }
+    return [
+      '<div class="preview-object-conditional-var-insert" data-conditional-var-insert="true">',
+      '<span class="preview-object-conditional-var-insert-label">' + escapeHtml(t('previewObjectEditor.insertVariable', 'Insert variable')) + '</span>',
+      names.map((name) => '<button type="button" class="preview-object-conditional-var-token" data-conditional-var-token="' + escapeAttr(name) + '">' + escapeHtml(name) + '</button>').join(''),
+      '</div>'
+    ].join('');
+  }
+
+  function renderConditionalLeafEditor(node, options) {
     if (!node || !node.editable || !node.textFieldId) {
       return '';
     }
+    const opts = options || {};
     const rawText = String(node.rawText || '');
     const rawCondition = String(node.rawCondition || '');
     const rows = [
@@ -1562,6 +1580,7 @@
         '<label class="preview-object-conditional-edit-field">',
         '<span>' + escapeHtml(t('previewObjectEditor.editBranchCondition', 'Branch condition')) + '</span>',
         '<input type="text" class="preview-object-conditional-edit-input" value="' + escapeAttr(rawCondition) + '" data-object-canvas-field="' + escapeAttr(node.conditionFieldId) + '" data-object-canvas-original="' + escapeAttr(rawCondition) + '" data-conditional-leaf-input="condition">',
+        renderConditionalVarInserts(opts.conditionVariables),
         '<small class="preview-object-conditional-edit-note" data-conditional-leaf-note="condition" role="status" aria-live="polite" hidden></small>',
         '</label>'
       );
@@ -1606,7 +1625,7 @@
           node.condition ? '<code class="preview-object-conditional-when">' + escapeHtml(t('previewObjectEditor.when', 'When') + ': ' + node.condition) + '</code>' : '',
           badge,
           node.text ? '<div class="preview-object-conditional-text">' + renderTextBlocks(node.text, {empty: false, assetBaseUrl: opts.assetBaseUrl || ''}) + '</div>' : '',
-          renderConditionalLeafEditor(node),
+          renderConditionalLeafEditor(node, opts),
           children,
           '</li>'
         ].join('');
@@ -1623,14 +1642,17 @@
       const models = whatIfModels();
       let whatIf = null;
       let strip = '';
+      let conditionVariables = [];
       if (models) {
         const acc = new Set();
         collectWhatIfVariables(tree, models.model, acc);
         if (acc.size) {
           whatIf = {model: models.model, evaler: models.evaler, state: {}};
-          strip = renderWhatIfStrip(Array.from(acc).sort());
+          conditionVariables = Array.from(acc).sort();
+          strip = renderWhatIfStrip(conditionVariables);
         }
       }
+      const treeOpts = Object.assign({}, opts, {conditionVariables: conditionVariables});
       const editableCount = countEditableLeaves(tree);
       const editableChip = editableCount
         ? '<span class="preview-object-conditional-editable-count" data-conditional-editable-count="' + escapeAttr(String(editableCount)) + '">' + escapeHtml(t('previewObjectEditor.editableBranchCount', '{n} editable').replace('{n}', String(editableCount))) + '</span>'
@@ -1640,7 +1662,7 @@
         '<summary><span class="preview-object-conditional-summary-label">' + escapeHtml(t('previewObjectEditor.conditionalLayers', 'Conditional layers')) + '</span>' + editableChip + '</summary>',
         strip,
         renderConditionalFilterToolbar(tree, whatIf),
-        renderConditionalTree(tree, opts, 0, whatIf),
+        renderConditionalTree(tree, treeOpts, 0, whatIf),
         '</details>'
       ].join('');
     }
