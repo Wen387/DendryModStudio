@@ -106,7 +106,28 @@
       ensureArray(rows).forEach((row) => {
         const source = sourceRef(row && row.source || {});
         if (String(row && row.role || '') === 'conditional_body') {
-          pushNode(lastMeaningfulCondition(row && row.conditions), row && row.text, [], source);
+          // Pure inline-conditional lines (only conditional_body rows, no prose
+          // body) carry the verbatim [? if .. : .. ?] line as their anchor. Run
+          // the same span-aware parse the mixed (hasInlineConditionals) path uses
+          // so each branch becomes an editable leaf (span + editable flag). Fall
+          // back to the flat node when the line has no inline markers (e.g. a
+          // block-style condition) so non-inline branches stay unchanged.
+          const condLineText = String(source.anchorText || row.originalText || row.text || '');
+          const condSpanNodes = condLineText ? extractInlineConditionalTreeWithSpans(condLineText) : [];
+          if (condSpanNodes.length) {
+            condSpanNodes.forEach((spanNode) => {
+              const enriched = enrichEditableSpanNode(spanNode, condLineText);
+              pushNode(enriched.condition, enriched.text, enriched.children, source, {
+                rawCondition: enriched.rawCondition,
+                rawText: enriched.rawText,
+                span: enriched.span,
+                lineText: enriched.lineText,
+                editable: enriched.editable
+              });
+            });
+          } else {
+            pushNode(lastMeaningfulCondition(row && row.conditions), row && row.text, [], source);
+          }
         }
         if (row && row.hasInlineConditionals) {
           // Parse against the verbatim source line (NOT trimmed) so recorded

@@ -1047,6 +1047,23 @@ const stresemannAssetField = stresemannModel.fields.find((field) => field.role =
 assert(stresemannAssetField && stresemannAssetField.editability === 'manual_review', 'asset refs without safe source evidence should use the manual review branch');
 assert(stresemannAssetField.sourcePath === stresemannPath, 'asset refs without source path should fall back to the scene source path');
 
+// Option A: a PURE inline-conditional line (no prose body, two branches on one
+// line) must also expose editable leaf fields, without changing the existing
+// conditional_text classification or the flat conditionalAlternatives shape.
+const stresemannLeafTexts = stresemannModel.fields.filter((field) => field.role === 'conditional_leaf_text');
+const stresemannLeafConditions = stresemannModel.fields.filter((field) => field.role === 'conditional_leaf_condition');
+assert(stresemannLeafTexts.length === 2 && stresemannLeafConditions.length === 2, 'a pure two-branch inline line should expose two editable text fields and two condition fields');
+const scholzLeafCondition = stresemannLeafConditions.find((field) => field.original === 'dvp_leader == "Scholz"');
+const scholzLeafText = stresemannLeafTexts.find((field) => field.original.includes('Ernst Scholz has succeeded'));
+assert(scholzLeafCondition && scholzLeafCondition.editability === 'guarded_replace_text', 'the pure-line branch condition should be a guarded inline-leaf field');
+assert(scholzLeafText && scholzLeafText.editability === 'guarded_replace_text' && scholzLeafText.inlineLeaf && scholzLeafText.inlineLeaf.lineText === stresemannConditionalLine, 'the pure-line branch text should be a guarded inline-leaf field carrying the verbatim full line');
+// Guarded edit splices only this branch and keeps every other byte identical.
+const scholzLeafProposal = existingEdit.buildProposal(stresemannModel, {[scholzLeafText.id]: 'Ernst Scholz now leads.'}, {});
+const scholzLeafChange = scholzLeafProposal.changes.find((change) => change.fieldId === scholzLeafText.id);
+assert(scholzLeafChange && scholzLeafChange.before === stresemannConditionalLine && scholzLeafChange.after === stresemannConditionalLine.replace('Ernst Scholz has succeeded him as leader of the <span style="color: #C0A054;">**DVP**</span>.', 'Ernst Scholz now leads.'), 'a pure-line leaf edit should splice only the edited branch and preserve every other byte');
+// The classification + flat alternatives must stay exactly as before (additive only).
+assert(stresemannBranch.semanticRole === 'conditional_text' && stresemannBranch.conditionalAlternatives.length === 2 && stresemannBranch.conditions.length === 2, 'enriching pure-line leaves must not change conditional_text classification or the flat alternatives shape');
+
 const inlineModel = existingEdit.buildEditModel(index, 'events', 'inline_condition_conference');
 assert(inlineModel.ok, 'mixed inline conditional fixture should build: ' + JSON.stringify(inlineModel.diagnostics));
 assert(inlineModel.title.includes('Conference'), 'metadata title with inline conditionals should remain the object title');

@@ -173,6 +173,28 @@ const unbalancedTree = textBlockHelpers.conditionalTreeForRows([
 ]);
 assert(spanLeaves(unbalancedTree).every((node) => node.editable !== true), 'leaves on an unbalanced line must not be marked editable');
 
+// Option A: pure inline-conditional lines arrive as conditional_body rows whose
+// anchor IS the verbatim [? if .. ?] line. They must enrich into editable leaves
+// (span + editable flag + verbatim line) exactly like the mixed body path, so
+// the inline leaf editor unlocks for prose-free conditional lines too.
+const pureCondLine = '[? if Q.a : Alpha ?][? if Q.b : Beta ?]';
+const pureCondTree = textBlockHelpers.conditionalTreeForRows([
+  {role: 'conditional_body', text: 'Alpha', conditions: ['Q.a'], source: {path: 'source/scenes/pure.scene.dry', line: 4, anchorText: pureCondLine}},
+  {role: 'conditional_body', text: 'Beta', conditions: ['Q.b'], source: {path: 'source/scenes/pure.scene.dry', line: 4, anchorText: pureCondLine}}
+]);
+const pureLeaves = spanLeaves(pureCondTree);
+const pureAlpha = pureLeaves.find((node) => node.rawText === 'Alpha');
+const pureBeta = pureLeaves.find((node) => node.rawText === 'Beta');
+assert(pureLeaves.length === 2, 'a pure two-branch inline line should yield two conditional leaves, deduped across its conditional_body rows');
+assert(pureAlpha && pureAlpha.editable === true && pureAlpha.lineText === pureCondLine, 'a pure inline conditional_body leaf should be editable and carry the verbatim source line');
+assert(pureCondLine.slice(pureAlpha.span.condStart, pureAlpha.span.condEnd) === 'Q.a' && pureCondLine.slice(pureAlpha.span.textStart, pureAlpha.span.textEnd) === 'Alpha', 'the pure leaf span should index the verbatim condition + own-text within lineText');
+assert(pureBeta && pureBeta.editable === true && pureCondLine.slice(pureBeta.span.textStart, pureBeta.span.textEnd) === 'Beta', 'the second pure branch should also be an editable leaf with its own span');
+// A conditional_body row with no inline markers must keep the flat fallback node.
+const blockCondTree = textBlockHelpers.conditionalTreeForRows([
+  {role: 'conditional_body', text: 'Plain branch text.', conditions: ['Q.flag'], source: {path: 'source/scenes/pure.scene.dry', line: 9, anchorText: 'Plain branch text.'}}
+]);
+assert(blockCondTree.length === 1 && blockCondTree[0].editable !== true && blockCondTree[0].text === 'Plain branch text.', 'a conditional_body line without inline markers must fall back to a flat non-editable node');
+
 const ownedOption = {id: '@owned', sectionId: 'demo.menu', targetId: 'elsewhere'};
 const incomingOption = {id: '@incoming', sectionId: 'demo.start', targetId: '@menu'};
 assert(!textBlockHelpers.sectionTargetedByOption('demo', 'demo.menu', ownedOption), 'owned choices must not count as incoming targeted options');
