@@ -58,15 +58,15 @@
     },
     {
       "path": "tools/project_map/viewer/i18n/en.js",
-      "maxLines": 3432,
+      "maxLines": 3433,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3427 for theme switch keys (theme.label/auto/light/dark + aria.theme)."
+      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3432 for previewObjectEditor.editableBranchCount (conditional-branch editability affordance, UX #1)."
     },
     {
       "path": "tools/project_map/viewer/i18n/zh-Hant.js",
-      "maxLines": 3432,
+      "maxLines": 3433,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3427 for theme switch keys (theme.label/auto/light/dark + aria.theme)."
+      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3432 for previewObjectEditor.editableBranchCount (conditional-branch editability affordance, UX #1)."
     },
     {
       "path": "tools/project_map/viewer/index.html",
@@ -82,9 +82,9 @@
     },
     {
       "path": "tools/project_map/viewer/preview_object_editor.js",
-      "maxLines": 4738,
+      "maxLines": 4766,
       "allowRaise": true,
-      "reason": "Keep field rendering here; split domain sub-renderers into sibling modules. Raised 2026-06-03 from 4736 for inline leaf-edit validation note slots (P3b #5)."
+      "reason": "Keep field rendering here; split domain sub-renderers into sibling modules. Raised 2026-06-04 from 4738 for conditional-branch editability affordance (edit chip + editable-branch count, UX #1)."
     },
     {
       "path": "tools/project_map/viewer/styles/editing.css",

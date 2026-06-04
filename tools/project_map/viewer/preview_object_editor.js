@@ -1493,6 +1493,29 @@
   // inputs carry data-object-canvas-field so the existing collectValues() pass
   // picks up edits; the model splices only this branch's span into a guarded
   // single-line replace. Rendered only when the edit model stamped field ids.
+  // Inline pencil affordance so an editable branch reads as actionable at a
+  // glance (discoverability). Falls back to no icon in Node/non-icon contexts.
+  function conditionalEditIcon() {
+    const icons = global && global.ProjectMapIcons;
+    if (icons && typeof icons.icon === 'function') {
+      return icons.icon('edit', {className: 'preview-object-conditional-edit-icon'});
+    }
+    return '';
+  }
+
+  // Count leaves that expose an inline editor, so the block summary can signal
+  // "this layer is editable" up front instead of hiding it behind each toggle.
+  function countEditableLeaves(nodes) {
+    let total = 0;
+    ensureArray(nodes).forEach((node) => {
+      if (node && node.editable && node.textFieldId) {
+        total += 1;
+      }
+      total += countEditableLeaves(node && node.children);
+    });
+    return total;
+  }
+
   function renderConditionalLeafEditor(node) {
     if (!node || !node.editable || !node.textFieldId) {
       return '';
@@ -1501,7 +1524,7 @@
     const rawCondition = String(node.rawCondition || '');
     const rows = [
       '<details class="preview-object-conditional-edit" data-conditional-leaf-edit="true">',
-      '<summary>' + escapeHtml(t('previewObjectEditor.editBranch', 'Edit this branch')) + '</summary>',
+      '<summary class="preview-object-conditional-edit-toggle">' + conditionalEditIcon() + '<span>' + escapeHtml(t('previewObjectEditor.editBranch', 'Edit this branch')) + '</span></summary>',
       '<label class="preview-object-conditional-edit-field">',
       '<span>' + escapeHtml(t('previewObjectEditor.editBranchText', 'Branch text')) + '</span>',
       '<textarea class="preview-object-conditional-edit-input" rows="2" data-object-canvas-field="' + escapeAttr(node.textFieldId) + '" data-object-canvas-original="' + escapeAttr(rawText) + '" data-conditional-leaf-input="text">' + escapeHtml(rawText) + '</textarea>',
@@ -1548,8 +1571,9 @@
             badge = branchStateBadge(null);
           }
         }
+        const editableLeaf = Boolean(node.editable && node.textFieldId);
         return [
-          '<li class="preview-object-conditional-branch"' + (children ? ' data-has-children="true"' : '') + astAttr + '>',
+          '<li class="preview-object-conditional-branch"' + (children ? ' data-has-children="true"' : '') + (editableLeaf ? ' data-conditional-editable="true"' : '') + astAttr + '>',
           node.condition ? '<code class="preview-object-conditional-when">' + escapeHtml(t('previewObjectEditor.when', 'When') + ': ' + node.condition) + '</code>' : '',
           badge,
           node.text ? '<div class="preview-object-conditional-text">' + renderTextBlocks(node.text, {empty: false, assetBaseUrl: opts.assetBaseUrl || ''}) + '</div>' : '',
@@ -1578,9 +1602,13 @@
           strip = renderWhatIfStrip(Array.from(acc).sort());
         }
       }
+      const editableCount = countEditableLeaves(tree);
+      const editableChip = editableCount
+        ? '<span class="preview-object-conditional-editable-count" data-conditional-editable-count="' + escapeAttr(String(editableCount)) + '">' + escapeHtml(t('previewObjectEditor.editableBranchCount', '{n} editable').replace('{n}', String(editableCount))) + '</span>'
+        : '';
       return [
         '<details class="preview-object-conditional-alternatives preview-object-conditional-tree" open data-preview-object-conditional-alternatives="true" data-preview-object-conditional-tree="true"' + (whatIf ? ' data-conditional-whatif-scope="true"' : '') + '>',
-        '<summary>' + escapeHtml(t('previewObjectEditor.conditionalLayers', 'Conditional layers')) + '</summary>',
+        '<summary><span class="preview-object-conditional-summary-label">' + escapeHtml(t('previewObjectEditor.conditionalLayers', 'Conditional layers')) + '</span>' + editableChip + '</summary>',
         strip,
         renderConditionalTree(tree, opts, 0, whatIf),
         '</details>'

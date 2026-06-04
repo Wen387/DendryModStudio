@@ -1460,6 +1460,7 @@
       'previewObjectEditor.conditionalText': 'Conditional text',
       'previewObjectEditor.conditionalAlternatives': 'Conditional alternatives',
       'previewObjectEditor.conditionalLayers': 'Conditional layers',
+      'previewObjectEditor.editableBranchCount': '{n} editable',
       'previewObjectEditor.whatIfLabel': 'What-if state',
       'previewObjectEditor.whatIfShows': 'shows',
       'previewObjectEditor.whatIfHidden': 'hidden',

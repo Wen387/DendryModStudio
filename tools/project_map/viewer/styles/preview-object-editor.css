@@ -1507,6 +1507,54 @@ input.preview-object-control[type="checkbox"] {
   opacity: 0.85;
 }
 
+/* Edit affordance reads as an actionable chip so authors notice each branch is
+   editable instead of mistaking the layer for read-only inspection output. */
+.preview-object-conditional-edit-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  padding: 2px 9px 2px 7px;
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--border-soft));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  color: var(--accent-strong, var(--accent));
+  font-weight: 640;
+  opacity: 1;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.preview-object-conditional-edit-toggle:hover,
+.preview-object-conditional-edit[open] > .preview-object-conditional-edit-toggle {
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border-soft));
+}
+
+.preview-object-conditional-edit-icon {
+  width: 13px;
+  height: 13px;
+  flex: 0 0 auto;
+}
+
+/* Block summary count so the layer announces "N branches are editable" up
+   front, before the author expands any individual toggle. */
+.preview-object-conditional-editable-count {
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  color: var(--accent-strong, var(--accent));
+  font-size: 11px;
+  font-weight: 680;
+  vertical-align: middle;
+}
+
+/* Subtle accent rail marks which branches carry an inline editor. */
+.preview-object-conditional-branch[data-conditional-editable="true"] {
+  padding-left: 7px;
+  border-left: 2px solid color-mix(in srgb, var(--accent) 38%, transparent);
+}
+
 .preview-object-conditional-edit-field {
   display: flex;
   flex-direction: column;

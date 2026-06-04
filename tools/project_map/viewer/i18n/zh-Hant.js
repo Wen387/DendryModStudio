@@ -1460,6 +1460,7 @@
       'previewObjectEditor.conditionalText': '條件文本',
       'previewObjectEditor.conditionalAlternatives': '條件替代文本',
       'previewObjectEditor.conditionalLayers': '條件層',
+      'previewObjectEditor.editableBranchCount': '{n} 個可編輯分支',
       'previewObjectEditor.whatIfLabel': '假設狀態',
       'previewObjectEditor.whatIfShows': '顯示',
       'previewObjectEditor.whatIfHidden': '隱藏',

@@ -116,9 +116,18 @@ assert(editableHtml.indexOf('data-object-canvas-original="A figure waits."') !==
 assert(editableHtml.indexOf('data-conditional-leaf-note="text"') !== -1, 'the editable text field must render an inline validation note slot');
 assert(editableHtml.indexOf('data-conditional-leaf-note="condition"') !== -1, 'the editable condition field must render an inline validation note slot');
 assert(editableHtml.indexOf('aria-live="polite"') !== -1, 'the validation note must be an aria-live region so feedback is announced');
+// Editability discoverability affordance (UX #1): the edit toggle reads as an
+// actionable chip, the editable branch is marked for the accent rail, and the
+// block summary announces how many branches are editable up front.
+assert(editableHtml.indexOf('preview-object-conditional-edit-toggle') !== -1, 'the edit toggle must use the actionable affordance class so editing is discoverable');
+assert(editableHtml.indexOf('data-conditional-editable="true"') !== -1, 'an editable branch must be marked so the accent rail signals it carries an editor');
+assert(editableHtml.indexOf('data-conditional-editable-count="1"') !== -1, 'the block summary must count the single editable branch in this field');
+assert(/preview-object-conditional-editable-count/.test(editableHtml), 'the editable-branch count chip must render in the conditional layer summary');
 const readOnlyLeafField = {conditionalTree: [{condition: 'Q.metInspector >= 1', text: 'A figure waits.', children: []}]};
 const readOnlyHtml = previewObjectEditor.renderConditionalAlternatives(readOnlyLeafField, {});
 assert(readOnlyHtml.indexOf('data-conditional-leaf-edit') === -1, 'a leaf without stamped field ids must stay read-only (no inline editor)');
+assert(readOnlyHtml.indexOf('data-conditional-editable="true"') === -1, 'a read-only leaf must not be marked editable');
+assert(readOnlyHtml.indexOf('data-conditional-editable-count') === -1, 'a read-only layer must not show an editable-branch count');
 
 // What-if live refresh contract (P3b #2): editing a branch condition must re-bake
 // the predicate AST so the shows/hidden badge tracks the NEW condition rather than
