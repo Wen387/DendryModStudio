@@ -60,15 +60,15 @@
     },
     {
       "path": "tools/project_map/viewer/i18n/en.js",
-      "maxLines": 3442,
+      "maxLines": 3443,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3440 for storyboard.navigator labels (merged timeline navigator)."
+      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3442 for storyboard.viewSwitch aria-label (segmented timeline/chain view switch)."
     },
     {
       "path": "tools/project_map/viewer/i18n/zh-Hant.js",
-      "maxLines": 3442,
+      "maxLines": 3443,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3440 for storyboard.navigator labels (merged timeline navigator)."
+      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3442 for storyboard.viewSwitch aria-label (segmented timeline/chain view switch)."
     },
     {
       "path": "tools/project_map/viewer/index.html",
@@ -78,15 +78,15 @@
     },
     {
       "path": "tools/project_map/viewer/object_authoring_canvas_ui.js",
-      "maxLines": 5023,
+      "maxLines": 5060,
       "allowRaise": true,
-      "reason": "Keep orchestration here; split editor UI into workspace modules. Raised 2026-06-04 from 4987 for conditional condition-variable insert handler (handleConditionalVarInsert, UX #3)."
+      "reason": "Keep orchestration here; split editor UI into workspace modules. Raised 2026-06-04 from 5045 for universal browser-style back: record a return context on every canvas navigation (selectCanvasNode), surface the return bar above every stage, and bind Alt+Left to step back (UX back-step)."
     },
     {
       "path": "tools/project_map/viewer/preview_object_editor.js",
-      "maxLines": 4818,
+      "maxLines": 4886,
       "allowRaise": true,
-      "reason": "Keep field rendering here; split domain sub-renderers into sibling modules. Raised 2026-06-04 from 4796 for condition-variable insert chips (UX #3)."
+      "reason": "Keep field rendering here; split domain sub-renderers into sibling modules. Raised 2026-06-04 from 4796 for condition-variable insert chips (UX #3), then to 4886 for the conditional-leaf ladder de-duplication (suppress redundant flat leaf rows, render one compact condition->text ladder + read-only preview ladder)."
     },
     {
       "path": "tools/project_map/viewer/styles/editing.css",

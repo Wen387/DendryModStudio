@@ -129,6 +129,18 @@ assert(readOnlyHtml.indexOf('data-conditional-leaf-edit') === -1, 'a leaf withou
 assert(readOnlyHtml.indexOf('data-conditional-editable="true"') === -1, 'a read-only leaf must not be marked editable');
 assert(readOnlyHtml.indexOf('data-conditional-editable-count') === -1, 'a read-only layer must not show an editable-branch count');
 
+// Read-only ladder mode (preview pane): the same editable leaf renders the
+// condition -> text ladder for READING only. No inline leaf editors, no what-if
+// simulator, no filter toolbar — so the editor pane stays the single owner of
+// the leaf field inputs and the two panes never duplicate a collectable id.
+const readOnlyLadderHtml = previewObjectEditor.renderConditionalAlternatives(editableLeafField, {readOnly: true});
+assert(readOnlyLadderHtml.indexOf('preview-object-conditional-branch') !== -1, 'the read-only ladder must still render its branch rows so the breakdown is visible');
+assert(readOnlyLadderHtml.indexOf('is-readonly') !== -1, 'the read-only ladder must mark itself is-readonly for styling');
+assert(readOnlyLadderHtml.indexOf('data-conditional-leaf-edit') === -1, 'the read-only ladder must NOT render inline leaf editors (no duplicate inputs across panes)');
+assert(readOnlyLadderHtml.indexOf('data-object-canvas-field="cond_leaf_text_demo_8_0"') === -1, 'the read-only ladder must NOT bind collectable leaf field inputs');
+assert(readOnlyLadderHtml.indexOf('data-conditional-whatif') === -1, 'the read-only ladder must NOT render the what-if simulator strip');
+assert(readOnlyLadderHtml.indexOf('data-conditional-filter') === -1, 'the read-only ladder must NOT render the density filter toolbar');
+
 // Density governance (UX #2): a dense conditional layer renders a filter toolbar
 // (search input + live count) so authors can narrow a 30+ branch list; a small
 // layer stays toolbar-free; and no branch is silently truncated.

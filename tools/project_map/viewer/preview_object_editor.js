@@ -353,9 +353,12 @@
 
   function renderPreviewSections(sections, body, model) {
     const opts = previewTextOptions(body, model);
+    // Mirror the editor: hide flat conditional-leaf rows the ladder already owns
+    // and show one read-only condition -> text ladder for the owning field.
+    const visibleSections = ensureArray(sections).filter((field) => !ladderOwnsLeafField(field, body));
     return [
       '<div class="object-editing-preview-copy" data-object-editing-preview-sections="true">',
-      sections.map((field) => {
+      visibleSections.map((field) => {
         const visualLabel = visualKindsLabel(field && field.visualKinds);
         const action = actionForField(field, 'text', model, {role: 'body'});
         return [
@@ -363,6 +366,7 @@
           renderStudioRoleLabel(previewSectionLabel(field)),
           visualLabel ? '<small>' + escapeHtml(visualLabel) + '</small>' : '',
           renderTextBlocks(fieldValue(field), Object.assign({empty: false}, opts)),
+          renderConditionalAlternatives(field, {assetBaseUrl: opts.assetBaseUrl, readOnly: true}),
           assetEditorUi().renderInlineAssetPlacements(assetsForBranch(field, body), assetAddFieldsForBranch(field, body), editorKind(model, body), body, model, {
             showAddControls: false,
             showReplacementControls: false
@@ -1431,6 +1435,60 @@
     return ensureArray(nodes).filter((node) => node && (node.condition || node.text || ensureArray(node.children).length));
   }
 
+  // A conditional leaf field is the flat per-branch text/condition row the edit
+  // model emits so the install/collect path has a field id to bind. The same
+  // leaf is also carried (with the same stamped field ids) inside the owning
+  // field's conditionalTree, which renders as a compact ladder. When a ladder
+  // covers a leaf, rendering the flat field too would just stack a redundant
+  // heavyweight row, so we suppress the flat field and let the ladder own it.
+  function isConditionalLeafField(field) {
+    const role = String(field && field.role || '');
+    return role === 'conditional_leaf_text' || role === 'conditional_leaf_condition';
+  }
+
+  function collectConditionalLeafIds(nodes, acc) {
+    ensureArray(nodes).forEach((node) => {
+      if (!node) {
+        return;
+      }
+      if (node.textFieldId) {
+        acc.add(String(node.textFieldId));
+      }
+      if (node.conditionFieldId) {
+        acc.add(String(node.conditionFieldId));
+      }
+      if (ensureArray(node.children).length) {
+        collectConditionalLeafIds(node.children, acc);
+      }
+    });
+  }
+
+  // Set of leaf field ids that a rendered conditional ladder owns. Scope: only
+  // sections + branchSections, because those fields render a ladder in BOTH the
+  // editor and preview panes. Option-owned conditional leaves are intentionally
+  // excluded — the editor choice path renders no ladder for them, so their flat
+  // field is still their only editor, and dropping it would lose editing.
+  var conditionalLadderCoverCache = (typeof WeakMap === 'function') ? new WeakMap() : null;
+  function conditionalLadderCoveredIds(body) {
+    if (!body || typeof body !== 'object') {
+      return new Set();
+    }
+    if (conditionalLadderCoverCache && conditionalLadderCoverCache.has(body)) {
+      return conditionalLadderCoverCache.get(body);
+    }
+    const ids = new Set();
+    ensureArray(body.sections).forEach((field) => collectConditionalLeafIds(field && field.conditionalTree, ids));
+    ensureArray(body.branchSections).forEach((field) => collectConditionalLeafIds(field && field.conditionalTree, ids));
+    if (conditionalLadderCoverCache) {
+      conditionalLadderCoverCache.set(body, ids);
+    }
+    return ids;
+  }
+
+  function ladderOwnsLeafField(field, body) {
+    return isConditionalLeafField(field) && conditionalLadderCoveredIds(body).has(String(fieldId(field)));
+  }
+
   // What-if simulator: parse each branch condition with the predicate model and
   // evaluate it against an editable quality state so the author sees which
   // layers show. Gated on BOTH browser globals so Node checks stay on the
@@ -1625,7 +1683,7 @@
           node.condition ? '<code class="preview-object-conditional-when">' + escapeHtml(t('previewObjectEditor.when', 'When') + ': ' + node.condition) + '</code>' : '',
           badge,
           node.text ? '<div class="preview-object-conditional-text">' + renderTextBlocks(node.text, {empty: false, assetBaseUrl: opts.assetBaseUrl || ''}) + '</div>' : '',
-          renderConditionalLeafEditor(node, opts),
+          opts.readOnly ? '' : renderConditionalLeafEditor(node, opts),
           children,
           '</li>'
         ].join('');
@@ -1637,9 +1695,13 @@
 
   function renderConditionalAlternatives(field, options) {
     const opts = options || {};
+    // Read-only mode (preview pane): render the condition -> text ladder for
+    // reading only. No what-if simulator, no filter toolbar, no inline editors,
+    // so the editor pane stays the single owner of the leaf field inputs.
+    const readOnly = Boolean(opts.readOnly);
     const tree = conditionalTreeRows(field && field.conditionalTree);
     if (tree.length) {
-      const models = whatIfModels();
+      const models = readOnly ? null : whatIfModels();
       let whatIf = null;
       let strip = '';
       let conditionVariables = [];
@@ -1652,16 +1714,16 @@
           strip = renderWhatIfStrip(conditionVariables);
         }
       }
-      const treeOpts = Object.assign({}, opts, {conditionVariables: conditionVariables});
-      const editableCount = countEditableLeaves(tree);
+      const treeOpts = Object.assign({}, opts, {conditionVariables: conditionVariables, readOnly: readOnly});
+      const editableCount = readOnly ? 0 : countEditableLeaves(tree);
       const editableChip = editableCount
         ? '<span class="preview-object-conditional-editable-count" data-conditional-editable-count="' + escapeAttr(String(editableCount)) + '">' + escapeHtml(t('previewObjectEditor.editableBranchCount', '{n} editable').replace('{n}', String(editableCount))) + '</span>'
         : '';
       return [
-        '<details class="preview-object-conditional-alternatives preview-object-conditional-tree" open data-preview-object-conditional-alternatives="true" data-preview-object-conditional-tree="true"' + (whatIf ? ' data-conditional-whatif-scope="true"' : '') + '>',
+        '<details class="preview-object-conditional-alternatives preview-object-conditional-tree' + (readOnly ? ' is-readonly' : '') + '" open data-preview-object-conditional-alternatives="true" data-preview-object-conditional-tree="true"' + (whatIf ? ' data-conditional-whatif-scope="true"' : '') + '>',
         '<summary><span class="preview-object-conditional-summary-label">' + escapeHtml(t('previewObjectEditor.conditionalLayers', 'Conditional layers')) + '</span>' + editableChip + '</summary>',
-        strip,
-        renderConditionalFilterToolbar(tree, whatIf),
+        readOnly ? '' : strip,
+        readOnly ? '' : renderConditionalFilterToolbar(tree, whatIf),
         renderConditionalTree(tree, treeOpts, 0, whatIf),
         '</details>'
       ].join('');
@@ -1760,7 +1822,12 @@
   }
 
   function renderEventEditor(body, model) {
-    const sections = ensureArray(body.sections);
+    // Drop the flat conditional-leaf rows whose owning field already renders a
+    // compact ladder below; the ladder carries the same leaf field ids, so the
+    // flat rows were a redundant heavyweight duplicate (the "wall" of repeated
+    // CONDITIONAL BRANCH TEXT/CONDITION fields). Leaves with no ladder (option
+    // owned) keep their flat field so editing is never lost.
+    const sections = ensureArray(body.sections).filter((field) => !ladderOwnsLeafField(field, body));
     const branchSections = ensureArray(body.branchSections);
     const options = ensureArray(body.options);
     const textOptions = previewTextOptions(body, model);
@@ -1790,6 +1857,7 @@
             fallbackLabel: t('previewObjectEditor.paragraph', 'Paragraph') + ' ' + (index + 1),
             assetBaseUrl: textOptions.assetBaseUrl
           }),
+          renderConditionalAlternatives(field, {assetBaseUrl: textOptions.assetBaseUrl}),
           assetEditorUi().renderInlineAssetPlacements(assetsForBranch(field, body), assetAddFieldsForBranch(field, body), 'event', body, model)
         ].join('')).join('') + '</div></section>'
         : renderEmpty(t('objectCanvas.noBodyFields', 'No player-facing body fields are available yet.')),
