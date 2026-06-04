@@ -103,8 +103,29 @@
     return Boolean(leftTokens.length && rightTokens.length && leftTokens.some((leftToken) => rightTokens.some((rightToken) => endpointPairMatches(leftToken, rightToken))));
   }
 
+  // Memoized for the common single-value call shape: source ownership matching
+  // calls endpointMatches(leftString, rightString) O(options x effects x tokens)
+  // times with a small set of repeated id-string pairs, so the parse + token
+  // intersection work dominates (~1.5s combined self time on a large event).
+  // The result is a pure function of the two endpoint strings. Only memoize
+  // when both args are primitives (the array call shape goes through intersects
+  // directly and is left untouched). Bounded by the id-pair vocabulary.
+  const endpointMatchPairCache = new Map();
   function endpointMatches(left, right) {
-    return intersects(left, right);
+    const leftPrimitive = left == null || typeof left !== 'object';
+    const rightPrimitive = right == null || typeof right !== 'object';
+    if (!leftPrimitive || !rightPrimitive) {
+      return intersects(left, right);
+    }
+    const key = String(left) + '\x00' + String(right);
+    if (endpointMatchPairCache.has(key)) {
+      return endpointMatchPairCache.get(key);
+    }
+    const result = intersects(left, right);
+    if (endpointMatchPairCache.size < 200000) {
+      endpointMatchPairCache.set(key, result);
+    }
+    return result;
   }
 
   function ownerMatchesOption(owner, option) {
