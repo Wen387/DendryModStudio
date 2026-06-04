@@ -146,8 +146,8 @@
 }
 
 .status-line.is-error {
-  border-color: #f3b2aa;
-  background: #fff4f2;
+  border-color: var(--danger-border);
+  background: var(--danger-soft);
   color: var(--danger);
 }
 
@@ -354,40 +354,40 @@
 }
 
 .badge.exact {
-  border-color: #9bd0bf;
-  background: #e9f8f2;
+  border-color: var(--success-border);
+  background: var(--success-soft);
 }
 
 .badge.static_inferred {
-  border-color: #e9c98a;
-  background: #fff6df;
+  border-color: var(--warn-border);
+  background: var(--warn-soft);
 }
 
 .badge.profile_heuristic {
-  border-color: #a7c5ee;
-  background: #edf5ff;
+  border-color: var(--info-border);
+  background: var(--info-soft);
 }
 
 .badge.opaque {
-  border-color: #d6b4dd;
-  background: #fbf0ff;
+  border-color: var(--opaque-border);
+  background: var(--opaque-soft);
 }
 
 .badge.error {
-  border-color: #f2aaa1;
-  background: #fff3f1;
+  border-color: var(--danger-border);
+  background: var(--danger-soft);
   color: var(--danger);
 }
 
 .badge.warning {
-  border-color: #e5bd76;
-  background: #fff6df;
+  border-color: var(--warn-border);
+  background: var(--warn-soft);
   color: var(--warn);
 }
 
 .badge.info {
-  border-color: #a9c6ea;
-  background: #edf5ff;
+  border-color: var(--info-border);
+  background: var(--info-soft);
   color: var(--info);
 }
 
@@ -464,7 +464,7 @@
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: 5px;
-  background: #fbfcfd;
+  background: var(--code);
   color: var(--text);
   font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   white-space: pre-wrap;
@@ -536,7 +536,7 @@
 
 .text-context-row.is-current {
   border-color: var(--accent);
-  background: #fffaf3;
+  background: var(--surface);
 }
 
 .text-context-row span {
@@ -592,7 +592,7 @@
   padding: 7px 8px;
   border: 1px solid var(--border);
   border-radius: 5px;
-  background: #fffaf3;
+  background: var(--surface);
   color: var(--muted);
 }
 
@@ -628,13 +628,13 @@
 }
 
 .text-revision-row.removed {
-  border-color: #efc8bd;
-  background: #fff6f3;
+  border-color: var(--danger-border);
+  background: var(--danger-soft);
 }
 
 .text-revision-row.added {
-  border-color: #bcd8c3;
-  background: #f6fbf7;
+  border-color: var(--success-border);
+  background: var(--success-soft);
 }
 
 .player-preview {
@@ -642,7 +642,7 @@
   padding: 12px;
   border: 1px solid var(--border);
   border-radius: 6px;
-  background: #fff8ec;
+  background: var(--surface);
   color: var(--text);
   white-space: pre-wrap;
   overflow-wrap: anywhere;

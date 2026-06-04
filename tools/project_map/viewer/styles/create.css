@@ -102,7 +102,7 @@
   border: 1px solid var(--accent);
   border-radius: 8px;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   font-weight: 850;
   box-shadow: 0 12px 30px rgba(31, 29, 24, 0.22);
 }
@@ -120,7 +120,7 @@
   padding: 0 6px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.18);
-  color: #fff;
+  color: var(--on-accent);
   font-size: 12px;
 }
 
@@ -206,10 +206,10 @@
   width: fit-content;
   margin-top: 6px;
   padding: 3px 7px;
-  border: 1px solid #b9c9e6;
+  border: 1px solid var(--info-border);
   border-radius: 999px;
-  background: #f1f6ff;
-  color: #37577f;
+  background: var(--info-soft);
+  color: var(--info-text);
   font-size: 12px;
   font-weight: 800;
 }
@@ -267,7 +267,7 @@
 .authoring-workspace-button.is-active {
   border-color: var(--accent);
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .authoring-template-palette {
@@ -481,7 +481,7 @@
   border: 1px solid var(--border);
   border-radius: 5px;
   padding: 7px 8px;
-  background: #fffefa;
+  background: var(--surface);
   color: var(--text);
 }
 
@@ -534,7 +534,7 @@
   padding: 7px 8px;
   border: 1px solid var(--border);
   border-radius: 6px;
-  background: #fffefa;
+  background: var(--surface);
   font-size: 12px;
 }
 
@@ -554,13 +554,13 @@
 .metadata-evidence-row.ready,
 .event-readiness-row.ready,
 .entry-playability-row.ready {
-  border-color: rgba(47, 125, 78, 0.45);
+  border-color: var(--success-border);
 }
 
 .metadata-evidence-row.warning,
 .event-readiness-row.warning,
 .entry-playability-row.warning {
-  border-color: rgba(158, 105, 24, 0.5);
+  border-color: var(--warn-border);
 }
 
 .event-route-summary,
@@ -578,7 +578,7 @@
   padding: 8px 9px;
   border: 1px solid var(--border);
   border-radius: 6px;
-  background: #fffefa;
+  background: var(--surface);
 }
 
 .event-route-chip strong,
@@ -603,11 +603,11 @@
 }
 
 .entry-route-card.ready {
-  border-color: rgba(47, 125, 78, 0.45);
+  border-color: var(--success-border);
 }
 
 .entry-route-card.warning {
-  border-color: rgba(158, 105, 24, 0.5);
+  border-color: var(--warn-border);
 }
 
 .wizard-subsection-title {
@@ -632,7 +632,7 @@
 }
 
 .event-workbench-section {
-  background: #fffdfa;
+  background: var(--surface);
 }
 
 .event-heading-field,
@@ -659,10 +659,10 @@
 
 .metadata-save-warning {
   padding: 8px 9px;
-  border: 1px solid rgba(158, 105, 24, 0.45);
+  border: 1px solid var(--warn-border);
   border-radius: 6px;
-  background: #fff7df;
-  color: #6d4b13;
+  background: var(--warn-soft);
+  color: var(--warn-text);
   font-size: 12px;
   line-height: 1.4;
 }
@@ -678,7 +678,7 @@
   padding: 10px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: #f7f2e8;
+  background: var(--surface-alt);
 }
 
 .option-block h2 {
@@ -695,7 +695,7 @@
   padding: 8px;
   border: 1px solid var(--border);
   border-radius: 5px;
-  background: #fffefa;
+  background: var(--surface);
 }
 
 .advanced-panel summary {
@@ -721,7 +721,7 @@
   padding: 8px;
   border: 1px solid var(--border);
   border-radius: 6px;
-  background: #fffefa;
+  background: var(--surface);
 }
 
 .effect-helper button {
@@ -746,7 +746,7 @@
   padding: 10px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fffefa;
+  background: var(--surface);
 }
 
 .variable-assistant-head {
@@ -863,7 +863,7 @@
   gap: 3px;
   padding: 7px;
   border-bottom: 1px solid var(--border);
-  background: #f7f2e8;
+  background: var(--surface-alt);
 }
 
 .output-tab {
@@ -912,31 +912,31 @@
   padding: 7px 8px;
   border: 1px solid var(--border);
   border-radius: 5px;
-  background: #fffefa;
+  background: var(--surface);
   overflow-wrap: anywhere;
 }
 
 .diagnostic-item.error {
-  border-color: #f2aaa1;
-  background: #fff3f1;
+  border-color: var(--danger-border);
+  background: var(--danger-soft);
   color: var(--danger);
 }
 
 .diagnostic-item.warning {
-  border-color: #e5bd76;
-  background: #fff6df;
+  border-color: var(--warn-border);
+  background: var(--warn-soft);
   color: var(--warn);
 }
 
 .diagnostic-item.info {
-  border-color: #a9c6ea;
-  background: #edf5ff;
+  border-color: var(--info-border);
+  background: var(--info-soft);
   color: var(--info);
 }
 
 .diagnostic-item.ok {
-  border-color: #9bd0bf;
-  background: #ecf8f1;
+  border-color: var(--success-border);
+  background: var(--success-soft);
   color: var(--success);
 }
 
@@ -946,7 +946,7 @@
   margin: 0;
   padding: 10px;
   overflow: auto;
-  background: #fffefa;
+  background: var(--surface);
   color: var(--text);
   font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   white-space: pre-wrap;
@@ -977,16 +977,16 @@
   padding: 9px;
   border: 1px solid var(--border);
   border-radius: 7px;
-  background: #fffefa;
+  background: var(--surface);
 }
 
 .wizard-action-primary {
-  border-color: rgba(154, 95, 44, 0.45);
-  background: #fff7eb;
+  border-color: var(--warn-border);
+  background: var(--warn-soft);
 }
 
 .wizard-action-secondary {
-  background: #fbf8f0;
+  background: var(--surface);
 }
 
 .wizard-action-copy {
@@ -1041,7 +1041,7 @@
 .wizard-actions .primary-action {
   border-color: var(--accent);
   background: var(--accent);
-  color: #ffffff;
+  color: var(--on-accent);
 }
 
 .existing-scene-editor-host {

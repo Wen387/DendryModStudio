@@ -26,9 +26,7 @@
   padding: 24px;
   border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--border));
   border-radius: 10px;
-  background:
-    linear-gradient(180deg, rgba(255, 254, 250, 0.96), rgba(248, 244, 235, 0.98)),
-    var(--surface);
+  background: var(--surface);
   box-shadow: 0 28px 70px rgba(31, 29, 24, 0.28);
   animation: welcome-in var(--motion-slow) var(--motion-ease);
 }
@@ -100,7 +98,7 @@
   padding: 14px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.46);
+  background: var(--glass);
 }
 
 .welcome-compass strong {
@@ -127,7 +125,7 @@
   padding: 14px;
   border: 1px solid var(--border);
   border-radius: 9px;
-  background: rgba(255, 255, 255, 0.58);
+  background: var(--glass-strong);
   box-shadow: 0 10px 28px rgba(31, 29, 24, 0.08);
   animation: welcome-card-in var(--motion-slow) var(--motion-ease) both;
 }
@@ -142,7 +140,7 @@
 
 .welcome-action-card.is-recommended {
   border-color: color-mix(in srgb, var(--accent) 58%, var(--border));
-  background: #fffefa;
+  background: var(--surface);
 }
 
 .welcome-action-card[hidden] {
@@ -208,7 +206,7 @@
 .welcome-action-card .primary-action {
   border-color: var(--accent);
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .welcome-path {
@@ -217,7 +215,7 @@
   padding: 14px;
   border: 1px solid var(--border-soft);
   border-radius: 9px;
-  background: rgba(235, 231, 220, 0.56);
+  background: var(--surface-alt);
 }
 
 .welcome-path-header {
@@ -429,8 +427,8 @@
   gap: 3px;
   padding: 1px 7px;
   border-radius: 4px;
-  background: rgba(200, 150, 40, 0.12);
-  color: #a06a18;
+  background: var(--warn-soft);
+  color: var(--warn-text);
   font-weight: 600;
   white-space: nowrap;
 }
@@ -451,13 +449,13 @@
 }
 
 .welcome-catalog-assets-badge--ready {
-  background: rgba(60, 150, 90, 0.14);
-  color: #2f7d4f;
+  background: var(--success-soft);
+  color: var(--success-text);
 }
 
 .welcome-catalog-assets-badge--pending {
-  background: rgba(90, 120, 200, 0.12);
-  color: #45619c;
+  background: var(--info-soft);
+  color: var(--info-text);
 }
 
 .welcome-catalog-assets-badge .ui-icon {
@@ -473,7 +471,7 @@
   padding: 14px;
   border: 1px solid var(--border-soft);
   border-radius: 9px;
-  background: rgba(235, 231, 220, 0.56);
+  background: var(--surface-alt);
 }
 
 .welcome-catalog[hidden] {
@@ -560,7 +558,7 @@
   border-radius: 10px;
   font-size: 18px;
   font-weight: 800;
-  color: #fff;
+  color: var(--on-accent);
   letter-spacing: -0.3px;
   box-shadow: 0 2px 6px rgba(31, 29, 24, 0.12);
 }
@@ -585,13 +583,13 @@
 }
 
 .welcome-catalog-status--ready {
-  background: rgba(34, 139, 34, 0.10);
-  color: #2d7a2d;
+  background: var(--success-soft);
+  color: var(--success-text);
 }
 
 .welcome-catalog-status--update {
-  background: rgba(200, 130, 30, 0.12);
-  color: #a06a18;
+  background: var(--warn-soft);
+  color: var(--warn-text);
   animation: catalog-pulse 2.5s ease-in-out infinite;
 }
 
@@ -626,7 +624,7 @@
 
 .welcome-catalog-card-actions .primary-action {
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   border-color: var(--accent);
 }
 
@@ -645,8 +643,8 @@
   margin: 4px 0 0;
   padding: 4px 8px;
   border-radius: 4px;
-  background: var(--error-bg, #fef2f2);
-  color: var(--error-text, #991b1b);
+  background: var(--danger-soft);
+  color: var(--danger-text);
   font-size: 12px;
   line-height: 1.4;
 }
@@ -655,9 +653,9 @@
   margin: 6px 0 0;
   padding: 8px 10px;
   border-radius: 6px;
-  background: rgba(200, 150, 40, 0.10);
-  border: 1px solid rgba(200, 150, 40, 0.25);
-  color: #7a5a10;
+  background: var(--warn-soft);
+  border: 1px solid var(--warn-border);
+  color: var(--warn-text);
   font-size: 12px;
   line-height: 1.45;
 }
@@ -672,18 +670,18 @@
   align-items: center;
   gap: 5px;
   padding: 4px 10px;
-  border: 1px solid rgba(180, 130, 30, 0.35);
+  border: 1px solid var(--warn-border);
   border-radius: 5px;
-  background: rgba(200, 150, 40, 0.14);
-  color: #7a5a10;
+  background: var(--warn-soft);
+  color: var(--warn-text);
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
 }
 
 .welcome-catalog-warning button:hover {
-  background: rgba(200, 150, 40, 0.24);
-  border-color: rgba(180, 130, 30, 0.50);
+  background: var(--warn-soft);
+  border-color: var(--warn-border);
 }
 
 .welcome-catalog-remove {
@@ -702,7 +700,7 @@
   padding: 1px 7px;
   border-radius: 4px;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   font-size: 11px;
   font-weight: 600;
   vertical-align: middle;

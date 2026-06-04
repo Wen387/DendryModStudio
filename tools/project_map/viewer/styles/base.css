@@ -24,6 +24,32 @@
   --success: #23643f;
   --code: #efe9da;
   --shadow: 0 1px 2px rgba(31, 29, 24, 0.08);
+  /* Text/icon color that sits on an --accent fill (light: white on rust). */
+  --on-accent: #ffffff;
+  /* Elevated "pop" shadow for menus/popovers that float over the surface. */
+  --shadow-pop: 0 18px 46px rgba(44, 36, 25, 0.16);
+  /* Soft status surfaces: tinted fill + border + readable text per status. */
+  --info-soft: #eef4fb;
+  --info-border: rgba(31, 100, 170, 0.34);
+  --info-text: #244c7d;
+  --warn-soft: #fff7e6;
+  --warn-border: rgba(158, 105, 24, 0.5);
+  --warn-text: #6d4b13;
+  --danger-soft: #fff0ef;
+  --danger-border: rgba(171, 55, 45, 0.55);
+  --success-soft: #e9f4ec;
+  --success-border: rgba(35, 100, 63, 0.4);
+  --success-text: #2f7d4f;
+  --danger-text: #991b1b;
+  /* "Opaque/unknown" confidence accent (a muted violet, distinct from status). */
+  --opaque-soft: #fbf0ff;
+  --opaque-border: #d6b4dd;
+  /* Frosted "glass" card fills layered over the welcome hero. */
+  --glass: rgba(255, 255, 255, 0.46);
+  --glass-strong: rgba(255, 255, 255, 0.58);
+  /* Modal backdrops: a dark scrim and a light "frost" wash variant. */
+  --scrim: rgba(31, 28, 23, 0.46);
+  --scrim-frost: rgba(244, 241, 234, 0.62);
   --serif: ui-serif, "Iowan Old Style", "Source Serif Pro", Georgia, serif;
   --motion-fast: 120ms;
   --motion-medium: 180ms;
@@ -51,8 +77,32 @@
   --info: #7ba6dd;
   --success: #6cb88c;
   --code: #2a2620;
-  /* Deeper, neutral shadow reads on a dark surface. */
+  /* Deeper, neutral shadows read on a dark surface. */
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --shadow-pop: 0 18px 46px rgba(0, 0, 0, 0.55);
+  /* On the lightened accent, dark text keeps contrast (vs white on light-orange). */
+  --on-accent: #1a1813;
+  /* Soft status surfaces tuned for a dark background. */
+  --info-soft: #1f2b3b;
+  --info-border: rgba(123, 166, 221, 0.4);
+  --info-text: #9cc1ec;
+  --warn-soft: #2e2715;
+  --warn-border: rgba(224, 169, 74, 0.45);
+  --warn-text: #e8c07a;
+  --danger-soft: #331d1b;
+  --danger-border: rgba(239, 148, 137, 0.5);
+  --success-soft: #18271e;
+  --success-border: rgba(108, 184, 140, 0.45);
+  --success-text: #8fd0a8;
+  --danger-text: #f0a99f;
+  --opaque-soft: #2a2233;
+  --opaque-border: rgba(214, 180, 221, 0.45);
+  /* On dark, the glass fills are subtle light films rather than white. */
+  --glass: rgba(255, 255, 255, 0.05);
+  --glass-strong: rgba(255, 255, 255, 0.08);
+  /* Dark scrim; the frost wash also goes dark so it never lightens the UI. */
+  --scrim: rgba(0, 0, 0, 0.62);
+  --scrim-frost: rgba(16, 14, 11, 0.66);
 }
 
 * {
@@ -161,7 +211,7 @@ code {
   align-items: center;
   justify-content: center;
   background: var(--accent);
-  color: #ffffff;
+  color: var(--on-accent);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
 }
 
@@ -275,7 +325,7 @@ code {
   border: 1px solid var(--accent);
   border-radius: 6px;
   background: var(--accent);
-  color: #ffffff;
+  color: var(--on-accent);
   font-weight: 650;
   line-height: 1.1;
   white-space: nowrap;
@@ -368,7 +418,7 @@ code {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
-  box-shadow: 0 18px 46px rgba(44, 36, 25, 0.16);
+  box-shadow: var(--shadow-pop);
 }
 
 .topbar-more-menu .desktop-excerpt-toggle,
