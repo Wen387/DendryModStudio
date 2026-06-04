@@ -1,20 +1,21 @@
 .design-workspace {
-  --atelier-bg: #f4f1ea;
-  --atelier-surface: #fbfaf6;
-  --atelier-surface-hi: #ffffff;
-  --atelier-surface-alt: #ebe7dc;
-  --atelier-ink: #1f1d18;
-  --atelier-ink-soft: #4a463d;
-  --atelier-muted: #85806f;
-  --atelier-border: #ddd7c6;
-  --atelier-border-hi: #cfc6b5;
-  --atelier-accent: #a64b2a;
-  --atelier-accent-soft: #f3e7e0;
-  --atelier-accent-ink: #7a3819;
-  --atelier-green: #3a8a5c;
-  --atelier-amber: #b88321;
-  --atelier-red: #b42318;
-  --atelier-blue: #3d6e8c;
+  /* Atelier tokens alias the studio palette so the Design surface themes too. */
+  --atelier-bg: var(--bg);
+  --atelier-surface: var(--surface);
+  --atelier-surface-hi: var(--surface);
+  --atelier-surface-alt: var(--surface-alt);
+  --atelier-ink: var(--text);
+  --atelier-ink-soft: var(--muted);
+  --atelier-muted: var(--muted);
+  --atelier-border: var(--border);
+  --atelier-border-hi: var(--border);
+  --atelier-accent: var(--accent);
+  --atelier-accent-soft: var(--studio-accent-soft);
+  --atelier-accent-ink: var(--accent-strong);
+  --atelier-green: var(--success);
+  --atelier-amber: var(--warn);
+  --atelier-red: var(--danger);
+  --atelier-blue: var(--info);
   --atelier-serif: ui-serif, "Iowan Old Style", "Source Serif Pro", Georgia, serif;
   min-height: 0;
   display: block;
@@ -252,7 +253,7 @@
 
 .design-scope-toggle button.is-active {
   background: var(--atelier-accent);
-  color: #fffaf2;
+  color: var(--on-accent);
   box-shadow: 0 1px 3px rgba(122, 74, 43, 0.22);
 }
 
@@ -311,7 +312,7 @@
   padding: 14px;
   border: 1px solid var(--atelier-border-hi);
   border-radius: 8px;
-  background: rgba(251, 250, 246, 0.97);
+  background: var(--surface);
   box-shadow: 0 14px 42px rgba(31, 29, 24, 0.14);
 }
 
@@ -482,7 +483,7 @@
   background:
     linear-gradient(rgba(221, 215, 198, 0.72) 1px, transparent 1px),
     linear-gradient(90deg, rgba(221, 215, 198, 0.72) 1px, transparent 1px),
-    radial-gradient(circle at 44% 32%, #fbfaf6 0%, var(--atelier-bg) 68%);
+    radial-gradient(circle at 44% 32%, var(--surface) 0%, var(--atelier-bg) 68%);
   background-size: 32px 32px, 32px 32px, auto;
 }
 
@@ -534,7 +535,7 @@
   padding: 15px 17px;
   border: 1px solid var(--atelier-border-hi);
   border-radius: 8px;
-  background: rgba(251, 250, 246, 0.96);
+  background: var(--surface);
   color: var(--atelier-ink);
   text-align: left;
   box-shadow: 0 8px 22px rgba(31, 29, 24, 0.1);
@@ -616,7 +617,7 @@
   padding: 10px 12px;
   border: 1px solid var(--atelier-border);
   border-radius: 6px;
-  background: rgba(251, 250, 246, 0.95);
+  background: var(--surface);
   color: var(--atelier-ink-soft);
   font-size: 12px;
 }
@@ -630,7 +631,7 @@
   padding: 11px 12px;
   border: 1px solid var(--atelier-border);
   border-radius: 7px;
-  background: rgba(251, 250, 246, 0.96);
+  background: var(--surface);
   color: var(--atelier-ink);
   text-align: left;
 }
@@ -666,28 +667,28 @@
 }
 
 .design-workspace .badge.exact {
-  border-color: rgba(58, 138, 92, 0.42);
-  background: #e7f1e9;
+  border-color: var(--success-border);
+  background: var(--success-soft);
   color: var(--atelier-green);
 }
 
 .design-workspace .badge.static_inferred,
 .design-workspace .badge.warning {
-  border-color: rgba(184, 131, 33, 0.42);
-  background: #f5ead7;
+  border-color: var(--warn-border);
+  background: var(--warn-soft);
   color: var(--atelier-amber);
 }
 
 .design-workspace .badge.profile_heuristic,
 .design-workspace .badge.info {
-  border-color: rgba(61, 110, 140, 0.42);
-  background: #eaf1f6;
+  border-color: var(--info-border);
+  background: var(--info-soft);
   color: var(--atelier-blue);
 }
 
 .design-workspace .badge.error {
-  border-color: rgba(180, 35, 24, 0.38);
-  background: #f8e4e0;
+  border-color: var(--danger-border);
+  background: var(--danger-soft);
   color: var(--atelier-red);
 }
 
@@ -704,7 +705,7 @@
   padding: 10px;
   border: 1px solid var(--atelier-border);
   border-radius: 6px;
-  background: rgba(251, 250, 246, 0.94);
+  background: var(--surface);
   color: var(--atelier-ink-soft);
   font-size: 10.5px;
   backdrop-filter: blur(8px);
@@ -721,7 +722,7 @@
   padding: 5px;
   border: 1px solid var(--atelier-border);
   border-radius: 6px;
-  background: rgba(251, 250, 246, 0.94);
+  background: var(--surface);
 }
 
 .design-zoom-controls button {
@@ -761,15 +762,15 @@
 }
 
 .dot.exact {
-  background: var(--atelier-green, #3f9d5a);
+  background: var(--atelier-green);
 }
 
 .dot.static_inferred {
-  background: var(--atelier-amber, #c79a31);
+  background: var(--atelier-amber);
 }
 
 .dot.profile_heuristic {
-  background: var(--atelier-blue, #6d8fc8);
+  background: var(--atelier-blue);
 }
 
 .dot.opaque {

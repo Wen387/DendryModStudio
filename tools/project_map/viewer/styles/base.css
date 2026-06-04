@@ -44,6 +44,8 @@
   /* "Opaque/unknown" confidence accent (a muted violet, distinct from status). */
   --opaque-soft: #fbf0ff;
   --opaque-border: #d6b4dd;
+  /* Saturated violet accent for special storyboard lanes. */
+  --violet: #9b59b6;
   /* Frosted "glass" card fills layered over the welcome hero. */
   --glass: rgba(255, 255, 255, 0.46);
   --glass-strong: rgba(255, 255, 255, 0.58);
@@ -97,6 +99,7 @@
   --danger-text: #f0a99f;
   --opaque-soft: #2a2233;
   --opaque-border: rgba(214, 180, 221, 0.45);
+  --violet: #c79be0;
   /* On dark, the glass fills are subtle light films rather than white. */
   --glass: rgba(255, 255, 255, 0.05);
   --glass-strong: rgba(255, 255, 255, 0.08);

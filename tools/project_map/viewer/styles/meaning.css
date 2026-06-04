@@ -2,9 +2,9 @@
   display: grid;
   gap: 10px;
   padding: 12px;
-  border: 1px solid #dfd4bf;
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: #fffaf1;
+  background: var(--surface);
   color: var(--text);
 }
 
@@ -31,9 +31,9 @@
   display: grid;
   gap: 5px;
   padding: 9px 10px;
-  border: 1px solid #d9c9ae;
+  border: 1px solid var(--border);
   border-radius: 7px;
-  background: #f8f1e4;
+  background: var(--surface-alt);
 }
 
 .meaning-readiness strong {
@@ -55,10 +55,10 @@
 
 .meaning-readiness-stats span {
   padding: 2px 7px;
-  border: 1px solid #ddcfb8;
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: #fffaf1;
-  color: #6a5b41;
+  background: var(--surface);
+  color: var(--muted);
   font-size: 11px;
   font-weight: 700;
 }
@@ -74,9 +74,9 @@
   gap: 10px;
   align-items: center;
   padding: 8px;
-  border: 1px solid #e7dac5;
+  border: 1px solid var(--border);
   border-radius: 7px;
-  background: #fffdf8;
+  background: var(--surface);
 }
 
 .meaning-asset-preview {
@@ -84,9 +84,9 @@
   place-items: center;
   min-width: 0;
   min-height: 68px;
-  border: 1px solid #e0d1b8;
+  border: 1px solid var(--border);
   border-radius: 6px;
-  background: #f7f2e8;
+  background: var(--surface-alt);
   overflow: hidden;
 }
 
@@ -120,10 +120,10 @@
 .meaning-asset-body .meaning-asset-role {
   width: fit-content;
   padding: 2px 6px;
-  border: 1px solid #d6c8b3;
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: #f6efe2;
-  color: #6a5b41;
+  background: var(--surface-alt);
+  color: var(--muted);
   font-family: inherit;
   font-size: 11px;
   font-weight: 700;
@@ -132,30 +132,30 @@
 .meaning-status {
   width: fit-content;
   padding: 3px 8px;
-  border: 1px solid #d5c7ad;
+  border: 1px solid var(--border);
   border-radius: 999px;
-  background: #f4eee0;
-  color: #6d5d42;
+  background: var(--surface-alt);
+  color: var(--muted);
   font-size: 12px;
   font-weight: 700;
 }
 
 .meaning-status-exact {
-  border-color: #adcdb7;
-  background: #eff8f1;
-  color: #416f4d;
+  border-color: var(--success-border);
+  background: var(--success-soft);
+  color: var(--success-text);
 }
 
 .meaning-status-approximate {
-  border-color: #b9c9e6;
-  background: #f1f6ff;
-  color: #435f91;
+  border-color: var(--info-border);
+  background: var(--info-soft);
+  color: var(--info-text);
 }
 
 .meaning-status-manual_review {
-  border-color: #e0c581;
-  background: #fff5d6;
-  color: #8a6418;
+  border-color: var(--warn-border);
+  background: var(--warn-soft);
+  color: var(--warn-text);
 }
 
 .meaning-section {
@@ -165,13 +165,13 @@
 
 .meaning-collapsible {
   padding: 8px;
-  border: 1px solid #e7dac5;
+  border: 1px solid var(--border);
   border-radius: 7px;
-  background: #fffdf8;
+  background: var(--surface);
 }
 
 .meaning-collapsible[open] {
-  background: #fffaf1;
+  background: var(--surface);
 }
 
 .meaning-collapsible summary {
@@ -192,10 +192,10 @@
   place-items: center;
   width: 18px;
   height: 18px;
-  border: 1px solid #d8cbb7;
+  border: 1px solid var(--border);
   border-radius: 5px;
-  background: #f6efe2;
-  color: #6d5d42;
+  background: var(--surface-alt);
+  color: var(--muted);
   font-size: 12px;
   font-weight: 900;
   line-height: 1;
@@ -206,7 +206,7 @@
 }
 
 .meaning-collapsible summary:focus-visible {
-  outline: 2px solid #b56a3f;
+  outline: 2px solid var(--accent);
   outline-offset: 3px;
 }
 
@@ -235,13 +235,13 @@
   display: grid;
   gap: 3px;
   padding: 8px 9px;
-  border: 1px solid #ded4c2;
+  border: 1px solid var(--border);
   border-radius: 6px;
-  background: #fbf8ef;
+  background: var(--surface-alt);
 }
 
 .meaning-row-label {
-  color: #7c715e;
+  color: var(--muted);
   font-size: 12px;
   font-weight: 700;
 }
@@ -253,29 +253,29 @@
 
 .meaning-kind-game-text,
 .meaning-kind-game-text-changed {
-  border-color: #dfc99d;
-  background: #fff7e2;
+  border-color: var(--warn-border);
+  background: var(--warn-soft);
 }
 
 .meaning-kind-choice {
-  border-color: #b8c8e6;
-  background: #f3f7ff;
+  border-color: var(--info-border);
+  background: var(--info-soft);
 }
 
 .meaning-kind-mechanic {
-  border-color: #bdd5d7;
-  background: #f0f8f8;
+  border-color: var(--info-border);
+  background: var(--info-soft);
 }
 
 .meaning-kind-warning,
 .meaning-kind-diagnostic {
-  border-color: #e2c583;
-  background: #fff5d6;
+  border-color: var(--warn-border);
+  background: var(--warn-soft);
 }
 
 .meaning-kind-category {
-  border-color: #d9d2c4;
-  background: #f7f3ea;
+  border-color: var(--border);
+  background: var(--surface-alt);
 }
 
 .meaning-choice-list {
@@ -287,9 +287,9 @@
   display: grid;
   gap: 5px;
   padding: 9px;
-  border: 1px solid #b8c8e6;
+  border: 1px solid var(--info-border);
   border-radius: 6px;
-  background: #f3f7ff;
+  background: var(--info-soft);
 }
 
 .meaning-choice p {
@@ -304,9 +304,9 @@
 
 .meaning-advanced {
   padding: 8px 9px;
-  border: 1px dashed #d5cbb8;
+  border: 1px dashed var(--border);
   border-radius: 6px;
-  background: #faf7ef;
+  background: var(--surface);
 }
 
 .meaning-advanced summary {
