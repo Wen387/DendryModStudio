@@ -462,7 +462,13 @@
   }
 
   function regroupOptionOwnedText(body) {
-    const next = clone(body || {});
+    // Shallow copy is sufficient: this only reassigns the top-level options /
+    // sections / branchSections arrays and mutates freshly-built option copies
+    // (below); the shared field objects are never mutated. The caller's body is
+    // already a private build clone that is discarded after this returns, and
+    // the downstream enrichFieldPresentation deep-clones again before mutating
+    // — so a full 86MB deep copy here is pure waste. Byte-identical verified.
+    const next = Object.assign({}, body || {});
     const options = ensureArray(next.options).map((option) => Object.assign({}, option, {
       fields: ensureArray(option && option.fields).slice(),
       resultFields: ensureArray(option && option.resultFields).slice()

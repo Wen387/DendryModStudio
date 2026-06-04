@@ -20,9 +20,9 @@
     },
     {
       "path": "tools/project_map/authoring/object_authoring_canvas_model.js",
-      "maxLines": 1866,
+      "maxLines": 1872,
       "allowRaise": true,
-      "reason": "Object canvas model orchestrator; extract per-template handlers before adding more. Raised 2026-05-30 from 1861 for projectSceneTargets in event body."
+      "reason": "Object canvas model orchestrator; extract per-template handlers before adding more. Raised 2026-05-30 from 1861 for projectSceneTargets in event body. Raised 2026-06-04 to 1872 for regroupOptionOwnedText shallow-copy note (drops a redundant 86MB deep clone)."
     },
     {
       "path": "tools/project_map/authoring/object_canvas_content_adapters.js",
