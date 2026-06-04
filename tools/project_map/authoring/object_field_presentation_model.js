@@ -82,6 +82,13 @@
     const opts = isObject(options) ? options : {};
     const candidates = buildVariableCandidates(projectIndex, opts);
     const sceneTargets = buildSceneTargetCandidates(body);
+    // Per-build memo for variable-picker searches. enrichField runs once per
+    // field and each call re-scans + re-sorts all project variables (3561 on
+    // DynamicRepo) for the field's derived query. Most fields share the same
+    // query string (or an empty one), so caching searchVariableCandidates rows
+    // by (limit, query) collapses thousands of full scans to a handful. Keyed
+    // per build and discarded when this returns, so it never goes stale.
+    const searchCache = new Map();
     next.variablePickerCandidates = candidates;
     if (opts.routeState) {
       next.routeState = opts.routeState;
@@ -89,17 +96,17 @@
     } else if (next.routeState && !next.routeStateSummaries) {
       next.routeStateSummaries = routeStateSummaries(next.routeState);
     }
-    next.title = enrichField(next.title, candidates, {sceneTargets});
-    next.subtitle = enrichField(next.subtitle, candidates, {sceneTargets});
-    next.heading = enrichField(next.heading, candidates, {sceneTargets});
+    next.title = enrichField(next.title, candidates, {sceneTargets, searchCache});
+    next.subtitle = enrichField(next.subtitle, candidates, {sceneTargets, searchCache});
+    next.heading = enrichField(next.heading, candidates, {sceneTargets, searchCache});
     ['sections', 'branchSections', 'metaFields', 'effects', 'sectionEffects', 'backgroundEffects', 'assetAddFields'].forEach((key) => {
-      next[key] = ensureArray(next[key]).map((field) => enrichField(field, candidates, {sceneTargets}));
+      next[key] = ensureArray(next[key]).map((field) => enrichField(field, candidates, {sceneTargets, searchCache}));
     });
-    next.options = ensureArray(next.options).map((option) => enrichOption(option, candidates, {sceneTargets}));
+    next.options = ensureArray(next.options).map((option) => enrichOption(option, candidates, {sceneTargets, searchCache}));
     next.optionEffects = ensureArray(next.optionEffects).map((group) => Object.assign({}, group, {
-      fields: ensureArray(group && group.fields).map((field) => enrichField(field, candidates, {optionId: group && (group.optionId || group.id), sceneTargets}))
+      fields: ensureArray(group && group.fields).map((field) => enrichField(field, candidates, {optionId: group && (group.optionId || group.id), sceneTargets, searchCache}))
     }));
-    next.structureActions = ensureArray(next.structureActions).map((field) => enrichField(field, candidates, {sceneTargets}));
+    next.structureActions = ensureArray(next.structureActions).map((field) => enrichField(field, candidates, {sceneTargets, searchCache}));
     return next;
   }
 
@@ -107,8 +114,8 @@
     const value = isObject(option) ? option : {};
     const opts = isObject(options) ? options : {};
     return Object.assign({}, value, {
-      fields: ensureArray(value.fields).map((field) => enrichField(field, candidates, {optionId: value.id, sceneTargets: opts.sceneTargets})),
-      resultFields: ensureArray(value.resultFields).map((field) => enrichField(field, candidates, {optionId: value.id, sceneTargets: opts.sceneTargets}))
+      fields: ensureArray(value.fields).map((field) => enrichField(field, candidates, {optionId: value.id, sceneTargets: opts.sceneTargets, searchCache: opts.searchCache})),
+      resultFields: ensureArray(value.resultFields).map((field) => enrichField(field, candidates, {optionId: value.id, sceneTargets: opts.sceneTargets, searchCache: opts.searchCache}))
     });
   }
 
@@ -118,7 +125,7 @@
     }
     const opts = isObject(options) ? options : {};
     const presentation = classifyField(field, opts);
-    const picker = buildVariablePicker(candidates, field, {presentation});
+    const picker = buildVariablePicker(candidates, field, {presentation, searchCache: opts.searchCache});
     const routeTargetPicker = buildRouteTargetPicker(opts.sceneTargets || [], field, {presentation});
     return Object.assign({}, field, {
       semanticIntent: presentation.intent,
@@ -145,9 +152,24 @@
     }
     const query = stringValue(opts.query || variableQueryForField(field));
     const search = variableSuggestionsApi();
-    const rows = search && typeof search.searchVariableCandidates === 'function'
-      ? search.searchVariableCandidates(candidates, query, {limit: opts.limit || 8})
-      : candidates.slice(0, opts.limit || 8);
+    const limit = opts.limit || 8;
+    // Reuse identical (limit, query) searches within one build. searchCache is
+    // supplied by enrichEventBody; absent for ad-hoc/live-UI callers, which then
+    // behave exactly as before. candidates is fixed per build and
+    // searchVariableCandidates is pure, so cached rows are always valid.
+    const cache = opts.searchCache instanceof Map ? opts.searchCache : null;
+    const cacheKey = cache ? limit + '\n' + query : null;
+    let rows;
+    if (cache && cache.has(cacheKey)) {
+      rows = cache.get(cacheKey);
+    } else {
+      rows = search && typeof search.searchVariableCandidates === 'function'
+        ? search.searchVariableCandidates(candidates, query, {limit})
+        : candidates.slice(0, limit);
+      if (cache) {
+        cache.set(cacheKey, rows);
+      }
+    }
     const result = {
       enabled: rows.length > 0,
       mode: picker.mode,
