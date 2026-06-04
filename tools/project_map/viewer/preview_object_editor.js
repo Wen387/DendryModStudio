@@ -3809,16 +3809,21 @@
     // the rendered view.
     const hasConditionalLadder = Boolean(field && ensureArray(field.conditionalTree).length);
     const renderedPreview = hasConditionalLadder ? '' : fieldTextPreview(value, id, element, opts);
+    // When the per-branch ladder owns this field, its diagnostic chrome (status
+    // badge, condition/variable chips, the "When: ..." context hint, and the
+    // raw-source variable picker) just repeats what the ladder shows per branch,
+    // so suppress it here and let the ladder carry the meaning. The field label,
+    // context lens, and media badges stay so the row is still identifiable.
     return [
       '<label class="' + escapeAttr(className) + '" data-preview-object-field-role="' + escapeAttr(opts.role || 'field') + '"' + structureData + semanticData + '>',
       label ? renderEditorFieldLabel(label, rawLabel, presentation) : '',
       renderFieldContextLens(field, opts.role || 'field'),
       fieldVisualBadges(field),
-      renderSemanticStatusBadge(presentation, readOnly),
-      fieldContextHint(field) ? '<small class="preview-object-field-context">' + escapeHtml(fieldContextHint(field)) + '</small>' : '',
-      fieldLogicChips(field),
+      hasConditionalLadder ? '' : renderSemanticStatusBadge(presentation, readOnly),
+      hasConditionalLadder || !fieldContextHint(field) ? '' : '<small class="preview-object-field-context">' + escapeHtml(fieldContextHint(field)) + '</small>',
+      hasConditionalLadder ? '' : fieldLogicChips(field),
       control,
-      renderFieldVariablePicker(field, presentation, readOnly),
+      hasConditionalLadder ? '' : renderFieldVariablePicker(field, presentation, readOnly),
       renderedPreview,
       field && field.status ? '<small>' + escapeHtml(statusLabel(field.status, readOnly)) + '</small>' : '',
       '</label>'
