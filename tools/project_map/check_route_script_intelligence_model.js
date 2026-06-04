@@ -172,7 +172,39 @@ function quietBody() {
   };
 }
 
+// Regression guard for the 2026-06-04 reuseBody clone-elision optimization.
+// enrichEventBody can now mutate its input in place when the trusted caller
+// opts in via reuseBody; external callers must still get a cloned, isolated
+// result. These assertions lock that contract so a future refactor cannot
+// silently leak profileEvidence/projectIndex or start mutating caller bodies.
+function assertEnrichBodyIsolation() {
+  // routeScript external caller (no reuseBody): input untouched, no leak, cloned.
+  const extBody = {flow: {edges: []}, options: [], sections: []};
+  const extOut = routeScript.enrichEventBody(extBody, {profileEvidence: {x: 1}, projectIndex: {y: 2}});
+  assert(!('profileEvidence' in extBody) && !('projectIndex' in extBody), 'routeScript enrichEventBody must not mutate an external caller body', extBody);
+  assert(!('profileEvidence' in extOut) && !('projectIndex' in extOut), 'routeScript enrichEventBody must not leak profileEvidence/projectIndex onto the returned body', Object.keys(extOut));
+  assert(extOut !== extBody, 'routeScript enrichEventBody must return a cloned body for external callers', null);
+
+  // routeScript reuseBody path: mutates in place and returns the same reference.
+  const reuseBody = {flow: {edges: []}, options: [], sections: []};
+  const reuseOut = routeScript.enrichEventBody(reuseBody, {reuseBody: true});
+  assert(reuseOut === reuseBody, 'routeScript enrichEventBody must reuse the body in place when reuseBody is set', null);
+
+  // routeScript: reuseBody output must deep-equal the clone-path output.
+  const shape = () => ({flow: {edges: [{from: 'a', to: 'b', kind: 'choice'}]}, options: [{id: 'o1', targetId: 'b'}], sections: [{id: 'b'}], eventGraph: {nodes: [], edges: []}});
+  assert(JSON.stringify(routeScript.enrichEventBody(shape(), {})) === JSON.stringify(routeScript.enrichEventBody(shape(), {reuseBody: true})), 'routeScript enrichEventBody reuseBody path must match the clone path byte for byte', null);
+
+  // complexEvent: external input untouched + reuseBody output matches clone path.
+  const cBody = {options: [{id: 'o1', label: 'X'}], sections: []};
+  const cSnapshot = JSON.stringify(cBody);
+  const cClone = complexAuthoring.enrichEventBody(cBody, {});
+  assert(JSON.stringify(cBody) === cSnapshot, 'complexEvent enrichEventBody must not mutate an external caller body', cBody);
+  const cReuse = complexAuthoring.enrichEventBody(JSON.parse(cSnapshot), {reuseBody: true});
+  assert(JSON.stringify(cClone) === JSON.stringify(cReuse), 'complexEvent enrichEventBody reuseBody path must match the clone path byte for byte', null);
+}
+
 function runRouteScriptIntelligence() {
+  assertEnrichBodyIsolation();
   const body = fixtureBody();
   const profileEvidence = [{
     profileId: 'generic-dynamic-routes',
