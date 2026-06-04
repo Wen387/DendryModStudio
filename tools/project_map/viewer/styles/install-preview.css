@@ -376,10 +376,29 @@
   gap: 4px;
 }
 
+.install-empty-group {
+  display: grid;
+  gap: 8px;
+}
+
+.install-empty-group-label {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .install-empty-options {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 248px), 1fr));
   gap: 10px;
+}
+
+/* The "Other options" group is supporting context, not a path to bring changes
+   in, so it reads lighter than the primary group. */
+.install-empty-group[data-install-empty-group="more"] .install-empty-option {
+  background: var(--surface-alt);
 }
 
 .install-empty-option {

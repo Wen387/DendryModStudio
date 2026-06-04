@@ -3221,6 +3221,8 @@
       'install.flow.verify.body': 'Review the result and test the game.',
       'install.empty.title': 'Choose how to bring changes here',
       'install.empty.body': 'Review & Apply is the final gate. Nothing is written until a plan is loaded, checked, and explicitly applied.',
+      'install.empty.group.bringIn': 'Bring changes in',
+      'install.empty.group.more': 'Other options',
       'install.empty.fromChanges.title': 'Review My Changes',
       'install.empty.fromChanges.body': 'Return to Create and open saved drafts that can be sent into Review & Apply.',
       'install.empty.fromChanges.cta': 'Open My Changes',

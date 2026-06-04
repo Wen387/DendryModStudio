@@ -3221,6 +3221,8 @@
       'install.flow.verify.body': '閱讀結果並測試遊戲。',
       'install.empty.title': '選擇要怎麼把修改帶到這裡',
       'install.empty.body': '「審查與套用」是最後一道門。載入計畫、完成檢查、明確按下套用之前，不會寫入任何檔案。',
+      'install.empty.group.bringIn': '把修改帶進來',
+      'install.empty.group.more': '其他選項',
       'install.empty.fromChanges.title': '審查我的修改',
       'install.empty.fromChanges.body': '回到建立頁，打開已保存草稿，再送到審查與套用。',
       'install.empty.fromChanges.cta': '打開我的修改',
