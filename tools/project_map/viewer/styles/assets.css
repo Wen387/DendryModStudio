@@ -466,7 +466,7 @@
 }
 
 .badge.audio-modifier-badge {
-  background: color-mix(in srgb, var(--violet) 18%, #ffffff);
+  background: color-mix(in srgb, var(--violet) 18%, var(--lift));
   color: var(--violet);
   font-weight: 700;
 }

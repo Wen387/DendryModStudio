@@ -513,7 +513,7 @@
 .content-storyboard-card-chain_relation {
   min-height: 150px;
   border-left-color: color-mix(in srgb, var(--accent) 72%, var(--warning));
-  background: color-mix(in srgb, var(--surface) 82%, #ffffff);
+  background: color-mix(in srgb, var(--surface) 82%, var(--lift));
 }
 
 .content-storyboard-card-chain_relation .content-storyboard-title {
@@ -777,7 +777,7 @@
   background:
     linear-gradient(90deg, color-mix(in srgb, var(--border-soft) 42%, transparent) 1px, transparent 1px),
     linear-gradient(0deg, color-mix(in srgb, var(--border-soft) 42%, transparent) 1px, transparent 1px),
-    color-mix(in srgb, var(--studio-paper) 75%, #ffffff);
+    color-mix(in srgb, var(--studio-paper) 75%, var(--lift));
   background-size: 30px 30px;
 }
 

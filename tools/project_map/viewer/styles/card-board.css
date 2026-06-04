@@ -61,7 +61,7 @@
   background:
     linear-gradient(90deg, color-mix(in srgb, var(--border-soft) 46%, transparent) 1px, transparent 1px),
     linear-gradient(0deg, color-mix(in srgb, var(--border-soft) 46%, transparent) 1px, transparent 1px),
-    color-mix(in srgb, var(--studio-paper) 70%, #ffffff);
+    color-mix(in srgb, var(--studio-paper) 70%, var(--lift));
   background-size: 28px 28px;
 }
 

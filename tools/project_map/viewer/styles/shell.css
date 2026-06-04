@@ -30,7 +30,7 @@
 }
 
 body[data-mode="create"] .topbar {
-  background: linear-gradient(180deg, #fbfaf6 0%, #f6efe8 100%);
+  background: linear-gradient(180deg, var(--surface) 0%, var(--surface-alt) 100%);
 }
 
 .file-picker {

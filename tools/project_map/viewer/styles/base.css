@@ -26,6 +26,10 @@
   --shadow: 0 1px 2px rgba(31, 29, 24, 0.08);
   /* Text/icon color that sits on an --accent fill (light: white on rust). */
   --on-accent: #ffffff;
+  /* Lighten target for `color-mix(... var(--surface*) N%, var(--lift))` elevation.
+     White on light builds the shipped near-white panels; a warm light gray on
+     dark lifts charcoal surfaces without the cold muddy cast pure white causes. */
+  --lift: #ffffff;
   /* Elevated "pop" shadow for menus/popovers that float over the surface. */
   --shadow-pop: 0 18px 46px rgba(44, 36, 25, 0.16);
   /* Soft status surfaces: tinted fill + border + readable text per status. */
@@ -52,6 +56,41 @@
   /* Modal backdrops: a dark scrim and a light "frost" wash variant. */
   --scrim: rgba(31, 28, 23, 0.46);
   --scrim-frost: rgba(244, 241, 234, 0.62);
+  /* --- Frozen light "paper" palette (NEVER overridden by the dark theme) ----
+     Surfaces that render mod-authored content carry the mod's OWN inline text
+     colors, which authors pick against the game's light paper background (so
+     some are near-black). On a charcoal Studio surface those vanish. Such
+     surfaces remap their semantic tokens to these frozen values so the content
+     stays legible and WYSIWYG in dark mode — the same rationale as the Runtime
+     Preview iframe keeping a white canvas. Mirrors the light :root values. */
+  --paper-bg: #f4f1ea;
+  --paper-surface: #fbfaf6;
+  --paper-surface-alt: #ebe7dc;
+  --paper-border: #ddd7c6;
+  --paper-border-soft: #e8e3d4;
+  --paper-ink: #1f1d18;
+  --paper-muted: #77705f;
+  --paper-accent: #a64b2a;
+  --paper-accent-strong: #7a3819;
+  --paper-on-accent: #ffffff;
+  --paper-lift: #ffffff;
+  --paper-code: #efe9da;
+  --paper-danger: #b42318;
+  --paper-warn: #9a5b00;
+  --paper-info: #315d98;
+  --paper-success: #23643f;
+  --paper-info-soft: #eef4fb;
+  --paper-warn-soft: #fff7e6;
+  --paper-danger-soft: #fff0ef;
+  --paper-success-soft: #e9f4ec;
+  --paper-info-border: rgba(31, 100, 170, 0.34);
+  --paper-warn-border: rgba(158, 105, 24, 0.5);
+  --paper-danger-border: rgba(171, 55, 45, 0.55);
+  --paper-success-border: rgba(35, 100, 63, 0.4);
+  --paper-info-text: #244c7d;
+  --paper-warn-text: #6d4b13;
+  --paper-danger-text: #991b1b;
+  --paper-success-text: #2f7d4f;
   --serif: ui-serif, "Iowan Old Style", "Source Serif Pro", Georgia, serif;
   --motion-fast: 120ms;
   --motion-medium: 180ms;
@@ -89,6 +128,9 @@
   --shadow-pop: 0 18px 46px rgba(0, 0, 0, 0.55);
   /* On the lightened accent, dark text keeps contrast (vs white on light-orange). */
   --on-accent: #1a1813;
+  /* Warm light gray (not white) so elevated surfaces lift gently instead of
+     washing the charcoal into a flat cold gray. */
+  --lift: #756b58;
   /* Soft status surfaces tuned for a dark background. */
   --info-soft: #1f2b3b;
   --info-border: rgba(123, 166, 221, 0.4);
@@ -111,6 +153,48 @@
   /* Dark scrim; the frost wash also goes dark so it never lightens the UI. */
   --scrim: rgba(0, 0, 0, 0.62);
   --scrim-frost: rgba(16, 14, 11, 0.66);
+}
+
+/* Mod-content preview surfaces keep the light "paper" palette in dark mode so
+   the mod's own inline text colors (often near-black, authored against the
+   game's light background) stay legible — WYSIWYG with how the content reads
+   in-game, mirroring the Runtime Preview iframe. Re-pinning the SEMANTIC tokens
+   is required: they were already var()-substituted to dark values at :root and
+   inherited down, so re-pinning only the raw --studio-* would not flow through.
+   Pure var() refs (to the frozen --paper-* set) keep this rule free of raw
+   colors for check_css_hardcoded_colors.js. */
+:root[data-theme="dark"] .content-storyboard-card,
+:root[data-theme="dark"] .lightweight-object-frame,
+:root[data-theme="dark"] .lightweight-card-face {
+  color-scheme: light;
+  --bg: var(--paper-bg);
+  --surface: var(--paper-surface);
+  --surface-alt: var(--paper-surface-alt);
+  --border: var(--paper-border);
+  --border-soft: var(--paper-border-soft);
+  --text: var(--paper-ink);
+  --muted: var(--paper-muted);
+  --accent: var(--paper-accent);
+  --accent-strong: var(--paper-accent-strong);
+  --on-accent: var(--paper-on-accent);
+  --lift: var(--paper-lift);
+  --code: var(--paper-code);
+  --danger: var(--paper-danger);
+  --warn: var(--paper-warn);
+  --info: var(--paper-info);
+  --success: var(--paper-success);
+  --info-soft: var(--paper-info-soft);
+  --warn-soft: var(--paper-warn-soft);
+  --danger-soft: var(--paper-danger-soft);
+  --success-soft: var(--paper-success-soft);
+  --info-border: var(--paper-info-border);
+  --warn-border: var(--paper-warn-border);
+  --danger-border: var(--paper-danger-border);
+  --success-border: var(--paper-success-border);
+  --info-text: var(--paper-info-text);
+  --warn-text: var(--paper-warn-text);
+  --danger-text: var(--paper-danger-text);
+  --success-text: var(--paper-success-text);
 }
 
 * {

@@ -282,7 +282,7 @@
   align-items: start;
   padding: 18px 20px;
   border-bottom: 1px solid var(--border);
-  background: color-mix(in srgb, var(--surface) 86%, #ffffff);
+  background: color-mix(in srgb, var(--surface) 86%, var(--lift));
 }
 
 .object-editing-modal-header-actions {
@@ -346,7 +346,7 @@
   background:
     linear-gradient(90deg, color-mix(in srgb, var(--border-soft) 55%, transparent) 1px, transparent 1px),
     linear-gradient(0deg, color-mix(in srgb, var(--border-soft) 55%, transparent) 1px, transparent 1px),
-    color-mix(in srgb, var(--surface-alt) 76%, #ffffff);
+    color-mix(in srgb, var(--surface-alt) 76%, var(--lift));
   background-size: 42px 42px;
 }
 
@@ -358,7 +358,7 @@
   border: 0;
   border-radius: 0;
   box-shadow: none;
-  background: color-mix(in srgb, var(--surface) 92%, #ffffff);
+  background: color-mix(in srgb, var(--surface) 92%, var(--lift));
 }
 
 .object-editing-preview-pane::-webkit-scrollbar:horizontal,
@@ -447,7 +447,7 @@
 }
 
 [data-rendered-authoring-entry]:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--studio-accent) 76%, #ffffff);
+  outline: 2px solid color-mix(in srgb, var(--studio-accent) 76%, var(--lift));
   outline-offset: 3px;
 }
 
@@ -487,7 +487,7 @@
   height: 15px;
   border: 1px solid color-mix(in srgb, var(--studio-accent) 56%, var(--border));
   border-radius: 999px;
-  background: color-mix(in srgb, var(--surface) 86%, #ffffff);
+  background: color-mix(in srgb, var(--surface) 86%, var(--lift));
   font-size: 10px;
   font-weight: 900;
   line-height: 1;
@@ -495,7 +495,7 @@
 }
 
 .authoring-context-lens[data-authoring-context-lens]:focus-visible > .authoring-context-lens-dot {
-  outline: 2px solid color-mix(in srgb, var(--studio-accent) 72%, #ffffff);
+  outline: 2px solid color-mix(in srgb, var(--studio-accent) 72%, var(--lift));
   outline-offset: 2px;
 }
 
@@ -592,7 +592,7 @@
   padding: 4px 8px;
   border: 1px solid color-mix(in srgb, var(--border) 70%, var(--studio-accent));
   border-radius: 999px;
-  background: color-mix(in srgb, var(--surface-alt) 78%, #ffffff);
+  background: color-mix(in srgb, var(--surface-alt) 78%, var(--lift));
   color: var(--muted);
   font-size: 12px;
   line-height: 1.25;
@@ -668,7 +668,7 @@
   width: 100%;
   padding: 7px 8px;
   border-radius: 7px;
-  background: color-mix(in srgb, var(--surface) 88%, #ffffff);
+  background: color-mix(in srgb, var(--surface) 88%, var(--lift));
   white-space: pre-wrap;
   overflow-wrap: break-word;
   word-break: normal;
@@ -702,7 +702,7 @@
   padding: 10px;
   border: 1px solid color-mix(in srgb, var(--border) 72%, var(--studio-accent));
   border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-alt) 72%, #ffffff);
+  background: color-mix(in srgb, var(--surface-alt) 72%, var(--lift));
 }
 
 .preview-object-parity-panel header,
@@ -758,7 +758,7 @@
   padding: 7px;
   border: 1px solid color-mix(in srgb, var(--border-soft) 78%, var(--warning));
   border-radius: 6px;
-  background: color-mix(in srgb, var(--surface-alt) 82%, #ffffff);
+  background: color-mix(in srgb, var(--surface-alt) 82%, var(--lift));
 }
 
 .preview-object-parity-repairs article > div {
@@ -808,7 +808,7 @@
   border-top: 1px solid var(--border-soft);
   border-bottom: 1px solid var(--border-soft);
   border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-alt) 54%, #ffffff);
+  background: color-mix(in srgb, var(--surface-alt) 54%, var(--lift));
 }
 
 .object-editing-preview-effects ul {
@@ -829,7 +829,7 @@
   border: 0;
   border-left: 3px solid color-mix(in srgb, var(--success) 62%, var(--border));
   border-radius: 6px;
-  background: color-mix(in srgb, var(--surface) 74%, #ffffff);
+  background: color-mix(in srgb, var(--surface) 74%, var(--lift));
 }
 
 .object-editing-preview-effects li[data-preview-effect-kind="choice"] {
@@ -900,7 +900,7 @@
   padding: 4px 8px;
   border: 1px solid color-mix(in srgb, var(--studio-accent) 22%, var(--border-soft));
   border-radius: 999px;
-  background: color-mix(in srgb, var(--studio-accent-soft) 48%, #ffffff);
+  background: color-mix(in srgb, var(--studio-accent-soft) 48%, var(--lift));
   color: var(--muted);
   font-size: 11px;
   line-height: 1.2;
@@ -932,7 +932,7 @@
   padding: 10px;
   border: 1px solid color-mix(in srgb, var(--studio-accent) 28%, var(--border-soft));
   border-radius: 8px;
-  background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 92%, #ffffff), color-mix(in srgb, var(--surface-alt) 78%, #ffffff));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface) 92%, var(--lift)), color-mix(in srgb, var(--surface-alt) 78%, var(--lift)));
 }
 
 .object-editing-preview-choice-card.is-pending-removal {
@@ -1013,7 +1013,7 @@
   padding: 6px 8px;
   border: 1px solid color-mix(in srgb, var(--studio-accent) 24%, var(--border));
   border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-alt) 72%, #ffffff);
+  background: color-mix(in srgb, var(--surface-alt) 72%, var(--lift));
   color: var(--muted);
   font-size: 12px;
   line-height: 1.28;
@@ -1040,7 +1040,7 @@
   padding: 9px 10px;
   border-left: 3px solid color-mix(in srgb, var(--studio-accent) 46%, var(--border));
   border-radius: 0 8px 8px 0;
-  background: color-mix(in srgb, var(--surface) 86%, #ffffff);
+  background: color-mix(in srgb, var(--surface) 86%, var(--lift));
 }
 
 .object-editing-preview-choice-result > span {
@@ -1076,7 +1076,7 @@
   padding: 4px 8px;
   border: 1px solid color-mix(in srgb, var(--border) 72%, var(--studio-accent));
   border-radius: 999px;
-  background: color-mix(in srgb, var(--surface-alt) 78%, #ffffff);
+  background: color-mix(in srgb, var(--surface-alt) 78%, var(--lift));
   color: var(--muted);
   font-size: 12px;
   line-height: 1.25;
@@ -1147,7 +1147,7 @@
 .object-editing-preview-route-outcome {
   border-color: color-mix(in srgb, var(--warning) 24%, var(--border-soft));
   border-left-color: color-mix(in srgb, var(--warning) 52%, var(--border));
-  background: color-mix(in srgb, var(--surface-alt) 78%, #ffffff);
+  background: color-mix(in srgb, var(--surface-alt) 78%, var(--lift));
 }
 
 .object-editing-preview-nested-section > header,
@@ -1181,7 +1181,7 @@
   padding: 4px 7px;
   border: 1px solid color-mix(in srgb, var(--studio-accent) 24%, var(--border));
   border-radius: 999px;
-  background: color-mix(in srgb, var(--surface-alt) 82%, #ffffff);
+  background: color-mix(in srgb, var(--surface-alt) 82%, var(--lift));
   color: var(--studio-accent-strong);
   font: inherit;
   font-size: 12px;
@@ -1215,7 +1215,7 @@
   padding: 8px 10px;
   border: 1px dashed color-mix(in srgb, var(--border) 80%, var(--studio-accent));
   border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-alt) 72%, #ffffff);
+  background: color-mix(in srgb, var(--surface-alt) 72%, var(--lift));
   color: var(--muted);
   font-size: 12px;
 }
@@ -1236,7 +1236,7 @@
   padding: 9px;
   border: 1px solid var(--border-soft);
   border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-alt) 74%, #ffffff);
+  background: color-mix(in srgb, var(--surface-alt) 74%, var(--lift));
 }
 
 .object-editing-preview-assets img {
@@ -1272,7 +1272,7 @@
   padding: 9px 10px;
   border: 1px solid color-mix(in srgb, var(--warning) 22%, var(--border-soft));
   border-radius: 8px;
-  background: color-mix(in srgb, var(--surface-alt) 78%, #ffffff);
+  background: color-mix(in srgb, var(--surface-alt) 78%, var(--lift));
 }
 
 .object-editing-preview-branches article[data-preview-branch-role="section_text"],
@@ -1320,7 +1320,7 @@
   margin: 4px -14px -14px;
   padding: 12px 14px;
   border-top: 1px solid var(--border);
-  background: color-mix(in srgb, var(--surface) 94%, #ffffff);
+  background: color-mix(in srgb, var(--surface) 94%, var(--lift));
 }
 
 .object-editor-launch-card {
