@@ -3802,7 +3802,13 @@
       controlClass,
       placeholder: field && field.placeholder
     });
-    const renderedPreview = fieldTextPreview(value, id, element, opts);
+    // A field with a conditional tree renders a per-branch ladder right after
+    // this control, where each branch's text is shown separately under its
+    // condition. The flat inline preview would instead mash every branch's text
+    // together (a state no player ever sees), so skip it and let the ladder own
+    // the rendered view.
+    const hasConditionalLadder = Boolean(field && ensureArray(field.conditionalTree).length);
+    const renderedPreview = hasConditionalLadder ? '' : fieldTextPreview(value, id, element, opts);
     return [
       '<label class="' + escapeAttr(className) + '" data-preview-object-field-role="' + escapeAttr(opts.role || 'field') + '"' + structureData + semanticData + '>',
       label ? renderEditorFieldLabel(label, rawLabel, presentation) : '',
