@@ -31,6 +31,30 @@
   --motion-ease: cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  /* Warm charcoal palette mirroring the light paper theme's hue family. */
+  --studio-paper: #1a1813;
+  --studio-surface: #221f19;
+  --studio-surface-alt: #2c281f;
+  --studio-border: #3b362b;
+  --studio-border-soft: #332e25;
+  --studio-ink: #ece7db;
+  --studio-muted: #a59c87;
+  /* Rust accent lightened so it reads as text/links on a dark surface. */
+  --studio-accent: #e08a63;
+  --studio-accent-strong: #f0a47e;
+  --studio-accent-soft: #3a2a20;
+  /* Status colors lightened for legibility on dark backgrounds. */
+  --danger: #ef9489;
+  --warn: #e0a94a;
+  --info: #7ba6dd;
+  --success: #6cb88c;
+  --code: #2a2620;
+  /* Deeper, neutral shadow reads on a dark surface. */
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -232,7 +256,8 @@ code {
   padding: 4px 8px;
 }
 
-.topbar-locale-switch {
+.topbar-locale-switch,
+.topbar-theme-switch {
   flex: 0 0 auto;
 }
 

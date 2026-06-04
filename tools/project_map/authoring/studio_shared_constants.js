@@ -9,8 +9,12 @@
     designInspectorWidth: 'dendry-mod-studio-design-inspector-width',
     onboardingSeen: 'dendry-mod-studio-onboarding-seen',
     guidedTourSeen: 'dendry-mod-studio-guided-tour-seen',
-    surfaceHintsSeenPrefix: 'dendry-mod-studio-surface-hints-seen.'
+    surfaceHintsSeenPrefix: 'dendry-mod-studio-surface-hints-seen.',
+    theme: 'dendry-mod-studio-theme'
   };
+
+  const THEME_VALUES = ['auto', 'light', 'dark'];
+  const DEFAULT_THEME = 'auto';
 
   const EVENT_NAMES = {
     indexLoaded: 'ProjectMap:index-loaded',
@@ -23,7 +27,8 @@
     openOnboarding: 'ProjectMap:open-onboarding',
     openGuidedTour: 'ProjectMap:open-guided-tour',
     openSurfaceHints: 'ProjectMap:open-surface-hints',
-    welcomeDismissed: 'ProjectMap:welcome-dismissed'
+    welcomeDismissed: 'ProjectMap:welcome-dismissed',
+    themeChanged: 'ProjectMap:theme-changed'
   };
 
   const TEXT_ROLE_LABELS = {
@@ -89,6 +94,8 @@
   const api = {
     STORAGE_KEYS,
     EVENT_NAMES,
+    THEME_VALUES,
+    DEFAULT_THEME,
     TEXT_ROLE_LABELS,
     TEXT_EDITABILITY_LABELS,
     INSTALL_COPY,

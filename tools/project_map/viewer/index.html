@@ -4,6 +4,24 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dendry Mod Studio Project Map</title>
+  <script>
+    // Theme bootstrap: resolve the saved theme before first paint to avoid a
+    // flash of the wrong palette. Mirrors theme_ui.js but stays dependency-free.
+    (function bootstrapTheme() {
+      try {
+        var stored = window.localStorage.getItem('dendry-mod-studio-theme');
+        var pref = stored === 'light' || stored === 'dark' || stored === 'auto' ? stored : 'auto';
+        var resolved = pref;
+        if (pref === 'auto') {
+          var mq = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
+          resolved = mq && mq.matches ? 'dark' : 'light';
+        }
+        document.documentElement.dataset.theme = resolved;
+      } catch (err) {
+        document.documentElement.dataset.theme = 'light';
+      }
+    })();
+  </script>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body data-studio-surface="direction-b">
@@ -42,6 +60,14 @@
             <option value="auto" data-i18n="topbar.language.auto">Auto</option>
             <option value="zh-Hant" data-i18n="topbar.language.zh">繁中</option>
             <option value="en" data-i18n="topbar.language.en">English</option>
+          </select>
+        </label>
+        <label class="locale-switch topbar-theme-switch">
+          <span data-i18n="theme.label">Theme</span>
+          <select id="theme-select" aria-label="Theme" data-i18n-aria-label="aria.theme">
+            <option value="auto" data-i18n="theme.auto">Auto</option>
+            <option value="light" data-i18n="theme.light">Light</option>
+            <option value="dark" data-i18n="theme.dark">Dark</option>
           </select>
         </label>
         <div id="desktop-controls" class="desktop-controls hidden">
@@ -2447,6 +2473,7 @@ media_reach += 1</textarea>
   <script src="onboarding_ui.js"></script>
   <script src="update_notice_ui.js"></script>
   <script src="tutorial_library_ui.js"></script>
+  <script src="theme_ui.js"></script>
   <script src="guided_tour_ui.js"></script>
   <script src="design_graph_renderer.js"></script>
   <script src="design_interactions.js"></script>
