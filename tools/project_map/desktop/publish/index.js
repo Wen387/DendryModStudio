@@ -94,7 +94,7 @@ async function publishMod(options) {
     return { ok: false, code: 'commit_failed', message: err.message };
   }
 
-  const repoName = opts.name || path.basename(dir);
+  const repoName = manifest.normalizeRepoName(opts.name || path.basename(dir));
   let repo;
   try {
     repo = await githubApi.createRepo(token, {

@@ -13,13 +13,19 @@ const path = require('path');
 const git = require('isomorphic-git');
 const gitHttp = require('isomorphic-git/http/node');
 
-/** Writes the generated housekeeping files into the mod folder before staging. */
+/**
+ * Writes the generated housekeeping files into the mod folder before staging.
+ * Only creates each file when it is missing, so an author who has hand-edited
+ * their own .gitignore / .gitattributes never has it silently overwritten.
+ */
 function writeHousekeeping(dir, gitignore, gitattributes) {
-  if (typeof gitignore === 'string') {
-    fs.writeFileSync(path.join(dir, '.gitignore'), gitignore);
+  const ignorePath = path.join(dir, '.gitignore');
+  if (typeof gitignore === 'string' && !fs.existsSync(ignorePath)) {
+    fs.writeFileSync(ignorePath, gitignore);
   }
-  if (typeof gitattributes === 'string') {
-    fs.writeFileSync(path.join(dir, '.gitattributes'), gitattributes);
+  const attrPath = path.join(dir, '.gitattributes');
+  if (typeof gitattributes === 'string' && !fs.existsSync(attrPath)) {
+    fs.writeFileSync(attrPath, gitattributes);
   }
 }
 

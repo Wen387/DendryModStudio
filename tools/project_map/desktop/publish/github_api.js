@@ -100,7 +100,7 @@ async function createRepo(token, options) {
  * normal outcome (used to decide whether a 422-on-create can be safely reused).
  */
 async function getRepo(token, owner, name) {
-  const res = await request('GET', '/repos/' + owner + '/' + name, token);
+  const res = await request('GET', '/repos/' + encodeURIComponent(owner) + '/' + encodeURIComponent(name), token);
   if (res.status === 200) {
     return res.json;
   }

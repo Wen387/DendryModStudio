@@ -7,7 +7,15 @@ const core = require('./studio_core');
 const runtimeSessionCleanup = require('./runtime_session_cleanup');
 const updateNotice = require('./update_notice');
 const templateCatalog = require('./template_catalog');
-const publish = require('./publish');
+// Soft-load the publish subsystem: if it ever fails to load (e.g. a stripped
+// package without node_modules, so isomorphic-git is absent), the rest of the
+// app must still start — publishing simply stays unavailable.
+let publish = null;
+try {
+  publish = require('./publish');
+} catch (publishLoadErr) {
+  console.error('[publish] subsystem failed to load; publishing disabled:', publishLoadErr && publishLoadErr.message);
+}
 
 const APP_ID = 'studio.dendry.mod';
 const APP_NAME = 'Dendry Mod Studio';
@@ -752,7 +760,9 @@ ipcMain.handle('dendry:open-external-url', async (_event, options) => {
   return {ok: true};
 });
 
-publish.register({ipcMain, app, shell, getProjectRoot: () => chooseProjectRootForOperation({})});
+if (publish && typeof publish.register === 'function') {
+  publish.register({ipcMain, app, shell, getProjectRoot: () => chooseProjectRootForOperation({})});
+}
 
 if (process.platform === 'win32') {
   app.setAppUserModelId(APP_ID);

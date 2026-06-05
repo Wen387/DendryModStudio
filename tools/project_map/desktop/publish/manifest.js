@@ -105,6 +105,23 @@ function gitattributesContents() {
 }
 
 /**
+ * Normalizes a folder/display name into a GitHub-legal repo name the SAME way
+ * for both create and lookup, so a retry can find the repo a previous attempt
+ * created. GitHub maps disallowed characters (spaces, slashes, …) to dashes;
+ * we collapse runs to a single dash and trim edge dashes. The result only
+ * contains [A-Za-z0-9._-], which GitHub accepts verbatim — so createRepo(name)
+ * and getRepo(name) stay consistent (e.g. "Demo Mod" -> "Demo-Mod").
+ */
+function normalizeRepoName(name) {
+  const cleaned = String(name == null ? '' : name)
+    .trim()
+    .replace(/[^A-Za-z0-9._-]+/g, '-')
+    .replace(/^[-.]+/, '')
+    .replace(/[-.]+$/, '');
+  return cleaned || 'mod';
+}
+
+/**
  * GitHub "noreply" commit email derived from the authenticated user, so authors
  * never have to configure a git identity by hand.
  */
@@ -123,6 +140,7 @@ const api = {
   buildManifest: buildManifest,
   gitignoreContents: gitignoreContents,
   gitattributesContents: gitattributesContents,
+  normalizeRepoName: normalizeRepoName,
   noreplyEmail: noreplyEmail
 };
 
