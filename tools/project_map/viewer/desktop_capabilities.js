@@ -233,6 +233,42 @@
     }
   }
 
+  function publishStatus(options, env) {
+    var desktop = raw(env);
+    if (!desktop || typeof desktop.publishStatus !== 'function') {
+      return resolve(null);
+    }
+    try {
+      return resolve(desktop.publishStatus(options || {}));
+    } catch (err) {
+      return reject(err);
+    }
+  }
+
+  function publishUpdate(options, env) {
+    var desktop = raw(env);
+    if (!desktop || typeof desktop.publishUpdate !== 'function') {
+      return resolve(null);
+    }
+    try {
+      return resolve(desktop.publishUpdate(options || {}));
+    } catch (err) {
+      return reject(err);
+    }
+  }
+
+  function publishSync(options, env) {
+    var desktop = raw(env);
+    if (!desktop || typeof desktop.publishSync !== 'function') {
+      return resolve(null);
+    }
+    try {
+      return resolve(desktop.publishSync(options || {}));
+    } catch (err) {
+      return reject(err);
+    }
+  }
+
   const api = {
     raw,
     isDesktop,
@@ -256,7 +292,10 @@
     publishAuthStatus,
     publishSetToken,
     publishClearToken,
-    publishMod
+    publishMod,
+    publishStatus,
+    publishUpdate,
+    publishSync
   };
 
   if (typeof module !== 'undefined' && module.exports) {

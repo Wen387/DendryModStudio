@@ -132,7 +132,30 @@
     } catch (_err) {
       status = null;
     }
-    if (status && status.connected) { renderForm(); } else { renderConnect(); }
+    if (!status || !status.connected) { renderConnect(); return; }
+
+    // Connected: decide first-publish vs update/sync from the folder's real git
+    // state. Anything that isn't an already-tracked repo falls through to the
+    // existing first-publish form.
+    setBody([
+      '<div class="publish-step publish-center">',
+      '  <div class="publish-spinner" aria-hidden="true"></div>',
+      '  <p data-i18n="publish.sync.checking">Checking GitHub…</p>',
+      '</div>'
+    ].join(''));
+    let sync = null;
+    try {
+      sync = c && typeof c.publishStatus === 'function'
+        ? await c.publishStatus({ projectRoot: currentProjectRoot() })
+        : null;
+    } catch (_err) {
+      sync = null;
+    }
+    if (sync && sync.ok && sync.state && sync.state !== 'first_publish') {
+      renderSyncPanel(sync);
+    } else {
+      renderForm();
+    }
   }
 
   function renderNoProject() {
@@ -276,6 +299,345 @@
         + formatBytes(f.bytes) + '</span></div>';
     });
     listEl.innerHTML = '<div class="publish-preview-summary">' + escapeHtml(summary) + '</div>' + warnHtml + rows.join('');
+  }
+
+  // ---- Update / sync panel (shown when the folder already tracks an origin) ----
+
+  function renderSyncPanel(sync) {
+    const state = sync.state;
+    const ahead = Number(sync.ahead) || 0;
+    const behind = Number(sync.behind) || 0;
+    const dirty = Boolean(sync.dirty);
+
+    let summaryKey = 'publish.sync.inSync';
+    let summaryFallback = 'Everything is up to date with GitHub.';
+    if (state === 'offline') {
+      summaryKey = 'publish.sync.offline';
+      summaryFallback = 'Could not reach GitHub. Check your connection and try again.';
+    } else if (state === 'local_ahead') {
+      summaryKey = 'publish.sync.localAhead';
+      summaryFallback = 'You have local changes that are not on GitHub yet.';
+    } else if (state === 'remote_ahead') {
+      summaryKey = 'publish.sync.remoteAhead';
+      summaryFallback = 'GitHub has newer changes than the copy on your computer.';
+    } else if (state === 'diverged') {
+      summaryKey = 'publish.sync.diverged';
+      summaryFallback = 'Your computer and GitHub have each changed separately.';
+    }
+
+    setBody([
+      '<div class="publish-step">',
+      '  <div class="publish-account">',
+      '    <span data-i18n="publish.connectedAs"></span>',
+      '    <button type="button" class="publish-link" data-publish-disconnect data-i18n="publish.disconnect"></button>',
+      '  </div>',
+      '  <div class="publish-sync">',
+      '    <p class="publish-repo-url" data-publish-repo></p>',
+      '    <div class="publish-sync-counts" data-publish-counts></div>',
+      '    <p class="publish-sync-summary">' + escapeHtml(t(summaryKey, summaryFallback)) + '</p>',
+      '    <p class="publish-sync-dirty hidden" data-publish-dirty>'
+        + escapeHtml(t('publish.sync.dirty', 'You also have unsaved local edits — they will be included when you update.'))
+        + '</p>',
+      '    <p class="publish-error-text hidden" data-publish-sync-error></p>',
+      '    <div class="publish-actions" data-publish-sync-actions></div>',
+      '  </div>',
+      '</div>'
+    ].join(''));
+
+    const repoEl = bodyEl.querySelector('[data-publish-repo]');
+    if (repoEl) { repoEl.textContent = sync.repoUrl || ''; }
+
+    const countsEl = bodyEl.querySelector('[data-publish-counts]');
+    if (countsEl) {
+      const badges = [];
+      if (ahead > 0) {
+        badges.push('<span class="publish-badge publish-badge-ahead">↑ ' + ahead + ' '
+          + escapeHtml(t('publish.sync.ahead', 'to upload')) + '</span>');
+      }
+      if (behind > 0) {
+        badges.push('<span class="publish-badge publish-badge-behind">↓ ' + behind + ' '
+          + escapeHtml(t('publish.sync.behind', 'to download')) + '</span>');
+      }
+      countsEl.innerHTML = badges.join('');
+    }
+
+    if (dirty) {
+      const dEl = bodyEl.querySelector('[data-publish-dirty]');
+      if (dEl) { dEl.classList.remove('hidden'); }
+    }
+
+    bodyEl.querySelector('[data-publish-disconnect]').addEventListener('click', async function () {
+      try { await caps().publishClearToken(); } catch (_err) { /* ignore */ }
+      renderConnect();
+    });
+
+    renderSyncActions(sync);
+  }
+
+  // State-specific action buttons live here. A refresh is always available so the
+  // user can re-check after acting on GitHub or reconnecting.
+  function renderSyncActions(sync) {
+    const actions = bodyEl.querySelector('[data-publish-sync-actions]');
+    if (!actions) { return; }
+    const state = sync.state;
+    const dirty = Boolean(sync.dirty);
+    const canUpdate = state === 'local_ahead' || (state === 'in_sync' && dirty);
+
+    if (canUpdate) {
+      // Update needs a commit message — render a small form above the buttons.
+      const form = document.createElement('div');
+      form.className = 'publish-update-form';
+      form.innerHTML = [
+        '<label class="publish-field">',
+        '  <span>' + escapeHtml(t('publish.sync.messageLabel', 'Describe what changed')) + '</span>',
+        '  <input type="text" class="publish-input" data-publish-update-message spellcheck="false">',
+        '</label>'
+      ].join('');
+      actions.parentNode.insertBefore(form, actions);
+      const msgInput = form.querySelector('[data-publish-update-message]');
+      msgInput.setAttribute('placeholder', t('publish.sync.messagePlaceholder', 'e.g. Fixed the intro scene'));
+
+      const updateBtn = document.createElement('button');
+      updateBtn.type = 'button';
+      updateBtn.className = 'publish-primary';
+      updateBtn.textContent = t('publish.sync.update', 'Update on GitHub');
+      updateBtn.addEventListener('click', function () { onUpdate(msgInput.value); });
+      actions.appendChild(updateBtn);
+    }
+
+    // Fast-forward pull is offered only when the remote is strictly ahead and the
+    // worktree is clean. A dirty remote_ahead gets an advisory note instead — we
+    // never overwrite local edits.
+    if (state === 'remote_ahead' && !dirty) {
+      const syncBtn = document.createElement('button');
+      syncBtn.type = 'button';
+      syncBtn.className = 'publish-primary';
+      syncBtn.textContent = t('publish.sync.sync', 'Download from GitHub');
+      syncBtn.addEventListener('click', onSync);
+      actions.appendChild(syncBtn);
+    } else if (state === 'remote_ahead' && dirty) {
+      const hint = document.createElement('p');
+      hint.className = 'publish-sync-hint';
+      hint.textContent = t('publish.sync.dirtyBlocksPull', 'Set your local edits aside before downloading the changes from GitHub.');
+      actions.parentNode.insertBefore(hint, actions);
+    }
+
+    // Divergence escape hatch: force-push (overwrite remote). Deliberately the
+    // only place that crosses the never-force rule, gated behind a strong warning
+    // and a typed second confirmation.
+    if (state === 'diverged') {
+      const warn = document.createElement('p');
+      warn.className = 'publish-sync-danger';
+      warn.textContent = t('publish.sync.divergedWarn', 'Your computer and GitHub have changed separately. You can overwrite GitHub with your version, but the changes made on GitHub will be lost.');
+      actions.parentNode.insertBefore(warn, actions);
+
+      const forceBtn = document.createElement('button');
+      forceBtn.type = 'button';
+      forceBtn.className = 'publish-danger';
+      forceBtn.textContent = t('publish.sync.forceOpen', 'Overwrite GitHub with my version…');
+      forceBtn.addEventListener('click', function () { renderForceConfirm(sync); });
+      actions.appendChild(forceBtn);
+    }
+
+    const refresh = document.createElement('button');
+    refresh.type = 'button';
+    refresh.className = 'publish-secondary';
+    refresh.textContent = t('publish.sync.refresh', 'Check again');
+    refresh.addEventListener('click', renderAuto);
+    actions.appendChild(refresh);
+  }
+
+  async function onUpdate(message, extraOpts) {
+    const msg = String(message || '').trim();
+    if (!msg) {
+      const errEl = bodyEl.querySelector('[data-publish-sync-error]');
+      if (errEl) {
+        errEl.textContent = t('publish.sync.needMessage', 'Please describe what changed first.');
+        errEl.classList.remove('hidden');
+      }
+      return;
+    }
+    renderPublishing();
+    let res = null;
+    try {
+      res = await caps().publishUpdate(Object.assign(
+        { projectRoot: currentProjectRoot(), message: msg },
+        extraOpts || {}
+      ));
+    } catch (err) {
+      res = { ok: false, message: String((err && err.message) || err) };
+    }
+    if (res && res.ok) { renderUpdateSuccess(res); } else { renderUpdateError(res); }
+  }
+
+  function renderUpdateSuccess(res) {
+    const forced = Boolean(res && res.forced);
+    setBody([
+      '<div class="publish-step publish-center">',
+      '  <h3>' + escapeHtml(t('publish.sync.updatedTitle', 'Updated on GitHub')) + '</h3>',
+      '  <p class="publish-muted">' + escapeHtml(forced
+        ? t('publish.sync.forcedBody', 'GitHub now matches the copy on your computer.')
+        : t('publish.sync.updatedBody', 'Your changes are now on GitHub.')) + '</p>',
+      '  <p class="publish-repo-url"></p>',
+      '  <div class="publish-actions">',
+      '    <button type="button" class="publish-primary" data-publish-open></button>',
+      '    <button type="button" class="publish-secondary" data-publish-close-done></button>',
+      '  </div>',
+      '</div>'
+    ].join(''));
+    bodyEl.querySelector('.publish-repo-url').textContent = (res && res.repoUrl) || '';
+    const openBtn = bodyEl.querySelector('[data-publish-open]');
+    openBtn.textContent = t('publish.success.openRepo', 'Open on GitHub');
+    openBtn.addEventListener('click', function () {
+      const c = caps();
+      if (c && typeof c.openExternalUrl === 'function' && res && res.repoUrl) {
+        c.openExternalUrl({ url: res.repoUrl });
+      }
+    });
+    const doneBtn = bodyEl.querySelector('[data-publish-close-done]');
+    doneBtn.textContent = t('publish.success.done', 'Done');
+    doneBtn.addEventListener('click', close);
+  }
+
+  function renderUpdateError(res) {
+    const code = res && res.code;
+    let msg = errorMessage(res);
+    if (code === 'nothing_to_commit') {
+      msg = t('publish.sync.nothingToCommit', 'There are no changes to publish.');
+    } else if (code === 'remote_ahead') {
+      msg = t('publish.sync.remoteMoved', 'GitHub changed since you last checked. Re-check and sync first.');
+    }
+    setBody([
+      '<div class="publish-step">',
+      '  <h3 data-i18n="publish.error.title"></h3>',
+      '  <p class="publish-error-text"></p>',
+      '  <div class="publish-actions">',
+      '    <button type="button" class="publish-primary" data-publish-back></button>',
+      '  </div>',
+      '</div>'
+    ].join(''));
+    bodyEl.querySelector('.publish-error-text').textContent = msg;
+    const back = bodyEl.querySelector('[data-publish-back]');
+    back.textContent = t('publish.sync.refresh', 'Check again');
+    back.addEventListener('click', renderAuto);
+  }
+
+  function renderBusy(textKey, fallback) {
+    setBody([
+      '<div class="publish-step publish-center">',
+      '  <div class="publish-spinner" aria-hidden="true"></div>',
+      '  <p>' + escapeHtml(t(textKey, fallback)) + '</p>',
+      '</div>'
+    ].join(''));
+  }
+
+  async function onSync() {
+    renderBusy('publish.sync.syncing', 'Downloading from GitHub…');
+    let res = null;
+    try {
+      res = await caps().publishSync({ projectRoot: currentProjectRoot() });
+    } catch (err) {
+      res = { ok: false, message: String((err && err.message) || err) };
+    }
+    if (res && res.ok) {
+      // The on-disk content changed — rebuild the Studio index so the underlying
+      // app reflects the pulled version (best-effort; the overlay stays open).
+      try {
+        const c = caps();
+        const bridge = c && typeof c.raw === 'function' ? c.raw() : null;
+        if (bridge && typeof bridge.rebuildProjectIndex === 'function') {
+          await bridge.rebuildProjectIndex({});
+        }
+      } catch (_err) { /* index refresh is best-effort */ }
+      renderSyncSuccess(res);
+    } else {
+      renderSyncError(res);
+    }
+  }
+
+  function renderSyncSuccess(res) {
+    setBody([
+      '<div class="publish-step publish-center">',
+      '  <h3>' + escapeHtml(t('publish.sync.syncedTitle', 'Up to date')) + '</h3>',
+      '  <p class="publish-muted">' + escapeHtml(t('publish.sync.syncedBody', 'Studio now has the latest version from GitHub.')) + '</p>',
+      '  <div class="publish-actions">',
+      '    <button type="button" class="publish-primary" data-publish-close-done></button>',
+      '  </div>',
+      '</div>'
+    ].join(''));
+    const doneBtn = bodyEl.querySelector('[data-publish-close-done]');
+    doneBtn.textContent = t('publish.success.done', 'Done');
+    doneBtn.addEventListener('click', close);
+  }
+
+  function renderSyncError(res) {
+    const code = res && res.code;
+    let msg = (res && res.message) || '';
+    if (code === 'dirty') {
+      msg = t('publish.sync.dirtyError', 'You have unsaved local edits. Set them aside, then download again.');
+    } else if (code === 'not_fast_forward') {
+      msg = t('publish.sync.notFastForward', 'GitHub and your computer have diverged. Re-check to see your options.');
+    }
+    setBody([
+      '<div class="publish-step">',
+      '  <h3 data-i18n="publish.error.title"></h3>',
+      '  <p class="publish-error-text"></p>',
+      '  <div class="publish-actions">',
+      '    <button type="button" class="publish-primary" data-publish-back></button>',
+      '  </div>',
+      '</div>'
+    ].join(''));
+    bodyEl.querySelector('.publish-error-text').textContent = msg;
+    const back = bodyEl.querySelector('[data-publish-back]');
+    back.textContent = t('publish.sync.refresh', 'Check again');
+    back.addEventListener('click', renderAuto);
+  }
+
+  // The force-push (overwrite remote) escape hatch. A strong warning plus a typed
+  // confirmation (the user must type the repo name) gate the only force we do.
+  function renderForceConfirm(sync) {
+    const repoUrl = (sync && sync.repoUrl) || '';
+    const repoName = repoUrl.replace(/\/+$/, '').split('/').pop() || '';
+    setBody([
+      '<div class="publish-step">',
+      '  <h3>' + escapeHtml(t('publish.sync.forceTitle', 'Overwrite GitHub?')) + '</h3>',
+      '  <div class="publish-sync-danger-box">',
+      '    <p>' + escapeHtml(t('publish.sync.forceWarn1', 'This replaces the version on GitHub with the copy on your computer.')) + '</p>',
+      '    <p>' + escapeHtml(t('publish.sync.forceWarn2', 'Any changes on GitHub that you do not have will be permanently lost. This cannot be undone.')) + '</p>',
+      '  </div>',
+      '  <label class="publish-field">',
+      '    <span>' + escapeHtml(t('publish.sync.messageOptional', 'Message for this update (optional)')) + '</span>',
+      '    <input type="text" class="publish-input" data-publish-force-message spellcheck="false">',
+      '  </label>',
+      '  <label class="publish-field">',
+      '    <span>' + escapeHtml(t('publish.sync.forceConfirmLabel', 'Type the repository name to confirm') + ': ' + repoName) + '</span>',
+      '    <input type="text" class="publish-input" data-publish-force-confirm spellcheck="false" autocomplete="off">',
+      '  </label>',
+      '  <div class="publish-actions">',
+      '    <button type="button" class="publish-secondary" data-publish-force-cancel></button>',
+      '    <button type="button" class="publish-danger" data-publish-force-go disabled></button>',
+      '  </div>',
+      '</div>'
+    ].join(''));
+
+    const confirmInput = bodyEl.querySelector('[data-publish-force-confirm]');
+    const goBtn = bodyEl.querySelector('[data-publish-force-go]');
+    const cancelBtn = bodyEl.querySelector('[data-publish-force-cancel]');
+    goBtn.textContent = t('publish.sync.forceGo', 'Overwrite GitHub');
+    cancelBtn.textContent = t('publish.sync.cancel', 'Cancel');
+    cancelBtn.addEventListener('click', renderAuto);
+
+    function validate() {
+      goBtn.disabled = !(repoName && confirmInput.value.trim() === repoName);
+    }
+    confirmInput.addEventListener('input', validate);
+    validate();
+
+    goBtn.addEventListener('click', function () {
+      if (goBtn.disabled) { return; }
+      const msg = (bodyEl.querySelector('[data-publish-force-message]').value || '').trim();
+      onUpdate(msg || t('publish.sync.forceDefaultMessage', 'Overwrite from Dendry Mod Studio'), { force: true });
+    });
   }
 
   async function onSubmit() {

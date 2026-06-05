@@ -15,6 +15,7 @@ const manifest = require('./manifest');
 const auth = require('./auth');
 const githubApi = require('./github_api');
 const gitOps = require('./git_ops');
+const syncState = require('./sync_state');
 
 /** Walks a mod folder into {path, bytes} entries, skipping ignored subtrees. */
 function walkFiles(rootDir) {
@@ -138,6 +139,181 @@ async function publishMod(options) {
   };
 }
 
+/**
+ * Probe a mod folder's publish/sync state: is it a git repo, does it track an
+ * origin, is the worktree dirty, and (if reachable) how far ahead/behind the
+ * remote is. Drives whether the UI shows the first-publish form or a sync panel.
+ * Network failure degrades to {offline:true} rather than erroring.
+ */
+async function publishStatus(options) {
+  const opts = options || {};
+  const dir = opts.projectRoot;
+  if (!dir || !fs.existsSync(dir)) {
+    return { ok: false, code: 'no_project', message: 'Open a mod folder before publishing.' };
+  }
+
+  const status = await gitOps.readStatus({ dir: dir });
+  const result = {
+    ok: true,
+    hasGit: status.hasGit,
+    hasOrigin: status.hasOrigin,
+    originUrl: status.originUrl,
+    repoUrl: syncState.webUrlFromRemote(status.originUrl),
+    branch: status.branch,
+    dirty: status.dirty,
+    ahead: 0,
+    behind: 0,
+    offline: false
+  };
+
+  if (!status.hasGit || !status.hasOrigin) {
+    result.state = syncState.classify({ hasGit: status.hasGit, hasOrigin: status.hasOrigin });
+    return result;
+  }
+
+  // Comparing against the remote needs the token (private repos). With no token
+  // we behave like offline — the local-only panel still renders.
+  const token = auth.loadToken();
+  let counts = { offline: true };
+  if (token) {
+    counts = await gitOps.fetchAheadBehind({ dir: dir, token: token });
+  }
+  if (counts.offline) {
+    result.offline = true;
+  } else {
+    result.ahead = counts.ahead;
+    result.behind = counts.behind;
+  }
+  result.state = syncState.classify({
+    hasGit: status.hasGit,
+    hasOrigin: status.hasOrigin,
+    dirty: status.dirty,
+    ahead: result.ahead,
+    behind: result.behind,
+    offline: result.offline
+  });
+  return result;
+}
+
+/**
+ * Push local changes to an already-published repo. Commits the current file set
+ * with the user's message, then pushes origin/main. `force:true` is the opt-in
+ * "overwrite remote" override for divergence (M3-b) — OFF by default, in which
+ * case a remote that moved ahead returns `remote_ahead` instead of clobbering.
+ */
+async function publishUpdate(options) {
+  const opts = options || {};
+  const force = Boolean(opts.force);
+  const dir = opts.projectRoot;
+  if (!dir || !fs.existsSync(dir)) {
+    return { ok: false, code: 'no_project', message: 'Open a mod folder before publishing.' };
+  }
+  // A normal update needs a message (it commits the author's edits). The force
+  // override may have nothing new to commit (it overwrites with existing
+  // commits), so a message is optional there.
+  const message = String(opts.message || '').trim();
+  if (!force && !message) {
+    return { ok: false, code: 'no_message', message: 'Describe what changed before updating.' };
+  }
+  const token = auth.loadToken();
+  if (!token) {
+    return { ok: false, code: 'no_token', message: 'Connect a GitHub account before publishing.' };
+  }
+
+  const status = await gitOps.readStatus({ dir: dir });
+  if (!status.hasGit || !status.hasOrigin) {
+    return { ok: false, code: 'not_tracked', message: 'This folder is not linked to a GitHub repository yet.' };
+  }
+
+  let user;
+  try {
+    user = await githubApi.getAuthenticatedUser(token);
+  } catch (err) {
+    return { ok: false, code: err.code || 'auth_failed', message: err.message };
+  }
+
+  // Keep housekeeping current (writeHousekeeping only writes missing files), then
+  // re-derive the staged list and commit the author's changes.
+  gitOps.writeHousekeeping(dir, manifest.gitignoreContents(), manifest.gitattributesContents());
+  const stagedManifest = manifest.buildManifest(walkFiles(dir));
+  const stagedPaths = stagedManifest.included.map(function (entry) { return entry.path; });
+
+  let commit;
+  try {
+    await gitOps.stageWorkingTree(dir, stagedPaths);
+    commit = await gitOps.commitStaged({
+      dir: dir,
+      author: { name: user.login, email: manifest.noreplyEmail(user) },
+      message: message || 'Update from Dendry Mod Studio'
+    });
+  } catch (err) {
+    return { ok: false, code: 'commit_failed', message: err.message };
+  }
+  // No new commit doesn't necessarily mean nothing to do: a prior update may have
+  // committed but failed to push (unpushed commits still to send). Only bail when
+  // local also matches the remote tracking ref. Force never bails — it overwrites.
+  if (!commit.committed && !force) {
+    const upToDate = await gitOps.localMatchesRemote(dir);
+    if (upToDate) {
+      return { ok: false, code: 'nothing_to_commit', message: 'There are no changes to publish.' };
+    }
+  }
+
+  let pushResult;
+  try {
+    pushResult = await gitOps.pushToRemote({ dir: dir, token: token, force: force });
+  } catch (err) {
+    // The commit is safely on disk; only the network step failed. A non-FF
+    // rejection means the remote moved — guide to re-check/sync rather than blame.
+    if (!force && gitOps.isNonFastForward(err)) {
+      return { ok: false, code: 'remote_ahead', message: 'GitHub changed since you last checked. Re-check and sync first.' };
+    }
+    return { ok: false, code: 'push_failed', message: err.message, repoUrl: syncState.webUrlFromRemote(status.originUrl) };
+  }
+  if (pushResult && pushResult.ok === false) {
+    if (!force && gitOps.isNonFastForward(pushResult)) {
+      return { ok: false, code: 'remote_ahead', message: 'GitHub changed since you last checked. Re-check and sync first.' };
+    }
+    return { ok: false, code: 'push_failed', message: String(pushResult.error || 'Push failed.'), repoUrl: syncState.webUrlFromRemote(status.originUrl) };
+  }
+
+  return {
+    ok: true,
+    sha: commit.sha,
+    login: user.login,
+    repoUrl: syncState.webUrlFromRemote(status.originUrl),
+    forced: force,
+    manifest: stagedManifest
+  };
+}
+
+/**
+ * Pull remote changes into a clean worktree via fast-forward only. Returns the
+ * new HEAD oid on success so the renderer can rebuild the Studio index (the
+ * on-disk content changed). Refuses on a dirty worktree or a non-fast-forward.
+ */
+async function publishSync(options) {
+  const opts = options || {};
+  const dir = opts.projectRoot;
+  if (!dir || !fs.existsSync(dir)) {
+    return { ok: false, code: 'no_project', message: 'Open a mod folder before publishing.' };
+  }
+  const token = auth.loadToken();
+  if (!token) {
+    return { ok: false, code: 'no_token', message: 'Connect a GitHub account before publishing.' };
+  }
+  const status = await gitOps.readStatus({ dir: dir });
+  if (!status.hasGit || !status.hasOrigin) {
+    return { ok: false, code: 'not_tracked', message: 'This folder is not linked to a GitHub repository yet.' };
+  }
+
+  const result = await gitOps.ffPull({ dir: dir, token: token });
+  if (!result.ok) {
+    return { ok: false, code: result.code, message: result.message || '' };
+  }
+  return { ok: true, oid: result.oid, repoUrl: syncState.webUrlFromRemote(status.originUrl) };
+}
+
 /** Wire the publish IPC handlers. Called once from main.js. */
 function register(deps) {
   const ipcMain = deps.ipcMain;
@@ -170,10 +346,37 @@ function register(deps) {
     }
     return publishMod(opts);
   });
+
+  ipcMain.handle('dendry:publish-status', async function (_event, options) {
+    const opts = Object.assign({}, options || {});
+    if (!opts.projectRoot) {
+      opts.projectRoot = resolveRoot();
+    }
+    return publishStatus(opts);
+  });
+
+  ipcMain.handle('dendry:publish-update', async function (_event, options) {
+    const opts = Object.assign({}, options || {});
+    if (!opts.projectRoot) {
+      opts.projectRoot = resolveRoot();
+    }
+    return publishUpdate(opts);
+  });
+
+  ipcMain.handle('dendry:publish-sync', async function (_event, options) {
+    const opts = Object.assign({}, options || {});
+    if (!opts.projectRoot) {
+      opts.projectRoot = resolveRoot();
+    }
+    return publishSync(opts);
+  });
 }
 
 module.exports = {
   register: register,
   publishMod: publishMod,
+  publishStatus: publishStatus,
+  publishUpdate: publishUpdate,
+  publishSync: publishSync,
   walkFiles: walkFiles
 };

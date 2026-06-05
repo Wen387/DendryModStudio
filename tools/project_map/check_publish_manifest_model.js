@@ -1,14 +1,18 @@
 #!/usr/bin/env node
 'use strict';
 
-// Public CI coverage for the Publish-to-GitHub manifest logic
-// (desktop/publish/manifest.js): which files a publish uploads, the housekeeping
-// it generates, and the repo-name normalization that keeps create/lookup in
-// sync. Pure module — no fs / git / electron — so it runs in the plain check:ci
-// gate. The git_ops / github_api layers need isomorphic-git / network mocks and
-// stay covered by the desktop-side spike harness.
+// Public CI coverage for the Publish-to-GitHub pure logic: the manifest layer
+// (desktop/publish/manifest.js) — which files a publish uploads, the
+// housekeeping it generates, and the repo-name normalization that keeps
+// create/lookup in sync — and the update/sync decision layer
+// (desktop/publish/sync_state.js) — which action the panel offers given the
+// observed git/network facts. Both are pure modules (no fs / git / electron),
+// so they run in the plain check:ci gate. The git_ops / github_api layers need
+// isomorphic-git / network mocks and stay covered by the desktop-side spike
+// harness.
 
 const manifest = require('./desktop/publish/manifest.js');
+const syncState = require('./desktop/publish/sync_state.js');
 const {assert} = require('./check_harness.js');
 
 let n = 0;
@@ -66,4 +70,34 @@ check(/text=auto/.test(ga), '.gitattributes sets text=auto for cross-platform di
 check(manifest.noreplyEmail({login: 'awen', id: 42}) === '42+awen@users.noreply.github.com', 'noreply email uses id+login');
 check(manifest.noreplyEmail(null) === '0+user@users.noreply.github.com', 'noreply email has safe defaults');
 
-console.log('PASS: publish manifest model (' + n + ' assertions)');
+// --- sync_state.classify: which action the panel offers ---
+const S = syncState.SYNC_STATES;
+check(syncState.classify({hasGit: false, hasOrigin: false}) === S.FIRST_PUBLISH, 'no git -> first publish');
+check(syncState.classify({hasGit: true, hasOrigin: false}) === S.FIRST_PUBLISH, 'git but no origin -> first publish');
+check(syncState.classify({hasGit: true, hasOrigin: true, offline: true}) === S.OFFLINE, 'origin but unreachable -> offline');
+check(syncState.classify({hasGit: true, hasOrigin: true, ahead: 0, behind: 0}) === S.IN_SYNC, 'same commit -> in sync');
+check(syncState.classify({hasGit: true, hasOrigin: true, ahead: 2, behind: 0}) === S.LOCAL_AHEAD, 'local ahead -> local_ahead');
+check(syncState.classify({hasGit: true, hasOrigin: true, ahead: 0, behind: 3}) === S.REMOTE_AHEAD, 'remote ahead -> remote_ahead');
+check(syncState.classify({hasGit: true, hasOrigin: true, ahead: 1, behind: 1}) === S.DIVERGED, 'both moved -> diverged');
+check(syncState.classify({hasGit: true, hasOrigin: true, offline: true, ahead: 5, behind: 5}) === S.OFFLINE, 'offline wins over stale counts');
+
+// --- sync_state action predicates ---
+check(syncState.canUpdate(S.LOCAL_AHEAD, false) === true, 'local_ahead can update');
+check(syncState.canUpdate(S.IN_SYNC, true) === true, 'in_sync with dirty edits can update');
+check(syncState.canUpdate(S.IN_SYNC, false) === false, 'in_sync clean has nothing to update');
+check(syncState.canUpdate(S.REMOTE_AHEAD, false) === false, 'remote_ahead cannot update (would be rejected)');
+check(syncState.canFastForward(S.REMOTE_AHEAD, false) === true, 'remote_ahead clean can fast-forward');
+check(syncState.canFastForward(S.REMOTE_AHEAD, true) === false, 'remote_ahead dirty cannot fast-forward');
+check(syncState.canFastForward(S.DIVERGED, false) === false, 'diverged cannot fast-forward');
+check(syncState.needsForceToPush(S.DIVERGED) === true, 'diverged needs force to push');
+check(syncState.needsForceToPush(S.LOCAL_AHEAD) === false, 'local_ahead does not need force');
+
+// --- sync_state.webUrlFromRemote: link without a network round-trip ---
+check(syncState.webUrlFromRemote('https://github.com/awen/mod.git') === 'https://github.com/awen/mod', 'https remote drops .git');
+check(syncState.webUrlFromRemote('https://github.com/awen/mod') === 'https://github.com/awen/mod', 'https remote without .git is kept');
+check(syncState.webUrlFromRemote('git@github.com:awen/mod.git') === 'https://github.com/awen/mod', 'scp-like ssh remote becomes https');
+check(syncState.webUrlFromRemote('ssh://git@github.com/awen/mod.git') === 'https://github.com/awen/mod', 'ssh:// remote becomes https');
+check(syncState.webUrlFromRemote('') === '', 'empty remote yields empty url');
+check(syncState.webUrlFromRemote(null) === '', 'null remote yields empty url');
+
+console.log('PASS: publish manifest + sync-state model (' + n + ' assertions)');
