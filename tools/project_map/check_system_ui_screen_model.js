@@ -163,7 +163,7 @@ Object.keys(expected).forEach((template) => {
   });
   const expectedRegions = template === 'election_results'
     ? ['election_results_frame', 'election_results_chart', 'election_results_table', 'election_results_coalitions', 'election_results_choices']
-    : ['screen_header', 'main_content', 'workspace_hand', 'deck_lane', 'action_card', 'advisor_lane', 'sidebar_status', 'layout_frame'];
+    : ['screen_header', 'main_content', 'workspace_hand', 'deck_lane', 'action_card', 'advisor_lane', 'sidebar_status', 'layout_frame', 'right_sidebar'];
   expectedRegions.forEach((region) => {
     assert(screen.regions.some((item) => item.key === region), template + ' should expose ' + region + ' region in its screen shell');
   });
@@ -188,6 +188,8 @@ Object.keys(expected).forEach((template) => {
       assert(html.includes('data-system-play-section="hand"'), template + ' in-game preview should render hand cards');
       assert(html.includes('data-system-play-section="advisor"'), template + ' in-game preview should render advisors');
       assert(html.includes('data-system-screen-family="interactive"'), template + ' in-game surface should render interactive-object regions');
+      assert(html.includes('data-system-screen-right-sidebar="true"'), template + ' in-game preview should render the right-sidebar gutter');
+      assert(html.includes('data-system-screen-region="right_sidebar"'), template + ' in-game preview should render the right-sidebar region button');
     } else {
       assert(!html.includes('system-screen-interactions'), template + ' entry-style preview should not render the old abstract interaction rail');
     }
@@ -338,6 +340,19 @@ const editedHtml = surface.render(edited, {selected: 'ui:deck_lane'});
 assert(editedHtml.includes('Live Edited Policy Deck'), 'live field values should update the shared screen preview');
 assert(editedHtml.includes('data-system-ui-selected-region="deck_lane"'), 'selected region editor should follow clicked preview object');
 assert(editedHtml.includes('data-system-ui-owner-template="workspace_layout"'), 'deck lane should identify Workspace Layout as owner');
+
+const rightSidebarLayout = objectCanvasModel.buildTemplateCanvas(index, 'workspace_layout', {}, {
+  values: {'layout.rightSidebarTitle': 'Field Notes', 'layout.rightSidebarBody': 'Pinned reference for the player.'}
+});
+const rightSidebarScreen = screenModel.buildScreen(rightSidebarLayout, {projectIndex: index, playerFlowScreen: 'in_game', selected: 'ui:right_sidebar'});
+const rightSidebarRegion = rightSidebarScreen.regions.find((region) => region.key === 'right_sidebar');
+assert(rightSidebarRegion, 'workspace_layout should expose a right_sidebar region');
+assert(rightSidebarRegion.capability && rightSidebarRegion.capability.regionKey === 'right_sidebar', 'right_sidebar region should attach a deterministic capability');
+assert(rightSidebarRegion.fields.some((field) => field.id === 'layout.rightSidebarTitle') && rightSidebarRegion.fields.some((field) => field.id === 'layout.rightSidebarBody'), 'right_sidebar region should carry its editable title and body fields');
+assert(rightSidebarRegion.semanticTasks.some((task) => task.actionKind === 'edit_fields' && task.fields.some((field) => field.id === 'layout.rightSidebarTitle')), 'right_sidebar should expose an edit-fields task over its title and body');
+const rightSidebarHtml = surface.render(rightSidebarLayout, {playerFlowScreen: 'in_game', selected: 'ui:right_sidebar'});
+assert(rightSidebarHtml.includes('Field Notes'), 'right_sidebar title edit should render in the in-game preview');
+assert(rightSidebarHtml.includes('data-system-screen-right-sidebar="true"'), 'in-game preview should render the right-sidebar gutter');
 
 const project = objectCanvasModel.buildTemplateCanvas(index, 'project', {}, {
   values: {'project.gameTitle': 'Live Edited Game Title', 'project.author': 'Studio Tester'}

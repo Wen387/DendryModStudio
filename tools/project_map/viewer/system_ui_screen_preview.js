@@ -29,6 +29,7 @@
       '<div class="system-screen-body" data-system-player-screen="' + escapeAttr(activeScreen) + '">',
       renderSidebar(model, selectedKey, activeScreen),
       renderPlayerScreen(model, selectedKey, activeScreen),
+      activeScreen === 'in_game' ? renderRightSidebar(model, selectedKey) : '',
       '</div>',
       '</div>',
       '</section>'
@@ -287,6 +288,19 @@
       ].join(''), 'advisor'),
       '</article>',
       '</main>'
+    ].join('');
+  }
+
+  function renderRightSidebar(model, selectedKey) {
+    const region = regionByKey(model, 'right_sidebar') || {};
+    return [
+      '<aside class="system-screen-right-sidebar" data-system-screen-right-sidebar="true">',
+      renderRegionButton(model, 'right_sidebar', selectedKey, [
+        '<span class="system-screen-label">' + escapeHtml(t(region.labelKey, region.fallback || 'Right sidebar')) + '</span>',
+        '<strong>' + renderSystemPreviewInline(region.title || '') + '</strong>',
+        '<div class="system-screen-copy" data-system-screen-copy="true">' + renderSystemPreviewText(region.body || '') + '</div>'
+      ].join(''), 'system-screen-right-sidebar-panel'),
+      '</aside>'
     ].join('');
   }
 

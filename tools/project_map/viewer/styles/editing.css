@@ -3415,21 +3415,6 @@
   font-weight: 700;
 }
 
-.system-screen-topbar nav button {
-  border: 0;
-  padding: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-}
-
-.system-screen-topbar nav button:hover,
-.system-screen-topbar nav button:focus-visible {
-  text-decoration: underline;
-  text-underline-offset: 4px;
-}
-
 .system-screen-body {
   display: grid;
   grid-template-columns: minmax(190px, 0.33fr) minmax(0, 1fr);

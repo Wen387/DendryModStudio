@@ -1563,6 +1563,8 @@
       'sidebarStatusLines',
       'sidebarInsertMode',
       'sidebarAnchorId',
+      'rightSidebarTitle',
+      'rightSidebarBody',
       'starterCardId',
       'starterCardTitle',
       'starterCardHeading',

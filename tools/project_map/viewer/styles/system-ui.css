@@ -1,0 +1,51 @@
+/*
+ * System UI authoring — screen-preview styles.
+ *
+ * Incremental home for System UI live-preview CSS being split out of
+ * editing.css (which is at its complexity ceiling). Imported AFTER editing.css
+ * so the right-sidebar :has() column override wins the same-specificity tie
+ * against the in-game play-surface column rule that still lives in editing.css.
+ * Tokens only (no raw colors) to keep the CSS color baseline clean.
+ */
+
+.system-screen-topbar nav button {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.system-screen-topbar nav button:hover,
+.system-screen-topbar nav button:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/*
+ * Right sidebar (Phase B1): a safe, Studio-owned extensible part that fills the
+ * empty right gutter on the in-game screen. The mod author owns the content
+ * (title + body); Studio owns the responsive, conflict-free placement.
+ */
+.system-screen-body:has(.system-screen-right-sidebar) {
+  grid-template-columns: minmax(180px, 0.34fr) minmax(0, 1fr) minmax(150px, 0.3fr);
+}
+
+.system-screen-right-sidebar {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.system-screen-right-sidebar-panel {
+  align-items: stretch;
+  text-align: left;
+  gap: 6px;
+}
+
+@media (max-width: 980px) {
+  .system-screen-body:has(.system-screen-right-sidebar) {
+    grid-template-columns: 1fr;
+  }
+}
