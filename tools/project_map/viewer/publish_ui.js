@@ -181,9 +181,14 @@
       const label = btn.textContent;
       btn.textContent = t('publish.connect.connecting', 'Connecting...');
       let res = null;
+      let bridgeError = '';
       try {
         res = await caps().publishSetToken({ token: token });
-      } catch (_err) {
+      } catch (err) {
+        // A rejected invoke means the desktop bridge / main-process handler
+        // is missing (e.g. Electron not fully restarted after the backend
+        // landed). Surface that detail instead of blaming the token.
+        bridgeError = String((err && err.message) || err || '');
         res = null;
       }
       btn.disabled = false;
@@ -191,7 +196,8 @@
       if (res && res.ok) {
         renderForm();
       } else {
-        errEl.textContent = (res && res.message) ? res.message : t('publish.connect.failed', 'Could not connect.');
+        const detail = (res && res.message) ? res.message : bridgeError;
+        errEl.textContent = detail || t('publish.connect.failed', 'Could not connect.');
         errEl.classList.remove('hidden');
       }
     });
