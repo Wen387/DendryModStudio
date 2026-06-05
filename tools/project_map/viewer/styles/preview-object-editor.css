@@ -2716,3 +2716,302 @@ input.preview-object-control[type="checkbox"] {
   font-style: normal;
   font-weight: 800;
 }
+
+/* ---- play simulator (approximate inline dry-run) ---- */
+
+.object-editing-preview-modes-toolbar {
+  display: inline-flex;
+  gap: 2px;
+  margin: 0 0 10px;
+  padding: 2px;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  background: var(--surface-alt);
+}
+
+.object-editing-preview-modes-toolbar button {
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  padding: 4px 14px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.object-editing-preview-modes-toolbar button.is-active {
+  background: var(--studio-accent, var(--accent));
+  color: #fff;
+}
+
+.object-editing-play {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.object-editing-play-note {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: var(--surface-alt);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.object-editing-play-state {
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 8px 10px;
+}
+
+.object-editing-play-state > summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.object-editing-play-state-vars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.object-editing-play-var {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.object-editing-play-var input {
+  width: 64px;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.object-editing-play-reset {
+  align-self: flex-start;
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.object-editing-play-card {
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.object-editing-play-heading {
+  margin: 0;
+  font-size: 15px;
+}
+
+.object-editing-play-subtitle {
+  margin: 0;
+  color: var(--muted);
+  font-style: italic;
+  font-size: 12px;
+}
+
+.object-editing-play-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.object-editing-play-onarrival,
+.object-editing-play-effects {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.object-editing-play-onarrival-label,
+.object-editing-play-effects-label {
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.object-editing-play-delta {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.object-editing-play-delta li {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid var(--success-soft, var(--border-soft));
+  border-radius: 999px;
+  background: var(--success-soft, var(--surface-alt));
+  color: var(--success-text, var(--text));
+  font-size: 11px;
+}
+
+.object-editing-play-delta code {
+  font-size: 11px;
+}
+
+.object-editing-play-delta-from {
+  color: var(--muted);
+}
+
+.object-editing-play-delta-to {
+  font-weight: 800;
+}
+
+.object-editing-play-delta-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.object-editing-play-skipped {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.object-editing-play-skipped li {
+  padding: 3px 8px;
+  border: 1px solid var(--warn-soft, var(--border-soft));
+  border-radius: 6px;
+  background: var(--warn-soft, var(--surface-alt));
+  color: var(--warning-strong, var(--text));
+  font-size: 11px;
+}
+
+.object-editing-play-options {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.object-editing-play-option {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.object-editing-play-option > button {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.object-editing-play-option > button:hover:not(:disabled) {
+  border-color: var(--studio-accent, var(--accent));
+  background: var(--studio-accent-soft, var(--surface-alt));
+}
+
+.object-editing-play-option > button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.object-editing-play-option-subtitle {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.object-editing-play-option.is-unavailable .object-editing-play-option-condition,
+.object-editing-play-option.is-unavailable .object-editing-play-option-unavailable,
+.object-editing-play-option.is-unknown .object-editing-play-option-unknown {
+  font-size: 11px;
+  color: var(--muted);
+  padding-left: 4px;
+}
+
+.object-editing-play-option-unavailable {
+  font-style: italic;
+}
+
+.object-editing-play-chose {
+  margin: 0;
+  font-size: 13px;
+}
+
+.object-editing-play-continuation {
+  margin: 0;
+  padding: 8px 10px;
+  border-left: 3px solid var(--studio-accent, var(--accent));
+  background: var(--surface-alt);
+  font-size: 12px;
+}
+
+.object-editing-play-continuation-note {
+  color: var(--muted);
+}
+
+.object-editing-play-blocked {
+  margin: 0;
+  color: var(--danger-strong, var(--danger));
+  font-size: 12px;
+}
+
+.object-editing-play-back {
+  align-self: flex-start;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 12px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.object-editing-play-empty,
+.object-editing-play-no-options {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}

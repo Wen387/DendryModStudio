@@ -60,33 +60,33 @@
     },
     {
       "path": "tools/project_map/viewer/i18n/en.js",
-      "maxLines": 3520,
+      "maxLines": 3544,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3443 for the browser-style global back-control label (nav.back), then to 3479 for the publish.* keys (Publish to GitHub UI), then to 3480 for publish.error.privateScope (private-repo token-scope guidance), then to 3490 for the first publish.sync.* status-panel keys, then to 3520 for the publish.sync.* update/sync/force keys (update push message + success/error, fast-forward pull, divergence force-push override + typed confirm)."
+      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3443 for the browser-style global back-control label (nav.back), then to 3479 for the publish.* keys (Publish to GitHub UI), then to 3480 for publish.error.privateScope (private-repo token-scope guidance), then to 3490 for the first publish.sync.* status-panel keys, then to 3520 for the publish.sync.* update/sync/force keys (update push message + success/error, fast-forward pull, divergence force-push override + typed confirm). Raised 2026-06-05 to 3544 for the playSim.* keys (inline play-test dry-run surface in the Object Editor)."
     },
     {
       "path": "tools/project_map/viewer/i18n/zh-Hant.js",
-      "maxLines": 3520,
+      "maxLines": 3544,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3443 for the browser-style global back-control label (nav.back), then to 3479 for the publish.* keys (Publish to GitHub UI), then to 3480 for publish.error.privateScope (private-repo token-scope guidance), then to 3490 for the first publish.sync.* status-panel keys, then to 3520 for the publish.sync.* update/sync/force keys (update push message + success/error, fast-forward pull, divergence force-push override + typed confirm)."
+      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3443 for the browser-style global back-control label (nav.back), then to 3479 for the publish.* keys (Publish to GitHub UI), then to 3480 for publish.error.privateScope (private-repo token-scope guidance), then to 3490 for the first publish.sync.* status-panel keys, then to 3520 for the publish.sync.* update/sync/force keys (update push message + success/error, fast-forward pull, divergence force-push override + typed confirm). Raised 2026-06-05 to 3544 for the playSim.* keys (inline play-test dry-run surface in the Object Editor)."
     },
     {
       "path": "tools/project_map/viewer/index.html",
-      "maxLines": 2490,
+      "maxLines": 2492,
       "allowRaise": true,
-      "reason": "Script + template manifest. Raised 2026-06-04 from 2482 for the global back button + navigation_history.js script tag, then to 2486 for the .mode-nav wrapper grouping the back button with the mode tabs, then to 2489 for the Publish to GitHub button + mount root + publish_ui.js script tag, then to 2490 for the dom_text_utils.js script tag."
+      "reason": "Script + template manifest. Raised 2026-06-04 from 2482 for the global back button + navigation_history.js script tag, then to 2486 for the .mode-nav wrapper grouping the back button with the mode tabs, then to 2489 for the Publish to GitHub button + mount root + publish_ui.js script tag, then to 2490 for the dom_text_utils.js script tag. Raised 2026-06-05 to 2492 for the object_play_simulator_model.js + object_play_simulator_ui.js script tags (inline play-test)."
     },
     {
       "path": "tools/project_map/viewer/object_authoring_canvas_ui.js",
-      "maxLines": 5030,
+      "maxLines": 5159,
       "allowRaise": true,
-      "reason": "Keep orchestration here; split editor UI into workspace modules. Raised 2026-06-04 from 4987 for conditional condition-variable insert handler (handleConditionalVarInsert, UX #3), then to 5044 for the deferred asset-select populate wiring (focus/mousedown handlers + populate-before-filter; the asset picker now defers its full option list and builds it on focus instead of inlining every candidate across hundreds of slots), then lowered to 5037 after removing dead sourceSliceReplacementText, then to 5030 after adopting shared dom_text_utils helpers (removed local escape/ensureArray duplicates)."
+      "reason": "Keep orchestration here; split editor UI into workspace modules. Raised 2026-06-04 from 4987 for conditional condition-variable insert handler (handleConditionalVarInsert, UX #3), then to 5044 for the deferred asset-select populate wiring (focus/mousedown handlers + populate-before-filter; the asset picker now defers its full option list and builds it on focus instead of inlining every candidate across hundreds of slots), then lowered to 5037 after removing dead sourceSliceReplacementText, then to 5030 after adopting shared dom_text_utils helpers (removed local escape/ensureArray duplicates). Raised 2026-06-05 to 5159 for the play-test interaction wiring (Preview/Play toggle, starting-state inputs, option clicks, reset/back, and the lazy play-pane re-render handlers)."
     },
     {
       "path": "tools/project_map/viewer/preview_object_editor.js",
-      "maxLines": 4848,
+      "maxLines": 4894,
       "allowRaise": true,
-      "reason": "Keep field rendering here; split domain sub-renderers into sibling modules. Raised 2026-06-04 from 4796 for condition-variable insert chips (UX #3), then to 4886 for the conditional-leaf ladder de-duplication (suppress redundant flat leaf rows, render one compact condition->text ladder + read-only preview ladder), then to 4892 for skipping the mashed all-branches inline preview on conditional-tree fields (ladder owns the per-branch rendered view), then to 4897 for suppressing redundant diagnostic chrome on conditional-tree fields, then to 4899 for extending that chrome suppression to flat conditional-leaf rows (status badge / logic chips / context hint / variable picker) while keeping their label + editable input, then to 4905 for capping the variable-picker initial render to a 12-candidate starter slice instead of dumping the whole catalog per field (the unsliced render multiplied into ~1.3M DOM nodes / ~190MB innerHTML / ~25s paint on dense events; the search box rebuilds from the model so nothing is lost), then lowered to 4848 after removing dead functions and moving escapeHtml/escapeAttr/ensureArray to shared dom_text_utils.js."
+      "reason": "Keep field rendering here; split domain sub-renderers into sibling modules. Raised 2026-06-04 from 4796 for condition-variable insert chips (UX #3), then to 4886 for the conditional-leaf ladder de-duplication (suppress redundant flat leaf rows, render one compact condition->text ladder + read-only preview ladder), then to 4892 for skipping the mashed all-branches inline preview on conditional-tree fields (ladder owns the per-branch rendered view), then to 4897 for suppressing redundant diagnostic chrome on conditional-tree fields, then to 4899 for extending that chrome suppression to flat conditional-leaf rows (status badge / logic chips / context hint / variable picker) while keeping their label + editable input, then to 4905 for capping the variable-picker initial render to a 12-candidate starter slice instead of dumping the whole catalog per field (the unsliced render multiplied into ~1.3M DOM nodes / ~190MB innerHTML / ~25s paint on dense events; the search box rebuilds from the model so nothing is lost), then lowered to 4848 after removing dead functions and moving escapeHtml/escapeAttr/ensureArray to shared dom_text_utils.js. Raised 2026-06-05 to 4894 for the play-test wrappers (Preview/Play preview-pane integration delegating markup to object_play_simulator_ui.js)."
     },
     {
       "path": "tools/project_map/viewer/styles/editing.css",
