@@ -39,6 +39,11 @@
   let bodyEl = null;
   let opened = false;
   let cachedRoot = '';
+  // One-shot banner shown on the next sync-dashboard render (set by an action,
+  // consumed by renderSyncPanel) + when we last probed GitHub, so the panel can
+  // confirm an action in place instead of dead-ending on a separate screen.
+  let pendingFlash = null;
+  let lastCheckedAt = 0;
 
   function isAvailable() {
     const c = caps();
@@ -114,6 +119,7 @@
     ensureOverlay();
     overlay.classList.remove('hidden');
     opened = true;
+    pendingFlash = null;
     renderAuto();
   }
 
@@ -151,6 +157,7 @@
     } catch (_err) {
       sync = null;
     }
+    if (sync && sync.ok) { lastCheckedAt = Date.now(); }
     if (sync && sync.ok && sync.state && sync.state !== 'first_publish') {
       renderSyncPanel(sync);
     } else {
@@ -303,6 +310,194 @@
 
   // ---- Update / sync panel (shown when the folder already tracks an origin) ----
 
+  function repoNameFromUrl(url) {
+    return String(url || '').replace(/\/+$/, '').split('/').pop() || '';
+  }
+
+  function formatLocaleDate(value) {
+    if (!value) { return ''; }
+    try {
+      const d = new Date(value);
+      if (isNaN(d.getTime())) { return ''; }
+      return d.toLocaleDateString();
+    } catch (_err) {
+      return '';
+    }
+  }
+
+  // Post-action confirmation: queue a one-shot banner, then re-probe so the
+  // dashboard refreshes with the new state instead of dead-ending on a separate
+  // success/error screen.
+  function flashThenRefresh(type, text) {
+    pendingFlash = { type: type, text: text };
+    renderAuto();
+  }
+
+  function consumeFlash(flashEl) {
+    if (!flashEl) { return; }
+    if (!pendingFlash) { return; }
+    flashEl.textContent = pendingFlash.text || '';
+    flashEl.className = 'publish-flash ' + (pendingFlash.type === 'error' ? 'is-error' : 'is-success');
+    pendingFlash = null;
+  }
+
+  function renderCheckedLabel(el) {
+    if (!el) { return; }
+    let when = '';
+    try { when = lastCheckedAt ? new Date(lastCheckedAt).toLocaleTimeString() : ''; } catch (_err) { when = ''; }
+    el.textContent = when ? (t('publish.sync.lastChecked', 'Last checked') + ': ' + when) : '';
+  }
+
+  // Repo identity card: clickable name (opens GitHub), a public/private badge
+  // (reusing the first-publish visibility labels), the description, and when the
+  // remote was last updated. repoMeta is best-effort — absent when offline or the
+  // metadata read failed, in which case only the name link is shown.
+  function buildRepoCard(card, sync) {
+    if (!card) { return; }
+    const meta = sync.repoMeta || null;
+    const url = sync.repoUrl || '';
+    const name = repoNameFromUrl(url);
+
+    const head = document.createElement('div');
+    head.className = 'publish-repo-head';
+    if (url) {
+      const link = document.createElement('button');
+      link.type = 'button';
+      link.className = 'publish-repo-link';
+      link.textContent = name || url;
+      link.addEventListener('click', function () {
+        const c = caps();
+        if (c && typeof c.openExternalUrl === 'function') { c.openExternalUrl({ url: url }); }
+      });
+      head.appendChild(link);
+    } else {
+      const span = document.createElement('span');
+      span.className = 'publish-repo-link is-static';
+      span.textContent = name;
+      head.appendChild(span);
+    }
+    if (meta) {
+      const badge = document.createElement('span');
+      badge.className = 'publish-vis-badge ' + (meta.private ? 'is-private' : 'is-public');
+      badge.textContent = meta.private
+        ? t('publish.form.private', 'Private')
+        : t('publish.form.public', 'Public');
+      head.appendChild(badge);
+    }
+    card.appendChild(head);
+
+    if (meta && meta.description) {
+      const desc = document.createElement('p');
+      desc.className = 'publish-repo-desc';
+      desc.textContent = meta.description;
+      card.appendChild(desc);
+    }
+    const when = meta ? formatLocaleDate(meta.pushedAt) : '';
+    if (when) {
+      const upd = document.createElement('p');
+      upd.className = 'publish-repo-updated';
+      upd.textContent = t('publish.sync.lastUpdatedLabel', 'Last updated') + ': ' + when;
+      card.appendChild(upd);
+    }
+  }
+
+  function commitRowsHtml(commits) {
+    return (commits || []).slice(0, 8).map(function (cmt) {
+      const when = formatLocaleDate(cmt && cmt.date);
+      return '<div class="publish-commit-row">'
+        + '<span class="publish-commit-msg">' + escapeHtml((cmt && cmt.message) || '') + '</span>'
+        + (when ? '<span class="publish-commit-date">' + escapeHtml(when) + '</span>' : '')
+        + '</div>';
+    }).join('');
+  }
+
+  // Commit messages behind the ahead/behind counts: what THIS update will upload,
+  // and what is waiting on GitHub. The messages are plain data from the backend
+  // (already-local objects), so this never hits the network.
+  function buildCommitLists(container, sync) {
+    if (!container) { return; }
+    const ahead = sync.aheadCommits || [];
+    const behind = sync.behindCommits || [];
+    let html = '';
+    if (ahead.length) {
+      html += '<div class="publish-commit-group"><div class="publish-commit-head">'
+        + escapeHtml(t('publish.sync.changesToUpload', 'Changes to upload'))
+        + '</div>' + commitRowsHtml(ahead) + '</div>';
+    }
+    if (behind.length) {
+      html += '<div class="publish-commit-group"><div class="publish-commit-head">'
+        + escapeHtml(t('publish.sync.changesFromGitHub', 'New on GitHub'))
+        + '</div>' + commitRowsHtml(behind) + '</div>';
+    }
+    container.innerHTML = html;
+  }
+
+  // Lazy file-level detail. Only offered when there are local changes to
+  // enumerate (a pure remote_ahead has none locally). The actual diff is fetched
+  // on demand so opening the panel stays fast.
+  function wireChangesDisclosure(container, sync) {
+    if (!container) { return; }
+    const mayHaveLocal = Boolean(sync.dirty)
+      || (sync.aheadCommits && sync.aheadCommits.length > 0)
+      || sync.state === 'local_ahead'
+      || sync.state === 'diverged';
+    if (!mayHaveLocal) { return; }
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'publish-link';
+    btn.textContent = t('publish.sync.viewFiles', 'View changed files');
+    btn.addEventListener('click', function () {
+      btn.disabled = true;
+      const spin = document.createElement('div');
+      spin.className = 'publish-spinner publish-spinner-sm';
+      spin.setAttribute('aria-hidden', 'true');
+      container.appendChild(spin);
+      loadChangedFiles(container);
+    });
+    container.appendChild(btn);
+  }
+
+  function changeMark(change) {
+    if (change === 'add') { return '+'; }
+    if (change === 'delete') { return '−'; }
+    return '~';
+  }
+
+  async function loadChangedFiles(container) {
+    let res = null;
+    try {
+      res = await caps().publishChanges({ projectRoot: currentProjectRoot() });
+    } catch (_err) {
+      res = null;
+    }
+    // The panel may have re-rendered while we awaited; bail if detached.
+    if (!bodyEl || !bodyEl.contains(container)) { return; }
+    container.innerHTML = '';
+    const rows = [];
+    if (res && res.ok) {
+      (res.committedChanges || []).forEach(function (f) { rows.push(f); });
+      (res.workingChanges || []).forEach(function (f) {
+        if (!rows.some(function (r) { return r.path === f.path; })) { rows.push(f); }
+      });
+      rows.sort(function (a, b) { return a.path.localeCompare(b.path); });
+    }
+    if (!rows.length) {
+      const note = document.createElement('p');
+      note.className = 'publish-sync-hint';
+      note.textContent = '—';
+      container.appendChild(note);
+      return;
+    }
+    const list = document.createElement('div');
+    list.className = 'publish-change-list';
+    list.innerHTML = rows.slice(0, 300).map(function (f) {
+      return '<div class="publish-change-row publish-change-' + escapeHtml(f.change) + '">'
+        + '<span class="publish-change-mark" aria-hidden="true">' + changeMark(f.change) + '</span>'
+        + '<span class="publish-change-path">' + escapeHtml(f.path) + '</span></div>';
+    }).join('');
+    container.appendChild(list);
+  }
+
   function renderSyncPanel(sync) {
     const state = sync.state;
     const ahead = Number(sync.ahead) || 0;
@@ -332,20 +527,27 @@
       '    <button type="button" class="publish-link" data-publish-disconnect data-i18n="publish.disconnect"></button>',
       '  </div>',
       '  <div class="publish-sync">',
-      '    <p class="publish-repo-url" data-publish-repo></p>',
+      '    <div class="publish-flash hidden" data-publish-flash></div>',
+      '    <div class="publish-repo-card" data-publish-repo-card></div>',
       '    <div class="publish-sync-counts" data-publish-counts></div>',
       '    <p class="publish-sync-summary">' + escapeHtml(t(summaryKey, summaryFallback)) + '</p>',
       '    <p class="publish-sync-dirty hidden" data-publish-dirty>'
         + escapeHtml(t('publish.sync.dirty', 'You also have unsaved local edits — they will be included when you update.'))
         + '</p>',
+      '    <div class="publish-commits" data-publish-commits></div>',
+      '    <div class="publish-changes" data-publish-changes></div>',
       '    <p class="publish-error-text hidden" data-publish-sync-error></p>',
       '    <div class="publish-actions" data-publish-sync-actions></div>',
+      '    <p class="publish-checked" data-publish-checked></p>',
       '  </div>',
       '</div>'
     ].join(''));
 
-    const repoEl = bodyEl.querySelector('[data-publish-repo]');
-    if (repoEl) { repoEl.textContent = sync.repoUrl || ''; }
+    consumeFlash(bodyEl.querySelector('[data-publish-flash]'));
+    buildRepoCard(bodyEl.querySelector('[data-publish-repo-card]'), sync);
+    buildCommitLists(bodyEl.querySelector('[data-publish-commits]'), sync);
+    wireChangesDisclosure(bodyEl.querySelector('[data-publish-changes]'), sync);
+    renderCheckedLabel(bodyEl.querySelector('[data-publish-checked]'));
 
     const countsEl = bodyEl.querySelector('[data-publish-counts]');
     if (countsEl) {
@@ -457,7 +659,7 @@
       }
       return;
     }
-    renderPublishing();
+    renderBusy('publish.publishing', 'Publishing…');
     let res = null;
     try {
       res = await caps().publishUpdate(Object.assign(
@@ -467,59 +669,27 @@
     } catch (err) {
       res = { ok: false, message: String((err && err.message) || err) };
     }
-    if (res && res.ok) { renderUpdateSuccess(res); } else { renderUpdateError(res); }
-  }
-
-  function renderUpdateSuccess(res) {
-    const forced = Boolean(res && res.forced);
-    setBody([
-      '<div class="publish-step publish-center">',
-      '  <h3>' + escapeHtml(t('publish.sync.updatedTitle', 'Updated on GitHub')) + '</h3>',
-      '  <p class="publish-muted">' + escapeHtml(forced
+    if (res && res.ok) {
+      const forced = Boolean(res.forced);
+      flashThenRefresh('success', forced
         ? t('publish.sync.forcedBody', 'GitHub now matches the copy on your computer.')
-        : t('publish.sync.updatedBody', 'Your changes are now on GitHub.')) + '</p>',
-      '  <p class="publish-repo-url"></p>',
-      '  <div class="publish-actions">',
-      '    <button type="button" class="publish-primary" data-publish-open></button>',
-      '    <button type="button" class="publish-secondary" data-publish-close-done></button>',
-      '  </div>',
-      '</div>'
-    ].join(''));
-    bodyEl.querySelector('.publish-repo-url').textContent = (res && res.repoUrl) || '';
-    const openBtn = bodyEl.querySelector('[data-publish-open]');
-    openBtn.textContent = t('publish.success.openRepo', 'Open on GitHub');
-    openBtn.addEventListener('click', function () {
-      const c = caps();
-      if (c && typeof c.openExternalUrl === 'function' && res && res.repoUrl) {
-        c.openExternalUrl({ url: res.repoUrl });
-      }
-    });
-    const doneBtn = bodyEl.querySelector('[data-publish-close-done]');
-    doneBtn.textContent = t('publish.success.done', 'Done');
-    doneBtn.addEventListener('click', close);
+        : t('publish.sync.updatedBody', 'Your changes are now on GitHub.'));
+    } else {
+      flashThenRefresh('error', updateErrorMessage(res));
+    }
   }
 
-  function renderUpdateError(res) {
+  // Friendlier copy for the update failures we recognize; otherwise the backend's
+  // own message (which already carries GitHub's detail).
+  function updateErrorMessage(res) {
     const code = res && res.code;
-    let msg = errorMessage(res);
     if (code === 'nothing_to_commit') {
-      msg = t('publish.sync.nothingToCommit', 'There are no changes to publish.');
-    } else if (code === 'remote_ahead') {
-      msg = t('publish.sync.remoteMoved', 'GitHub changed since you last checked. Re-check and sync first.');
+      return t('publish.sync.nothingToCommit', 'There are no changes to publish.');
     }
-    setBody([
-      '<div class="publish-step">',
-      '  <h3 data-i18n="publish.error.title"></h3>',
-      '  <p class="publish-error-text"></p>',
-      '  <div class="publish-actions">',
-      '    <button type="button" class="publish-primary" data-publish-back></button>',
-      '  </div>',
-      '</div>'
-    ].join(''));
-    bodyEl.querySelector('.publish-error-text').textContent = msg;
-    const back = bodyEl.querySelector('[data-publish-back]');
-    back.textContent = t('publish.sync.refresh', 'Check again');
-    back.addEventListener('click', renderAuto);
+    if (code === 'remote_ahead') {
+      return t('publish.sync.remoteMoved', 'GitHub changed since you last checked. Re-check and sync first.');
+    }
+    return errorMessage(res);
   }
 
   function renderBusy(textKey, fallback) {
@@ -549,48 +719,21 @@
           await bridge.rebuildProjectIndex({});
         }
       } catch (_err) { /* index refresh is best-effort */ }
-      renderSyncSuccess(res);
+      flashThenRefresh('success', t('publish.sync.syncedBody', 'Studio now has the latest version from GitHub.'));
     } else {
-      renderSyncError(res);
+      flashThenRefresh('error', syncErrorMessage(res));
     }
   }
 
-  function renderSyncSuccess(res) {
-    setBody([
-      '<div class="publish-step publish-center">',
-      '  <h3>' + escapeHtml(t('publish.sync.syncedTitle', 'Up to date')) + '</h3>',
-      '  <p class="publish-muted">' + escapeHtml(t('publish.sync.syncedBody', 'Studio now has the latest version from GitHub.')) + '</p>',
-      '  <div class="publish-actions">',
-      '    <button type="button" class="publish-primary" data-publish-close-done></button>',
-      '  </div>',
-      '</div>'
-    ].join(''));
-    const doneBtn = bodyEl.querySelector('[data-publish-close-done]');
-    doneBtn.textContent = t('publish.success.done', 'Done');
-    doneBtn.addEventListener('click', close);
-  }
-
-  function renderSyncError(res) {
+  function syncErrorMessage(res) {
     const code = res && res.code;
-    let msg = (res && res.message) || '';
     if (code === 'dirty') {
-      msg = t('publish.sync.dirtyError', 'You have unsaved local edits. Set them aside, then download again.');
-    } else if (code === 'not_fast_forward') {
-      msg = t('publish.sync.notFastForward', 'GitHub and your computer have diverged. Re-check to see your options.');
+      return t('publish.sync.dirtyError', 'You have unsaved local edits. Set them aside, then download again.');
     }
-    setBody([
-      '<div class="publish-step">',
-      '  <h3 data-i18n="publish.error.title"></h3>',
-      '  <p class="publish-error-text"></p>',
-      '  <div class="publish-actions">',
-      '    <button type="button" class="publish-primary" data-publish-back></button>',
-      '  </div>',
-      '</div>'
-    ].join(''));
-    bodyEl.querySelector('.publish-error-text').textContent = msg;
-    const back = bodyEl.querySelector('[data-publish-back]');
-    back.textContent = t('publish.sync.refresh', 'Check again');
-    back.addEventListener('click', renderAuto);
+    if (code === 'not_fast_forward') {
+      return t('publish.sync.notFastForward', 'GitHub and your computer have diverged. Re-check to see your options.');
+    }
+    return (res && res.message) || '';
   }
 
   // The force-push (overwrite remote) escape hatch. A strong warning plus a typed

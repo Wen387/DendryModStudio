@@ -269,6 +269,18 @@
     }
   }
 
+  function publishChanges(options, env) {
+    var desktop = raw(env);
+    if (!desktop || typeof desktop.publishChanges !== 'function') {
+      return resolve(null);
+    }
+    try {
+      return resolve(desktop.publishChanges(options || {}));
+    } catch (err) {
+      return reject(err);
+    }
+  }
+
   const api = {
     raw,
     isDesktop,
@@ -295,7 +307,8 @@
     publishMod,
     publishStatus,
     publishUpdate,
-    publishSync
+    publishSync,
+    publishChanges
   };
 
   if (typeof module !== 'undefined' && module.exports) {

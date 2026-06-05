@@ -107,13 +107,32 @@ function webUrlFromRemote(remoteUrl) {
   return url;
 }
 
+/**
+ * Splits a repository web URL (as produced by webUrlFromRemote) into its
+ * {owner, repo}. Tolerates a trailing ".git" / slash. Returns empty strings when
+ * the URL is not a recognizable host/owner/repo path, so a caller can skip the
+ * (optional) metadata fetch rather than calling the API with junk. Pure.
+ */
+function ownerRepoFromWebUrl(webUrl) {
+  const url = String(webUrl == null ? '' : webUrl)
+    .trim()
+    .replace(/\.git$/, '')
+    .replace(/\/+$/, '');
+  const m = url.match(/^https?:\/\/[^/]+\/([^/]+)\/([^/]+)$/);
+  if (!m) {
+    return { owner: '', repo: '' };
+  }
+  return { owner: m[1], repo: m[2] };
+}
+
 const api = {
   SYNC_STATES: SYNC_STATES,
   classify: classify,
   canUpdate: canUpdate,
   canFastForward: canFastForward,
   needsForceToPush: needsForceToPush,
-  webUrlFromRemote: webUrlFromRemote
+  webUrlFromRemote: webUrlFromRemote,
+  ownerRepoFromWebUrl: ownerRepoFromWebUrl
 };
 
 if (typeof module !== 'undefined' && module.exports) {

@@ -398,3 +398,186 @@
   opacity: 0.55;
   cursor: default;
 }
+
+/* ---- Repo identity card ---- */
+.publish-repo-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.publish-repo-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.publish-repo-link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 0.98rem;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.publish-repo-link.is-static {
+  color: var(--text);
+  text-decoration: none;
+  cursor: default;
+}
+
+.publish-vis-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.publish-vis-badge.is-public {
+  border: 1px solid var(--success-border);
+  background: var(--success-soft);
+  color: var(--success-text);
+}
+
+.publish-vis-badge.is-private {
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
+  color: var(--muted);
+}
+
+.publish-repo-desc {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--text);
+}
+
+.publish-repo-updated {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* ---- Incoming / outgoing commit lists ---- */
+.publish-commits {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.publish-commit-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.publish-commit-head {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.publish-commit-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 3px 8px;
+  border-left: 2px solid var(--border);
+  font-size: 0.85rem;
+}
+
+.publish-commit-msg {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.publish-commit-date {
+  flex: none;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+/* ---- Changed-files detail ---- */
+.publish-changes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.publish-change-list {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-alt);
+  padding: 6px 8px;
+  font-size: 0.82rem;
+}
+
+.publish-change-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 1px 0;
+}
+
+.publish-change-mark {
+  flex: none;
+  width: 1.1em;
+  text-align: center;
+  font-weight: 700;
+}
+
+.publish-change-add .publish-change-mark { color: var(--success-text); }
+.publish-change-modify .publish-change-mark { color: var(--accent-strong); }
+.publish-change-delete .publish-change-mark { color: var(--danger-text); }
+
+.publish-change-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.publish-spinner-sm {
+  width: 18px;
+  height: 18px;
+  border-width: 2px;
+}
+
+/* ---- Post-action flash banner + freshness ---- */
+.publish-flash {
+  margin: 0;
+  padding: 8px 11px;
+  border-radius: 9px;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.publish-flash.hidden {
+  display: none;
+}
+
+.publish-flash.is-success {
+  border: 1px solid var(--success-border);
+  background: var(--success-soft);
+  color: var(--success-text);
+}
+
+.publish-flash.is-error {
+  border: 1px solid var(--danger-border);
+  background: var(--danger-soft);
+  color: var(--danger-text);
+}
+
+.publish-checked {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}

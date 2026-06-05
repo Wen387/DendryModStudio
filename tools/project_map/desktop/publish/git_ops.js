@@ -326,6 +326,136 @@ async function ffPull(params) {
   return { ok: true, oid: oid };
 }
 
+/**
+ * Lists the commits reachable from `headOid` but NOT from `baseOid` (newest
+ * first), returning the one-line message + author date for each. Local object
+ * reads only — after a status fetch the remote commits are already in the object
+ * store, so the panel can show "what is in this update" without another network
+ * round-trip. Degrades to [] on any read hiccup.
+ *
+ * @returns {Promise<Array<{oid:string, message:string, date:number|null}>>}
+ */
+async function commitsBetween(dir, baseOid, headOid, depth) {
+  if (!headOid) { return []; }
+  const cap = depth || 200;
+  let headCommits = [];
+  try {
+    headCommits = await git.log({ fs: fs, dir: dir, ref: headOid, depth: cap });
+  } catch (_e) {
+    return [];
+  }
+  const baseSet = Object.create(null);
+  if (baseOid) {
+    const baseOids = await logOids(dir, baseOid, cap);
+    for (let i = 0; i < baseOids.length; i += 1) { baseSet[baseOids[i]] = true; }
+  }
+  const out = [];
+  for (let j = 0; j < headCommits.length; j += 1) {
+    const entry = headCommits[j];
+    if (!entry || baseSet[entry.oid]) { continue; }
+    const commit = entry.commit || {};
+    const line = String(commit.message || '').split('\n')[0].trim();
+    const ts = commit.author && commit.author.timestamp ? commit.author.timestamp * 1000 : null;
+    out.push({ oid: entry.oid, message: line, date: ts });
+  }
+  return out;
+}
+
+/**
+ * Diffs two commit trees into a flat per-file change list (add / modify /
+ * delete), sorted by path. Local object reads only (git.walk over TREE
+ * snapshots). When `fromOid` is missing every file in `toOid` is reported as an
+ * add. Degrades to whatever was collected on error.
+ *
+ * @returns {Promise<Array<{path:string, change:'add'|'modify'|'delete'}>>}
+ */
+async function changedFiles(dir, fromOid, toOid) {
+  if (!toOid) { return []; }
+  const out = [];
+  const trees = fromOid
+    ? [git.TREE({ ref: fromOid }), git.TREE({ ref: toOid })]
+    : [git.TREE({ ref: toOid })];
+  try {
+    await git.walk({
+      fs: fs,
+      dir: dir,
+      trees: trees,
+      map: async function (filepath, entries) {
+        if (filepath === '.') { return undefined; }
+        if (!fromOid) {
+          const only = entries[0];
+          if (only && (await only.type()) === 'blob') { out.push({ path: filepath, change: 'add' }); }
+          return undefined;
+        }
+        const a = entries[0];
+        const b = entries[1];
+        const aType = a ? await a.type() : null;
+        const bType = b ? await b.type() : null;
+        if (aType === 'tree' || bType === 'tree') { return undefined; }
+        if (!a && b) { out.push({ path: filepath, change: 'add' }); return undefined; }
+        if (a && !b) { out.push({ path: filepath, change: 'delete' }); return undefined; }
+        if (a && b) {
+          const ao = await a.oid();
+          const bo = await b.oid();
+          if (ao !== bo) { out.push({ path: filepath, change: 'modify' }); }
+        }
+        return undefined;
+      }
+    });
+  } catch (_e) {
+    return out;
+  }
+  out.sort(function (x, y) { return x.path.localeCompare(y.path); });
+  return out;
+}
+
+/**
+ * Classifies the uncommitted worktree into a per-file change list by comparing
+ * each statusMatrix row's WORKDIR to HEAD (add / modify / delete). `isIgnored`
+ * (optional) drops files a publish would not upload, so the list matches what an
+ * Update actually sends. Local only.
+ *
+ * @returns {Promise<Array<{path:string, change:'add'|'modify'|'delete'}>>}
+ */
+async function workingTreeChanges(dir, isIgnored) {
+  const out = [];
+  let matrix;
+  try { matrix = await git.statusMatrix({ fs: fs, dir: dir }); } catch (_e) { return out; }
+  for (let i = 0; i < matrix.length; i += 1) {
+    const row = matrix[i];
+    const filepath = row[0];
+    const head = row[1];
+    const workdir = row[2];
+    if (head === 1 && workdir === 1) { continue; } // unmodified
+    if (head === 0 && workdir === 0) { continue; } // absent both sides
+    if (typeof isIgnored === 'function' && isIgnored(filepath)) { continue; }
+    let change = 'modify';
+    if (head === 0) { change = 'add'; }
+    else if (workdir === 0) { change = 'delete'; }
+    out.push({ path: filepath, change: change });
+  }
+  out.sort(function (x, y) { return x.path.localeCompare(y.path); });
+  return out;
+}
+
+/**
+ * High-level "what has changed locally vs the remote" summary for the panel:
+ * committed-but-unpushed file changes (origin/main -> local main) plus the
+ * uncommitted worktree changes. Local object reads only (uses the origin/main
+ * ref the last status fetch left behind), so it is unit-testable offline.
+ *
+ * @returns {Promise<{committedChanges:Array, workingChanges:Array}>}
+ */
+async function localChangeSummary(dir, isIgnored) {
+  let localOid = null;
+  let remoteOid = null;
+  try { localOid = await git.resolveRef({ fs: fs, dir: dir, ref: 'refs/heads/main' }); } catch (_e) { localOid = null; }
+  try { remoteOid = await git.resolveRef({ fs: fs, dir: dir, ref: 'refs/remotes/origin/main' }); } catch (_e) { remoteOid = null; }
+  const committedChanges = await changedFiles(dir, remoteOid, localOid);
+  const workingChanges = await workingTreeChanges(dir, isIgnored);
+  return { committedChanges: committedChanges, workingChanges: workingChanges };
+}
+
 module.exports = {
   writeHousekeeping: writeHousekeeping,
   stageWorkingTree: stageWorkingTree,
@@ -337,5 +467,9 @@ module.exports = {
   fetchAheadBehind: fetchAheadBehind,
   computeAheadBehind: computeAheadBehind,
   localMatchesRemote: localMatchesRemote,
-  ffPull: ffPull
+  ffPull: ffPull,
+  commitsBetween: commitsBetween,
+  changedFiles: changedFiles,
+  workingTreeChanges: workingTreeChanges,
+  localChangeSummary: localChangeSummary
 };

@@ -183,7 +183,39 @@ async function publishStatus(options) {
   } else {
     result.ahead = counts.ahead;
     result.behind = counts.behind;
+    // Commit lists are local object reads (the fetch above populated the
+    // objects), so they are cheap and degrade to empty on any read hiccup. They
+    // turn "↑3 to upload" into the actual commit messages behind it.
+    try {
+      if (result.ahead > 0) {
+        result.aheadCommits = await gitOps.commitsBetween(dir, counts.remoteOid, counts.localOid);
+      }
+      if (result.behind > 0) {
+        result.behindCommits = await gitOps.commitsBetween(dir, counts.localOid, counts.remoteOid);
+      }
+    } catch (_e) { /* commit lists are best-effort */ }
   }
+
+  // Repo metadata (public/private, description, last push) is a best-effort REST
+  // read: a failure just omits the card detail rather than breaking the panel.
+  if (token && !result.offline) {
+    const ids = syncState.ownerRepoFromWebUrl(result.repoUrl);
+    if (ids.owner && ids.repo) {
+      try {
+        const repo = await githubApi.getRepo(token, ids.owner, ids.repo);
+        if (repo) {
+          result.repoMeta = {
+            private: Boolean(repo.private),
+            description: repo.description || '',
+            defaultBranch: repo.default_branch || 'main',
+            pushedAt: repo.pushed_at || '',
+            htmlUrl: repo.html_url || result.repoUrl
+          };
+        }
+      } catch (_e) { /* metadata is best-effort */ }
+    }
+  }
+
   result.state = syncState.classify({
     hasGit: status.hasGit,
     hasOrigin: status.hasOrigin,
@@ -193,6 +225,27 @@ async function publishStatus(options) {
     offline: result.offline
   });
   return result;
+}
+
+/**
+ * Lists the concrete file-level changes behind an update: committed-but-unpushed
+ * changes (origin/main -> local main) and the uncommitted worktree edits an
+ * Update would commit. Local object reads only (no network), so the panel can
+ * lazy-load it cheaply when the author expands "view changed files". The
+ * manifest ignore filter is applied so the list matches what a publish uploads.
+ */
+async function publishChanges(options) {
+  const opts = options || {};
+  const dir = opts.projectRoot;
+  if (!dir || !fs.existsSync(dir)) {
+    return { ok: false, code: 'no_project', message: 'Open a mod folder before publishing.' };
+  }
+  const status = await gitOps.readStatus({ dir: dir });
+  if (!status.hasGit) {
+    return { ok: false, code: 'not_tracked', message: 'This folder is not linked to a GitHub repository yet.' };
+  }
+  const summary = await gitOps.localChangeSummary(dir, function (rel) { return manifest.isIgnored(rel); });
+  return { ok: true, committedChanges: summary.committedChanges, workingChanges: summary.workingChanges };
 }
 
 /**
@@ -370,6 +423,14 @@ function register(deps) {
     }
     return publishSync(opts);
   });
+
+  ipcMain.handle('dendry:publish-changes', async function (_event, options) {
+    const opts = Object.assign({}, options || {});
+    if (!opts.projectRoot) {
+      opts.projectRoot = resolveRoot();
+    }
+    return publishChanges(opts);
+  });
 }
 
 module.exports = {
@@ -378,5 +439,6 @@ module.exports = {
   publishStatus: publishStatus,
   publishUpdate: publishUpdate,
   publishSync: publishSync,
+  publishChanges: publishChanges,
   walkFiles: walkFiles
 };

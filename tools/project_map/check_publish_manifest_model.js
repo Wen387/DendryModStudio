@@ -100,4 +100,13 @@ check(syncState.webUrlFromRemote('ssh://git@github.com/awen/mod.git') === 'https
 check(syncState.webUrlFromRemote('') === '', 'empty remote yields empty url');
 check(syncState.webUrlFromRemote(null) === '', 'null remote yields empty url');
 
+// --- sync_state.ownerRepoFromWebUrl: split a web url for the metadata fetch ---
+const orHttps = syncState.ownerRepoFromWebUrl('https://github.com/awen/mod');
+check(orHttps.owner === 'awen' && orHttps.repo === 'mod', 'owner/repo parsed from a https web url');
+check(syncState.ownerRepoFromWebUrl('https://github.com/awen/mod.git').repo === 'mod', 'trailing .git is tolerated');
+check(syncState.ownerRepoFromWebUrl('https://github.com/awen/mod/').owner === 'awen', 'trailing slash is tolerated');
+check(syncState.ownerRepoFromWebUrl('').owner === '' && syncState.ownerRepoFromWebUrl('').repo === '', 'empty url yields empty owner/repo');
+check(syncState.ownerRepoFromWebUrl('not a url').owner === '', 'junk url yields empty owner');
+check(syncState.ownerRepoFromWebUrl('https://github.com/awen').owner === '', 'a url without a repo segment yields empty owner');
+
 console.log('PASS: publish manifest + sync-state model (' + n + ' assertions)');
