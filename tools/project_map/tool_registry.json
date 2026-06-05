@@ -1169,6 +1169,7 @@
     "tools/project_map/check_project_map_fixture.js",
     "tools/project_map/check_project_metadata_model.js",
     "tools/project_map/check_public_export.js",
+    "tools/project_map/check_publish_manifest_model.js",
     "tools/project_map/check_pure_event_builder_model.js",
     "tools/project_map/check_python_command.js",
     "tools/project_map/check_realworld_quick_matrix.js",
@@ -1330,6 +1331,7 @@
     "node tools/project_map/check_player_like_qa_model.js",
     "node tools/project_map/check_release_links_model.js",
     "node tools/project_map/check_template_catalog_model.js",
+    "node tools/project_map/check_publish_manifest_model.js",
     "node tools/project_map/check_source_complexity_model.js"
   ]
 }
