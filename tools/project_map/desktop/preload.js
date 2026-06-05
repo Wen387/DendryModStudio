@@ -126,5 +126,7 @@ contextBridge.exposeInMainWorld('dendryDesktop', {
   publishStatus: (options) => ipcRenderer.invoke('dendry:publish-status', options || {}),
   publishUpdate: (options) => ipcRenderer.invoke('dendry:publish-update', options || {}),
   publishSync: (options) => ipcRenderer.invoke('dendry:publish-sync', options || {}),
-  publishChanges: (options) => ipcRenderer.invoke('dendry:publish-changes', options || {})
+  publishChanges: (options) => ipcRenderer.invoke('dendry:publish-changes', options || {}),
+  publishConfig: (options) => ipcRenderer.invoke('dendry:publish-config', options || {}),
+  publishUnlink: (options) => ipcRenderer.invoke('dendry:publish-unlink', options || {})
 });

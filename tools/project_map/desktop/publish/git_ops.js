@@ -456,6 +456,31 @@ async function localChangeSummary(dir, isIgnored) {
   return { committedChanges: committedChanges, workingChanges: workingChanges };
 }
 
+/**
+ * Severs the link between a folder and its GitHub repo by removing the `origin`
+ * remote. LOCAL-ONLY and deliberately non-destructive: it does NOT delete .git,
+ * the commit history, or any working file, and it never touches the repo on
+ * GitHub — it only removes the remote, after which readStatus reports no origin
+ * and publishStatus reclassifies the folder as a first_publish. Idempotent: a
+ * folder that already has no origin succeeds as a no-op ({removed:false}).
+ *
+ * @returns {Promise<{ok:true, removed:boolean}>}
+ */
+async function unlinkRemote(dir) {
+  let hadOrigin = false;
+  try {
+    const remotes = await git.listRemotes({ fs: fs, dir: dir });
+    hadOrigin = remotes.some(function (r) { return r && r.remote === 'origin'; });
+  } catch (_e) {
+    hadOrigin = false;
+  }
+  if (!hadOrigin) {
+    return { ok: true, removed: false };
+  }
+  await git.deleteRemote({ fs: fs, dir: dir, remote: 'origin' });
+  return { ok: true, removed: true };
+}
+
 module.exports = {
   writeHousekeeping: writeHousekeeping,
   stageWorkingTree: stageWorkingTree,
@@ -471,5 +496,6 @@ module.exports = {
   commitsBetween: commitsBetween,
   changedFiles: changedFiles,
   workingTreeChanges: workingTreeChanges,
-  localChangeSummary: localChangeSummary
+  localChangeSummary: localChangeSummary,
+  unlinkRemote: unlinkRemote
 };

@@ -281,6 +281,30 @@
     }
   }
 
+  function publishConfig(options, env) {
+    var desktop = raw(env);
+    if (!desktop || typeof desktop.publishConfig !== 'function') {
+      return resolve(null);
+    }
+    try {
+      return resolve(desktop.publishConfig(options || {}));
+    } catch (err) {
+      return reject(err);
+    }
+  }
+
+  function publishUnlink(options, env) {
+    var desktop = raw(env);
+    if (!desktop || typeof desktop.publishUnlink !== 'function') {
+      return resolve(null);
+    }
+    try {
+      return resolve(desktop.publishUnlink(options || {}));
+    } catch (err) {
+      return reject(err);
+    }
+  }
+
   const api = {
     raw,
     isDesktop,
@@ -308,7 +332,9 @@
     publishStatus,
     publishUpdate,
     publishSync,
-    publishChanges
+    publishChanges,
+    publishConfig,
+    publishUnlink
   };
 
   if (typeof module !== 'undefined' && module.exports) {

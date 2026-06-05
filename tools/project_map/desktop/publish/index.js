@@ -367,6 +367,83 @@ async function publishSync(options) {
   return { ok: true, oid: result.oid, repoUrl: syncState.webUrlFromRemote(status.originUrl) };
 }
 
+/**
+ * Updates the published repo's settings (visibility and/or description) through
+ * the GitHub REST API. owner/repo are derived from the local origin URL with the
+ * pure sync_state helpers, so this needs no Studio state — only the folder and
+ * the token it owns. Best-effort: any failure returns {ok:false, code} (surfaced
+ * as an in-place flash) rather than throwing. On success it returns the refreshed
+ * repoMeta so the dashboard can reflect the change without a full re-probe.
+ */
+async function publishConfig(options) {
+  const opts = options || {};
+  const dir = opts.projectRoot;
+  if (!dir || !fs.existsSync(dir)) {
+    return { ok: false, code: 'no_project', message: 'Open a mod folder before publishing.' };
+  }
+  const token = auth.loadToken();
+  if (!token) {
+    return { ok: false, code: 'no_token', message: 'Connect a GitHub account before publishing.' };
+  }
+  const status = await gitOps.readStatus({ dir: dir });
+  if (!status.hasGit || !status.hasOrigin) {
+    return { ok: false, code: 'not_tracked', message: 'This folder is not linked to a GitHub repository yet.' };
+  }
+  const ids = syncState.ownerRepoFromWebUrl(syncState.webUrlFromRemote(status.originUrl));
+  if (!ids.owner || !ids.repo) {
+    return { ok: false, code: 'no_remote_id', message: 'Could not determine the GitHub repository from this folder.' };
+  }
+  const patch = {};
+  if (typeof opts.private === 'boolean') { patch.private = opts.private; }
+  if (typeof opts.description === 'string') { patch.description = opts.description; }
+  if (Object.keys(patch).length === 0) {
+    return { ok: false, code: 'no_changes', message: 'There is nothing to change.' };
+  }
+
+  let repo;
+  try {
+    repo = await githubApi.updateRepo(token, ids.owner, ids.repo, patch);
+  } catch (err) {
+    return { ok: false, code: err.code || 'update_failed', message: err.message };
+  }
+  return {
+    ok: true,
+    repoMeta: {
+      private: Boolean(repo.private),
+      description: repo.description || '',
+      defaultBranch: repo.default_branch || 'main',
+      pushedAt: repo.pushed_at || '',
+      htmlUrl: repo.html_url || syncState.webUrlFromRemote(status.originUrl)
+    }
+  };
+}
+
+/**
+ * Disconnects a folder from its GitHub repo by removing the local `origin`
+ * remote. Local-only and non-destructive: .git history and every working file
+ * stay on disk and the GitHub repo is untouched — only the link is severed, so
+ * the next publishStatus sees a first_publish folder again and the UI returns to
+ * the publish form. The destructive-sounding name is intentional; the operation
+ * itself is safe and reversible (re-publishing recreates the remote).
+ */
+async function publishUnlink(options) {
+  const opts = options || {};
+  const dir = opts.projectRoot;
+  if (!dir || !fs.existsSync(dir)) {
+    return { ok: false, code: 'no_project', message: 'Open a mod folder before publishing.' };
+  }
+  const status = await gitOps.readStatus({ dir: dir });
+  if (!status.hasGit) {
+    return { ok: false, code: 'not_tracked', message: 'This folder is not linked to a GitHub repository yet.' };
+  }
+  try {
+    const result = await gitOps.unlinkRemote(dir);
+    return { ok: true, removed: result.removed };
+  } catch (err) {
+    return { ok: false, code: 'unlink_failed', message: err && err.message ? err.message : String(err) };
+  }
+}
+
 /** Wire the publish IPC handlers. Called once from main.js. */
 function register(deps) {
   const ipcMain = deps.ipcMain;
@@ -431,6 +508,22 @@ function register(deps) {
     }
     return publishChanges(opts);
   });
+
+  ipcMain.handle('dendry:publish-config', async function (_event, options) {
+    const opts = Object.assign({}, options || {});
+    if (!opts.projectRoot) {
+      opts.projectRoot = resolveRoot();
+    }
+    return publishConfig(opts);
+  });
+
+  ipcMain.handle('dendry:publish-unlink', async function (_event, options) {
+    const opts = Object.assign({}, options || {});
+    if (!opts.projectRoot) {
+      opts.projectRoot = resolveRoot();
+    }
+    return publishUnlink(opts);
+  });
 }
 
 module.exports = {
@@ -440,5 +533,7 @@ module.exports = {
   publishUpdate: publishUpdate,
   publishSync: publishSync,
   publishChanges: publishChanges,
+  publishConfig: publishConfig,
+  publishUnlink: publishUnlink,
   walkFiles: walkFiles
 };

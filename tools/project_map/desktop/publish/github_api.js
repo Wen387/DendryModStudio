@@ -96,6 +96,44 @@ async function createRepo(token, options) {
 }
 
 /**
+ * Patches an existing repo's settings — visibility and/or description — for the
+ * management dashboard's write ops. Only the fields present in `patch` are sent
+ * ({private:boolean} and/or {description:string}), so a description edit never
+ * touches visibility and vice versa. Returns the updated repo JSON on success.
+ *
+ * Visibility changes need the full "repo" scope (the same classic-PAT scope that
+ * creating a private repo requires), so a 403 is surfaced as a scope hint.
+ */
+async function updateRepo(token, owner, name, patch) {
+  const body = {};
+  if (patch && typeof patch.private === 'boolean') {
+    body.private = patch.private;
+  }
+  if (patch && typeof patch.description === 'string') {
+    body.description = patch.description;
+  }
+  const res = await request('PATCH', '/repos/' + encodeURIComponent(owner) + '/' + encodeURIComponent(name), token, body);
+  if (res.status === 200) {
+    return res.json;
+  }
+  if (res.status === 403) {
+    const detail = res.json && res.json.message ? ' (' + res.json.message + ')' : '';
+    const err = new Error('GitHub refused the change. Changing visibility needs a token with the full "repo" scope.' + detail);
+    err.code = 'forbidden';
+    throw err;
+  }
+  if (res.status === 404) {
+    const err = new Error('Repository not found.');
+    err.code = 'not_found';
+    throw err;
+  }
+  const ghMsg = res.json && res.json.message ? ' (' + res.json.message + ')' : '';
+  const err = new Error('Could not update the repository (HTTP ' + res.status + ').' + ghMsg);
+  err.code = 'update_failed';
+  throw err;
+}
+
+/**
  * Reads a single repo. Returns null on 404 so callers can treat "missing" as a
  * normal outcome (used to decide whether a 422-on-create can be safely reused).
  */
@@ -116,5 +154,6 @@ module.exports = {
   request: request,
   getAuthenticatedUser: getAuthenticatedUser,
   createRepo: createRepo,
+  updateRepo: updateRepo,
   getRepo: getRepo
 };
