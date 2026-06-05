@@ -167,7 +167,7 @@
     bodyEl.querySelector('[data-publish-create-token]').addEventListener('click', function () {
       const c = caps();
       if (c && typeof c.openExternalUrl === 'function') {
-        c.openExternalUrl({ url: 'https://github.com/settings/tokens/new?scopes=public_repo&description=Dendry%20Mod%20Studio' });
+        c.openExternalUrl({ url: 'https://github.com/settings/tokens/new?scopes=repo&description=Dendry%20Mod%20Studio' });
       }
     });
 
@@ -329,6 +329,16 @@
     bodyEl.querySelector('[data-publish-close-done]').addEventListener('click', close);
   }
 
+  // Prefer a localized message for codes we recognize; otherwise fall back to
+  // the backend's raw message (which already carries GitHub's own detail).
+  function errorMessage(res) {
+    const fallback = (res && res.message) || '';
+    if (res && res.code === 'private_scope') {
+      return t('publish.error.privateScope', fallback);
+    }
+    return fallback;
+  }
+
   function renderError(res) {
     setBody([
       '<div class="publish-step">',
@@ -339,7 +349,7 @@
       '  </div>',
       '</div>'
     ].join(''));
-    bodyEl.querySelector('.publish-error-text').textContent = (res && res.message) || '';
+    bodyEl.querySelector('.publish-error-text').textContent = errorMessage(res);
     bodyEl.querySelector('[data-publish-retry]').addEventListener('click', renderForm);
   }
 

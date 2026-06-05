@@ -60,15 +60,15 @@
     },
     {
       "path": "tools/project_map/viewer/i18n/en.js",
-      "maxLines": 3479,
+      "maxLines": 3480,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3443 for the browser-style global back-control label (nav.back), then to 3479 for the publish.* keys (Publish to GitHub UI)."
+      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3443 for the browser-style global back-control label (nav.back), then to 3479 for the publish.* keys (Publish to GitHub UI), then to 3480 for publish.error.privateScope (private-repo token-scope guidance)."
     },
     {
       "path": "tools/project_map/viewer/i18n/zh-Hant.js",
-      "maxLines": 3479,
+      "maxLines": 3480,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3443 for the browser-style global back-control label (nav.back), then to 3479 for the publish.* keys (Publish to GitHub UI)."
+      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3443 for the browser-style global back-control label (nav.back), then to 3479 for the publish.* keys (Publish to GitHub UI), then to 3480 for publish.error.privateScope (private-repo token-scope guidance)."
     },
     {
       "path": "tools/project_map/viewer/index.html",

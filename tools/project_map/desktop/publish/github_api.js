@@ -76,7 +76,21 @@ async function createRepo(token, options) {
     err.code = 'repo_exists';
     throw err;
   }
-  const err = new Error('Could not create the repository (HTTP ' + res.status + ').');
+  if (res.status === 403) {
+    // The most common cause is a public_repo-scoped token trying to create a
+    // PRIVATE repo, which classic PATs can only do with the full "repo" scope.
+    const detail = res.json && res.json.message ? ' (' + res.json.message + ')' : '';
+    if (opts.private) {
+      const err = new Error('Creating a private repository needs a token with the full "repo" scope.' + detail);
+      err.code = 'private_scope';
+      throw err;
+    }
+    const err = new Error('GitHub refused to create the repository (HTTP 403).' + detail);
+    err.code = 'forbidden';
+    throw err;
+  }
+  const ghMsg = res.json && res.json.message ? ' (' + res.json.message + ')' : '';
+  const err = new Error('Could not create the repository (HTTP ' + res.status + ').' + ghMsg);
   err.code = 'create_failed';
   throw err;
 }
