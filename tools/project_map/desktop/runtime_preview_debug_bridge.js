@@ -164,6 +164,14 @@ function bridgeScript(options) {
     'function run(command){try{if(!command||command.type==="getStateSummary")return getStateSummary();if(command.type==="getRuntimeSnapshot")return getRuntimeSnapshot();if(command.type==="applyVariables")return applyVariables(command.variables||[]);if(command.type==="applyFocusPreset")return applyFocusPreset(command);if(command.type==="jumpToScene")return jumpToScene(command);if(command.type==="resetToInitialState")return resetToInitialState();return fail("runtime_preview_debug.unknown_command","Unknown preview debug command.");}catch(err){return fail("runtime_preview_debug.command_failed",err&&err.message?err.message:String(err));}}',
     'window.DendryModStudioPreview={getStateSummary:getStateSummary,getRuntimeSnapshot:getRuntimeSnapshot,applyVariables:applyVariables,applyFocusPreset:applyFocusPreset,jumpToScene:jumpToScene,resetToInitialState:resetToInitialState};',
     'window.addEventListener("message",function(event){if(ALLOWED_ORIGIN&&event.origin!==ALLOWED_ORIGIN)return;var data=event.data||{};if(data.kind!=="dms-runtime-preview-command")return;var result=run(data.command||{});event.source&&event.source.postMessage({kind:"dms-runtime-preview-result",requestId:data.requestId||"",result:result},event.origin);});',
+    'function postParentEvent(name,detail){try{if(window.parent&&window.parent!==window)window.parent.postMessage({kind:"dms-runtime-preview-event",sessionId:SESSION_ID,event:name,detail:detail||null},ALLOWED_ORIGIN||"*");}catch(_err){}}',
+    'var liveObserver=null;var liveTimer=null;',
+    'function scheduleDomChanged(){if(liveTimer)return;liveTimer=setTimeout(function(){liveTimer=null;postParentEvent("dom-changed");},250);}',
+    'function startLiveObserver(){if(liveObserver)return;var d=doc();var target=d&&d.body;if(!target||typeof MutationObserver!=="function")return;try{liveObserver=new MutationObserver(scheduleDomChanged);liveObserver.observe(target,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:["src","class","hidden"]});}catch(_err){liveObserver=null;}}',
+    'function raf(cb){if(typeof window.requestAnimationFrame==="function")window.requestAnimationFrame(cb);else if(typeof setTimeout==="function")setTimeout(cb,16);else cb();}',
+    'function emitReadyWhenSettled(){raf(function(){raf(function(){postParentEvent("ready");startLiveObserver();});});}',
+    'function initLiveBridge(){var d=doc();if(d&&d.readyState==="complete"){emitReadyWhenSettled();return;}window.addEventListener("load",function(){emitReadyWhenSettled();},{once:true});}',
+    'initLiveBridge();',
     '})();'
   ].join('\n') + '\n';
 }

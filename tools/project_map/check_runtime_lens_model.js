@@ -360,6 +360,10 @@ assert(lensPageHtml.includes('iframe{display:block;width:100%;min-width:var(--ru
 assert(lensPageHtml.includes('var autoFocused=false'), 'Runtime Lens wrapper should track whether automatic focus already ran');
 assert(lensPageHtml.includes('AUTO_COMMANDS.length&&!autoFocused'), 'Runtime Lens wrapper should not re-run automatic focus on every iframe load');
 assert(lensPageHtml.includes('else captureSnapshot()'), 'Runtime Lens wrapper should capture evidence after follow-up iframe loads instead of focusing again');
+assert(lensPageHtml.includes('data-lens-action="recapture"'), 'Runtime Lens wrapper should offer a manual re-capture control');
+assert(lensPageHtml.includes('dms-runtime-preview-event'), 'Runtime Lens wrapper should listen for live runtime events from the bridge');
+assert(lensPageHtml.includes('dom-changed'), 'Runtime Lens wrapper should re-capture when the runtime DOM changes');
+assert(lensPageHtml.includes('scheduleCapture'), 'Runtime Lens wrapper should debounce live re-captures');
 assert(eventLens.focus.targetSceneId === 'focus_event', 'Runtime Lens should preserve focused scene target');
 assert(eventLens.postLoadCommands.some((command) => command.type === 'jumpToScene' && command.sceneId === 'focus_event'), 'Runtime Lens should queue a scene jump command');
 assert(eventLens.lensModel.commands.some((command) => command.type === 'focusScene'), 'Runtime Lens model should expose focusScene command');

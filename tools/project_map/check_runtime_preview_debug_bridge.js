@@ -36,6 +36,10 @@ assert(script.includes('RUNTIME_SURFACE'), 'bridge should carry Runtime Surface 
 assert(script.includes('querySelectorAll'), 'bridge should inspect DOM selectors for snapshots');
 assert(script.includes('event.origin'), 'bridge should check event origin');
 assert(script.includes('dms-runtime-preview-command'), 'bridge should listen for structured command messages');
+assert(script.includes('MutationObserver'), 'bridge should observe runtime DOM changes for live snapshots');
+assert(script.includes('dms-runtime-preview-event'), 'bridge should emit live runtime events to the wrapper page');
+assert(script.includes('"dom-changed"'), 'bridge should signal DOM changes so the wrapper can re-capture');
+assert(script.includes('"ready"'), 'bridge should signal a settled-ready event for the initial capture');
 assert(!/\beval\s*\(/.test(script), 'bridge must not use eval');
 assert(!/\bnew Function\b/.test(script), 'bridge must not use new Function');
 assert(!script.includes('innerHTML = event.data'), 'bridge must not write raw message data as HTML');
