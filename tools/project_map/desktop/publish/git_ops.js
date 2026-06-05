@@ -34,8 +34,19 @@ async function initCommit(params) {
   const dir = params.dir;
   const files = params.files || [];
   await git.init({ fs: fs, dir: dir, defaultBranch: 'main' });
+  const want = Object.create(null);
   for (let i = 0; i < files.length; i += 1) {
     await git.add({ fs: fs, dir: dir, filepath: files[i] });
+    want[files[i]] = true;
+  }
+  // Drop anything still tracked from an earlier attempt that is no longer in the
+  // file set (e.g. a .github/workflows file we now exclude) so the new commit
+  // reflects exactly `files`. git.remove only unstages — the file stays on disk.
+  const tracked = await git.listFiles({ fs: fs, dir: dir });
+  for (let r = 0; r < tracked.length; r += 1) {
+    if (!want[tracked[r]]) {
+      await git.remove({ fs: fs, dir: dir, filepath: tracked[r] });
+    }
   }
   // Idempotent retry: if a previous attempt already committed this exact staged
   // tree, reuse that commit instead of stacking duplicate "Initial publish"

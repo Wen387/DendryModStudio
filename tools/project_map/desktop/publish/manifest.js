@@ -14,6 +14,14 @@ const DEFAULT_IGNORE_NAMES = [
   '.git', 'node_modules', '.studio-local', '.DS_Store', 'Thumbs.db', '.idea', '.vscode'
 ];
 
+// Path-prefix ignores (vs. single segment names above). GitHub refuses to let a
+// classic PAT push anything under .github/workflows/ without the elevated
+// `workflow` scope, so we leave CI config out of a publish by default — a mod
+// author sharing their work almost never needs the inherited build pipeline.
+const DEFAULT_IGNORE_PATHS = [
+  '.github/workflows'
+];
+
 const LARGE_FILE_WARN_BYTES = 25 * 1024 * 1024;    // warn on any single file >= 25 MB
 const LARGE_TOTAL_WARN_BYTES = 100 * 1024 * 1024;  // warn on a total payload >= 100 MB
 
@@ -23,9 +31,16 @@ const LARGE_TOTAL_WARN_BYTES = 100 * 1024 * 1024;  // warn on a total payload >=
  */
 function isIgnored(relPath, ignoreNames) {
   const names = ignoreNames || DEFAULT_IGNORE_NAMES;
-  const segments = String(relPath || '').split('/');
+  const rel = String(relPath || '');
+  const segments = rel.split('/');
   for (let i = 0; i < segments.length; i += 1) {
     if (names.indexOf(segments[i]) !== -1) {
+      return true;
+    }
+  }
+  for (let j = 0; j < DEFAULT_IGNORE_PATHS.length; j += 1) {
+    const prefix = DEFAULT_IGNORE_PATHS[j];
+    if (rel === prefix || rel.indexOf(prefix + '/') === 0) {
       return true;
     }
   }
@@ -101,6 +116,7 @@ function noreplyEmail(user) {
 
 const api = {
   DEFAULT_IGNORE_NAMES: DEFAULT_IGNORE_NAMES,
+  DEFAULT_IGNORE_PATHS: DEFAULT_IGNORE_PATHS,
   LARGE_FILE_WARN_BYTES: LARGE_FILE_WARN_BYTES,
   LARGE_TOTAL_WARN_BYTES: LARGE_TOTAL_WARN_BYTES,
   isIgnored: isIgnored,
