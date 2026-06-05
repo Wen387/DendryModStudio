@@ -85,5 +85,5 @@
   global.ProjectMapI18nDictionaries = global.ProjectMapI18nDictionaries || {};
   global.ProjectMapI18nDictionaries["en"] =
     global.ProjectMapI18nDictionaries["en"] || {};
-  Object.assign(global.ProjectMapI18nDictionaries["en"], CATALOG[en]);
+  Object.assign(global.ProjectMapI18nDictionaries["en"], CATALOG.en);
 })(typeof window !== 'undefined' ? window : globalThis);
