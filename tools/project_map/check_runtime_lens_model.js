@@ -355,7 +355,7 @@ assert(lensPageHtml.includes('dms-runtime-lens-session-evidence'), 'Runtime Lens
 assert(lensPageHtml.includes('dms-runtime-lens-action'), 'Runtime Lens wrapper should accept parent focus/reset actions');
 assert(lensPageHtml.includes('overflow:hidden;isolation:isolate'), 'Runtime Lens wrapper should isolate nested iframe painting');
 assert(lensPageHtml.includes('--runtime-lens-frame-min-width:1280px'), 'Runtime Lens wrapper should keep a desktop-width runtime viewport for docked previews');
-assert(lensPageHtml.includes('main{position:relative;z-index:1;min-height:0;overflow:auto;overscroll-behavior:contain;background:white;contain:paint}'), 'Runtime Lens wrapper main should let docked previews pan across wide runtime layouts');
+assert(lensPageHtml.includes('main{position:relative;z-index:1;min-width:0;min-height:0;overflow:auto;overscroll-behavior:contain;background:white;contain:paint}'), 'Runtime Lens wrapper main should let docked previews pan across wide runtime layouts');
 assert(lensPageHtml.includes('iframe{display:block;width:100%;min-width:var(--runtime-lens-frame-min-width);height:100%;border:0;background:white;contain:paint}'), 'Runtime Lens wrapper iframe should paint as an opaque desktop-width contained layer');
 assert(lensPageHtml.includes('var autoFocused=false'), 'Runtime Lens wrapper should track whether automatic focus already ran');
 assert(lensPageHtml.includes('AUTO_COMMANDS.length&&!autoFocused'), 'Runtime Lens wrapper should not re-run automatic focus on every iframe load');
@@ -364,6 +364,12 @@ assert(lensPageHtml.includes('data-lens-action="recapture"'), 'Runtime Lens wrap
 assert(lensPageHtml.includes('dms-runtime-preview-event'), 'Runtime Lens wrapper should listen for live runtime events from the bridge');
 assert(lensPageHtml.includes('dom-changed'), 'Runtime Lens wrapper should re-capture when the runtime DOM changes');
 assert(lensPageHtml.includes('scheduleCapture'), 'Runtime Lens wrapper should debounce live re-captures');
+assert(lensPageHtml.includes('class="lens-content"'), 'Runtime Lens wrapper should host the runtime and Dev drawer in a shared content grid');
+assert(lensPageHtml.includes('body.is-dev-open'), 'Runtime Lens wrapper should toggle the Dev drawer with a body class');
+assert(lensPageHtml.includes('data-lens-action="toggle-dev"'), 'Runtime Lens wrapper should offer a Dev drawer toggle');
+assert(lensPageHtml.includes('runtime-debug-console'), 'Runtime Lens wrapper should embed the focused Dev console');
+assert(lensPageHtml.includes('data-debug-section="focus"'), 'Runtime Lens Dev console should lead with the relevant-to-this-event section');
+assert(lensPageHtml.includes('data-runtime-debug-focus-vars'), 'Runtime Lens Dev console should reserve a slot for event-relevant variables');
 assert(eventLens.focus.targetSceneId === 'focus_event', 'Runtime Lens should preserve focused scene target');
 assert(eventLens.postLoadCommands.some((command) => command.type === 'jumpToScene' && command.sceneId === 'focus_event'), 'Runtime Lens should queue a scene jump command');
 assert(eventLens.lensModel.commands.some((command) => command.type === 'focusScene'), 'Runtime Lens model should expose focusScene command');

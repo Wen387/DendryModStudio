@@ -5,11 +5,18 @@ const MAX_RENDERED_SCENES = 1000;
 const LABELS_ZH = {
   consoleTitle: '預覽除錯控制台',
   consoleDisclaimer: '此操作僅更改暫時的修改預覽，不會編輯原始檔案或實際存檔。',
+  navFocus: '相關',
   navEntry: '入口',
   navVariables: '變數',
   navJump: '跳轉',
   navChain: '事件鏈',
   navHistory: '歷史',
+  sectionFocus: '與本事件相關',
+  sectionFocusDesc: '本事件讀寫的變數，加上通往這一幕的門檻；場景是本事件與其直接相鄰的場景。',
+  focusScenesLabel: '跳到相鄰場景',
+  noRelevantVars: '沒有偵測到與本事件直接相關的變數。',
+  relevanceGate: '門檻',
+  relevanceLocal: '本事件讀寫',
   sectionEntry: '焦點入口',
   sectionEntryDesc: '開啟新建或已變更的內容，並套用對應的暫時狀態。',
   sectionConditions: '測試條件',
@@ -52,11 +59,18 @@ const LABELS_ZH = {
 const LABELS_EN = {
   consoleTitle: 'Preview Debug Console',
   consoleDisclaimer: 'This only changes the temporary modified preview. It does not edit source files or real saves.',
+  navFocus: 'Relevant',
   navEntry: 'Entry',
   navVariables: 'Variables',
   navJump: 'Jump',
   navChain: 'Chain',
   navHistory: 'History',
+  sectionFocus: 'Relevant to This Event',
+  sectionFocusDesc: 'Variables this event reads or writes, plus the gates on the way in. Scenes are this event and its direct neighbours.',
+  focusScenesLabel: 'Jump to a neighbouring scene',
+  noRelevantVars: 'No event-specific variables were detected.',
+  relevanceGate: 'gate',
+  relevanceLocal: 'reads/writes here',
   sectionEntry: 'Focused Entry',
   sectionEntryDesc: 'Open newly created or changed content with matching temporary state.',
   sectionConditions: 'Test Conditions',
@@ -195,7 +209,7 @@ function debugPanelHtml(options) {
       '</button>';
   }).join('');
   const variableData = JSON.stringify(controls.variables || []).replace(/</g, '\\u003c');
-  const scenes = renderedScenes.map((item) => {
+  const renderSceneButton = (item) => {
     const searchText = [
       item && item.id,
       item && item.title,
@@ -206,7 +220,12 @@ function debugPanelHtml(options) {
       '<strong>' + escapeHtml(item.title || item.id) + '</strong>' +
       '<small>' + escapeHtml([item.type, item.sourcePath || item.id].filter(Boolean).join(' · ')) + '</small>' +
       '</button>';
-  }).join('');
+  };
+  const scenes = renderedScenes.map(renderSceneButton).join('');
+  const relevantScenes = sceneRows.filter((item) => item && item.relevant);
+  const relevantSceneButtons = relevantScenes.map(renderSceneButton).join('');
+  const hasRelevantVariables = (controls.variables || []).some((item) => item && item.relevant);
+  const focusActive = Boolean(controls.focusSceneId || relevantScenes.length || hasRelevantVariables);
   const sceneSummary = '<p class="runtime-debug-count">' +
     escapeHtml(L.showingScenes.replace('{shown}', renderedScenes.length).replace('{total}', sceneRows.length) + (hiddenSceneCount ? L.deeperJumpsHint : '')) +
     '</p>';
@@ -214,17 +233,28 @@ function debugPanelHtml(options) {
     return '<li>' + escapeHtml((item.from || '') + ' -> ' + (item.to || '')) + '</li>';
   }).join('');
   const navItems = [
+    focusActive ? '<button type="button" data-debug-nav="focus">' + escapeHtml(L.navFocus) + '</button>' : '',
     presets ? '<button type="button" data-debug-nav="entry">' + escapeHtml(L.navEntry) + '</button>' : '',
     '<button type="button" data-debug-nav="conditions">' + escapeHtml(L.navVariables) + '</button>',
     '<button type="button" data-debug-nav="jump">' + escapeHtml(L.navJump) + '</button>',
     '<button type="button" data-debug-nav="chain">' + escapeHtml(L.navChain) + '</button>',
     '<button type="button" data-debug-nav="history">' + escapeHtml(L.navHistory) + '</button>'
   ].filter(Boolean).join('');
+  const focusSection = focusActive
+    ? '<details class="runtime-debug-section runtime-debug-focus" open data-debug-section="focus"><summary>' + escapeHtml(L.sectionFocus) + '</summary>' +
+      '<p>' + escapeHtml(L.sectionFocusDesc) + '</p>' +
+      '<div class="runtime-debug-focus-vars" data-runtime-debug-focus-vars></div>' +
+      '<button type="button" data-runtime-debug-action="apply-variables">' + escapeHtml(L.applyBtn) + '</button>' +
+      '<button type="button" data-runtime-debug-action="reset">' + escapeHtml(L.resetBtn) + '</button>' +
+      (relevantSceneButtons ? '<h3>' + escapeHtml(L.focusScenesLabel) + '</h3><div class="runtime-debug-scenes runtime-debug-focus-scenes">' + relevantSceneButtons + '</div>' : '') +
+      '</details>'
+    : '';
   return [
     '<aside class="runtime-debug-console" aria-label="' + escapeAttr(L.consoleTitle) + '">',
     '<h2>' + escapeHtml(L.consoleTitle) + '</h2>',
     '<p>' + escapeHtml(L.consoleDisclaimer) + '</p>',
     '<nav class="runtime-debug-nav">' + navItems + '</nav>',
+    focusSection,
     presets ? '<details class="runtime-debug-section" open data-debug-section="entry"><summary>' + escapeHtml(L.sectionEntry) + '</summary><p>' + escapeHtml(L.sectionEntryDesc) + '</p>' + presets + '</details>' : '',
     '<details class="runtime-debug-section" data-debug-section="conditions"><summary>' + escapeHtml(L.sectionConditions) + '</summary>',
     '<div class="runtime-debug-pinned" hidden><h3>' + escapeHtml(L.pinnedVars) + '</h3><div class="runtime-debug-pinned-list"></div></div>',
@@ -256,7 +286,10 @@ function parentDebugScript(options) {
     resultOk: L.resultOk,
     resultAttention: L.resultAttention,
     resultCommand: L.resultCommand,
-    resultDone: L.resultDone
+    resultDone: L.resultDone,
+    noRelevantVars: L.noRelevantVars,
+    relevanceGate: L.relevanceGate,
+    relevanceLocal: L.relevanceLocal
   });
   return [
     '(function(){',
@@ -292,12 +325,13 @@ function parentDebugScript(options) {
     'function groupVars(vars){var groups={};vars.forEach(function(v){var k=v.meaning||"game state";if(!groups[k])groups[k]={key:k,label:GROUP_LABELS[k]||k,variables:[]};groups[k].variables.push(v);});var ordered=GROUP_ORDER.filter(function(k){return groups[k];}).map(function(k){return groups[k];});Object.keys(groups).forEach(function(k){if(GROUP_ORDER.indexOf(k)<0)ordered.push(groups[k]);});return ordered;}',
     'function renderGroups(){var container=document.querySelector(".runtime-debug-variable-groups");if(!container)return;container.innerHTML="";var vars=loadVarData();if(!vars.length){container.innerHTML="<p class=\\"runtime-debug-no-results\\">"+esc(L.noVarsAvailable)+"</p>";return;}var pinned=loadPinned();var groups=groupVars(vars);groups.forEach(function(group){var details=document.createElement("details");details.className="runtime-debug-group";details.setAttribute("data-debug-group",group.key);var summary=document.createElement("summary");summary.innerHTML=esc(group.label)+" <span class=\\"runtime-debug-group-count\\">"+group.variables.length+"</span>";details.appendChild(summary);var body=document.createElement("div");body.className="runtime-debug-group-body";var batch=group.variables.slice(0,GROUP_BATCH);var rest=group.variables.slice(GROUP_BATCH);batch.forEach(function(item){body.appendChild(varRow(item,pinned.indexOf(item.name)>=0));});if(rest.length){var more=document.createElement("button");more.type="button";more.className="runtime-debug-show-more";more.textContent=L.showAllN.replace("{n}",group.variables.length);more.addEventListener("click",function(){rest.forEach(function(item){body.insertBefore(varRow(item,pinned.indexOf(item.name)>=0),more);});more.remove();});body.appendChild(more);}details.appendChild(body);container.appendChild(details);});}',
     'function renderPinned(){var section=document.querySelector(".runtime-debug-pinned");var list=document.querySelector(".runtime-debug-pinned-list");if(!section||!list)return;var pinned=loadPinned();var vars=loadVarData();list.innerHTML="";if(!pinned.length){section.hidden=true;return;}section.hidden=false;var byName={};vars.forEach(function(v){byName[v.name]=v;});pinned.forEach(function(name){var item=byName[name];if(!item)return;list.appendChild(varRow(item,true));});}',
+    'function renderFocusVars(){var container=document.querySelector("[data-runtime-debug-focus-vars]");if(!container)return;container.innerHTML="";var vars=loadVarData().filter(function(v){return v&&v.relevant;});if(!vars.length){container.innerHTML="<p class=\\"runtime-debug-no-results\\">"+esc(L.noRelevantVars)+"</p>";return;}var pinned=loadPinned();vars.forEach(function(item){var row=varRow(item,pinned.indexOf(item.name)>=0);var reason=item.relevanceReason==="gate"?L.relevanceGate:(item.relevanceReason==="local"?L.relevanceLocal:"");if(reason){var chip=document.createElement("span");chip.className="runtime-debug-relevance";chip.textContent=reason;var info=row.firstChild;if(info)info.insertBefore(chip,info.firstChild);}container.appendChild(row);});}',
     'function updatePinStates(){var pinned=loadPinned();Array.prototype.slice.call(document.querySelectorAll("[data-debug-pin]")).forEach(function(btn){var name=btn.getAttribute("data-debug-pin");var isPinned=pinned.indexOf(name)>=0;btn.className="runtime-debug-pin"+(isPinned?" is-pinned":"");btn.textContent=isPinned?"\\u2605":"\\u2606";btn.title=isPinned?L.unpin:L.pin;});}',
     'function filterVars(query){var q=String(query||"").toLowerCase();if(q){Array.prototype.slice.call(document.querySelectorAll(".runtime-debug-show-more")).forEach(function(btn){btn.click();});}var groups=document.querySelectorAll(".runtime-debug-group");var total=0;for(var i=0;i<groups.length;i++){var rows=groups[i].querySelectorAll("[data-debug-var-name]");var vis=0;for(var j=0;j<rows.length;j++){var name=(rows[j].getAttribute("data-debug-var-name")||"").toLowerCase();var text=rows[j].textContent.toLowerCase();var match=!q||name.indexOf(q)>=0||text.indexOf(q)>=0;rows[j].hidden=!match;if(match)vis++;}groups[i].hidden=vis===0&&Boolean(q);if(vis>0&&q)groups[i].open=true;total+=vis;}var container=document.querySelector(".runtime-debug-variable-groups");if(!container)return;var hint=container.querySelector(".runtime-debug-no-results");if(total===0&&q){if(!hint){hint=document.createElement("p");hint.className="runtime-debug-no-results";hint.textContent=L.noVarsMatch;container.prepend(hint);}}else if(hint){hint.remove();}}',
-    'renderGroups();renderPinned();',
+    'renderGroups();renderPinned();renderFocusVars();',
     'document.addEventListener("input",function(event){var varFilter=event.target.closest&&event.target.closest("[data-runtime-debug-variable-filter]");if(varFilter){filterVars(varFilter.value);return;}var filter=event.target.closest&&event.target.closest("[data-runtime-debug-scene-filter]");if(filter){var query=String(filter.value||"").toLowerCase();Array.prototype.slice.call(document.querySelectorAll("[data-debug-scene]")).forEach(function(button){var haystack=button.getAttribute("data-debug-scene-search")||"";button.hidden=Boolean(query)&&haystack.indexOf(query)<0;});updateSceneFilterHint();return;}var input=event.target.closest&&event.target.closest("[data-debug-variable-input]");if(input)input.setAttribute("data-debug-dirty","1");});',
     'document.addEventListener("click",function(event){var navBtn=event.target.closest&&event.target.closest("[data-debug-nav]");if(navBtn){var sid=navBtn.getAttribute("data-debug-nav");var sec=document.querySelector("[data-debug-section=\\""+sid+"\\"]");if(sec){sec.open=true;sec.scrollIntoView({behavior:"smooth",block:"start"});}return;}var pinBtn=event.target.closest&&event.target.closest("[data-debug-pin]");if(pinBtn){togglePin(pinBtn.getAttribute("data-debug-pin"));return;}var action=event.target.closest("[data-runtime-debug-action]");if(action&&action.getAttribute("data-runtime-debug-action")==="apply-variables"){var variables=commandVariables();if(!variables.length){appendHistory(L.noChangedVars);return;}send({type:"applyVariables",variables:variables});clearDirtyFlags();return;}if(action&&action.getAttribute("data-runtime-debug-action")==="reset"){send({type:"resetToInitialState"});clearDirtyFlags();return;}var preset=event.target.closest("[data-debug-focus-preset]");if(preset){send({type:"applyFocusPreset",sceneId:preset.getAttribute("data-debug-focus-scene"),variables:jsonAttr(preset,"data-debug-focus-variables",[])});clearDirtyFlags();return;}var scene=event.target.closest("[data-debug-scene]");if(scene){send({type:"jumpToScene",sceneId:scene.getAttribute("data-debug-scene")});}});',
-    'window.addEventListener("message",function(event){var data=event.data||{};if(data.kind!=="dms-runtime-preview-result")return;var result=data.result||{};var command=pendingCommands[data.requestId]||{};delete pendingCommands[data.requestId];var label=command.type||L.resultCommand;var detail=result.message||result.sceneId||((result.applied||[]).join(", "))||L.resultDone;appendHistory((result.ok?L.resultOk:L.resultAttention)+" ["+label+"]: "+detail,!result.ok);});',
+    'window.addEventListener("message",function(event){var data=event.data||{};if(data.kind!=="dms-runtime-preview-result")return;if(!Object.prototype.hasOwnProperty.call(pendingCommands,data.requestId))return;var result=data.result||{};var command=pendingCommands[data.requestId]||{};delete pendingCommands[data.requestId];var label=command.type||L.resultCommand;var detail=result.message||result.sceneId||((result.applied||[]).join(", "))||L.resultDone;appendHistory((result.ok?L.resultOk:L.resultAttention)+" ["+label+"]: "+detail,!result.ok);});',
     '})();'
   ].join('\n') + '\n';
 }
