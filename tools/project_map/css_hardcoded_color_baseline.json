@@ -9,7 +9,7 @@
     "create.css": 3,
     "design.css": 10,
     "dialogs.css": 7,
-    "editing.css": 29,
+    "editing.css": 16,
     "election-results.css": 7,
     "explore.css": 1,
     "guided-tour.css": 8,
@@ -20,6 +20,7 @@
     "route-script-review.css": 0,
     "runtime-lens.css": 1,
     "shell.css": 0,
+    "system-ui.css": 13,
     "welcome.css": 14
   }
 }
