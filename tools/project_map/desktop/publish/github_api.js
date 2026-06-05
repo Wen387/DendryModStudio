@@ -95,8 +95,26 @@ async function createRepo(token, options) {
   throw err;
 }
 
+/**
+ * Reads a single repo. Returns null on 404 so callers can treat "missing" as a
+ * normal outcome (used to decide whether a 422-on-create can be safely reused).
+ */
+async function getRepo(token, owner, name) {
+  const res = await request('GET', '/repos/' + owner + '/' + name, token);
+  if (res.status === 200) {
+    return res.json;
+  }
+  if (res.status === 404) {
+    return null;
+  }
+  const err = new Error('Could not read the repository (HTTP ' + res.status + ').');
+  err.code = 'get_failed';
+  throw err;
+}
+
 module.exports = {
   request: request,
   getAuthenticatedUser: getAuthenticatedUser,
-  createRepo: createRepo
+  createRepo: createRepo,
+  getRepo: getRepo
 };

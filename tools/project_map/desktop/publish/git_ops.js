@@ -37,6 +37,17 @@ async function initCommit(params) {
   for (let i = 0; i < files.length; i += 1) {
     await git.add({ fs: fs, dir: dir, filepath: files[i] });
   }
+  // Idempotent retry: if a previous attempt already committed this exact staged
+  // tree, reuse that commit instead of stacking duplicate "Initial publish"
+  // commits. statusMatrix row = [filepath, HEAD, WORKDIR, STAGE]; a staged
+  // change is any row whose STAGE differs from HEAD.
+  let head = null;
+  try { head = await git.resolveRef({ fs: fs, dir: dir, ref: 'HEAD' }); } catch (_e) { head = null; }
+  if (head) {
+    const matrix = await git.statusMatrix({ fs: fs, dir: dir });
+    const hasStagedChange = matrix.some(function (row) { return row[3] !== row[1]; });
+    if (!hasStagedChange) { return head; }
+  }
   return git.commit({
     fs: fs,
     dir: dir,
@@ -53,7 +64,9 @@ async function initCommit(params) {
  * @param {{dir:string, remoteUrl:string, token:string}} params
  */
 async function pushToRemote(params) {
-  await git.addRemote({ fs: fs, dir: params.dir, remote: 'origin', url: params.remoteUrl });
+  // force:true so a retry after an earlier half-finished publish overwrites
+  // the stale `origin` instead of failing with "remote already exists".
+  await git.addRemote({ fs: fs, dir: params.dir, remote: 'origin', url: params.remoteUrl, force: true });
   return git.push({
     fs: fs,
     http: gitHttp,

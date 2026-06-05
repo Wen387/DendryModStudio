@@ -94,15 +94,32 @@ async function publishMod(options) {
     return { ok: false, code: 'commit_failed', message: err.message };
   }
 
+  const repoName = opts.name || path.basename(dir);
   let repo;
   try {
     repo = await githubApi.createRepo(token, {
-      name: opts.name || path.basename(dir),
+      name: repoName,
       description: opts.description || '',
       private: Boolean(opts.private)
     });
   } catch (err) {
-    return { ok: false, code: err.code || 'create_failed', message: err.message };
+    // Retry-friendliness: an earlier attempt may have already created the repo.
+    // Reuse it ONLY when it is still empty, so we never overwrite real content.
+    if (err.code === 'repo_exists') {
+      let existing = null;
+      try {
+        existing = await githubApi.getRepo(token, user.login, repoName);
+      } catch (_e) {
+        existing = null;
+      }
+      if (existing && existing.size === 0) {
+        repo = existing;
+      } else {
+        return { ok: false, code: 'repo_exists', message: err.message };
+      }
+    } else {
+      return { ok: false, code: err.code || 'create_failed', message: err.message };
+    }
   }
 
   try {
