@@ -11,6 +11,7 @@
 // the approximate simulator check uses so both phases stay comparable.
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 
 const ROOT = __dirname;
@@ -46,6 +47,37 @@ function plainText(html) {
 
 function optionById(view, id) {
   return (view.choices || []).filter((choice) => choice.id === SCENE + '.' + id)[0] || null;
+}
+
+// Electron's IPC serialises replies with structured clone. structuredClone
+// throws on the first non-cloneable value (e.g. a function), exactly as the IPC
+// hop does -- so it is the faithful gate for "would this reply cross the wire?".
+function assertCloneable(value, message) {
+  try {
+    structuredClone(value);
+  } catch (err) {
+    fail(message + ' -- ' + String((err && err.message) || err));
+  }
+}
+
+// A compiled conditional/styled title is the canonical clone hazard: confirm
+// the raw title really does carry a function so the coercion checks below are
+// not vacuous, then return the compiled game for the IPC-safety assertions.
+const COND_FILES = [
+  {name: 'info.dry', contents: 'title: T\nauthor: x\n'},
+  {
+    name: 'scenes/root.scene.dry',
+    contents: 'title: [? if zx > 0: Hot ?][? if zx <= 0: Cold ?]\n\nConditional-title body.\n'
+  }
+];
+
+function rawTitleIsCloneable(game) {
+  try {
+    structuredClone(game.scenes.root.title);
+    return true;
+  } catch (err) {
+    return false;
+  }
 }
 
 async function main() {
@@ -175,6 +207,64 @@ async function main() {
   const hostRecovered = await host.advance({projectRoot: PROJECT_ROOT, state: hostStart.state, choiceIndex: hostOpen.index});
   assert(hostRecovered.ok && hostRecovered.view.sceneId === 'demo_case_hearing',
     'host.advance should recover from a cache miss by recompiling from the project root');
+
+  // ---- structured-clone safety: function-bearing compiled titles must survive the IPC hop ----
+  // A conditional/styled title compiles to a content structure carrying predicate
+  // FUNCTIONS. Electron's IPC serialises replies with structured clone, which
+  // rejects functions ("An object could not be cloned"); the desktop play-test
+  // silently failed on any mod with such a title. The node checks above call the
+  // model/host directly (no serialisation) so never caught it -- these assertions
+  // exercise the coercion (model) and the toCloneable net (host.handle) that fix it.
+  const condGame = await model.compileGameFromDryFiles(COND_FILES);
+  assert(!rawTitleIsCloneable(condGame),
+    'a conditional title should compile to a function-bearing structure (the real clone hazard)');
+  const condStart = model.start({game: condGame, entrySceneId: 'root'});
+  assert(condStart.ok, 'a play-test on a conditional-title scene should start', condStart);
+  assert(condStart.view.title === null || typeof condStart.view.title === 'string',
+    'view.title must be coerced to a plain string or null, never a function-bearing structure',
+    condStart.view.title);
+  assert(plainText(condStart.view.contentHtml).indexOf('Conditional-title body') !== -1,
+    'the scene body should still render even though the styled title is dropped');
+  assertCloneable(condStart, 'model.start reply on a conditional-title scene must be structured-clone safe');
+
+  // ---- host.handle (the real IPC entry point) must always return a clone-safe reply ----
+  const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dms-playtest-check-'));
+  try {
+    const tmpScenes = path.join(tmpRoot, 'source', 'scenes');
+    fs.mkdirSync(tmpScenes, {recursive: true});
+    COND_FILES.forEach((file) => {
+      const dest = path.join(tmpRoot, 'source', file.name);
+      fs.mkdirSync(path.dirname(dest), {recursive: true});
+      fs.writeFileSync(dest, file.contents);
+    });
+    host._clearCache();
+    const handledStart = await host.handle({action: 'start', projectRoot: tmpRoot, entrySceneId: 'root'});
+    assert(handledStart.ok, 'host.handle should start a play-test through the IPC entry point', handledStart);
+    assertCloneable(handledStart,
+      'host.handle reply must be structured-clone safe even when scenes have function-bearing titles');
+    assert(handledStart.view.title === null || typeof handledStart.view.title === 'string',
+      'host.handle must not leak a function-bearing view title across IPC', handledStart.view.title);
+    assert(Array.isArray(handledStart.scenes) &&
+      handledStart.scenes.every((scene) => scene.title === null || typeof scene.title === 'string'),
+      'the entry-scene list must carry plain-string (or null) titles only', handledStart.scenes);
+  } finally {
+    fs.rmSync(tmpRoot, {recursive: true, force: true});
+  }
+
+  // ---- host.handle dispatches 'advance' and that reply is clone-safe too ----
+  host._clearCache();
+  const handledSeed = await host.handle({action: 'start', projectRoot: PROJECT_ROOT, entrySceneId: SCENE, startState: {demo_resources: 1}});
+  assert(handledSeed.ok, 'host.handle start should seed an advance', handledSeed);
+  const handledOpen = optionById(handledSeed.view, 'open_hearing');
+  const handledAdvance = await host.handle({
+    action: 'advance',
+    token: handledSeed.token,
+    state: handledSeed.state,
+    choiceIndex: handledOpen.index
+  });
+  assert(handledAdvance.ok && handledAdvance.view.sceneId === 'demo_case_hearing',
+    'host.handle should dispatch advance and continue into demo_case_hearing', handledAdvance);
+  assertCloneable(handledAdvance, 'host.handle advance reply must be structured-clone safe');
 
   process.stdout.write(JSON.stringify({
     ok: true,

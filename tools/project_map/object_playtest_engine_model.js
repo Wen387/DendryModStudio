@@ -215,7 +215,10 @@ function finishTurn(capture, engine) {
   const view = capture.finalize();
   const scene = (engine.game.scenes && engine.game.scenes[engine.state.sceneId]) || {};
   view.sceneId = engine.state.sceneId;
-  view.title = scene.title || null;
+  // Keep only a plain-string title. A styled/conditional title compiles to a
+  // content structure carrying predicate functions, which would later break the
+  // structured-clone IPC hop; the scene body still renders via contentHtml.
+  view.title = typeof scene.title === 'string' ? scene.title : null;
   view.gameOver = engine.isGameOver();
   view.qualities = snapshotQualities(engine);
   return {ok: true, view: view, state: cloneState(engine.getExportableState())};

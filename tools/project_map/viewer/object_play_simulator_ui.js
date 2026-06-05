@@ -92,6 +92,21 @@
     return Boolean(model && typeof model.isSupported === 'function' && model.isSupported(body));
   }
 
+  // The real DendryEngine play-test (desktop) can run ANY event that maps to a
+  // scene -- including option-less routing/narrative events that the approximate
+  // simulator (which needs player choices) reports as unsupported. When that
+  // bridge is available we still show the toggle so those events are playable.
+  function realEngineAvailable(model) {
+    const engineUi = global && global.ProjectMapObjectPlaytestEngineUi;
+    if (!engineUi || typeof engineUi.isAvailable !== 'function' || !engineUi.isAvailable()) {
+      return false;
+    }
+    if (typeof engineUi.entrySceneId === 'function') {
+      return Boolean(engineUi.entrySceneId({getModel: function () { return model; }}));
+    }
+    return Boolean(model && (model.objectId || model.sceneId));
+  }
+
   function normalizePlayState(playState) {
     const ps = playState && typeof playState === 'object' ? playState : {};
     return {
@@ -104,8 +119,8 @@
   // left empty and pending so it only renders the first time the author opens
   // it (the canvas UI fills it via renderPane), keeping every modal open cheap
   // even though most are never play-tested.
-  function renderPaneWithPlay(previewHtml, body) {
-    if (!isSupported(body)) {
+  function renderPaneWithPlay(previewHtml, body, model) {
+    if (!isSupported(body) && !realEngineAvailable(model)) {
       return previewHtml;
     }
     return [
