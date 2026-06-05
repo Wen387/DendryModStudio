@@ -59,10 +59,7 @@
     renderTextBlocks,
     renderConditionalAlternatives,
     renderEventReviewDetailsPanels,
-    hydrateLazyReviewDetails,
-    isPlaySimulatable,
-    renderPlayPane,
-    renderPlayNode
+    hydrateLazyReviewDetails
   };
 
   if (global) {
@@ -159,43 +156,15 @@
   // Rendering lives in object_play_simulator_ui.js; these thin wrappers keep
   // this module's public api stable while delegating the markup there.
 
-  function playSimUi() {
-    if (global && global.ProjectMapObjectPlaySimulatorUi) {
-      return global.ProjectMapObjectPlaySimulatorUi;
-    }
-    if (typeof require === 'function') {
-      try {
-        return require('./object_play_simulator_ui.js');
-      } catch (_err) {
-        return null;
-      }
-    }
-    return null;
-  }
-
-  function isPlaySimulatable(body) {
-    const ui = playSimUi();
-    return Boolean(ui && typeof ui.isSupported === 'function' && ui.isSupported(body));
-  }
-
   function renderPreviewPaneWithPlay(model, options) {
-    const opts = options && typeof options === 'object' ? options : {};
-    const previewHtml = renderModalPreviewPane(model, opts);
-    const ui = playSimUi();
-    if (!ui || typeof ui.renderPaneWithPlay !== 'function') {
-      return previewHtml;
+    const previewHtml = renderModalPreviewPane(model, options && typeof options === 'object' ? options : {});
+    let ui = global && global.ProjectMapObjectPlaySimulatorUi;
+    if (!ui && typeof require === 'function') {
+      try { ui = require('./object_play_simulator_ui.js'); } catch (_err) { ui = null; }
     }
-    return ui.renderPaneWithPlay(previewHtml, model && model.eventBody || {}, model);
-  }
-
-  function renderPlayPane(body, model, playState) {
-    const ui = playSimUi();
-    return ui && typeof ui.renderPane === 'function' ? ui.renderPane(body, model, playState) : '';
-  }
-
-  function renderPlayNode(body, model, playState) {
-    const ui = playSimUi();
-    return ui && typeof ui.renderNode === 'function' ? ui.renderNode(body, model, playState) : '';
+    return ui && typeof ui.renderPaneWithPlay === 'function'
+      ? ui.renderPaneWithPlay(previewHtml, model && model.eventBody || {}, model)
+      : previewHtml;
   }
 
   function largeModalEventPlan(body) {

@@ -2743,7 +2743,7 @@ input.preview-object-control[type="checkbox"] {
 
 .object-editing-preview-modes-toolbar button.is-active {
   background: var(--studio-accent, var(--accent));
-  color: #fff;
+  color: var(--on-accent);
 }
 
 .object-editing-play {
@@ -3014,4 +3014,54 @@ input.preview-object-control[type="checkbox"] {
   margin: 0;
   color: var(--muted);
   font-size: 12px;
+}
+
+/* Real-engine play-test (Phase 2) -- reuses the approximate play styles above
+   and adds the engine-specific note, edit badges, loading and error states. */
+.object-editing-play-engine-note {
+  border-left: 2px solid color-mix(in srgb, var(--studio-accent, var(--accent)) 60%, var(--border));
+}
+
+.object-editing-play-engine-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0;
+}
+
+.object-editing-play-engine-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  background: var(--surface-alt);
+}
+
+.object-editing-play-engine-badge.is-edited {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  background: color-mix(in srgb, var(--studio-accent-soft, var(--surface)) 60%, var(--lift));
+}
+
+.object-editing-play-engine-badge.is-edit-failed {
+  border-color: color-mix(in srgb, var(--warning) 40%, var(--border));
+  color: color-mix(in srgb, var(--text) 70%, var(--warning));
+}
+
+.object-editing-play-engine-loading,
+.object-editing-play-engine-error {
+  margin: 8px 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.object-editing-play-engine-error {
+  color: color-mix(in srgb, var(--text) 70%, var(--warning));
+}
+
+.object-editing-play-engine-gameover {
+  margin: 8px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
 }

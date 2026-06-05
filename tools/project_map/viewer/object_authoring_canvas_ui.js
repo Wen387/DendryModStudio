@@ -2272,31 +2272,54 @@
   }
 
   function renderPlaySimPane() {
-    const editor = global.ProjectMapPreviewObjectEditor;
+    const simUi = global.ProjectMapObjectPlaySimulatorUi;
     const pane = playPreviewPane();
     const body = state.model && state.model.eventBody;
     const container = pane && pane.querySelector('[data-play-sim-pane]');
-    if (!editor || typeof editor.renderPlayPane !== 'function' || !body || !container) {
+    if (!container) {
       return;
     }
-    container.innerHTML = editor.renderPlayPane(body, state.model, ensurePlaySim());
+    // Prefer the real DendryEngine over the approximate dry-run when the desktop
+    // bridge is available and the object maps to a scene we can play.
+    const engineUi = global.ProjectMapObjectPlaytestEngineUi;
+    if (engineUi && typeof engineUi.claimPane === 'function' && engineUi.claimPane(container, engineDeps())) {
+      container.dataset.playSimPending = 'false';
+      return;
+    }
+    if (!simUi || typeof simUi.renderPane !== 'function' || !body) {
+      return;
+    }
+    container.innerHTML = simUi.renderPane(body, state.model, ensurePlaySim());
     container.dataset.playSimPending = 'false';
   }
 
   function renderPlaySimNode() {
-    const editor = global.ProjectMapPreviewObjectEditor;
+    const simUi = global.ProjectMapObjectPlaySimulatorUi;
     const pane = playPreviewPane();
     const body = state.model && state.model.eventBody;
     const node = pane && pane.querySelector('[data-play-node]');
-    if (!editor || typeof editor.renderPlayNode !== 'function' || !body || !node) {
+    if (!simUi || typeof simUi.renderNode !== 'function' || !body || !node) {
       return;
     }
-    node.innerHTML = editor.renderPlayNode(body, state.model, ensurePlaySim());
+    node.innerHTML = simUi.renderNode(body, state.model, ensurePlaySim());
+  }
+
+  // Real-engine play-test (Phase 2): hand the controller (ProjectMapObject-
+  // PlaytestEngineUi) accessors; it claims the pane when the desktop bridge is
+  // present, else the approximate simulator above runs (plain browser viewer).
+  function engineDeps() {
+    return {getModel: function () { return state.model; }, getHost: function () { return elements && elements.host; }, getInstallPlan: function () { try { return currentInstallPlan(); } catch (_e) { return null; } }, getPreviewPane: playPreviewPane};
   }
 
   function handlePlaySimClick(event) {
     const target = event && event.target;
     if (!target || !target.closest || !elements || !elements.host) {
+      return;
+    }
+    // The real-engine controller owns its own controls (choices + restart);
+    // let it claim the event first, then fall through to the approximate panel.
+    const engineUi = global.ProjectMapObjectPlaytestEngineUi;
+    if (engineUi && typeof engineUi.handleClick === 'function' && engineUi.handleClick(event, engineDeps())) {
       return;
     }
     const actionButton = target.closest('[data-play-action]');
@@ -2333,6 +2356,11 @@
   function handlePlaySimInput(event) {
     const target = event && event.target;
     if (!target || !target.closest || !elements || !elements.host) {
+      return;
+    }
+    // Real-engine mode: the controller re-runs from the edited starting state.
+    const engineUi = global.ProjectMapObjectPlaytestEngineUi;
+    if (engineUi && typeof engineUi.handleInput === 'function' && engineUi.handleInput(event, engineDeps())) {
       return;
     }
     const varInput = target.closest('[data-play-var]');
