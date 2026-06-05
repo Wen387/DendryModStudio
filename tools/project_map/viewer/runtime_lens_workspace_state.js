@@ -1,6 +1,14 @@
 (function initProjectMapRuntimeLensWorkspaceState(global) {
   'use strict';
 
+  const domTextUtils = (function () {
+    if (global && global.ProjectMapDomText) {
+      return global.ProjectMapDomText;
+    }
+    return require('./dom_text_utils.js');
+  })();
+  const ensureArray = domTextUtils.ensureArray;
+
   function reset(state) {
     state.runtimeLensSession = null;
     state.runtimeLensStatus = 'idle';
@@ -480,10 +488,6 @@
 
   function runtimeVisualAssetDraftApi() {
     return global && global.ProjectMapRuntimeVisualAssetDraftModel || null;
-  }
-
-  function ensureArray(value) {
-    return Array.isArray(value) ? value : [];
   }
 
   const api = {reset, bind, handleAction, handleVisualAction, handleEvidenceMessage, refreshRuntimeVisualSurface, currentFocus, currentPlan, draftKey, markStale};

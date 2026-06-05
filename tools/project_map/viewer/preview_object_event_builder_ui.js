@@ -1,6 +1,16 @@
 (function initProjectMapPreviewObjectEventBuilder(global) {
   'use strict';
 
+  const domTextUtils = (function () {
+    if (global && global.ProjectMapDomText) {
+      return global.ProjectMapDomText;
+    }
+    return require('./dom_text_utils.js');
+  })();
+  const ensureArray = domTextUtils.ensureArray;
+  const escapeHtml = domTextUtils.escapeHtml;
+  const escapeAttr = domTextUtils.escapeAttr;
+
   const api = {
     renderAssetReferenceEditor,
     renderEventGraphSummary,
@@ -1026,10 +1036,6 @@
     }
   }
 
-  function ensureArray(value) {
-    return Array.isArray(value) ? value : [];
-  }
-
   function safeClass(value) {
     return String(value || 'item').replace(/[^a-z0-9_-]+/gi, '-').toLowerCase();
   }
@@ -1039,17 +1045,4 @@
     return i18n && typeof i18n.t === 'function' ? i18n.t(key, fallback) : fallback;
   }
 
-  function escapeAttr(value) {
-    return escapeHtml(value).replace(/`/g, '&#96;');
-  }
-
-  function escapeHtml(value) {
-    return String(value || '').replace(/[&<>"']/g, (char) => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;'
-    }[char]));
-  }
 })(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : null));

@@ -1,6 +1,16 @@
 (function initProjectMapObjectAuthoringCanvas(global) {
   'use strict';
 
+  const domTextUtils = (function () {
+    if (global && global.ProjectMapDomText) {
+      return global.ProjectMapDomText;
+    }
+    return require('./dom_text_utils.js');
+  })();
+  const ensureArray = domTextUtils.ensureArray;
+  const escapeHtml = domTextUtils.escapeHtml;
+  const escapeAttr = domTextUtils.escapeAttr;
+
   const EVENT_NAMES = [
     'project-map:index-loaded',
     'ProjectMap:index-loaded',
@@ -4998,10 +5008,6 @@
     }
   }
 
-  function ensureArray(value) {
-    return Array.isArray(value) ? value : [];
-  }
-
   function t(key, fallback) {
     const i18n = global.ProjectMapI18n;
     return i18n && typeof i18n.t === 'function' ? i18n.t(key, fallback) : fallback;
@@ -5013,10 +5019,6 @@
     return String(value || '').toLowerCase().startsWith('zh') ? 'zh-Hant' : 'en';
   }
 
-  function escapeAttr(value) {
-    return escapeHtml(value).replace(/`/g, '&#96;');
-  }
-
   function cssEscape(value) {
     const css = global && global.CSS;
     if (css && typeof css.escape === 'function') {
@@ -5025,13 +5027,4 @@
     return String(value || '').replace(/["\\\]]/g, '\\$&');
   }
 
-  function escapeHtml(value) {
-    return String(value || '').replace(/[&<>"']/g, (char) => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;'
-    }[char]));
-  }
 })(typeof window !== 'undefined' ? window : globalThis);

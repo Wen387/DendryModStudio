@@ -1,6 +1,16 @@
 (function initProjectMapElectionResultsChart(global) {
   'use strict';
 
+  const domTextUtils = (function () {
+    if (global && global.ProjectMapDomText) {
+      return global.ProjectMapDomText;
+    }
+    return require('./dom_text_utils.js');
+  })();
+  const ensureArray = domTextUtils.ensureArray;
+  const escapeHtml = domTextUtils.escapeHtml;
+  const escapeAttr = domTextUtils.escapeAttr;
+
   function render(parties, options) {
     const opts = options && typeof options === 'object' ? options : {};
     const rows = normalizeParties(parties);
@@ -205,24 +215,6 @@
 
   function safeClass(value) {
     return String(value || 'party').replace(/[^a-z0-9_-]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'party';
-  }
-
-  function ensureArray(value) {
-    return Array.isArray(value) ? value : [];
-  }
-
-  function escapeAttr(value) {
-    return escapeHtml(value).replace(/`/g, '&#96;');
-  }
-
-  function escapeHtml(value) {
-    return String(value || '').replace(/[&<>"']/g, (char) => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;'
-    }[char]));
   }
 
   const api = {render, toD3Data, buildSemiCircleLayout, renderWithD3Parliament};

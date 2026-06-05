@@ -1,6 +1,14 @@
 (function initProjectMapCardWorkspaceState(global) {
   'use strict';
 
+  const domTextUtils = (function () {
+    if (global && global.ProjectMapDomText) {
+      return global.ProjectMapDomText;
+    }
+    return require('./dom_text_utils.js');
+  })();
+  const ensureArray = domTextUtils.ensureArray;
+
   function reset(state) {
     state.cardBoardSelectedKey = '';
     state.cardBoardLane = 'pool';
@@ -928,10 +936,6 @@
   function safeId(value) {
     const text = String(value || '').trim().toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '');
     return /^[a-z_]/.test(text) ? text : 'card_' + (text || 'draft');
-  }
-
-  function ensureArray(value) {
-    return Array.isArray(value) ? value : [];
   }
 
   const api = {bind, draftWithContext, handleAction, isCardBoardState, openFromSystemRegion, openSelectedCardEditor, renderStage, reset, restoreContext, selectCard, selectObject};

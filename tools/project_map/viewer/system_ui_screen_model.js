@@ -1,6 +1,14 @@
 (function initProjectMapSystemUiScreenModel(global) {
   'use strict';
 
+  const domTextUtils = (function () {
+    if (global && global.ProjectMapDomText) {
+      return global.ProjectMapDomText;
+    }
+    return require('./dom_text_utils.js');
+  })();
+  const ensureArray = domTextUtils.ensureArray;
+
   const RECIPES = {
     entry: {
       key: 'entry',
@@ -1452,10 +1460,6 @@
       }
     }
     return null;
-  }
-
-  function ensureArray(value) {
-    return Array.isArray(value) ? value : [];
   }
 
   function isObject(value) {

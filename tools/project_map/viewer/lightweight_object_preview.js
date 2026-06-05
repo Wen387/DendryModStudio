@@ -1,6 +1,16 @@
 (function initProjectMapLightweightObjectPreview(global) {
   'use strict';
 
+  const domTextUtils = (function () {
+    if (global && global.ProjectMapDomText) {
+      return global.ProjectMapDomText;
+    }
+    return require('./dom_text_utils.js');
+  })();
+  const ensureArray = domTextUtils.ensureArray;
+  const escapeHtml = domTextUtils.escapeHtml;
+  const escapeAttr = domTextUtils.escapeAttr;
+
   const api = {
     render,
     renderCard
@@ -218,10 +228,6 @@
     return kind === 'news' ? t('objectPreview.news', 'News') : t('objectPreview.event', 'World Event');
   }
 
-  function ensureArray(value) {
-    return Array.isArray(value) ? value : [];
-  }
-
   function collapseWhitespace(value) {
     return String(value || '').replace(/\s+/g, ' ').trim();
   }
@@ -255,19 +261,6 @@
       }
     }
     return null;
-  }
-
-  function escapeHtml(value) {
-    return String(value == null ? '' : value)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
-
-  function escapeAttr(value) {
-    return escapeHtml(value);
   }
 
   function t(key, fallback) {

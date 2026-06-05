@@ -1,6 +1,14 @@
 (function initProjectMapSystemUiCapabilityModel(global) {
   'use strict';
 
+  const domTextUtils = (function () {
+    if (global && global.ProjectMapDomText) {
+      return global.ProjectMapDomText;
+    }
+    return require('./dom_text_utils.js');
+  })();
+  const ensureArray = domTextUtils.ensureArray;
+
   const VERSION = '0.1';
   const GENERATED_ONLY = 'generated_only';
   const SOURCE_BACKED = 'source_backed';
@@ -455,10 +463,6 @@
     }
     const number = Number(value);
     return Number.isFinite(number) ? Math.floor(number) : null;
-  }
-
-  function ensureArray(value) {
-    return Array.isArray(value) ? value : [];
   }
 
   function isObject(value) {

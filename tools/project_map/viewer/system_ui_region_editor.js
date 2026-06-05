@@ -1,6 +1,16 @@
 (function initProjectMapSystemUiRegionEditor(global) {
   'use strict';
 
+  const domTextUtils = (function () {
+    if (global && global.ProjectMapDomText) {
+      return global.ProjectMapDomText;
+    }
+    return require('./dom_text_utils.js');
+  })();
+  const ensureArray = domTextUtils.ensureArray;
+  const escapeHtml = domTextUtils.escapeHtml;
+  const escapeAttr = domTextUtils.escapeAttr;
+
   function render(model, screen, options) {
     const opts = isObject(options) ? options : {};
     const selected = screen && screen.selected || null;
@@ -507,10 +517,6 @@
     return /^#[0-9A-Fa-f]{6}$/.test(text) ? text : '#999999';
   }
 
-  function ensureArray(value) {
-    return Array.isArray(value) ? value : [];
-  }
-
   function isObject(value) {
     return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
   }
@@ -532,20 +538,6 @@
       }
     }
     return null;
-  }
-
-  function escapeAttr(value) {
-    return escapeHtml(value).replace(/`/g, '&#96;');
-  }
-
-  function escapeHtml(value) {
-    return String(value || '').replace(/[&<>"']/g, (char) => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;'
-    }[char]));
   }
 
   const api = {render};

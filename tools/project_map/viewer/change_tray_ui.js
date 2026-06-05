@@ -1,6 +1,14 @@
 (function initProjectMapChangeTray(global) {
   'use strict';
 
+  const domTextUtils = (function () {
+    if (global && global.ProjectMapDomText) {
+      return global.ProjectMapDomText;
+    }
+    return require('./dom_text_utils.js');
+  })();
+  const escapeHtml = domTextUtils.escapeHtml;
+
   const state = {
     open: false,
     count: 0
@@ -222,12 +230,4 @@
     return icons && typeof icons.icon === 'function' ? icons.icon(name) : '';
   }
 
-  function escapeHtml(value) {
-    return String(value == null ? '' : value)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
 })(typeof window !== 'undefined' ? window : globalThis);

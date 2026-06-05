@@ -1,6 +1,16 @@
 (function initProjectMapCardFaceEditor(global) {
   'use strict';
 
+  const domTextUtils = (function () {
+    if (global && global.ProjectMapDomText) {
+      return global.ProjectMapDomText;
+    }
+    return require('./dom_text_utils.js');
+  })();
+  const ensureArray = domTextUtils.ensureArray;
+  const escapeHtml = domTextUtils.escapeHtml;
+  const escapeAttr = domTextUtils.escapeAttr;
+
   function render(model, board, options) {
     const opts = options && typeof options === 'object' ? options : {};
     const selectedObject = board && board.selectedObject || {};
@@ -580,10 +590,6 @@
     return String(Math.max(3, Math.min(10, String(value || '').split('\n').length + 1)));
   }
 
-  function ensureArray(value) {
-    return Array.isArray(value) ? value : [];
-  }
-
   function t(key, fallback) {
     const i18n = global.ProjectMapI18n;
     return i18n && typeof i18n.t === 'function' ? i18n.t(key, fallback) : fallback;
@@ -615,20 +621,6 @@
       }
     }
     return null;
-  }
-
-  function escapeAttr(value) {
-    return escapeHtml(value).replace(/`/g, '&#96;');
-  }
-
-  function escapeHtml(value) {
-    return String(value || '').replace(/[&<>"']/g, (char) => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;'
-    }[char]));
   }
 
   const api = {render};

@@ -1,6 +1,16 @@
 (function initProjectMapWizard(global) {
   'use strict';
 
+  const domTextUtils = (function () {
+    if (global && global.ProjectMapDomText) {
+      return global.ProjectMapDomText;
+    }
+    return require('./dom_text_utils.js');
+  })();
+  const ensureArray = domTextUtils.ensureArray;
+  const escapeHtml = domTextUtils.escapeHtml;
+  const escapeAttr = domTextUtils.escapeAttr;
+
 
   const MIN_OPTION_COUNT = 2;
   const MAX_OPTION_COUNT = 4;
@@ -2009,19 +2019,6 @@
     return String(value || '').replace(/\s+/g, ' ').trim();
   }
 
-  function escapeAttr(value) {
-    return escapeHtml(value).replace(/`/g, '&#96;');
-  }
-
-  function escapeHtml(value) {
-    return String(value === undefined || value === null ? '' : value)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
-
   function paragraphText(value) {
     return String(value || '').trim() || 'The event resolves into a visible political consequence.';
   }
@@ -2036,10 +2033,6 @@
 
   function looksLikeChineseStringComparison(value) {
     return /[=!<>]\s*['"][^'"]*[\u3400-\u9fff]/.test(String(value || ''));
-  }
-
-  function ensureArray(value) {
-    return Array.isArray(value) ? value : [];
   }
 
   function firstString() {

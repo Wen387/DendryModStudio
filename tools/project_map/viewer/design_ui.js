@@ -1,6 +1,15 @@
 (function initProjectMapDesignUi(global) {
   'use strict';
 
+  const domTextUtils = (function () {
+    if (global && global.ProjectMapDomText) {
+      return global.ProjectMapDomText;
+    }
+    return require('./dom_text_utils.js');
+  })();
+  const escapeHtml = domTextUtils.escapeHtml;
+  const escapeAttr = domTextUtils.escapeAttr;
+
   if (!global || !global.document) {
     return;
   }
@@ -1762,19 +1771,6 @@
 
   function sourceLine(source) {
     return source && (source.line || source.startLine) ? String(source.line || source.startLine) : '';
-  }
-
-  function escapeHtml(value) {
-    return String(value === undefined || value === null ? '' : value)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
-
-  function escapeAttr(value) {
-    return escapeHtml(value).replace(/`/g, '&#96;');
   }
 
   function cssEscape(value) {

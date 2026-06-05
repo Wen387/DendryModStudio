@@ -1,6 +1,14 @@
 (function initProjectMapDraftWorkspaceUi(global) {
   'use strict';
 
+  const domTextUtils = (function () {
+    if (global && global.ProjectMapDomText) {
+      return global.ProjectMapDomText;
+    }
+    return require('./dom_text_utils.js');
+  })();
+  const escapeHtml = domTextUtils.escapeHtml;
+
   const TEMPLATE_LABELS = {
     event: 'World Event',
     news: 'News',
@@ -528,13 +536,4 @@
     return i18n && typeof i18n.t === 'function' ? i18n.t(key, fallback) : fallback;
   }
 
-  function escapeHtml(value) {
-    return String(value || '').replace(/[&<>"']/g, (char) => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;'
-    }[char]));
-  }
 })(typeof window !== 'undefined' ? window : globalThis);

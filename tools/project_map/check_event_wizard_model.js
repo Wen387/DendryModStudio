@@ -93,8 +93,11 @@ assert(wizardUi.includes('applyEventDraftToForm'), 'wizard UI should be able to 
 assert(wizardUi.includes("eventShape = optionCount === 0 ? 'pure_event' : 'choice_event'"), 'wizard should map zero choices to pure_event drafts');
 assert(wizardUi.includes('installChecklist'), 'wizard UI should surface install operation checklist');
 assert(wizardUi.includes('variantsToText'), 'wizard UI should contain variantsToText helper');
-assert(wizardUi.includes('function escapeAttr'), 'wizard UI should define escapeAttr for variable datalist rendering');
-assert(wizardUi.includes('function escapeHtml'), 'wizard UI should define escapeHtml for escapeAttr');
+assert(wizardUi.includes('escapeAttr('), 'wizard UI should attribute-escape variable datalist values');
+assert(
+  wizardUi.includes("require('./dom_text_utils.js')") && wizardUi.includes('domTextUtils.escapeAttr'),
+  'wizard UI should source escape helpers from the shared dom_text_utils module'
+);
 assert(
   wizardUi.includes("t('create.default.continue', 'Continue')"),
   'fallback preview should use the localized continuation label'

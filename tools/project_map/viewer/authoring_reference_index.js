@@ -1,6 +1,14 @@
 (function initProjectMapAuthoringReferenceIndex(global) {
   'use strict';
 
+  const domTextUtils = (function () {
+    if (global && global.ProjectMapDomText) {
+      return global.ProjectMapDomText;
+    }
+    return require('./dom_text_utils.js');
+  })();
+  const ensureArray = domTextUtils.ensureArray;
+
   function contentContext(projectIndex, model) {
     const value = model && typeof model === 'object' ? model : {};
     const raw = value.rawContext || {};
@@ -132,10 +140,6 @@
 
   function safeId(value) {
     return String(value || 'object').trim().toLowerCase().replace(/[^a-z0-9_]+/g, '_').replace(/^_+|_+$/g, '') || 'object';
-  }
-
-  function ensureArray(value) {
-    return Array.isArray(value) ? value : [];
   }
 
   function t(key, fallback) {

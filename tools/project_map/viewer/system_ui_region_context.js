@@ -1,6 +1,14 @@
 (function initProjectMapSystemUiRegionContext(global) {
   'use strict';
 
+  const domTextUtils = (function () {
+    if (global && global.ProjectMapDomText) {
+      return global.ProjectMapDomText;
+    }
+    return require('./dom_text_utils.js');
+  })();
+  const ensureArray = domTextUtils.ensureArray;
+
   const REGION_OWNERS = {
     layout_frame: owner('workspace_layout', 'workspace_layout', 'systemUi.owner.layout', 'Workspace Layout', 'layout'),
     screen_header: owner('project', 'project_metadata', 'systemUi.owner.project', 'Game Info', 'header'),
@@ -154,10 +162,6 @@
 
   function owner(template, kind, labelKey, fallback, slot) {
     return {template, kind, labelKey, fallback, slot};
-  }
-
-  function ensureArray(value) {
-    return Array.isArray(value) ? value : [];
   }
 
   function isObject(value) {

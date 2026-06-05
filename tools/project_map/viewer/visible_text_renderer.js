@@ -1,6 +1,15 @@
 (function initProjectMapVisibleTextRenderer(global) {
   'use strict';
 
+  const domTextUtils = (function () {
+    if (global && global.ProjectMapDomText) {
+      return global.ProjectMapDomText;
+    }
+    return require('./dom_text_utils.js');
+  })();
+  const escapeHtml = domTextUtils.escapeHtml;
+  const escapeAttr = domTextUtils.escapeAttr;
+
   const ALLOWED_TAGS = new Set([
     'span', 'strong', 'b', 'em', 'i', 'u', 'small', 'code', 'mark', 'br', 'sup', 'sub',
     'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption', 'figure', 'figcaption', 'img'
@@ -400,20 +409,6 @@
 
   function withConditionalMode(options, mode) {
     return Object.assign({}, options && typeof options === 'object' ? options : {}, {conditionalMode: mode});
-  }
-
-  function escapeAttr(value) {
-    return escapeHtml(value).replace(/`/g, '&#96;');
-  }
-
-  function escapeHtml(value) {
-    return String(value == null ? '' : value).replace(/[&<>"']/g, (char) => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;'
-    }[char]));
   }
 
   if (typeof module !== 'undefined' && module.exports) {

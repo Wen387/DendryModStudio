@@ -1,6 +1,14 @@
 (function initProjectMapAuthoringSurfaceGraphs(global) {
   'use strict';
 
+  const domTextUtils = (function () {
+    if (global && global.ProjectMapDomText) {
+      return global.ProjectMapDomText;
+    }
+    return require('./dom_text_utils.js');
+  })();
+  const ensureArray = domTextUtils.ensureArray;
+
   function buildGraph(model, options) {
     const opts = options && typeof options === 'object' ? options : {};
     const workspace = opts.workspace || 'content';
@@ -135,10 +143,6 @@
 
   function countRows(rows) {
     return Array.isArray(rows) ? rows.length : 0;
-  }
-
-  function ensureArray(value) {
-    return Array.isArray(value) ? value : [];
   }
 
   function t(key, fallback) {

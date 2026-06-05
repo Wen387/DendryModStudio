@@ -78,9 +78,9 @@
     },
     {
       "path": "tools/project_map/viewer/object_authoring_canvas_ui.js",
-      "maxLines": 5037,
+      "maxLines": 5030,
       "allowRaise": true,
-      "reason": "Keep orchestration here; split editor UI into workspace modules. Raised 2026-06-04 from 4987 for conditional condition-variable insert handler (handleConditionalVarInsert, UX #3), then to 5044 for the deferred asset-select populate wiring (focus/mousedown handlers + populate-before-filter; the asset picker now defers its full option list and builds it on focus instead of inlining every candidate across hundreds of slots), then lowered to 5037 after removing dead sourceSliceReplacementText."
+      "reason": "Keep orchestration here; split editor UI into workspace modules. Raised 2026-06-04 from 4987 for conditional condition-variable insert handler (handleConditionalVarInsert, UX #3), then to 5044 for the deferred asset-select populate wiring (focus/mousedown handlers + populate-before-filter; the asset picker now defers its full option list and builds it on focus instead of inlining every candidate across hundreds of slots), then lowered to 5037 after removing dead sourceSliceReplacementText, then to 5030 after adopting shared dom_text_utils helpers (removed local escape/ensureArray duplicates)."
     },
     {
       "path": "tools/project_map/viewer/preview_object_editor.js",
@@ -96,8 +96,8 @@
     },
     {
       "path": "tools/project_map/viewer/wizard_ui.js",
-      "maxLines": 2069,
-      "reason": "Route new wizard domains to dedicated UI modules."
+      "maxLines": 2062,
+      "reason": "Route new wizard domains to dedicated UI modules. Lowered 2026-06-04 to 2062 after adopting shared dom_text_utils helpers."
     }
   ]
 }

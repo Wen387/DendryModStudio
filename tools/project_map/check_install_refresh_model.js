@@ -17,6 +17,7 @@ function loadInstallAssistant(desktop) {
     dendryDesktop: desktop
   };
   context.globalThis = context;
+  context.ProjectMapDomText = require('./viewer/dom_text_utils.js');
   vm.createContext(context);
   vm.runInContext(fs.readFileSync(INSTALL_UI, 'utf8'), context, {filename: INSTALL_UI});
   assert(context.ProjectMapInstallAssistant, 'Install Assistant API should be exposed without DOM');

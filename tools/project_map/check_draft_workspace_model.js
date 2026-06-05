@@ -432,6 +432,7 @@ function runDraftWorkspaceUiSmoke(items) {
   };
   context.window = context;
   context.globalThis = context;
+  context.ProjectMapDomText = require('./viewer/dom_text_utils.js');
   vm.runInNewContext(
     fs.readFileSync(path.join(__dirname, 'viewer', 'draft_workspace_ui.js'), 'utf8'),
     context,
@@ -559,6 +560,7 @@ function runDraftWorkspaceSaveSmoke(initialItems, currentDraft, currentOutput, w
   };
   context.window = context;
   context.globalThis = context;
+  context.ProjectMapDomText = require('./viewer/dom_text_utils.js');
   vm.runInNewContext(
     fs.readFileSync(path.join(__dirname, 'viewer', 'draft_workspace_ui.js'), 'utf8'),
     context,

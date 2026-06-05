@@ -1,6 +1,16 @@
 (function initProjectMapUpdateNotice(global) {
   'use strict';
 
+  const domTextUtils = (function () {
+    if (global && global.ProjectMapDomText) {
+      return global.ProjectMapDomText;
+    }
+    return require('./dom_text_utils.js');
+  })();
+  const ensureArray = domTextUtils.ensureArray;
+  const escapeHtml = domTextUtils.escapeHtml;
+  const escapeAttr = domTextUtils.escapeAttr;
+
   const DISMISSED_KEY = 'dendry-mod-studio-update-notice-dismissed';
   const MAX_BOARD_NOTICES = 40;
   const BOARD_CATEGORIES = ['updates', 'announcements', 'testing'];
@@ -31,10 +41,6 @@
 
   function noticeKey(notice) {
     return String(notice && (notice.noticeId || notice.latestVersion || notice.title) || '');
-  }
-
-  function ensureArray(value) {
-    return Array.isArray(value) ? value : [];
   }
 
   function currentLocale() {
@@ -794,17 +800,4 @@
     }
   }
 
-  function escapeHtml(value) {
-    return String(value || '').replace(/[&<>"']/g, (char) => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;'
-    }[char]));
-  }
-
-  function escapeAttr(value) {
-    return escapeHtml(value);
-  }
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -1,6 +1,15 @@
 (function initProjectMapEventWorkbenchUi(global) {
   'use strict';
 
+  const domTextUtils = (function () {
+    if (global && global.ProjectMapDomText) {
+      return global.ProjectMapDomText;
+    }
+    return require('./dom_text_utils.js');
+  })();
+  const escapeHtml = domTextUtils.escapeHtml;
+  const escapeAttr = domTextUtils.escapeAttr;
+
   const api = {
     renderEventWorkbench
   };
@@ -375,16 +384,4 @@
     return null;
   }
 
-  function escapeHtml(value) {
-    return String(value === undefined || value === null ? '' : value)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
-
-  function escapeAttr(value) {
-    return escapeHtml(value).replace(/`/g, '&#96;');
-  }
 })(typeof window !== 'undefined' ? window : globalThis);

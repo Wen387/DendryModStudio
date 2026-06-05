@@ -1,6 +1,14 @@
 (function initProjectMapSemanticLogicWorkspace(global) {
   'use strict';
 
+  const domTextUtils = (function () {
+    if (global && global.ProjectMapDomText) {
+      return global.ProjectMapDomText;
+    }
+    return require('./dom_text_utils.js');
+  })();
+  const ensureArray = domTextUtils.ensureArray;
+
   const FIELD_KEY = 'semantic_logic.replacementText';
 
   const api = {
@@ -17,10 +25,6 @@
   }
   if (global) {
     global.ProjectMapSemanticLogicWorkspace = api;
-  }
-
-  function ensureArray(value) {
-    return Array.isArray(value) ? value : [];
   }
 
   function buildCanvasModel(editorModel, values, deps) {

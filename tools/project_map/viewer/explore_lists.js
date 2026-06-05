@@ -1,6 +1,15 @@
 (function initProjectMapExploreLists(root) {
   'use strict';
 
+  const domTextUtils = (function () {
+    if (root && root.ProjectMapDomText) {
+      return root.ProjectMapDomText;
+    }
+    return require('./dom_text_utils.js');
+  })();
+  const escapeHtml = domTextUtils.escapeHtml;
+  const escapeAttr = domTextUtils.escapeAttr;
+
   function ProjectMapExploreLists(ctx) {
     ctx = ctx || {};
     const global = ctx.global || root;
@@ -979,21 +988,6 @@
     }
     return labels[value] || value;
   }
-
-  function escapeHtml(value) {
-    return String(value ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  }
-
-  function escapeAttr(value) {
-    return escapeHtml(value).replace(/`/g, '&#96;');
-  }
-
-
 
     return {
       render,

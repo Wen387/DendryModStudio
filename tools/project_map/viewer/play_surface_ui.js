@@ -1,6 +1,15 @@
 (function initProjectMapPlaySurfaceWizard(global) {
   'use strict';
 
+  const domTextUtils = (function () {
+    if (global && global.ProjectMapDomText) {
+      return global.ProjectMapDomText;
+    }
+    return require('./dom_text_utils.js');
+  })();
+  const escapeHtml = domTextUtils.escapeHtml;
+  const escapeAttr = domTextUtils.escapeAttr;
+
   const EVENT_NAMES = [
     'project-map:index-loaded',
     'ProjectMap:index-loaded',
@@ -395,17 +404,4 @@
     return i18n && typeof i18n.t === 'function' ? i18n.t(key, fallback) : fallback;
   }
 
-  function escapeHtml(value) {
-    return String(value || '').replace(/[&<>"']/g, (char) => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;'
-    }[char]));
-  }
-
-  function escapeAttr(value) {
-    return escapeHtml(value);
-  }
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -1,6 +1,14 @@
 (function initProjectMapSurfaceTextWizard(global) {
   'use strict';
 
+  const domTextUtils = (function () {
+    if (global && global.ProjectMapDomText) {
+      return global.ProjectMapDomText;
+    }
+    return require('./dom_text_utils.js');
+  })();
+  const escapeHtml = domTextUtils.escapeHtml;
+
   const EVENT_NAMES = [
     'project-map:index-loaded',
     'ProjectMap:index-loaded',
@@ -449,13 +457,4 @@
     URL.revokeObjectURL(url);
   }
 
-  function escapeHtml(value) {
-    return String(value || '').replace(/[&<>"']/g, (char) => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;'
-    }[char]));
-  }
 })(typeof window !== 'undefined' ? window : globalThis);

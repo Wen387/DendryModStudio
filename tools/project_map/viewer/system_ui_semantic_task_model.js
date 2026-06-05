@@ -1,6 +1,14 @@
 (function initProjectMapSystemUiSemanticTaskModel(global) {
   'use strict';
 
+  const domTextUtils = (function () {
+    if (global && global.ProjectMapDomText) {
+      return global.ProjectMapDomText;
+    }
+    return require('./dom_text_utils.js');
+  })();
+  const ensureArray = domTextUtils.ensureArray;
+
   const VERSION = '0.1';
 
   const REGION_TASKS = {
@@ -204,10 +212,6 @@
 
   function task(intent, labelKey, label, summaryKey, summary, actionKind, fieldIds, primaryFieldId) {
     return {intent, labelKey, label, summaryKey, summary, actionKind, fieldIds, primaryFieldId};
-  }
-
-  function ensureArray(value) {
-    return Array.isArray(value) ? value : [];
   }
 
   function isObject(value) {
