@@ -2,6 +2,7 @@
 @import url("styles/dialogs.css");
 @import url("styles/welcome.css");
 @import url("styles/guided-tour.css");
+@import url("styles/first-proposal-quest.css");
 @import url("styles/shell.css");
 @import url("styles/design.css");
 @import url("styles/explore.css");
@@ -10,6 +11,7 @@
 @import url("styles/install-preview.css");
 @import url("styles/create.css");
 @import url("styles/editing.css");
+@import url("styles/lightweight-object-preview.css");
 @import url("styles/route-script-review.css");
 @import url("styles/content-storyboard.css");
 @import url("styles/content-storyboard-palette.css");
