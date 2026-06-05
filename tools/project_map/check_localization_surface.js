@@ -12,40 +12,62 @@ const VIEWER_HTML = path.join(VIEWER_DIR, 'index.html');
 
 const {fail, assert} = require('./check_harness.js');
 
-function findObjectBody(source, marker) {
-  const markerIndex = source.indexOf(marker);
-  assert(markerIndex !== -1, 'missing dictionary marker: ' + marker);
-  const openIndex = source.indexOf('{', markerIndex);
-  assert(openIndex !== -1, 'missing dictionary object for: ' + marker);
-  let depth = 0;
-  let quote = '';
-  let escaped = false;
-  for (let index = openIndex; index < source.length; index += 1) {
-    const char = source[index];
-    if (quote) {
-      if (escaped) {
-        escaped = false;
-      } else if (char === '\\') {
-        escaped = true;
-      } else if (char === quote) {
-        quote = '';
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// Returns the body of EVERY dictionary object introduced by `marker`, so a
+// language catalog can be split across several files (e.g. en.js +
+// en.publish.js, both concatenated by readViewerI18n). The marker is matched
+// only at a line-start property position (^\s*<marker>\s*{) — never inside a
+// quoted value, so a string like 'open: {count}' or '... screen: {x}' can't
+// false-match the bare `en:` marker. Each match is scanned with a string-aware
+// balanced-brace walk; scanning resumes after each closed block.
+function findObjectBodies(source, marker) {
+  const bodies = [];
+  const re = new RegExp('^[ \\t]*' + escapeRegExp(marker) + '[ \\t]*\\{', 'mg');
+  let match = re.exec(source);
+  while (match) {
+    const openIndex = source.indexOf('{', match.index);
+    let depth = 0;
+    let quote = '';
+    let escaped = false;
+    let endIndex = -1;
+    for (let index = openIndex; index < source.length; index += 1) {
+      const char = source[index];
+      if (quote) {
+        if (escaped) {
+          escaped = false;
+        } else if (char === '\\') {
+          escaped = true;
+        } else if (char === quote) {
+          quote = '';
+        }
+        continue;
       }
-      continue;
-    }
-    if (char === '\'' || char === '"' || char === '`') {
-      quote = char;
-      continue;
-    }
-    if (char === '{') {
-      depth += 1;
-    } else if (char === '}') {
-      depth -= 1;
-      if (depth === 0) {
-        return source.slice(openIndex + 1, index);
+      if (char === '\'' || char === '"' || char === '`') {
+        quote = char;
+        continue;
+      }
+      if (char === '{') {
+        depth += 1;
+      } else if (char === '}') {
+        depth -= 1;
+        if (depth === 0) {
+          endIndex = index;
+          break;
+        }
       }
     }
+    if (endIndex === -1) {
+      fail('unterminated dictionary object for: ' + marker);
+    }
+    bodies.push(source.slice(openIndex + 1, endIndex));
+    re.lastIndex = endIndex + 1;
+    match = re.exec(source);
   }
-  fail('unterminated dictionary object for: ' + marker);
+  assert(bodies.length > 0, 'missing dictionary marker: ' + marker);
+  return bodies;
 }
 
 function unescapeJsString(value) {
@@ -57,14 +79,15 @@ function unescapeJsString(value) {
 }
 
 function extractDictionary(source, marker) {
-  const body = findObjectBody(source, marker);
   const entries = new Map();
-  const keyPattern = /'((?:\\.|[^'\\])+)'\s*:\s*'((?:\\.|[^'\\])*)'/g;
-  let match = keyPattern.exec(body);
-  while (match) {
-    entries.set(unescapeJsString(match[1]), unescapeJsString(match[2]));
-    match = keyPattern.exec(body);
-  }
+  findObjectBodies(source, marker).forEach((body) => {
+    const keyPattern = /'((?:\\.|[^'\\])+)'\s*:\s*'((?:\\.|[^'\\])*)'/g;
+    let match = keyPattern.exec(body);
+    while (match) {
+      entries.set(unescapeJsString(match[1]), unescapeJsString(match[2]));
+      match = keyPattern.exec(body);
+    }
+  });
   return entries;
 }
 
@@ -182,7 +205,9 @@ function roughZhTermViolations(entries) {
 const html = fs.readFileSync(VIEWER_HTML, 'utf8');
 [
   path.join(VIEWER_DIR, 'i18n', 'en.js'),
-  path.join(VIEWER_DIR, 'i18n', 'zh-Hant.js')
+  path.join(VIEWER_DIR, 'i18n', 'zh-Hant.js'),
+  path.join(VIEWER_DIR, 'i18n', 'en.publish.js'),
+  path.join(VIEWER_DIR, 'i18n', 'zh-Hant.publish.js')
 ].forEach((file) => {
   try {
     new vm.Script(fs.readFileSync(file, 'utf8'), {filename: file});
