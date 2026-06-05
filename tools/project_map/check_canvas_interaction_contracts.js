@@ -500,6 +500,55 @@ function checkRenderedAndPureBehavior() {
   assert(previewEditorSync.previewObjectRouteLabel({template: 'card'}) === 'Card', 'Preview editor route label should map card');
   assert(previewEditorSync.previewObjectRouteLabel({template: 'surface'}) === 'Text Patch', 'Preview editor route label should map surface');
   assert(previewEditorSync.previewObjectRouteLabel({template: 'event'}) === 'World Event', 'Preview editor route label should map event');
+
+  // syncPreviewObjectEditorPane must NOT wipe the Preview/Play toggle. The
+  // desktop real-engine play-test wraps the pane in a modes toolbar + a preview
+  // panel + a play panel; the first post-render model sync used to rewrite the
+  // whole pane innerHTML and erase the toolbar before the author ever saw it (the
+  // Play tab never appeared). When the toggle is present only the inner preview
+  // panel is replaced; without it (plain browser) the whole pane is replaced.
+  const previewPaneEditorStub = {
+    renderPreviewPane: () => 'INNER_PREVIEW_HTML',
+    renderModalPreviewPane: () => 'INNER_PREVIEW_HTML'
+  };
+  function previewPaneNode(withToggle) {
+    const previewPanel = {innerHTML: 'STALE_PREVIEW'};
+    const node = {
+      innerHTML: 'TOOLBAR+PREVIEW+PLAY',
+      querySelector(selector) {
+        assert(selector === '[data-preview-mode-panel="preview"]',
+          'Preview pane sync should look up the preview sub-panel by its stable contract');
+        return withToggle ? previewPanel : null;
+      }
+    };
+    return {node: node, previewPanel: previewPanel};
+  }
+  function previewPaneHost(node) {
+    return {
+      querySelectorAll(selector) {
+        assert(selector === '[data-object-editing-modal-preview-pane]',
+          'Preview pane sync should query the modal preview pane by its stable contract');
+        return [node];
+      }
+    };
+  }
+  const paneDeps = (node) => ({
+    host: previewPaneHost(node),
+    model: {eventBody: {}},
+    surface: {id: 'event'},
+    state: {active: true, template: 'event'},
+    previewObjectEditor: previewPaneEditorStub
+  });
+  const withToggle = previewPaneNode(true);
+  previewEditorSync.syncPreviewObjectEditorPane(paneDeps(withToggle.node));
+  assert(withToggle.node.innerHTML === 'TOOLBAR+PREVIEW+PLAY',
+    'Preview pane sync must preserve the whole pane (toolbar + play panel) when the Preview/Play toggle is present');
+  assert(withToggle.previewPanel.innerHTML === 'INNER_PREVIEW_HTML',
+    'Preview pane sync must refresh only the inner preview panel when the toggle is present');
+  const noToggle = previewPaneNode(false);
+  previewEditorSync.syncPreviewObjectEditorPane(paneDeps(noToggle.node));
+  assert(noToggle.node.innerHTML === 'INNER_PREVIEW_HTML',
+    'Preview pane sync should replace the whole pane when there is no Preview/Play toggle');
 }
 
 function checkLibraryEntryRuntimeBridge() {
