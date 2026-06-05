@@ -15,6 +15,7 @@ const shellUi = require('./viewer/object_canvas_shell_ui.js');
 const modelBuilder = require('./viewer/object_canvas_model_builder.js');
 const storyboardDrafts = require('./viewer/object_canvas_storyboard_drafts.js');
 const previewEditor = require('./viewer/preview_object_editor.js');
+const previewAssetEditor = require('./viewer/preview_asset_editor.js');
 const semanticOperations = require('./authoring/object_semantic_operations_model.js');
 global.ProjectMapAuthoringSurfaceGraphs = {
   buildGraph(model) {
@@ -1616,8 +1617,14 @@ const lateSelectHtml = lateRelatedHtml.slice(lateRelatedHtml.lastIndexOf('<selec
 const latePickerHtml = lateRelatedHtml.slice(lateRelatedHtml.lastIndexOf('<div class="object-canvas-flow-asset-add"', lateSelectMarker), lateRelatedHtml.indexOf('</div>', lateSelectMarker) + 6);
 assert(latePickerHtml.includes('data-object-canvas-asset-filter="true"'), 'large asset selectors should expose an inline filter for finding Dynamic-scale assets');
 assert(latePickerHtml.includes('651 indexed assets'), 'large asset selectors should show the full candidate count instead of hiding catalog size');
-assert(lateSelectHtml.includes('img/events/late-related.jpg'), 'local flow add selector should prioritize related event assets even when the project catalog is large');
-assert(lateSelectHtml.includes('img/events/filler_649.jpg'), 'large project asset selectors should expose the full Dynamic-scale image list, not only the first page of candidates');
+// Large catalogs defer their option list (populated on focus) so dense events do
+// not eagerly render every <option> across hundreds of slots. The full list must
+// still be produced by the deferred thunk, not sliced to a first page.
+assert(lateSelectHtml.includes('data-asset-select-deferred="'), 'large asset selectors should defer their option list instead of inlining every candidate');
+const lateDeferredId = (lateSelectHtml.match(/data-asset-select-deferred="([^"]+)"/) || [])[1];
+const lateDeferredOptions = previewAssetEditor.materializeDeferredAssetOptions(lateDeferredId);
+assert(lateDeferredOptions.includes('img/events/late-related.jpg'), 'deferred flow add selector should still prioritize related event assets even when the project catalog is large');
+assert(lateDeferredOptions.includes('img/events/filler_649.jpg'), 'deferred large project asset selector should still expose the full Dynamic-scale image list, not only the first page of candidates');
 const outHtmlAssetSelectorHtml = previewEditor.render({
   mode: 'existing',
   objectKind: 'event',

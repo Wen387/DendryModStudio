@@ -43,9 +43,9 @@
     },
     {
       "path": "tools/project_map/check_object_authoring_canvas_model.js",
-      "maxLines": 2464,
+      "maxLines": 2471,
       "allowRaise": true,
-      "reason": "Object canvas model check aggregates many archetypes; split per-archetype suites before adding more. Raised 2026-05-30 from 2458 for structure builder variable picker and condition remove placement assertions."
+      "reason": "Object canvas model check aggregates many archetypes; split per-archetype suites before adding more. Raised 2026-05-30 from 2458 for structure builder variable picker and condition remove placement assertions, then to 2471 for the deferred asset-select guard (assert large catalogs defer their option list and the deferred thunk still materializes the full Dynamic-scale list)."
     },
     {
       "path": "tools/project_map/desktop/runtime_preview.js",
@@ -78,15 +78,15 @@
     },
     {
       "path": "tools/project_map/viewer/object_authoring_canvas_ui.js",
-      "maxLines": 5023,
+      "maxLines": 5044,
       "allowRaise": true,
-      "reason": "Keep orchestration here; split editor UI into workspace modules. Raised 2026-06-04 from 4987 for conditional condition-variable insert handler (handleConditionalVarInsert, UX #3)."
+      "reason": "Keep orchestration here; split editor UI into workspace modules. Raised 2026-06-04 from 4987 for conditional condition-variable insert handler (handleConditionalVarInsert, UX #3), then to 5044 for the deferred asset-select populate wiring (focus/mousedown handlers + populate-before-filter; the asset picker now defers its full option list and builds it on focus instead of inlining every candidate across hundreds of slots)."
     },
     {
       "path": "tools/project_map/viewer/preview_object_editor.js",
-      "maxLines": 4899,
+      "maxLines": 4905,
       "allowRaise": true,
-      "reason": "Keep field rendering here; split domain sub-renderers into sibling modules. Raised 2026-06-04 from 4796 for condition-variable insert chips (UX #3), then to 4886 for the conditional-leaf ladder de-duplication (suppress redundant flat leaf rows, render one compact condition->text ladder + read-only preview ladder), then to 4892 for skipping the mashed all-branches inline preview on conditional-tree fields (ladder owns the per-branch rendered view), then to 4897 for suppressing redundant diagnostic chrome on conditional-tree fields, then to 4899 for extending that chrome suppression to flat conditional-leaf rows (status badge / logic chips / context hint / variable picker) while keeping their label + editable input."
+      "reason": "Keep field rendering here; split domain sub-renderers into sibling modules. Raised 2026-06-04 from 4796 for condition-variable insert chips (UX #3), then to 4886 for the conditional-leaf ladder de-duplication (suppress redundant flat leaf rows, render one compact condition->text ladder + read-only preview ladder), then to 4892 for skipping the mashed all-branches inline preview on conditional-tree fields (ladder owns the per-branch rendered view), then to 4897 for suppressing redundant diagnostic chrome on conditional-tree fields, then to 4899 for extending that chrome suppression to flat conditional-leaf rows (status badge / logic chips / context hint / variable picker) while keeping their label + editable input, then to 4905 for capping the variable-picker initial render to a 12-candidate starter slice instead of dumping the whole catalog per field (the unsliced render multiplied into ~1.3M DOM nodes / ~190MB innerHTML / ~25s paint on dense events; the search box rebuilds from the model so nothing is lost)."
     },
     {
       "path": "tools/project_map/viewer/styles/editing.css",

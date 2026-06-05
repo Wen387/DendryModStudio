@@ -1989,6 +1989,10 @@
         }
         control.__dmsObjectCanvasAssetBound = true;
         control.addEventListener('change', handleObjectCanvasAssetChange);
+        if (control.dataset && control.dataset.assetSelectDeferred && typeof control.addEventListener === 'function') {
+          control.addEventListener('focus', populateDeferredAssetSelectControl);
+          control.addEventListener('mousedown', populateDeferredAssetSelectControl);
+        }
       });
       global.document.querySelectorAll('[data-object-canvas-asset-filter]').forEach((control) => {
         if (control.__dmsObjectCanvasAssetFilterBound) {
@@ -2519,6 +2523,20 @@
     refreshProgrammaticValues();
   }
 
+  function populateDeferredAssetSelectControl(event) {
+    populateDeferredAssetSelectElement(event && event.currentTarget);
+  }
+
+  function populateDeferredAssetSelectElement(select) {
+    if (!select) {
+      return;
+    }
+    const assetEditor = global.ProjectMapPreviewAssetEditor;
+    if (assetEditor && typeof assetEditor.populateDeferredAssetSelect === 'function') {
+      assetEditor.populateDeferredAssetSelect(select);
+    }
+  }
+
   function filterObjectCanvasAssetSelect(input) {
     if (!input || !input.closest) {
       return;
@@ -2527,6 +2545,9 @@
     const select = control && control.querySelector && control.querySelector('select[data-object-canvas-asset-select]');
     if (!select || !select.options) {
       return;
+    }
+    if (select.dataset && select.dataset.assetSelectDeferred && select.dataset.assetSelectReady !== 'true') {
+      populateDeferredAssetSelectElement(select);
     }
     const terms = String(input.value || '').toLowerCase().trim().split(/\s+/).filter(Boolean);
     const selectedValue = String(select.value || '');

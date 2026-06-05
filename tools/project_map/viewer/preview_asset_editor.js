@@ -1,6 +1,59 @@
 (function initProjectMapPreviewAssetEditor(global) {
   'use strict';
 
+  // Asset <select>s carry the whole indexed catalog. A dense event renders one
+  // per empty slot across hundreds of cards, so emitting every <option> inline
+  // multiplied into tens of thousands of DOM nodes. Above this threshold we defer
+  // the option list: the select renders with only its placeholder/current row and
+  // a stashed thunk builds the full list the first time the control is focused.
+  // The same threshold gates the inline filter input (renderAssetSelectFilter),
+  // so whenever options are deferred the user still has a search box to populate
+  // and filter them.
+  const ASSET_SELECT_DEFER_THRESHOLD = 16;
+  const deferredAssetOptionThunks = new Map();
+  const DEFERRED_ASSET_OPTION_LIMIT = 4000;
+  let deferredAssetOptionSeq = 0;
+
+  function stashDeferredAssetOptions(thunk) {
+    const id = 'dac' + (deferredAssetOptionSeq += 1);
+    deferredAssetOptionThunks.set(id, thunk);
+    if (deferredAssetOptionThunks.size > DEFERRED_ASSET_OPTION_LIMIT) {
+      const oldest = deferredAssetOptionThunks.keys().next().value;
+      deferredAssetOptionThunks.delete(oldest);
+    }
+    return id;
+  }
+
+  function materializeDeferredAssetOptions(id) {
+    const thunk = id ? deferredAssetOptionThunks.get(id) : null;
+    if (typeof thunk !== 'function') {
+      return '';
+    }
+    return String(thunk() || '');
+  }
+
+  function populateDeferredAssetSelect(select) {
+    if (!select || !select.dataset || select.dataset.assetSelectReady === 'true') {
+      return;
+    }
+    const id = select.dataset.assetSelectDeferred || '';
+    select.dataset.assetSelectReady = 'true';
+    const html = materializeDeferredAssetOptions(id);
+    deferredAssetOptionThunks.delete(id);
+    if (!html || typeof select.insertAdjacentHTML !== 'function') {
+      return;
+    }
+    const previous = select.value;
+    select.insertAdjacentHTML('beforeend', html);
+    if (previous) {
+      try {
+        select.value = previous;
+      } catch (error) {
+        /* keep the best-effort current selection */
+      }
+    }
+  }
+
   function create(deps) {
     const d = deps && typeof deps === 'object' ? deps : {};
     const t = typeof d.t === 'function' ? d.t : (_key, fallback) => fallback || '';
@@ -117,15 +170,19 @@
       const fieldAttrs = field.draftPlacement
         ? ' data-object-canvas-asset-placement-id="' + escapeAttr(field.placementId || fieldId) + '" data-asset-placement-kind="' + escapeAttr(field.placementKind || '') + '" data-asset-section-id="' + escapeAttr(field.sectionId || '') + '" data-asset-option-id="' + escapeAttr(field.optionId || '') + '" data-asset-display-location="' + escapeAttr(field.displayLocation || '') + '" data-asset-directive="' + escapeAttr(directive) + '"'
         : ' data-existing-asset-add-field="' + escapeAttr(fieldId) + '" data-asset-directive="' + escapeAttr(directive) + '"';
+      const deferOptions = ensureArray(catalog).length >= ASSET_SELECT_DEFER_THRESHOLD;
+      const deferredId = deferOptions
+        ? stashDeferredAssetOptions(() => ensureArray(catalog).map((asset) => renderAssetSelectOption(asset, role)).join(''))
+        : '';
       return [
         '<div class="object-canvas-flow-asset-add" data-object-canvas-flow-asset-add="true" data-asset-placement-kind="' + escapeAttr(field.placementKind || '') + '">',
         '<span>' + escapeHtml(label) + '</span>',
         '<div class="object-canvas-asset-picker-control">',
         '<span>' + escapeHtml(t('assets.chooseIndexed', 'Indexed asset')) + '</span>',
         renderAssetSelectFilter(catalog),
-        '<select data-object-canvas-asset-select="true" data-asset-target="' + escapeAttr(target === 'card' ? 'card' : 'event') + '" data-asset-role="' + escapeAttr(role) + '"' + fieldAttrs + '>',
+        '<select data-object-canvas-asset-select="true"' + (deferOptions ? ' data-asset-select-deferred="' + escapeAttr(deferredId) + '"' : '') + ' data-asset-target="' + escapeAttr(target === 'card' ? 'card' : 'event') + '" data-asset-role="' + escapeAttr(role) + '"' + fieldAttrs + '>',
         '<option value="">' + escapeHtml(t('assets.slotEmpty', 'No asset selected for this slot.')) + '</option>',
-        catalog.map((asset) => renderAssetSelectOption(asset, role)).join(''),
+        deferOptions ? '' : catalog.map((asset) => renderAssetSelectOption(asset, role)).join(''),
         '</select>',
         '</div>',
         '<label class="object-canvas-asset-picker-control">',
@@ -273,14 +330,25 @@
       const fieldAttrs = addField
         ? ' data-existing-asset-add-field="' + escapeAttr(addField.id || '') + '" data-asset-directive="' + escapeAttr(addField.directive || '') + '"'
         : '';
+      const deferOptions = ensureArray(catalog).length >= ASSET_SELECT_DEFER_THRESHOLD;
+      const currentInCatalog = catalog.some((asset) => sourceReferencePathForAsset(asset && asset.path) === sourceReferencePathForAsset(slot.assetRef && slot.assetRef.path));
+      // When deferring, surface the current selection up front so the control
+      // shows the right value before its options are populated on focus; the
+      // deferred batch then excludes it so the dropdown has no duplicate row.
+      const showCurrentOption = currentValue && (deferOptions ? true : !currentInCatalog);
+      const deferredId = deferOptions
+        ? stashDeferredAssetOptions(() => ensureArray(catalog)
+          .filter((asset) => !currentValue || assetSelectValue(asset, role) !== currentValue)
+          .map((asset) => renderAssetSelectOption(asset, role, currentValue)).join(''))
+        : '';
       return [
         '<div class="object-canvas-asset-picker-control">',
         '<span>' + escapeHtml(t('assets.chooseIndexed', 'Indexed asset')) + '</span>',
         renderAssetSelectFilter(catalog),
-        '<select data-object-canvas-asset-select="true" data-asset-target="' + escapeAttr(target === 'card' ? 'card' : 'event') + '" data-asset-role="' + escapeAttr(role) + '"' + fieldAttrs + '>',
+        '<select data-object-canvas-asset-select="true"' + (deferOptions ? ' data-asset-select-deferred="' + escapeAttr(deferredId) + '"' : '') + ' data-asset-target="' + escapeAttr(target === 'card' ? 'card' : 'event') + '" data-asset-role="' + escapeAttr(role) + '"' + fieldAttrs + '>',
         '<option value="">' + escapeHtml(t('assets.slotEmpty', 'No asset selected for this slot.')) + '</option>',
-        currentValue && !catalog.some((asset) => sourceReferencePathForAsset(asset && asset.path) === sourceReferencePathForAsset(slot.assetRef && slot.assetRef.path)) ? '<option value="' + escapeAttr(currentValue) + '" selected data-asset-search-text="' + escapeAttr(assetSearchText(slot.assetRef)) + '">' + escapeHtml(assetOptionLabel(slot.assetRef) || slot.assetRef.path || slot.assetRef.label || role) + '</option>' : '',
-        catalog.map((asset) => renderAssetSelectOption(asset, role, currentValue)).join(''),
+        showCurrentOption ? '<option value="' + escapeAttr(currentValue) + '" selected data-asset-search-text="' + escapeAttr(assetSearchText(slot.assetRef)) + '">' + escapeHtml(assetOptionLabel(slot.assetRef) || slot.assetRef.path || slot.assetRef.label || role) + '</option>' : '',
+        deferOptions ? '' : catalog.map((asset) => renderAssetSelectOption(asset, role, currentValue)).join(''),
         '</select>',
         '</div>',
         '<label class="object-canvas-asset-picker-control">',
@@ -470,7 +538,7 @@
 
     function renderAssetSelectFilter(catalog) {
       const count = ensureArray(catalog).length;
-      if (count < 16) {
+      if (count < ASSET_SELECT_DEFER_THRESHOLD) {
         return '';
       }
       return [
@@ -677,7 +745,7 @@
     return defaultEscapeHtml(value).replace(/`/g, '&#96;');
   }
 
-  const api = {create};
+  const api = {create, populateDeferredAssetSelect, materializeDeferredAssetOptions};
 
   if (global) {
     global.ProjectMapPreviewAssetEditor = api;

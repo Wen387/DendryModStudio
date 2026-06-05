@@ -3880,7 +3880,13 @@
       '<summary>' + escapeHtml(t('previewObjectEditor.variablePicker', 'Variable picker')) + '</summary>',
       '<label class="object-canvas-variable-search"><span>' + escapeHtml(t('previewObjectEditor.variableSearch', 'Search variables')) + '</span><input id="' + escapeAttr(searchId) + '" type="search" data-object-canvas-variable-search="true" placeholder="' + escapeAttr(t('previewObjectEditor.variableSearchPlaceholder', 'type to filter')) + '"></label>',
       '<div class="object-canvas-variable-candidates" data-object-canvas-variable-candidates="true">',
-      ensureArray(picker.candidates).map((candidate) => renderVariableCandidate(candidate, id, picker.mode, presentation)).join(''),
+      // Render only a starter slice (matching data-variable-picker-limit above).
+      // The full catalog can be the whole project variable pool and a picker is
+      // emitted per field, so rendering every candidate inline multiplied into
+      // hundreds of thousands of DOM nodes (multi-hundred-MB innerHTML, multi-
+      // second paint) on dense events. The search box rebuilds the list from the
+      // model on demand (filterObjectCanvasVariablePicker), so nothing is lost.
+      ensureArray(picker.candidates).slice(0, 12).map((candidate) => renderVariableCandidate(candidate, id, picker.mode, presentation)).join(''),
       '</div>',
       '</details>'
     ].join('');
