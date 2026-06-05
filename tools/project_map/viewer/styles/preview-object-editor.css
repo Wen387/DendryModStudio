@@ -2763,6 +2763,31 @@ input.preview-object-control[type="checkbox"] {
   line-height: 1.4;
 }
 
+.object-editing-play-entry {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.object-editing-play-entry > span {
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.object-editing-play-entry select {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 11px;
+}
+
 .object-editing-play-state {
   border: 1px solid var(--border-soft);
   border-radius: 8px;
@@ -3064,4 +3089,24 @@ input.preview-object-control[type="checkbox"] {
   font-size: 12px;
   font-weight: 600;
   color: var(--muted);
+}
+
+/* Object-canvas dimming while the preview object editor overlay is active.
+   Moved here from editing.css (cascade-safe: these selectors are unique) so the
+   preview editor's own layout effects live with the rest of its styles. */
+.object-canvas.has-preview-object-editor .content-storyboard-canvas,
+.object-canvas.has-preview-object-editor .card-board-canvas {
+  transition: opacity 0.16s ease, filter 0.16s ease;
+}
+
+.object-canvas.is-editor-overlay.has-preview-object-editor .content-storyboard-canvas,
+.object-canvas.is-editor-overlay.has-preview-object-editor .card-board-canvas {
+  filter: saturate(0.78);
+  opacity: 0.58;
+  pointer-events: none;
+}
+
+.object-canvas.is-editor-overlay.has-preview-object-editor .content-storyboard-editor,
+.object-canvas.is-editor-overlay.has-preview-object-editor .card-face-editor {
+  pointer-events: auto;
 }

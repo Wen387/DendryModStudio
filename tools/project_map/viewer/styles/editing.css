@@ -1343,23 +1343,6 @@
   line-height: 1.4;
 }
 
-.object-canvas.has-preview-object-editor .content-storyboard-canvas,
-.object-canvas.has-preview-object-editor .card-board-canvas {
-  transition: opacity 0.16s ease, filter 0.16s ease;
-}
-
-.object-canvas.is-editor-overlay.has-preview-object-editor .content-storyboard-canvas,
-.object-canvas.is-editor-overlay.has-preview-object-editor .card-board-canvas {
-  filter: saturate(0.78);
-  opacity: 0.58;
-  pointer-events: none;
-}
-
-.object-canvas.is-editor-overlay.has-preview-object-editor .content-storyboard-editor,
-.object-canvas.is-editor-overlay.has-preview-object-editor .card-face-editor {
-  pointer-events: auto;
-}
-
 @media (max-width: 980px) {
   .object-editing-modal-backdrop {
     padding: 10px;

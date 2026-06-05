@@ -63,6 +63,32 @@ function main() {
     'isAvailable should be true when the desktop bridge exposes objectPlaytest');
   assert(ui.isAvailable({}) === false, 'isAvailable should be false without the desktop bridge');
 
+  // Entry-scene picker: a multi-scene list renders a <select> of options, marks
+  // the edited object's own scene, and preselects the active entry.
+  const picker = ui.renderPane(view, {
+    variables: ['demo_resources'],
+    startState: {demo_resources: 1},
+    scenes: [
+      {id: 'demo_campaign_pressure', title: 'Demo Campaign Pressure'},
+      {id: 'demo_case_hearing', title: 'Demo Case Hearing'},
+      {id: 'root', title: 'Starter Demo'}
+    ],
+    entry: 'root',
+    defaultEntry: 'demo_campaign_pressure'
+  });
+  assert(/data-play-entry/.test(picker),
+    'the play pane should render an entry-scene picker when several scenes are selectable');
+  assert(picker.indexOf('Start from scene') !== -1, 'the entry picker should carry a label');
+  assert(picker.indexOf('<option value="root"') !== -1, 'the picker should offer each scene as an option');
+  assert(/<option value="root"[^>]*selected/.test(picker), 'the picker should preselect the active entry scene');
+  assert(picker.indexOf('Demo Campaign Pressure') !== -1, 'the picker should label scenes by title');
+  assert(picker.indexOf('(this object)') !== -1, "the picker should mark the edited object's own scene");
+
+  // With only one selectable scene there is nothing to choose, so the picker is omitted.
+  const single = ui.renderPane(view, {scenes: [{id: 'only', title: 'Only'}], entry: 'only', defaultEntry: 'only'});
+  assert(/data-play-entry/.test(single) === false,
+    'the entry picker should be omitted when only one scene is selectable');
+
   process.stdout.write(JSON.stringify({ok: true}, null, 2) + '\n');
 }
 

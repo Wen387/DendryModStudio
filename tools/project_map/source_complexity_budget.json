@@ -60,15 +60,15 @@
     },
     {
       "path": "tools/project_map/viewer/i18n/en.js",
-      "maxLines": 3547,
+      "maxLines": 3549,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3443 for the browser-style global back-control label (nav.back), then to 3479 for the publish.* keys (Publish to GitHub UI), then to 3480 for publish.error.privateScope (private-repo token-scope guidance), then to 3490 for the first publish.sync.* status-panel keys, then to 3520 for the publish.sync.* update/sync/force keys (update push message + success/error, fast-forward pull, divergence force-push override + typed confirm). Raised 2026-06-05 to 3544 for the playSim.* keys (inline play-test dry-run surface in the Object Editor); the Phase 2 playEngine.* keys reused this headroom (no raise). Raised 2026-06-05 to 3547 for the systemUi.region.rightSidebar + systemUi.task.rightSidebarEdit(.summary) keys (System UI Phase B1 right sidebar); aggregate paid by extracting editing.css rules into system-ui.css."
+      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3443 for the browser-style global back-control label (nav.back), then to 3479 for the publish.* keys (Publish to GitHub UI), then to 3480 for publish.error.privateScope (private-repo token-scope guidance), then to 3490 for the first publish.sync.* status-panel keys, then to 3520 for the publish.sync.* update/sync/force keys (update push message + success/error, fast-forward pull, divergence force-push override + typed confirm). Raised 2026-06-05 to 3544 for the playSim.* keys (inline play-test dry-run surface in the Object Editor); the Phase 2 playEngine.* keys reused this headroom (no raise). Raised 2026-06-05 to 3547 for the systemUi.region.rightSidebar + systemUi.task.rightSidebarEdit(.summary) keys (System UI Phase B1 right sidebar); aggregate paid by extracting editing.css rules into system-ui.css. Raised 2026-06-05 to 3549 for the playEngine.entryScene + playEngine.entryThisObject keys (Object Editor play-test entry-scene picker, P3); aggregate paid by moving the has-preview-object-editor canvas-dimming rules out of editing.css into preview-object-editor.css."
     },
     {
       "path": "tools/project_map/viewer/i18n/zh-Hant.js",
-      "maxLines": 3547,
+      "maxLines": 3549,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3443 for the browser-style global back-control label (nav.back), then to 3479 for the publish.* keys (Publish to GitHub UI), then to 3480 for publish.error.privateScope (private-repo token-scope guidance), then to 3490 for the first publish.sync.* status-panel keys, then to 3520 for the publish.sync.* update/sync/force keys (update push message + success/error, fast-forward pull, divergence force-push override + typed confirm). Raised 2026-06-05 to 3544 for the playSim.* keys (inline play-test dry-run surface in the Object Editor); the Phase 2 playEngine.* keys reused this headroom (no raise). Raised 2026-06-05 to 3547 for the systemUi.region.rightSidebar + systemUi.task.rightSidebarEdit(.summary) keys (System UI Phase B1 right sidebar); aggregate paid by extracting editing.css rules into system-ui.css."
+      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3443 for the browser-style global back-control label (nav.back), then to 3479 for the publish.* keys (Publish to GitHub UI), then to 3480 for publish.error.privateScope (private-repo token-scope guidance), then to 3490 for the first publish.sync.* status-panel keys, then to 3520 for the publish.sync.* update/sync/force keys (update push message + success/error, fast-forward pull, divergence force-push override + typed confirm). Raised 2026-06-05 to 3544 for the playSim.* keys (inline play-test dry-run surface in the Object Editor); the Phase 2 playEngine.* keys reused this headroom (no raise). Raised 2026-06-05 to 3547 for the systemUi.region.rightSidebar + systemUi.task.rightSidebarEdit(.summary) keys (System UI Phase B1 right sidebar); aggregate paid by extracting editing.css rules into system-ui.css. Raised 2026-06-05 to 3549 for the playEngine.entryScene + playEngine.entryThisObject keys (Object Editor play-test entry-scene picker, P3); aggregate paid by moving the has-preview-object-editor canvas-dimming rules out of editing.css into preview-object-editor.css."
     },
     {
       "path": "tools/project_map/viewer/index.html",
@@ -90,9 +90,9 @@
     },
     {
       "path": "tools/project_map/viewer/styles/editing.css",
-      "maxLines": 4309,
+      "maxLines": 4292,
       "allowRaise": true,
-      "reason": "Split new selectors into focused domain CSS files. Ratcheted 2026-05-22 from 3375. Raised 2026-06-04 from 4255 for the retired-board-banner hide rule + command-dock More options disclosure styles. Lowered 2026-06-05 to 4309 by extracting the System UI screen-preview topbar-button rules into the new viewer/styles/system-ui.css (pays the aggregate for the playEngine-adjacent rightSidebar i18n keys; system-ui.css becomes the incremental home for System UI CSS, Phase B1)."
+      "reason": "Split new selectors into focused domain CSS files. Ratcheted 2026-05-22 from 3375. Raised 2026-06-04 from 4255 for the retired-board-banner hide rule + command-dock More options disclosure styles. Lowered 2026-06-05 to 4309 by extracting the System UI screen-preview topbar-button rules into the new viewer/styles/system-ui.css (pays the aggregate for the playEngine-adjacent rightSidebar i18n keys; system-ui.css becomes the incremental home for System UI CSS, Phase B1). Lowered 2026-06-05 to 4292 by moving the has-preview-object-editor canvas-dimming rules into viewer/styles/preview-object-editor.css (cascade-safe unique selectors; pays the aggregate for the play-test entry-scene picker i18n keys, P3)."
     },
     {
       "path": "tools/project_map/viewer/wizard_ui.js",

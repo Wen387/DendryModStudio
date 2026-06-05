@@ -122,6 +122,46 @@
     return badges.length ? '<div class="object-editing-play-engine-badges">' + badges.join('') + '</div>' : '';
   }
 
+  // The play-test entry picker: lets the author start the run from any authored
+  // scene (an upstream lead-in, or `root` to play from the very beginning), not
+  // only the edited object's own scene. `scenes` is the host's list of
+  // selectable entry points; `defaultEntry` is the edited object's scene, which
+  // we always keep selectable and mark so the author can find their way back.
+  function renderEntryPicker(scenes, entry, defaultEntry) {
+    const list = Array.isArray(scenes) ? scenes.slice() : [];
+    const have = {};
+    list.forEach((scene) => {
+      if (scene && scene.id) {
+        have[scene.id] = true;
+      }
+    });
+    [defaultEntry, entry].forEach((id) => {
+      if (id && !have[id]) {
+        list.push({id: id, title: null});
+        have[id] = true;
+      }
+    });
+    if (list.length < 2) {
+      return '';
+    }
+    list.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    const thisObject = t('playEngine.entryThisObject', '(this object)');
+    const options = list.map((scene) => {
+      const id = scene.id;
+      const base = scene.title ? scene.title + ' (' + id + ')' : id;
+      const label = id === defaultEntry ? base + ' ' + thisObject : base;
+      const selected = id === entry ? ' selected' : '';
+      return '<option value="' + escapeAttr(id) + '"' + selected + '>' + escapeHtml(label) + '</option>';
+    }).join('');
+    const labelText = t('playEngine.entryScene', 'Start from scene');
+    return [
+      '<label class="object-editing-play-entry" data-play-entry-field="true">',
+      '<span>' + escapeHtml(labelText) + '</span>',
+      '<select data-play-entry aria-label="' + escapeAttr(labelText) + '">' + options + '</select>',
+      '</label>'
+    ].join('');
+  }
+
   function renderStatePanel(variables, startState) {
     const names = Array.isArray(variables) ? variables : [];
     if (!names.length) {
@@ -208,6 +248,7 @@
       '<div class="object-editing-play object-editing-play-engine" data-object-editing-play-engine="true">',
       '<p class="object-editing-play-note object-editing-play-engine-note">' + escapeHtml(t('playEngine.note', 'Real-engine play-test: text, conditions, effects, qdisplays, choice availability and cross-scene routes are run by the actual DendryNexus engine.')) + '</p>',
       renderBadges(options),
+      renderEntryPicker(options.scenes, options.entry, options.defaultEntry),
       renderStatePanel(options.variables, options.startState),
       '<div class="object-editing-play-node" data-play-engine-node="true">',
       renderNode(view, options),
@@ -266,9 +307,14 @@
     return Boolean(host && typeof host.contains === 'function' && host.contains(el));
   }
 
-  function ensureSession(entry) {
-    if (!current || current.entry !== entry) {
-      current = {entry: entry, token: null, viewState: null, view: null, startState: {}, runId: 0, edited: false, editFailed: false, error: null};
+  // Keyed by the edited OBJECT's scene (depEntryScene): switching objects in the
+  // editor starts a fresh session. The effective `entry` defaults to that scene
+  // but can be re-pointed by the entry picker without losing the session's
+  // starting-state edits; `defaultEntry` records the object's own scene so the
+  // picker can mark it.
+  function ensureSession(key) {
+    if (!current || current.key !== key) {
+      current = {key: key, entry: key, defaultEntry: key, scenes: [], token: null, viewState: null, view: null, startState: {}, runId: 0, edited: false, editFailed: false, error: null};
     }
     return current;
   }
@@ -285,7 +331,10 @@
       variables: depVariables(deps),
       startState: current ? current.startState : {},
       edited: current ? current.edited : false,
-      editFailed: current ? current.editFailed : false
+      editFailed: current ? current.editFailed : false,
+      scenes: current ? current.scenes : [],
+      entry: current ? current.entry : '',
+      defaultEntry: current ? current.defaultEntry : ''
     });
   }
 
@@ -313,14 +362,17 @@
     sess.view = res.view || null;
     sess.edited = res.edited === true;
     sess.editFailed = res.editFailed === true;
+    if (Array.isArray(res.scenes)) {
+      sess.scenes = res.scenes;
+    }
   }
 
   function startSession(deps, container, nodeOnly) {
-    const entry = depEntryScene(deps);
-    if (!container || !entry) {
+    const key = depEntryScene(deps);
+    if (!container || !key) {
       return;
     }
-    const sess = ensureSession(entry);
+    const sess = ensureSession(key);
     sess.error = null;
     const runId = (sess.runId += 1);
     if (nodeOnly) {
@@ -331,7 +383,7 @@
     } else {
       container.innerHTML = renderLoading();
     }
-    invoke({action: 'start', entrySceneId: entry, startState: sess.startState, plan: depPlan(deps)})
+    invoke({action: 'start', entrySceneId: sess.entry, startState: sess.startState, plan: depPlan(deps)})
       .then((res) => {
         if (current !== sess || sess.runId !== runId) {
           return;
@@ -457,6 +509,22 @@
     const target = event && event.target;
     if (!target || !target.closest) {
       return false;
+    }
+    const entrySelect = target.closest('[data-play-entry]');
+    if (entrySelect && depWithinHost(deps, entrySelect)) {
+      const container = depContainer(deps);
+      if (!container) {
+        return false;
+      }
+      const sess = ensureSession(depEntryScene(deps));
+      const chosen = entrySelect.value || '';
+      if (chosen && chosen !== sess.entry) {
+        sess.entry = chosen;
+        // Node-only restart: re-run from the new entry but leave the picker (and
+        // the starting-state inputs + their focus) in place.
+        startSession(deps, container, true);
+      }
+      return true;
     }
     const varInput = target.closest('[data-play-var]');
     if (!varInput || !depWithinHost(deps, varInput)) {

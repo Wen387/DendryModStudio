@@ -1573,6 +1573,8 @@
       'playEngine.unavailable': 'Unavailable in this state',
       'playEngine.gameOver': 'The game ends here.',
       'playEngine.error': 'The real-engine play-test could not run. Check the project compiles cleanly.',
+      'playEngine.entryScene': 'Start from scene',
+      'playEngine.entryThisObject': '(this object)',
       'previewObjectEditor.editBranch': 'Edit this branch',
       'previewObjectEditor.editBranchText': 'Branch text',
       'previewObjectEditor.editBranchCondition': 'Branch condition',

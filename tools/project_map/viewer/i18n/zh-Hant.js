@@ -1573,6 +1573,8 @@
       'playEngine.unavailable': '在此狀態下無法選擇',
       'playEngine.gameOver': '遊戲在此結束。',
       'playEngine.error': '真引擎試玩無法執行，請確認專案能正常編譯。',
+      'playEngine.entryScene': '從哪個場景開始',
+      'playEngine.entryThisObject': '（此物件）',
       'previewObjectEditor.editBranch': '編輯此分支',
       'previewObjectEditor.editBranchText': '分支文字',
       'previewObjectEditor.editBranchCondition': '分支條件',

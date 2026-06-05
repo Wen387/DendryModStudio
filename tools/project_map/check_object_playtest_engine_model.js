@@ -150,6 +150,20 @@ async function main() {
   const hostOpen = optionById(hostStart.view, 'open_hearing');
   assert(hostOpen && hostOpen.canChoose === true, 'host.start should surface the available open_hearing option');
 
+  // ---- host: surface the selectable entry scenes for the play-test picker ----
+  assert(Array.isArray(hostStart.scenes), 'host.start should return a list of selectable entry scenes', hostStart);
+  const sceneIds = (hostStart.scenes || []).map((scene) => scene.id);
+  assert(sceneIds.indexOf(SCENE) !== -1, 'the entry-scene list should include the started scene');
+  assert(sceneIds.indexOf('demo_case_hearing') !== -1, 'the entry-scene list should include other authored scenes');
+  assert(sceneIds.indexOf('root') !== -1,
+    'the entry-scene list should include root so authors can play from the beginning');
+  assert(sceneIds.every((id) => id.indexOf('.') === -1),
+    'the entry-scene list should exclude generated option sub-scenes (dotted ids)');
+  assert(sceneIds.indexOf('jumpScene') === -1,
+    'the entry-scene list should exclude untitled engine navigation scenes');
+  const startedScene = (hostStart.scenes || []).filter((scene) => scene.id === SCENE)[0];
+  assert(startedScene && startedScene.title, 'each listed scene should carry its title for the picker');
+
   const hostAdvance = await host.advance({token: hostStart.token, state: hostStart.state, choiceIndex: hostOpen.index});
   assert(hostAdvance.ok, 'host.advance should reuse the cached game by token', hostAdvance);
   assert(hostAdvance.view.sceneId === 'demo_case_hearing', 'host.advance should continue into demo_case_hearing');
