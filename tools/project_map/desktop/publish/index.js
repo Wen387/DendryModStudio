@@ -124,6 +124,7 @@ async function publishMod(options) {
 /** Wire the publish IPC handlers. Called once from main.js. */
 function register(deps) {
   const ipcMain = deps.ipcMain;
+  const resolveRoot = typeof deps.getProjectRoot === 'function' ? deps.getProjectRoot : function () { return ''; };
 
   ipcMain.handle('dendry:publish-auth-status', function () {
     return { ok: true, connected: auth.hasToken() };
@@ -146,7 +147,11 @@ function register(deps) {
   });
 
   ipcMain.handle('dendry:publish-mod', async function (_event, options) {
-    return publishMod(options || {});
+    const opts = Object.assign({}, options || {});
+    if (!opts.projectRoot) {
+      opts.projectRoot = resolveRoot();
+    }
+    return publishMod(opts);
   });
 }
 

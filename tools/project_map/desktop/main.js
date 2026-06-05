@@ -752,7 +752,7 @@ ipcMain.handle('dendry:open-external-url', async (_event, options) => {
   return {ok: true};
 });
 
-publish.register({ipcMain, app, shell});
+publish.register({ipcMain, app, shell, getProjectRoot: () => chooseProjectRootForOperation({})});
 
 if (process.platform === 'win32') {
   app.setAppUserModelId(APP_ID);

@@ -38,16 +38,29 @@
   let overlay = null;
   let bodyEl = null;
   let opened = false;
+  let cachedRoot = '';
 
   function isAvailable() {
     const c = caps();
     return Boolean(c && typeof c.canPublishMod === 'function' && c.canPublishMod());
   }
 
-  function currentProjectRoot() {
+  // The desktop bridge resolves getState() through ipcRenderer.invoke, i.e. a
+  // Promise — so the project root must be awaited, then cached for the sync
+  // callers (projectName / loadPreview / onSubmit).
+  async function resolveProjectRoot() {
     const c = caps();
-    const state = c && typeof c.getState === 'function' ? c.getState() : null;
-    return state && state.lastProject && state.lastProject.root ? state.lastProject.root : '';
+    if (!c || typeof c.getState !== 'function') { return ''; }
+    try {
+      const state = await Promise.resolve(c.getState());
+      return state && state.lastProject && state.lastProject.root ? state.lastProject.root : '';
+    } catch (_err) {
+      return '';
+    }
+  }
+
+  function currentProjectRoot() {
+    return cachedRoot;
   }
 
   function projectName() {
@@ -110,7 +123,8 @@
   }
 
   async function renderAuto() {
-    if (!currentProjectRoot()) { renderNoProject(); return; }
+    cachedRoot = await resolveProjectRoot();
+    if (!cachedRoot) { renderNoProject(); return; }
     const c = caps();
     let status = null;
     try {
