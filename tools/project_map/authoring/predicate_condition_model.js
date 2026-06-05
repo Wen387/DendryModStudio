@@ -21,11 +21,45 @@
     module.exports = api;
   }
 
+  // Parsing a predicate (tokenize + recursive-descent parse + AST analysis) is
+  // pure in its raw string, but the conditional-ladder renderer asks for the
+  // same conditions many times per render (and again every re-render). Cache by
+  // the trimmed source so repeats are O(1) lookups. Bounded with FIFO eviction
+  // so a long session over many distinct conditions cannot grow it without end.
+  // Callers treat the summary as immutable (evaluate/serialize only), so a
+  // shared reference is safe.
+  const PREDICATE_SUMMARY_CACHE = new Map();
+  const PREDICATE_SUMMARY_CACHE_LIMIT = 5000;
+
   /**
    * @param {string|unknown} rawInput
    * @returns {PredicateSummary}
    */
   function summarizePredicate(rawInput) {
+    const key = String(rawInput == null ? '' : rawInput).trim();
+    if (!key) {
+      return computePredicateSummary(rawInput);
+    }
+    const cached = PREDICATE_SUMMARY_CACHE.get(key);
+    if (cached) {
+      return cached;
+    }
+    const summary = computePredicateSummary(rawInput);
+    if (PREDICATE_SUMMARY_CACHE.size >= PREDICATE_SUMMARY_CACHE_LIMIT) {
+      const oldest = PREDICATE_SUMMARY_CACHE.keys().next().value;
+      if (oldest !== undefined) {
+        PREDICATE_SUMMARY_CACHE.delete(oldest);
+      }
+    }
+    PREDICATE_SUMMARY_CACHE.set(key, summary);
+    return summary;
+  }
+
+  /**
+   * @param {string|unknown} rawInput
+   * @returns {PredicateSummary}
+   */
+  function computePredicateSummary(rawInput) {
     const raw = String(rawInput || '').trim();
     if (!raw) {
       return emptyPredicateSummary(raw);
