@@ -88,8 +88,12 @@
   }
 
   function renderLoading() {
+    // Compiling a large game runs in the desktop main process and can take a
+    // beat (hundreds of ms on big mods); an animated bar makes clear the editor
+    // is working, not frozen.
     return [
       '<div class="object-editing-play object-editing-play-engine is-loading" data-object-editing-play-engine="true">',
+      '<div class="object-editing-play-engine-progress" role="progressbar" aria-busy="true" aria-label="' + escapeAttr(t('playEngine.loading', 'Compiling and running the real engine...')) + '"><span></span></div>',
       '<p class="object-editing-play-engine-loading">' + escapeHtml(t('playEngine.loading', 'Compiling and running the real engine...')) + '</p>',
       '</div>'
     ].join('');
@@ -190,7 +194,12 @@
 
   function renderChoice(choice) {
     const index = Number(choice && choice.index);
-    const label = (choice && choice.titleHtml) || escapeHtml(t('playSim.untitledOption', 'Untitled choice'));
+    // The engine renders choice titles as rich inline HTML (styled spans, magic
+    // text). Wrap the whole title in ONE element so the option button's
+    // column layout treats it as a single line that flows/wraps normally --
+    // otherwise each inline run becomes its own flex item, stacking vertically.
+    const labelHtml = (choice && choice.titleHtml) || escapeHtml(t('playSim.untitledOption', 'Untitled choice'));
+    const label = '<span class="object-editing-play-option-label">' + labelHtml + '</span>';
     const subtitle = choice && choice.subtitle
       ? '<span class="object-editing-play-option-subtitle">' + choice.subtitle + '</span>'
       : '';

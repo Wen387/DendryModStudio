@@ -40,6 +40,33 @@ function main() {
   assert(html.indexOf('disabled') !== -1, 'a gated choice should render a disabled control');
   assert(html.indexOf('Send organizers.') !== -1, 'a gated choice should still show its label');
 
+  // Rich engine choice titles (styled spans / magic text) must stay on one
+  // flowing line: the whole title is wrapped in a single option-label element so
+  // the button's column layout cannot stack each inline run as its own row.
+  const richHtml = ui.renderNode({
+    sceneId: 'rich',
+    contentHtml: '<p>x</p>',
+    choices: [{
+      index: 0,
+      id: 'r',
+      titleHtml: 'The <span style="color:#a00">Communists</span>? The <span>We</span><span>im</span>ar Parties?',
+      canChoose: true,
+      subtitle: null
+    }]
+  }, {});
+  assert(/<span class="object-editing-play-option-label">/.test(richHtml),
+    'a choice title should be wrapped in a single option-label element');
+  const labelAt = richHtml.indexOf('object-editing-play-option-label');
+  const innerSpanAt = richHtml.indexOf('color:#a00');
+  assert(labelAt !== -1 && innerSpanAt !== -1 && labelAt < innerSpanAt,
+    'the styled inner span should live INSIDE the option-label wrapper, not be a sibling flex item');
+
+  // The loading state shows an animated progress affordance (not just static
+  // text) so a long compile reads as busy rather than frozen.
+  const loadingHtml = ui.renderLoading();
+  assert(loadingHtml.indexOf('object-editing-play-engine-progress') !== -1,
+    'the loading state should render a progress affordance');
+
   // Starting-state inputs + reset.
   assert(/data-play-var="demo_resources"/.test(html), 'starting-state should expose a quality input');
   assert(/data-play-action="engine-restart"/.test(html), 'the panel should expose an engine restart/reset control');

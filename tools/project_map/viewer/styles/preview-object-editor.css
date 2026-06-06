@@ -2746,10 +2746,24 @@ input.preview-object-control[type="checkbox"] {
   color: var(--on-accent);
 }
 
+/* The preview pane centres its grid items, so an unconstrained play panel would
+   size to max-content (its longest unbroken line) and spill under the editor,
+   getting clipped by the pane's overflow-x:hidden. Pin the panels to the track
+   width so the play content fills its column and wraps instead. */
+.object-editing-preview-panel,
+.object-editing-play-panel,
+.object-editing-play-sim {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
 .object-editing-play {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .object-editing-play-note {
@@ -2847,6 +2861,8 @@ input.preview-object-control[type="checkbox"] {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .object-editing-play-heading {
@@ -2865,6 +2881,8 @@ input.preview-object-control[type="checkbox"] {
   font-size: 13px;
   line-height: 1.5;
   color: var(--text);
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 /* Real-engine play-test art: a background/sprite "stage" banner above the
@@ -3023,6 +3041,8 @@ input.preview-object-control[type="checkbox"] {
   flex-direction: column;
   gap: 2px;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   text-align: left;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -3032,6 +3052,15 @@ input.preview-object-control[type="checkbox"] {
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+}
+
+/* The engine's rich choice title kept as one flowing line inside the button's
+   column layout (a styled span per word must NOT become its own flex row). */
+.object-editing-play-option-label {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .object-editing-play-option > button:hover:not(:disabled) {
@@ -3140,6 +3169,42 @@ input.preview-object-control[type="checkbox"] {
   margin: 8px 0;
   font-size: 12px;
   color: var(--muted);
+}
+
+/* Indeterminate "compiling" bar: a sliding sliver so a long compile in the
+   desktop main process reads as busy rather than hung. */
+.object-editing-play-engine-progress {
+  position: relative;
+  height: 4px;
+  margin: 8px 0 0;
+  border-radius: 999px;
+  background: var(--surface-alt);
+  overflow: hidden;
+}
+
+.object-editing-play-engine-progress span {
+  position: absolute;
+  top: 0;
+  left: -40%;
+  width: 40%;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--studio-accent, var(--accent));
+  animation: object-editing-play-progress 1.1s ease-in-out infinite;
+}
+
+@keyframes object-editing-play-progress {
+  0% { left: -40%; }
+  100% { left: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .object-editing-play-engine-progress span {
+    animation: none;
+    left: 0;
+    width: 100%;
+    opacity: 0.5;
+  }
 }
 
 .object-editing-play-engine-error {
