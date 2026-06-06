@@ -353,88 +353,6 @@ function resolveViewAssets(view, projectRoot) {
   return view;
 }
 
-// ---- asset resolution diagnostics (opt-in via debugAssets) ----------------
-// Surfaced only when a caller passes debugAssets:true. Pins down WHY a scene
-// image did not inline: it reports the project root, each raw ref, the candidate
-// paths tried (with exists flags), and a bounded by-name search that locates the
-// file wherever it actually lives under the project.
-
-function fileExists(p) {
-  try {
-    return fs.statSync(p).isFile();
-  } catch (err) {
-    return false;
-  }
-}
-
-function findAssetFiles(projectRoot, basename, limit) {
-  const want = String(basename || '').toLowerCase();
-  const cap = limit || 8;
-  const out = [];
-  if (!want || !projectRoot) {
-    return out;
-  }
-  const skip = {node_modules: 1, '.git': 1};
-  const stack = [{dir: projectRoot, depth: 0}];
-  let visited = 0;
-  while (stack.length && out.length < cap && visited < 6000) {
-    const {dir, depth} = stack.pop();
-    let entries;
-    try {
-      entries = fs.readdirSync(dir, {withFileTypes: true});
-    } catch (err) {
-      continue;
-    }
-    visited += 1;
-    for (let i = 0; i < entries.length; i += 1) {
-      const ent = entries[i];
-      const full = path.join(dir, ent.name);
-      if (ent.isDirectory()) {
-        if (depth < 7 && !skip[ent.name]) {
-          stack.push({dir: full, depth: depth + 1});
-        }
-      } else if (ent.name.toLowerCase() === want) {
-        out.push(path.relative(projectRoot, full).replace(/\\/g, '/'));
-        if (out.length >= cap) {
-          break;
-        }
-      }
-    }
-  }
-  return out;
-}
-
-function assetCandidates(projectRoot, ref) {
-  const rel = assetPathFromRef(ref);
-  const roots = {
-    source: sourceDir(projectRoot),
-    'out/html': path.join(projectRoot, 'out', 'html'),
-    'project-root': projectRoot,
-    out: path.join(projectRoot, 'out')
-  };
-  return Object.keys(roots).map((name) => {
-    const full = path.resolve(roots[name], rel);
-    return {root: name, path: full, exists: fileExists(full)};
-  });
-}
-
-function buildAssetDebug(view, projectRoot) {
-  const out = {projectRoot: projectRoot, refs: {}};
-  ['faceImage', 'cardImage', 'bg'].forEach((key) => {
-    const ref = view[key];
-    if (typeof ref !== 'string' || !ref) {
-      out.refs[key] = ref === undefined ? 'undefined' : (ref === null ? 'null' : String(ref));
-      return;
-    }
-    out.refs[key] = {
-      ref: ref,
-      candidates: assetCandidates(projectRoot, ref),
-      foundByName: findAssetFiles(projectRoot, path.basename(assetPathFromRef(ref)), 6)
-    };
-  });
-  return out;
-}
-
 async function prepareGame(projectRoot, plan) {
   const resolved = resolveDryFiles(projectRoot, plan);
   if (!resolved.dryFiles || !resolved.dryFiles.length) {
@@ -528,15 +446,10 @@ async function handle(options) {
   options = options || {};
   const result = options.action === 'advance' ? await advance(options) : await start(options);
   if (result && result.ok && result.view) {
-    // Capture raw refs for diagnostics BEFORE resolveViewAssets mutates them.
-    const debug = options.debugAssets ? buildAssetDebug(result.view, options.projectRoot) : null;
     // Inline the scene's art (bg / sprites / face·card images) as data URIs so
     // the file:// play-test window can show them. Runs before toCloneable so the
     // data URIs (plain strings) cross IPC normally.
     resolveViewAssets(result.view, options.projectRoot);
-    if (debug) {
-      result._assetDebug = debug;
-    }
   }
   return toCloneable(result);
 }

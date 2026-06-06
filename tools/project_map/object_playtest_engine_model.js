@@ -251,7 +251,6 @@ function applyStartState(engine, startState) {
 // runtime shows it. We cannot run the code, but we can READ it: scan the scene's
 // compiled action sources for image-path string literals so the host can inline
 // them and the panel can show them with the prose.
-const ACTION_IMAGE_REF_RE = /["']([^"'\s]+\.(?:png|jpe?g|gif|webp|svg|bmp|avif))["']/gi;
 
 function collectActionSources(action, out) {
   if (!action) {
@@ -280,11 +279,13 @@ function extractActionImageRefs(scene) {
     return [];
   }
   const joined = sources.join('\n');
+  // Local (not module-level) so its global-flag lastIndex can never leak between
+  // calls -- a fresh regex per scan keeps extraction stateless.
+  const imageRefRe = /["']([^"'\s]+\.(?:png|jpe?g|gif|webp|svg|bmp|avif))["']/gi;
   const refs = [];
   const seen = {};
   let match;
-  ACTION_IMAGE_REF_RE.lastIndex = 0;
-  while ((match = ACTION_IMAGE_REF_RE.exec(joined)) !== null) {
+  while ((match = imageRefRe.exec(joined)) !== null) {
     if (!seen[match[1]]) {
       seen[match[1]] = true;
       refs.push(match[1]);
