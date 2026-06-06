@@ -23,12 +23,12 @@ function main() {
     qualities: {demo_resources: 1}
   };
 
-  const html = ui.renderView(view, {variables: ['demo_resources'], startState: {demo_resources: 1}, edited: true});
+  const html = ui.renderPane(view, {variables: ['demo_resources'], startState: {demo_resources: 1}, edited: true});
 
   // Engine-rendered content + choice HTML are injected verbatim.
   assert(html.indexOf('<p>The office receives three contradictory notes.</p>') !== -1,
-    'renderView should inject the engine content HTML verbatim');
-  assert(html.indexOf('Civic Reform Campaign') !== -1, 'renderView should show the scene title');
+    'renderPane should inject the engine content HTML verbatim');
+  assert(html.indexOf('Civic Reform Campaign') !== -1, 'renderPane should show the scene title');
 
   // Available choice is a clickable, index-addressed button.
   assert(/data-play-choice="0"/.test(html), 'an available choice should be a data-play-choice button keyed by index');
@@ -76,7 +76,7 @@ function main() {
     'an edited play-test should flag that it includes unsaved edits');
 
   // Game-over rendering.
-  const overHtml = ui.renderView({sceneId: 'x', contentHtml: '<p>Done.</p>', choices: [], gameOver: true}, {});
+  const overHtml = ui.renderPane({sceneId: 'x', contentHtml: '<p>Done.</p>', choices: [], gameOver: true}, {});
   assert(overHtml.indexOf('object-editing-play-engine-gameover') !== -1,
     'a game-over view should render the game-over banner');
 
@@ -127,7 +127,7 @@ function main() {
     spriteStyles: {topLeft: 'opacity: 0.8'},
     faceImage: 'data:image/svg+xml;base64,CCCC'
   };
-  const artHtml = ui.renderView(artView, {});
+  const artHtml = ui.renderPane(artView, {});
   assert(/object-editing-play-stage[^>]*has-bg/.test(artHtml),
     'a view with a background should render a has-bg stage banner');
   assert(/background-image/.test(artHtml) && artHtml.indexOf('data:image/png;base64,AAAA') !== -1,
@@ -144,7 +144,7 @@ function main() {
 
   // Pictures injected by display/arrival code arrive as inlined data URIs in
   // contentImages and render as full-width figures below the prose.
-  const codeImgHtml = ui.renderView({
+  const codeImgHtml = ui.renderPane({
     sceneId: 'ci', contentHtml: '<p>x</p>', choices: [],
     contentImages: ['data:image/jpeg;base64,DDDD']
   }, {});
@@ -154,12 +154,12 @@ function main() {
     'a content image figure should use its inlined data URI');
 
   // A CSS-colour background is applied as a colour, not an image.
-  const colorHtml = ui.renderView({sceneId: 'c', contentHtml: '<p>x</p>', choices: [], bg: '#123456'}, {});
+  const colorHtml = ui.renderPane({sceneId: 'c', contentHtml: '<p>x</p>', choices: [], bg: '#123456'}, {});
   assert(colorHtml.indexOf('background-color:#123456') !== -1,
     'a CSS-colour background should be applied as background-color');
 
   // No art -> no stage banner (text-only scenes are unchanged).
-  const plainHtml = ui.renderView({sceneId: 'p', contentHtml: '<p>x</p>', choices: []}, {});
+  const plainHtml = ui.renderPane({sceneId: 'p', contentHtml: '<p>x</p>', choices: []}, {});
   assert(plainHtml.indexOf('object-editing-play-stage') === -1,
     'a view without art should not render a stage banner');
 

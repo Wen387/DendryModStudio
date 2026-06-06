@@ -672,8 +672,6 @@
     renderError: renderError,
     renderPane: renderPane,
     renderNode: renderNode,
-    // Back-compat alias.
-    renderView: renderPane,
     // Stateful controller used by the Object Editor canvas UI.
     renderInto: renderInto,
     claimPane: claimPane,
