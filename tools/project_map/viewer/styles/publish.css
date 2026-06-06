@@ -581,3 +581,71 @@
   font-size: 0.78rem;
   color: var(--muted);
 }
+
+/* ---- Manage section (visibility / description / disconnect) ---- */
+.publish-manage {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.publish-manage-head {
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.publish-manage-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.publish-manage-label {
+  min-width: 84px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.publish-manage-note {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.publish-manage-action {
+  margin-left: auto;
+  padding: 4px 12px;
+  font-size: 0.82rem;
+}
+
+.publish-manage-desc-text {
+  flex: 1 1 140px;
+  font-size: 0.86rem;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.publish-manage-desc-text.is-empty {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.publish-manage-desc-input {
+  flex: 1 1 160px;
+}
+
+.publish-manage-row-unlink {
+  margin-top: 2px;
+}
+
+.publish-manage-unlink {
+  margin-left: auto;
+  color: var(--danger-text);
+}

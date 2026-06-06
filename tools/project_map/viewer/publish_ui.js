@@ -538,6 +538,7 @@
       '    <div class="publish-changes" data-publish-changes></div>',
       '    <p class="publish-error-text hidden" data-publish-sync-error></p>',
       '    <div class="publish-actions" data-publish-sync-actions></div>',
+      '    <div class="publish-manage" data-publish-manage></div>',
       '    <p class="publish-checked" data-publish-checked></p>',
       '  </div>',
       '</div>'
@@ -574,6 +575,7 @@
     });
 
     renderSyncActions(sync);
+    buildManageSection(bodyEl.querySelector('[data-publish-manage]'), sync);
   }
 
   // State-specific action buttons live here. A refresh is always available so the
@@ -781,6 +783,253 @@
       const msg = (bodyEl.querySelector('[data-publish-force-message]').value || '').trim();
       onUpdate(msg || t('publish.sync.forceDefaultMessage', 'Overwrite from Dendry Mod Studio'), { force: true });
     });
+  }
+
+  // ----- Manage section: repo settings that write to GitHub -----------------
+  // Lower-stakes management for an already-published folder: change visibility,
+  // edit the description, or disconnect the folder from its repo. Each write
+  // goes through the backend op we own (publishConfig / publishUnlink) and
+  // confirms in place via the same flash + re-probe path as the sync actions, so
+  // the dashboard reflects the change without dead-ending on a separate screen.
+  function buildManageSection(container, sync) {
+    if (!container) { return; }
+    const meta = sync.repoMeta || null;
+
+    const head = document.createElement('div');
+    head.className = 'publish-manage-head';
+    head.textContent = t('publish.manage.title', 'Manage');
+    container.appendChild(head);
+
+    buildVisibilityRow(container, meta);
+    buildDescriptionRow(container, meta);
+    buildUnlinkRow(container, sync);
+  }
+
+  // repoMeta is best-effort. When it is absent (offline / metadata read failed)
+  // we cannot know the current visibility, so we show a short note instead of
+  // guessing — never a toggle that might flip the wrong way.
+  function buildVisibilityRow(container, meta) {
+    const row = document.createElement('div');
+    row.className = 'publish-manage-row';
+    const label = document.createElement('span');
+    label.className = 'publish-manage-label';
+    label.textContent = t('publish.manage.visibilityLabel', 'Visibility');
+    row.appendChild(label);
+
+    if (!meta) {
+      const note = document.createElement('span');
+      note.className = 'publish-manage-note';
+      note.textContent = t('publish.manage.visibilityUnavailable', 'Connect to GitHub to change visibility.');
+      row.appendChild(note);
+      container.appendChild(row);
+      return;
+    }
+
+    const badge = document.createElement('span');
+    badge.className = 'publish-vis-badge ' + (meta.private ? 'is-private' : 'is-public');
+    badge.textContent = meta.private
+      ? t('publish.form.private', 'Private')
+      : t('publish.form.public', 'Public');
+    row.appendChild(badge);
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'publish-secondary publish-manage-action';
+    if (meta.private) {
+      // private -> public is the privacy-sensitive direction: confirm first.
+      btn.textContent = t('publish.manage.makePublic', 'Make public…');
+      btn.addEventListener('click', renderMakePublicConfirm);
+    } else {
+      // public -> private is low-risk: one click.
+      btn.textContent = t('publish.manage.makePrivate', 'Make private');
+      btn.addEventListener('click', function () {
+        onConfig({ private: true }, t('publish.manage.madePrivate', 'This mod is now private on GitHub.'));
+      });
+    }
+    row.appendChild(btn);
+    container.appendChild(row);
+  }
+
+  function renderMakePublicConfirm() {
+    setBody([
+      '<div class="publish-step">',
+      '  <h3>' + escapeHtml(t('publish.manage.makePublicGo', 'Make public')) + '</h3>',
+      '  <p>' + escapeHtml(t('publish.manage.makePublicConfirm', 'Anyone will be able to find and read this mod on GitHub. Make it public?')) + '</p>',
+      '  <div class="publish-actions">',
+      '    <button type="button" class="publish-secondary" data-publish-cancel></button>',
+      '    <button type="button" class="publish-primary" data-publish-go></button>',
+      '  </div>',
+      '</div>'
+    ].join(''));
+    const cancel = bodyEl.querySelector('[data-publish-cancel]');
+    cancel.textContent = t('publish.sync.cancel', 'Cancel');
+    cancel.addEventListener('click', renderAuto);
+    const go = bodyEl.querySelector('[data-publish-go]');
+    go.textContent = t('publish.manage.makePublicGo', 'Make public');
+    go.addEventListener('click', function () {
+      onConfig({ private: false }, t('publish.manage.madePublic', 'This mod is now public on GitHub.'));
+    });
+  }
+
+  function buildDescriptionRow(container, meta) {
+    const row = document.createElement('div');
+    row.className = 'publish-manage-row publish-manage-row-desc';
+    renderDescriptionView(row, meta);
+    container.appendChild(row);
+  }
+
+  function renderDescriptionView(row, meta) {
+    row.innerHTML = '';
+    const label = document.createElement('span');
+    label.className = 'publish-manage-label';
+    label.textContent = t('publish.manage.descriptionLabel', 'Description');
+    row.appendChild(label);
+
+    const current = (meta && meta.description) || '';
+    const text = document.createElement('span');
+    text.className = 'publish-manage-desc-text' + (current ? '' : ' is-empty');
+    text.textContent = current || t('publish.manage.descriptionEmpty', 'No description yet.');
+    row.appendChild(text);
+
+    // Without repoMeta we cannot prefill the current text reliably, so the
+    // editor is only offered when we know what we are editing.
+    if (!meta) { return; }
+    const edit = document.createElement('button');
+    edit.type = 'button';
+    edit.className = 'publish-link publish-manage-action';
+    edit.textContent = t('publish.manage.descriptionEdit', 'Edit');
+    edit.addEventListener('click', function () { renderDescriptionEdit(row, meta); });
+    row.appendChild(edit);
+  }
+
+  function renderDescriptionEdit(row, meta) {
+    row.innerHTML = '';
+    const label = document.createElement('span');
+    label.className = 'publish-manage-label';
+    label.textContent = t('publish.manage.descriptionLabel', 'Description');
+    row.appendChild(label);
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'publish-input publish-manage-desc-input';
+    input.spellcheck = false;
+    input.value = (meta && meta.description) || '';
+    row.appendChild(input);
+
+    const save = document.createElement('button');
+    save.type = 'button';
+    save.className = 'publish-primary publish-manage-action';
+    save.textContent = t('publish.manage.descriptionSave', 'Save');
+    save.addEventListener('click', function () {
+      onConfig({ description: input.value.trim() }, t('publish.manage.descriptionSaved', 'Description updated on GitHub.'));
+    });
+    row.appendChild(save);
+
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.className = 'publish-secondary publish-manage-action';
+    cancel.textContent = t('publish.sync.cancel', 'Cancel');
+    cancel.addEventListener('click', function () { renderDescriptionView(row, meta); });
+    row.appendChild(cancel);
+
+    if (typeof input.focus === 'function') { input.focus(); }
+  }
+
+  function buildUnlinkRow(container, sync) {
+    const row = document.createElement('div');
+    row.className = 'publish-manage-row publish-manage-row-unlink';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'publish-link publish-manage-unlink';
+    btn.textContent = t('publish.manage.unlink', 'Disconnect from GitHub…');
+    btn.addEventListener('click', function () { renderUnlinkConfirm(sync); });
+    row.appendChild(btn);
+    container.appendChild(row);
+  }
+
+  // Disconnect is local-only and non-destructive (it removes the origin remote;
+  // history, files, and the GitHub repo all stay), so a single clear confirm —
+  // not a typed-name gate like the force-push — is the right weight.
+  function renderUnlinkConfirm(sync) {
+    setBody([
+      '<div class="publish-step">',
+      '  <h3>' + escapeHtml(t('publish.manage.unlinkTitle', 'Disconnect this folder from GitHub?')) + '</h3>',
+      '  <p>' + escapeHtml(t('publish.manage.unlinkBody1', 'This only removes the link on your computer. Your files, your history, and the GitHub repository all stay exactly as they are.')) + '</p>',
+      '  <p class="publish-muted">' + escapeHtml(t('publish.manage.unlinkBody2', 'You can reconnect any time by publishing this folder again.')) + '</p>',
+      '  <div class="publish-actions">',
+      '    <button type="button" class="publish-secondary" data-publish-unlink-cancel></button>',
+      '    <button type="button" class="publish-primary" data-publish-unlink-go></button>',
+      '  </div>',
+      '</div>'
+    ].join(''));
+    const cancel = bodyEl.querySelector('[data-publish-unlink-cancel]');
+    cancel.textContent = t('publish.sync.cancel', 'Cancel');
+    cancel.addEventListener('click', renderAuto);
+    const go = bodyEl.querySelector('[data-publish-unlink-go]');
+    go.textContent = t('publish.manage.unlinkGo', 'Disconnect');
+    go.addEventListener('click', onUnlink);
+  }
+
+  async function onUnlink() {
+    renderBusy('publish.manage.unlink', 'Disconnecting…');
+    let res = null;
+    try {
+      res = await caps().publishUnlink({ projectRoot: currentProjectRoot() });
+    } catch (err) {
+      res = { ok: false, message: String((err && err.message) || err) };
+    }
+    if (res && res.ok) {
+      renderUnlinkDone();
+    } else {
+      flashThenRefresh('error', (res && res.message) || '');
+    }
+  }
+
+  // After unlinking the folder is a first-publish folder again. Show a calm
+  // confirmation, then let the user step back into the publish flow (renderAuto
+  // re-probes and, finding no origin, renders the publish form).
+  function renderUnlinkDone() {
+    setBody([
+      '<div class="publish-step publish-center">',
+      '  <h3>' + escapeHtml(t('publish.manage.unlinkDoneTitle', 'Disconnected from GitHub')) + '</h3>',
+      '  <p class="publish-muted">' + escapeHtml(t('publish.manage.unlinkDoneBody', 'This folder is no longer linked to GitHub. Publish it again whenever you are ready.')) + '</p>',
+      '  <div class="publish-actions">',
+      '    <button type="button" class="publish-primary" data-publish-unlink-back></button>',
+      '  </div>',
+      '</div>'
+    ].join(''));
+    const back = bodyEl.querySelector('[data-publish-unlink-back]');
+    back.textContent = t('publish.manage.unlinkDoneBack', 'Back to publishing');
+    back.addEventListener('click', renderAuto);
+  }
+
+  // Shared writer for visibility + description changes. Both PATCH the repo via
+  // publishConfig and confirm in place; the re-probe afterwards refreshes the
+  // dashboard's repoMeta so the new state is reflected.
+  async function onConfig(patch, successText) {
+    renderBusy('publish.publishing', 'Publishing…');
+    let res = null;
+    try {
+      res = await caps().publishConfig(Object.assign({ projectRoot: currentProjectRoot() }, patch));
+    } catch (err) {
+      res = { ok: false, message: String((err && err.message) || err) };
+    }
+    if (res && res.ok) {
+      flashThenRefresh('success', successText);
+    } else {
+      flashThenRefresh('error', configErrorMessage(res));
+    }
+  }
+
+  function configErrorMessage(res) {
+    const code = res && res.code;
+    if (code === 'forbidden') {
+      return t('publish.manage.forbidden', 'Your GitHub connection does not have permission to change this. Reconnect with full repository access.');
+    }
+    if (code === 'no_changes') {
+      return t('publish.sync.nothingToCommit', 'There are no changes to publish.');
+    }
+    return (res && res.message) || '';
   }
 
   async function onSubmit() {
