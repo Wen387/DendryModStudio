@@ -344,6 +344,39 @@ async function main() {
     fs.rmSync(builtRoot, {recursive: true, force: true});
   }
 
+  // ---- code-injected scene art: on-display {! ... image.src = "img/..." !} ----
+  // Some games attach a scene picture imperatively in display code rather than a
+  // face-image: property. We can't run that code headless, but we read its source
+  // and surface the ref so it still shows in the play-test.
+  const codeImgFiles = baseFiles.concat([{
+    name: 'scenes/codeimg.scene.dry',
+    contents: [
+      'title: Code Image Scene',
+      'on-display: {! var im = new Image(); im.src = "img/events/demo_polling_shock.svg"; !}',
+      '',
+      'A scene that injects its picture via display code.',
+      ''
+    ].join('\n')
+  }]);
+  const codeImgGame = await model.compileGameFromDryFiles(codeImgFiles);
+  const codeImgStart = model.start({game: codeImgGame, entrySceneId: 'codeimg', startState: {}});
+  assert(codeImgStart.ok, 'a scene with on-display image code should still start cleanly', codeImgStart.error);
+  assert(Array.isArray(codeImgStart.view.contentImages) &&
+    codeImgStart.view.contentImages.indexOf('img/events/demo_polling_shock.svg') !== -1,
+    'on-display image refs should be extracted into contentImages', codeImgStart.view.contentImages);
+  host.resolveViewAssets(codeImgStart.view, PROJECT_ROOT);
+  assert((codeImgStart.view.contentImages || []).length === 1 &&
+    /^data:image\//.test(codeImgStart.view.contentImages[0]),
+    'extracted content images should inline to data URIs', codeImgStart.view.contentImages);
+
+  // A raw <img src="img/..."> embedded directly in scene prose is inlined too.
+  const rawImgView = host.resolveViewAssets(
+    {contentHtml: '<p>x</p><img src="img/events/demo_polling_shock.svg">'},
+    PROJECT_ROOT
+  );
+  assert(/<img src="data:image\//.test(rawImgView.contentHtml),
+    'a raw <img> in content should have its src inlined to a data URI', rawImgView.contentHtml.slice(0, 60));
+
   // End to end through the IPC entry point: a real face image arrives as a data URI.
   host._clearCache();
   const artHandled = await host.handle({action: 'start', projectRoot: PROJECT_ROOT, entrySceneId: 'demo_polling_shock'});

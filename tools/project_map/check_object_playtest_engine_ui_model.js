@@ -142,6 +142,17 @@ function main() {
   assert(artHtml.indexOf('src="data:image/svg+xml;base64,CCCC"') !== -1,
     'the portrait should use the inlined face-image data URI');
 
+  // Pictures injected by display/arrival code arrive as inlined data URIs in
+  // contentImages and render as full-width figures below the prose.
+  const codeImgHtml = ui.renderView({
+    sceneId: 'ci', contentHtml: '<p>x</p>', choices: [],
+    contentImages: ['data:image/jpeg;base64,DDDD']
+  }, {});
+  assert(codeImgHtml.indexOf('object-editing-play-figure') !== -1,
+    'a content image should render as a figure');
+  assert(codeImgHtml.indexOf('src="data:image/jpeg;base64,DDDD"') !== -1,
+    'a content image figure should use its inlined data URI');
+
   // A CSS-colour background is applied as a colour, not an image.
   const colorHtml = ui.renderView({sceneId: 'c', contentHtml: '<p>x</p>', choices: [], bg: '#123456'}, {});
   assert(colorHtml.indexOf('background-color:#123456') !== -1,

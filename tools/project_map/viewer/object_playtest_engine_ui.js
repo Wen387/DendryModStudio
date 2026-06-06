@@ -296,6 +296,25 @@
     return '<figure class="object-editing-play-portrait"><img alt="" src="' + escapeAttr(src) + '"></figure>';
   }
 
+  // Pictures a scene attaches through display/arrival code (e.g. an on-display
+  // {! image.src = "img/..." !} block). The host inlined each to a data URI; we
+  // show them as full-width figures below the prose, where such code usually
+  // drops them in the running game.
+  function renderContentImages(view) {
+    const imgs = Array.isArray(view.contentImages) ? view.contentImages : [];
+    const valid = imgs.filter(function (src) {
+      return typeof src === 'string' && src;
+    });
+    if (!valid.length) {
+      return '';
+    }
+    return '<div class="object-editing-play-figures">' +
+      valid.map(function (src) {
+        return '<figure class="object-editing-play-figure"><img alt="" src="' + escapeAttr(src) + '"></figure>';
+      }).join('') +
+      '</div>';
+  }
+
   // Render one engine turn (title + content + choices) -- the part that changes
   // every interaction. Kept separate from the pane wrapper so a starting-state
   // edit can refresh just this region and leave the inputs (and focus) intact.
@@ -333,6 +352,7 @@
       renderPortrait(view),
       title,
       content,
+      renderContentImages(view),
       gameOver,
       choiceList,
       '</div>',

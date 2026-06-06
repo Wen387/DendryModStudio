@@ -2947,6 +2947,26 @@ input.preview-object-control[type="checkbox"] {
   border-radius: 8px;
 }
 
+/* Pictures injected by display/arrival code, shown full-width below the prose. */
+.object-editing-play-figures {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.object-editing-play-figure {
+  margin: 0;
+}
+
+.object-editing-play-figure img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+}
+
 .object-editing-play-onarrival,
 .object-editing-play-effects {
   display: flex;

@@ -109,6 +109,7 @@ function createCapture() {
     spriteStyles: null,
     faceImage: null,
     cardImage: null,
+    contentImages: null,
     signals: [],
     hand: null,
     decks: null,
@@ -243,6 +244,55 @@ function applyStartState(engine, startState) {
   });
 }
 
+// Some games attach a scene illustration imperatively -- e.g. an `on-display`
+// `{! ... image.src = "img/foo.jpg" ... !}` block that builds an <img> in the
+// live page DOM. That code cannot run in the headless play-test (no `document`),
+// so the engine swallows it and the picture never appears, even though the real
+// runtime shows it. We cannot run the code, but we can READ it: scan the scene's
+// compiled action sources for image-path string literals so the host can inline
+// them and the panel can show them with the prose.
+const ACTION_IMAGE_REF_RE = /["']([^"'\s]+\.(?:png|jpe?g|gif|webp|svg|bmp|avif))["']/gi;
+
+function collectActionSources(action, out) {
+  if (!action) {
+    return;
+  }
+  if (typeof action === 'function') {
+    out.push(action.toString());
+  } else if (Array.isArray(action)) {
+    action.forEach(function (entry) {
+      collectActionSources(entry, out);
+    });
+  } else if (typeof action === 'object') {
+    Object.keys(action).forEach(function (key) {
+      if (typeof action[key] === 'function') {
+        out.push(action[key].toString());
+      }
+    });
+  }
+}
+
+function extractActionImageRefs(scene) {
+  const sources = [];
+  collectActionSources(scene && scene.onDisplay, sources);
+  collectActionSources(scene && scene.onArrival, sources);
+  if (!sources.length) {
+    return [];
+  }
+  const joined = sources.join('\n');
+  const refs = [];
+  const seen = {};
+  let match;
+  ACTION_IMAGE_REF_RE.lastIndex = 0;
+  while ((match = ACTION_IMAGE_REF_RE.exec(joined)) !== null) {
+    if (!seen[match[1]]) {
+      seen[match[1]] = true;
+      refs.push(match[1]);
+    }
+  }
+  return refs;
+}
+
 function finishTurn(capture, engine) {
   const view = capture.finalize();
   const scene = (engine.game.scenes && engine.game.scenes[engine.state.sceneId]) || {};
@@ -256,6 +306,9 @@ function finishTurn(capture, engine) {
   // crosses IPC, the renderer shows them beside the content.
   view.faceImage = typeof scene.faceImage === 'string' ? scene.faceImage : null;
   view.cardImage = typeof scene.cardImage === 'string' ? scene.cardImage : null;
+  // Pictures injected by display/arrival code (read statically, never executed).
+  const codeImages = extractActionImageRefs(scene);
+  view.contentImages = codeImages.length ? codeImages : null;
   view.gameOver = engine.isGameOver();
   view.qualities = snapshotQualities(engine);
   return {ok: true, view: view, state: cloneState(engine.getExportableState())};
