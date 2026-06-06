@@ -209,6 +209,105 @@ function toCloneable(value) {
   }
 }
 
+// ---- art asset inlining ---------------------------------------------------
+// The play-test renders inside the main file:// window, so a scene's relative
+// image refs (e.g. `img/events/foo.svg`) cannot be loaded as URLs the way the
+// full-game http preview can. Instead the host reads the referenced file from
+// the project's source/ tree and hands the renderer a self-contained data: URI.
+// Audio is intentionally NOT inlined here (base64 music would bloat the IPC
+// payload); that arrives in a later phase via a streamed origin.
+
+const ASSET_MAX_INLINE_BYTES = 4 * 1024 * 1024;
+
+const IMAGE_MIME_BY_EXT = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.svg': 'image/svg+xml',
+  '.bmp': 'image/bmp',
+  '.avif': 'image/avif'
+};
+
+// Pull a bare path out of a CSS `url("...")` wrapper, else return the ref as-is.
+function assetPathFromRef(ref) {
+  const match = /^\s*url\(\s*["']?([^"')]+)["']?\s*\)\s*$/i.exec(String(ref || ''));
+  return (match ? match[1] : String(ref || '')).trim();
+}
+
+function looksLikeImageRef(ref) {
+  const lower = assetPathFromRef(ref).toLowerCase();
+  return Object.keys(IMAGE_MIME_BY_EXT).some((ext) => lower.endsWith(ext));
+}
+
+// Resolve a relative asset ref to an absolute path that MUST stay inside the
+// project's source/ tree; returns null for empty refs, absolute URLs/data: refs,
+// or any path that escapes the tree (traversal guard).
+function resolveSourceAsset(projectRoot, ref) {
+  const rel = assetPathFromRef(ref);
+  if (!rel || /^[a-z][a-z0-9+.-]*:/i.test(rel) || rel.charAt(0) === '/') {
+    return null;
+  }
+  const base = path.resolve(sourceDir(projectRoot));
+  const full = path.resolve(base, rel);
+  return full === base || full.startsWith(base + path.sep) ? full : null;
+}
+
+// Turn a local image ref into a data: URI, or null when it cannot/should not be
+// inlined (missing, oversized, unknown type, or outside the source tree).
+function inlineImageRef(projectRoot, ref) {
+  const full = resolveSourceAsset(projectRoot, ref);
+  if (!full) {
+    return null;
+  }
+  const mime = IMAGE_MIME_BY_EXT[path.extname(full).toLowerCase()];
+  if (!mime) {
+    return null;
+  }
+  let stat;
+  try {
+    stat = fs.statSync(full);
+  } catch (err) {
+    return null;
+  }
+  if (!stat.isFile() || stat.size > ASSET_MAX_INLINE_BYTES) {
+    return null;
+  }
+  try {
+    return 'data:' + mime + ';base64,' + fs.readFileSync(full).toString('base64');
+  } catch (err) {
+    return null;
+  }
+}
+
+// Rewrite a captured view's image refs to data URIs in place. A background that
+// is a CSS colour/gradient/keyword (not an image path) passes through untouched
+// for the renderer to apply directly.
+function resolveViewAssets(view, projectRoot) {
+  if (!view || typeof view !== 'object' || !projectRoot) {
+    return view;
+  }
+  if (typeof view.bg === 'string' && looksLikeImageRef(view.bg)) {
+    view.bg = inlineImageRef(projectRoot, view.bg);
+  }
+  if (typeof view.faceImage === 'string') {
+    view.faceImage = inlineImageRef(projectRoot, view.faceImage);
+  }
+  if (typeof view.cardImage === 'string') {
+    view.cardImage = inlineImageRef(projectRoot, view.cardImage);
+  }
+  if (Array.isArray(view.sprites)) {
+    view.sprites = view.sprites
+      .map((sprite) => {
+        const dataUri = sprite && inlineImageRef(projectRoot, sprite.image);
+        return dataUri ? {location: sprite.location, image: dataUri} : null;
+      })
+      .filter(Boolean);
+  }
+  return view;
+}
+
 async function prepareGame(projectRoot, plan) {
   const resolved = resolveDryFiles(projectRoot, plan);
   if (!resolved.dryFiles || !resolved.dryFiles.length) {
@@ -301,6 +400,12 @@ async function advance(options) {
 async function handle(options) {
   options = options || {};
   const result = options.action === 'advance' ? await advance(options) : await start(options);
+  if (result && result.ok && result.view) {
+    // Inline the scene's art (bg / sprites / face·card images) as data URIs so
+    // the file:// play-test window can show them. Runs before toCloneable so the
+    // data URIs (plain strings) cross IPC normally.
+    resolveViewAssets(result.view, options.projectRoot);
+  }
   return toCloneable(result);
 }
 
@@ -313,6 +418,7 @@ module.exports = {
   collectDryFiles: collectDryFiles,
   signatureOf: signatureOf,
   resolveDryFiles: resolveDryFiles,
+  resolveViewAssets: resolveViewAssets,
   _clearCache: function () {
     GAME_CACHE.clear();
   }

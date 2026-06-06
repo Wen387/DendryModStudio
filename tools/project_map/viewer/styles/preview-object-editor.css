@@ -2867,6 +2867,68 @@ input.preview-object-control[type="checkbox"] {
   color: var(--text);
 }
 
+/* Real-engine play-test art: a background/sprite "stage" banner above the
+   text, plus an optional portrait/card image inside the body. */
+.object-editing-play-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.object-editing-play-stage {
+  position: relative;
+  min-height: 140px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background-color: var(--surface-alt);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  overflow: hidden;
+}
+
+.object-editing-play-sprite {
+  position: absolute;
+  max-width: 42%;
+  max-height: 84%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.object-editing-play-sprite.is-top-left {
+  top: 6px;
+  left: 6px;
+}
+
+.object-editing-play-sprite.is-top-right {
+  top: 6px;
+  right: 6px;
+}
+
+.object-editing-play-sprite.is-bottom-left {
+  bottom: 6px;
+  left: 6px;
+}
+
+.object-editing-play-sprite.is-bottom-right {
+  bottom: 6px;
+  right: 6px;
+}
+
+.object-editing-play-portrait {
+  margin: 0;
+}
+
+.object-editing-play-portrait img {
+  display: block;
+  max-width: 120px;
+  max-height: 120px;
+  width: auto;
+  height: auto;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+}
+
 .object-editing-play-onarrival,
 .object-editing-play-effects {
   display: flex;

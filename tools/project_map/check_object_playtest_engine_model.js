@@ -266,6 +266,66 @@ async function main() {
     'host.handle should dispatch advance and continue into demo_case_hearing', handledAdvance);
   assertCloneable(handledAdvance, 'host.handle advance reply must be structured-clone safe');
 
+  // ---- art assets: capture (model) keeps raw refs, inlining (host) makes data URIs ----
+  // The engine model has no fs/project root, so it must only CAPTURE raw asset
+  // refs (bg / sprites / sprite styles / face·card images); turning them into
+  // data URIs for the file:// play-test window is the host's job.
+  const ART_FILES = [
+    {name: 'info.dry', contents: 'title: T\nauthor: x\n'},
+    {
+      name: 'scenes/root.scene.dry',
+      contents: 'title: Root\nset-bg: img/bg/board.png\n' +
+        'set-sprites: topLeft: img/cast/a.png, bottomRight: img/cast/b.png\n' +
+        'set-top-left-style: opacity: 0.8\n\nArt body.\n'
+    }
+  ];
+  const artGame = await model.compileGameFromDryFiles(ART_FILES);
+  const artStart = model.start({game: artGame, entrySceneId: 'root'});
+  assert(artStart.ok, 'a scene with art should start', artStart);
+  assert(artStart.view.bg === 'img/bg/board.png',
+    'setBg should be captured as the raw scene ref (not inlined at the model layer)', artStart.view.bg);
+  assert(Array.isArray(artStart.view.sprites) && artStart.view.sprites.length === 2,
+    'setSprites should be captured as a normalised list', artStart.view.sprites);
+  assert(artStart.view.sprites[0].location === 'topLeft' && artStart.view.sprites[0].image === 'img/cast/a.png',
+    'each captured sprite should carry its location and image ref', artStart.view.sprites);
+  assert(artStart.view.spriteStyles && artStart.view.spriteStyles.topLeft,
+    'setSpriteStyle should be captured per location', artStart.view.spriteStyles);
+
+  const faceStart = model.start({game: game, entrySceneId: 'demo_polling_shock'});
+  assert(faceStart.ok && faceStart.view.faceImage === 'img/events/demo_polling_shock.svg',
+    'finishTurn should surface the scene face-image ref', faceStart.view.faceImage);
+  const cardStart = model.start({game: game, entrySceneId: 'demo_action_card'});
+  assert(cardStart.ok && cardStart.view.cardImage === 'img/cards/demo_action_card.svg',
+    'finishTurn should surface the scene card-image ref', cardStart.view.cardImage);
+
+  // host.resolveViewAssets: inline real files, drop missing, pass CSS through, guard traversal.
+  const realFaceRef = 'img/events/demo_polling_shock.svg';
+  const inlined = host.resolveViewAssets({faceImage: realFaceRef}, PROJECT_ROOT);
+  assert(/^data:image\/svg\+xml;base64,/.test(inlined.faceImage || ''),
+    'resolveViewAssets should inline a real source image as a data URI', (inlined.faceImage || '').slice(0, 40));
+  const missingAsset = host.resolveViewAssets({faceImage: 'img/events/__none__.png'}, PROJECT_ROOT);
+  assert(missingAsset.faceImage === null, 'resolveViewAssets should null out a missing image ref');
+  const colorBg = host.resolveViewAssets({bg: '#102030'}, PROJECT_ROOT);
+  assert(colorBg.bg === '#102030', 'resolveViewAssets should pass a CSS colour background through untouched');
+  const gradientBg = host.resolveViewAssets({bg: 'linear-gradient(#000,#fff)'}, PROJECT_ROOT);
+  assert(gradientBg.bg === 'linear-gradient(#000,#fff)',
+    'resolveViewAssets should pass a CSS gradient background through untouched');
+  const traversal = host.resolveViewAssets({faceImage: '../../../../etc/passwd'}, PROJECT_ROOT);
+  assert(traversal.faceImage === null, 'resolveViewAssets must refuse refs that escape the source tree');
+  const spriteResolved = host.resolveViewAssets(
+    {sprites: [{location: 'topLeft', image: realFaceRef}, {location: 'topRight', image: 'img/none.png'}]},
+    PROJECT_ROOT
+  );
+  assert(spriteResolved.sprites.length === 1 && /^data:/.test(spriteResolved.sprites[0].image),
+    'resolveViewAssets should inline resolvable sprites and drop unresolvable ones', spriteResolved.sprites);
+
+  // End to end through the IPC entry point: a real face image arrives as a data URI.
+  host._clearCache();
+  const artHandled = await host.handle({action: 'start', projectRoot: PROJECT_ROOT, entrySceneId: 'demo_polling_shock'});
+  assert(artHandled.ok && /^data:image\//.test(artHandled.view.faceImage || ''),
+    'host.handle should deliver the scene face image as a data URI', (artHandled.view.faceImage || '').slice(0, 24));
+  assertCloneable(artHandled, 'an art-bearing host.handle reply must still be structured-clone safe');
+
   process.stdout.write(JSON.stringify({
     ok: true,
     scenes: Object.keys(game.scenes).length,

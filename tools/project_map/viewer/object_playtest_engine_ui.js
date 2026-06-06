@@ -209,6 +209,84 @@
     ].join('');
   }
 
+  // ---- art assets (background / sprites / portrait·card images) ------------
+  // The host inlines each scene image as a data: URI before the view crosses
+  // IPC, so they drop straight into a src/background here. A background that is a
+  // CSS colour or gradient (not an image) arrives verbatim and is applied as-is.
+
+  function backgroundStyle(bg) {
+    if (!bg || typeof bg !== 'string') {
+      return '';
+    }
+    if (bg.indexOf('data:') === 0) {
+      return 'background-image:url("' + bg.replace(/"/g, '%22') + '");';
+    }
+    if (/gradient\(/i.test(bg)) {
+      return 'background-image:' + bg + ';';
+    }
+    return 'background-color:' + bg + ';';
+  }
+
+  const SPRITE_LOCATION_CLASS = {
+    topleft: 'top-left',
+    topright: 'top-right',
+    bottomleft: 'bottom-left',
+    bottomright: 'bottom-right'
+  };
+
+  function spriteLocationClass(location) {
+    const key = String(location || '').toLowerCase().replace(/[^a-z]/g, '');
+    return SPRITE_LOCATION_CLASS[key] || 'top-left';
+  }
+
+  function spriteStyleString(style) {
+    if (!style) {
+      return '';
+    }
+    // The engine compiles set-<corner>-style as a raw CSS string; older/object
+    // forms (jQuery .css() maps) are also tolerated.
+    if (typeof style === 'string') {
+      return style;
+    }
+    if (typeof style !== 'object') {
+      return '';
+    }
+    return Object.keys(style)
+      .map(function (prop) {
+        const cssProp = prop.replace(/[A-Z]/g, function (ch) { return '-' + ch.toLowerCase(); });
+        return cssProp + ':' + style[prop];
+      })
+      .join(';');
+  }
+
+  function renderSprites(view) {
+    const sprites = Array.isArray(view.sprites) ? view.sprites : [];
+    if (!sprites.length) {
+      return '';
+    }
+    const styles = view.spriteStyles && typeof view.spriteStyles === 'object' ? view.spriteStyles : {};
+    return sprites
+      .map(function (sprite) {
+        if (!sprite || typeof sprite.image !== 'string') {
+          return '';
+        }
+        const inline = spriteStyleString(styles[sprite.location]);
+        return '<img class="object-editing-play-sprite is-' + spriteLocationClass(sprite.location) +
+          '" alt="" src="' + escapeAttr(sprite.image) + '"' +
+          (inline ? ' style="' + escapeAttr(inline) + '"' : '') + '>';
+      })
+      .join('');
+  }
+
+  function renderPortrait(view) {
+    const src = (typeof view.faceImage === 'string' && view.faceImage) ||
+      (typeof view.cardImage === 'string' && view.cardImage) || '';
+    if (!src) {
+      return '';
+    }
+    return '<figure class="object-editing-play-portrait"><img alt="" src="' + escapeAttr(src) + '"></figure>';
+  }
+
   // Render one engine turn (title + content + choices) -- the part that changes
   // every interaction. Kept separate from the pane wrapper so a starting-state
   // edit can refresh just this region and leave the inputs (and focus) intact.
@@ -230,12 +308,25 @@
     const choiceList = choices.length
       ? '<ul class="object-editing-play-options">' + choices.map(renderChoice).join('') + '</ul>'
       : (view.gameOver ? '' : '<p class="object-editing-play-no-options">' + escapeHtml(t('playSim.noOptions', 'No choices to simulate.')) + '</p>');
+    const bgStyle = backgroundStyle(view.bg);
+    const sprites = renderSprites(view);
+    // Background + sprites sit in a "stage" banner above the text rather than
+    // behind it -- clearer to read in an editor pane, and it avoids tinting the
+    // prose. The banner only appears when the scene actually has art.
+    const stage = (bgStyle || sprites)
+      ? '<div class="object-editing-play-stage' + (bgStyle ? ' has-bg' : '') + '"' +
+        (bgStyle ? ' style="' + escapeAttr(bgStyle) + '"' : '') + '>' + sprites + '</div>'
+      : '';
     return [
       '<article class="object-editing-play-card" data-play-card="engine">',
+      stage,
+      '<div class="object-editing-play-body">',
+      renderPortrait(view),
       title,
       content,
       gameOver,
       choiceList,
+      '</div>',
       '</article>'
     ].join('');
   }

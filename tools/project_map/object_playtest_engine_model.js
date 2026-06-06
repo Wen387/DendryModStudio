@@ -105,6 +105,10 @@ function createCapture() {
     choices: [],
     gameOver: false,
     bg: null,
+    sprites: null,
+    spriteStyles: null,
+    faceImage: null,
+    cardImage: null,
     signals: [],
     hand: null,
     decks: null,
@@ -156,8 +160,36 @@ function createCapture() {
     setBg: function (image) {
       view.bg = image || null;
     },
-    setSprites: function () {},
-    setSpriteStyle: function () {},
+    setSprites: function (data) {
+      // The engine passes an array of [location, image] pairs, or the strings
+      // 'none'/'clear' to drop all sprites. Normalise to a plain {location,
+      // image} list (clone-safe); the host later inlines each image, the
+      // renderer places it in its corner.
+      if (!data || data === 'none' || data === 'clear') {
+        view.sprites = [];
+        return;
+      }
+      view.sprites = (Array.isArray(data) ? data : [])
+        .map(function (entry) {
+          if (Array.isArray(entry)) {
+            return {location: entry[0], image: entry[1]};
+          }
+          if (entry && typeof entry === 'object') {
+            return {location: entry.location, image: entry.image || entry.img || entry.src};
+          }
+          return null;
+        })
+        .filter(function (sprite) {
+          return sprite && sprite.location && typeof sprite.image === 'string';
+        });
+    },
+    setSpriteStyle: function (location, style) {
+      if (!location) {
+        return;
+      }
+      view.spriteStyles = view.spriteStyles || {};
+      view.spriteStyles[String(location)] = style;
+    },
     signal: function (data) {
       if (data) {
         view.signals.push(data);
@@ -219,6 +251,11 @@ function finishTurn(capture, engine) {
   // content structure carrying predicate functions, which would later break the
   // structured-clone IPC hop; the scene body still renders via contentHtml.
   view.title = typeof scene.title === 'string' ? scene.title : null;
+  // Per-scene portrait / card art. These are plain string refs on the scene
+  // (relative asset paths); the host inlines them to data URIs before the view
+  // crosses IPC, the renderer shows them beside the content.
+  view.faceImage = typeof scene.faceImage === 'string' ? scene.faceImage : null;
+  view.cardImage = typeof scene.cardImage === 'string' ? scene.cardImage : null;
   view.gameOver = engine.isGameOver();
   view.qualities = snapshotQualities(engine);
   return {ok: true, view: view, state: cloneState(engine.getExportableState())};

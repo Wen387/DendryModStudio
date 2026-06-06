@@ -89,6 +89,42 @@ function main() {
   assert(/data-play-entry/.test(single) === false,
     'the entry picker should be omitted when only one scene is selectable');
 
+  // ---- art assets: background/sprites/portrait render (host already inlined them) ----
+  const artView = {
+    sceneId: 'art',
+    title: 'Art Scene',
+    contentHtml: '<p>Body.</p>',
+    choices: [],
+    bg: 'data:image/png;base64,AAAA',
+    sprites: [{location: 'topLeft', image: 'data:image/png;base64,BBBB'}],
+    spriteStyles: {topLeft: 'opacity: 0.8'},
+    faceImage: 'data:image/svg+xml;base64,CCCC'
+  };
+  const artHtml = ui.renderView(artView, {});
+  assert(/object-editing-play-stage[^>]*has-bg/.test(artHtml),
+    'a view with a background should render a has-bg stage banner');
+  assert(/background-image/.test(artHtml) && artHtml.indexOf('data:image/png;base64,AAAA') !== -1,
+    'a data-URI background should be applied as a background-image on the stage');
+  assert(/object-editing-play-sprite is-top-left/.test(artHtml),
+    'a sprite should render in its mapped corner');
+  assert(artHtml.indexOf('src="data:image/png;base64,BBBB"') !== -1,
+    'a sprite image should use its inlined data-URI src');
+  assert(artHtml.indexOf('opacity: 0.8') !== -1, 'a per-corner sprite style should be applied inline');
+  assert(artHtml.indexOf('object-editing-play-portrait') !== -1,
+    'a face image should render a portrait figure');
+  assert(artHtml.indexOf('src="data:image/svg+xml;base64,CCCC"') !== -1,
+    'the portrait should use the inlined face-image data URI');
+
+  // A CSS-colour background is applied as a colour, not an image.
+  const colorHtml = ui.renderView({sceneId: 'c', contentHtml: '<p>x</p>', choices: [], bg: '#123456'}, {});
+  assert(colorHtml.indexOf('background-color:#123456') !== -1,
+    'a CSS-colour background should be applied as background-color');
+
+  // No art -> no stage banner (text-only scenes are unchanged).
+  const plainHtml = ui.renderView({sceneId: 'p', contentHtml: '<p>x</p>', choices: []}, {});
+  assert(plainHtml.indexOf('object-editing-play-stage') === -1,
+    'a view without art should not render a stage banner');
+
   process.stdout.write(JSON.stringify({ok: true}, null, 2) + '\n');
 }
 
