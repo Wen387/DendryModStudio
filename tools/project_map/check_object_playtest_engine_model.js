@@ -319,6 +319,31 @@ async function main() {
   assert(spriteResolved.sprites.length === 1 && /^data:/.test(spriteResolved.sprites[0].image),
     'resolveViewAssets should inline resolvable sprites and drop unresolvable ones', spriteResolved.sprites);
 
+  // Art that exists ONLY in the built output (out/html/img), not under source/img,
+  // must still inline -- many projects (e.g. modded published games) keep portraits
+  // in the build, and the runtime preview serves them from there. The play-test
+  // host has to resolve against the same roots or art is invisible despite the
+  // real runtime showing it.
+  const builtRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dms-art-built-'));
+  try {
+    const onePng = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC',
+      'base64'
+    );
+    fs.mkdirSync(path.join(builtRoot, 'source'), {recursive: true}); // source/ exists, but no img
+    fs.mkdirSync(path.join(builtRoot, 'out', 'html', 'img', 'portraits'), {recursive: true});
+    fs.writeFileSync(path.join(builtRoot, 'out', 'html', 'img', 'portraits', 'Stresemann.jpg'), onePng);
+    const builtInlined = host.resolveViewAssets({faceImage: 'img/portraits/Stresemann.jpg'}, builtRoot);
+    assert(/^data:image\/jpeg;base64,/.test(builtInlined.faceImage || ''),
+      'resolveViewAssets should inline art that lives only in the built out/html output',
+      (builtInlined.faceImage || '').slice(0, 30));
+    const builtTraversal = host.resolveViewAssets({faceImage: '../../../../etc/passwd'}, builtRoot);
+    assert(builtTraversal.faceImage === null,
+      'the traversal guard must still hold for the built-output root');
+  } finally {
+    fs.rmSync(builtRoot, {recursive: true, force: true});
+  }
+
   // End to end through the IPC entry point: a real face image arrives as a data URI.
   host._clearCache();
   const artHandled = await host.handle({action: 'start', projectRoot: PROJECT_ROOT, entrySceneId: 'demo_polling_shock'});

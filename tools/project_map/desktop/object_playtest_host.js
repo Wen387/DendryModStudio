@@ -241,17 +241,42 @@ function looksLikeImageRef(ref) {
   return Object.keys(IMAGE_MIME_BY_EXT).some((ext) => lower.endsWith(ext));
 }
 
-// Resolve a relative asset ref to an absolute path that MUST stay inside the
-// project's source/ tree; returns null for empty refs, absolute URLs/data: refs,
-// or any path that escapes the tree (traversal guard).
+// The roots a scene's relative asset ref may resolve against, in priority order.
+// Refs in .dry are written relative to the GAME HTML root (e.g.
+// `img/portraits/x.jpg`); the actual file may live under the editable `source/`
+// tree OR only in the built `out/html/` output. The runtime preview serves both
+// (it copies source/img over a copy of out/html), so the play-test must resolve
+// against the same roots -- otherwise art that exists only in the build is
+// invisible here even though the real runtime shows it. source/ wins ties so the
+// editable copy is preferred over a possibly-stale build.
+function assetRoots(projectRoot) {
+  return [sourceDir(projectRoot), path.join(projectRoot, 'out', 'html')];
+}
+
+// Resolve a relative asset ref to an absolute, EXISTING file path inside one of
+// the allowed roots. Returns null for empty refs, absolute URLs/data: refs, any
+// path that escapes every root (traversal guard), or refs that match no file.
 function resolveSourceAsset(projectRoot, ref) {
   const rel = assetPathFromRef(ref);
   if (!rel || /^[a-z][a-z0-9+.-]*:/i.test(rel) || rel.charAt(0) === '/') {
     return null;
   }
-  const base = path.resolve(sourceDir(projectRoot));
-  const full = path.resolve(base, rel);
-  return full === base || full.startsWith(base + path.sep) ? full : null;
+  const roots = assetRoots(projectRoot);
+  for (let i = 0; i < roots.length; i += 1) {
+    const base = path.resolve(roots[i]);
+    const full = path.resolve(base, rel);
+    if (full !== base && !full.startsWith(base + path.sep)) {
+      continue; // escapes this root -- try the next
+    }
+    try {
+      if (fs.statSync(full).isFile()) {
+        return full;
+      }
+    } catch (err) {
+      /* not present under this root; fall through to the next */
+    }
+  }
+  return null;
 }
 
 // Turn a local image ref into a data: URI, or null when it cannot/should not be
