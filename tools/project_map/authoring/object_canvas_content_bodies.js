@@ -315,7 +315,9 @@
       sections: [
         field('layout.sidebarBody', 'Sidebar body', draft.sidebarBody, 'guarded'),
         field('layout.sidebarStatusLines', 'Status lines', draft.sidebarStatusLines, 'guarded'),
-        field('layout.starterCardBody', 'Starter card body', draft.starterCardBody, 'guarded')
+        field('layout.starterCardBody', 'Starter card body', draft.starterCardBody, 'guarded'),
+        field('layout.rightSidebarTitle', 'Right sidebar title', draft.rightSidebarTitle, 'guarded'),
+        field('layout.rightSidebarBody', 'Right sidebar body', draft.rightSidebarBody, 'guarded')
       ],
       options: [
         optionRow({id: 'layout_hand'}, 0, [field('layout.handOptionLabel', 'Hand option label', draft.handOptionLabel, 'guarded')]),

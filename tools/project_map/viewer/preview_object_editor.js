@@ -116,8 +116,8 @@
       '</div>',
       '</header>',
       '<div class="object-editing-modal-grid">',
-      '<section class="object-editing-preview-pane" data-object-editing-modal-preview-pane="true">',
-      renderModalPreviewPane(model, opts),
+      '<section class="object-editing-preview-pane" data-object-editing-modal-preview-pane="true" data-preview-pane-mode="preview">',
+      renderPreviewPaneWithPlay(model, opts),
       '</section>',
       '<div class="object-editing-modal-resizer" data-object-canvas-resizer="object_editor" role="separator" aria-orientation="vertical" aria-label="' + escapeAttr(t('previewObjectEditor.resizePanes', 'Resize editor panes')) + '" title="' + escapeAttr(t('previewObjectEditor.resizePanes', 'Resize editor panes')) + '"></div>',
       '<section class="object-editing-fields-pane preview-object-editor" data-preview-object-editor="true" data-preview-object-editor-kind="' + escapeAttr(kind) + '" data-object-canvas-preview-editor="true">',
@@ -150,6 +150,21 @@
       return renderLargeEventModalPreview(body, model);
     }
     return renderPreviewPane(model, opts);
+  }
+
+  // ---- play simulator (approximate inline dry-run) ----
+  // Rendering lives in object_play_simulator_ui.js; these thin wrappers keep
+  // this module's public api stable while delegating the markup there.
+
+  function renderPreviewPaneWithPlay(model, options) {
+    const previewHtml = renderModalPreviewPane(model, options && typeof options === 'object' ? options : {});
+    let ui = global && global.ProjectMapObjectPlaySimulatorUi;
+    if (!ui && typeof require === 'function') {
+      try { ui = require('./object_play_simulator_ui.js'); } catch (_err) { ui = null; }
+    }
+    return ui && typeof ui.renderPaneWithPlay === 'function'
+      ? ui.renderPaneWithPlay(previewHtml, model && model.eventBody || {}, model)
+      : previewHtml;
   }
 
   function largeModalEventPlan(body) {

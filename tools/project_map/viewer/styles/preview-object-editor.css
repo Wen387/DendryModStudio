@@ -2716,3 +2716,544 @@ input.preview-object-control[type="checkbox"] {
   font-style: normal;
   font-weight: 800;
 }
+
+/* ---- play simulator (approximate inline dry-run) ---- */
+
+.object-editing-preview-modes-toolbar {
+  display: inline-flex;
+  gap: 2px;
+  margin: 0 0 10px;
+  padding: 2px;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  background: var(--surface-alt);
+}
+
+.object-editing-preview-modes-toolbar button {
+  appearance: none;
+  border: 0;
+  border-radius: 999px;
+  padding: 4px 14px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.object-editing-preview-modes-toolbar button.is-active {
+  background: var(--studio-accent, var(--accent));
+  color: var(--on-accent);
+}
+
+/* The preview pane centres its grid items, so an unconstrained play panel would
+   size to max-content (its longest unbroken line) and spill under the editor,
+   getting clipped by the pane's overflow-x:hidden. Pin the panels to the track
+   width so the play content fills its column and wraps instead. */
+.object-editing-preview-panel,
+.object-editing-play-panel,
+.object-editing-play-sim {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.object-editing-play {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.object-editing-play-note {
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: var(--surface-alt);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.object-editing-play-entry {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.object-editing-play-entry > span {
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.object-editing-play-entry select {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 11px;
+}
+
+.object-editing-play-state {
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 8px 10px;
+}
+
+.object-editing-play-state > summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.object-editing-play-state-vars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.object-editing-play-var {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.object-editing-play-var input {
+  width: 64px;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.object-editing-play-reset {
+  align-self: flex-start;
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.object-editing-play-card {
+  border: 1px solid var(--border-soft);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.object-editing-play-heading {
+  margin: 0;
+  font-size: 15px;
+}
+
+.object-editing-play-subtitle {
+  margin: 0;
+  color: var(--muted);
+  font-style: italic;
+  font-size: 12px;
+}
+
+.object-editing-play-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Real-engine play-test art: a background/sprite "stage" banner above the
+   text, plus an optional portrait/card image inside the body. */
+.object-editing-play-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.object-editing-play-stage {
+  position: relative;
+  min-height: 140px;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  background-color: var(--surface-alt);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  overflow: hidden;
+}
+
+.object-editing-play-sprite {
+  position: absolute;
+  max-width: 42%;
+  max-height: 84%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.object-editing-play-sprite.is-top-left {
+  top: 6px;
+  left: 6px;
+}
+
+.object-editing-play-sprite.is-top-right {
+  top: 6px;
+  right: 6px;
+}
+
+.object-editing-play-sprite.is-bottom-left {
+  bottom: 6px;
+  left: 6px;
+}
+
+.object-editing-play-sprite.is-bottom-right {
+  bottom: 6px;
+  right: 6px;
+}
+
+.object-editing-play-portrait {
+  margin: 0;
+}
+
+.object-editing-play-portrait img {
+  display: block;
+  max-width: 120px;
+  max-height: 120px;
+  width: auto;
+  height: auto;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+}
+
+/* Pictures injected by display/arrival code, shown full-width below the prose. */
+.object-editing-play-figures {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.object-editing-play-figure {
+  margin: 0;
+}
+
+.object-editing-play-figure img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+}
+
+.object-editing-play-onarrival,
+.object-editing-play-effects {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.object-editing-play-onarrival-label,
+.object-editing-play-effects-label {
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.object-editing-play-delta {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.object-editing-play-delta li {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border: 1px solid var(--success-soft, var(--border-soft));
+  border-radius: 999px;
+  background: var(--success-soft, var(--surface-alt));
+  color: var(--success-text, var(--text));
+  font-size: 11px;
+}
+
+.object-editing-play-delta code {
+  font-size: 11px;
+}
+
+.object-editing-play-delta-from {
+  color: var(--muted);
+}
+
+.object-editing-play-delta-to {
+  font-weight: 800;
+}
+
+.object-editing-play-delta-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.object-editing-play-skipped {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.object-editing-play-skipped li {
+  padding: 3px 8px;
+  border: 1px solid var(--warn-soft, var(--border-soft));
+  border-radius: 6px;
+  background: var(--warn-soft, var(--surface-alt));
+  color: var(--warning-strong, var(--text));
+  font-size: 11px;
+}
+
+.object-editing-play-options {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.object-editing-play-option {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.object-editing-play-option > button {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* The engine's rich choice title kept as one flowing line inside the button's
+   column layout (a styled span per word must NOT become its own flex row). */
+.object-editing-play-option-label {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.object-editing-play-option > button:hover:not(:disabled) {
+  border-color: var(--studio-accent, var(--accent));
+  background: var(--studio-accent-soft, var(--surface-alt));
+}
+
+.object-editing-play-option > button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.object-editing-play-option-subtitle {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.object-editing-play-option.is-unavailable .object-editing-play-option-condition,
+.object-editing-play-option.is-unavailable .object-editing-play-option-unavailable,
+.object-editing-play-option.is-unknown .object-editing-play-option-unknown {
+  font-size: 11px;
+  color: var(--muted);
+  padding-left: 4px;
+}
+
+.object-editing-play-option-unavailable {
+  font-style: italic;
+}
+
+.object-editing-play-chose {
+  margin: 0;
+  font-size: 13px;
+}
+
+.object-editing-play-continuation {
+  margin: 0;
+  padding: 8px 10px;
+  border-left: 3px solid var(--studio-accent, var(--accent));
+  background: var(--surface-alt);
+  font-size: 12px;
+}
+
+.object-editing-play-continuation-note {
+  color: var(--muted);
+}
+
+.object-editing-play-blocked {
+  margin: 0;
+  color: var(--danger-strong, var(--danger));
+  font-size: 12px;
+}
+
+.object-editing-play-back {
+  align-self: flex-start;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 12px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.object-editing-play-empty,
+.object-editing-play-no-options {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* Real-engine play-test (Phase 2) -- reuses the approximate play styles above
+   and adds the engine-specific note, edit badges, loading and error states. */
+.object-editing-play-engine-note {
+  border-left: 2px solid color-mix(in srgb, var(--studio-accent, var(--accent)) 60%, var(--border));
+}
+
+.object-editing-play-engine-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0;
+}
+
+.object-editing-play-engine-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  background: var(--surface-alt);
+}
+
+.object-editing-play-engine-badge.is-edited {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  background: color-mix(in srgb, var(--studio-accent-soft, var(--surface)) 60%, var(--lift));
+}
+
+.object-editing-play-engine-badge.is-edit-failed {
+  border-color: color-mix(in srgb, var(--warning) 40%, var(--border));
+  color: color-mix(in srgb, var(--text) 70%, var(--warning));
+}
+
+.object-editing-play-engine-loading,
+.object-editing-play-engine-error {
+  margin: 8px 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Indeterminate "compiling" bar: a sliding sliver so a long compile in the
+   desktop main process reads as busy rather than hung. */
+.object-editing-play-engine-progress {
+  position: relative;
+  height: 4px;
+  margin: 8px 0 0;
+  border-radius: 999px;
+  background: var(--surface-alt);
+  overflow: hidden;
+}
+
+.object-editing-play-engine-progress span {
+  position: absolute;
+  top: 0;
+  left: -40%;
+  width: 40%;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--studio-accent, var(--accent));
+  animation: object-editing-play-progress 1.1s ease-in-out infinite;
+}
+
+@keyframes object-editing-play-progress {
+  0% { left: -40%; }
+  100% { left: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .object-editing-play-engine-progress span {
+    animation: none;
+    left: 0;
+    width: 100%;
+    opacity: 0.5;
+  }
+}
+
+.object-editing-play-engine-error {
+  color: color-mix(in srgb, var(--text) 70%, var(--warning));
+}
+
+.object-editing-play-engine-gameover {
+  margin: 8px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+/* Object-canvas dimming while the preview object editor overlay is active.
+   Moved here from editing.css (cascade-safe: these selectors are unique) so the
+   preview editor's own layout effects live with the rest of its styles. */
+.object-canvas.has-preview-object-editor .content-storyboard-canvas,
+.object-canvas.has-preview-object-editor .card-board-canvas {
+  transition: opacity 0.16s ease, filter 0.16s ease;
+}
+
+.object-canvas.is-editor-overlay.has-preview-object-editor .content-storyboard-canvas,
+.object-canvas.is-editor-overlay.has-preview-object-editor .card-board-canvas {
+  filter: saturate(0.78);
+  opacity: 0.58;
+  pointer-events: none;
+}
+
+.object-canvas.is-editor-overlay.has-preview-object-editor .content-storyboard-editor,
+.object-canvas.is-editor-overlay.has-preview-object-editor .card-face-editor {
+  pointer-events: auto;
+}

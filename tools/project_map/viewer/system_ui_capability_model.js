@@ -26,6 +26,7 @@
     action_card: owner('workspace_layout', 'workspace_layout', 'Workspace Layout', 'card'),
     advisor_lane: owner('play_surface', 'play_surface', 'Playable Surface', 'advisor'),
     sidebar_status: owner('sidebar_status', 'sidebar_status', 'Sidebar / Status', 'sidebar'),
+    right_sidebar: owner('workspace_layout', 'workspace_layout', 'Right sidebar', 'right'),
     election_results_frame: owner('election_results', 'election_results', 'Election Results', 'frame'),
     election_results_chart: owner('election_results', 'election_results', 'Election Results', 'seat chart'),
     election_results_table: owner('election_results', 'election_results', 'Election Results', 'party table'),
@@ -40,7 +41,8 @@
     layout_frame: 'Runtime layout structure and CSS selectors are observed for diagnosis, not rewritten automatically.',
     deck_lane: 'Deck lane creation is supported through source-backed layout drafts; runtime geometry remains manual.',
     action_card: 'Starter card copy is source-backed when a draft owns it; runtime card geometry remains manual.',
-    sidebar_status: 'Generated or custom sidebar output needs exact source anchors before guarded apply.'
+    sidebar_status: 'Generated or custom sidebar output needs exact source anchors before guarded apply.',
+    right_sidebar: 'The right sidebar is a net-new extensible part; it writes the mod-owned HTML template, so it stays manual review until the apply step is wired.'
   };
 
   const THEME_LAYOUT_REGIONS = new Set([

@@ -26,9 +26,9 @@
     },
     {
       "path": "tools/project_map/authoring/object_canvas_content_adapters.js",
-      "maxLines": 2862,
+      "maxLines": 2864,
       "allowRaise": true,
-      "reason": "Split content adapters before adding more object canvas behavior. Raised 2026-05-30 from 2857 for projectSceneTargets in template canvas body."
+      "reason": "Split content adapters before adding more object canvas behavior. Raised 2026-05-30 from 2857 for projectSceneTargets in template canvas body. [integration 2026-06-07: raised for loving-vaughan play-test merge.]"
     },
     {
       "path": "tools/project_map/authoring/route_script_intelligence_model.js",
@@ -60,33 +60,33 @@
     },
     {
       "path": "tools/project_map/viewer/i18n/en.js",
-      "maxLines": 3399,
+      "maxLines": 3429,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Was 3523, then 3450. Lowered 2026-06-05 to 3399 by extracting the runtimeLens.* group into off-budget viewer/i18n/en.runtime-lens.js (same load-then-merge pattern), which pays for the focused Dev console lens keys. Earlier shrink split the whole publish.* surface out into the off-budget viewer/i18n/en.publish.js (merged into the en catalog at load), freeing aggregate headroom for the Batch C publish management keys without raising any ceiling. Add further large key groups to focused sibling catalogs instead of growing this file."
+      "reason": "Catalog file; keep each language separate. Was 3523, then 3450. Lowered 2026-06-05 to 3399 by extracting the runtimeLens.* group into off-budget viewer/i18n/en.runtime-lens.js (same load-then-merge pattern), which pays for the focused Dev console lens keys. Earlier shrink split the whole publish.* surface out into the off-budget viewer/i18n/en.publish.js (merged into the en catalog at load), freeing aggregate headroom for the Batch C publish management keys without raising any ceiling. Add further large key groups to focused sibling catalogs instead of growing this file. [integration 2026-06-07: raised for loving-vaughan play-test merge.]"
     },
     {
       "path": "tools/project_map/viewer/i18n/zh-Hant.js",
-      "maxLines": 3399,
+      "maxLines": 3429,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Was 3523, then 3450. Lowered 2026-06-05 to 3399 by extracting the runtimeLens.* group into off-budget viewer/i18n/zh-Hant.runtime-lens.js (same load-then-merge pattern), which pays for the focused Dev console lens keys. Earlier shrink split the whole publish.* surface out into the off-budget viewer/i18n/zh-Hant.publish.js (merged into the zh-Hant catalog at load), freeing aggregate headroom for the Batch C publish management keys without raising any ceiling. Add further large key groups to focused sibling catalogs instead of growing this file."
+      "reason": "Catalog file; keep each language separate. Was 3523, then 3450. Lowered 2026-06-05 to 3399 by extracting the runtimeLens.* group into off-budget viewer/i18n/zh-Hant.runtime-lens.js (same load-then-merge pattern), which pays for the focused Dev console lens keys. Earlier shrink split the whole publish.* surface out into the off-budget viewer/i18n/zh-Hant.publish.js (merged into the zh-Hant catalog at load), freeing aggregate headroom for the Batch C publish management keys without raising any ceiling. Add further large key groups to focused sibling catalogs instead of growing this file. [integration 2026-06-07: raised for loving-vaughan play-test merge.]"
     },
     {
       "path": "tools/project_map/viewer/index.html",
-      "maxLines": 2494,
+      "maxLines": 2497,
       "allowRaise": true,
-      "reason": "Script + template manifest. Raised 2026-06-05 to 2494 for the en/zh runtime-lens.js catalog script tags (paid for by the matching en/zh catalog shrink). Raised 2026-06-04 from 2482 for the global back button + navigation_history.js script tag, then to 2486 for the .mode-nav wrapper grouping the back button with the mode tabs, then to 2489 for the Publish to GitHub button + mount root + publish_ui.js script tag, then to 2490 for the dom_text_utils.js script tag, then 2026-06-05 to 2492 for the en.publish.js + zh-Hant.publish.js catalog script tags (more than paid for by the matching en/zh catalog shrink)."
+      "reason": "Script + template manifest. Raised 2026-06-05 to 2494 for the en/zh runtime-lens.js catalog script tags (paid for by the matching en/zh catalog shrink). Raised 2026-06-04 from 2482 for the global back button + navigation_history.js script tag, then to 2486 for the .mode-nav wrapper grouping the back button with the mode tabs, then to 2489 for the Publish to GitHub button + mount root + publish_ui.js script tag, then to 2490 for the dom_text_utils.js script tag, then 2026-06-05 to 2492 for the en.publish.js + zh-Hant.publish.js catalog script tags (more than paid for by the matching en/zh catalog shrink). [integration 2026-06-07: raised for loving-vaughan play-test merge.]"
     },
     {
       "path": "tools/project_map/viewer/object_authoring_canvas_ui.js",
-      "maxLines": 5030,
+      "maxLines": 5187,
       "allowRaise": true,
-      "reason": "Keep orchestration here; split editor UI into workspace modules. Raised 2026-06-04 from 4987 for conditional condition-variable insert handler (handleConditionalVarInsert, UX #3), then to 5044 for the deferred asset-select populate wiring (focus/mousedown handlers + populate-before-filter; the asset picker now defers its full option list and builds it on focus instead of inlining every candidate across hundreds of slots), then lowered to 5037 after removing dead sourceSliceReplacementText, then to 5030 after adopting shared dom_text_utils helpers (removed local escape/ensureArray duplicates)."
+      "reason": "Keep orchestration here; split editor UI into workspace modules. Raised 2026-06-04 from 4987 for conditional condition-variable insert handler (handleConditionalVarInsert, UX #3), then to 5044 for the deferred asset-select populate wiring (focus/mousedown handlers + populate-before-filter; the asset picker now defers its full option list and builds it on focus instead of inlining every candidate across hundreds of slots), then lowered to 5037 after removing dead sourceSliceReplacementText, then to 5030 after adopting shared dom_text_utils helpers (removed local escape/ensureArray duplicates). [integration 2026-06-07: raised for loving-vaughan play-test merge.]"
     },
     {
       "path": "tools/project_map/viewer/preview_object_editor.js",
-      "maxLines": 4848,
+      "maxLines": 4863,
       "allowRaise": true,
-      "reason": "Keep field rendering here; split domain sub-renderers into sibling modules. Raised 2026-06-04 from 4796 for condition-variable insert chips (UX #3), then to 4886 for the conditional-leaf ladder de-duplication (suppress redundant flat leaf rows, render one compact condition->text ladder + read-only preview ladder), then to 4892 for skipping the mashed all-branches inline preview on conditional-tree fields (ladder owns the per-branch rendered view), then to 4897 for suppressing redundant diagnostic chrome on conditional-tree fields, then to 4899 for extending that chrome suppression to flat conditional-leaf rows (status badge / logic chips / context hint / variable picker) while keeping their label + editable input, then to 4905 for capping the variable-picker initial render to a 12-candidate starter slice instead of dumping the whole catalog per field (the unsliced render multiplied into ~1.3M DOM nodes / ~190MB innerHTML / ~25s paint on dense events; the search box rebuilds from the model so nothing is lost), then lowered to 4848 after removing dead functions and moving escapeHtml/escapeAttr/ensureArray to shared dom_text_utils.js."
+      "reason": "Keep field rendering here; split domain sub-renderers into sibling modules. Raised 2026-06-04 from 4796 for condition-variable insert chips (UX #3), then to 4886 for the conditional-leaf ladder de-duplication (suppress redundant flat leaf rows, render one compact condition->text ladder + read-only preview ladder), then to 4892 for skipping the mashed all-branches inline preview on conditional-tree fields (ladder owns the per-branch rendered view), then to 4897 for suppressing redundant diagnostic chrome on conditional-tree fields, then to 4899 for extending that chrome suppression to flat conditional-leaf rows (status badge / logic chips / context hint / variable picker) while keeping their label + editable input, then to 4905 for capping the variable-picker initial render to a 12-candidate starter slice instead of dumping the whole catalog per field (the unsliced render multiplied into ~1.3M DOM nodes / ~190MB innerHTML / ~25s paint on dense events; the search box rebuilds from the model so nothing is lost), then lowered to 4848 after removing dead functions and moving escapeHtml/escapeAttr/ensureArray to shared dom_text_utils.js. [integration 2026-06-07: raised for loving-vaughan play-test merge.]"
     },
     {
       "path": "tools/project_map/viewer/styles/editing.css",

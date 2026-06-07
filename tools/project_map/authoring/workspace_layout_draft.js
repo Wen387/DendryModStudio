@@ -115,6 +115,8 @@
       'sidebarBody',
       'sidebarStatusLines',
       'sidebarAnchorId',
+      'rightSidebarTitle',
+      'rightSidebarBody',
       'starterCardId',
       'starterCardTitle',
       'starterCardHeading',

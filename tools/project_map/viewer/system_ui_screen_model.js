@@ -458,6 +458,8 @@
     const advisorBody = value(fields, ['play.advisorBody'], source.play && source.play.advisor && source.play.advisor.body || 'A pinned advisor or standing object lives beside the hand.');
     const handTitle = value(fields, ['play.handTitle', 'play.handHeading'], source.play && source.play.hand && source.play.hand.title || 'Workspace Hand');
     const handBody = value(fields, ['play.handBody'], source.play && source.play.hand && source.play.hand.body || 'This area holds repeatable player actions.');
+    const rightSidebarTitle = value(fields, ['layout.rightSidebarTitle'], 'Right sidebar');
+    const rightSidebarBody = value(fields, ['layout.rightSidebarBody'], 'Fill the empty right gutter with a safe, responsive panel.');
 
     return [
       region('layout_frame', 'structure', 'systemUi.region.layoutFrame', 'Screen frame', rootTitle, 'Header, sidebar, main card, and interactive lane share one screen shell.', fieldsFor(fields, fieldIdsForTemplate(template, 'structure'))),
@@ -468,7 +470,8 @@
       region('deck_lane', 'interactive', 'systemUi.region.deck', 'Deck', deckTitle, deckSubtitle, fieldsFor(fields, ['play.deckTitle', 'play.deckSubtitle', 'layout.deckTitle', 'layout.deckSubtitle', 'layout.deckTag'])),
       region('action_card', 'interactive', 'systemUi.region.card', 'Card', cardTitle, cardBody, fieldsFor(fields, ['play.cardTitle', 'play.cardHeading', 'play.cardBody', 'play.cardOption0Label', 'play.cardOption1Label', 'layout.starterCardTitle', 'layout.starterCardHeading', 'layout.starterCardBody', 'layout.starterCardOption0Label', 'layout.starterCardOption1Label'])),
       region('advisor_lane', 'interactive', 'systemUi.region.advisor', 'Advisor', advisorTitle, advisorBody, fieldsFor(fields, ['play.advisorTitle', 'play.advisorSubtitle', 'play.advisorHeading', 'play.advisorBody', 'play.advisorOption0Label'])),
-      region('sidebar_status', 'sidebar', 'systemUi.region.sidebar', 'Sidebar / Status', sidebarTitle, combineSidebarPreviewLines(sidebarBody, statusLines), selectedSidebarCategory && selectedSidebarCategory.fields && selectedSidebarCategory.fields.length ? selectedSidebarCategory.fields : fieldsFor(fields, fieldIdsForTemplate(template, 'sidebar')))
+      region('sidebar_status', 'sidebar', 'systemUi.region.sidebar', 'Sidebar / Status', sidebarTitle, combineSidebarPreviewLines(sidebarBody, statusLines), selectedSidebarCategory && selectedSidebarCategory.fields && selectedSidebarCategory.fields.length ? selectedSidebarCategory.fields : fieldsFor(fields, fieldIdsForTemplate(template, 'sidebar'))),
+      region('right_sidebar', 'structure', 'systemUi.region.rightSidebar', 'Right sidebar', rightSidebarTitle, rightSidebarBody, fieldsFor(fields, ['layout.rightSidebarTitle', 'layout.rightSidebarBody']))
     ];
   }
 
