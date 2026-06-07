@@ -660,6 +660,9 @@
         state.draftActionMessage = '';
         state.textActionMessage = '';
         render(state, elements);
+        document.dispatchEvent(new CustomEvent('ProjectMap:explore-entry-opened', {
+          detail: {view: state.view, key: found.key}
+        }));
       }
     });
 

@@ -321,6 +321,26 @@
   border: 1px solid var(--accent-strong);
 }
 
+/* The "try it hands-on" invite below the ending curtain's main actions: a quiet
+   text link that hands off to the loose first-proposal quest. */
+.guided-tour-curtain-extra {
+  margin-top: 12px;
+  padding: 4px 8px;
+  background: none;
+  border: none;
+  color: var(--accent-strong);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.guided-tour-curtain-extra:hover {
+  text-decoration: underline;
+}
+
+.guided-tour-curtain-extra[hidden] {
+  display: none;
+}
+
 /* Welcome Hub guided-tour invite ------------------------------------------- */
 .welcome-tour-invite {
   display: flex;

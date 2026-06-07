@@ -1,0 +1,356 @@
+/* First-proposal quest: a non-modal corner companion (it never dims the page).
+   Sits below the guided tour's modal layers (overlay 200, curtain 210) so a tour
+   always wins focus, but above ordinary page chrome. All colors come from the
+   shared theme tokens so the hardcoded-color guard stays happy. */
+
+.quest-panel {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 150;
+  width: min(340px, calc(100vw - 24px));
+  box-sizing: border-box;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-pop);
+  overflow: hidden;
+  animation: quest-slide-in var(--motion-medium) var(--motion-ease) both;
+}
+
+.quest-panel.hidden {
+  display: none;
+}
+
+@keyframes quest-slide-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Header ------------------------------------------------------------------- */
+.quest-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 12px;
+  background: var(--surface-alt);
+  border-bottom: 1px solid var(--border);
+}
+
+.quest-mascot {
+  font-weight: 700;
+  color: var(--accent-strong);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.quest-title {
+  flex: 1 1 auto;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.quest-progress {
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.quest-collapse,
+.quest-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.quest-collapse:hover,
+.quest-close:hover {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.quest-collapse .ui-icon,
+.quest-close .ui-icon {
+  width: 15px;
+  height: 15px;
+}
+
+/* The chevron points down when expanded; flip it when collapsed. */
+.quest-panel.is-collapsed .quest-collapse .ui-icon {
+  transform: rotate(180deg);
+}
+
+.quest-panel.is-collapsed .quest-body {
+  display: none;
+}
+
+/* Body --------------------------------------------------------------------- */
+.quest-body {
+  padding: 12px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.quest-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.quest-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+
+.quest-item.is-next {
+  background: var(--surface-alt);
+  border-color: var(--border);
+}
+
+.quest-item-mark {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  color: var(--accent-strong);
+}
+
+.quest-item-mark .ui-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.quest-item-mark--todo,
+.quest-item-mark--locked {
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  width: 14px;
+  height: 14px;
+}
+
+.quest-item-mark--locked {
+  border-style: dashed;
+}
+
+.quest-item-text {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.quest-item-title {
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.quest-item.is-done .quest-item-title {
+  color: var(--muted);
+}
+
+.quest-item.is-locked .quest-item-title {
+  color: var(--muted);
+}
+
+.quest-item-locked {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.quest-item-action {
+  flex: 0 0 auto;
+  align-self: center;
+  padding: 4px 10px;
+  font-size: 12px;
+  border: 1px solid var(--accent-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--accent-strong);
+  cursor: pointer;
+}
+
+.quest-item-action:hover {
+  background: var(--surface-alt);
+}
+
+/* Nudge -------------------------------------------------------------------- */
+.quest-nudge {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text);
+  border-top: 1px dashed var(--border);
+  padding-top: 9px;
+}
+
+.quest-nudge[hidden] {
+  display: none;
+}
+
+.quest-nudge.is-flash {
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
+/* Read-diff mini quiz ------------------------------------------------------ */
+.quest-quiz[hidden] {
+  display: none;
+}
+
+.quest-quiz-prompt {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  font-weight: 600;
+}
+
+.quest-quiz-diff {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 8px;
+}
+
+.quest-quiz-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-left-width: 3px;
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.quest-quiz-line:hover:not(:disabled) {
+  background: var(--surface-alt);
+}
+
+.quest-quiz-line:disabled {
+  cursor: default;
+}
+
+.quest-quiz-line--added {
+  border-left-color: var(--success-border);
+}
+
+.quest-quiz-line--removed {
+  border-left-color: var(--danger-border);
+}
+
+.quest-quiz-line.is-answer {
+  border-color: var(--success-border);
+  background: var(--surface-alt);
+}
+
+.quest-quiz-sign {
+  flex: 0 0 auto;
+  width: 1ch;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.quest-quiz-line--added .quest-quiz-sign {
+  color: var(--success-text);
+}
+
+.quest-quiz-line--removed .quest-quiz-sign {
+  color: var(--danger-text);
+}
+
+.quest-quiz-code {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.quest-quiz-feedback {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  min-height: 1em;
+}
+
+.quest-quiz-feedback.is-right {
+  color: var(--success-text);
+}
+
+.quest-quiz-feedback.is-wrong {
+  color: var(--danger-text);
+}
+
+/* Celebration -------------------------------------------------------------- */
+.quest-celebrate[hidden] {
+  display: none;
+}
+
+.quest-celebrate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 8px 6px 4px;
+}
+
+.quest-celebrate-mascot {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--accent-strong);
+  line-height: 1;
+  animation: quest-cheer 1.2s ease-in-out 2;
+}
+
+.quest-celebrate-title {
+  font-size: 15px;
+}
+
+.quest-celebrate-body {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+@keyframes quest-cheer {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  30% { transform: translateY(-3px) rotate(-6deg); }
+  60% { transform: translateY(-1px) rotate(5deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quest-panel,
+  .quest-celebrate-mascot {
+    animation: none;
+  }
+
+  .quest-panel.is-collapsed .quest-collapse .ui-icon {
+    transition: none;
+  }
+}

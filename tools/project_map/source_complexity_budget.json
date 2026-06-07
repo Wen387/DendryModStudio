@@ -60,19 +60,19 @@
     },
     {
       "path": "tools/project_map/viewer/i18n/en.js",
-      "maxLines": 3429,
+      "maxLines": 3465,
       "allowRaise": true,
       "reason": "Catalog file; keep each language separate. Was 3523, then 3450. Lowered 2026-06-05 to 3399 by extracting the runtimeLens.* group into off-budget viewer/i18n/en.runtime-lens.js (same load-then-merge pattern), which pays for the focused Dev console lens keys. Earlier shrink split the whole publish.* surface out into the off-budget viewer/i18n/en.publish.js (merged into the en catalog at load), freeing aggregate headroom for the Batch C publish management keys without raising any ceiling. Add further large key groups to focused sibling catalogs instead of growing this file. [integration 2026-06-07: raised for loving-vaughan play-test merge.]"
     },
     {
       "path": "tools/project_map/viewer/i18n/zh-Hant.js",
-      "maxLines": 3429,
+      "maxLines": 3465,
       "allowRaise": true,
       "reason": "Catalog file; keep each language separate. Was 3523, then 3450. Lowered 2026-06-05 to 3399 by extracting the runtimeLens.* group into off-budget viewer/i18n/zh-Hant.runtime-lens.js (same load-then-merge pattern), which pays for the focused Dev console lens keys. Earlier shrink split the whole publish.* surface out into the off-budget viewer/i18n/zh-Hant.publish.js (merged into the zh-Hant catalog at load), freeing aggregate headroom for the Batch C publish management keys without raising any ceiling. Add further large key groups to focused sibling catalogs instead of growing this file. [integration 2026-06-07: raised for loving-vaughan play-test merge.]"
     },
     {
       "path": "tools/project_map/viewer/index.html",
-      "maxLines": 2497,
+      "maxLines": 2500,
       "allowRaise": true,
       "reason": "Script + template manifest. Raised 2026-06-05 to 2494 for the en/zh runtime-lens.js catalog script tags (paid for by the matching en/zh catalog shrink). Raised 2026-06-04 from 2482 for the global back button + navigation_history.js script tag, then to 2486 for the .mode-nav wrapper grouping the back button with the mode tabs, then to 2489 for the Publish to GitHub button + mount root + publish_ui.js script tag, then to 2490 for the dom_text_utils.js script tag, then 2026-06-05 to 2492 for the en.publish.js + zh-Hant.publish.js catalog script tags (more than paid for by the matching en/zh catalog shrink). [integration 2026-06-07: raised for loving-vaughan play-test merge.]"
     },
