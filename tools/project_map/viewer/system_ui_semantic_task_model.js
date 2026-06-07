@@ -36,6 +36,9 @@
       task('sidebar_add_category', 'systemUi.task.sidebarAddCategory', 'Add a sidebar category', 'systemUi.task.sidebarAddCategory.summary', 'Create a source-backed sidebar category and choose where it appears in the sidebar tabs.', 'sidebar_composer', ['layout.sidebarCategoryId', 'layout.sidebarHeading', 'layout.sidebarBody', 'layout.sidebarStatusLines', 'layout.sidebarInsertMode', 'layout.sidebarAnchorId'], 'layout.sidebarHeading'),
       task('sidebar_delete_category', 'systemUi.task.sidebarDeleteCategory', 'Delete a sidebar category', 'systemUi.task.sidebarDeleteCategory.summary', 'Remove the selected source-backed sidebar tab section after Review & Apply confirms exact anchors.', 'sidebar_composer', ['sidebar.operationMode', 'sidebar.deleteConfirm', 'sidebar.sectionId'], 'sidebar.deleteConfirm')
     ],
+    right_sidebar: [
+      task('right_sidebar_plan', 'systemUi.rightSidebar.label', 'Right panel', 'systemUi.rightSidebar.comingSoon', 'Editing arrives in the next step.', 'edit_fields', [], '')
+    ],
     election_results_frame: [
       task('election_intro', 'systemUi.task.electionIntro', 'Edit election intro copy', 'systemUi.task.electionIntro.summary', 'Change source-backed title, subtitle, intro, and result text while renderer wiring stays manual.', 'edit_fields', ['election.title', 'election.subtitle', 'election.intro', 'election.sourcePath', 'election.id'], 'election.title')
     ],

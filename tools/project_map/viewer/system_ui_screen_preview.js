@@ -19,6 +19,7 @@
       '<div class="system-screen-body" data-system-player-screen="' + escapeAttr(activeScreen) + '">',
       renderSidebar(model, selectedKey, activeScreen),
       renderPlayerScreen(model, selectedKey, activeScreen),
+      renderRightSidebarZone(model, selectedKey, activeScreen),
       '</div>',
       '</div>',
       '</section>'
@@ -165,6 +166,19 @@
       statusLines: '',
       selected: true
     }];
+  }
+
+  function renderRightSidebarZone(model, selectedKey, activeScreen) {
+    return [
+      '<aside class="system-screen-sidebar system-screen-right-sidebar" data-system-screen-right-sidebar="true" data-system-player-screen="' + escapeAttr(activeScreen || '') + '" aria-label="' + escapeAttr(t('systemUi.rightSidebar.label', 'Right panel')) + '">',
+      renderRegionButton(model, 'right_sidebar', selectedKey, [
+        '<span class="system-screen-right-eyebrow">' + escapeHtml(t('systemUi.rightSidebar.eyebrow', 'Extension zone')) + '</span>',
+        '<strong class="system-screen-right-title">' + escapeHtml(t('systemUi.rightSidebar.label', 'Right panel')) + '</strong>',
+        '<p class="system-screen-right-placeholder">' + escapeHtml(t('systemUi.rightSidebar.placeholder', 'Studio keeps this column responsive and conflict-free. Drop a right-side panel here.')) + '</p>',
+        '<small class="system-screen-right-soon">' + escapeHtml(t('systemUi.rightSidebar.comingSoon', 'Editing arrives in the next step.')) + '</small>'
+      ].join(''), 'system-screen-right-zone'),
+      '</aside>'
+    ].join('');
   }
 
   function renderPlayerScreen(model, selectedKey, activeScreen) {

@@ -460,7 +460,8 @@
       region('deck_lane', 'interactive', 'systemUi.region.deck', 'Deck', deckTitle, deckSubtitle, fieldsFor(fields, ['play.deckTitle', 'play.deckSubtitle', 'layout.deckTitle', 'layout.deckSubtitle', 'layout.deckTag'])),
       region('action_card', 'interactive', 'systemUi.region.card', 'Card', cardTitle, cardBody, fieldsFor(fields, ['play.cardTitle', 'play.cardHeading', 'play.cardBody', 'play.cardOption0Label', 'play.cardOption1Label', 'layout.starterCardTitle', 'layout.starterCardHeading', 'layout.starterCardBody', 'layout.starterCardOption0Label', 'layout.starterCardOption1Label'])),
       region('advisor_lane', 'interactive', 'systemUi.region.advisor', 'Advisor', advisorTitle, advisorBody, fieldsFor(fields, ['play.advisorTitle', 'play.advisorSubtitle', 'play.advisorHeading', 'play.advisorBody', 'play.advisorOption0Label'])),
-      region('sidebar_status', 'sidebar', 'systemUi.region.sidebar', 'Sidebar / Status', sidebarTitle, combineSidebarPreviewLines(sidebarBody, statusLines), selectedSidebarCategory && selectedSidebarCategory.fields && selectedSidebarCategory.fields.length ? selectedSidebarCategory.fields : fieldsFor(fields, fieldIdsForTemplate(template, 'sidebar')))
+      region('sidebar_status', 'sidebar', 'systemUi.region.sidebar', 'Sidebar / Status', sidebarTitle, combineSidebarPreviewLines(sidebarBody, statusLines), selectedSidebarCategory && selectedSidebarCategory.fields && selectedSidebarCategory.fields.length ? selectedSidebarCategory.fields : fieldsFor(fields, fieldIdsForTemplate(template, 'sidebar'))),
+      region('right_sidebar', 'sidebar', 'systemUi.rightSidebar.label', 'Right panel', 'Right panel', '', [])
     ];
   }
 

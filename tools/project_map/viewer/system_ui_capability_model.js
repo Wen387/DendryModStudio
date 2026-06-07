@@ -18,6 +18,7 @@
     action_card: owner('workspace_layout', 'workspace_layout', 'Workspace Layout', 'card'),
     advisor_lane: owner('play_surface', 'play_surface', 'Playable Surface', 'advisor'),
     sidebar_status: owner('sidebar_status', 'sidebar_status', 'Sidebar / Status', 'sidebar'),
+    right_sidebar: owner('right_sidebar', 'right_sidebar', 'Right panel', 'right'),
     election_results_frame: owner('election_results', 'election_results', 'Election Results', 'frame'),
     election_results_chart: owner('election_results', 'election_results', 'Election Results', 'seat chart'),
     election_results_table: owner('election_results', 'election_results', 'Election Results', 'party table'),
@@ -32,7 +33,8 @@
     layout_frame: 'Runtime layout structure and CSS selectors are observed for diagnosis, not rewritten automatically.',
     deck_lane: 'Deck lane creation is supported through source-backed layout drafts; runtime geometry remains manual.',
     action_card: 'Starter card copy is source-backed when a draft owns it; runtime card geometry remains manual.',
-    sidebar_status: 'Generated or custom sidebar output needs exact source anchors before guarded apply.'
+    sidebar_status: 'Generated or custom sidebar output needs exact source anchors before guarded apply.',
+    right_sidebar: 'Studio owns this safe right-panel extension zone and keeps it responsive; writing real content into the mod template arrives in the apply step.'
   };
 
   const THEME_LAYOUT_REGIONS = new Set([

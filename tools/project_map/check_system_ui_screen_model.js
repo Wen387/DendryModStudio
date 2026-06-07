@@ -163,7 +163,7 @@ Object.keys(expected).forEach((template) => {
   });
   const expectedRegions = template === 'election_results'
     ? ['election_results_frame', 'election_results_chart', 'election_results_table', 'election_results_coalitions', 'election_results_choices']
-    : ['screen_header', 'main_content', 'workspace_hand', 'deck_lane', 'action_card', 'advisor_lane', 'sidebar_status', 'layout_frame'];
+    : ['screen_header', 'main_content', 'workspace_hand', 'deck_lane', 'action_card', 'advisor_lane', 'sidebar_status', 'layout_frame', 'right_sidebar'];
   expectedRegions.forEach((region) => {
     assert(screen.regions.some((item) => item.key === region), template + ' should expose ' + region + ' region in its screen shell');
   });
@@ -182,6 +182,8 @@ Object.keys(expected).forEach((template) => {
   } else {
     assert(html.includes('data-system-screen-region="main_content"'), template + ' surface should render the main content region');
     assert(html.includes('data-system-screen-region="sidebar_status"'), template + ' surface should render the sidebar/status region');
+    assert(html.includes('data-system-screen-region="right_sidebar"'), template + ' surface should render the selectable right-panel extension zone');
+    assert(!html.includes('data-system-ui-right-sidebar-add="true"'), template + ' right-panel zone should be a selectable region, not a disabled placeholder button');
     if (['play_surface', 'workspace_layout', 'sidebar_status'].includes(template)) {
       assert(html.includes('data-system-play-surface="true"'), template + ' surface should render the in-game play surface');
       assert(html.includes('data-system-play-section="deck"'), template + ' in-game preview should render decks');

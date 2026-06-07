@@ -60,15 +60,15 @@
     },
     {
       "path": "tools/project_map/viewer/i18n/en.js",
-      "maxLines": 3520,
+      "maxLines": 3528,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3443 for the browser-style global back-control label (nav.back), then to 3479 for the publish.* keys (Publish to GitHub UI), then to 3480 for publish.error.privateScope (private-repo token-scope guidance), then to 3490 for the first publish.sync.* status-panel keys, then to 3520 for the publish.sync.* update/sync/force keys (update push message + success/error, fast-forward pull, divergence force-push override + typed confirm)."
+      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3443 for the browser-style global back-control label (nav.back), then to 3479 for the publish.* keys (Publish to GitHub UI), then to 3480 for publish.error.privateScope (private-repo token-scope guidance), then to 3490 for the first publish.sync.* status-panel keys, then to 3520 for the publish.sync.* update/sync/force keys (update push message + success/error, fast-forward pull, divergence force-push override + typed confirm). Raised 2026-06-05 to 3521 for the systemUi.rightSidebar.* keys (System UI right-panel preview extension zone), then to 3528 for the systemUi.bucket.* keys (3-bucket Create entry grouping)."
     },
     {
       "path": "tools/project_map/viewer/i18n/zh-Hant.js",
-      "maxLines": 3520,
+      "maxLines": 3528,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3443 for the browser-style global back-control label (nav.back), then to 3479 for the publish.* keys (Publish to GitHub UI), then to 3480 for publish.error.privateScope (private-repo token-scope guidance), then to 3490 for the first publish.sync.* status-panel keys, then to 3520 for the publish.sync.* update/sync/force keys (update push message + success/error, fast-forward pull, divergence force-push override + typed confirm)."
+      "reason": "Catalog file; keep each language separate. Raised 2026-06-04 from 3443 for the browser-style global back-control label (nav.back), then to 3479 for the publish.* keys (Publish to GitHub UI), then to 3480 for publish.error.privateScope (private-repo token-scope guidance), then to 3490 for the first publish.sync.* status-panel keys, then to 3520 for the publish.sync.* update/sync/force keys (update push message + success/error, fast-forward pull, divergence force-push override + typed confirm). Raised 2026-06-05 to 3521 for the systemUi.rightSidebar.* keys (System UI right-panel preview extension zone), then to 3528 for the systemUi.bucket.* keys (3-bucket Create entry grouping)."
     },
     {
       "path": "tools/project_map/viewer/index.html",
@@ -90,9 +90,9 @@
     },
     {
       "path": "tools/project_map/viewer/styles/editing.css",
-      "maxLines": 4324,
+      "maxLines": 3296,
       "allowRaise": true,
-      "reason": "Split new selectors into focused domain CSS files. Ratcheted 2026-05-22 from 3375. Raised 2026-06-04 from 4255 for the retired-board-banner hide rule + command-dock More options disclosure styles."
+      "reason": "Split new selectors into focused domain CSS files. Ratcheted 2026-05-22 from 3375. Raised 2026-06-04 from 4255 for the retired-board-banner hide rule + command-dock More options disclosure styles. Lowered 2026-06-05 to 3296 by extracting all System UI preview selectors (system-screen-* / system-ui-* base rules, including the new right-sidebar extension zone) into the focused viewer/styles/system-ui.css, imported before editing.css so the shared responsive media query left here still wins the narrow-width collapse."
     },
     {
       "path": "tools/project_map/viewer/wizard_ui.js",

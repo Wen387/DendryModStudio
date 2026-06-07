@@ -47,6 +47,37 @@
     ]
   };
 
+  // System UI authoring is grouped by source-of-truth bucket so the entry reads
+  // as three plain layers instead of six jargon categories. Buckets only reorder
+  // the existing templates; every template stays individually reachable.
+  const SYSTEM_UI_BUCKET_INTRO = 'Pick what to change. It helps to think in three layers.';
+  const SYSTEM_UI_BUCKETS = [
+    {
+      key: 'scenes',
+      labelKey: 'systemUi.bucket.scenes',
+      fallback: 'Scenes',
+      blurbKey: 'systemUi.bucket.scenesBlurb',
+      blurbFallback: 'Most of these are really Dendry scenes. The content editor handles them.',
+      templates: ['entry', 'project']
+    },
+    {
+      key: 'system',
+      labelKey: 'systemUi.bucket.system',
+      fallback: 'True system UI',
+      blurbKey: 'systemUi.bucket.systemBlurb',
+      blurbFallback: 'Engine-generated chrome. Studio offers safe, extensible parts such as the right panel.',
+      templates: ['play_surface', 'workspace_layout', 'sidebar_status', 'election_results']
+    },
+    {
+      key: 'text',
+      labelKey: 'systemUi.bucket.text',
+      fallback: 'System UI text',
+      blurbKey: 'systemUi.bucket.textBlurb',
+      blurbFallback: 'Variable-to-text display. A dedicated editor is coming.',
+      templates: []
+    }
+  ];
+
   const state = {
     activeWorkspace: 'content',
     activeTemplate: 'event'
@@ -212,11 +243,53 @@
     const active = workspace === 'content';
     const items = workspaceItems();
     const item = items.find((candidate) => candidate.key === workspace) || items[0];
+    const templates = templateItemsForWorkspace(workspace);
+    const inner = workspace === 'system_ui'
+      ? renderSystemUiBuckets(templates)
+      : templates.map((template, index) => renderTemplateButton(template, active && index === 0)).join('');
     return [
       '<div class="template-switch authoring-template-group' + (active ? ' is-active' : '') + '" role="group" aria-label="' + item.fallback + '" data-i18n-aria-label="' + item.labelKey + '" data-authoring-template-group="' + workspace + '"' + (active ? '' : ' hidden') + '>',
-      templateItemsForWorkspace(workspace).map((template, index) => renderTemplateButton(template, active && index === 0)).join(''),
+      inner,
       '</div>'
     ].join('');
+  }
+
+  function renderSystemUiBuckets(templates) {
+    const byKey = {};
+    templates.forEach((template) => {
+      byKey[template.key] = template;
+    });
+    const assigned = {};
+    const groups = SYSTEM_UI_BUCKETS.map((bucket) => {
+      const bucketTemplates = bucket.templates
+        .map((key) => {
+          assigned[key] = true;
+          return byKey[key];
+        })
+        .filter(Boolean);
+      return renderBucket(bucket, bucketTemplates);
+    });
+    const leftovers = templates.filter((template) => !assigned[template.key]);
+    if (leftovers.length) {
+      groups.push(renderBucket(null, leftovers));
+    }
+    return [
+      '<p class="authoring-bucket-intro" data-i18n="systemUi.bucket.intro">' + SYSTEM_UI_BUCKET_INTRO + '</p>',
+      groups.join('')
+    ].join('');
+  }
+
+  function renderBucket(bucket, templates) {
+    const head = bucket
+      ? '<div class="authoring-bucket-head">' +
+          '<span class="authoring-bucket-title" data-i18n="' + bucket.labelKey + '">' + bucket.fallback + '</span>' +
+          '<span class="authoring-bucket-blurb" data-i18n="' + bucket.blurbKey + '">' + bucket.blurbFallback + '</span>' +
+        '</div>'
+      : '';
+    const body = templates.length
+      ? '<div class="authoring-bucket-items">' + templates.map((template) => renderTemplateButton(template, false)).join('') + '</div>'
+      : '';
+    return '<div class="authoring-bucket" data-authoring-bucket="' + (bucket ? bucket.key : 'other') + '">' + head + body + '</div>';
   }
 
   function renderTemplateButton(item, active) {
