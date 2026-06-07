@@ -92,6 +92,12 @@
   line-height: 1.45;
 }
 
+.runtime-lens-summary .runtime-lens-quick-note {
+  margin-top: 2px;
+  font-size: .82rem;
+  opacity: .9;
+}
+
 .runtime-lens-body {
   display: grid;
   gap: 12px;

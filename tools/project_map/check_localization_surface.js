@@ -207,7 +207,9 @@ const html = fs.readFileSync(VIEWER_HTML, 'utf8');
   path.join(VIEWER_DIR, 'i18n', 'en.js'),
   path.join(VIEWER_DIR, 'i18n', 'zh-Hant.js'),
   path.join(VIEWER_DIR, 'i18n', 'en.publish.js'),
-  path.join(VIEWER_DIR, 'i18n', 'zh-Hant.publish.js')
+  path.join(VIEWER_DIR, 'i18n', 'zh-Hant.publish.js'),
+  path.join(VIEWER_DIR, 'i18n', 'en.runtime-lens.js'),
+  path.join(VIEWER_DIR, 'i18n', 'zh-Hant.runtime-lens.js')
 ].forEach((file) => {
   try {
     new vm.Script(fs.readFileSync(file, 'utf8'), {filename: file});

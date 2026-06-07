@@ -49,6 +49,32 @@ assert(controls.scenes.some((item) => item.id === 'starter_deck' && item.type ==
 assert(controls.scenes.some((item) => item.id === 'extra_scene_119'), 'debug scene controls should not truncate large projects at 80 scenes');
 assert(controls.links.some((item) => item.from === 'union_pressure_rises' && item.to === 'labor_law_crisis'), 'incoming selected-scene link should appear');
 assert(controls.links.some((item) => item.from === 'labor_law_crisis' && item.to === 'cabinet_compromise'), 'outgoing selected-scene link should appear');
+assert(!controls.variables.some((item) => item.relevant), 'an unfocused build should not annotate variable relevance');
+assert(!controls.scenes.some((item) => item.relevant), 'an unfocused build should not annotate scene relevance');
+assert(controls.focusSceneId === '', 'an unfocused build should not record a focus scene id');
+
+const focusControls = debugModel.buildDebugControls(index, {focusScope: {sceneId: 'labor_law_crisis', sourcePath: 'source/scenes/events/labor_law.scene.dry'}});
+assert(focusControls.focusSceneId === 'labor_law_crisis', 'focus-scoped controls should record the focused scene id');
+assert(focusControls.variables.find((item) => item.name === 'labor_law_seen').relevant, 'a variable written in the focused event should be marked relevant');
+assert(focusControls.variables.find((item) => item.name === 'worker_support').relevanceReason === 'local', 'a variable read in the focused event should be marked relevant by source');
+assert(!focusControls.variables.find((item) => item.name === 'year').relevant, 'a variable only used elsewhere should not be marked relevant');
+assert(focusControls.scenes.find((item) => item.id === 'labor_law_crisis').relevanceReason === 'focus', 'the focused scene should be flagged as the focus');
+assert(focusControls.scenes.find((item) => item.id === 'cabinet_compromise').relevant, 'an outgoing neighbour scene should be marked relevant');
+assert((focusControls.scenes.find((item) => item.id === 'extra_scene_0') || {}).relevant !== true, 'an unrelated scene should not be marked relevant');
+
+const gateControls = debugModel.buildDebugControls({
+  variables: [
+    {name: 'reputation', reads: [{path: 'source/scenes/other.scene.dry', line: 2}]},
+    {name: 'has_permit', reads: [{path: 'source/scenes/other.scene.dry', line: 9}]}
+  ],
+  scenes: [
+    {id: 'gateway', title: 'Gateway', type: 'event', path: 'source/scenes/gateway.scene.dry', sections: [{id: 'gateway', viewIf: 'has_permit'}]},
+    {id: 'before', title: 'Before', type: 'event', path: 'source/scenes/before.scene.dry'}
+  ],
+  edges: [{from: 'before', to: 'gateway', condition: 'reputation >= 5'}]
+}, {focusScope: {sceneId: 'gateway', sourcePath: 'source/scenes/gateway.scene.dry'}});
+assert((gateControls.variables.find((item) => item.name === 'reputation') || {}).relevanceReason === 'gate', 'a variable in an incoming edge condition should be a gate-relevant variable');
+assert((gateControls.variables.find((item) => item.name === 'has_permit') || {}).relevanceReason === 'gate', 'a variable in the focused scene gate condition should be relevant');
 
 const applied = debugModel.validateVariableCommand(controls, [
   {name: 'year', value: '1932'},

@@ -277,6 +277,26 @@ assert(readyHtml.includes('Full Build'), 'Ready Runtime Lens panel should offer 
 assert(readyHtml.includes('Reset'), 'Ready Runtime Lens panel should offer reset');
 assert(readyHtml.includes('Collapse'), 'Ready Runtime Lens panel should offer collapse');
 assert(readyHtml.includes('Open'), 'Ready Runtime Lens panel should offer external open');
+assert(readyHtml.includes('Quick Lens reuses the last generated build'), 'Quick action should carry a tooltip explaining it reuses the last build');
+assert(readyHtml.includes('Full Build rebuilds a temporary runtime'), 'Full Build action should carry a tooltip explaining it rebuilds with this edit');
+
+const quickModeHtml = runtimeLensUi.renderPanel({
+  focus,
+  status: 'ready',
+  sessionFocusKey: 'event:election_start',
+  session: {ok: true, status: 'ready', previewMode: 'quick', lensUrl: 'http://127.0.0.1:4000/session/lens/'}
+});
+assert(quickModeHtml.includes('data-runtime-lens-quick-note="true"'), 'Quick Lens should explain it shows the last build, not unbuilt edits');
+assert(quickModeHtml.includes('Showing the last generated build'), 'Quick Lens note should describe the reused build');
+assert(quickModeHtml.includes('use Full Build to apply this change'), 'Quick Lens note should point to Full Build for applying the edit');
+
+const quickFallbackHtml = runtimeLensUi.renderPanel({
+  focus,
+  status: 'ready',
+  sessionFocusKey: 'event:election_start',
+  session: {ok: true, status: 'ready', previewMode: 'full', quickFallback: {from: 'quick', to: 'full'}, lensUrl: 'http://127.0.0.1:4000/session/lens/'}
+});
+assert(quickFallbackHtml.includes('No reusable build was found'), 'Quick to Full fallback should be surfaced to the user instead of staying silent');
 
 let loadedAssetDraft = null;
 global.ProjectMapObjectAuthoringCanvas = {

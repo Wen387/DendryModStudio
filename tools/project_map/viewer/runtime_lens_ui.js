@@ -130,8 +130,8 @@
       '<h3>' + escapeHtml(t('runtimeLens.title', 'Focused runtime')) + '</h3>',
       '</div>',
       '<div class="runtime-lens-actions">',
-      '<button type="button" data-runtime-lens-action="create" ' + (!canFocus || status === 'building' ? 'disabled' : '') + '>' + escapeHtml(session && session.ok ? t('runtimeLens.refreshQuick', 'Refresh quick') : t('runtimeLens.createQuick', 'Quick Lens')) + '</button>',
-      '<button type="button" data-runtime-lens-action="rebuild" ' + (!canFocus || status === 'building' ? 'disabled' : '') + '>' + escapeHtml(t('runtimeLens.rebuildFull', 'Full Build')) + '</button>',
+      '<button type="button" data-runtime-lens-action="create" title="' + escapeAttr(t('runtimeLens.quickHint', 'Quick Lens reuses the last generated build. It does not include unbuilt edits; use Full Build to apply this change.')) + '" ' + (!canFocus || status === 'building' ? 'disabled' : '') + '>' + escapeHtml(session && session.ok ? t('runtimeLens.refreshQuick', 'Refresh quick') : t('runtimeLens.createQuick', 'Quick Lens')) + '</button>',
+      '<button type="button" data-runtime-lens-action="rebuild" title="' + escapeAttr(t('runtimeLens.fullHint', 'Full Build rebuilds a temporary runtime that applies this edit, then focuses it.')) + '" ' + (!canFocus || status === 'building' ? 'disabled' : '') + '>' + escapeHtml(t('runtimeLens.rebuildFull', 'Full Build')) + '</button>',
       session && session.ok ? '<button type="button" data-runtime-lens-action="reset">' + escapeHtml(t('runtimeLens.reset', 'Reset')) + '</button>' : '',
       '<button type="button" data-runtime-lens-action="toggle_collapse">' + escapeHtml(opts.collapsed ? t('runtimeLens.restore', 'Restore') : t('runtimeLens.collapse', 'Collapse')) + '</button>',
       '<button type="button" data-runtime-lens-action="toggle_expand">' + escapeHtml(opts.expanded ? t('runtimeLens.dock', 'Dock') : t('runtimeLens.expand', 'Expand')) + '</button>',
@@ -139,7 +139,7 @@
       session ? '<button type="button" data-runtime-lens-action="clear">' + escapeHtml(t('runtimeLens.clear', 'Clear')) + '</button>' : '',
       '</div>',
       '</header>',
-      renderSummary(focus, status, {isDesktop, stale, draftStale, canFocus, snapshot: session && session.runtimeSnapshot, domMap: session && session.runtimeDomMap, visualSurface: session && session.runtimeVisualSurface}),
+      renderSummary(focus, status, {isDesktop, stale, draftStale, canFocus, snapshot: session && session.runtimeSnapshot, domMap: session && session.runtimeDomMap, visualSurface: session && session.runtimeVisualSurface, previewMode: session && session.previewMode, quickFallback: session && session.quickFallback}),
       opts.collapsed ? '' : renderBody({url, status, isDesktop, canFocus, session}),
       '</section>'
     ].join('');
@@ -166,6 +166,9 @@
       '<div><span>' + escapeHtml(t('runtimeLens.focus', 'Focus')) + '</span><strong title="' + escapeAttr(focusTitle.raw) + '">' + escapeHtml(focusTitle.display) + '</strong></div>',
       '<div><span>' + escapeHtml(t('runtimeLens.target', 'Target')) + '</span><strong title="' + escapeAttr(targetTitle.raw) + '">' + escapeHtml(targetTitle.display) + '</strong></div>',
       '<p data-runtime-lens-message="true">' + escapeHtml(message) + '</p>',
+      (opts.isDesktop && !opts.stale && (status === 'ready' || status === 'partial') && (opts.quickFallback || opts.previewMode === 'quick'))
+        ? '<p class="runtime-lens-quick-note" data-runtime-lens-quick-note="true">' + escapeHtml(opts.quickFallback ? t('runtimeLens.quickFallbackFull', 'No reusable build was found, so a temporary Full Build was used.') : t('runtimeLens.quickModeNote', 'Showing the last generated build. Unbuilt edits are not included; use Full Build to apply this change.')) + '</p>'
+        : '',
       renderFocusProof(value),
       '</div>'
     ].join('');

@@ -390,8 +390,7 @@ function finalizeRuntimePreview(context) {
     : '';
   const serverOrigin = hasPort ? 'http://127.0.0.1:' + port : '';
   const debug = createDebugSession(session, {
-    plan: opts.plan,
-    projectIndex: opts.projectIndex,
+    plan: opts.plan, projectIndex: opts.projectIndex, focusScope: opts.focusScope,
     modifiedBuild,
     serverOrigin: opts.serverOrigin || serverOrigin
   });
@@ -441,8 +440,7 @@ function finalizeModifiedRuntimePreview(context) {
     : '';
   const serverOrigin = hasPort ? 'http://127.0.0.1:' + port : '';
   const debug = createDebugSession(session, {
-    plan: opts.plan,
-    projectIndex: opts.projectIndex,
+    plan: opts.plan, projectIndex: opts.projectIndex, focusScope: opts.focusScope,
     modifiedBuild,
     serverOrigin: opts.serverOrigin || serverOrigin
   });
@@ -495,7 +493,7 @@ function finalizeQuickRuntimePreview(context) {
     diagnostics: []
   };
   const debug = createDebugSession(session, {
-    projectIndex: opts.projectIndex,
+    projectIndex: opts.projectIndex, focusScope: opts.focusScope,
     modifiedBuild,
     serverOrigin: opts.serverOrigin || serverOrigin
   });
@@ -1179,7 +1177,7 @@ function createDebugSession(session, options) {
   const opts = options || {};
   const projectIndex = opts.projectIndex || {};
   const controls = augmentDebugControlsWithPlan(
-    debugModel.buildDebugControls(projectIndex, {}),
+    debugModel.buildDebugControls(projectIndex, isObject(opts.focusScope) ? {focusScope: opts.focusScope} : {}),
     opts.plan,
     projectIndex
   );

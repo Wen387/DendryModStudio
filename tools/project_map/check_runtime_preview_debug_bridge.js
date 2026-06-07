@@ -36,6 +36,10 @@ assert(script.includes('RUNTIME_SURFACE'), 'bridge should carry Runtime Surface 
 assert(script.includes('querySelectorAll'), 'bridge should inspect DOM selectors for snapshots');
 assert(script.includes('event.origin'), 'bridge should check event origin');
 assert(script.includes('dms-runtime-preview-command'), 'bridge should listen for structured command messages');
+assert(script.includes('MutationObserver'), 'bridge should observe runtime DOM changes for live snapshots');
+assert(script.includes('dms-runtime-preview-event'), 'bridge should emit live runtime events to the wrapper page');
+assert(script.includes('"dom-changed"'), 'bridge should signal DOM changes so the wrapper can re-capture');
+assert(script.includes('"ready"'), 'bridge should signal a settled-ready event for the initial capture');
 assert(!/\beval\s*\(/.test(script), 'bridge must not use eval');
 assert(!/\bnew Function\b/.test(script), 'bridge must not use new Function');
 assert(!script.includes('innerHTML = event.data'), 'bridge must not write raw message data as HTML');
@@ -94,6 +98,29 @@ assert(zhPanel.includes('搜尋變數'), 'debug panel with zh-Hant labels should
 const zhParentScript = bridge.parentDebugScript({sessionId: 'debug-session', labels: zhLabels});
 assert(zhParentScript.includes('沒有已變更的變數值可套用'), 'zh-Hant parent script should embed localized noChangedVars label');
 
+const focusPanel = bridge.debugPanelHtml({
+  controls: {
+    focusSceneId: 'labor_law_crisis',
+    variables: [
+      {name: 'year', valueType: 'number', reason: 'time gate', relevant: true, relevanceReason: 'gate'},
+      {name: 'gold', valueType: 'number', reason: 'resource'}
+    ],
+    scenes: [
+      {id: 'labor_law_crisis', title: 'Labor Law Crisis', relevant: true, relevanceReason: 'focus'},
+      {id: 'union_pressure_rises', title: 'Union Pressure', relevant: true, relevanceReason: 'neighbor'},
+      {id: 'unrelated_scene', title: 'Unrelated Scene'}
+    ],
+    links: [{from: 'union_pressure_rises', to: 'labor_law_crisis'}]
+  }
+});
+assert(focusPanel.includes('data-debug-section="focus"'), 'focus-scoped panel should lead with a relevant-to-this-event section');
+assert(focusPanel.includes('data-debug-nav="focus"'), 'focus-scoped panel nav should include a relevant section link');
+assert(focusPanel.includes('data-runtime-debug-focus-vars'), 'focus section should reserve a slot for event-relevant variables');
+assert(focusPanel.includes('runtime-debug-focus-scenes'), 'focus section should list relevant neighbour scenes');
+assert(focusPanel.includes('data-debug-scene="union_pressure_rises"'), 'focus section should expose neighbour scene jumps');
+assert(!panel.includes('data-debug-section="focus"'), 'an unfocused panel must not render the relevant-to-this-event section');
+assert(!panel.includes('data-debug-nav="focus"'), 'an unfocused panel nav must not advertise a relevant section');
+
 const parentScript = bridge.parentDebugScript({sessionId: 'debug-session'});
 assert(parentScript.includes('postMessage'), 'parent script should send iframe commands');
 assert(parentScript.includes('dms-runtime-preview-result'), 'parent script should receive structured result messages');
@@ -102,6 +129,8 @@ assert(parentScript.includes('data-debug-dirty'), 'parent script should apply on
 assert(parentScript.includes('data-runtime-debug-scene-filter'), 'parent script should filter scene jump controls');
 assert(parentScript.includes('renderGroups'), 'parent script should render variable groups client-side');
 assert(parentScript.includes('renderPinned'), 'parent script should render pinned variables client-side');
+assert(parentScript.includes('renderFocusVars'), 'parent script should render the event-relevant variable rows');
+assert(zhParentScript.includes('門檻'), 'zh-Hant parent script should localize the gate relevance chip');
 assert(parentScript.includes('filterVars'), 'parent script should support variable search filtering');
 assert(parentScript.includes('togglePin'), 'parent script should support pin/unpin interaction');
 assert(parentScript.includes('runtime-debug-toggle'), 'parent script should render boolean toggle inputs');
