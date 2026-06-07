@@ -1,14 +1,6 @@
 (function initProjectMapSystemUiSemanticTaskModel(global) {
   'use strict';
 
-  const domTextUtils = (function () {
-    if (global && global.ProjectMapDomText) {
-      return global.ProjectMapDomText;
-    }
-    return require('./dom_text_utils.js');
-  })();
-  const ensureArray = domTextUtils.ensureArray;
-
   const VERSION = '0.1';
 
   const REGION_TASKS = {
@@ -45,7 +37,7 @@
       task('sidebar_delete_category', 'systemUi.task.sidebarDeleteCategory', 'Delete a sidebar category', 'systemUi.task.sidebarDeleteCategory.summary', 'Remove the selected source-backed sidebar tab section after Review & Apply confirms exact anchors.', 'sidebar_composer', ['sidebar.operationMode', 'sidebar.deleteConfirm', 'sidebar.sectionId'], 'sidebar.deleteConfirm')
     ],
     right_sidebar: [
-      task('right_sidebar_edit', 'systemUi.task.rightSidebarEdit', 'Edit the right sidebar', 'systemUi.task.rightSidebarEdit.summary', 'Fill the empty right gutter with a panel: set its title and body. Studio owns the responsive, conflict-free placement so adding content stays safe.', 'edit_fields', ['layout.rightSidebarTitle', 'layout.rightSidebarBody'], 'layout.rightSidebarTitle')
+      task('right_sidebar_plan', 'systemUi.rightSidebar.label', 'Right panel', 'systemUi.rightSidebar.comingSoon', 'Editing arrives in the next step.', 'edit_fields', [], '')
     ],
     election_results_frame: [
       task('election_intro', 'systemUi.task.electionIntro', 'Edit election intro copy', 'systemUi.task.electionIntro.summary', 'Change source-backed title, subtitle, intro, and result text while renderer wiring stays manual.', 'edit_fields', ['election.title', 'election.subtitle', 'election.intro', 'election.sourcePath', 'election.id'], 'election.title')
@@ -215,6 +207,10 @@
 
   function task(intent, labelKey, label, summaryKey, summary, actionKind, fieldIds, primaryFieldId) {
     return {intent, labelKey, label, summaryKey, summary, actionKind, fieldIds, primaryFieldId};
+  }
+
+  function ensureArray(value) {
+    return Array.isArray(value) ? value : [];
   }
 
   function isObject(value) {

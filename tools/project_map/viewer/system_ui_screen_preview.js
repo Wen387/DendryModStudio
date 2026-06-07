@@ -1,16 +1,6 @@
 (function initProjectMapSystemUiScreenPreview(global) {
   'use strict';
 
-  const domTextUtils = (function () {
-    if (global && global.ProjectMapDomText) {
-      return global.ProjectMapDomText;
-    }
-    return require('./dom_text_utils.js');
-  })();
-  const ensureArray = domTextUtils.ensureArray;
-  const escapeHtml = domTextUtils.escapeHtml;
-  const escapeAttr = domTextUtils.escapeAttr;
-
   function render(screen) {
     const model = screen || {};
     const selectedKey = String(model.selectedKey || '').replace(/^ui:/, '');
@@ -29,7 +19,7 @@
       '<div class="system-screen-body" data-system-player-screen="' + escapeAttr(activeScreen) + '">',
       renderSidebar(model, selectedKey, activeScreen),
       renderPlayerScreen(model, selectedKey, activeScreen),
-      activeScreen === 'in_game' ? renderRightSidebar(model, selectedKey) : '',
+      renderRightSidebarZone(model, selectedKey, activeScreen),
       '</div>',
       '</div>',
       '</section>'
@@ -178,6 +168,19 @@
     }];
   }
 
+  function renderRightSidebarZone(model, selectedKey, activeScreen) {
+    return [
+      '<aside class="system-screen-sidebar system-screen-right-sidebar" data-system-screen-right-sidebar="true" data-system-player-screen="' + escapeAttr(activeScreen || '') + '" aria-label="' + escapeAttr(t('systemUi.rightSidebar.label', 'Right panel')) + '">',
+      renderRegionButton(model, 'right_sidebar', selectedKey, [
+        '<span class="system-screen-right-eyebrow">' + escapeHtml(t('systemUi.rightSidebar.eyebrow', 'Extension zone')) + '</span>',
+        '<strong class="system-screen-right-title">' + escapeHtml(t('systemUi.rightSidebar.label', 'Right panel')) + '</strong>',
+        '<p class="system-screen-right-placeholder">' + escapeHtml(t('systemUi.rightSidebar.placeholder', 'Studio keeps this column responsive and conflict-free. Drop a right-side panel here.')) + '</p>',
+        '<small class="system-screen-right-soon">' + escapeHtml(t('systemUi.rightSidebar.comingSoon', 'Editing arrives in the next step.')) + '</small>'
+      ].join(''), 'system-screen-right-zone'),
+      '</aside>'
+    ].join('');
+  }
+
   function renderPlayerScreen(model, selectedKey, activeScreen) {
     if (activeScreen === 'library_page') {
       return renderLibraryMain(model, selectedKey);
@@ -288,19 +291,6 @@
       ].join(''), 'advisor'),
       '</article>',
       '</main>'
-    ].join('');
-  }
-
-  function renderRightSidebar(model, selectedKey) {
-    const region = regionByKey(model, 'right_sidebar') || {};
-    return [
-      '<aside class="system-screen-right-sidebar" data-system-screen-right-sidebar="true">',
-      renderRegionButton(model, 'right_sidebar', selectedKey, [
-        '<span class="system-screen-label">' + escapeHtml(t(region.labelKey, region.fallback || 'Right sidebar')) + '</span>',
-        '<strong>' + renderSystemPreviewInline(region.title || '') + '</strong>',
-        '<div class="system-screen-copy" data-system-screen-copy="true">' + renderSystemPreviewText(region.body || '') + '</div>'
-      ].join(''), 'system-screen-right-sidebar-panel'),
-      '</aside>'
     ].join('');
   }
 
@@ -553,6 +543,10 @@
     return ensureArray(model && model.regions).find((region) => region && region.key === key) || null;
   }
 
+  function ensureArray(value) {
+    return Array.isArray(value) ? value : [];
+  }
+
   function renderSystemPreviewText(value) {
     const renderer = richTextApi();
     if (renderer && typeof renderer.renderBlocks === 'function') {
@@ -591,6 +585,20 @@
   function t(key, fallback) {
     const i18n = global.ProjectMapI18n;
     return i18n && typeof i18n.t === 'function' ? i18n.t(key, fallback) : fallback;
+  }
+
+  function escapeAttr(value) {
+    return escapeHtml(value).replace(/`/g, '&#96;');
+  }
+
+  function escapeHtml(value) {
+    return String(value || '').replace(/[&<>"']/g, (char) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }[char]));
   }
 
   const api = {render};

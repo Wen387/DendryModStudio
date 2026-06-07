@@ -60,13 +60,13 @@
     },
     {
       "path": "tools/project_map/viewer/i18n/en.js",
-      "maxLines": 3465,
+      "maxLines": 3475,
       "allowRaise": true,
       "reason": "Catalog file; keep each language separate. Was 3523, then 3450. Lowered 2026-06-05 to 3399 by extracting the runtimeLens.* group into off-budget viewer/i18n/en.runtime-lens.js (same load-then-merge pattern), which pays for the focused Dev console lens keys. Earlier shrink split the whole publish.* surface out into the off-budget viewer/i18n/en.publish.js (merged into the en catalog at load), freeing aggregate headroom for the Batch C publish management keys without raising any ceiling. Add further large key groups to focused sibling catalogs instead of growing this file. [integration 2026-06-07: raised for loving-vaughan play-test merge.]"
     },
     {
       "path": "tools/project_map/viewer/i18n/zh-Hant.js",
-      "maxLines": 3465,
+      "maxLines": 3475,
       "allowRaise": true,
       "reason": "Catalog file; keep each language separate. Was 3523, then 3450. Lowered 2026-06-05 to 3399 by extracting the runtimeLens.* group into off-budget viewer/i18n/zh-Hant.runtime-lens.js (same load-then-merge pattern), which pays for the focused Dev console lens keys. Earlier shrink split the whole publish.* surface out into the off-budget viewer/i18n/zh-Hant.publish.js (merged into the zh-Hant catalog at load), freeing aggregate headroom for the Batch C publish management keys without raising any ceiling. Add further large key groups to focused sibling catalogs instead of growing this file. [integration 2026-06-07: raised for loving-vaughan play-test merge.]"
     },

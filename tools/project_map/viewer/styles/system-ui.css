@@ -265,16 +265,9 @@
   color: var(--muted);
 }
 
-.system-screen-right-add {
-  margin-top: 4px;
-  padding: 7px 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface);
-  color: var(--muted);
-  font: inherit;
-  font-size: 13px;
-  cursor: not-allowed;
+.system-screen-region-right-zone {
+  gap: 6px;
+  padding: 6px;
 }
 
 .system-screen-right-soon {
@@ -1083,4 +1076,48 @@
   gap: 12px;
   background: var(--surface-alt);
   overflow: auto;
+}
+
+/* System UI Create entry -- group the six categories under three plain buckets. */
+.template-switch[data-authoring-template-group="system_ui"] {
+  grid-template-columns: 1fr;
+  gap: 8px;
+  text-align: left;
+}
+
+.authoring-bucket-intro {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.authoring-bucket {
+  display: grid;
+  gap: 5px;
+}
+
+.authoring-bucket-head {
+  display: grid;
+  gap: 2px;
+}
+
+.authoring-bucket-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text);
+}
+
+.authoring-bucket-blurb {
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+
+.authoring-bucket-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 3px;
 }
