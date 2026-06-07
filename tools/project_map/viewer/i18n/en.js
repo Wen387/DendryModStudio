@@ -3,6 +3,9 @@
 
   const CATALOG = {
     en: {
+      'systemUi.task.rightSidebarEdit': 'Edit the right sidebar',
+      'systemUi.task.rightSidebarEdit.summary': 'Fill the empty right gutter with a panel: set its title and body. Studio owns the responsive, conflict-free placement so adding content stays safe.',
+      'systemUi.region.rightSidebar': 'Right sidebar',
       'playSim.tabPreview': 'Preview',
       'playSim.tabPlay': 'Play test',
       'playSim.approxNote': 'Approximate dry-run of this object only: conditions, simple effects, and text are simulated in the browser. Cards, randomness, qdisplays, and cross-scene jumps are not — use the full runtime preview for an exact playthrough.',
@@ -1147,11 +1150,6 @@
       'systemUi.region.electionTable': 'Party result table',
       'systemUi.region.electionCoalitions': 'Coalitions',
       'systemUi.region.electionChoices': 'Player choices',
-      'systemUi.rightSidebar.eyebrow': 'Extension zone',
-      'systemUi.rightSidebar.label': 'Right panel',
-      'systemUi.rightSidebar.placeholder': 'Studio keeps this column responsive and conflict-free. Drop a right-side panel here.',
-      'systemUi.rightSidebar.addHint': 'Add a right panel',
-      'systemUi.rightSidebar.comingSoon': 'Editing arrives in the next step.',
       'systemUi.owner.layout': 'Workspace Layout',
       'systemUi.owner.project': 'Game Info',
       'systemUi.owner.entry': 'Entry & Sidebar',

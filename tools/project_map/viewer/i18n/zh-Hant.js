@@ -3,6 +3,9 @@
 
   const CATALOG = {
     'zh-Hant': {
+      'systemUi.task.rightSidebarEdit': '編輯右側欄',
+      'systemUi.task.rightSidebarEdit.summary': '在空白的右側欄填入一塊面板：設定它的標題與內文。版面的響應式與不衝突排版由 Studio 負責，所以加內容很安全。',
+      'systemUi.region.rightSidebar': '右側欄',
       'playSim.tabPreview': '預覽',
       'playSim.tabPlay': '試玩',
       'playSim.approxNote': '只針對這個物件的近似預演：條件、簡單效果與文字會在瀏覽器裡模擬；卡牌、隨機、qdisplays 與跨場景跳轉不會——要完全一致請用完整的執行預覽。',
@@ -1147,11 +1150,6 @@
       'systemUi.region.electionTable': '政黨結果表',
       'systemUi.region.electionCoalitions': '聯盟列表',
       'systemUi.region.electionChoices': '玩家選項',
-      'systemUi.rightSidebar.eyebrow': '擴展區',
-      'systemUi.rightSidebar.label': '右側面板',
-      'systemUi.rightSidebar.placeholder': 'Studio 會把這一欄的響應式與版面衝突都打理好,你把右側面板放進這裡就好。',
-      'systemUi.rightSidebar.addHint': '加一個右側面板',
-      'systemUi.rightSidebar.comingSoon': '編輯功能下一步接上。',
       'systemUi.owner.layout': '工作區佈局',
       'systemUi.owner.project': '遊戲資訊',
       'systemUi.owner.entry': '入口與側邊欄',

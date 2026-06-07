@@ -29,7 +29,7 @@
       '<div class="system-screen-body" data-system-player-screen="' + escapeAttr(activeScreen) + '">',
       renderSidebar(model, selectedKey, activeScreen),
       renderPlayerScreen(model, selectedKey, activeScreen),
-      renderRightSidebarZone(model, activeScreen),
+      activeScreen === 'in_game' ? renderRightSidebar(model, selectedKey) : '',
       '</div>',
       '</div>',
       '</section>'
@@ -178,18 +178,6 @@
     }];
   }
 
-  function renderRightSidebarZone(model, activeScreen) {
-    return [
-      '<aside class="system-screen-sidebar system-screen-right-sidebar" data-system-screen-right-sidebar="true" data-system-player-screen="' + escapeAttr(activeScreen || '') + '" aria-label="' + escapeAttr(t('systemUi.rightSidebar.label', 'Right panel')) + '">',
-      '<div class="system-screen-right-eyebrow">' + escapeHtml(t('systemUi.rightSidebar.eyebrow', 'Extension zone')) + '</div>',
-      '<strong class="system-screen-right-title">' + escapeHtml(t('systemUi.rightSidebar.label', 'Right panel')) + '</strong>',
-      '<p class="system-screen-right-placeholder">' + escapeHtml(t('systemUi.rightSidebar.placeholder', 'Studio keeps this column responsive and conflict-free. Drop a right-side panel here.')) + '</p>',
-      '<button type="button" class="system-screen-right-add" data-system-ui-right-sidebar-add="true" disabled aria-disabled="true">' + escapeHtml(t('systemUi.rightSidebar.addHint', 'Add a right panel')) + '</button>',
-      '<small class="system-screen-right-soon">' + escapeHtml(t('systemUi.rightSidebar.comingSoon', 'Editing arrives in the next step.')) + '</small>',
-      '</aside>'
-    ].join('');
-  }
-
   function renderPlayerScreen(model, selectedKey, activeScreen) {
     if (activeScreen === 'library_page') {
       return renderLibraryMain(model, selectedKey);
@@ -300,6 +288,19 @@
       ].join(''), 'advisor'),
       '</article>',
       '</main>'
+    ].join('');
+  }
+
+  function renderRightSidebar(model, selectedKey) {
+    const region = regionByKey(model, 'right_sidebar') || {};
+    return [
+      '<aside class="system-screen-right-sidebar" data-system-screen-right-sidebar="true">',
+      renderRegionButton(model, 'right_sidebar', selectedKey, [
+        '<span class="system-screen-label">' + escapeHtml(t(region.labelKey, region.fallback || 'Right sidebar')) + '</span>',
+        '<strong>' + renderSystemPreviewInline(region.title || '') + '</strong>',
+        '<div class="system-screen-copy" data-system-screen-copy="true">' + renderSystemPreviewText(region.body || '') + '</div>'
+      ].join(''), 'system-screen-right-sidebar-panel'),
+      '</aside>'
     ].join('');
   }
 
