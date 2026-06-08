@@ -23,6 +23,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
+const url = require('url');
 
 const model = require('../object_playtest_engine_model.js');
 
@@ -214,8 +215,13 @@ function toCloneable(value) {
 // image refs (e.g. `img/events/foo.svg`) cannot be loaded as URLs the way the
 // full-game http preview can. Instead the host reads the referenced file from
 // the project's source/ tree and hands the renderer a self-contained data: URI.
-// Audio is intentionally NOT inlined here (base64 music would bloat the IPC
-// payload); that arrives in a later phase via a streamed origin.
+//
+// Audio is handled differently from images: instead of inlining (base64 music
+// would bloat every IPC payload), the host resolves each `scene.audio` file
+// token to a file:// URL the renderer can stream directly. The play-test window
+// already plays file:// audio elsewhere (preview_asset_editor / explore_*), so
+// no custom protocol or http origin is needed -- just an existing-file lookup
+// through the same source/->out/html roots and traversal guard used for art.
 
 const ASSET_MAX_INLINE_BYTES = 4 * 1024 * 1024;
 
@@ -306,6 +312,78 @@ function inlineImageRef(projectRoot, ref) {
   }
 }
 
+// ---- audio asset resolution ----------------------------------------------
+// Unlike images (inlined as data URIs), audio is resolved to a file:// URL the
+// renderer streams. No size cap: the browser streams it, nothing is base64'd
+// into the IPC payload.
+
+const AUDIO_EXT = {
+  '.mp3': true,
+  '.ogg': true,
+  '.oga': true,
+  '.wav': true,
+  '.m4a': true,
+  '.aac': true,
+  '.flac': true,
+  '.opus': true,
+  '.webm': true
+};
+
+// Tokens in a `scene.audio` directive that are NOT file refs but playback verbs
+// (mirrors node_modules/dendrynexus/lib/ui/browser.js). 'null'/'none' are stop
+// sentinels; everything else here shapes how the file tokens are played.
+const AUDIO_DIRECTIVE_KEYWORDS = {
+  loop: true,
+  queue: true,
+  nofade: true,
+  shuffle: true,
+  clear: true,
+  null: true,
+  none: true
+};
+
+// Resolve a relative audio ref to a file:// URL inside an allowed root, reusing
+// the same existing-file lookup + traversal guard as art. Returns null for empty
+// refs, already-absolute URLs, non-audio extensions, or refs that match no file.
+function resolveAudioRef(projectRoot, ref) {
+  const full = resolveSourceAsset(projectRoot, ref);
+  if (!full || !AUDIO_EXT[path.extname(full).toLowerCase()]) {
+    return null;
+  }
+  try {
+    return url.pathToFileURL(full).href;
+  } catch (err) {
+    return null;
+  }
+}
+
+// Rewrite a `scene.audio` directive so its file tokens become file:// URLs the
+// renderer can stream, leaving playback keywords untouched. File tokens that do
+// not resolve are dropped and reported via `unresolved` so the renderer never
+// tries to load a missing source. Returns {directive, unresolved} (directive is
+// null when nothing playable/meaningful remains).
+function resolveAudioDirective(projectRoot, directive) {
+  const tokens = String(directive == null ? '' : directive).split(/\s+/).filter(Boolean);
+  const out = [];
+  const unresolved = [];
+  tokens.forEach((token) => {
+    if (AUDIO_DIRECTIVE_KEYWORDS[token.toLowerCase()]) {
+      out.push(token);
+      return;
+    }
+    const fileUrl = resolveAudioRef(projectRoot, token);
+    if (fileUrl) {
+      out.push(fileUrl);
+    } else {
+      unresolved.push(token);
+    }
+  });
+  // Keep the directive only if it still carries something actionable: a resolved
+  // file:// URL or a verb (e.g. a lone `null`/`clear` to stop/clear playback).
+  const hasActionable = out.some((token) => token.indexOf('file:') === 0 || AUDIO_DIRECTIVE_KEYWORDS[token.toLowerCase()]);
+  return {directive: hasActionable ? out.join(' ') : null, unresolved: unresolved};
+}
+
 // Rewrite a captured view's image refs to data URIs in place. A background that
 // is a CSS colour/gradient/keyword (not an image path) passes through untouched
 // for the renderer to apply directly.
@@ -349,6 +427,14 @@ function resolveViewAssets(view, projectRoot) {
         return dataUri ? pre + quote + dataUri + quote : full;
       }
     );
+  }
+  // Rewrite the scene's audio directive's file tokens to file:// URLs (verbs
+  // kept). Event-style: a turn with no directive leaves view.audio null and the
+  // renderer keeps playing whatever is current.
+  if (typeof view.audio === 'string') {
+    const resolved = resolveAudioDirective(projectRoot, view.audio);
+    view.audio = resolved.directive;
+    view.audioUnresolved = resolved.unresolved.length ? resolved.unresolved : null;
   }
   return view;
 }
@@ -464,6 +550,8 @@ module.exports = {
   signatureOf: signatureOf,
   resolveDryFiles: resolveDryFiles,
   resolveViewAssets: resolveViewAssets,
+  resolveAudioRef: resolveAudioRef,
+  resolveAudioDirective: resolveAudioDirective,
   _clearCache: function () {
     GAME_CACHE.clear();
   }

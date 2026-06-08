@@ -87,6 +87,8 @@ const VARIABLE_EDITOR_UI = path.join(ROOT, 'viewer', 'variable_editor_ui.js');
 const INSTALL_REVIEW_UI = path.join(ROOT, 'viewer', 'install_review_ui.js');
 const INSTALL_UI = path.join(ROOT, 'viewer', 'install_assistant_ui.js');
 const RIGHT_SIDEBAR_UI = path.join(ROOT, 'viewer', 'right_sidebar_ui.js');
+const OBJECT_PLAYTEST_AUDIO_MODEL = path.join(ROOT, 'viewer', 'object_playtest_audio_model.js');
+const OBJECT_PLAYTEST_ENGINE_UI = path.join(ROOT, 'viewer', 'object_playtest_engine_ui.js');
 const INSTALL_RESULT_REPORT_MODEL = path.join(ROOT, 'authoring', 'install_result_report_model.js');
 const DRAFT_WORKSPACE_UI = path.join(ROOT, 'viewer', 'draft_workspace_ui.js');
 const CHANGE_TRAY_UI = path.join(ROOT, 'viewer', 'change_tray_ui.js');
@@ -141,6 +143,8 @@ const wizardUi = fs.readFileSync(WIZARD_UI, 'utf8');
 const cardUi = fs.readFileSync(CARD_UI, 'utf8');
 // existingSceneEditUi / editingWorkspaceUi reads removed 2026-05-25.
 const rightSidebarUi = fs.readFileSync(RIGHT_SIDEBAR_UI, 'utf8');
+const objectPlaytestAudioModel = fs.readFileSync(OBJECT_PLAYTEST_AUDIO_MODEL, 'utf8');
+const objectPlaytestEngineUi = fs.readFileSync(OBJECT_PLAYTEST_ENGINE_UI, 'utf8');
 const authoringSurfaceRegistry = fs.readFileSync(AUTHORING_SURFACE_REGISTRY, 'utf8');
 const authoringSurfaceGraphs = fs.readFileSync(AUTHORING_SURFACE_GRAPHS, 'utf8');
 const authoringReferenceIndex = fs.readFileSync(AUTHORING_REFERENCE_INDEX, 'utf8');
@@ -317,6 +321,27 @@ assert(rightSidebarUi.includes('ProjectMapInstallAssistant'), 'Right Sidebar UI 
 assert(
   rightSidebarUi.includes('data-create-template-panel="sidebar_status"'),
   'Right Sidebar UI should mount inside the existing Sidebar / Status panel (no new authoring-surface registry key)'
+);
+// Object play-test audio: the pure parity reducer must load BEFORE the engine
+// play-test UI that consumes it, and the UI must wire to it + expose the
+// stop-on-leave hook used by the Object Editor's Preview/Play toggle.
+assert(html.includes('object_playtest_audio_model.js'), 'viewer should load the Object play-test audio reducer');
+assertHtmlOrder(
+  'object_playtest_audio_model.js',
+  'object_playtest_engine_ui.js',
+  'Object play-test audio reducer should load before the engine play-test UI that consumes it'
+);
+assert(
+  objectPlaytestAudioModel.includes('ProjectMapObjectPlaytestAudioModel'),
+  'Object play-test audio reducer should expose a browser API'
+);
+assert(
+  objectPlaytestEngineUi.includes('ProjectMapObjectPlaytestAudioModel'),
+  'Engine play-test UI should consume the audio reducer'
+);
+assert(
+  objectPlaytestEngineUi.includes('stopAudio'),
+  'Engine play-test UI should expose stopAudio for the Preview/Play toggle to silence audio on leave'
 );
 assert(html.includes('../authoring/election_results_draft.js'), 'viewer should load Election Results draft core');
 assert(html.includes('../authoring/project_metadata_draft.js'), 'viewer should load Game Info draft core');

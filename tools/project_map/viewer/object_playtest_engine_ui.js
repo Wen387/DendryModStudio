@@ -377,6 +377,279 @@
     ].join('');
   }
 
+  // ---- audio playback shell -------------------------------------------------
+  // The engine reports each scene's `audio:` directive on view.audio (file tokens
+  // already resolved to file:// URLs by the host). This shell turns a sequence of
+  // directives + 'ended' events into playback against ONE real Audio element,
+  // delegating all queue/shuffle/playlist logic to the pure reducer
+  // (ProjectMapObjectPlaytestAudioModel). The Audio element is JS-held and never
+  // lives in the per-turn innerHTML (rebuilt every interaction), so playback
+  // survives re-renders. Cross-scene persistence is automatic: a turn whose
+  // view.audio is null is a reducer no-op, so the current track keeps playing.
+
+  function audioReducer() {
+    if (global && global.ProjectMapObjectPlaytestAudioModel) {
+      return global.ProjectMapObjectPlaytestAudioModel;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./object_playtest_audio_model.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  const FADE_STEP_MS = 50;
+
+  const audioShell = {
+    el: null,
+    state: null,
+    fadeTimer: null,
+    unblock: null,
+    blocked: false,
+    watch: null,
+
+    reducerState: function () {
+      const model = audioReducer();
+      if (!this.state && model) {
+        this.state = model.freshState();
+      }
+      return this.state;
+    },
+
+    ensureEl: function () {
+      if (this.el || typeof Audio === 'undefined') {
+        return this.el;
+      }
+      const el = new Audio();
+      const self = this;
+      el.addEventListener('ended', function () {
+        self.dispatch({type: 'ended'});
+      });
+      this.el = el;
+      return el;
+    },
+
+    dispatch: function (input) {
+      const model = audioReducer();
+      if (!model) {
+        return;
+      }
+      const res = model.reduce(this.reducerState(), input, {});
+      this.state = res.state;
+      this.exec(res.commands);
+    },
+
+    // Apply a turn's directive (string | null). Null/empty = persist (no-op).
+    apply: function (directive) {
+      this.dispatch(typeof directive === 'string' ? directive : '');
+    },
+
+    // A fresh playthrough -- hard-stop and clear before applying new audio.
+    reset: function () {
+      this.hardStop();
+    },
+
+    // Leaving the play surface -- stop and clear.
+    stop: function () {
+      this.hardStop();
+    },
+
+    hardStop: function () {
+      this.cancelFade();
+      this.clearUnblock();
+      this.stopLeaveWatch();
+      if (this.el) {
+        try { this.el.pause(); } catch (_e) { /* ignore */ }
+        try { this.el.removeAttribute('src'); this.el.load(); } catch (_e) { /* ignore */ }
+        this.el.loop = false;
+      }
+      const model = audioReducer();
+      this.state = model ? model.freshState() : null;
+      this.blocked = false;
+    },
+
+    cancelFade: function () {
+      if (this.fadeTimer) {
+        clearInterval(this.fadeTimer);
+        this.fadeTimer = null;
+      }
+    },
+
+    fadeTo: function (target, ms, done) {
+      const el = this.el;
+      if (!el) {
+        if (done) { done(); }
+        return;
+      }
+      this.cancelFade();
+      const clampTarget = Math.max(0, Math.min(1, target));
+      const steps = ms > 0 ? Math.max(1, Math.round(ms / FADE_STEP_MS)) : 1;
+      if (steps <= 1) {
+        try { el.volume = clampTarget; } catch (_e) { /* ignore */ }
+        if (done) { done(); }
+        return;
+      }
+      const start = typeof el.volume === 'number' ? el.volume : 1;
+      const delta = (clampTarget - start) / steps;
+      let i = 0;
+      const self = this;
+      this.fadeTimer = setInterval(function () {
+        i += 1;
+        let v = start + delta * i;
+        if (v < 0) { v = 0; }
+        if (v > 1) { v = 1; }
+        try { el.volume = v; } catch (_e) { /* ignore */ }
+        if (i >= steps) {
+          self.cancelFade();
+          try { el.volume = clampTarget; } catch (_e) { /* ignore */ }
+          if (done) { done(); }
+        }
+      }, FADE_STEP_MS);
+    },
+
+    playUrl: function (url, fade, fadeMs) {
+      const el = this.ensureEl();
+      if (!el || !url) {
+        return;
+      }
+      this.cancelFade();
+      try { el.src = url; } catch (_e) { return; }
+      try { el.currentTime = 0; } catch (_e) { /* ignore */ }
+      el.volume = fade ? 0 : 1;
+      this.startPlayback();
+      if (fade) {
+        this.fadeTo(1, fadeMs);
+      }
+    },
+
+    startPlayback: function () {
+      const el = this.el;
+      if (!el || typeof el.play !== 'function') {
+        return;
+      }
+      this.ensureLeaveWatch();
+      const self = this;
+      let p;
+      try { p = el.play(); } catch (_e) { p = null; }
+      if (p && typeof p.then === 'function') {
+        p.then(function () { self.blocked = false; }).catch(function () { self.armUnblock(); });
+      }
+    },
+
+    // Autoplay can be blocked when the document lacks user activation. Arm a
+    // one-shot listener so the next click anywhere resumes playback.
+    armUnblock: function () {
+      if (this.unblock || typeof document === 'undefined') {
+        return;
+      }
+      this.blocked = true;
+      const self = this;
+      const handler = function () {
+        self.clearUnblock();
+        self.startPlayback();
+      };
+      document.addEventListener('click', handler, {once: true, capture: true});
+      this.unblock = function () {
+        document.removeEventListener('click', handler, {capture: true});
+      };
+    },
+
+    clearUnblock: function () {
+      if (this.unblock) {
+        this.unblock();
+        this.unblock = null;
+      }
+      this.blocked = false;
+    },
+
+    // Stop audio when the author leaves the play surface. The Audio element is
+    // JS-held, so neither toggling Play->Preview (which only sets the play
+    // panel's `hidden`) nor closing the editor modal (which removes the modal
+    // subtree) would otherwise stop it. One observer covers both: re-check the
+    // panel's connected+visible state on any relevant DOM mutation and stop when
+    // it is gone or hidden. Active only while a track is playing.
+    ensureLeaveWatch: function () {
+      if (this.watch || typeof MutationObserver === 'undefined' || typeof document === 'undefined') {
+        return;
+      }
+      const panel = document.querySelector('[data-preview-mode-panel="play"]');
+      if (!panel || !document.body) {
+        return;
+      }
+      const self = this;
+      const obs = new MutationObserver(function () {
+        if (!panel.isConnected || panel.hidden === true) {
+          self.stop();
+        }
+      });
+      obs.observe(document.body, {childList: true, subtree: true, attributes: true, attributeFilter: ['hidden']});
+      this.watch = obs;
+    },
+
+    stopLeaveWatch: function () {
+      if (this.watch) {
+        try { this.watch.disconnect(); } catch (_e) { /* ignore */ }
+        this.watch = null;
+      }
+    },
+
+    exec: function (commands) {
+      const self = this;
+      (commands || []).forEach(function (cmd) {
+        if (!cmd || !cmd.op) {
+          return;
+        }
+        if (cmd.op === 'play') {
+          self.playUrl(cmd.url, cmd.fade !== false, cmd.fadeMs);
+          if (self.el) {
+            self.el.loop = !!cmd.loop;
+          }
+        } else if (cmd.op === 'replace') {
+          if (cmd.nofade) {
+            self.playUrl(cmd.url, false, 0);
+          } else {
+            const fadeMs = cmd.fadeMs;
+            self.fadeTo(0, fadeMs, function () {
+              self.playUrl(cmd.url, true, fadeMs);
+            });
+          }
+        } else if (cmd.op === 'stop') {
+          if (cmd.fade && self.el) {
+            self.fadeTo(0, cmd.fadeMs, function () {
+              if (self.el) {
+                try { self.el.pause(); } catch (_e) { /* ignore */ }
+              }
+            });
+          } else if (self.el) {
+            try { self.el.pause(); } catch (_e) { /* ignore */ }
+          }
+        } else if (cmd.op === 'setLoop') {
+          if (self.el) {
+            self.el.loop = !!cmd.value;
+          }
+        }
+        // 'enqueue' needs no element action: the reducer holds the queue and the
+        // shell's 'ended' listener advances it.
+      });
+    },
+
+    debugState: function () {
+      const st = this.state || {};
+      return {
+        currentAudioURL: st.currentAudioURL || '',
+        isPlaying: this.el ? !this.el.paused : false,
+        looping: this.el ? !!this.el.loop : false,
+        volume: this.el ? this.el.volume : null,
+        playlist: Array.isArray(st.playlist) ? st.playlist.slice() : [],
+        queue: Array.isArray(st.queue) ? st.queue.slice() : [],
+        blocked: !!this.blocked
+      };
+    }
+  };
+
   // ---- Stateful controller --------------------------------------------------
   // Owns one play-test session and routes the pane's clicks/inputs. The Object
   // Editor passes a small `deps` accessor bag each call so this module needs no
@@ -485,6 +758,12 @@
     if (Array.isArray(res.scenes)) {
       sess.scenes = res.scenes;
     }
+    // A start is a fresh playthrough (claim / restart / entry change / starting-
+    // state edit): stop any prior audio, then apply this scene's directive. If
+    // the scene has no audio (view.audio null) the apply is a no-op, leaving the
+    // fresh session silent.
+    audioShell.reset();
+    audioShell.apply(sess.view && sess.view.audio);
   }
 
   function startSession(deps, container, nodeOnly) {
@@ -554,6 +833,9 @@
           sess.token = res.token || sess.token;
           sess.viewState = res.state || null;
           sess.view = res.view || null;
+          // Advancing a choice persists audio across scenes: apply this scene's
+          // directive (null = keep playing the current track).
+          audioShell.apply(sess.view && sess.view.audio);
         }
         nodeInto(container);
       })
@@ -677,7 +959,13 @@
     claimPane: claimPane,
     handleClick: handleClick,
     handleInput: handleInput,
-    entrySceneId: depEntryScene
+    entrySceneId: depEntryScene,
+    // Stop and clear audio when the play surface is dismissed (Preview/Play
+    // toggle, object close). Safe to call when nothing is playing.
+    stopAudio: function () { audioShell.stop(); },
+    // Read-only playback snapshot for QA/CDP probing (the Audio element is
+    // JS-held, not in the DOM, so it cannot be inspected via the DOM).
+    audioDebugState: function () { return audioShell.debugState(); }
   };
 
   if (global) {

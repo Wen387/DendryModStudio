@@ -384,6 +384,79 @@ async function main() {
     'host.handle should deliver the scene face image as a data URI', (artHandled.view.faceImage || '').slice(0, 24));
   assertCloneable(artHandled, 'an art-bearing host.handle reply must still be structured-clone safe');
 
+  // ---- audio: model captures the directive; host resolves file tokens to file:// ----
+  // The engine model has no fs/project root, so it only CAPTURES the raw scene
+  // audio directive on view.audio (event-style: null when this turn's scene(s)
+  // declared none). Turning file tokens into streamable file:// URLs -- keeping
+  // playback verbs, dropping unresolvable files -- is the host's job, so the
+  // file:// play-test window can play music without bloating IPC with base64.
+  const AUDIO_FILES = [
+    {name: 'info.dry', contents: 'title: T\nauthor: x\n'},
+    {name: 'scenes/root.scene.dry', contents: 'title: Root\n\nNo audio at root.\n'},
+    {name: 'scenes/music.scene.dry', contents: 'title: Music\naudio: audio/theme.mp3 loop\n\nAudio body.\n'}
+  ];
+  const audioGame = await model.compileGameFromDryFiles(AUDIO_FILES);
+  const audioRootStart = model.start({game: audioGame, entrySceneId: 'root'});
+  assert(audioRootStart.ok && audioRootStart.view.audio === null,
+    'a turn whose scene(s) declare no audio should leave view.audio null (event-style persistence)',
+    audioRootStart.view.audio);
+  const audioMusicStart = model.start({game: audioGame, entrySceneId: 'music'});
+  assert(audioMusicStart.ok && audioMusicStart.view.audio === 'audio/theme.mp3 loop',
+    'the model should capture the raw scene audio directive on view.audio', audioMusicStart.view.audio);
+
+  // host.resolveAudioRef / resolveViewAssets against a project with a real audio file.
+  const audioRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dms-audio-'));
+  try {
+    fs.mkdirSync(path.join(audioRoot, 'source', 'audio'), {recursive: true});
+    fs.writeFileSync(path.join(audioRoot, 'source', 'audio', 'theme.mp3'), Buffer.from('ID3fake-mp3'));
+    fs.writeFileSync(path.join(audioRoot, 'source', 'audio', 'notes.txt'), 'not audio');
+
+    const refUrl = host.resolveAudioRef(audioRoot, 'audio/theme.mp3');
+    assert(typeof refUrl === 'string' && refUrl.indexOf('file://') === 0 && /theme\.mp3$/.test(refUrl),
+      'resolveAudioRef should resolve a source audio file to a file:// URL', refUrl);
+    assert(host.resolveAudioRef(audioRoot, 'audio/notes.txt') === null,
+      'resolveAudioRef should reject a non-audio extension');
+    assert(host.resolveAudioRef(audioRoot, '../../../../etc/hosts') === null,
+      'resolveAudioRef must refuse refs that escape the source tree');
+    assert(host.resolveAudioRef(audioRoot, 'http://example.com/y.mp3') === null,
+      'resolveAudioRef should reject an absolute URL ref');
+
+    const av = host.resolveViewAssets({audio: 'audio/theme.mp3 loop'}, audioRoot);
+    assert(/^file:\/\//.test(av.audio.split(' ')[0]) && / loop$/.test(av.audio),
+      'resolveViewAssets should rewrite the audio file token to file:// and keep the loop verb', av.audio);
+    assert(!av.audioUnresolved, 'a fully resolvable directive should leave audioUnresolved null');
+
+    const stopv = host.resolveViewAssets({audio: 'null'}, audioRoot);
+    assert(stopv.audio === 'null', 'resolveViewAssets should preserve a null stop directive (never a file)');
+
+    const missv = host.resolveViewAssets({audio: 'audio/missing.mp3 clear queue'}, audioRoot);
+    assert(missv.audio === 'clear queue' &&
+      Array.isArray(missv.audioUnresolved) && missv.audioUnresolved.indexOf('audio/missing.mp3') !== -1,
+      'resolveViewAssets should drop an unresolvable audio file, keep verbs, and report it in audioUnresolved', missv);
+
+    const onlyMiss = host.resolveViewAssets({audio: 'audio/missing.mp3'}, audioRoot);
+    assert(onlyMiss.audio === null && onlyMiss.audioUnresolved.indexOf('audio/missing.mp3') !== -1,
+      'a directive with only unresolvable files should null the directive', onlyMiss);
+
+    const noAudio = host.resolveViewAssets({audio: null}, audioRoot);
+    assert(noAudio.audio === null, 'resolveViewAssets should leave a null (no-directive) audio untouched');
+
+    // End to end through the IPC entry point: the scene audio arrives as a
+    // file:// directive and the reply is structured-clone safe.
+    fs.writeFileSync(path.join(audioRoot, 'source', 'info.dry'), 'title: T\nauthor: x\n');
+    fs.mkdirSync(path.join(audioRoot, 'source', 'scenes'), {recursive: true});
+    fs.writeFileSync(path.join(audioRoot, 'source', 'scenes', 'root.scene.dry'),
+      'title: Root\naudio: audio/theme.mp3 loop\n\nAudio body.\n');
+    host._clearCache();
+    const audioHandled = await host.handle({action: 'start', projectRoot: audioRoot, entrySceneId: 'root'});
+    assert(audioHandled.ok && typeof audioHandled.view.audio === 'string' &&
+      /^file:\/\//.test(audioHandled.view.audio.split(' ')[0]) && / loop$/.test(audioHandled.view.audio),
+      'host.handle should deliver the scene audio as a file:// directive', audioHandled.view && audioHandled.view.audio);
+    assertCloneable(audioHandled, 'an audio-bearing host.handle reply must be structured-clone safe');
+  } finally {
+    fs.rmSync(audioRoot, {recursive: true, force: true});
+  }
+
   process.stdout.write(JSON.stringify({
     ok: true,
     scenes: Object.keys(game.scenes).length,

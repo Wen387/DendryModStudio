@@ -111,6 +111,7 @@ function createCapture() {
     cardImage: null,
     contentImages: null,
     signals: [],
+    audio: null,
     hand: null,
     decks: null,
     qualities: {}
@@ -196,7 +197,17 @@ function createCapture() {
         view.signals.push(data);
       }
     },
-    audio: function () {},
+    audio: function (directive) {
+      // The engine fires this once per scene-arrival when the scene declares an
+      // `audio:` directive (engine.js: scene.audio -> ui.audio). It is event-
+      // style: a scene with no directive does NOT call here, so view.audio stays
+      // null and the renderer keeps playing whatever is current (cross-scene
+      // persistence is the renderer's job, not the model's). Last write wins
+      // within a turn -- same as setBg/setSprites -- so a goTo chain reports the
+      // final landing scene's directive. The host later rewrites the directive's
+      // file tokens to file:// URLs before it crosses IPC.
+      view.audio = typeof directive === 'string' && directive.trim() ? directive : null;
+    },
     displayDecks: function (decks) {
       view.decks = Array.isArray(decks)
         ? decks.map(function (deck) {
