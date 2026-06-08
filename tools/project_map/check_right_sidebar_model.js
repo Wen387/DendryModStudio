@@ -94,6 +94,67 @@ assert(eject.includes('node_modules/dendrynexus/lib/templates/html/default-tabbe
   'eject instructions should point at the engine template source');
 assert(eject.includes('+game.css'), 'eject instructions should adopt both +index.html and +game.css');
 
+// --- Guarded auto-apply: ownership-driven behavior (P0-P3) ------------------
+// The base `index` fixture above carries no project.templateSource, so it
+// exercises the legacy 'unknown' path verified at lines 62-77.
+function indexWithTemplateSource(templateSource) {
+  return {
+    schemaVersion: '0.1',
+    project: {name: 'Test Mod', root: '/tmp/right-sidebar-fixture', templateSource},
+    scenes: [],
+    semantic: {}
+  };
+}
+
+const unknownModel = rightSidebar.buildRightSidebarModel(index);
+assert(unknownModel.templateOwnership === 'unknown', 'no templateSource evidence => unknown ownership');
+assert(unknownModel.applyMode === 'manual_review', 'unknown ownership MUST stay manual_review (no auto-apply on stale evidence)');
+
+// mod_owned => a single guarded insert_html_block (template already exists).
+const ownedIndex = indexWithTemplateSource({
+  owned: true,
+  dirs: ['templates/html/test-mod'],
+  indexPath: 'templates/html/test-mod/+index.html',
+  hasStatsSidebarAnchor: true,
+  hasRightPanel: false
+});
+const ownedModel = rightSidebar.buildRightSidebarModel(ownedIndex);
+assert(ownedModel.templateOwnership === 'mod_owned', 'owned templateSource => mod_owned');
+assert(ownedModel.applyMode === 'guarded_apply', 'mod_owned => guarded_apply');
+assert(ownedModel.readiness.some((row) => row.id === 'apply_mode' && row.status === 'guarded'),
+  'mod_owned readiness should report a guarded apply mode');
+const ownedOps = rightSidebar.buildInstallPlan(draft, ownedIndex).operations;
+assert(ownedOps.length === 1 && ownedOps[0].type === 'insert_html_block',
+  'mod_owned plan should be exactly one insert_html_block (no redundant eject)');
+assert(ownedOps[0].safety === 'guarded_apply', 'mod_owned insert must be guarded_apply');
+assert(ownedOps[0].anchorText && String(ownedOps[0].dedupeSearch).indexOf('stats_sidebar_right') >= 0,
+  'insert op should carry anchor + dedupe evidence');
+assert(ownedOps.every((op) => /^templates\/html\/[^/]+\/\+index\.html$/.test(String(op.path || ''))),
+  'mod_owned ops target the mod template +index.html');
+assert(!ownedOps.some((op) => /(^|\/)out\/html|(^|\/)\.git(\/|$)/.test(String(op.path || ''))),
+  'mod_owned ops must never target generated out/html or .git');
+
+// engine_default => guarded eject of +index.html/+game.css THEN guarded insert.
+const defaultIndex = indexWithTemplateSource({
+  owned: false,
+  dirs: [],
+  indexPath: '',
+  hasStatsSidebarAnchor: false,
+  hasRightPanel: false
+});
+const defaultModel = rightSidebar.buildRightSidebarModel(defaultIndex);
+assert(defaultModel.templateOwnership === 'engine_default', 'detected-but-not-owned => engine_default');
+assert(defaultModel.applyMode === 'guarded_apply', 'engine_default => guarded_apply');
+const defaultOps = rightSidebar.buildInstallPlan(draft, defaultIndex).operations;
+assert(defaultOps.filter((op) => op.type === 'copy_template_file').length === 2,
+  'engine_default plan should eject both +index.html and +game.css');
+assert(defaultOps.some((op) => op.type === 'insert_html_block'), 'engine_default plan should also insert the panel');
+assert(defaultOps.every((op) => op.safety === 'guarded_apply'), 'engine_default ops are all guarded_apply');
+const ejectIndexAt = defaultOps.findIndex((op) => op.type === 'copy_template_file' && /\+index\.html$/.test(String(op.path || '')));
+const insertAt = defaultOps.findIndex((op) => op.type === 'insert_html_block');
+assert(ejectIndexAt >= 0 && insertAt > ejectIndexAt,
+  'the +index.html eject MUST be emitted before the panel insert (same-pass dependency)');
+
 process.stdout.write(JSON.stringify({
   ok: true,
   templateDir: model.recommendedTemplateDir,

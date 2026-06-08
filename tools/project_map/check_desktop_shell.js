@@ -131,6 +131,7 @@ async function main() {
   const corePath = requireFile('studio_core.js');
   const dendryCliRunnerPath = requireFile('dendry_cli_runner.js');
   const runtimePreviewPath = requireFile('runtime_preview.js');
+  const templateAdoptPath = requireFile('template_adopt.js');
   const runtimeLensPath = requireFile('runtime_lens.js');
   const runtimePreviewBridgePath = requireFile('runtime_preview_debug_bridge.js');
   const templateCatalogPath = requireFile('template_catalog.js');
@@ -150,6 +151,7 @@ async function main() {
   fs.copyFileSync(corePath, path.join(packagedAppDir, 'studio_core.js'));
   fs.copyFileSync(dendryCliRunnerPath, path.join(packagedAppDir, 'dendry_cli_runner.js'));
   fs.copyFileSync(runtimePreviewPath, path.join(packagedAppDir, 'runtime_preview.js'));
+  fs.copyFileSync(templateAdoptPath, path.join(packagedAppDir, 'template_adopt.js'));
   fs.copyFileSync(runtimeLensPath, path.join(packagedAppDir, 'runtime_lens.js'));
   fs.copyFileSync(runtimePreviewBridgePath, path.join(packagedAppDir, 'runtime_preview_debug_bridge.js'));
   fs.copyFileSync(templateCatalogPath, path.join(packagedAppDir, 'template_catalog.js'));

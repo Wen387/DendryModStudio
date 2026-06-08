@@ -45,18 +45,52 @@
     return null;
   }
 
+  // Resolve template ownership from the P0 indexer evidence
+  // (index.project.templateSource). Old indexes without the field fall back to
+  // 'unknown' so the guarded path never fires on stale evidence.
+  function resolveTemplateOwnership(projectIndex) {
+    const index = isObject(projectIndex) ? projectIndex : {};
+    const project = isObject(index.project) ? index.project : {};
+    const source = isObject(project.templateSource) ? project.templateSource : null;
+    if (!source) {
+      return {ownership: 'unknown', source: null, templateDir: recommendTemplateDir(project)};
+    }
+    if (source.owned) {
+      const ownedDir = normalizeTemplateDir(
+        (Array.isArray(source.dirs) && source.dirs[0]) ||
+        (source.indexPath ? String(source.indexPath).replace(/\/\+index\.html$/, '') : '') ||
+        recommendTemplateDir(project)
+      );
+      return {ownership: 'mod_owned', source, templateDir: ownedDir};
+    }
+    return {ownership: 'engine_default', source, templateDir: recommendTemplateDir(project)};
+  }
+
   function buildRightSidebarModel(projectIndex) {
     const index = isObject(projectIndex) ? projectIndex : {};
     const project = isObject(index.project) ? index.project : {};
-    const recommendedTemplateDir = recommendTemplateDir(project);
+    const owner = resolveTemplateOwnership(projectIndex);
+    const recommendedTemplateDir = owner.templateDir;
+    // Guarded auto-apply fires when the indexer confirms a mod-owned template
+    // (highest confidence the build reads it) or has positively detected the
+    // engine-default state (the eject can create ownership in the same pass).
+    // 'unknown' (no P0 evidence) stays manual_review.
+    const applyMode = owner.ownership === 'unknown' ? 'manual_review' : 'guarded_apply';
+    const ownedSource = isObject(owner.source) ? owner.source : {};
     return {
       schemaVersion: RIGHT_SIDEBAR_VERSION,
       kind: 'right_sidebar_model',
       project: index.project || null,
-      // Studio cannot yet confirm whether the mod already owns an editable
-      // template source (the ProjectIndex does not expose the make-html template
-      // dir), so the eject/adopt step is always presented as a manual checklist.
-      templateOwnership: 'unknown',
+      templateOwnership: owner.ownership,
+      templateSource: owner.source
+        ? {
+            owned: Boolean(ownedSource.owned),
+            dirs: ensureArray(ownedSource.dirs).slice(),
+            indexPath: ownedSource.indexPath || '',
+            hasStatsSidebarAnchor: Boolean(ownedSource.hasStatsSidebarAnchor),
+            hasRightPanel: Boolean(ownedSource.hasRightPanel)
+          }
+        : null,
       recommendedTemplateDir,
       indexTemplatePath: recommendedTemplateDir + '/+index.html',
       cssTemplatePath: recommendedTemplateDir + '/+game.css',
@@ -68,30 +102,62 @@
       },
       rightPanelElementId: RIGHT_PANEL_ELEMENT_ID,
       insertAnchor: INSERT_ANCHOR,
-      // This slice keeps every template write manual_review; the guarded
-      // auto-apply path is a deliberate later extension of the install policy.
-      applyMode: 'manual_review',
-      readiness: [
-        readinessRow(
-          'engine_template',
-          'ready',
-          'Engine right-gutter support',
-          'The engine template already ships a `.tools.right` column, so the player layout stays responsive without custom CSS.'
-        ),
-        readinessRow(
-          'mod_template_source',
-          'manual',
-          'Mod-owned template source',
-          'Studio cannot confirm the mod owns an editable template; eject the engine +index.html into a mod template directory first.'
-        ),
-        readinessRow(
-          'apply_mode',
-          'manual',
-          'Apply mode',
-          'Template writes stay manual review in this step; Studio shows the exact patch and an export package to apply by hand.'
-        )
-      ]
+      applyMode,
+      readiness: buildReadiness(owner)
     };
+  }
+
+  function buildReadiness(owner) {
+    const ownership = owner.ownership;
+    const rows = [
+      readinessRow(
+        'engine_template',
+        'ready',
+        'Engine right-gutter support',
+        'The engine template already ships a `.tools.right` column, so the player layout stays responsive without custom CSS.'
+      )
+    ];
+    if (ownership === 'mod_owned') {
+      rows.push(readinessRow(
+        'mod_template_source',
+        'ready',
+        'Mod-owned template source',
+        'The mod owns ' + owner.templateDir + '/+index.html, so Studio can insert the right panel directly.'
+      ));
+      rows.push(readinessRow(
+        'apply_mode',
+        'guarded',
+        'Apply mode',
+        'Guarded auto-apply: Studio writes the right panel into the mod-owned template and verifies it before committing.'
+      ));
+    } else if (ownership === 'engine_default') {
+      rows.push(readinessRow(
+        'mod_template_source',
+        'guarded',
+        'Mod-owned template source',
+        'No mod template yet; guarded apply will eject the engine template into ' + owner.templateDir + ' so the mod owns it.'
+      ));
+      rows.push(readinessRow(
+        'apply_mode',
+        'guarded',
+        'Apply mode',
+        'Guarded auto-apply: Studio ejects the template and inserts the panel. Build with `make-html -t ' + owner.templateDir + '` so your shipped build also reads it (Studio preview does this automatically).'
+      ));
+    } else {
+      rows.push(readinessRow(
+        'mod_template_source',
+        'manual',
+        'Mod-owned template source',
+        'Studio cannot confirm the mod owns an editable template; eject the engine +index.html into a mod template directory first.'
+      ));
+      rows.push(readinessRow(
+        'apply_mode',
+        'manual',
+        'Apply mode',
+        'Template writes stay manual review without template evidence; Studio shows the exact patch and an export package to apply by hand.'
+      ));
+    }
+    return rows;
   }
 
   function recommendTemplateDir(project) {
@@ -145,9 +211,13 @@
     if (!draft.templateDir) {
       diagnostic(diagnostics, 'error', 'right_sidebar.template_dir', 'A mod template directory is required to host the edited +index.html.');
     }
-    // The template write is never auto-applied in this slice; surface that as an
-    // honest, non-blocking note rather than a silent assumption.
-    diagnostic(diagnostics, 'info', 'right_sidebar.manual_review', 'Template writes stay manual review; apply the exported patch by hand or with the export package.');
+    // Surface the apply mode honestly: guarded auto-apply when the indexer
+    // confirms template evidence, manual review otherwise.
+    if (isObject(evidence) && evidence.applyMode === 'guarded_apply') {
+      diagnostic(diagnostics, 'info', 'right_sidebar.guarded_apply', 'Guarded auto-apply is available: Studio writes the panel into the mod-owned template and verifies it before committing.');
+    } else {
+      diagnostic(diagnostics, 'info', 'right_sidebar.manual_review', 'Template writes stay manual review; apply the exported patch by hand or with the export package.');
+    }
     draft.evidence = evidence;
     return {ok: diagnostics.every((item) => item.severity !== 'error'), draft, diagnostics};
   }
@@ -156,28 +226,73 @@
     const installApi = installPlanApi();
     const draft = normalizeDraft(input);
     const evidence = usableEvidence(draft.evidence) ? draft.evidence : buildRightSidebarModel(projectIndex);
-    const indexPath = draft.templateDir + '/+index.html';
+    const owner = resolveTemplateOwnership(projectIndex);
+    // Prefer the indexer-confirmed owned dir; fall back to the draft's choice
+    // when ownership is unknown/engine-default so the author can steer it.
+    const templateDir = owner.ownership === 'mod_owned'
+      ? owner.templateDir
+      : (draft.templateDir || owner.templateDir);
+    const indexPath = templateDir + '/+index.html';
+    const cssPath = templateDir + '/+game.css';
+    const dedupeSearch = "id='" + RIGHT_PANEL_ELEMENT_ID + "'";
     const operations = [];
 
-    operations.push({
-      id: 'right_sidebar_eject_template',
-      type: 'manual_snippet',
-      path: indexPath,
-      content: renderEjectInstructions(draft, evidence),
-      safety: 'manual_review',
-      role: 'right_sidebar.eject',
-      description: 'Eject the engine ' + ENGINE_TEMPLATE_NAME + ' template into the mod so it owns an editable +index.html / +game.css.'
-    });
-
-    operations.push({
-      id: 'right_sidebar_insert_panel',
-      type: 'manual_snippet',
-      path: indexPath,
-      content: renderTemplateInsertSnippet(draft),
-      safety: 'manual_review',
-      role: 'right_sidebar.insert',
-      description: 'Insert the right-panel element after the #stats_sidebar block inside #tools_wrapper.'
-    });
+    if (owner.ownership === 'unknown') {
+      // No P0 evidence: keep the honest manual checklist (legacy behavior).
+      operations.push({
+        id: 'right_sidebar_eject_template',
+        type: 'manual_snippet',
+        path: indexPath,
+        content: renderEjectInstructions(draft, evidence),
+        safety: 'manual_review',
+        role: 'right_sidebar.eject',
+        description: 'Eject the engine ' + ENGINE_TEMPLATE_NAME + ' template into the mod so it owns an editable +index.html / +game.css.'
+      });
+      operations.push({
+        id: 'right_sidebar_insert_panel',
+        type: 'manual_snippet',
+        path: indexPath,
+        content: renderTemplateInsertSnippet(draft),
+        safety: 'manual_review',
+        role: 'right_sidebar.insert',
+        description: 'Insert the right-panel element after the #stats_sidebar block inside #tools_wrapper.'
+      });
+    } else {
+      // Guarded auto-apply. For engine_default the eject creates ownership in
+      // the same pass; for mod_owned the eject is a no-op (already_applied),
+      // so it is emitted only when the mod does not yet own the template.
+      if (owner.ownership === 'engine_default') {
+        operations.push({
+          id: 'right_sidebar_eject_index',
+          type: 'copy_template_file',
+          path: indexPath,
+          sourceName: '+index.html',
+          safety: 'guarded_apply',
+          role: 'right_sidebar.eject',
+          description: 'Eject the engine ' + ENGINE_TEMPLATE_NAME + ' +index.html into ' + templateDir + ' so the mod owns the layout.'
+        });
+        operations.push({
+          id: 'right_sidebar_eject_css',
+          type: 'copy_template_file',
+          path: cssPath,
+          sourceName: '+game.css',
+          safety: 'guarded_apply',
+          role: 'right_sidebar.eject',
+          description: 'Eject the engine ' + ENGINE_TEMPLATE_NAME + ' +game.css into ' + templateDir + ' (keeps the .tools.right column responsive).'
+        });
+      }
+      operations.push({
+        id: 'right_sidebar_insert_panel',
+        type: 'insert_html_block',
+        path: indexPath,
+        content: renderRightSidebarHtml(draft),
+        anchorText: INSERT_ANCHOR,
+        dedupeSearch: dedupeSearch,
+        safety: 'guarded_apply',
+        role: 'right_sidebar.insert',
+        description: 'Insert the #' + RIGHT_PANEL_ELEMENT_ID + ' panel after the #stats_sidebar block inside #tools_wrapper.'
+      });
+    }
 
     return installApi.buildInstallPlan({
       id: draft.id,

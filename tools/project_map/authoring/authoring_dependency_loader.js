@@ -5,7 +5,9 @@
   const AUTHORING_DEPENDENCY_SCRIPTS = Object.freeze([
     '../authoring/protected_path_policy.js',
     '../authoring/asset_contract_model.js',
+    '../authoring/install_checklist_text.js',
     '../authoring/install_operation_contracts.js',
+    '../authoring/right_sidebar_template_ops.js',
     '../authoring/existing_scene_line_coalescer.js',
     '../authoring/existing_scene_structure_operations.js',
     '../authoring/event_structure_effect_model.js',

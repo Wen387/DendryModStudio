@@ -11,6 +11,7 @@ const debugModel = requireAuthoringModule('runtime_preview_debug_model.js');
 const snapshotModel = requireAuthoringModule('runtime_snapshot_model.js');
 const domMapModel = requireAuthoringModule('runtime_dom_map_model.js');
 const debugBridge = require('./runtime_preview_debug_bridge.js');
+const templateAdopt = require('./template_adopt.js');
 
 const BUILD_TIMEOUT_MS = 5 * 60 * 1000;
 const COMMAND_CHECK_TIMEOUT_MS = 10 * 1000;
@@ -165,7 +166,7 @@ function createRuntimePreview(options) {
   });
   markTiming(timing, 'apply_install_plan', applyStarted);
   const buildRunner = typeof opts.buildRunner === 'function' ? opts.buildRunner : runBuild;
-  const buildMeta = {allowProjectBuildWrapper: opts.allowProjectBuildWrapper === true};
+  const buildMeta = {allowProjectBuildWrapper: opts.allowProjectBuildWrapper === true, templateDir: templateAdopt.dirFromPlan(sandboxPlan, opts.projectIndex)};
   const baselineBuildStarted = Date.now();
   const baselineBuild = buildRunner(session.paths.baselineRoot, Object.assign({lane: 'baseline'}, buildMeta));
   markTiming(timing, 'build_baseline', baselineBuildStarted);
@@ -229,7 +230,7 @@ function createModifiedRuntimePreview(options) {
   });
   markTiming(timing, 'apply_install_plan', applyStarted);
   const buildRunner = typeof opts.buildRunner === 'function' ? opts.buildRunner : runBuild;
-  const buildMeta = {allowProjectBuildWrapper: opts.allowProjectBuildWrapper === true};
+  const buildMeta = {allowProjectBuildWrapper: opts.allowProjectBuildWrapper === true, templateDir: templateAdopt.dirFromPlan(sandboxPlan, opts.projectIndex)};
   const modifiedBuildStarted = Date.now();
   const modifiedBuild = buildRunner(session.paths.modifiedRoot, Object.assign({lane: 'modified'}, buildMeta));
   markTiming(timing, 'build_modified', modifiedBuildStarted);
@@ -918,13 +919,14 @@ function resolveBuildCommand(root, options) {
   if (wrapper) {
     return wrapper;
   }
+  const templateOption = templateAdopt.adoptOption(root, options);
   const bundled = resolveBundledDendryCli();
   const localCli = path.join(root, 'dendrynexus-main', 'lib', 'cli', 'main.js');
   if (fs.existsSync(path.join(root, 'source', 'info.dry')) && bundled.ok) {
-    return dendryCliCommand(bundled.cliPath, bundled.nodeModules);
+    return dendryCliCommand(bundled.cliPath, bundled.nodeModules, templateOption);
   }
   if (fs.existsSync(localCli)) {
-    return dendryCliCommand(localCli, bundled.nodeModules);
+    return dendryCliCommand(localCli, bundled.nodeModules, templateOption);
   }
   return {ok: false, message: 'No supported Dendry build command was found in the sandbox copy or bundled Studio runtime.'};
 }
@@ -970,7 +972,7 @@ function resolveBundledDendryCli() {
   return {ok: false, nodeModules: '', cliPath: ''};
 }
 
-function dendryCliCommand(cliPath, nodeModules) {
+function dendryCliCommand(cliPath, nodeModules, templateOption) {
   const env = {ELECTRON_RUN_AS_NODE: '1'};
   if (nodeModules) {
     env.NODE_PATH = process.env.NODE_PATH
@@ -983,14 +985,14 @@ function dendryCliCommand(cliPath, nodeModules) {
     return {
       ok: true,
       cmd: process.execPath,
-      args: [runnerPath, 'make-html', '--force'],
+      args: [runnerPath].concat(templateAdopt.makeHtmlArgs(templateOption)),
       env
     };
   }
   return {
     ok: true,
     cmd: process.execPath,
-    args: [cliPath, 'make-html', '--force'],
+    args: [cliPath].concat(templateAdopt.makeHtmlArgs(templateOption)),
     env
   };
 }

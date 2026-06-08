@@ -68,6 +68,7 @@ function packageDir(options) {
     'template_catalog.json',
     'dendry_cli_runner.js',
     'runtime_preview.js',
+    'template_adopt.js',
     'runtime_lens.js',
     'runtime_session_cleanup.js',
     'runtime_preview_debug_bridge.js',
