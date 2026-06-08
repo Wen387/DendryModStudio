@@ -12,7 +12,8 @@
   const state = {
     projectIndex: null,
     projectModel: null,
-    lastIndexLabel: ''
+    lastIndexLabel: '',
+    everHadProject: false
   };
 
   let elements = null;
@@ -52,6 +53,7 @@
     elements = {
       body: document.body,
       modeButtons: Array.from(document.querySelectorAll('[data-mode]')),
+      homePane: document.getElementById('home-pane'),
       explorePane: document.getElementById('explore-pane'),
       designPane: document.getElementById('design-pane'),
       createPane: document.getElementById('create-pane'),
@@ -64,7 +66,10 @@
     bindIndexLoading();
     bindIndexEvents();
     bindPageLifecycle();
-    setMode('explore');
+    // Land on Home (the Studio's front door / onboarding) rather than Explore.
+    // The first time a project actually loads we hand off to Explore so the
+    // workspace gets out of the way (Home Hub OPEN-1 = A).
+    setMode('home');
   }
 
   function bindModeSwitch() {
@@ -74,7 +79,7 @@
   }
 
   function setMode(mode, options) {
-    const nextMode = mode === 'create' || mode === 'install' || mode === 'design' ? mode : 'explore';
+    const nextMode = mode === 'create' || mode === 'install' || mode === 'design' || mode === 'home' ? mode : 'explore';
     const previousMode = elements.body.dataset.mode || '';
     const changed = previousMode !== nextMode;
     const detail = {
@@ -104,6 +109,9 @@
     if (elements.installPane) {
       elements.installPane.classList.toggle('hidden', nextMode !== 'install');
     }
+    if (elements.homePane) {
+      elements.homePane.classList.toggle('hidden', nextMode !== 'home');
+    }
     elements.modeButtons.forEach((button) => {
       const active = button.dataset.mode === nextMode;
       button.classList.toggle('is-active', active);
@@ -111,6 +119,23 @@
     });
     if (changed) {
       dispatchLifecycleEvent('ProjectMap:mode-changed', detail);
+    }
+  }
+
+  // OPEN-1 = A: the first time a real project loads, leave Home for Explore so
+  // the workspace gets out of the way. Only the no-project -> project transition
+  // triggers it (a background re-scan of the same project must not yank the user
+  // away from Home), and only when Home is the mode we are currently sitting on.
+  function maybeLeaveHomeAfterLoad() {
+    if (state.everHadProject) {
+      return;
+    }
+    if (!(state.projectIndex || state.projectModel)) {
+      return;
+    }
+    state.everHadProject = true;
+    if (elements && elements.body && elements.body.dataset.mode === 'home') {
+      setMode('explore', {reason: 'index-loaded'});
     }
   }
 
@@ -226,6 +251,7 @@
         lastIndexLabel: state.lastIndexLabel,
         ok: true
       });
+      maybeLeaveHomeAfterLoad();
       return {ok: true};
     } catch (err) {
       state.projectModel = null;
@@ -250,6 +276,7 @@
       lastIndexLabel: state.lastIndexLabel,
       ok: true
     });
+    maybeLeaveHomeAfterLoad();
     return {ok: true};
   }
 

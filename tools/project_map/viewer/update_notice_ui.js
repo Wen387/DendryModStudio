@@ -166,17 +166,29 @@
     currentNotice: null,
     lastResult: null,
     boardOpen: false,
+    boardDocked: false,
+    boardHomeParent: null,
     activeCategory: 'updates',
     categoryTouched: false,
     detailNotice: null
   };
+
+  function boardClosedEventName() {
+    const constants = global && global.ProjectMapStudioSharedConstants;
+    return constants && constants.EVENT_NAMES && constants.EVENT_NAMES.boardClosed
+      ? constants.EVENT_NAMES.boardClosed
+      : 'ProjectMap:board-closed';
+  }
 
   const api = {
     createController,
     canCheckUpdates,
     noticeKey,
     checkNow: () => checkForNotice(true),
-    openBoard: () => openBoard()
+    openBoard: () => openBoard(),
+    mountBoard: (container) => mountBoard(container),
+    unmountBoard: () => unmountBoard(),
+    isBoardDocked: () => state.boardDocked
   };
 
   if (typeof module !== 'undefined' && module.exports) {
@@ -436,6 +448,12 @@
     if (!state.elements || !state.elements.board) {
       return;
     }
+    // The board can be docked inline in the Home 公告 section; opening the modal
+    // (More menu / banner) pulls it back out first so it shows as the overlay
+    // drawer, mirroring the welcome surface's openDialog auto-undock.
+    if (state.boardDocked) {
+      unmountBoard();
+    }
     state.boardOpen = true;
     state.elements.board.classList.remove('hidden');
     renderBoard();
@@ -445,10 +463,63 @@
   }
 
   function closeBoard() {
+    // While docked inline the close button / backdrop are no-ops — only
+    // unmountBoard() tears the inline embed down. Mirrors the docked welcome.
+    if (state.boardDocked) {
+      return;
+    }
     state.boardOpen = false;
     if (state.elements && state.elements.board) {
       state.elements.board.classList.add('hidden');
     }
+    // Let the Home 公告 section re-dock the board after a modal session.
+    if (global.document && typeof global.document.dispatchEvent === 'function') {
+      global.document.dispatchEvent(new global.Event(boardClosedEventName()));
+    }
+  }
+
+  // De-modalize the board into a Home section panel by reparenting the SAME
+  // #announcement-board node and swapping its modal chrome for an inline region
+  // (mirrors ProjectMapWelcomeSurface.dock/undock). The board's wired listeners
+  // move with the node, so tabs / refresh / mark-read keep working inline.
+  function mountBoard(container) {
+    if (!state.elements || !state.elements.board || !container) {
+      return false;
+    }
+    const board = state.elements.board;
+    if (!state.boardHomeParent) {
+      state.boardHomeParent = board.parentNode;
+    }
+    state.boardDocked = true;
+    board.classList.add('is-docked');
+    board.classList.remove('hidden');
+    board.setAttribute('role', 'region');
+    board.setAttribute('aria-modal', 'false');
+    if (board.parentNode !== container) {
+      container.appendChild(board);
+    }
+    renderBoard();
+    if (!state.lastResult) {
+      checkForNotice(true);
+    }
+    return true;
+  }
+
+  function unmountBoard() {
+    if (!state.elements || !state.elements.board) {
+      return false;
+    }
+    const board = state.elements.board;
+    state.boardDocked = false;
+    board.classList.remove('is-docked');
+    board.classList.add('hidden');
+    board.setAttribute('role', 'dialog');
+    board.setAttribute('aria-modal', 'true');
+    const home = state.boardHomeParent;
+    if (home && board.parentNode !== home) {
+      home.appendChild(board);
+    }
+    return true;
   }
 
   function renderBoard() {

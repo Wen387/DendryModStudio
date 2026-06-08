@@ -44,10 +44,21 @@
   // confirm an action in place instead of dead-ending on a separate screen.
   let pendingFlash = null;
   let lastCheckedAt = 0;
+  // Home embed state: while docked, the SAME overlay node lives inside a Home
+  // panel (de-modalized via .is-docked) instead of #studio-publish-root.
+  let docked = false;
+  let publishHomeParent = null;
 
   function isAvailable() {
     const c = caps();
     return Boolean(c && typeof c.canPublishMod === 'function' && c.canPublishMod());
+  }
+
+  function publishClosedEventName() {
+    const sc = global && global.ProjectMapStudioSharedConstants;
+    return sc && sc.EVENT_NAMES && sc.EVENT_NAMES.publishClosed
+      ? sc.EVENT_NAMES.publishClosed
+      : 'ProjectMap:publish-closed';
   }
 
   // The desktop bridge resolves getState() through ipcRenderer.invoke, i.e. a
@@ -114,6 +125,8 @@
   }
 
   function open() {
+    // Can't be both modal and embedded — reclaim the node from the Home panel.
+    if (docked) { unmount(); }
     const more = document.getElementById('topbar-more');
     if (more && more.tagName === 'DETAILS') { more.open = false; }
     ensureOverlay();
@@ -124,8 +137,104 @@
   }
 
   function close() {
+    // While docked the overlay is a flowing Home region; close/Esc/backdrop are
+    // no-ops (only unmount() tears the embed down).
+    if (docked) { return; }
     if (overlay) { overlay.classList.add('hidden'); }
     opened = false;
+    // Let the Home 發布 section re-dock the node after this modal session.
+    if (global && typeof global.Event === 'function' && document.dispatchEvent) {
+      document.dispatchEvent(new global.Event(publishClosedEventName()));
+    }
+  }
+
+  // ---- Home embed: dock/undock the overlay into a Home panel ----
+  // Mirrors the announcement board (D): reparent the SAME .publish-overlay node
+  // into the 發布 section and swap chrome via .is-docked. Refs (overlay/bodyEl)
+  // follow the moved node, so every existing handler keeps working untouched.
+  function mount(container) {
+    if (!container || !document) {
+      return;
+    }
+    ensureOverlay();
+    if (!publishHomeParent) {
+      publishHomeParent = overlay.parentNode;
+    }
+    docked = true;
+    overlay.classList.add('is-docked');
+    overlay.classList.remove('hidden');
+    overlay.setAttribute('role', 'region');
+    overlay.setAttribute('aria-modal', 'false');
+    if (overlay.parentNode !== container) {
+      container.appendChild(overlay);
+    }
+    renderAuto();
+  }
+
+  function unmount() {
+    if (!overlay) {
+      return;
+    }
+    docked = false;
+    overlay.classList.remove('is-docked');
+    overlay.classList.add('hidden');
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    const parent = publishHomeParent
+      || document.getElementById('studio-publish-root')
+      || document.body;
+    if (overlay.parentNode !== parent) {
+      parent.appendChild(overlay);
+    }
+  }
+
+  function isDocked() {
+    return docked;
+  }
+
+  // A read-only status probe for the Home dashboard's publish card — the same
+  // data renderAuto() uses to pick a screen, surfaced as a plain object so the
+  // dashboard can show ↑N↓N without opening the publish flow. Never throws.
+  async function getStatusSnapshot() {
+    if (!isAvailable()) {
+      return { available: false };
+    }
+    const root = await resolveProjectRoot();
+    if (!root) {
+      return { available: true, hasProject: false };
+    }
+    cachedRoot = root;
+    const c = caps();
+    let auth = null;
+    try {
+      auth = c && typeof c.publishAuthStatus === 'function' ? await c.publishAuthStatus() : null;
+    } catch (_err) {
+      auth = null;
+    }
+    if (!auth || !auth.connected) {
+      return { available: true, hasProject: true, connected: false };
+    }
+    let sync = null;
+    try {
+      sync = c && typeof c.publishStatus === 'function'
+        ? await c.publishStatus({ projectRoot: root })
+        : null;
+    } catch (_err) {
+      sync = null;
+    }
+    if (!sync || !sync.ok) {
+      return { available: true, hasProject: true, connected: true, ok: false };
+    }
+    return {
+      available: true,
+      hasProject: true,
+      connected: true,
+      ok: true,
+      state: sync.state || 'in_sync',
+      ahead: Number(sync.ahead) || 0,
+      behind: Number(sync.behind) || 0,
+      dirty: Boolean(sync.dirty)
+    };
   }
 
   async function renderAuto() {
@@ -1130,5 +1239,13 @@
     });
   });
 
-  global.ProjectMapPublishUi = { open: open, close: close, isAvailable: isAvailable };
+  global.ProjectMapPublishUi = {
+    open: open,
+    close: close,
+    isAvailable: isAvailable,
+    mount: mount,
+    unmount: unmount,
+    isDocked: isDocked,
+    getStatusSnapshot: getStatusSnapshot
+  };
 })(typeof window !== 'undefined' ? window : globalThis);

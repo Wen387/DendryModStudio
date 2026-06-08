@@ -16,6 +16,33 @@
   display: none;
 }
 
+/* Docked (inline) variant — the Home 發布 section embeds the same overlay node
+   as a flowing region instead of the centered modal. Mirrors the announcement
+   board / welcome surface .is-docked de-modalization. */
+.publish-overlay.is-docked {
+  position: static;
+  inset: auto;
+  z-index: auto;
+  display: block;
+  padding: 0;
+  background: none;
+}
+
+.publish-overlay.is-docked .publish-dialog {
+  max-width: none;
+  max-height: none;
+  overflow: visible;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.publish-overlay.is-docked .publish-close {
+  display: none;
+}
+
 .publish-dialog {
   width: 100%;
   max-width: 520px;

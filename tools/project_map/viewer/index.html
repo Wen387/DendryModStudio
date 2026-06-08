@@ -39,7 +39,7 @@
           </svg>
         </div>
         <div class="brand-copy">
-          <div class="wordmark">Dendry <span>Mod Studio</span></div>
+          <div class="wordmark" role="button" tabindex="0" aria-label="Go to Home" data-i18n-aria-label="home.wordmarkAria" title="Go to Home" data-i18n-title="home.wordmarkAria">Dendry <span>Mod Studio</span></div>
           <div class="brand-meta">
             <span data-i18n="topbar.version">Dendry Mod Studio v0.98.1 dev preview</span>
             <a href="https://github.com/Wen387" target="_blank" rel="noreferrer" data-i18n="topbar.author">by Awen</a>
@@ -82,7 +82,7 @@
           <div class="topbar-more-menu">
             <div class="topbar-more-group" data-more-group="start">
               <div class="topbar-more-group-label" data-i18n="topbar.group.start">Get started</div>
-              <button id="studio-open-onboarding" class="desktop-secondary-button" type="button"><span data-i18n="topbar.welcome">Welcome Hub</span></button>
+              <button id="studio-open-home" class="desktop-secondary-button" type="button"><span data-i18n="home.menuEntry">Home</span></button>
               <button id="studio-open-guided-tour" class="desktop-secondary-button" type="button"><span data-i18n="topbar.guidedTour">Guided Tour</span></button>
               <button id="studio-open-surface-hints" class="desktop-secondary-button" type="button"><span data-i18n="topbar.surfaceHints">Show hints</span></button>
               <button id="studio-open-tutorial-library" class="desktop-secondary-button" type="button"><span data-i18n="topbar.tutorialLibrary">Tutorial Library</span></button>
@@ -207,6 +207,8 @@
         </div>
       </section>
     </div>
+
+    <main id="home-pane" class="home-workspace mode-pane hidden" aria-live="polite"></main>
 
     <main id="explore-pane" class="workspace mode-pane">
       <nav class="sidebar" aria-label="Project map views" data-i18n-aria-label="aria.projectMapViews">
@@ -2396,6 +2398,8 @@ media_reach += 1</textarea>
   <script src="i18n/zh-Hant.js"></script>
   <script src="i18n/en.publish.js"></script>
   <script src="i18n/zh-Hant.publish.js"></script>
+  <script src="i18n/en.home.js"></script>
+  <script src="i18n/zh-Hant.home.js"></script>
   <script src="desktop_capabilities.js"></script>
   <script src="i18n.js"></script>
   <script src="icons.js"></script>
@@ -2463,6 +2467,9 @@ media_reach += 1</textarea>
   <script src="meaning_layer_ui.js"></script>
   <script src="event_workbench_ui.js"></script>
   <script src="shell_navigation.js"></script>
+  <script src="whats_new_data.js"></script>
+  <script src="home_section_registry.js"></script>
+  <script src="home_ui.js"></script>
   <script src="wizard_ui.js"></script>
   <script src="news_ui.js"></script>
   <script src="card_ui.js"></script>

@@ -31,6 +31,90 @@
   animation: welcome-in var(--motion-slow) var(--motion-ease);
 }
 
+/* --- Docked mode (inline as the Home overview onboarding face) --- */
+/* Same node as the modal, with the overlay chrome stripped: no fixed scrim,
+   no centering, no card frame — it flows inside the Home overview panel. */
+.welcome-surface.is-docked {
+  position: static;
+  inset: auto;
+  z-index: auto;
+  display: block;
+  padding: 0;
+  background: none;
+}
+
+.welcome-surface.is-docked .welcome-dialog {
+  width: 100%;
+  max-width: none;
+  max-height: none;
+  overflow: visible;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  animation: none;
+}
+
+.welcome-surface.is-docked .welcome-close {
+  display: none;
+}
+
+/* When the welcome surface is docked into the Home overview, bring its cards into
+   the same warm language as the rest of Home (rounded 16px, soft elevation, hue
+   chips, gentle hover lift). These overrides are scoped to `.is-docked` ONLY, so
+   the standalone modal welcome keeps its original look untouched. The hue + the
+   two elevation steps are inherited straight off `.home-workspace` (the docked
+   surface lives inside the Overview panel, so `--section-hue` resolves to the
+   brand rust) — no new tokens, no raw colours. */
+.welcome-surface.is-docked .welcome-action-card {
+  border: 1px solid var(--border-soft);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--section-hue) 4%, var(--surface));
+  box-shadow: var(--home-elev-rest);
+  transition: transform var(--motion-medium) var(--motion-ease),
+    box-shadow var(--motion-medium) var(--motion-ease),
+    border-color var(--motion-medium) var(--motion-ease);
+}
+
+.welcome-surface.is-docked .welcome-action-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--home-elev-hover);
+  border-color: color-mix(in srgb, var(--section-hue) 30%, var(--border-soft));
+}
+
+.welcome-surface.is-docked .welcome-action-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--section-hue) 24%, var(--surface));
+  color: var(--section-hue);
+}
+
+.welcome-surface.is-docked .welcome-action-icon .ui-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.welcome-surface.is-docked .welcome-compass {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  background: color-mix(in srgb, var(--section-hue) 7%, var(--surface));
+  box-shadow: var(--home-elev-rest);
+}
+
+.welcome-surface.is-docked .welcome-path {
+  border: 1px solid var(--border-soft);
+  border-radius: 16px;
+  box-shadow: var(--home-elev-rest);
+}
+
+.welcome-surface.is-docked .welcome-step {
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+}
+
 .welcome-close {
   position: absolute;
   top: 16px;

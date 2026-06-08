@@ -312,7 +312,9 @@
       desktopProgressBar: document.getElementById('desktop-progress-bar'),
       desktopProgressHint: document.getElementById('desktop-progress-hint'),
       desktopProgressLabel: document.getElementById('desktop-progress-label'),
-      topbarMore: document.getElementById('topbar-more')
+      topbarMore: document.getElementById('topbar-more'),
+      wordmark: document.querySelector('.brand .wordmark'),
+      openHomeButton: document.getElementById('studio-open-home')
     };
     let searchRenderTimer = null;
     let listScrollFrame = null;
@@ -786,6 +788,37 @@
         }
       });
     }
+
+    // The brand wordmark and the More-menu "Home" item both open the Home pane,
+    // the Studio's home/dashboard surface. Home shares the shell's pane machinery
+    // like the work modes, so entry is just a mode switch.
+    function goHome(reason) {
+      const shell = global.ProjectMapShellNavigation;
+      if (shell && typeof shell.setMode === 'function') {
+        shell.setMode('home', {reason: reason || 'user'});
+      }
+      if (elements.topbarMore) {
+        elements.topbarMore.open = false;
+      }
+    }
+    if (elements.wordmark) {
+      elements.wordmark.addEventListener('click', () => goHome('user'));
+      elements.wordmark.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
+          event.preventDefault();
+          goHome('user');
+        }
+      });
+    }
+    if (elements.openHomeButton) {
+      elements.openHomeButton.addEventListener('click', () => goHome('user'));
+    }
+    // Anything can request a return to Home by dispatching the openHome event
+    // (the guided-tour landing and the Tutorial Library close handoff both do).
+    const openHomeEventName = (global.ProjectMapStudioSharedConstants
+      && global.ProjectMapStudioSharedConstants.EVENT_NAMES
+      && global.ProjectMapStudioSharedConstants.EVENT_NAMES.openHome) || 'ProjectMap:open-home';
+    document.addEventListener(openHomeEventName, () => goHome('event'));
 
     document.addEventListener('project-map:design-open-explore', (event) => {
       openDesignSelectionInExplore(event.detail || {}, state, elements);

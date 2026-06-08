@@ -60,21 +60,21 @@
     },
     {
       "path": "tools/project_map/viewer/i18n/en.js",
-      "maxLines": 3450,
+      "maxLines": 3446,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Was 3523. Lowered 2026-06-05 to 3450 by splitting the whole publish.* surface out into the off-budget viewer/i18n/en.publish.js (merged into the en catalog at load), freeing aggregate headroom for the Batch C publish management keys without raising any ceiling. Add further large key groups to focused sibling catalogs instead of growing this file."
+      "reason": "Catalog file; keep each language separate. Was 3523. Lowered 2026-06-05 to 3450 by splitting the whole publish.* surface out into the off-budget viewer/i18n/en.publish.js (merged into the en catalog at load), freeing aggregate headroom for the Batch C publish management keys without raising any ceiling. Lowered 2026-06-08 to 3446 by relocating four More-menu labels (topbar.welcome/templateHub/publish/announcements — surfaces the Home Hub absorbs as sections) into the off-budget viewer/i18n/en.home.js, funding the Home pane's index.html growth. Add further large key groups to focused sibling catalogs instead of growing this file."
     },
     {
       "path": "tools/project_map/viewer/i18n/zh-Hant.js",
-      "maxLines": 3450,
+      "maxLines": 3446,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Was 3523. Lowered 2026-06-05 to 3450 by splitting the whole publish.* surface out into the off-budget viewer/i18n/zh-Hant.publish.js (merged into the zh-Hant catalog at load), freeing aggregate headroom for the Batch C publish management keys without raising any ceiling. Add further large key groups to focused sibling catalogs instead of growing this file."
+      "reason": "Catalog file; keep each language separate. Was 3523. Lowered 2026-06-05 to 3450 by splitting the whole publish.* surface out into the off-budget viewer/i18n/zh-Hant.publish.js (merged into the zh-Hant catalog at load), freeing aggregate headroom for the Batch C publish management keys without raising any ceiling. Lowered 2026-06-08 to 3446 by relocating four More-menu labels (topbar.welcome/templateHub/publish/announcements — surfaces the Home Hub absorbs as sections) into the off-budget viewer/i18n/zh-Hant.home.js, funding the Home pane's index.html growth. Add further large key groups to focused sibling catalogs instead of growing this file."
     },
     {
       "path": "tools/project_map/viewer/index.html",
-      "maxLines": 2492,
+      "maxLines": 2499,
       "allowRaise": true,
-      "reason": "Script + template manifest. Raised 2026-06-04 from 2482 for the global back button + navigation_history.js script tag, then to 2486 for the .mode-nav wrapper grouping the back button with the mode tabs, then to 2489 for the Publish to GitHub button + mount root + publish_ui.js script tag, then to 2490 for the dom_text_utils.js script tag, then 2026-06-05 to 2492 for the en.publish.js + zh-Hant.publish.js catalog script tags (more than paid for by the matching en/zh catalog shrink)."
+      "reason": "Script + template manifest. Raised 2026-06-04 from 2482 for the global back button + navigation_history.js script tag, then to 2486 for the .mode-nav wrapper grouping the back button with the mode tabs, then to 2489 for the Publish to GitHub button + mount root + publish_ui.js script tag, then to 2490 for the dom_text_utils.js script tag, then 2026-06-05 to 2492 for the en.publish.js + zh-Hant.publish.js catalog script tags (more than paid for by the matching en/zh catalog shrink). Raised 2026-06-08 to 2499 for the empty #home-pane host, the Home menu entry + wordmark Home-entry attributes, and the en.home.js / zh-Hant.home.js / home_section_registry.js / home_ui.js script tags — the Studio's new home/dashboard surface (Home Hub Milestone A). The sub-nav and section panels are built dynamically from the registry by home_ui.js, not shipped as static markup, to keep this entry point lean. Paid for by relocating four More-menu labels out of en.js + zh-Hant.js into the off-budget home catalogs; net aggregate budget falls."
     },
     {
       "path": "tools/project_map/viewer/object_authoring_canvas_ui.js",

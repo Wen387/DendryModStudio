@@ -147,7 +147,7 @@
       return 0;
     }
     const mappings = [
-      ['#studio-open-onboarding', 'map'],
+      ['#studio-open-home', 'map'],
       ['#studio-open-guided-tour', 'play'],
       ['#studio-open-surface-hints', 'info'],
       ['#studio-open-template-hub', 'download'],

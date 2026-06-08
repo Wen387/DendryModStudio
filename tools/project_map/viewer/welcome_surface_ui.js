@@ -43,32 +43,6 @@
       : 'ProjectMap:open-onboarding';
   }
 
-  function guidedTourSeenKey() {
-    const api = contracts();
-    return api && api.STORAGE_KEYS && api.STORAGE_KEYS.guidedTourSeen
-      ? api.STORAGE_KEYS.guidedTourSeen
-      : 'dendry-mod-studio-guided-tour-seen';
-  }
-
-  // On a fresh install the guided tour greets first and reopens this hub at the
-  // end (the Welcome Hub reads as a toolbox/board, not an intro). So we defer our
-  // own auto-open and let the tour own the first impression. Only applies before
-  // the tour has been seen; afterward the hub auto-opens as usual.
-  function guidedTourGreetsFirst() {
-    if (!global || !global.ProjectMapGuidedTour) {
-      return false;
-    }
-    const storage = safeStorage();
-    if (!storage || typeof storage.getItem !== 'function') {
-      return false;
-    }
-    try {
-      return storage.getItem(guidedTourSeenKey()) !== '1';
-    } catch (_err) {
-      return false;
-    }
-  }
-
   function safeStorage() {
     try {
       return global && global.localStorage ? global.localStorage : null;
@@ -135,7 +109,11 @@
 
   const state = {
     controller: null,
-    elements: null
+    elements: null,
+    docked: false,
+    catalogDocked: false,
+    catalogHomeParent: null,
+    catalogHomeNext: null
   };
 
   var CATALOG_ICON_GRADIENTS = [
@@ -270,6 +248,12 @@
     canLoadBundledDemo,
     open: () => openDialog(true),
     close: () => closeDialog(true),
+    dock: (container) => dockSurface(container),
+    undock: () => undockSurface(),
+    isDocked: () => state.docked,
+    mountCatalog: (container) => dockCatalog(container),
+    unmountCatalog: () => undockCatalog(),
+    isCatalogDocked: () => state.catalogDocked,
     markSeen: () => state.controller ? state.controller.markSeen() : false,
     clearSeen: () => state.controller ? state.controller.clearSeen() : false
   };
@@ -323,9 +307,10 @@
     localizeDialog();
     updateActionState();
     decorateIcons();
-    if (state.controller.shouldAutoOpen() && !guidedTourGreetsFirst()) {
-      openDialog(false);
-    }
+    // First-run greeting now lives in the Home overview onboarding face (the
+    // docked welcome surface), so this modal no longer auto-opens here. The seen
+    // flag and controller.shouldAutoOpen() stay intact for deliberate callers and
+    // the onboarding model checks.
   }
 
   function ensureWelcomeMarkup(document) {
@@ -388,10 +373,13 @@
     document.addEventListener('project-map:tutorial-library-closed', () => {
       if (!state._reopenAfterTutorial) { return; }
       state._reopenAfterTutorial = false;
-      // Only restore the Welcome Hub if the user has not already moved on to a
-      // loaded project in the meantime.
+      // Route back to Home (its overview onboarding face carries the welcome
+      // content inline) instead of reopening the modal, unless the user has
+      // already moved on to a loaded project in the meantime.
       if (!state._userInitiatedLoad) {
-        openDialog(false);
+        const c = contracts();
+        const evt = (c && c.EVENT_NAMES && c.EVENT_NAMES.openHome) || 'ProjectMap:open-home';
+        global.document.dispatchEvent(new Event(evt));
       }
     });
     document.addEventListener('project-map:locale-changed', () => {
@@ -464,6 +452,18 @@
     if (!state.elements || !state.elements.dialog) {
       return false;
     }
+    // The surface cannot be modal and docked at once. If it is docked (the Home
+    // overview onboarding face), pull it back out before showing it as an overlay
+    // (e.g. the catalog-only Template Hub modal).
+    if (state.docked) {
+      undockSurface();
+    }
+    // The catalog section can be docked inline in the Home 模板 section; bring it
+    // back into the dialog before showing the modal so the (catalog-only or
+    // onboarding) welcome keeps the Template Hub it has always had.
+    if (state.catalogDocked) {
+      undockCatalog();
+    }
     var catalogOnly = opts && opts.catalogOnly;
     updateActionState();
     decorateIcons();
@@ -486,6 +486,13 @@
     if (!state.elements || !state.elements.dialog) {
       return false;
     }
+    // When docked, the surface IS the Home overview onboarding face — it has no
+    // modal chrome to dismiss. The dismiss paths (close button, Esc, backdrop
+    // click, and the action handlers that call closeDialog before doing their
+    // thing) become no-ops for the hide; undockSurface() owns the only teardown.
+    if (state.docked) {
+      return false;
+    }
     state.elements.dialog.classList.add('hidden');
     state.elements.dialog.classList.remove('is-catalog-only');
     if (markSeen && state.controller) {
@@ -500,6 +507,50 @@
       } catch (_err) {
         // best effort only
       }
+    }
+    return true;
+  }
+
+  // Dock the welcome surface inline into a host container (the Home overview
+  // onboarding face). This reparents the single #studio-welcome node and swaps
+  // its modal chrome for a flowing block via the .is-docked class; the same node
+  // is reused (not cloned) so all existing wiring keeps working. While docked the
+  // surface is a region, not a modal, and cannot be dismissed (see closeDialog).
+  function dockSurface(container) {
+    if (!state.elements || !state.elements.dialog || !container) {
+      return false;
+    }
+    const dialog = state.elements.dialog;
+    state.docked = true;
+    dialog.classList.add('is-docked');
+    dialog.classList.remove('hidden', 'is-catalog-only');
+    dialog.setAttribute('role', 'region');
+    dialog.setAttribute('aria-modal', 'false');
+    if (dialog.parentNode !== container) {
+      container.appendChild(dialog);
+    }
+    updateActionState();
+    decorateIcons();
+    localizeDialog();
+    return true;
+  }
+
+  // Undock the surface: restore modal chrome, hide it, and move it back to the
+  // shared #studio-welcome-root so the catalog-only modal path can show it as a
+  // proper overlay again. Owns the only teardown of the docked face.
+  function undockSurface() {
+    if (!state.elements || !state.elements.dialog) {
+      return false;
+    }
+    const dialog = state.elements.dialog;
+    state.docked = false;
+    dialog.classList.remove('is-docked');
+    dialog.classList.add('hidden');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    const root = global.document.getElementById('studio-welcome-root');
+    if (root && dialog.parentNode !== root) {
+      root.appendChild(dialog);
     }
     return true;
   }
@@ -657,6 +708,48 @@
       }
       if (state.elements.catalogList) { state.elements.catalogList.innerHTML = ''; }
     });
+  }
+
+  // Dock the Template Hub catalog inline into a Home section panel by reparenting
+  // the SAME #welcome-catalog node — its rendered cards, action handlers and live
+  // region all move with it, so every catalog action keeps working without any
+  // re-wiring. The catalog-only modal and the onboarding welcome reclaim it via
+  // undockCatalog() in openDialog, then the Home 模板 section re-docks it after the
+  // modal closes (on the welcomeDismissed event).
+  function dockCatalog(container) {
+    if (!state.elements || !state.elements.catalogSection || !container) {
+      return false;
+    }
+    const section = state.elements.catalogSection;
+    if (!state.catalogHomeParent) {
+      state.catalogHomeParent = section.parentNode;
+      state.catalogHomeNext = section.nextSibling;
+    }
+    state.catalogDocked = true;
+    if (section.parentNode !== container) {
+      container.appendChild(section);
+    }
+    // populateCatalog manages the section's visibility + content based on desktop
+    // support; on a browser (no catalog bridge) it simply stays hidden.
+    populateCatalog();
+    return true;
+  }
+
+  function undockCatalog() {
+    if (!state.elements || !state.elements.catalogSection) {
+      return false;
+    }
+    const section = state.elements.catalogSection;
+    state.catalogDocked = false;
+    const parent = state.catalogHomeParent;
+    if (parent && section.parentNode !== parent) {
+      if (state.catalogHomeNext && state.catalogHomeNext.parentNode === parent) {
+        parent.insertBefore(section, state.catalogHomeNext);
+      } else {
+        parent.appendChild(section);
+      }
+    }
+    return true;
   }
 
   function fetchTemplateInfoCards(templates) {

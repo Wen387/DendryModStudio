@@ -36,7 +36,7 @@ const welcomeSurface = html + '\n' + welcomeUi;
 
 assert(contracts.STORAGE_KEYS.onboardingSeen === 'dendry-mod-studio-onboarding-seen', 'onboarding storage key should be centralized');
 assert(contracts.EVENT_NAMES.openOnboarding === 'ProjectMap:open-onboarding', 'onboarding open event should be centralized');
-assert(html.includes('id="studio-open-onboarding"'), 'More menu should expose a Welcome Hub action');
+assert(html.includes('id="studio-open-home"'), 'More menu should expose a Home action (the Home overview onboarding face absorbs the Welcome Hub)');
 assert(html.includes('id="studio-open-tutorial-library"'), 'More menu should expose a Tutorial Library action');
 assert(html.includes('id="studio-welcome-root"'), 'viewer should include the Welcome Hub mount point');
 assert(welcomeSurface.includes('id="studio-welcome"'), 'Welcome Hub UI should include the dialog');
@@ -94,7 +94,7 @@ assert(tutorialUi.includes('open-source'), 'tutorial library should define open-
 ].forEach((id) => {
   assert(tutorial.articleIds().includes(id), 'tutorial article registry should include ' + id);
 });
-assert(i18nUi.includes("'topbar.welcome'"), 'Welcome Hub menu label should be localized');
+assert(i18nUi.includes("'home.menuEntry'"), 'Home menu label should be localized');
 assert(i18nUi.includes("'topbar.tutorialLibrary'"), 'Tutorial Library menu label should be localized');
 assert(i18nUi.includes("'welcome.title'"), 'Welcome Hub title should be localized');
 assert(i18nUi.includes("'welcome.openTutorialLibrary'"), 'Welcome Hub Tutorial Library action should be localized');

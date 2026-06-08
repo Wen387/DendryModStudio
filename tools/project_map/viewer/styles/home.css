@@ -1,0 +1,650 @@
+/* Home pane — the Studio's full-screen home/dashboard surface. Shares the
+   shell's `.mode-pane` slot (grid-row 3) like the other work modes; this file
+   owns only the in-pane layout: a top sub-nav band over a scrollable content
+   column. Section content is mounted by home_section_registry.js. Colors are
+   token-only so the hardcoded-color baseline stays flat. */
+
+.home-workspace {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  overflow: hidden;
+  /* Per-section identity hue + two soft elevation steps. The hue defaults to the
+     brand rust here and is re-pointed per section below (see the hue map), so any
+     descendant chip/card/tab can tint itself with `var(--section-hue)` and track
+     whichever section it lives in. Elevations are color-mixed from --text (never a
+     raw literal) so they stay warm and theme-aware in both light and dark. */
+  --section-hue: var(--accent);
+  --section-ink: var(--accent-strong);
+  --home-elev-rest: 0 1px 2px color-mix(in srgb, var(--text) 7%, transparent);
+  --home-elev-hover: 0 10px 24px color-mix(in srgb, var(--text) 13%, transparent);
+}
+
+/* Home greeting band — a lightweight "front porch" that crowns every section.
+   Deliberately NOT a repeat of the top-bar wordmark/tagline: it's a warm, larger
+   hello that only appears on Home. Copy lives in i18n (home.hero.*) and is meant
+   to be reworded by the author. A soft accent wash gives it the welcoming tint
+   without competing with the section content below. */
+.home-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 24px;
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.home-hero-glyph {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--accent) 20%, var(--surface));
+  color: var(--accent);
+}
+
+.home-hero-glyph .ui-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.home-hero-text {
+  display: grid;
+  gap: 2px;
+}
+
+.home-hero-greeting {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.home-hero-sub {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.home-hero-sub:empty {
+  display: none;
+}
+
+.home-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--surface);
+}
+
+/* Friendly, tactile pill tabs. Each tab's icon always carries a hint of its
+   section hue (so the row reads as colour-coded wayfinding even at rest), and the
+   active tab fills with a soft wash of that same hue — the Switch/Animal-Crossing
+   "this category is selected" feel, kept gentle against the warm paper surface. */
+.home-nav-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--motion-ease),
+    color var(--motion-fast) var(--motion-ease),
+    border-color var(--motion-fast) var(--motion-ease),
+    transform var(--motion-fast) var(--motion-ease);
+}
+
+.home-nav-item .ui-icon {
+  color: color-mix(in srgb, var(--section-hue) 70%, var(--muted));
+  transition: color var(--motion-fast) var(--motion-ease),
+    transform var(--motion-fast) var(--motion-ease);
+}
+
+.home-nav-item:hover {
+  background: var(--surface-alt);
+  color: var(--text);
+  transform: translateY(-1px);
+}
+
+.home-nav-item:hover .ui-icon {
+  color: var(--section-hue);
+}
+
+.home-nav-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.home-nav-item.is-active {
+  background: color-mix(in srgb, var(--section-hue) 20%, var(--surface));
+  border-color: color-mix(in srgb, var(--section-hue) 40%, transparent);
+  color: var(--section-ink);
+}
+
+.home-nav-item.is-active .ui-icon {
+  color: var(--section-ink);
+}
+
+.home-content {
+  min-height: 0;
+  overflow: auto;
+  padding: 28px 20px 44px;
+}
+
+.home-panel {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  display: grid;
+  gap: 18px;
+  align-content: start;
+}
+
+.home-panel > h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  color: var(--text);
+}
+
+.home-launch {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 12px 16px;
+  padding: 20px;
+  border: 1px solid var(--border-soft);
+  border-radius: 16px;
+  /* A whisper of the section hue washes the card so its category is felt before
+     it's read; the soft elevation lifts it off the paper. */
+  background: color-mix(in srgb, var(--section-hue) 4%, var(--surface));
+  box-shadow: var(--home-elev-rest);
+  transition: transform var(--motion-medium) var(--motion-ease),
+    box-shadow var(--motion-medium) var(--motion-ease),
+    border-color var(--motion-medium) var(--motion-ease);
+}
+
+.home-launch:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--home-elev-hover);
+  border-color: color-mix(in srgb, var(--section-hue) 30%, var(--border-soft));
+}
+
+.home-launch-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--section-hue) 24%, var(--surface));
+  color: var(--section-hue);
+  transition: transform var(--motion-medium) var(--motion-ease);
+}
+
+.home-launch:hover .home-launch-icon {
+  transform: translateY(-1px) scale(1.05);
+}
+
+.home-launch-icon .ui-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.home-launch-lead {
+  margin: 0;
+  color: var(--muted);
+}
+
+.home-launch-cta {
+  grid-column: 2;
+  justify-self: start;
+  padding: 8px 16px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--motion-ease),
+    border-color var(--motion-fast) var(--motion-ease);
+}
+
+.home-launch-cta:hover {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+}
+
+.home-launch-cta:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Overview section — two faces. Onboarding hosts the docked welcome surface;
+   dashboard shows a "welcome back" header over publish/notice launcher cards. */
+.home-overview {
+  display: grid;
+  gap: 20px;
+  align-content: start;
+}
+
+.home-dash-header {
+  display: grid;
+  gap: 4px;
+}
+
+.home-dash-title {
+  margin: 0;
+  font-size: 1.4rem;
+  color: var(--text);
+}
+
+.home-dash-project {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.home-dash-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 14px;
+}
+
+.home-dash-hint {
+  margin: 0;
+  padding: 16px 18px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--muted);
+}
+
+/* Secondary "learning" entries under the dashboard cards — the getting-started
+   guide and the Tutorial Library. Pill buttons (echoing the sub-nav) so they read
+   as tappable and stay visible, without competing with the primary cards above. */
+.home-dash-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.home-dash-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform var(--motion-fast) var(--motion-ease),
+    box-shadow var(--motion-fast) var(--motion-ease),
+    border-color var(--motion-fast) var(--motion-ease),
+    color var(--motion-fast) var(--motion-ease);
+}
+
+.home-dash-link-btn:hover {
+  transform: translateY(-1px);
+  border-color: var(--accent);
+  color: var(--accent-strong);
+  box-shadow: var(--home-elev-rest);
+}
+
+.home-dash-link-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.home-dash-link-icon {
+  display: inline-flex;
+  color: var(--accent);
+}
+
+.home-dash-link-icon .ui-icon {
+  width: 18px;
+  height: 18px;
+}
+
+/* Dashboard publish card — a one-line GitHub sync status (↑N↓N) filled in
+   asynchronously by getStatusSnapshot(). Sits in the card's content column,
+   between the lead and the CTA. Badge tokens mirror the publish overlay. */
+.home-dash-status {
+  grid-column: 2;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.home-publish-status-text {
+  color: var(--muted);
+}
+
+.home-publish-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.home-publish-badge-ahead {
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.home-publish-badge-behind {
+  border: 1px solid var(--info-border);
+  background: var(--info-soft);
+  color: var(--info-text);
+}
+
+.home-publish-badge-dirty {
+  border: 1px dashed var(--border);
+  background: var(--surface-alt);
+  color: var(--muted);
+}
+
+/* What's New section — the bundled release highlights for the current build,
+   rendered as note-style cards (no buttons). */
+.home-whatsnew {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+.home-whatsnew-header {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.home-whatsnew-title {
+  margin: 0;
+  font-size: 1.4rem;
+  color: var(--text);
+}
+
+.home-whatsnew-version {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-alt);
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.home-whatsnew-lead {
+  margin: 0;
+  color: var(--muted);
+}
+
+.home-whatsnew-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.home-whatsnew-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 12px 16px;
+  padding: 18px 20px;
+  border: 1px solid var(--border-soft);
+  border-radius: 16px;
+  /* Note-style cards (no actions), so they carry the soft elevation + hue wash
+     for warmth but skip the hover lift — nothing here is clickable. */
+  background: color-mix(in srgb, var(--section-hue) 4%, var(--surface));
+  box-shadow: var(--home-elev-rest);
+}
+
+.home-whatsnew-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--section-hue) 24%, var(--surface));
+  color: var(--section-hue);
+}
+
+.home-whatsnew-icon .ui-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.home-whatsnew-text {
+  display: grid;
+  gap: 4px;
+}
+
+.home-whatsnew-item-title {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.home-whatsnew-item-body {
+  margin: 0;
+  color: var(--muted);
+}
+
+.home-whatsnew-empty {
+  margin: 0;
+  color: var(--muted);
+}
+
+/* Overview release band — the "what's new" welcome shown above both Overview
+   faces after a version bump; collapses to a quiet link once seen. Lives in its
+   own host so it never disturbs the onboarding/dashboard faces below it. */
+.home-release-band:empty {
+  display: none;
+}
+
+.home-release-band.is-active {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  padding: 14px 18px;
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  background: var(--surface-alt);
+}
+
+.home-release-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--accent);
+}
+
+.home-release-icon .ui-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.home-release-text {
+  flex: 1 1 220px;
+  display: grid;
+  gap: 2px;
+}
+
+.home-release-title {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.home-release-version {
+  color: var(--accent);
+  font-size: 0.85rem;
+}
+
+.home-release-body {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.home-release-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.home-release-cta {
+  padding: 7px 14px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--motion-fast) var(--motion-ease),
+    border-color var(--motion-fast) var(--motion-ease);
+}
+
+.home-release-cta:hover {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+}
+
+.home-release-dismiss {
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.home-release-dismiss:hover {
+  color: var(--text);
+  background: var(--surface);
+}
+
+.home-release-cta:focus-visible,
+.home-release-dismiss:focus-visible,
+.home-release-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.home-release-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.home-release-link:hover {
+  color: var(--accent-strong);
+}
+
+.home-release-link .ui-icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* The brand wordmark doubles as the Home entry point. */
+.wordmark[role="button"] {
+  cursor: pointer;
+}
+
+.wordmark[role="button"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+body[data-mode="home"] .wordmark[role="button"] {
+  color: var(--accent);
+}
+
+/* ----------------------------------------------------------------------------
+   Section identity hues — the colour each section answers to. Set on BOTH the
+   sub-nav button (`[data-home-section]`) and its panel (`[data-home-panel]`) so a
+   tab and the content it reveals share one hue. Every value is drawn from the
+   existing status-palette family, so nothing new enters the colour baseline. */
+[data-home-section="overview"],
+[data-home-panel="overview"] { --section-hue: var(--accent); --section-ink: var(--accent-strong); }
+
+[data-home-section="whatsnew"],
+[data-home-panel="whatsnew"] { --section-hue: var(--warn); --section-ink: var(--warn-text); }
+
+[data-home-section="publish"],
+[data-home-panel="publish"] { --section-hue: var(--success); --section-ink: var(--success-text); }
+
+[data-home-section="announcements"],
+[data-home-panel="announcements"] { --section-hue: var(--info); --section-ink: var(--info-text); }
+
+[data-home-section="templates"],
+[data-home-panel="templates"] { --section-hue: var(--violet); --section-ink: var(--violet); }
+
+/* Dashboard cards sit inside the Overview panel but each points AT another
+   section, so they borrow that destination's hue — the publish card reads green,
+   the announcements card blue — matching the tab they navigate to. */
+[data-dash-hue="publish"] { --section-hue: var(--success); --section-ink: var(--success-text); }
+[data-dash-hue="announcements"] { --section-hue: var(--info); --section-ink: var(--info-text); }
+
+/* Micro-interaction: a section's content drifts gently up into place when it
+   becomes visible. The panel toggles between display:none (.hidden / [hidden])
+   and shown, so the animation re-fires on each switch. Fully waived when the user
+   prefers reduced motion — every transform/transition below is stilled. */
+@keyframes home-section-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.home-panel:not(.hidden) {
+  animation: home-section-in var(--motion-medium) var(--motion-ease) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-panel:not(.hidden) { animation: none; }
+  .home-nav-item,
+  .home-nav-item .ui-icon,
+  .home-launch,
+  .home-launch-icon { transition: none; }
+  .home-nav-item:hover,
+  .home-launch:hover { transform: none; }
+  .home-launch:hover .home-launch-icon { transform: none; }
+}

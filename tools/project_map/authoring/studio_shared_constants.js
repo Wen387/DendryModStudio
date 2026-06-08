@@ -10,7 +10,9 @@
     onboardingSeen: 'dendry-mod-studio-onboarding-seen',
     guidedTourSeen: 'dendry-mod-studio-guided-tour-seen',
     surfaceHintsSeenPrefix: 'dendry-mod-studio-surface-hints-seen.',
-    theme: 'dendry-mod-studio-theme'
+    theme: 'dendry-mod-studio-theme',
+    lastSeenVersion: 'dendry-mod-studio-last-seen-version',
+    homeSection: 'dendry-mod-studio-home-section'
   };
 
   const THEME_VALUES = ['auto', 'light', 'dark'];
@@ -28,7 +30,11 @@
     openGuidedTour: 'ProjectMap:open-guided-tour',
     openSurfaceHints: 'ProjectMap:open-surface-hints',
     welcomeDismissed: 'ProjectMap:welcome-dismissed',
-    themeChanged: 'ProjectMap:theme-changed'
+    themeChanged: 'ProjectMap:theme-changed',
+    openHome: 'ProjectMap:open-home',
+    homeSectionChanged: 'ProjectMap:home-section-changed',
+    boardClosed: 'ProjectMap:board-closed',
+    publishClosed: 'ProjectMap:publish-closed'
   };
 
   const TEXT_ROLE_LABELS = {

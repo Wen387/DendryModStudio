@@ -246,7 +246,9 @@
     if (!global || !global.document) {
       return;
     }
-    global.document.dispatchEvent(new global.Event(eventName('openOnboarding', 'ProjectMap:open-onboarding')));
+    // The Home overview onboarding face now carries the welcome content inline,
+    // so the post-tour landing routes to Home instead of opening the old modal.
+    global.document.dispatchEvent(new global.Event(eventName('openHome', 'ProjectMap:open-home')));
   }
 
   // The Welcome Hub is the actionable landing after any linear tour: when the

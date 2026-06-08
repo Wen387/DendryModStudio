@@ -125,6 +125,57 @@
   display: none;
 }
 
+/* Docked (inline) variant — the Home 公告 section embeds the same board node as
+   a flowing region instead of the right-side modal drawer. Mirrors the welcome
+   surface's .is-docked de-modalization. */
+.announcement-board.is-docked {
+  position: static;
+  inset: auto;
+  z-index: auto;
+  display: block;
+  justify-items: stretch;
+  background: none;
+}
+
+.announcement-board.is-docked .announcement-board-dialog {
+  width: 100%;
+  height: auto;
+  padding: 0;
+  border-left: none;
+  box-shadow: none;
+}
+
+.announcement-board.is-docked .announcement-board-close {
+  display: none;
+}
+
+/* When the board is docked into the Home 公告 section, bring its notice cards
+   into the same warm language as the rest of Home — rounded, softly elevated,
+   with the section's blue identity on the active card. Scoped to `.is-docked`
+   ONLY, so the right-side modal drawer keeps its original look. The hue +
+   elevations inherit from `.home-workspace` (the announcements panel sets
+   `--section-hue` to the info blue); token-only, no new raw colours. */
+.announcement-board.is-docked .announcement-board-tab {
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  box-shadow: var(--home-elev-rest);
+  transition: transform var(--motion-medium) var(--motion-ease),
+    box-shadow var(--motion-medium) var(--motion-ease),
+    border-color var(--motion-medium) var(--motion-ease);
+}
+
+.announcement-board.is-docked .announcement-board-tab:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--home-elev-hover);
+  border-color: color-mix(in srgb, var(--section-hue) 30%, var(--border-soft));
+}
+
+.announcement-board.is-docked .announcement-board-tab.is-active {
+  border-color: var(--section-hue);
+  background: color-mix(in srgb, var(--section-hue) 12%, var(--surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--section-hue) 30%, transparent);
+}
+
 .announcement-board-dialog {
   width: min(860px, 100vw);
   height: 100vh;
