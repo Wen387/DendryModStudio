@@ -112,6 +112,7 @@ function createCapture() {
     contentImages: null,
     signals: [],
     audio: null,
+    setMusic: null,
     hand: null,
     decks: null,
     qualities: {}
@@ -318,6 +319,14 @@ function finishTurn(capture, engine) {
   // crosses IPC, the renderer shows them beside the content.
   view.faceImage = typeof scene.faceImage === 'string' ? scene.faceImage : null;
   view.cardImage = typeof scene.cardImage === 'string' ? scene.cardImage : null;
+  // set-music is parsed by DendryNexus and indexed by Studio as music, but NO
+  // engine UI hook consumes it (engine.js fires only ui.audio for `audio:`; the
+  // reference ui/browser.js never reads setMusic -- runtime playback is
+  // template-dependent). We REPORT its presence so the renderer can note that
+  // this scene declares music it will not play, WITHOUT inventing playback the
+  // real engine never performs. Plain string -> no file:// resolution, no IPC
+  // clone risk; deliberately NOT routed through the audio shell.
+  view.setMusic = typeof scene.setMusic === 'string' && scene.setMusic.trim() ? scene.setMusic : null;
   // Pictures injected by display/arrival code (read statically, never executed).
   const codeImages = extractActionImageRefs(scene);
   view.contentImages = codeImages.length ? codeImages : null;

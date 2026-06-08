@@ -82,6 +82,24 @@ function main() {
   assert(/data-play-action="engine-restart"/.test(noVars) === false,
     'reset is panel-scoped, so a no-variable pane has no reset -- confirming re-roll is the variable-independent affordance');
 
+  // Mute toggle: an editor-level audio preference sits in the same always-
+  // rendered controls row, so it is present even with no quality variables.
+  assert(/data-play-action="engine-mute"/.test(html), 'the pane should expose a mute control');
+  assert(html.indexOf('Mute') !== -1 || html.indexOf('Unmute') !== -1,
+    'the mute control should carry its toggle label');
+  assert(/data-play-action="engine-mute"/.test(noVars),
+    'the mute control must render even with no quality variables (it lives in the controls row, not the starting-state panel)');
+
+  // set-music note: a directive the engine parses but no UI hook plays. The
+  // model reports it on view.setMusic; the renderer shows a non-blocking,
+  // template-dependent note rather than silently dropping it (or inventing audio).
+  const musicNode = ui.renderNode(Object.assign({}, view, {setMusic: 'audio/theme.mp3'}), {});
+  assert(/data-play-setmusic-note/.test(musicNode),
+    'a landed scene declaring set-music should render the template-dependent note');
+  const noMusicNode = ui.renderNode(view, {});
+  assert(/data-play-setmusic-note/.test(noMusicNode) === false,
+    'a scene without set-music should not render the set-music note');
+
   // Unsaved-edit badge.
   assert(html.indexOf('unsaved') !== -1 || html.toLowerCase().indexOf('unsaved') !== -1,
     'an edited play-test should flag that it includes unsaved edits');

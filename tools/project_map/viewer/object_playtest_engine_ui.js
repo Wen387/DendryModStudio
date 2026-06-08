@@ -333,6 +333,14 @@
     const gameOver = view.gameOver
       ? '<p class="object-editing-play-engine-gameover">' + escapeHtml(t('playEngine.gameOver', 'The game ends here.')) + '</p>'
       : '';
+    // set-music is parsed/indexed as music but no engine UI hook plays it (it is
+    // template-dependent -- see the model's finishTurn note). When the landed
+    // scene declares it, surface a non-blocking note so the author knows the
+    // play-test intentionally does NOT play it, rather than silently dropping it.
+    const setMusicNote = view.setMusic
+      ? '<p class="object-editing-play-note object-editing-play-setmusic-note" data-play-setmusic-note="true">' +
+        escapeHtml(t('playEngine.setMusicNote', 'This scene sets music (set-music); the play-test does not play it — playback is template-dependent.')) + '</p>'
+      : '';
     const choiceList = choices.length
       ? '<ul class="object-editing-play-options">' + choices.map(renderChoice).join('') + '</ul>'
       : (view.gameOver ? '' : '<p class="object-editing-play-no-options">' + escapeHtml(t('playSim.noOptions', 'No choices to simulate.')) + '</p>');
@@ -353,6 +361,7 @@
       title,
       content,
       renderContentImages(view),
+      setMusicNote,
       gameOver,
       choiceList,
       '</div>',
@@ -368,11 +377,22 @@
   // the affordance must be decoupled from that panel's presence. The Reset button
   // in renderStatePanel is the complementary action: it clears edits AND returns
   // to the default reproducible seed.
+  // The mute button is a toggle: its label and aria-pressed flip with the shared
+  // audioShell.muted state (an editor-level author preference persisted across
+  // objects). handleClick reuses muteLabel() to relabel the button in place.
+  function muteLabel(muted) {
+    return muted ? t('playEngine.unmute', 'Unmute audio') : t('playEngine.mute', 'Mute audio');
+  }
+
   function renderControls() {
+    const muted = audioShell.muted;
     return [
       '<div class="object-editing-play-controls" data-play-controls="true">',
       '<button type="button" class="object-editing-play-reroll" data-play-action="engine-reroll">' +
         escapeHtml(t('playEngine.reroll', 'Re-roll randomness')) + '</button>',
+      '<button type="button" class="object-editing-play-mute" data-play-action="engine-mute"' +
+        ' aria-pressed="' + (muted ? 'true' : 'false') + '">' +
+        escapeHtml(muteLabel(muted)) + '</button>',
       '</div>'
     ].join('');
   }
@@ -421,6 +441,31 @@
 
   const FADE_STEP_MS = 50;
 
+  // Play-test audio mute is an EDITOR-level author preference (it applies across
+  // every object the author play-tests), so it persists under the Studio
+  // `dendry-mod-studio-*` namespace -- NOT the per-game-title key the reference
+  // browser.js uses for disable_audio. Guard every localStorage hop: it can be
+  // unavailable in restricted/headless contexts (mirrors i18n.js).
+  const PLAYTEST_AUDIO_MUTED_KEY = 'dendry-mod-studio-playtest-audio-muted';
+
+  function readMutedPref() {
+    try {
+      return !!(global && global.localStorage && global.localStorage.getItem(PLAYTEST_AUDIO_MUTED_KEY) === 'true');
+    } catch (_e) {
+      return false;
+    }
+  }
+
+  function writeMutedPref(value) {
+    try {
+      if (global && global.localStorage) {
+        global.localStorage.setItem(PLAYTEST_AUDIO_MUTED_KEY, value ? 'true' : 'false');
+      }
+    } catch (_e) {
+      /* localStorage can be unavailable in restricted browser contexts. */
+    }
+  }
+
   const audioShell = {
     el: null,
     state: null,
@@ -428,6 +473,9 @@
     unblock: null,
     blocked: false,
     watch: null,
+    // Loaded eagerly from the persisted editor preference so the controls row
+    // reflects the saved mute state on the very first render (before any track).
+    muted: readMutedPref(),
 
     reducerState: function () {
       const model = audioReducer();
@@ -463,6 +511,37 @@
     // Apply a turn's directive (string | null). Null/empty = persist (no-op).
     apply: function (directive) {
       this.dispatch(typeof directive === 'string' ? directive : '');
+    },
+
+    // Mute/unmute the play-test (mirrors browser.js toggle_audio). The reducer's
+    // logical state is left untouched -- muting only silences the element -- so
+    // unmute resumes exactly the track the reducer says is current. Note this is
+    // intentionally NOT cleared by hardStop: mute is a persistent author setting.
+    setMuted: function (on) {
+      on = !!on;
+      if (on === this.muted) {
+        return;
+      }
+      this.muted = on;
+      if (on) {
+        // Pause the element; a paused element stays silent even as later turns'
+        // play/replace commands re-arm its src (startPlayback is gated below).
+        this.cancelFade();
+        if (this.el) {
+          try { this.el.pause(); } catch (_e) { /* ignore */ }
+        }
+      } else {
+        // Resume whatever the reducer says is current, restoring loop from the
+        // logical state (browser.js drops loop on mute and never restores it --
+        // the reducer is our source of truth, so this is strictly more correct).
+        const st = this.state;
+        if (st && st.isPlaying && st.currentAudioURL) {
+          if (this.el) {
+            this.el.loop = !!st.isLooping;
+          }
+          this.startPlayback();
+        }
+      }
     },
 
     // A fresh playthrough -- hard-stop and clear before applying new audio.
@@ -546,6 +625,12 @@
     startPlayback: function () {
       const el = this.el;
       if (!el || typeof el.play !== 'function') {
+        return;
+      }
+      // While muted, keep the reducer's logical state advancing (src is still
+      // re-armed by playUrl) but never actually sound the element. setMuted(false)
+      // calls back here to resume the current track.
+      if (this.muted) {
         return;
       }
       this.ensureLeaveWatch();
@@ -932,6 +1017,18 @@
       sess.seed = newSeed();
       sess.error = null;
       startSession(deps, container, false);
+      return true;
+    }
+    const mute = target.closest('[data-play-action="engine-mute"]');
+    if (mute && depWithinHost(deps, mute)) {
+      event.preventDefault();
+      // Toggle mute on the shared shell, persist the editor preference, and
+      // relabel the button in place -- no session restart or pane re-render, so
+      // current playback state (and the per-turn node) is untouched.
+      audioShell.setMuted(!audioShell.muted);
+      writeMutedPref(audioShell.muted);
+      mute.setAttribute('aria-pressed', audioShell.muted ? 'true' : 'false');
+      mute.textContent = muteLabel(audioShell.muted);
       return true;
     }
     const choice = target.closest('[data-play-choice]');

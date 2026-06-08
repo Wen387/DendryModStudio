@@ -60,15 +60,15 @@
     },
     {
       "path": "tools/project_map/viewer/i18n/en.js",
-      "maxLines": 3476,
+      "maxLines": 3479,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Was 3523, then 3450. Lowered 2026-06-05 to 3399 by extracting the runtimeLens.* group into off-budget viewer/i18n/en.runtime-lens.js (same load-then-merge pattern), which pays for the focused Dev console lens keys. Earlier shrink split the whole publish.* surface out into the off-budget viewer/i18n/en.publish.js (merged into the en catalog at load), freeing aggregate headroom for the Batch C publish management keys without raising any ceiling. Add further large key groups to focused sibling catalogs instead of growing this file. [integration 2026-06-07: raised for loving-vaughan play-test merge.] Raised 2026-06-08 to 3476 for the single playEngine.reroll play-test re-roll key; paid by lowering the slack editing.css ceiling 2 lines so the aggregate stays flat."
+      "reason": "Catalog file; keep each language separate. Was 3523, then 3450. Lowered 2026-06-05 to 3399 by extracting the runtimeLens.* group into off-budget viewer/i18n/en.runtime-lens.js (same load-then-merge pattern), which pays for the focused Dev console lens keys. Earlier shrink split the whole publish.* surface out into the off-budget viewer/i18n/en.publish.js (merged into the en catalog at load), freeing aggregate headroom for the Batch C publish management keys without raising any ceiling. Add further large key groups to focused sibling catalogs instead of growing this file. [integration 2026-06-07: raised for loving-vaughan play-test merge.] Raised 2026-06-08 to 3476 for the single playEngine.reroll play-test re-roll key; paid by lowering the slack editing.css ceiling 2 lines so the aggregate stays flat. Raised 2026-06-08 to 3479 for the 3 tail-#2 audio keys (playEngine.setMusicNote/mute/unmute); paid by lowering the slack editing.css ceiling a further 6 lines so the aggregate stays flat."
     },
     {
       "path": "tools/project_map/viewer/i18n/zh-Hant.js",
-      "maxLines": 3476,
+      "maxLines": 3479,
       "allowRaise": true,
-      "reason": "Catalog file; keep each language separate. Was 3523, then 3450. Lowered 2026-06-05 to 3399 by extracting the runtimeLens.* group into off-budget viewer/i18n/zh-Hant.runtime-lens.js (same load-then-merge pattern), which pays for the focused Dev console lens keys. Earlier shrink split the whole publish.* surface out into the off-budget viewer/i18n/zh-Hant.publish.js (merged into the zh-Hant catalog at load), freeing aggregate headroom for the Batch C publish management keys without raising any ceiling. Add further large key groups to focused sibling catalogs instead of growing this file. [integration 2026-06-07: raised for loving-vaughan play-test merge.] Raised 2026-06-08 to 3476 for the single playEngine.reroll play-test re-roll key; paid by lowering the slack editing.css ceiling 2 lines so the aggregate stays flat."
+      "reason": "Catalog file; keep each language separate. Was 3523, then 3450. Lowered 2026-06-05 to 3399 by extracting the runtimeLens.* group into off-budget viewer/i18n/zh-Hant.runtime-lens.js (same load-then-merge pattern), which pays for the focused Dev console lens keys. Earlier shrink split the whole publish.* surface out into the off-budget viewer/i18n/zh-Hant.publish.js (merged into the zh-Hant catalog at load), freeing aggregate headroom for the Batch C publish management keys without raising any ceiling. Add further large key groups to focused sibling catalogs instead of growing this file. [integration 2026-06-07: raised for loving-vaughan play-test merge.] Raised 2026-06-08 to 3476 for the single playEngine.reroll play-test re-roll key; paid by lowering the slack editing.css ceiling 2 lines so the aggregate stays flat. Raised 2026-06-08 to 3479 for the 3 tail-#2 audio keys (playEngine.setMusicNote/mute/unmute); paid by lowering the slack editing.css ceiling a further 6 lines so the aggregate stays flat."
     },
     {
       "path": "tools/project_map/viewer/index.html",
@@ -90,9 +90,9 @@
     },
     {
       "path": "tools/project_map/viewer/styles/editing.css",
-      "maxLines": 3294,
+      "maxLines": 3288,
       "allowRaise": true,
-      "reason": "Split new selectors into focused domain CSS files. Ratcheted 2026-05-22 from 3375. Raised 2026-06-04 from 4255 for the retired-board-banner hide rule + command-dock More options disclosure styles. Lowered 2026-06-05 to 3296 by extracting all System UI preview selectors (system-screen-* / system-ui-* base rules, including the new right-sidebar extension zone) into the focused viewer/styles/system-ui.css, imported before editing.css so the shared responsive media query left here still wins the narrow-width collapse. Lowered 2026-06-08 to 3294 (actual 3190, ample slack) to pay for the +2 playEngine.reroll catalog raise (en+zh) so the aggregate ceiling stays flat."
+      "reason": "Split new selectors into focused domain CSS files. Ratcheted 2026-05-22 from 3375. Raised 2026-06-04 from 4255 for the retired-board-banner hide rule + command-dock More options disclosure styles. Lowered 2026-06-05 to 3296 by extracting all System UI preview selectors (system-screen-* / system-ui-* base rules, including the new right-sidebar extension zone) into the focused viewer/styles/system-ui.css, imported before editing.css so the shared responsive media query left here still wins the narrow-width collapse. Lowered 2026-06-08 to 3294 (actual 3190, ample slack) to pay for the +2 playEngine.reroll catalog raise (en+zh) so the aggregate ceiling stays flat. Lowered 2026-06-08 to 3288 (actual 3190, still ample slack) to pay for the +6 tail-#2 audio catalog raise (3 keys x en+zh) so the aggregate ceiling stays flat; the mute button / set-music note reuse existing classes and add no CSS."
     },
     {
       "path": "tools/project_map/viewer/wizard_ui.js",

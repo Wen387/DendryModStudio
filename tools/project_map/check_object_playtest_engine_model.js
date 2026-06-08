@@ -170,6 +170,25 @@ async function main() {
   assert(plainText(editedStart.view.contentHtml).indexOf('EDITED_MARKER') !== -1,
     'an unsaved edit to the event source should appear in the real-engine play-test');
 
+  // ---- set-music: parsed by the engine but consumed by NO engine UI hook, so
+  // the model REPORTS its presence (view.setMusic) without ever routing it into
+  // the played audio path. The renderer surfaces a "template-dependent" note. ----
+  assert(high.view.setMusic == null,
+    'a scene with no set-music should report view.setMusic null', high.view.setMusic);
+  const musicFiles = model.applyFileOverrides(baseFiles, {
+    [CAMPAIGN_FILE]: original.contents.replace(
+      'on-arrival: demo_chain_seen = 1; demo_pressure += 1',
+      'on-arrival: demo_chain_seen = 1; demo_pressure += 1\nset-music: audio/theme.mp3'
+    )
+  });
+  const musicGame = await model.compileGameFromDryFiles(musicFiles);
+  const musicStart = model.start({game: musicGame, entrySceneId: SCENE, startState: {demo_resources: 1}});
+  assert(musicStart.ok, 'a play-test on a scene carrying set-music should start', musicStart);
+  assert(musicStart.view.setMusic === 'audio/theme.mp3',
+    'the model should REPORT the landed scene set-music directive on view.setMusic', musicStart.view.setMusic);
+  assert(musicStart.view.audio == null,
+    'set-music must NOT be routed into the played audio directive path (reported, never played)', musicStart.view.audio);
+
   // ---- host: read a real project root, compile (cached), start + advance ----
   assert(host.isSupported(), 'the play-test host should report supported when dendrynexus is present');
   host._clearCache();
