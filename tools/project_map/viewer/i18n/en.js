@@ -36,6 +36,7 @@
       'playEngine.error': 'The real-engine play-test could not run. Check the project compiles cleanly.',
       'playEngine.entryScene': 'Start from scene',
       'playEngine.entryThisObject': '(this object)',
+      'playEngine.reroll': 'Re-roll randomness',
       'topbar.subtitle.default': 'Studio workspace for branching Dendry projects',
       'topbar.version': 'Dendry Mod Studio v0.98.1 dev preview',
       'topbar.author': 'by Awen',

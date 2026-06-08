@@ -71,6 +71,17 @@ function main() {
   assert(/data-play-var="demo_resources"/.test(html), 'starting-state should expose a quality input');
   assert(/data-play-action="engine-restart"/.test(html), 'the panel should expose an engine restart/reset control');
 
+  // Re-roll: a controls row exposes a fresh-randomness restart. Because deck/card
+  // randomness can exist with no quality variables, it must render independently
+  // of the starting-state panel -- present even when that panel is empty.
+  assert(/data-play-action="engine-reroll"/.test(html), 'the pane should expose a re-roll control');
+  assert(html.indexOf('Re-roll') !== -1, 'the re-roll control should carry its label');
+  const noVars = ui.renderPane(view, {variables: [], startState: {}});
+  assert(/data-play-action="engine-reroll"/.test(noVars),
+    'the re-roll control must render even with no quality variables (decoupled from the starting-state panel)');
+  assert(/data-play-action="engine-restart"/.test(noVars) === false,
+    'reset is panel-scoped, so a no-variable pane has no reset -- confirming re-roll is the variable-independent affordance');
+
   // Unsaved-edit badge.
   assert(html.indexOf('unsaved') !== -1 || html.toLowerCase().indexOf('unsaved') !== -1,
     'an edited play-test should flag that it includes unsaved edits');

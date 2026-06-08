@@ -457,6 +457,33 @@ async function main() {
     fs.rmSync(audioRoot, {recursive: true, force: true});
   }
 
+  // ---- seed: model.start consumes options.seed deterministically (re-roll) ----
+  // The play-test Re-roll button restarts with a fresh seed so deck/card
+  // randomness can vary; Reset returns to the default reproducible seed. The
+  // contract is: a DISTINCT seed yields a DISTINCT run, the SAME seed reproduces
+  // exactly, and omitting the seed falls back to a stable DEFAULT_SEED. We assert
+  // on the engine's exported PRNG state (state.currentRandomState), which
+  // beginGame derives deterministically from the seed -- a non-flaky proxy for
+  // "the seed was actually consumed", with no probabilistic outcome guessing.
+  const seedOpt = {game: game, entrySceneId: SCENE, startState: {demo_resources: 1}};
+  const seedAlpha1 = model.start(Object.assign({}, seedOpt, {seed: ['seed-alpha']}));
+  const seedAlpha2 = model.start(Object.assign({}, seedOpt, {seed: ['seed-alpha']}));
+  const seedBeta = model.start(Object.assign({}, seedOpt, {seed: ['seed-beta']}));
+  const seedDefault1 = model.start(seedOpt);
+  const seedDefault2 = model.start(seedOpt);
+  const rngState = (res) => JSON.stringify(res && res.state && res.state.currentRandomState);
+  assert(seedAlpha1.ok && Array.isArray(seedAlpha1.state.currentRandomState),
+    'model.start should export the engine PRNG state (currentRandomState) so a seed can be checked',
+    seedAlpha1.state);
+  assert(rngState(seedAlpha1) === rngState(seedAlpha2),
+    'the SAME seed must reproduce the same run (identical exported PRNG state)');
+  assert(rngState(seedAlpha1) !== rngState(seedBeta),
+    'a DIFFERENT seed must produce a different run (distinct exported PRNG state) -- the re-roll contract');
+  assert(rngState(seedDefault1) === rngState(seedDefault2),
+    'omitting a seed (falling back to DEFAULT_SEED) must stay reproducible across runs');
+  assert(rngState(seedDefault1) !== rngState(seedBeta),
+    'the default seed must differ from an explicit re-roll seed');
+
   process.stdout.write(JSON.stringify({
     ok: true,
     scenes: Object.keys(game.scenes).length,

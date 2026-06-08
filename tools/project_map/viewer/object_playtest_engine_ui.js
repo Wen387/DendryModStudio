@@ -360,8 +360,25 @@
     ].join('');
   }
 
-  // Render the full engine play pane (note + edit badges + starting-state panel
-  // + the per-turn node).
+  // A small, always-rendered controls row. Re-roll restarts the play-test with a
+  // fresh random seed -- keeping the author's starting-state edits and entry
+  // scene -- so randomness-bearing scenes (decks/cards) can be explored beyond
+  // the single fixed-seed outcome. It lives here (not in the starting-state
+  // panel) precisely because randomness can exist with no quality variables, so
+  // the affordance must be decoupled from that panel's presence. The Reset button
+  // in renderStatePanel is the complementary action: it clears edits AND returns
+  // to the default reproducible seed.
+  function renderControls() {
+    return [
+      '<div class="object-editing-play-controls" data-play-controls="true">',
+      '<button type="button" class="object-editing-play-reroll" data-play-action="engine-reroll">' +
+        escapeHtml(t('playEngine.reroll', 'Re-roll randomness')) + '</button>',
+      '</div>'
+    ].join('');
+  }
+
+  // Render the full engine play pane (note + edit badges + controls + starting-
+  // state panel + the per-turn node).
   function renderPane(view, opts) {
     const options = opts && typeof opts === 'object' ? opts : {};
     return [
@@ -369,6 +386,7 @@
       '<p class="object-editing-play-note object-editing-play-engine-note">' + escapeHtml(t('playEngine.note', 'Real-engine play-test: text, conditions, effects, qdisplays, choice availability and cross-scene routes are run by the actual DendryNexus engine.')) + '</p>',
       renderBadges(options),
       renderEntryPicker(options.scenes, options.entry, options.defaultEntry),
+      renderControls(),
       renderStatePanel(options.variables, options.startState),
       '<div class="object-editing-play-node" data-play-engine-node="true">',
       renderNode(view, options),
@@ -700,14 +718,23 @@
     return Boolean(host && typeof host.contains === 'function' && host.contains(el));
   }
 
+  // Produce a fresh random seed -- an array of strings, the same shape the model
+  // expects (its DEFAULT_SEED is ['dendry-mod-studio-playtest']). The engine
+  // hashes the array to seed its PRNG, so any distinct token yields a distinct
+  // randomness stream. Math.random is available in the renderer.
+  function newSeed() {
+    return ['playtest-' + Math.random().toString(36).slice(2, 10)];
+  }
+
   // Keyed by the edited OBJECT's scene (depEntryScene): switching objects in the
   // editor starts a fresh session. The effective `entry` defaults to that scene
   // but can be re-pointed by the entry picker without losing the session's
   // starting-state edits; `defaultEntry` records the object's own scene so the
-  // picker can mark it.
+  // picker can mark it. `seed` is null for a fresh/reset session so the host
+  // falls back to the model's DEFAULT_SEED (reproducible); Re-roll sets it.
   function ensureSession(key) {
     if (!current || current.key !== key) {
-      current = {key: key, entry: key, defaultEntry: key, scenes: [], token: null, viewState: null, view: null, startState: {}, runId: 0, edited: false, editFailed: false, error: null};
+      current = {key: key, entry: key, defaultEntry: key, scenes: [], token: null, viewState: null, view: null, startState: {}, seed: null, runId: 0, edited: false, editFailed: false, error: null};
     }
     return current;
   }
@@ -782,7 +809,7 @@
     } else {
       container.innerHTML = renderLoading();
     }
-    invoke({action: 'start', entrySceneId: sess.entry, startState: sess.startState, plan: depPlan(deps)})
+    invoke({action: 'start', entrySceneId: sess.entry, startState: sess.startState, seed: sess.seed, plan: depPlan(deps)})
       .then((res) => {
         if (current !== sess || sess.runId !== runId) {
           return;
@@ -887,7 +914,22 @@
       event.preventDefault();
       const entry = depEntryScene(deps);
       const sess = ensureSession(entry);
+      // Reset to baseline: drop starting-state edits AND the rolled seed, so the
+      // run returns to the default reproducible randomness.
       sess.startState = {};
+      sess.seed = null;
+      sess.error = null;
+      startSession(deps, container, false);
+      return true;
+    }
+    const reroll = target.closest('[data-play-action="engine-reroll"]');
+    if (reroll && depWithinHost(deps, reroll)) {
+      event.preventDefault();
+      const entry = depEntryScene(deps);
+      const sess = ensureSession(entry);
+      // Re-roll: keep the author's starting-state edits and entry scene; only
+      // swap in a fresh random seed and replay so deck/card randomness differs.
+      sess.seed = newSeed();
       sess.error = null;
       startSession(deps, container, false);
       return true;

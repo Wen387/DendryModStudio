@@ -36,6 +36,7 @@
       'playEngine.error': '真引擎試玩無法執行，請確認專案能正常編譯。',
       'playEngine.entryScene': '從哪個場景開始',
       'playEngine.entryThisObject': '（此物件）',
+      'playEngine.reroll': '重擲隨機',
       'topbar.subtitle.default': '分支型 Dendry 專案的 Mod 編輯工作區',
       'topbar.version': 'Dendry Mod Studio v0.98.1 dev preview',
       'topbar.author': '作者 Awen',
