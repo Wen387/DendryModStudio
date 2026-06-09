@@ -104,21 +104,26 @@ npm run check:complexity
 ```
 
 Budget enforcement reads `tools/project_map/source_complexity_budget.json` and
-fails when a new exception-sized file appears, a file grows past its `maxLines`,
-or a `maxLines` ceiling is raised above its committed value. The budget is a
-one-way ratchet: ceilings may only fall. After shrinking a file, run
+fails when:
 
-```bash
-node tools/project_map/check_source_complexity.js --tighten
-```
+- a new exception-sized file appears without a budget entry,
+- a file exceeds its `maxLines`,
+- a frozen ceiling (a budget entry without `"allowRaise": true`) is raised above
+  its committed value, or
+- an already-large (warn/exception) file grows by more than **35 lines** versus
+  its committed (HEAD) version in a single commit.
 
-which lowers each `maxLines` to the current line count and never raises one. If a
-file genuinely must grow, that is a deliberate, reviewed exception: set
-`"allowRaise": true` on its budget entry. `check_source_complexity.js
---enforce-budget` runs as the second step of `check:ci`, so these rules are
-enforced on every CI run (the no-raise comparison is skipped only when git
-history is unavailable). `check_source_complexity_model.js` guards the ratchet
-logic itself.
+The last rule is a **per-file growth gate**: it stops a hot file from absorbing a
+whole feature one commit at a time. To add more than ~35 lines, move the bulk
+into a focused or sibling module. A small, deliberate addition to a hot file is
+fine — set `"allowRaise": true` on its entry and raise `maxLines` with a dated
+reason. Entries without `allowRaise` are frozen: their ceilings may only fall.
+There is no cross-file accounting — growing one file never requires shrinking an
+unrelated one. Enforcement also prints an **advisory** list of large-file size
+changes since HEAD (not blocking) for drift visibility. The growth and no-raise
+comparisons are skipped only when git history is unavailable.
+`check_source_complexity.js --enforce-budget` runs as part of `check:ci`;
+`check_source_complexity_model.js` guards the governance logic itself.
 
 Desktop checks after `npm ci` in `tools/project_map/desktop`:
 

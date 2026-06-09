@@ -1,12 +1,15 @@
 #!/usr/bin/env node
 'use strict';
 
-// Regression guard for the one-way complexity-budget ratchet in
-// check_source_complexity.js: budget ceilings may only fall, and --tighten
-// lowers them to the current line count without ever raising.
+// Regression guard for check_source_complexity.js budget governance:
+//  - evaluateNoRaise: a frozen ceiling (no "allowRaise": true) may only fall.
+//  - evaluateGrowth: an already-large (warn/exception) file may grow by at most
+//    MAX_SINGLE_COMMIT_GROWTH lines versus its committed (HEAD) size in a single
+//    commit. New files (no committed line count) and shrinks are never flagged;
+//    ok-status files are not gated at all.
 
 const {assert} = require('./check_harness.js');
-const {evaluateNoRaise, tightenEntries} = require('./check_source_complexity');
+const {evaluateNoRaise, evaluateGrowth, MAX_SINGLE_COMMIT_GROWTH} = require('./check_source_complexity');
 
 let count = 0;
 function check(condition, message) {
@@ -14,7 +17,7 @@ function check(condition, message) {
   assert(condition, message);
 }
 
-// --- evaluateNoRaise: ceilings may only fall ---
+// --- evaluateNoRaise: frozen ceilings may only fall ---
 
 (function noRaiseFlagsAnIncrease() {
   const budget = {exceptions: new Map([['a.js', {maxLines: 120}]])};
@@ -48,26 +51,45 @@ function check(condition, message) {
   check(problems.length === 0, 'a missing committed baseline (no git) should skip the check');
 })();
 
-// --- tightenEntries: lower-only and idempotent ---
+// --- evaluateGrowth: per-file single-commit growth gate ---
 
-(function tightenLowersSlackToCurrent() {
-  const exceptions = [{path: 'a.js', maxLines: 100}, {path: 'b.js', maxLines: 90}];
-  const lineByPath = new Map([['a.js', 80], ['b.js', 90]]);
-  const changes = tightenEntries(exceptions, lineByPath);
-  check(changes.length === 1, 'only the slack entry should change');
-  check(changes[0].path === 'a.js' && changes[0].from === 100 && changes[0].to === 80, 'change should record from/to');
-  check(exceptions[0].maxLines === 80, 'a slack ceiling should fall to the current line count');
-  check(exceptions[1].maxLines === 90, 'an already-tight ceiling should stay');
-  const again = tightenEntries(exceptions, lineByPath);
-  check(again.length === 0, 'tighten must be idempotent');
+(function growthFlagsAnOversizedJump() {
+  const rows = [{path: 'big.js', lines: 1900, status: 'exception'}];
+  const head = new Map([['big.js', 1900 - (MAX_SINGLE_COMMIT_GROWTH + 1)]]);
+  const {problems, growths} = evaluateGrowth(rows, head, MAX_SINGLE_COMMIT_GROWTH);
+  check(problems.length === 1, 'a jump over the cap should produce one problem');
+  check(problems[0].kind === 'growth-exceeded', 'problem kind should be growth-exceeded');
+  check(problems[0].delta === MAX_SINGLE_COMMIT_GROWTH + 1 && problems[0].from === 1900 - (MAX_SINGLE_COMMIT_GROWTH + 1), 'problem should carry delta and committed size');
+  check(growths.length === 1 && growths[0].delta === MAX_SINGLE_COMMIT_GROWTH + 1, 'the change should also surface in the advisory growths');
 })();
 
-(function tightenNeverRaises() {
-  const exceptions = [{path: 'a.js', maxLines: 100}];
-  const lineByPath = new Map([['a.js', 140]]);
-  const changes = tightenEntries(exceptions, lineByPath);
-  check(changes.length === 0, 'tighten must never raise a ceiling, even if the file grew');
-  check(exceptions[0].maxLines === 100, 'ceiling stays put when the current size exceeds it');
+(function growthAllowsAtOrBelowTheCap() {
+  const rows = [{path: 'big.js', lines: 1900, status: 'exception'}];
+  const head = new Map([['big.js', 1900 - MAX_SINGLE_COMMIT_GROWTH]]);
+  const {problems} = evaluateGrowth(rows, head, MAX_SINGLE_COMMIT_GROWTH);
+  check(problems.length === 0, 'growth exactly at the cap must not be flagged');
 })();
 
-process.stdout.write('PASS: source complexity ratchet model (' + count + ' assertions)\n');
+(function growthNeverFlagsAShrink() {
+  const rows = [{path: 'big.js', lines: 1500, status: 'warn'}];
+  const head = new Map([['big.js', 1700]]);
+  const {problems, growths} = evaluateGrowth(rows, head, MAX_SINGLE_COMMIT_GROWTH);
+  check(problems.length === 0, 'a shrink must never be flagged as a problem');
+  check(growths.length === 1 && growths[0].delta === -200, 'a shrink still surfaces (negative) in the advisory');
+})();
+
+(function growthSkipsOkStatusFiles() {
+  const rows = [{path: 'small.js', lines: 400, status: 'ok'}];
+  const head = new Map([['small.js', 100]]);
+  const {problems, growths} = evaluateGrowth(rows, head, MAX_SINGLE_COMMIT_GROWTH);
+  check(problems.length === 0 && growths.length === 0, 'ok-status files are neither gated nor reported');
+})();
+
+(function growthSkipsNewFiles() {
+  const rows = [{path: 'new.js', lines: 1900, status: 'exception'}];
+  const head = new Map(); // file absent from HEAD
+  const {problems} = evaluateGrowth(rows, head, MAX_SINGLE_COMMIT_GROWTH);
+  check(problems.length === 0, 'a file with no committed version is left to the new-exception rule');
+})();
+
+process.stdout.write('PASS: source complexity governance model (' + count + ' assertions)\n');

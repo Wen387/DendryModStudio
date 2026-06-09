@@ -78,8 +78,9 @@ raised (bad). Orchestrators must *shed* domain code, not merely spawn neighbors.
 
 **Targets:**
 - Prefer keeping JS modules under the budget warn line (1200 lines).
-- An orchestrator that must stay larger needs an explicit, capped budget entry
-  whose ceiling only ever falls (see the budget ratchet below).
+- An orchestrator that must stay larger needs an explicit, capped budget entry,
+  and may only grow slowly: at most 35 lines per commit, with the bulk of any
+  bigger change shed into a sibling module (see the growth gate below).
 
 ## Convergence backlog (ordered)
 
@@ -110,9 +111,12 @@ These three together keep the contract honest. They land in the same round so
 the contract is enforced rather than aspirational:
 
 1. **This contract** — the destination (surface jobs + target module shape).
-2. **One-way budget ratchet** — `check_source_complexity.js` lets a file's
-   `maxLines` only fall; raising a ceiling is an explicit, reviewed exception,
-   not routine. So growth must be paid for by a split.
+2. **Per-file growth gate** — `check_source_complexity.js` lets an already-large
+   file grow by at most 35 lines per commit versus HEAD; a frozen entry's
+   `maxLines` may only fall, and raising a raisable ceiling is an explicit,
+   reviewed exception with a dated reason. The friction is local (don't balloon
+   THIS file) with no cross-file offset accounting. So feature bulk must be shed
+   into a sibling module, not crammed into the orchestrator.
 3. **Manifest-driven `check:ci`** — the check list is data, readable and
    validated, instead of one ~95-item shell chain.
 
