@@ -91,9 +91,18 @@
     ].join('');
   }
 
+  // Resolve the off-budget insert sibling: browser global, else require() (so Node
+  // check harnesses loading only this module still get the insert chip renderers).
+  function objectEditorInserts() {
+    if (global && global.ProjectMapObjectEditorInserts) { return global.ProjectMapObjectEditorInserts; }
+    try { return require('./object_editor_inserts.js'); } catch (_err) { return null; }
+  }
+
   function renderModal(model, options) {
     const opts = options && typeof options === 'object' ? options : {};
     const body = model && model.eventBody || {};
+    const modalInserts = objectEditorInserts();
+    if (modalInserts) { modalInserts.setEventContext(body); }
     const kind = editorKind(model, opts);
     const title = titleText(body, model, kind);
     const source = sourceLabel(model);
@@ -1614,22 +1623,9 @@
     ].join('');
   }
 
-  // Demystify raw condition syntax for newcomers: offer the variables this layer
-  // already references as one-click insert chips, so editing a condition does not
-  // require recalling exact quality names. The set mirrors the what-if strip
-  // (the variables in play here), keeping the suggestions contextual.
-  function renderConditionalVarInserts(variables) {
-    const names = ensureArray(variables).filter(Boolean);
-    if (!names.length) {
-      return '';
-    }
-    return [
-      '<div class="preview-object-conditional-var-insert" data-conditional-var-insert="true">',
-      '<span class="preview-object-conditional-var-insert-label">' + escapeHtml(t('previewObjectEditor.insertVariable', 'Insert variable')) + '</span>',
-      names.map((name) => '<button type="button" class="preview-object-conditional-var-token" data-conditional-var-token="' + escapeAttr(name) + '">' + escapeHtml(name) + '</button>').join(''),
-      '</div>'
-    ].join('');
-  }
+  // renderConditionalVarInserts (and the prose [+ qdisplay +] inserter) live in the
+  // off-budget sibling object_editor_inserts.js; object_authoring_canvas_ui still
+  // owns the data-conditional-var-token click handler that drives those chips.
 
   function renderConditionalLeafEditor(node, options) {
     if (!node || !node.editable || !node.textFieldId) {
@@ -1652,7 +1648,7 @@
         '<label class="preview-object-conditional-edit-field">',
         '<span>' + escapeHtml(t('previewObjectEditor.editBranchCondition', 'Branch condition')) + '</span>',
         '<input type="text" class="preview-object-conditional-edit-input" value="' + escapeAttr(rawCondition) + '" data-object-canvas-field="' + escapeAttr(node.conditionFieldId) + '" data-object-canvas-original="' + escapeAttr(rawCondition) + '" data-conditional-leaf-input="condition">',
-        renderConditionalVarInserts(opts.conditionVariables),
+        ((m) => m ? m.renderConditionalVarInserts(opts.conditionVariables) : '')(objectEditorInserts()),
         '<small class="preview-object-conditional-edit-note" data-conditional-leaf-note="condition" role="status" aria-live="polite" hidden></small>',
         '</label>'
       );
@@ -3836,6 +3832,7 @@
       suppressFieldDiagnostics || !fieldContextHint(field) ? '' : '<small class="preview-object-field-context">' + escapeHtml(fieldContextHint(field)) + '</small>',
       suppressFieldDiagnostics ? '' : fieldLogicChips(field),
       control,
+      ((m) => m ? m.renderQdisplayInsert(field, {role: opts.role || 'field', fieldId: id}) : '')(objectEditorInserts()),
       suppressFieldDiagnostics ? '' : renderFieldVariablePicker(field, presentation, readOnly),
       renderedPreview,
       field && field.status ? '<small>' + escapeHtml(statusLabel(field.status, readOnly)) + '</small>' : '',

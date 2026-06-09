@@ -1557,6 +1557,7 @@
       'previewObjectEditor.filterOnlyShows': '只看會顯示的分支',
       'previewObjectEditor.filterCount': '顯示 {shown} / 共 {total}',
       'previewObjectEditor.insertVariable': '插入變數',
+      'previewObjectEditor.insertQdisplay': '插入顯示',
       'previewObjectEditor.whatIfLabel': '假設狀態',
       'previewObjectEditor.whatIfShows': '顯示',
       'previewObjectEditor.whatIfHidden': '隱藏',
