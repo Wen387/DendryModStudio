@@ -116,7 +116,10 @@ the contract is enforced rather than aspirational:
    `maxLines` may only fall, and raising a raisable ceiling is an explicit,
    reviewed exception with a dated reason. The friction is local (don't balloon
    THIS file) with no cross-file offset accounting. So feature bulk must be shed
-   into a sibling module, not crammed into the orchestrator.
+   into a sibling module, not crammed into the orchestrator. The one escape
+   hatch is per-case and only for files this document registers as
+   extraction-BLOCKED: a dated `growthExemption` in the budget approves a single
+   oversized growth and goes stale once committed (see WORKFLOW.md).
 3. **Manifest-driven `check:ci`** — the check list is data, readable and
    validated, instead of one ~95-item shell chain.
 

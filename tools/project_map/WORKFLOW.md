@@ -119,7 +119,16 @@ into a focused or sibling module. A small, deliberate addition to a hot file is
 fine — set `"allowRaise": true` on its entry and raise `maxLines` with a dated
 reason. Entries without `allowRaise` are frozen: their ceilings may only fall.
 There is no cross-file accounting — growing one file never requires shrinking an
-unrelated one. Enforcement also prints an **advisory** list of large-file size
+unrelated one.
+
+One reviewed escape hatch exists for files that *cannot* shed code yet: when
+ARCHITECTURE.md registers a file as extraction-BLOCKED, its budget entry may
+carry a `"growthExemption"` — a reason string with an ISO date (YYYY-MM-DD)
+approving one oversized growth. The exemption only works in the commit that
+writes or rewrites its reason text; once committed it goes stale, and the next
+oversized growth needs a fresh dated re-approval (typically alongside the
+matching `maxLines` raise in the same commit). An exemption on any other file
+fails enforcement — for those, split the file instead. Enforcement also prints an **advisory** list of large-file size
 changes since HEAD (not blocking) for drift visibility. The growth and no-raise
 comparisons are skipped only when git history is unavailable.
 `check_source_complexity.js --enforce-budget` runs as part of `check:ci`;

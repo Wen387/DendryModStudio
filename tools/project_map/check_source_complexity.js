@@ -280,6 +280,10 @@ function loadBudget(filePath) {
     if (entry.allowRaise !== undefined && typeof entry.allowRaise !== 'boolean') {
       throw new Error(label + '.allowRaise must be a boolean when present');
     }
+    if (entry.growthExemption !== undefined
+      && (typeof entry.growthExemption !== 'string' || !/\b\d{4}-\d{2}-\d{2}\b/.test(entry.growthExemption))) {
+      throw new Error(label + '.growthExemption must be a reason string carrying an ISO date (YYYY-MM-DD)');
+    }
     if (exceptions.has(entry.path)) {
       throw new Error('Duplicate budget entry for ' + entry.path);
     }
@@ -335,7 +339,10 @@ function committedBudgetEntries(budgetRelPath) {
   const map = new Map();
   parsed.exceptions.forEach((entry) => {
     if (entry && typeof entry.path === 'string' && Number.isInteger(entry.maxLines)) {
-      map.set(entry.path, entry.maxLines);
+      map.set(entry.path, {
+        maxLines: entry.maxLines,
+        growthExemption: typeof entry.growthExemption === 'string' ? entry.growthExemption : null
+      });
     }
   });
   return map;
@@ -351,16 +358,84 @@ function evaluateNoRaise(budget, committed) {
       return;
     }
     const prior = committed.get(relPath);
-    if (typeof prior === 'number' && entry.maxLines > prior) {
+    if (prior && typeof prior.maxLines === 'number' && entry.maxLines > prior.maxLines) {
       problems.push({
         kind: 'ceiling-raised',
         row: {path: relPath, lines: entry.maxLines},
         entry,
-        from: prior
+        from: prior.maxLines
       });
     }
   });
   return problems.sort((a, b) => a.row.path.localeCompare(b.row.path));
+}
+
+// ARCHITECTURE.md is the registry of extraction-blocked files: a backlog line
+// that names a `path` in backticks and carries the word BLOCKED. Parsed rather
+// than hardcoded so the architecture doc stays the single source of truth for
+// growthExemption eligibility.
+function parseExtractionBlockedPaths(markdown) {
+  const paths = new Set();
+  String(markdown || '').split('\n').forEach((line) => {
+    if (!/\bBLOCKED\b/.test(line)) {
+      return;
+    }
+    const match = line.match(/`([^`]+\.(?:js|py|css|html))`/);
+    if (match) {
+      paths.add('tools/project_map/' + match[1]);
+    }
+  });
+  return paths;
+}
+
+function extractionBlockedPaths() {
+  try {
+    return parseExtractionBlockedPaths(fs.readFileSync(path.join(PROJECT_MAP_ROOT, 'ARCHITECTURE.md'), 'utf8'));
+  } catch (_error) {
+    return new Set();
+  }
+}
+
+// A growthExemption is only legitimate on a file the architecture doc registers
+// as extraction-blocked; anywhere else the answer is to split the file, so the
+// entry itself is a budget problem.
+function evaluateExemptionPlacement(budget, blockedPaths) {
+  const problems = [];
+  budget.exceptions.forEach((entry, relPath) => {
+    if (typeof entry.growthExemption !== 'string') {
+      return;
+    }
+    if (!blockedPaths.has(relPath)) {
+      problems.push({
+        kind: 'exemption-not-blocked',
+        row: {path: relPath, lines: entry.maxLines},
+        entry
+      });
+    }
+  });
+  return problems.sort((a, b) => a.row.path.localeCompare(b.row.path));
+}
+
+// Reviewed per-case exemption from the growth gate (the "Option B" escape
+// hatch): a budget entry's growthExemption — a dated reason string — approves
+// ONE oversized growth, and only counts while it is FRESH, i.e. its text
+// differs from the committed budget (it was written or rewritten in this very
+// commit). Once the commit lands the texts match, the exemption goes stale,
+// and the next oversized growth needs a new dated re-approval. This keeps the
+// bypass per-case instead of a standing waiver. Eligibility is restricted to
+// extraction-blocked files via blockedPaths (placement problems are reported
+// separately by evaluateExemptionPlacement).
+function growthExemptionState(budget, committed, blockedPaths) {
+  const state = new Map();
+  budget.exceptions.forEach((entry, relPath) => {
+    if (typeof entry.growthExemption !== 'string' || !blockedPaths.has(relPath)) {
+      return;
+    }
+    const prior = committed ? committed.get(relPath) : null;
+    const priorText = prior && typeof prior.growthExemption === 'string' ? prior.growthExemption : null;
+    state.set(relPath, priorText === entry.growthExemption ? 'stale' : 'fresh');
+  });
+  return state;
 }
 
 // Per-file growth gate. The failure mode this guards is the easy local optimum:
@@ -403,10 +478,14 @@ function collectHeadLineCounts(rows) {
 
 // Pure logic (headLineByPath injected) so the model test can exercise it without
 // git. Returns enforced problems plus advisory growth deltas for every changed
-// large file.
-function evaluateGrowth(rows, headLineByPath, maxGrowth) {
+// large file. exemptionState (optional, from growthExemptionState) maps a path
+// to 'fresh' (this commit re-approved an oversized growth: allow it, tag the
+// advisory) or 'stale' (an old exemption exists but was not re-approved: still
+// a problem, with a pointed hint).
+function evaluateGrowth(rows, headLineByPath, maxGrowth, exemptionState) {
   const problems = [];
   const growths = [];
+  const state = exemptionState || new Map();
   rows
     .filter((row) => row.status !== 'ok')
     .forEach((row) => {
@@ -415,11 +494,18 @@ function evaluateGrowth(rows, headLineByPath, maxGrowth) {
       }
       const head = headLineByPath.get(row.path);
       const delta = row.lines - head;
+      const exempted = delta > maxGrowth && state.get(row.path) === 'fresh';
       if (delta !== 0) {
-        growths.push({path: row.path, head: head, current: row.lines, delta: delta});
+        growths.push({path: row.path, head: head, current: row.lines, delta: delta, exempted: exempted});
       }
-      if (delta > maxGrowth) {
-        problems.push({kind: 'growth-exceeded', row: row, from: head, delta: delta});
+      if (delta > maxGrowth && !exempted) {
+        problems.push({
+          kind: 'growth-exceeded',
+          row: row,
+          from: head,
+          delta: delta,
+          staleExemption: state.get(row.path) === 'stale'
+        });
       }
     });
   return {problems: problems, growths: growths};
@@ -446,7 +532,16 @@ function formatBudgetResult(problems, budgetFile, growths) {
       }
       if (problem.kind === 'growth-exceeded') {
         lines.push('- GREW TOO FAST +' + problem.delta + ' lines this commit (HEAD ' + problem.from + ' -> ' + problem.row.lines + ')  ' + problem.row.path);
-        lines.push('  A single commit may add at most ' + MAX_SINGLE_COMMIT_GROWTH + ' lines to an already-large file. Move the bulk into a focused/sibling module instead of growing this one.');
+        if (problem.staleExemption) {
+          lines.push('  Its growthExemption is unchanged since HEAD (stale). Each oversized growth needs a fresh approval: rewrite the exemption reason with a new date in this same commit.');
+        } else {
+          lines.push('  A single commit may add at most ' + MAX_SINGLE_COMMIT_GROWTH + ' lines to an already-large file. Move the bulk into a focused/sibling module instead of growing this one.');
+        }
+        return;
+      }
+      if (problem.kind === 'exemption-not-blocked') {
+        lines.push('- EXEMPTION NOT ELIGIBLE growthExemption on ' + problem.row.path);
+        lines.push('  growthExemption applies only to files ARCHITECTURE.md registers as extraction-BLOCKED. Split the file instead, or remove the exemption.');
         return;
       }
       lines.push('- OVER BUDGET ' + problem.row.lines + ' lines > maxLines ' + problem.entry.maxLines + '  ' + problem.row.path);
@@ -458,7 +553,7 @@ function formatBudgetResult(problems, budgetFile, growths) {
     lines.push('');
     lines.push('Advisory - large-file size change since HEAD (not enforced):');
     changed.forEach((growth) => {
-      lines.push('  ' + (growth.delta > 0 ? '+' : '') + growth.delta + '  ' + growth.path + ' (' + growth.head + ' -> ' + growth.current + ')');
+      lines.push('  ' + (growth.delta > 0 ? '+' : '') + growth.delta + '  ' + growth.path + ' (' + growth.head + ' -> ' + growth.current + ')' + (growth.exempted ? '  [growth exemption]' : ''));
     });
   }
   return lines.join('\n') + '\n';
@@ -502,9 +597,12 @@ function main() {
 
   const committed = committedBudgetEntries(relative(args.budgetFile));
   const headLines = collectHeadLineCounts(rows);
-  const gate = evaluateGrowth(rows, headLines, MAX_SINGLE_COMMIT_GROWTH);
+  const blockedPaths = extractionBlockedPaths();
+  const exemptionState = growthExemptionState(budget, committed, blockedPaths);
+  const gate = evaluateGrowth(rows, headLines, MAX_SINGLE_COMMIT_GROWTH, exemptionState);
   const problems = evaluateBudget(rows, budget)
     .concat(evaluateNoRaise(budget, committed))
+    .concat(evaluateExemptionPlacement(budget, blockedPaths))
     .concat(gate.problems);
   process.stdout.write('\n' + formatBudgetResult(problems, args.budgetFile, gate.growths));
   if (problems.length) {
@@ -524,5 +622,8 @@ module.exports = {
   evaluateGrowth,
   collectHeadLineCounts,
   loadBudget,
+  parseExtractionBlockedPaths,
+  evaluateExemptionPlacement,
+  growthExemptionState,
   MAX_SINGLE_COMMIT_GROWTH
 };
