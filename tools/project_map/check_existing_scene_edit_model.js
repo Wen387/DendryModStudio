@@ -1334,11 +1334,66 @@ const advancedModel = existingEdit.buildEditModel({
 }, 'events', 'protected_router');
 assert(advancedModel.fields[0].editability === 'advanced_source_patch', 'protected router-backed fields should stay editable through advanced source patch');
 
+// Magic {! !} guarded block editor: in-cap blocks (verbatim rawText + scene span
+// + anchors) become guard-editable raw-JS replace_section edits; oversized blocks
+// (no rawText) escape to the IDE; wrapper-breaking edits downgrade to manual.
+const magicPath = 'source/scenes/events/magic_demo.scene.dry';
+const magicIndex = {
+  scenes: [{
+    id: 'magic_demo',
+    title: 'Magic Demo',
+    sourceSpan: {path: magicPath, startLine: 1, endLine: 67},
+    opaqueJsBlocks: [
+      {
+        id: 'opaque_js_demo1', hook: 'on-arrival', scriptKind: 'opaque_js',
+        label: 'on-arrival JS block', lineCount: 3, rawPreview: 'Q.foo = 1;',
+        rawText: 'on-arrival: {!\n  Q.foo = 1;\n!}',
+        reads: [], writes: ['foo'], dynamicKeyWrites: [],
+        source: {path: magicPath, line: 4, startLine: 4, endLine: 6, anchorText: 'on-arrival: {!', endAnchorText: '!}', rawAnchorText: 'on-arrival: {!', rawEndAnchorText: '!}'},
+        reviewBoundary: 'manual_review', confidence: 'opaque'
+      },
+      {
+        id: 'opaque_js_demo2', hook: 'on-display', scriptKind: 'opaque_js',
+        label: 'on-display JS block', lineCount: 60, rawPreview: 'huge block',
+        reads: [], writes: [], dynamicKeyWrites: [],
+        source: {path: magicPath, line: 8, startLine: 8, endLine: 67, anchorText: 'on-display: {!', endAnchorText: '!}', rawAnchorText: 'on-display: {!', rawEndAnchorText: '!}'},
+        reviewBoundary: 'manual_review', confidence: 'opaque'
+      }
+    ]
+  }],
+  semantic: {textCorpus: {items: []}}
+};
+const magicModel = existingEdit.buildEditModel(magicIndex, 'events', 'magic_demo');
+const magicEditableBlock = magicModel.opaqueJsBlocks.find((block) => block.id === 'opaque_js_demo1');
+const magicIdeBlock = magicModel.opaqueJsBlocks.find((block) => block.id === 'opaque_js_demo2');
+assert(magicEditableBlock && magicEditableBlock.editable === true && magicEditableBlock.editability === 'guarded_replace_section', 'in-cap magic block with verbatim text + anchors should be guard-editable');
+assert(magicEditableBlock.value === 'on-arrival: {!\n  Q.foo = 1;\n!}', 'editable magic block should carry verbatim rawText as its value');
+assert(magicIdeBlock && magicIdeBlock.editable === false && magicIdeBlock.editability === 'ide_escape_hatch', 'oversized magic block without verbatim text should fall back to ide_escape_hatch');
+
+// The value key uses 'opaque:<id>' (matches the UI's data-object-canvas-field
+// binding); the change record's fieldId is sanitized by normalizeProposal, so
+// changes are matched here by role rather than by the colon-keyed value id.
+const magicProposal = existingEdit.buildProposal(magicModel, {'opaque:opaque_js_demo1': 'on-arrival: {!\n  Q.foo = 2;\n!}'});
+const magicChange = magicProposal.changes.find((change) => change.role === 'opaque_js_block');
+assert(magicChange && magicChange.operationType === 'replace_section', 'editing a magic block should produce a guarded replace_section change');
+assert(magicChange.anchorText === 'on-arrival: {!' && magicChange.endAnchorText === '!}' && magicChange.startLine === 4 && magicChange.endLine === 6, 'magic block change should carry the recorded span + anchors');
+const magicBundle = existingEdit.buildExportBundle(magicProposal, magicIndex);
+assert(magicBundle.installPlan.operations.some((op) => op.type === 'replace_section' && op.safety === 'guarded_apply'), 'magic block edit should export a guarded replace_section op');
+
+const magicBreakProposal = existingEdit.buildProposal(magicModel, {'opaque:opaque_js_demo1': 'Q.foo = 2; // dropped the wrapper'});
+const magicBreakChange = magicBreakProposal.changes.find((change) => change.role === 'opaque_js_block');
+assert(magicBreakChange && magicBreakChange.operationType === 'manual_snippet', 'a magic block edit that breaks the {! !} wrapper must downgrade to manual review');
+
+const magicIdeProposal = existingEdit.buildProposal(magicModel, {'opaque:opaque_js_demo2': 'whatever {! !}'});
+assert(!magicIdeProposal.changes.some((change) => change.role === 'opaque_js_block'), 'non-editable (ide_escape_hatch) magic blocks should not produce changes');
+
 console.log(JSON.stringify({
   ok: true,
   eventFields: eventModel.fields.length,
   textBlocks: eventModel.textBlocks.length,
   eventChanges: eventProposal.changes.length,
   cardOptions: cardModel.options.length,
-  advancedEditability: advancedModel.fields[0].editability
+  advancedEditability: advancedModel.fields[0].editability,
+  magicBlockEditable: magicEditableBlock.editable,
+  magicChangeOp: magicChange.operationType
 }, null, 2));

@@ -1878,9 +1878,44 @@
       renderBranchSectionEditor(branchSections, textOptions, body, renderPlan, model),
       renderAssetEditorPanel(body, 'event', model),
       renderLogicEditor(body, 'event'),
+      renderOpaqueBlocks(body),
       renderEventReviewDetails(body, model),
       '</article>'
     ].join('');
+  }
+
+  // Magic {! … !} blocks (opaque arbitrary JS hooks) — previously invisible in the
+  // object editor. Surfaced as raw-JS textareas bound to 'opaque:<id>' so a save
+  // becomes a guarded replace_section over the block's span (raw-text edit by
+  // policy; Studio never interprets the JS). Oversized/unanchored blocks (model
+  // marks them not editable) render read-only with an IDE escape hint.
+  function renderOpaqueBlocks(body) {
+    const items = ensureArray(body && body.opaqueJsBlocks);
+    if (!items.length) {
+      return '';
+    }
+    const rows = items.map((block) => {
+      const editable = Boolean(block && block.editable && block.id);
+      const writes = ensureArray(block && block.writes);
+      const reads = ensureArray(block && block.reads);
+      const hint = [
+        writes.length ? t('objectCanvas.magicWrites', 'Writes') + ': ' + writes.join(', ') : '',
+        reads.length ? t('objectCanvas.magicReads', 'Reads') + ': ' + reads.join(', ') : '',
+        editable ? '' : t('objectCanvas.magicIdeOnly', 'Large or unanchored block — edit in your IDE.')
+      ].filter(Boolean).join('  ·  ');
+      const field = {
+        id: editable ? 'opaque:' + block.id : '',
+        value: String((editable ? (block.value !== undefined ? block.value : block.rawText) : (block.rawPreview || block.value)) || ''),
+        label: (block && block.hook ? block.hook + ' ' : '') + t('objectCanvas.magicBlock', 'magic {! … !}'),
+        status: editable ? 'guarded' : 'review',
+        readOnly: !editable
+      };
+      return '<div class="preview-object-magic-block">' + renderInlineField(field, {role: 'logic', element: 'textarea'})
+        + (hint ? '<small class="preview-object-field-context">' + escapeHtml(hint) + '</small>' : '') + '</div>';
+    }).join('');
+    return '<details class="preview-object-logic-details" data-preview-object-magic="true"><summary>'
+      + escapeHtml(t('objectCanvas.magicBlocks', 'Magic / JS blocks')) + '</summary>'
+      + '<div class="preview-object-magic-blocks">' + rows + '</div></details>';
   }
 
   function branchSectionGroups(body) {
