@@ -1967,9 +1967,9 @@
       }
     }
     if (String(field && field.structureAction || '') === 'add_branch') {
-      const advanced = advancedAddBranchChange(field, afterText);
-      if (advanced) {
-        return advanced;
+      const guarded = guardedAddBranchChange(field, afterText);
+      if (guarded) {
+        return guarded;
       }
     }
     if (String(field && field.structureAction || '') === 'add_option_effect') {
@@ -2349,7 +2349,7 @@
     return lines;
   }
 
-  function advancedAddBranchChange(field, afterText) {
+  function guardedAddBranchChange(field, afterText) {
     const sourceBlock = isObject(field && field.structureSourceBlock) ? field.structureSourceBlock : {};
     if (String(sourceBlock.kind || '') !== 'branch_insert_anchor') {
       return null;
@@ -2370,7 +2370,7 @@
     }
     const content = renderAddBranchInsert(parsed);
     const change = baseFieldChange(field, '(not present yet)', content);
-    change.editability = 'advanced_source_patch';
+    change.editability = 'guarded_apply';
     change.operationType = 'insert_text';
     change.anchorText = anchor;
     change.position = 'after';

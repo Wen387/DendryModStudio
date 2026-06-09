@@ -291,7 +291,7 @@ async function runStarterDemoComplexEventCreate() {
     assert(reopened.eventBody.branchSections.length >= 2, 'existing editor should expose branch/result layers after re-open', reopened.eventBody.branchSections);
     assert(reopened.eventBody.choiceUnits.length >= 4, 'reopened complex event should expose complete choice units', reopened.eventBody.choiceUnits);
     assert(reopened.eventBody.continuationMap.summary.directRoutes >= 1 || reopened.eventBody.continuationMap.summary.menuReturns >= 1, 'reopened complex event should expose continuation map', reopened.eventBody.continuationMap);
-    assert(hasAction(reopened.eventBody, 'add_branch', (field) => field.editability === 'advanced_source_patch'), 'existing editor should expose advanced add-branch after re-open', reopened.eventBody.structureActions);
+    assert(hasAction(reopened.eventBody, 'add_branch', (field) => field.editability === 'guarded_apply'), 'existing editor should expose guarded add-branch after re-open', reopened.eventBody.structureActions);
     assert(hasAction(reopened.eventBody, 'remove_option'), 'existing editor should expose option deletion after re-open', reopened.eventBody.structureActions);
     assert(hasAction(reopened.eventBody, 'remove_layer'), 'existing editor should expose layer deletion after re-open', reopened.eventBody.structureActions);
     assert(hasAction(reopened.eventBody, 'add_option', (field) => String(field.sectionId || '').includes('committee_floor')), 'existing editor should expose section-owned add-option after re-open', reopened.eventBody.structureActions);

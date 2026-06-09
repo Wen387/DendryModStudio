@@ -53,7 +53,7 @@ async function runExistingEventRoundtrip() {
     assert(initial.ok, 'existing demo event should open in Object Canvas', initial.changeState.diagnostics);
     assert(initial.mode === 'existing', 'existing demo event should use existing mode', initial.mode);
     assert(initial.eventBody.structureActions.some((field) => field.id === 'structure_add_option' && field.editability === 'guarded_apply'), 'existing event should expose guarded add-option', initial.eventBody.structureActions);
-    assert(initial.eventBody.structureActions.some((field) => field.id === 'structure_add_branch' && field.editability === 'advanced_source_patch'), 'existing event should expose advanced add-branch', initial.eventBody.structureActions);
+    assert(initial.eventBody.structureActions.some((field) => field.id === 'structure_add_branch' && field.editability === 'guarded_apply'), 'existing event should expose guarded add-branch', initial.eventBody.structureActions);
 
     const values = {
       structure_add_option: [
@@ -75,13 +75,13 @@ async function runExistingEventRoundtrip() {
     const addOptionOperation = operationByContent(plan, '@district_briefing');
     const addBranchOperation = operationByContent(plan, '@late_notice');
     assert(addOptionOperation && addOptionOperation.type === 'insert_text' && addOptionOperation.safety === 'guarded_apply', 'add-option should produce guarded insert_text', plan.operations);
-    assert(addBranchOperation && addBranchOperation.type === 'insert_text' && addBranchOperation.safety === 'advanced_apply', 'add-branch should produce advanced insert_text', plan.operations);
+    assert(addBranchOperation && addBranchOperation.type === 'insert_text' && addBranchOperation.safety === 'guarded_apply', 'add-branch should produce guarded insert_text', plan.operations);
 
-    const dryRun = installPlan.applyInstallPlan(plan, {projectRoot: prepared.root, dryRun: true, allowAdvanced: true});
+    const dryRun = installPlan.applyInstallPlan(plan, {projectRoot: prepared.root, dryRun: true, allowAdvanced: false});
     assert(dryRun.ok, 'existing-event install plan dry-run should succeed', dryRun);
     assert(!resultStatuses(dryRun).some((status) => status === 'manual_review' || status === 'advanced_review' || status === 'failed'), 'dry-run should not leave review-only operations', dryRun.results);
 
-    const applied = installPlan.applyInstallPlan(plan, {projectRoot: prepared.root, dryRun: false, allowAdvanced: true});
+    const applied = installPlan.applyInstallPlan(plan, {projectRoot: prepared.root, dryRun: false, allowAdvanced: false});
     assert(applied.ok, 'existing-event install plan should apply to the writable Demo copy', applied);
     assert(!resultStatuses(applied).some((status) => status === 'manual_review' || status === 'advanced_review' || status === 'failed'), 'apply should execute all planned operations', applied.results);
 
@@ -130,7 +130,7 @@ async function runExistingEventRoundtrip() {
       support: [
         {family: 'existing_event_roundtrip', status: 'supported', evidence: 'temp-copy apply/reindex/reopen'},
         {family: 'option_add', status: 'guarded', evidence: 'guarded insert_text on starter demo event'},
-        {family: 'branch_add', status: 'advanced', evidence: 'advanced insert_text on starter demo event'}
+        {family: 'branch_add', status: 'guarded', evidence: 'guarded insert_text on starter demo event'}
       ]
     };
   } finally {
