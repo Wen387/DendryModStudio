@@ -3257,3 +3257,75 @@ input.preview-object-control[type="checkbox"] {
 .object-canvas.is-editor-overlay.has-preview-object-editor .card-face-editor {
   pointer-events: auto;
 }
+
+/* Object editor find toolbar (object_editor_find.js). A pane-level filter +
+   collapse-all / expand-all for long event fields panes. Sticky so it stays
+   reachable while scrolling hundreds of constructs. Pure DOM overlay -- the
+   .is-find-hidden utility hides rows/groups the active filter excludes. */
+.object-editor-find {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--surface-alt) 92%, var(--lift));
+}
+
+.object-editor-find-input {
+  flex: 1 1 200px;
+  min-width: 140px;
+  font-family: inherit;
+  font-size: 0.9em;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: inherit;
+}
+
+.object-editor-find-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.object-editor-find-actions {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.object-editor-find-actions button {
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.object-editor-find-actions button:hover {
+  border-color: var(--accent);
+}
+
+.object-editor-find-count {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 640;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.preview-object-field.is-find-hidden,
+.preview-object-magic-block.is-find-hidden,
+.preview-object-semantic-section.is-find-hidden,
+details.is-find-hidden {
+  display: none !important;
+}

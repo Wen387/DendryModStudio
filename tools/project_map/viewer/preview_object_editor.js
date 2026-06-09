@@ -132,6 +132,7 @@
       '<dt>' + escapeHtml(t('existingScene.source', 'Source')) + '</dt><dd>' + escapeHtml(source || t('previewObjectEditor.sourceDraft', 'Draft / generated target')) + '</dd>',
       '</dl>',
       '</header>',
+      (global && global.ProjectMapObjectEditorFind ? global.ProjectMapObjectEditorFind.renderFindToolbar(body) : ''),
       renderKindEditor(kind, body, model),
       renderEditorSummary(model, kind),
       renderModalActions(model),
