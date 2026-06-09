@@ -85,7 +85,8 @@
         relatedAssets: rows.concat(ensureArray(body && body.assets)),
         showControls: model && model.mode !== 'existing',
         showAddControls: allowAddControls,
-        showReplacementControls: allowReplacementControls
+        showReplacementControls: allowReplacementControls,
+        allowSwapControl: allowReplacementControls
       };
       return [
         '<div class="object-canvas-flow-assets" data-object-canvas-flow-assets="true" data-asset-target="' + escapeAttr(target === 'card' ? 'card' : 'event') + '">',
@@ -113,13 +114,13 @@
         '<article class="object-canvas-flow-asset-row" data-object-canvas-flow-asset-row="true" data-asset-placement-kind="' + escapeAttr(item.placementKind || 'unknown_inline') + '" data-asset-role="' + escapeAttr(role) + '">',
         renderPreviewAsset(item, target),
         location ? '<small>' + escapeHtml(location) + '</small>' : '',
-        options && options.showReplacementControls ? renderFlowAssetReplacementControl(item, target) : '',
+        options && options.showReplacementControls ? renderFlowAssetReplacementControl(item, target, options) : '',
         options && options.showReplacementControls ? renderFlowAssetRemovalControl(item, target) : '',
         '</article>'
       ].join('');
     }
 
-    function renderFlowAssetReplacementControl(asset, target) {
+    function renderFlowAssetReplacementControl(asset, target, options) {
       const item = asset || {};
       const fieldId = String(item.assetEditFieldId || '').trim();
       const directive = String(item.replacementDirective || item.directive || '').trim();
@@ -127,10 +128,48 @@
         return '';
       }
       return [
+        options && options.allowSwapControl ? renderExistingAssetSwapControl(item, item.role, item.type, target, options) : '',
         '<label class="object-canvas-asset-picker-control object-canvas-asset-replacement-control" data-object-canvas-asset-replacement="true">',
         '<span>' + escapeHtml(t('assets.replaceFile', 'Replacement file')) + '</span>',
         '<input type="file" accept="' + escapeAttr(item.type === 'audio' ? 'audio/*' : 'image/*') + '" data-object-canvas-asset-file="true" data-existing-asset-field="' + escapeAttr(fieldId) + '" data-asset-target="' + escapeAttr(target === 'card' ? 'card' : 'event') + '" data-asset-role="' + escapeAttr(item.role || '') + '" data-asset-directive="' + escapeAttr(directive) + '" data-current-asset-path="' + escapeAttr(item.assetCurrentPath || item.path || '') + '" data-asset-original="' + escapeAttr(item.assetOriginal || '') + '">',
         '</label>'
+      ].join('');
+    }
+
+    // Swap an EXISTING indexed asset to another already-indexed asset (no file
+    // upload). Mirrors the add-slot picker but binds to data-existing-asset-field
+    // so a change becomes a guarded replace_text on the current reference line.
+    function renderExistingAssetSwapControl(ref, role, type, target, options) {
+      const item = ref || {};
+      const fieldId = String(item.assetEditFieldId || '').trim();
+      const directive = String(item.replacementDirective || item.directive || '').trim();
+      const slotRole = String(role || item.role || '').trim();
+      if (!fieldId || !directive || !item.replacementAvailable) {
+        return '';
+      }
+      const catalog = assetCatalogForSlot(options && options.assetCatalog, {type: type || item.type || 'image', role: slotRole});
+      if (!ensureArray(catalog).length) {
+        return '';
+      }
+      const currentValue = assetSelectValue(item, slotRole);
+      const currentInCatalog = catalog.some((asset) => sourceReferencePathForAsset(asset && asset.path) === sourceReferencePathForAsset(item.path || item.assetCurrentPath));
+      const deferOptions = ensureArray(catalog).length >= ASSET_SELECT_DEFER_THRESHOLD;
+      const showCurrentOption = currentValue && (deferOptions ? true : !currentInCatalog);
+      const deferredId = deferOptions
+        ? stashDeferredAssetOptions(() => ensureArray(catalog)
+          .filter((asset) => !currentValue || assetSelectValue(asset, slotRole) !== currentValue)
+          .map((asset) => renderAssetSelectOption(asset, slotRole, currentValue)).join(''))
+        : '';
+      const dataAttrs = ' data-existing-asset-field="' + escapeAttr(fieldId) + '" data-asset-directive="' + escapeAttr(directive) + '" data-asset-role="' + escapeAttr(slotRole) + '" data-asset-target="' + escapeAttr(target === 'card' ? 'card' : 'event') + '" data-current-asset-path="' + escapeAttr(item.assetCurrentPath || item.path || '') + '" data-asset-original="' + escapeAttr(item.assetOriginal || '') + '"';
+      return [
+        '<div class="object-canvas-asset-picker-control object-canvas-asset-swap-control" data-object-canvas-asset-swap="true">',
+        '<span>' + escapeHtml(t('assets.chooseIndexed', 'Indexed asset')) + '</span>',
+        renderAssetSelectFilter(catalog),
+        '<select data-object-canvas-asset-select="true"' + (deferOptions ? ' data-asset-select-deferred="' + escapeAttr(deferredId) + '"' : '') + dataAttrs + '>',
+        showCurrentOption ? '<option value="' + escapeAttr(currentValue) + '" selected data-asset-search-text="' + escapeAttr(assetSearchText(item)) + '">' + escapeHtml(assetOptionLabel(item) || item.path || item.label || slotRole) + '</option>' : '',
+        deferOptions ? '' : catalog.map((asset) => renderAssetSelectOption(asset, slotRole, currentValue)).join(''),
+        '</select>',
+        '</div>'
       ].join('');
     }
 
@@ -246,7 +285,7 @@
           slot.assetRef && slot.assetRef.path ? '<code>' + escapeHtml(slot.assetRef.path) + '</code>' : '<span>' + escapeHtml(t('assets.slotEmpty', 'No asset selected for this slot.')) + '</span>',
           slot.installRequest ? '<em>' + escapeHtml(slot.installRequest.sourceName || slot.installRequest.sourcePath || t('assets.sourcePending', 'Source file selected in this browser session')) + '</em>' : '',
           opts.showControls || opts.showAddControls && slot.addField && !(slot.assetRef && slot.assetRef.path) ? renderAssetSlotControls(slot, target, opts) : '',
-          opts.showReplacementControls ? renderAssetReplacementControl(slot, target) : '',
+          opts.showReplacementControls ? renderAssetReplacementControl(slot, target, opts) : '',
           opts.showReplacementControls ? renderAssetRemovalControl(slot, target) : '',
           '</article>'
         ].join('')).join(''),
@@ -376,7 +415,7 @@
       ].join('');
     }
 
-    function renderAssetReplacementControl(slot, target) {
+    function renderAssetReplacementControl(slot, target, options) {
       const ref = slot && slot.assetRef || {};
       const role = String(slot && slot.role || ref.role || '').trim();
       const fieldId = String(ref.assetEditFieldId || '').trim();
@@ -385,6 +424,7 @@
         return '';
       }
       return [
+        renderExistingAssetSwapControl(ref, role, slot && slot.type, target, options),
         '<label class="object-canvas-asset-picker-control object-canvas-asset-replacement-control" data-object-canvas-asset-replacement="true">',
         '<span>' + escapeHtml(t('assets.replaceFile', 'Replacement file')) + '</span>',
         '<input type="file" accept="' + escapeAttr(slot.type === 'audio' ? 'audio/*' : 'image/*') + '" data-object-canvas-asset-file="true" data-existing-asset-field="' + escapeAttr(fieldId) + '" data-asset-target="' + escapeAttr(target === 'card' ? 'card' : 'event') + '" data-asset-role="' + escapeAttr(role) + '" data-asset-directive="' + escapeAttr(directive) + '" data-current-asset-path="' + escapeAttr(ref.assetCurrentPath || ref.path || '') + '" data-asset-original="' + escapeAttr(ref.assetOriginal || '') + '">',

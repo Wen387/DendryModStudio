@@ -2660,7 +2660,7 @@
       updateDraftObjectCanvasAssetPlacementSelection(select);
       return;
     }
-    if (select && select.dataset && select.dataset.existingAssetAddField) {
+    if (select && select.dataset && (select.dataset.existingAssetAddField || select.dataset.existingAssetField)) {
       updateExistingObjectCanvasAssetSelection(select);
       return;
     }
@@ -2881,7 +2881,7 @@
   }
 
   function updateExistingObjectCanvasAssetSelection(select) {
-    const fieldId = String(select.dataset.existingAssetAddField || '').trim();
+    const fieldId = String(select.dataset.existingAssetAddField || select.dataset.existingAssetField || '').trim();
     const directive = String(select.dataset.assetDirective || '').trim();
     const target = select.dataset.assetTarget === 'card' ? 'card' : 'event';
     const role = String(select.dataset.assetRole || '').trim();
@@ -2907,6 +2907,8 @@
       label: ref.label || ref.name || path,
       target,
       role,
+      original: String(select.dataset.assetOriginal || ''),
+      currentPath: String(select.dataset.currentAssetPath || ''),
       modifiers: collectAudioModifiers(select)
     });
     state.proposalOptions = removeObjectCanvasAssetInstallRequestForField(state.proposalOptions, fieldId);

@@ -1665,6 +1665,11 @@ assert(existingAssetPreviewHtml.includes('data-object-canvas-action="remove_asse
 const existingAssetEditorHtml = previewEditor.render(existingAssetEvent);
 assert(existingAssetEditorHtml.includes('data-object-canvas-asset-replacement="true"'), 'existing event editor should expose exact asset replacement controls in the editing pane');
 assert(existingAssetEditorHtml.includes('data-existing-asset-field="asset_face_image_7"'), 'existing event editor replacement control should carry the source-backed field id');
+// gap #5: existing indexed assets swap to another indexed asset via a catalog <select> bound to the existing field (not just file upload).
+assert(existingAssetEditorHtml.includes('data-object-canvas-asset-swap="true"'), 'existing event editor should expose a catalog swap control for indexed assets');
+assert(/data-object-canvas-asset-swap="true"[\s\S]{0,600}?<select[^>]*data-existing-asset-field="asset_face_image_7"/.test(existingAssetEditorHtml), 'existing asset swap control should bind a catalog <select> to the source-backed existing field id');
+assert(/<select[^>]*data-existing-asset-field="asset_face_image_7"[^>]*data-current-asset-path="/.test(existingAssetEditorHtml), 'existing asset swap select should carry the current asset path so inline references swap in place');
+assert(existingAssetPreviewHtml.includes('data-object-canvas-asset-swap="true"'), 'existing event preview slot should also expose the catalog swap control for the global asset slot');
 const eventReplacementTarget = 'assets/studio/events/asset_directive_event/new-face.png';
 const existingAssetReplacement = canvasModel.buildExistingCanvas(index, 'events', 'asset_directive_event', {
   values: {
