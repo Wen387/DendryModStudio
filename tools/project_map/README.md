@@ -40,29 +40,45 @@ Current maintainer map:
 - Generated runtime output, `.git`, and protected build artifacts remain
   protected. Edits must map back to source-backed operations.
 
-## One-command local launch
+## Quick Development Preview
 
-For normal local use, start here:
+Run these commands from the repository root.
+
+Fastest browser preview of the current Studio UI:
 
 ```bash
 npm run studio:preview
 ```
 
-This is a root-package shortcut for:
+Same preview, but print the URL instead of opening a browser automatically:
 
 ```bash
-python3 tools/project_map/launch_studio.py --root tools/project_map/templates/starter-demo
+npm run studio:preview:no-open
 ```
 
-It opens the bundled Demo Template so a fresh checkout has a runnable preview
-from the repository root. To preview another Dendry project, pass its root after
-`--`:
+Preview a real Dendry project instead of the bundled Demo Template:
 
 ```bash
 npm run studio:preview -- --root /path/to/project
 ```
 
-The launcher:
+Inspect the launch plan without generating an index or starting a server:
+
+```bash
+npm run studio:preview:plan
+```
+
+Open the Electron desktop app:
+
+```bash
+npm --prefix tools/project_map/desktop ci
+npm run studio:app
+```
+
+After desktop dependencies are installed once, use only `npm run studio:app` for
+normal desktop launches.
+
+The browser launcher:
 
 - generates `/tmp/dendry_project_map/project-index.json`;
 - starts a local static viewer server;
@@ -70,6 +86,12 @@ The launcher:
 - opens a URL that auto-loads the generated index;
 - keeps browser mode review-only; source writes require desktop Review & Apply
   or the guarded CLI apply path.
+
+`npm run studio:preview` is a root-package shortcut for:
+
+```bash
+python3 tools/project_map/launch_studio.py --root tools/project_map/templates/starter-demo
+```
 
 For review indexes with source excerpts:
 

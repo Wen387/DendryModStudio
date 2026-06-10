@@ -157,31 +157,54 @@ Install root dependencies once:
 npm ci
 ```
 
+## Quick Development Preview
+
+From the repository root, the fastest browser preview is:
+
+```bash
+npm run studio:preview
+```
+
+This opens the bundled Demo Template and is the quickest way to check the
+current Studio UI after pulling or editing code. If you want the server URL
+without opening a browser automatically, use:
+
+```bash
+npm run studio:preview:no-open
+```
+
+To preview a real Dendry project instead of the bundled demo:
+
+```bash
+npm run studio:preview -- --root /path/to/project
+```
+
+To open the desktop app from the repository root:
+
+```bash
+npm --prefix tools/project_map/desktop ci
+npm run studio:app
+```
+
+After the desktop dependencies are installed once, `npm run studio:app` is the
+only command needed for normal desktop launches.
+
 Run the core checks:
 
 ```bash
 npm run check:ci
 ```
 
-Start the browser viewer:
+Useful launcher checks:
 
 ```bash
-npm run studio:preview:no-open
+npm run studio:preview:plan
+npm run check:launch
 ```
 
-This opens the bundled Demo Template by default. To preview another Dendry
-project, pass its folder after `--`:
-
-```bash
-npm run studio:preview:no-open -- --root /path/to/project
-```
-
-Start the Electron desktop app:
-
-```bash
-npm --prefix tools/project_map/desktop ci
-npm run studio:app
-```
+`studio:preview:plan` prints the launch plan without generating an index or
+starting a server. `check:launch` verifies the launcher shortcuts and read-only
+browser preview contract.
 
 ## Useful Developer Checks
 

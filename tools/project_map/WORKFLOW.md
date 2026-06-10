@@ -80,15 +80,19 @@ npm run check:ci
 For quick local previews from the repository root:
 
 ```bash
+# Browser preview of the bundled Demo Template
 npm run studio:preview:no-open
+
+# Electron desktop app
 npm run studio:app
+
+# Print the browser launch plan only
+npm run studio:preview:plan
 ```
 
 The browser preview shortcut opens the bundled Demo Template by default; pass
 `-- --root /path/to/project` to inspect another Dendry project. Use
-`npm run studio:preview:plan` to inspect the launch plan without generating an
-index or starting a server. Use `npm run check:launch` after changing launcher
-scripts or docs.
+`npm run check:launch` after changing launcher scripts or docs.
 
 `check:ci` is data-driven: `package.json` delegates to
 `tools/project_map/run_checks.js`, which runs the ordered `ciSequence` in
