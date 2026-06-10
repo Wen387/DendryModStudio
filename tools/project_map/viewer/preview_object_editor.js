@@ -98,6 +98,12 @@
     try { return require('./object_editor_inserts.js'); } catch (_err) { return null; }
   }
 
+  // Same resolution for the off-budget flat-condition row builder sibling.
+  function objectEditorConditionBuilder() {
+    if (global && global.ProjectMapObjectEditorConditionBuilder) { return global.ProjectMapObjectEditorConditionBuilder; }
+    try { return require('./object_editor_condition_builder.js'); } catch (_err) { return null; }
+  }
+
   function renderModal(model, options) {
     const opts = options && typeof options === 'object' ? options : {};
     const body = model && model.eventBody || {};
@@ -3329,6 +3335,11 @@
     const overview = kind === 'route'
       ? renderSemanticRouteOverview(value, label, field)
       : renderSemanticConditionOverview(value, label);
+    // Editable flat-condition rows when the byte-exact gate passes; the
+    // read-only structure preview keeps covering everything the builder rejects.
+    const conditionBuilderHtml = kind === 'condition'
+      ? ((m) => m ? m.renderConditionBuilder(field, value, {readOnly: readOnly}) : '')(objectEditorConditionBuilder())
+      : '';
     return [
       '<article class="preview-object-semantic-logic-card is-' + escapeAttr(safeClass(kind)) + '" data-object-canvas-semantic-card="' + escapeAttr(kind === 'route' ? 'route_outcome' : 'condition') + '"' + (presentation ? ' data-semantic-intent="' + escapeAttr(presentation.intent || '') + '" data-semantic-group="' + escapeAttr(presentation.group || '') + '"' : '') + '>',
       '<header>',
@@ -3340,7 +3351,7 @@
       '<span>' + escapeHtml(kind === 'route' ? t('previewObjectEditor.semanticRoute.target', 'Target') : (label || rawLabel)) + '</span>',
       control,
       '</label>',
-      kind === 'condition' ? renderConditionStructurePreview(value) : '',
+      conditionBuilderHtml || (kind === 'condition' ? renderConditionStructurePreview(value) : ''),
       kind === 'condition' ? renderFieldVariablePicker(field, presentation, readOnly) : '',
       kind === 'route' ? renderFieldRouteTargetPicker(field, presentation, readOnly) : '',
       renderSemanticLogicEvidence(field),

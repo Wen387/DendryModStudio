@@ -1,0 +1,86 @@
+/* Flat-condition row builder inside the object editor modal's semantic
+   condition cards (object_editor_condition_builder.js). Kept as its own domain
+   file: preview-object-editor.css is already warn-sized. */
+
+.preview-object-condition-builder {
+  margin-top: 6px;
+  border: 1px solid var(--border-soft);
+  border-radius: 7px;
+  background: var(--surface-alt);
+}
+
+.preview-object-condition-builder.is-ineligible {
+  display: none;
+}
+
+.preview-object-condition-builder summary {
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--muted);
+  padding: 5px 8px;
+}
+
+.preview-object-condition-builder-body {
+  display: grid;
+  gap: 6px;
+  padding: 6px 8px 8px;
+}
+
+.preview-object-condition-builder-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1.4fr) auto minmax(0, 1fr) auto;
+  gap: 5px;
+  align-items: center;
+}
+
+.preview-object-condition-builder-row input[type="text"],
+.preview-object-condition-builder-row select,
+.preview-object-condition-builder-footer select {
+  font-family: var(--mono, ui-monospace, monospace);
+  font-size: 11px;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  min-width: 0;
+}
+
+.preview-object-condition-builder-row input:disabled {
+  opacity: 0.45;
+}
+
+.preview-object-condition-builder-not {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.preview-object-condition-builder-row button,
+.preview-object-condition-builder-footer button {
+  font-size: 11px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--studio-accent-soft);
+  color: var(--accent-strong, var(--accent));
+  cursor: pointer;
+}
+
+.preview-object-condition-builder-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.preview-object-condition-builder-connector {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: var(--muted);
+}

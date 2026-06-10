@@ -161,7 +161,7 @@ const semanticEventDraft = {
   introParagraphs: ['Opening player text.'],
   options: [
     {id: 'support', label: 'Support the plan', chooseIf: 'public_order >= 1', unavailableText: 'Public order is too low.', effects: [{variable: 'public_order', op: '+=', value: 1}], narrativeParagraphs: ['The plan gains support.'], gotoAfter: 'continue_support', returnTarget: 'root'},
-    {id: 'wait', label: 'Wait', narrativeParagraphs: ['The room waits.'], gotoAfter: 'continue_wait', returnTarget: 'root'}
+    {id: 'wait', label: 'Wait', chooseIf: 'Q.public_order >= 1', narrativeParagraphs: ['The room waits.'], gotoAfter: 'continue_wait', returnTarget: 'root'}
   ]
 };
 const semanticEventModel = canvasModel.buildCanvasModel(cardCanvasIndex, semanticEventDraft);
@@ -183,7 +183,8 @@ assert(semanticEventHtml.includes('data-object-canvas-semantic-section="player_c
 assert(semanticEventHtml.includes('data-semantic-intent="choice_condition"'), 'Object Canvas event editor should render semantic intent markers');
 assert(semanticEventHtml.includes('data-object-canvas-variable-target="option.0.chooseIf"'), 'Object Canvas event editor should render variable picker targets beside condition fields');
 assert(semanticEventHtml.includes('data-object-canvas-semantic-card="condition"'), 'Object Canvas should render conditions as semantic condition cards');
-assert(semanticEventHtml.includes('data-object-canvas-condition-structure="true"'), 'Object Canvas should show simple condition structure without guessing variable meaning');
+assert(semanticEventHtml.includes('data-object-condition-builder="option.0.chooseIf"'), 'Object Canvas should upgrade a flat byte-canonical condition to the editable row builder');
+assert(semanticEventHtml.includes('data-object-canvas-condition-structure="true"'), 'Object Canvas should keep the read-only condition structure preview for conditions outside the flat builder grammar');
 assert(previewObjectEditorSource.includes('function parseCondition('), 'Object Canvas should include a compound condition parser');
 assert(previewObjectEditorSource.includes('function parseConditionClause('), 'Object Canvas should include a clause parser for individual condition terms');
 assert(previewObjectEditorSource.includes('function renderCompoundConditionPreview('), 'Object Canvas should include a compound condition renderer');
