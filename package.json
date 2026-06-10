@@ -10,6 +10,8 @@
     "studio:app": "npm --prefix tools/project_map/desktop run start",
     "studio:app:doctor": "npm --prefix tools/project_map/desktop run doctor",
     "studio:app:smoke": "npm --prefix tools/project_map/desktop run smoke",
+    "studio:branch": "python3 tools/project_map/launch_studio_branch.py",
+    "studio:branch:list": "python3 tools/project_map/launch_studio_branch.py --list",
     "check:launch": "python3 tools/project_map/check_launch_studio.py",
     "check:public": "node tools/project_map/check_public_export.js",
     "check:surface": "node tools/project_map/check_studio_surface.js",

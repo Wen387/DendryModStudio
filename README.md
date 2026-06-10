@@ -189,6 +189,25 @@ npm run studio:app
 After the desktop dependencies are installed once, `npm run studio:app` is the
 only command needed for normal desktop launches.
 
+To launch the desktop app for a *specific branch* — handy for comparing work in
+progress without switching your own checkout:
+
+```bash
+npm run studio:branch
+```
+
+This lists every local branch and launches the chosen one's latest desktop app.
+The branch you currently have checked out runs in place; any other branch runs
+from a throwaway worktree at its tip (borrowing the installed `node_modules` by
+symlink) that is removed again when you close the app. Your working tree and
+current branch are never touched. Pass a branch name to skip the picker, or list
+the branches as JSON:
+
+```bash
+npm run studio:branch -- main
+npm run studio:branch:list
+```
+
 Run the core checks:
 
 ```bash

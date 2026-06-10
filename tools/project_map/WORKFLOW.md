@@ -86,13 +86,18 @@ npm run studio:preview:no-open
 # Electron desktop app
 npm run studio:app
 
+# Electron desktop app for a chosen branch (picker; or pass a branch name)
+npm run studio:branch
+
 # Print the browser launch plan only
 npm run studio:preview:plan
 ```
 
 The browser preview shortcut opens the bundled Demo Template by default; pass
-`-- --root /path/to/project` to inspect another Dendry project. Use
-`npm run check:launch` after changing launcher scripts or docs.
+`-- --root /path/to/project` to inspect another Dendry project. `studio:branch`
+lists local branches and runs the chosen one's desktop app from an ephemeral
+worktree (the current branch runs in place), never switching your primary
+branch. Use `npm run check:launch` after changing launcher scripts or docs.
 
 `check:ci` is data-driven: `package.json` delegates to
 `tools/project_map/run_checks.js`, which runs the ordered `ciSequence` in

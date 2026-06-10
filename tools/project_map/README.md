@@ -78,6 +78,18 @@ npm run studio:app
 After desktop dependencies are installed once, use only `npm run studio:app` for
 normal desktop launches.
 
+Launch the desktop app for a specific branch (interactive picker, or pass a name):
+
+```bash
+npm run studio:branch
+npm run studio:branch -- main
+npm run studio:branch:list
+```
+
+The current branch runs in place; any other branch runs from an ephemeral
+worktree at its tip that borrows `node_modules` by symlink and is removed when
+the app closes. It never switches your primary branch or edits the working tree.
+
 The browser launcher:
 
 - generates `/tmp/dendry_project_map/project-index.json`;
