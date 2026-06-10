@@ -77,6 +77,19 @@ npm ci --ignore-scripts
 npm run check:ci
 ```
 
+For quick local previews from the repository root:
+
+```bash
+npm run studio:preview:no-open
+npm run studio:app
+```
+
+The browser preview shortcut opens the bundled Demo Template by default; pass
+`-- --root /path/to/project` to inspect another Dendry project. Use
+`npm run studio:preview:plan` to inspect the launch plan without generating an
+index or starting a server. Use `npm run check:launch` after changing launcher
+scripts or docs.
+
 `check:ci` is data-driven: `package.json` delegates to
 `tools/project_map/run_checks.js`, which runs the ordered `ciSequence` in
 `tool_registry.json` and stops at the first failure. To add or reorder a check

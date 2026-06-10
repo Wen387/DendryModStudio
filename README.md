@@ -166,24 +166,30 @@ npm run check:ci
 Start the browser viewer:
 
 ```bash
-python3 tools/project_map/launch_studio.py --no-open
+npm run studio:preview:no-open
+```
+
+This opens the bundled Demo Template by default. To preview another Dendry
+project, pass its folder after `--`:
+
+```bash
+npm run studio:preview:no-open -- --root /path/to/project
 ```
 
 Start the Electron desktop app:
 
 ```bash
-cd tools/project_map/desktop
-npm ci
-npm run start
+npm --prefix tools/project_map/desktop ci
+npm run studio:app
 ```
 
 ## Useful Developer Checks
 
 ```bash
 npm run check:ci
-cd tools/project_map/desktop
-npm run smoke
-npm run doctor
+npm run check:launch
+npm run studio:app:smoke
+npm run studio:app:doctor
 ```
 
 Additional engineering notes live in [tools/project_map/README.md](tools/project_map/README.md). Release preparation notes live in [docs/releases/v0.98.1-dev-preview.md](docs/releases/v0.98.1-dev-preview.md), and tester-facing preview notes live in [tools/project_map/RELEASE_NOTES_v0.98.1.md](tools/project_map/RELEASE_NOTES_v0.98.1.md).

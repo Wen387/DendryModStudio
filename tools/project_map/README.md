@@ -45,7 +45,21 @@ Current maintainer map:
 For normal local use, start here:
 
 ```bash
-python3 tools/project_map/launch_studio.py
+npm run studio:preview
+```
+
+This is a root-package shortcut for:
+
+```bash
+python3 tools/project_map/launch_studio.py --root tools/project_map/templates/starter-demo
+```
+
+It opens the bundled Demo Template so a fresh checkout has a runnable preview
+from the repository root. To preview another Dendry project, pass its root after
+`--`:
+
+```bash
+npm run studio:preview -- --root /path/to/project
 ```
 
 The launcher:
@@ -60,19 +74,19 @@ The launcher:
 For review indexes with source excerpts:
 
 ```bash
-python3 tools/project_map/launch_studio.py --include-excerpts
+npm run studio:preview -- --include-excerpts
 ```
 
 If browser auto-open is annoying on your machine:
 
 ```bash
-python3 tools/project_map/launch_studio.py --no-open
+npm run studio:preview:no-open
 ```
 
 To inspect what it would do without generating an index or starting a server:
 
 ```bash
-python3 tools/project_map/launch_studio.py --dry-run --no-open
+npm run studio:preview:plan
 ```
 
 ## Desktop App
@@ -96,20 +110,19 @@ signed public installer yet. The root game package stays untouched.
 First install the shell dependencies:
 
 ```bash
-cd tools/project_map/desktop
-npm ci
+npm --prefix tools/project_map/desktop ci
 ```
 
 Then start the desktop window:
 
 ```bash
-npm run start
+npm run studio:app
 ```
 
 To check the local desktop environment without opening the Electron window:
 
 ```bash
-npm run doctor
+npm run studio:app:doctor
 ```
 
 The desktop shell:

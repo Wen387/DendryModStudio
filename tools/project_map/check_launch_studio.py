@@ -13,6 +13,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 LAUNCHER = REPO_ROOT / "tools" / "project_map" / "launch_studio.py"
 PROJECT_ROOT = REPO_ROOT / "tools" / "project_map" / "templates" / "starter-demo"
+PACKAGE_JSON = REPO_ROOT / "package.json"
 
 
 def fail(message: str) -> None:
@@ -113,6 +114,40 @@ def main() -> int:
 
     viewer_app = (REPO_ROOT / "tools" / "project_map" / "viewer" / "app.js").read_text(encoding="utf-8")
     assert_true("loadProjectIndexUrl" in viewer_app, "viewer should support launcher URL autoload")
+
+    package = json.loads(PACKAGE_JSON.read_text(encoding="utf-8"))
+    scripts = package.get("scripts") or {}
+    assert_true(
+        scripts.get("studio:preview")
+        == "python3 tools/project_map/launch_studio.py --root tools/project_map/templates/starter-demo",
+        "root package should expose the browser preview launcher with a runnable default project",
+    )
+    assert_true(
+        scripts.get("studio:preview:no-open")
+        == "python3 tools/project_map/launch_studio.py --root tools/project_map/templates/starter-demo --no-open",
+        "root package should expose a no-open browser preview launcher with a runnable default project",
+    )
+    assert_true(
+        scripts.get("studio:preview:plan")
+        == "python3 tools/project_map/launch_studio.py --root tools/project_map/templates/starter-demo --dry-run --no-open",
+        "root package should expose a dry-run launch plan with a runnable default project",
+    )
+    assert_true(
+        scripts.get("studio:app") == "npm --prefix tools/project_map/desktop run start",
+        "root package should expose the desktop app launcher",
+    )
+    assert_true(
+        scripts.get("studio:app:doctor") == "npm --prefix tools/project_map/desktop run doctor",
+        "root package should expose the desktop doctor",
+    )
+    assert_true(
+        scripts.get("studio:app:smoke") == "npm --prefix tools/project_map/desktop run smoke",
+        "root package should expose the desktop smoke check",
+    )
+    assert_true(
+        scripts.get("check:launch") == "python3 tools/project_map/check_launch_studio.py",
+        "root package should expose launcher contract checks",
+    )
 
     authoring_path = launcher.resolve_authoring_file_path(plan.authoring_dir, "/authoring/news_draft.js")
     assert_true(authoring_path == plan.authoring_dir / "news_draft.js", "launcher should serve viewer authoring modules")
