@@ -104,6 +104,12 @@
     try { return require('./object_editor_condition_builder.js'); } catch (_err) { return null; }
   }
 
+  // Same resolution for the off-budget deferred-row source-slice entry sibling.
+  function objectEditorDeferredSlice() {
+    if (global && global.ProjectMapObjectEditorDeferredSlice) { return global.ProjectMapObjectEditorDeferredSlice; }
+    try { return require('./object_editor_deferred_slice.js'); } catch (_err) { return null; }
+  }
+
   function renderModal(model, options) {
     const opts = options && typeof options === 'object' ? options : {};
     const body = model && model.eventBody || {};
@@ -2442,12 +2448,15 @@
     if (!count) {
       return '';
     }
+    const sliceUi = objectEditorDeferredSlice();
     return [
       '<details class="preview-object-large-deferred" data-preview-object-large-deferred="choices" data-preview-object-deferred-count="' + escapeAttr(String(count)) + '">',
       '<summary>' + escapeHtml(t('previewObjectEditor.largeEventDeferredChoices', '{count} additional choices summarized').replace('{count}', String(count))) + '</summary>',
       '<div class="preview-object-large-deferred-list">',
-      ensureArray(rows).slice(0, 10).map((option, index) => renderDeferredChoiceRow(option, offset + index)).join(''),
-      count > 10 ? '<small>' + escapeHtml(t('previewObjectEditor.largeEventDeferredMore', '{count} more rows').replace('{count}', String(count - 10))) + '</small>' : '',
+      sliceUi
+        ? sliceUi.renderDeferredChoiceList(rows, {renderRow: renderDeferredChoiceRow, offset})
+        : ensureArray(rows).slice(0, 10).map((option, index) => renderDeferredChoiceRow(option, offset + index)).join('') +
+          (count > 10 ? '<small>' + escapeHtml(t('previewObjectEditor.largeEventDeferredMore', '{count} more rows').replace('{count}', String(count - 10))) + '</small>' : ''),
       '</div>',
       '</details>'
     ].join('');
@@ -2471,12 +2480,15 @@
     if (!count) {
       return '';
     }
+    const sliceUi = objectEditorDeferredSlice();
     return [
       '<details class="preview-object-large-deferred" data-preview-object-large-deferred="branches" data-preview-object-deferred-count="' + escapeAttr(String(count)) + '">',
       '<summary>' + escapeHtml(t('previewObjectEditor.largeEventDeferredBranches', '{count} additional text blocks summarized').replace('{count}', String(count))) + '</summary>',
       '<div class="preview-object-large-deferred-list">',
-      ensureArray(rows).slice(0, 10).map(renderDeferredBranchRow).join(''),
-      count > 10 ? '<small>' + escapeHtml(t('previewObjectEditor.largeEventDeferredMore', '{count} more rows').replace('{count}', String(count - 10))) + '</small>' : '',
+      sliceUi
+        ? sliceUi.renderDeferredBranchList(rows, {renderRow: renderDeferredBranchRow})
+        : ensureArray(rows).slice(0, 10).map(renderDeferredBranchRow).join('') +
+          (count > 10 ? '<small>' + escapeHtml(t('previewObjectEditor.largeEventDeferredMore', '{count} more rows').replace('{count}', String(count - 10))) + '</small>' : ''),
       '</div>',
       '</details>'
     ].join('');

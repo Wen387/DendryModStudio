@@ -942,6 +942,11 @@
       return true;
     }
     const focused = focusDraftField(action.fieldId || action.valueKey || '');
+    if (!focused && action.source && action.source.path) {
+      // Render-diet fields have no DOM node to focus; the action's own source
+      // anchor still reaches them through the Source Slice workspace.
+      return openSourceSliceAction(action);
+    }
     state.status = focused
       ? t('objectCanvas.status.graphEntryFocused', 'Opened the matching editor field.')
       : t('objectCanvas.status.graphEntryMissing', 'Studio could not find that editor field in this draft.');
