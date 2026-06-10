@@ -25,6 +25,8 @@
     draft.cardKind = String(draft.cardKind || 'action_card').trim();
     draft.cardShape = normalizeCardShape(draft.cardShape || draft.shape, draft);
     draft.tags = normalizeStringList(draft.tags);
+    draft.newPage = draft.newPage === undefined ? true : Boolean(draft.newPage);
+    draft.rawEffectsOnTrigger = normalizeRawHookLines(draft.rawEffectsOnTrigger);
     draft.viewIf = String(draft.viewIf || '').trim();
     draft.priority = numberOrNull(draft.priority);
     draft.frequency = numberOrNull(draft.frequency);
@@ -98,6 +100,11 @@
       value: value.value,
       condition: String(value.condition || value.if || '').trim()
     };
+  }
+
+  function normalizeRawHookLines(value) {
+    const lines = Array.isArray(value) ? value : String(value || '').split('\n');
+    return lines.map((line) => String(line || '').trim()).filter(Boolean);
   }
 
   function normalizeStringList(value) {
@@ -404,7 +411,9 @@
     const draft = validation.draft;
     const lines = [];
     lines.push('title: ' + draft.title);
-    lines.push('new-page: true');
+    if (draft.newPage) {
+      lines.push('new-page: true');
+    }
     lines.push(draft.cardKind === 'advisor_like' ? 'is-pinned-card: true' : 'is-card: true');
     if (draft.tags.length) {
       lines.push('tags: ' + draft.tags.join(', '));
@@ -424,6 +433,10 @@
     }
     if (draft.subtitle) {
       lines.push('subtitle: ' + draft.subtitle);
+    }
+    if (draft.rawEffectsOnTrigger.length) {
+      lines.push('on-arrival: ' + draft.rawEffectsOnTrigger[0]);
+      draft.rawEffectsOnTrigger.slice(1).forEach((line) => lines.push('  ' + line));
     }
     lines.push('');
     lines.push('= ' + draft.heading);
