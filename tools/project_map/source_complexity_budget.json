@@ -26,9 +26,9 @@
     },
     {
       "path": "tools/project_map/authoring/object_canvas_content_adapters.js",
-      "maxLines": 2864,
+      "maxLines": 2857,
       "allowRaise": true,
-      "reason": "Split content adapters before adding more object canvas behavior. Raised 2026-05-30 from 2857 for projectSceneTargets in template canvas body. [integration 2026-06-07: raised for loving-vaughan play-test merge.]"
+      "reason": "Split content adapters before adding more object canvas behavior. Raised 2026-05-30 from 2857 for projectSceneTargets in template canvas body. [integration 2026-06-07: raised for loving-vaughan play-test merge.] [2026-06-10: lowered 2864->2857 — R1 sidebar apply moved applySidebarStatusValues logic into the draft core.]"
     },
     {
       "path": "tools/project_map/authoring/route_script_intelligence_model.js",

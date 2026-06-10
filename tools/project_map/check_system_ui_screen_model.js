@@ -310,6 +310,22 @@ assert(economicsRegion.body.includes('The treasury report sits here.'), 'source 
 assert(!economicsRegion.body.includes('Resources available: 0'), 'source sidebar category preview should not inject default fixture sidebar body');
 assert(!economicsRegion.body.includes('Internal dissent: very low'), 'source sidebar category preview should not inject default fixture status lines');
 
+// WYSIWYG section binding (R1 / S1 regression): the rendered sectionId field
+// carries the DRAFT's target as its original (a displayed-category mismatch is
+// then collected as a change by the canvas), it is read-only, and the default
+// selected category follows the draft target so loaded drafts open on the
+// section they actually edit.
+const sidebarCanvas = objectCanvasModel.buildTemplateCanvas(index, 'sidebar_status', {}, {values: {}});
+const draftTargetId = sidebarCanvas.changeState.draft.sectionId;
+const defaultSidebarScreen = screenModel.buildScreen(sidebarCanvas, {projectIndex: index});
+assert(defaultSidebarScreen.selectedSidebarCategory.id === draftTargetId, 'default sidebar category selection should follow the draft target (' + defaultSidebarScreen.selectedSidebarCategory.id + ' vs ' + draftTargetId + ')');
+const pinnedField = (defaultSidebarScreen.selectedSidebarCategory.fields || []).find((field) => field.id === 'sidebar.sectionId');
+assert(pinnedField && pinnedField.readOnly === true, 'sectionId field should be read-only in the region editor');
+assert(pinnedField.original === draftTargetId, 'sectionId field original should be the draft target');
+assert(pinnedField.value === defaultSidebarScreen.selectedSidebarCategory.id, 'sectionId field value should be the displayed category');
+const economicsPin = (sourceCategoryScreen.selectedSidebarCategory.fields || []).find((field) => field.id === 'sidebar.sectionId');
+assert(economicsPin && economicsPin.value === 'economics' && economicsPin.original === draftTargetId, 'displayed category id should diverge from the draft original so the retarget is collected');
+
 const surfaceOnlyIndex = JSON.parse(JSON.stringify(index));
 const surfaceStatus = surfaceOnlyIndex.scenes.find((item) => item.id === 'status');
 surfaceStatus.sections = [

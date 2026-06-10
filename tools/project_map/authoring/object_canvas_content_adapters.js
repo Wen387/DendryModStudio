@@ -1583,21 +1583,14 @@
     return draft;
   }
 
-  function applySidebarStatusValues(baseDraft, values) {
-    const draft = applyScalarValues(baseDraft, values, 'sidebar.', [
-      'id',
-      'title',
-      'statusTitle',
-      'sectionId',
-      'sectionHeading',
-      'sectionBody',
-      'sectionStatusLines',
-      'operationMode'
-    ], ['id', 'sectionId']);
-    if (has(values, 'sidebar.deleteConfirm')) {
-      draft.deleteConfirm = booleanValue(values['sidebar.deleteConfirm']);
+  function applySidebarStatusValues(baseDraft, values, context) {
+    const api = context && context.api;
+    if (api && typeof api.applyDraftValues === 'function') {
+      return api.applyDraftValues(baseDraft, values, {projectIndex: context.projectIndex});
     }
-    return draft;
+    return applyScalarValues(baseDraft, values, 'sidebar.', [
+      'id', 'title', 'statusTitle', 'sectionId', 'sectionHeading', 'sectionBody', 'sectionStatusLines', 'operationMode'
+    ], ['id', 'sectionId']);
   }
 
   function applyElectionResultsValues(baseDraft, values, context) {

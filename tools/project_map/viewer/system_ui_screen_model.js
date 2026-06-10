@@ -78,7 +78,7 @@
     const sourceUi = buildSourceUi(opts.projectIndex, fixtureState);
     const activePlayerScreen = normalizePlayerFlowScreen(opts.playerFlowScreen) || defaultPlayerFlowScreen(template);
     const sidebarCategories = buildSidebarCategories(fields, template, fixtureState, opts.projectIndex);
-    const selectedSidebarCategory = selectSidebarCategory(sidebarCategories, opts.selected);
+    const selectedSidebarCategory = selectSidebarCategory(sidebarCategories, opts.selected, fields);
     const libraryContent = buildLibraryContent(opts.projectIndex);
     const rawRegions = template === 'election_results'
       ? buildElectionResultsRegions(fields)
@@ -872,7 +872,13 @@
       return fieldsFor(fields, ['layout.sidebarCategoryId', 'layout.sidebarHeading', 'layout.sidebarBody', 'layout.sidebarStatusLines', 'layout.sidebarInsertMode', 'layout.sidebarAnchorId']);
     }
     return [
-      fieldLike('sidebar.sectionId', 'Section id', category.id),
+      // value = the DISPLAYED category; original = the draft's current target.
+      // When they differ, collectValues picks the displayed id up as a change,
+      // so edits always land on the section the author is looking at.
+      fieldLike('sidebar.sectionId', 'Section id', category.id, {
+        original: String(fields['sidebar.sectionId'] && fields['sidebar.sectionId'].value || category.id),
+        readOnly: true
+      }),
       fieldLike('sidebar.sectionHeading', 'Section heading', category.heading),
       fieldLike('sidebar.sectionBody', 'Section body', category.body, {inputType: 'textarea'}),
       fieldLike('sidebar.sectionStatusLines', 'Status lines', category.statusLines, {inputType: 'textarea'}),
@@ -881,11 +887,21 @@
     ];
   }
 
-  function selectSidebarCategory(categories, selected) {
+  function selectSidebarCategory(categories, selected, fields) {
     const value = String(selected || '').replace(/^ui:/, '');
-    const id = value.indexOf('sidebar_category:') === 0 ? value.slice('sidebar_category:'.length) : '';
+    const tabSlot = value.indexOf('slot:') === 0 ? (value.match(/sidebar_tab:(.+)$/) || [])[1] || '' : '';
+    const id = value.indexOf('sidebar_category:') === 0 ? value.slice('sidebar_category:'.length) : tabSlot;
     if (id) {
       const found = ensureArray(categories).find((category) => category.id === id);
+      if (found) {
+        return found;
+      }
+    }
+    // With no explicit selection, follow the draft's current target so the
+    // editor opens on the section a loaded draft actually edits.
+    const draftTarget = fields && fields['sidebar.sectionId'] ? String(fields['sidebar.sectionId'].value || '') : '';
+    if (draftTarget) {
+      const found = ensureArray(categories).find((category) => category.id === draftTarget);
       if (found) {
         return found;
       }
