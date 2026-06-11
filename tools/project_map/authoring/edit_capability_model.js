@@ -837,7 +837,10 @@
       manual_review: translate('editCapability.summary.manualReview', 'Studio can keep source evidence, but this remains a manual review proposal.'),
       unsupported: translate('editCapability.summary.unsupported', 'Studio does not have an edit route for this row yet.')
     };
-    return capabilityModel && capabilityModel.reason || labels[routeClass] || labels.manual_review;
+    // The localized per-route summary wins over the model's English reason
+    // sentence: the reason stays on the capability as evidence/tooltip data,
+    // but the displayed line must follow the active locale.
+    return labels[routeClass] || capabilityModel && capabilityModel.reason || labels.manual_review;
   }
 
   function diagnostic(severity, code, message) {

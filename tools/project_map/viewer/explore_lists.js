@@ -10,6 +10,12 @@
   const escapeHtml = domTextUtils.escapeHtml;
   const escapeAttr = domTextUtils.escapeAttr;
   const pathBreakHints = domTextUtils.pathBreakHints || ((html) => html);
+  // Display-boundary helpers (viewer/display_text.js): list rows are
+  // display-only, so mod prose keeps its raw inline HTML for editing while the
+  // row text drops the tags; sort fields map their raw names to the locale.
+  const displayText = root && root.ProjectMapDisplayText || null;
+  const stripMarkup = displayText && displayText.stripInlineMarkup || ((text) => text);
+  const sortFieldLabel = displayText && displayText.sortFieldLabel || ((field) => field);
 
   function ProjectMapExploreLists(ctx) {
     ctx = ctx || {};
@@ -144,7 +150,7 @@
       state.sortField = VIEW_DEFS[state.view].defaultSort;
     }
     elements.sortField.innerHTML = fields.map((field) => {
-      return '<option value="' + escapeHtml(field) + '">' + escapeHtml(field) + '</option>';
+      return '<option value="' + escapeHtml(field) + '">' + escapeHtml(sortFieldLabel(field)) + '</option>';
     }).join('');
     elements.sortField.value = state.sortField;
     elements.sortDir.textContent = state.sortDir === 'asc' ? 'A-Z' : 'Z-A';
@@ -882,8 +888,8 @@
     const selected = item.key === state.selectedKey ? ' is-selected' : '';
     return [
       '<button class="list-row' + selected + '" type="button" data-row-key="' + escapeAttr(item.key) + '">',
-      '<span><span class="primary">' + escapeHtml(item.primary) + '</span></span>',
-      '<span class="secondary">' + escapeHtml(item.secondary) + '</span>',
+      '<span><span class="primary">' + escapeHtml(stripMarkup(item.primary)) + '</span></span>',
+      '<span class="secondary">' + escapeHtml(stripMarkup(item.secondary)) + '</span>',
       '<span class="meta">' + pathBreakHints(escapeHtml(item.meta)) + '</span>',
       '<span class="badge-line">' + badges + visibleEditMarker(item, state) + '</span>',
       '</button>'

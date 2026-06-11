@@ -1271,7 +1271,41 @@
     if (!elements || !elements.result) {
       return;
     }
-    elements.result.textContent = renderResultReport(result);
+    if (!result) {
+      elements.result.textContent = '';
+      return;
+    }
+    elements.result.innerHTML = renderResultDisplay(result);
+  }
+
+  // The install result used to land as one raw multi-line dump. Lead with a
+  // one-line conclusion (status + operation/file counts + the first changed
+  // file) and fold the full report -- rollback notes included -- into a
+  // details block that starts open only when something needs attention.
+  function renderResultDisplay(result) {
+    const report = renderResultReport(result);
+    const conclusion = result.ok
+      ? t('install.report.ok', 'Install check completed.')
+      : t('install.report.needsAttention', 'Install check needs attention.');
+    const results = Array.isArray(result.results) ? result.results : [];
+    const changedFiles = Array.isArray(result.changedFiles) ? result.changedFiles : [];
+    const operations = Number(result.operationCount || results.filter((row) => row && row.path).length || results.length || 0);
+    const files = Number(result.uniqueFileCount || changedFiles.length || 0);
+    const counts = t('install.report.summaryCounts', '{operations} operation(s) · {files} file(s)')
+      .replace('{operations}', String(operations))
+      .replace('{files}', String(files));
+    const firstFile = changedFiles.length && changedFiles[0] && changedFiles[0].path ? String(changedFiles[0].path) : '';
+    return [
+      '<div class="install-result-summary' + (result.ok ? ' is-ok' : ' is-attention') + '" data-install-result-summary="true">',
+      '<strong>' + escapeHtml(conclusion) + '</strong>',
+      '<span>' + escapeHtml(counts) + '</span>',
+      firstFile ? '<code>' + escapeHtml(files > 1 ? firstFile + ' +' + (files - 1) : firstFile) + '</code>' : '',
+      '</div>',
+      '<details class="install-result-details" data-install-result-details="true"' + (result.ok ? '' : ' open') + '>',
+      '<summary>' + escapeHtml(t('install.report.fullReport', 'Full report')) + '</summary>',
+      '<pre class="code-preview">' + escapeHtml(report) + '</pre>',
+      '</details>'
+    ].join('');
   }
 
   function rememberDryRunCheck(result, options) {

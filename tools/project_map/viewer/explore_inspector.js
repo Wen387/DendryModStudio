@@ -10,6 +10,12 @@
   const escapeHtml = domTextUtils.escapeHtml;
   const escapeAttr = domTextUtils.escapeAttr;
   const pathBreakHints = domTextUtils.pathBreakHints || ((html) => html);
+  // Mod prose carries raw inline HTML (<span style=...>); inspector titles are
+  // display-only, so strip the tags there (editable panes keep raw text).
+  const stripMarkup = (function () {
+    const displayText = root && root.ProjectMapDisplayText;
+    return displayText && displayText.stripInlineMarkup || ((text) => text);
+  })();
 
   function ProjectMapExploreInspector(ctx) {
     ctx = ctx || {};
@@ -877,7 +883,7 @@
     if (news.delivery === 'legacy_event_popup') {
       const router = news.router || {};
       return [
-        '<h2 class="inspector-title">' + escapeHtml(news.headline || '(untitled monthly popup)') + '</h2>',
+        '<h2 class="inspector-title">' + escapeHtml(stripMarkup(news.headline) || '(untitled monthly popup)') + '</h2>',
         '<div class="inspector-subtitle">' + escapeHtml(t('news.popupSubtitle', 'Monthly event popup via #event')) + '</div>',
         '<div class="badge-line">',
         badge(t('news.monthlyPopupBadge', 'monthly_popup'), 'info'),
@@ -894,7 +900,7 @@
       ].join('');
     }
     return [
-      '<h2 class="inspector-title">' + escapeHtml(news.headline || '(untitled news)') + '</h2>',
+      '<h2 class="inspector-title">' + escapeHtml(stripMarkup(news.headline) || '(untitled news)') + '</h2>',
       '<div class="inspector-subtitle">News pool item</div>',
       '<div class="badge-line">' + badge(news.confidence || 'static_inferred', news.confidence || 'static_inferred') + '</div>',
       '<dl class="kv">',
@@ -905,7 +911,7 @@
 
   function renderSurfaceTextInspector(item) {
     return [
-      '<h2 class="inspector-title">' + escapeHtml(item.label || '(missing label)') + '</h2>',
+      '<h2 class="inspector-title">' + escapeHtml(stripMarkup(item.label) || '(missing label)') + '</h2>',
       '<div class="inspector-subtitle">' + escapeHtml(item.area || 'Surface text') + '</div>',
       '<div class="badge-line">',
       badge(item.editability || 'ide_escape_hatch', item.editability || ''),
@@ -943,7 +949,7 @@
     });
     const roleGuidance = textCorpusRoleGuidance(item.role);
     return [
-      '<h2 class="inspector-title">' + escapeHtml(item.text || '(empty text)') + '</h2>',
+      '<h2 class="inspector-title">' + escapeHtml(stripMarkup(item.text) || '(empty text)') + '</h2>',
       '<div class="inspector-subtitle">' + escapeHtml(t('textCorpus.subtitle', 'Player-visible text')) + '</div>',
       '<div class="badge-line">',
       badge(item.role || 'text', ''),
@@ -961,7 +967,7 @@
       '<dt>' + escapeHtml(t('textCorpus.owner', 'Owner')) + '</dt><dd>' + escapeHtml([owner.kind, owner.sceneId || owner.itemId, owner.sectionId, owner.area].filter(Boolean).join(' / ')) + '</dd>',
       '<dt>' + escapeHtml(t('textCorpus.source', 'Source')) + '</dt><dd>' + renderSourceButton(item.source) + '</dd>',
       ownerButton ? '<dt>' + escapeHtml(t('textCorpus.ownerAction', 'Owner')) + '</dt><dd>' + ownerButton + '</dd>' : '',
-      capability ? '<dt>' + escapeHtml(t('editCapability.routeReason', 'Route reason')) + '</dt><dd>' + escapeHtml(capabilityReason(capability)) + '</dd>' : '',
+      capability ? '<dt>' + escapeHtml(t('editCapability.routeReason', 'Route reason')) + '</dt><dd title="' + escapeAttr(capability.reason || '') + '">' + escapeHtml(capabilityReason(capability)) + '</dd>' : '',
       roleGuidance ? '<dt>' + escapeHtml(t('textCorpus.guidance', 'Guidance')) + '</dt><dd>' + escapeHtml(roleGuidance) + '</dd>' : '',
       '</dl>',
       visibleEdit || '',

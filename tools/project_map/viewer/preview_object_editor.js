@@ -3859,7 +3859,7 @@
       renderFieldContextLens(field, opts.role || 'field'),
       fieldVisualBadges(field),
       suppressFieldDiagnostics ? '' : renderSemanticStatusBadge(presentation, readOnly),
-      suppressFieldDiagnostics || !fieldContextHint(field) ? '' : '<small class="preview-object-field-context">' + escapeHtml(fieldContextHint(field)) + '</small>',
+      suppressFieldDiagnostics || !fieldContextHint(field) ? '' : '<small class="preview-object-field-context">' + escapeHtml(((m) => m && m.stripInlineMarkup ? m.stripInlineMarkup(fieldContextHint(field)) : fieldContextHint(field))(global.ProjectMapDisplayText)) + '</small>',
       suppressFieldDiagnostics ? '' : fieldLogicChips(field),
       control,
       ((m) => m ? m.renderQdisplayInsert(field, {role: opts.role || 'field', fieldId: id}) : '')(objectEditorInserts()),
@@ -3888,7 +3888,7 @@
     return [
       '<span class="preview-object-field-label" data-preview-object-field-label="true"' + title + (presentation ? ' data-preview-object-field-intent="' + escapeAttr(presentation.intent || '') + '"' : '') + '>',
       '<em>' + escapeHtml(group || t('previewObjectEditor.editorField', 'Editor field')) + '</em>',
-      '<b>' + escapeHtml(label || '') + '</b>',
+      '<b>' + escapeHtml(((m) => m && m.fieldLabel ? m.fieldLabel(label || '') : label || '')(global.ProjectMapDisplayText)) + '</b>',
       '<i class="visible-edit-affordance" data-visible-edit-affordance="object-canvas-preview">' + escapeHtml(t('visibleEdit.action', 'Edit')) + '</i>',
       '</span>'
     ].join('');

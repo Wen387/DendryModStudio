@@ -10,6 +10,12 @@
   const ensureArray = domTextUtils.ensureArray;
   const escapeHtml = domTextUtils.escapeHtml;
   const escapeAttr = domTextUtils.escapeAttr;
+  // content_storyboard_model buildEditor emits fixed English identity labels
+  // (ID/Kind/Timeline/Profile/Source); translate them at this render boundary.
+  const identityLabel = (function () {
+    const displayText = global && global.ProjectMapDisplayText;
+    return displayText && displayText.identityLabel || ((label) => label);
+  })();
 
   function render(model, options) {
     const opts = options && typeof options === 'object' ? options : {};
@@ -479,7 +485,7 @@
     return [
       '<section class="content-storyboard-detail" data-content-storyboard-identity="true">',
       '<div class="template-eyebrow">' + escapeHtml(t('objectCanvas.identity.eyebrow', 'Global context')) + '</div>',
-      rows.length ? rows.map((row) => '<div><span>' + escapeHtml(row.label) + '</span><strong>' + escapeHtml(row.value) + '</strong></div>').join('') : '<p class="editing-empty">' + escapeHtml(t('storyboard.noIdentity', 'No identity evidence yet.')) + '</p>',
+      rows.length ? rows.map((row) => '<div><span>' + escapeHtml(identityLabel(row.label)) + '</span><strong>' + escapeHtml(row.value) + '</strong></div>').join('') : '<p class="editing-empty">' + escapeHtml(t('storyboard.noIdentity', 'No identity evidence yet.')) + '</p>',
       '</section>'
     ].join('');
   }

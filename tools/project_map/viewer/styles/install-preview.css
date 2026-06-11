@@ -1378,3 +1378,44 @@
   gap: 8px;
   flex-wrap: wrap;
 }
+
+/* Install result: a one-line conclusion first, the full engineering report
+   folded behind a details block (renderResultDisplay). The summary carries
+   status + operation/file counts + the first changed file. */
+.install-result-body {
+  display: grid;
+  gap: 8px;
+  color: var(--text);
+}
+
+.install-result-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.install-result-summary.is-attention strong {
+  color: var(--warn);
+}
+
+.install-result-summary span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.install-result-summary code {
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.install-result-details summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.install-result-details pre {
+  margin-top: 6px;
+}

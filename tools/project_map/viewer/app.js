@@ -1033,11 +1033,6 @@
         assetBaseUrl: detail.assetBaseUrl || ''
       });
       const summary = detail.summary || state.model.summary || {};
-      const counts = [
-        summary.sceneCount || 0,
-        summary.edgeCount || 0,
-        summary.variableCount || 0
-      ].join(' / ');
       const name = detail.projectName || (state.model.project && state.model.project.name) || t('desktop.projectFallback', 'Project');
       setDesktopStatus(elements, t('desktop.projectLoaded', '{project} loaded.').replace('{project}', name));
       setDesktopProgress(elements, {
@@ -1046,8 +1041,10 @@
         label: t('desktop.projectLoadedShort', 'Project loaded.')
       });
       clearDesktopProgressSoon(elements);
-      setStatus(elements, t('desktop.projectIndexLoaded', 'Desktop ProjectIndex loaded: {counts} scenes / edges / variables.')
-        .replace('{counts}', counts));
+      setStatus(elements, t('desktop.projectIndexLoaded', 'Project index loaded: {scenes} scene(s), {edges} link(s), {variables} variable(s).')
+        .replace('{scenes}', String(summary.sceneCount || 0))
+        .replace('{edges}', String(summary.edgeCount || 0))
+        .replace('{variables}', String(summary.variableCount || 0)));
     } catch (err) {
       state.model = null;
       state.selected = null;
