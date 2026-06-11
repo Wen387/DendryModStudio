@@ -1600,6 +1600,9 @@
       return {ok: false, message: 'source/info.dry edits are limited to guarded project metadata fields.'};
     }
     if (operation.type === 'create_file') {
+      if (/^source\/qdisplays\/[A-Za-z0-9_][A-Za-z0-9_.-]*\.qdisplay\.dry$/.test(rel)) {
+        return {ok: true, message: 'Safe create_file may add a source-backed qdisplay band map.'};
+      }
       if (!rel.endsWith('.scene.dry')) {
         return {ok: false, message: 'create_file safe apply is limited to .scene.dry files: ' + rel};
       }
