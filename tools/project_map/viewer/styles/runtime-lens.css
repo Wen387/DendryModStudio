@@ -44,6 +44,10 @@
 .runtime-lens-header h3 {
   margin: 0;
   font-size: 1rem;
+  /* The flex header squeezes the title into a vertical CJK wrap (聚焦實/機)
+     when the action buttons fill the row; the title is short, so keep it on
+     one line and let the wrapping actions yield instead. */
+  white-space: nowrap;
 }
 
 .runtime-lens-actions {

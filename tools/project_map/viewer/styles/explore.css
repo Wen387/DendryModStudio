@@ -329,7 +329,42 @@
 .list-row .meta {
   color: var(--muted);
   font-size: 12px;
+}
+
+.list-row .secondary {
   overflow-wrap: anywhere;
+}
+
+/* Paths carry <wbr> hints from the renderer; break-word keeps wraps on the
+   separators instead of `anywhere` shredding tokens mid-word. */
+.list-row .meta {
+  overflow-wrap: break-word;
+}
+
+/* The virtual list clips rows at a fixed 58px, which used to cut text
+   mid-token with no signal. Clamp each text column to the two lines that fit
+   and let the clamp render its ellipsis. */
+.list-row .primary,
+.list-row .secondary,
+.list-row .meta {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+/* The Edit affordance repeats identically on every row of the list; reveal it
+   on the row under the pointer (or the selected/focused row) instead of
+   stamping the whole column. It stays in the DOM, so the source-contract
+   checks and the click path are unchanged. */
+.list-row .visible-edit-affordance {
+  visibility: hidden;
+}
+
+.list-row:hover .visible-edit-affordance,
+.list-row:focus-visible .visible-edit-affordance,
+.list-row.is-selected .visible-edit-affordance {
+  visibility: visible;
 }
 
 .badge-line {
@@ -398,7 +433,9 @@
   color: var(--accent-strong);
   padding: 2px 6px;
   text-align: left;
-  overflow-wrap: anywhere;
+  /* Path labels carry <wbr> hints from the renderer; break-word keeps the
+     wraps on separators instead of shredding tokens mid-word. */
+  overflow-wrap: break-word;
 }
 
 .source-button:hover {

@@ -86,6 +86,9 @@
   // Render the qdisplay insert strip for a prose field. Returns '' for non-prose
   // roles. Chips wrap each contextual quality as [+ name +]; the skeleton button
   // always renders so an author can drop an empty [+  +] and type the name.
+  // Collapsed <details> by default: the strip renders under EVERY prose field
+  // (each conditional branch body included), so an expanded chip wall repeats
+  // down the modal. The label is the per-field expander.
   function renderQdisplayInsert(field, options) {
     const opts = options && typeof options === 'object' ? options : {};
     if (!PROSE_ROLES[String(opts.role || '')]) {
@@ -97,11 +100,13 @@
       '<button type="button" class="preview-object-qdisplay-token" data-object-qdisplay-token="' + escapeAttr(name) + '"' + fieldAttr + '>'
       + escapeHtml('[+ ' + name + ' +]') + '</button>').join('');
     return [
-      '<div class="preview-object-qdisplay-insert" data-object-qdisplay-insert="true">',
-      '<span class="preview-object-qdisplay-insert-label">' + escapeHtml(t('previewObjectEditor.insertQdisplay', 'Insert display')) + '</span>',
+      '<details class="preview-object-qdisplay-insert" data-object-qdisplay-insert="true">',
+      '<summary class="preview-object-qdisplay-insert-label">' + escapeHtml(t('previewObjectEditor.insertQdisplay', 'Insert display')) + '</summary>',
+      '<span class="preview-object-qdisplay-chips">',
       chips,
       '<button type="button" class="preview-object-qdisplay-token preview-object-qdisplay-skeleton" data-object-qdisplay-skeleton="true"' + fieldAttr + '>' + escapeHtml('[+  +]') + '</button>',
-      '</div>'
+      '</span>',
+      '</details>'
     ].join('');
   }
 

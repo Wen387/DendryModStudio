@@ -234,10 +234,18 @@
   }
 
   // The loaded project's display label (empty string when nothing is open).
+  // Prefer the project's own name over the index file label: on desktop the
+  // file label is an absolute path, which is the wrong thing to greet with.
   function currentProjectLabel() {
     const nav = shellNav();
     const snap = nav && typeof nav.getState === 'function' ? (nav.getState() || {}) : {};
-    return (snap && snap.lastIndexLabel) || '';
+    const project = snap.projectModel && snap.projectModel.project;
+    const name = project && project.name ? String(project.name).trim() : '';
+    if (name) {
+      return name;
+    }
+    const label = (snap && snap.lastIndexLabel) || '';
+    return label ? String(label).split(/[\\/]/).pop() : '';
   }
 
   // Hero subtitle reflects context: the open project's name when one is loaded,

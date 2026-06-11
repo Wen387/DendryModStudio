@@ -10,25 +10,38 @@
   padding: 0;
 }
 
+/* Sample-data switcher. Joined into one quiet segmented group: the workspace
+   header otherwise reads as seven equal outline buttons (three screen choices,
+   the Library action, and these fixtures) with no hierarchy. */
 .system-ui-fixtures {
   display: inline-flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 0;
   justify-content: flex-end;
+  align-self: start;
+  border: 1px solid var(--border-soft);
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .system-ui-fixtures button {
-  min-height: 30px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface);
-  color: var(--text);
-  font-weight: 750;
+  min-height: 26px;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.system-ui-fixtures button + button {
+  border-left: 1px solid var(--border-soft);
 }
 
 .system-ui-fixtures button.is-active {
-  border-color: var(--accent);
   background: var(--studio-accent-soft);
+  color: var(--accent-strong);
 }
 
 .system-screen-families {
@@ -111,6 +124,30 @@
   border-color: var(--accent-strong);
   background: var(--accent-strong);
   color: var(--surface);
+}
+
+/* Screen choice = one segmented control. Three separate pill buttons read as
+   three independent actions; joining them (active segment keeps its solid
+   fill) makes the pick-one relationship visible and thins the header's
+   button wall. The in-preview flow tabs above keep their separate pills. */
+.system-ui-player-flow-toolbar {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 0;
+  width: max-content;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.system-ui-player-flow-toolbar button {
+  border: 0;
+  border-radius: 0;
+}
+
+.system-ui-player-flow-toolbar button + button {
+  border-left: 1px solid var(--border);
 }
 
 .system-ui-library-quick-entry {

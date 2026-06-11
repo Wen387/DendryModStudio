@@ -9,6 +9,7 @@
   })();
   const escapeHtml = domTextUtils.escapeHtml;
   const escapeAttr = domTextUtils.escapeAttr;
+  const pathBreakHints = domTextUtils.pathBreakHints || ((html) => html);
 
   function ProjectMapExploreLists(ctx) {
     ctx = ctx || {};
@@ -864,7 +865,15 @@
   }
 
   function renderListRow(item, state) {
-    const badges = item.badges.map((badge) => {
+    // Text corpus rows repeat [role, editability, confidence] near-identically
+    // down an 11k-row list, and the role already sits in the secondary column
+    // and the section heading. Keep only the editability status chip (index 1
+    // of explore_model normalizeForView's textCorpus badges) at row level; the
+    // inspector still shows the full set.
+    const rowBadges = state && state.view === 'textCorpus'
+      ? ensureArray(item.badges).slice(1, 2)
+      : ensureArray(item.badges);
+    const badges = rowBadges.map((badge) => {
       if (!badge) {
         return '';
       }
@@ -875,7 +884,7 @@
       '<button class="list-row' + selected + '" type="button" data-row-key="' + escapeAttr(item.key) + '">',
       '<span><span class="primary">' + escapeHtml(item.primary) + '</span></span>',
       '<span class="secondary">' + escapeHtml(item.secondary) + '</span>',
-      '<span class="meta">' + escapeHtml(item.meta) + '</span>',
+      '<span class="meta">' + pathBreakHints(escapeHtml(item.meta)) + '</span>',
       '<span class="badge-line">' + badges + visibleEditMarker(item, state) + '</span>',
       '</button>'
     ].join('');

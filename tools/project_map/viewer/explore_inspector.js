@@ -9,6 +9,7 @@
   })();
   const escapeHtml = domTextUtils.escapeHtml;
   const escapeAttr = domTextUtils.escapeAttr;
+  const pathBreakHints = domTextUtils.pathBreakHints || ((html) => html);
 
   function ProjectMapExploreInspector(ctx) {
     ctx = ctx || {};
@@ -735,7 +736,7 @@
       return '';
     }
     return '<button class="source-button" type="button" data-source-json="' +
-      escapeAttr(JSON.stringify(source)) + '">' + escapeHtml(sourceLabel(source)) + '</button>';
+      escapeAttr(JSON.stringify(source)) + '">' + pathBreakHints(escapeHtml(sourceLabel(source))) + '</button>';
   }
 
   function renderSceneInspector(scene, model) {

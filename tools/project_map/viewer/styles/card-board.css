@@ -262,6 +262,23 @@
   line-height: 1.45;
 }
 
+/* Draft cards surface their dry-source body here; keep the author's line
+   breaks instead of collapsing the whole draft into one paragraph. */
+.card-face-preview p {
+  white-space: pre-wrap;
+}
+
+/* editing_workspace_ui.updateDynamicSurfaces replaces this preview's children
+   with the draft's raw dry text via textContent; :not(:has(*)) scopes the
+   raw-text styling to that state so the structured card face (which has
+   element children) keeps its own typography. */
+.card-face-editor .lightweight-object-preview:not(:has(*)) {
+  white-space: pre-wrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 .card-board-card-options button,
 .card-board-card-tags b,
 .card-face-options span {
@@ -430,6 +447,37 @@
   display: grid;
   gap: 10px;
   margin-top: 12px;
+}
+
+/* The right rail renders up to nine identically-styled buttons (six board
+   markers + refresh / save / Review & Apply), so nothing reads as the main
+   move. Three tiers: Review & Apply solid, the open-editor primary outlined
+   in accent, the board-marker cluster demoted to quiet chips (their existing
+   hover rule above still promotes them on intent). */
+.card-board-object-actions button {
+  min-height: 28px;
+  padding: 4px 9px;
+  border-color: var(--border-soft);
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.card-face-editor .primary-action {
+  border-color: color-mix(in srgb, var(--studio-accent) 55%, var(--border));
+  color: var(--studio-accent-strong);
+  font-weight: 800;
+}
+
+.card-face-actions .primary-action {
+  border-color: var(--studio-accent-strong);
+  background: var(--studio-accent-strong);
+  color: var(--surface);
+}
+
+.card-face-actions .primary-action:hover,
+.card-face-actions .primary-action:focus-visible {
+  background: color-mix(in srgb, var(--studio-accent-strong) 86%, var(--surface));
 }
 
 @media (max-width: 1160px) {

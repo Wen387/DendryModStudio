@@ -25,7 +25,15 @@
     return escapeHtml(value).replace(/`/g, '&#96;');
   }
 
-  const api = {ensureArray, escapeHtml, escapeAttr};
+  // Invisible <wbr> break hints after path separators so long source paths
+  // wrap at `/`, `.`, `_` instead of mid-token in narrow columns. Call on
+  // ALREADY-ESCAPED html only — the escaped entities above contain none of
+  // these characters, so the hints never split an entity.
+  function pathBreakHints(html) {
+    return String(html == null ? '' : html).replace(/([/._])/g, '$1<wbr>');
+  }
+
+  const api = {ensureArray, escapeHtml, escapeAttr, pathBreakHints};
 
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = api;

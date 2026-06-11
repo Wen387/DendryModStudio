@@ -224,7 +224,12 @@
       contentSceneMode ? renderContentSceneHandoff(slot) : '',
       fields.length
         ? fields.map((field) => renderField(field, options)).join('')
-        : '<p class="editing-empty">' + escapeHtml(slotManualReason(slot) || task && task.manualReason || t('systemUi.noRegionFields', 'This region is visible for context; this recipe has no direct fields for it.')) + '</p>',
+        // Content-scene mode already explains itself: the handoff block above
+        // renders slotManualReason under its button, so the empty-fields
+        // fallback would print the same sentence twice.
+        : contentSceneMode
+          ? ''
+          : '<p class="editing-empty">' + escapeHtml(slotManualReason(slot) || task && task.manualReason || t('systemUi.noRegionFields', 'This region is visible for context; this recipe has no direct fields for it.')) + '</p>',
       '</section>'
     ].join('');
   }
