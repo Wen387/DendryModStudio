@@ -942,6 +942,11 @@
       return true;
     }
     const focused = focusDraftField(action.fieldId || action.valueKey || '');
+    if (!focused && action.source && action.source.path) {
+      // Render-diet fields have no DOM node to focus; the action's own source
+      // anchor still reaches them through the Source Slice workspace.
+      return openSourceSliceAction(action);
+    }
     state.status = focused
       ? t('objectCanvas.status.graphEntryFocused', 'Opened the matching editor field.')
       : t('objectCanvas.status.graphEntryMissing', 'Studio could not find that editor field in this draft.');
@@ -1896,6 +1901,11 @@
       elements.host.addEventListener('input', handleConditionalFilterInput);
       elements.host.addEventListener('change', handleConditionalFilterInput);
     }
+    if (!elements.host.__dmsObjectCanvasPlaySimDelegated) {
+      elements.host.__dmsObjectCanvasPlaySimDelegated = true;
+      elements.host.addEventListener('click', handlePlaySimClick);
+      elements.host.addEventListener('input', handlePlaySimInput);
+    }
     if (!elements.host.__dmsObjectCanvasReviewDetailsDelegated) {
       elements.host.__dmsObjectCanvasReviewDetailsDelegated = true;
       elements.host.addEventListener('toggle', (event) => {
@@ -2223,6 +2233,158 @@
   // its state badge between "shows" and "hidden". Evaluation reuses the shared
   // browser predicate evaluator; the predicate AST is carried per branch in a
   // data-attribute by preview_object_editor.js.
+  // ---- play simulator (approximate inline dry-run) ----
+  // Play state is tied to the live model: a rebuild (refresh) yields a new
+  // model object, which resets the dry-run so it never mixes a stale run with
+  // freshly edited fields.
+  function ensurePlaySim() {
+    if (!state.playSim || state.playSim.modelRef !== state.model) {
+      state.playSim = {modelRef: state.model, q: {}, chosen: null};
+    }
+    return state.playSim;
+  }
+
+  function playPreviewPane() {
+    if (!elements || !elements.host || typeof elements.host.querySelector !== 'function') {
+      return null;
+    }
+    return elements.host.querySelector('[data-object-editing-modal-preview-pane]');
+  }
+
+  function setPlayMode(mode) {
+    const pane = playPreviewPane();
+    if (!pane) {
+      return;
+    }
+    const showPlay = mode === 'play';
+    pane.dataset.previewPaneMode = showPlay ? 'play' : 'preview';
+    const previewPanel = pane.querySelector('[data-preview-mode-panel="preview"]');
+    const playPanel = pane.querySelector('[data-preview-mode-panel="play"]');
+    if (previewPanel) {
+      previewPanel.hidden = showPlay;
+    }
+    if (playPanel) {
+      playPanel.hidden = !showPlay;
+    }
+    pane.querySelectorAll('[data-preview-modes-toolbar] button').forEach((button) => {
+      const active = (button.dataset.playAction === 'show-play') === showPlay;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    if (showPlay) {
+      renderPlaySimPane();
+    }
+  }
+
+  function renderPlaySimPane() {
+    const simUi = global.ProjectMapObjectPlaySimulatorUi;
+    const pane = playPreviewPane();
+    const body = state.model && state.model.eventBody;
+    const container = pane && pane.querySelector('[data-play-sim-pane]');
+    if (!container) {
+      return;
+    }
+    // Prefer the real DendryEngine over the approximate dry-run when the desktop
+    // bridge is available and the object maps to a scene we can play.
+    const engineUi = global.ProjectMapObjectPlaytestEngineUi;
+    if (engineUi && typeof engineUi.claimPane === 'function' && engineUi.claimPane(container, engineDeps())) {
+      container.dataset.playSimPending = 'false';
+      return;
+    }
+    if (!simUi || typeof simUi.renderPane !== 'function' || !body) {
+      return;
+    }
+    container.innerHTML = simUi.renderPane(body, state.model, ensurePlaySim());
+    container.dataset.playSimPending = 'false';
+  }
+
+  function renderPlaySimNode() {
+    const simUi = global.ProjectMapObjectPlaySimulatorUi;
+    const pane = playPreviewPane();
+    const body = state.model && state.model.eventBody;
+    const node = pane && pane.querySelector('[data-play-node]');
+    if (!simUi || typeof simUi.renderNode !== 'function' || !body || !node) {
+      return;
+    }
+    node.innerHTML = simUi.renderNode(body, state.model, ensurePlaySim());
+  }
+
+  // Real-engine play-test (Phase 2): hand the controller (ProjectMapObject-
+  // PlaytestEngineUi) accessors; it claims the pane when the desktop bridge is
+  // present, else the approximate simulator above runs (plain browser viewer).
+  function engineDeps() {
+    return {getModel: function () { return state.model; }, getHost: function () { return elements && elements.host; }, getInstallPlan: function () { try { return currentInstallPlan(); } catch (_e) { return null; } }, getPreviewPane: playPreviewPane};
+  }
+
+  function handlePlaySimClick(event) {
+    const target = event && event.target;
+    if (!target || !target.closest || !elements || !elements.host) {
+      return;
+    }
+    // The real-engine controller owns its own controls (choices + restart);
+    // let it claim the event first, then fall through to the approximate panel.
+    const engineUi = global.ProjectMapObjectPlaytestEngineUi;
+    if (engineUi && typeof engineUi.handleClick === 'function' && engineUi.handleClick(event, engineDeps())) {
+      return;
+    }
+    const actionButton = target.closest('[data-play-action]');
+    if (actionButton && elements.host.contains(actionButton)) {
+      const action = actionButton.dataset.playAction || '';
+      if (action === 'show-play' || action === 'show-preview') {
+        event.preventDefault();
+        setPlayMode(action === 'show-play' ? 'play' : 'preview');
+        return;
+      }
+      if (action === 'reset') {
+        event.preventDefault();
+        const ps = ensurePlaySim();
+        ps.q = {};
+        ps.chosen = null;
+        renderPlaySimPane();
+        return;
+      }
+      if (action === 'back') {
+        event.preventDefault();
+        ensurePlaySim().chosen = null;
+        renderPlaySimNode();
+        return;
+      }
+    }
+    const optionButton = target.closest('[data-play-option]');
+    if (optionButton && elements.host.contains(optionButton)) {
+      event.preventDefault();
+      ensurePlaySim().chosen = optionButton.dataset.playOption || null;
+      renderPlaySimNode();
+    }
+  }
+
+  function handlePlaySimInput(event) {
+    const target = event && event.target;
+    if (!target || !target.closest || !elements || !elements.host) {
+      return;
+    }
+    // Real-engine mode: the controller re-runs from the edited starting state.
+    const engineUi = global.ProjectMapObjectPlaytestEngineUi;
+    if (engineUi && typeof engineUi.handleInput === 'function' && engineUi.handleInput(event, engineDeps())) {
+      return;
+    }
+    const varInput = target.closest('[data-play-var]');
+    if (!varInput || !elements.host.contains(varInput)) {
+      return;
+    }
+    const name = varInput.dataset.playVar || '';
+    if (!name) {
+      return;
+    }
+    const ps = ensurePlaySim();
+    const num = Number(varInput.value);
+    ps.q[name] = Number.isFinite(num) ? num : 0;
+    // A starting-state change invalidates the current result; drop back to the
+    // entry node. Only the node is re-rendered so the state inputs keep focus.
+    ps.chosen = null;
+    renderPlaySimNode();
+  }
+
   function handleConditionalWhatIfInput(event) {
     const target = event && event.target;
     if (!target || !target.closest || !elements || !elements.host) {
@@ -2503,7 +2665,7 @@
       updateDraftObjectCanvasAssetPlacementSelection(select);
       return;
     }
-    if (select && select.dataset && select.dataset.existingAssetAddField) {
+    if (select && select.dataset && (select.dataset.existingAssetAddField || select.dataset.existingAssetField)) {
       updateExistingObjectCanvasAssetSelection(select);
       return;
     }
@@ -2724,7 +2886,7 @@
   }
 
   function updateExistingObjectCanvasAssetSelection(select) {
-    const fieldId = String(select.dataset.existingAssetAddField || '').trim();
+    const fieldId = String(select.dataset.existingAssetAddField || select.dataset.existingAssetField || '').trim();
     const directive = String(select.dataset.assetDirective || '').trim();
     const target = select.dataset.assetTarget === 'card' ? 'card' : 'event';
     const role = String(select.dataset.assetRole || '').trim();
@@ -2750,6 +2912,8 @@
       label: ref.label || ref.name || path,
       target,
       role,
+      original: String(select.dataset.assetOriginal || ''),
+      currentPath: String(select.dataset.currentAssetPath || ''),
       modifiers: collectAudioModifiers(select)
     });
     state.proposalOptions = removeObjectCanvasAssetInstallRequestForField(state.proposalOptions, fieldId);

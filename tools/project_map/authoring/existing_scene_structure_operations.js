@@ -111,8 +111,11 @@
       if (action === 'remove_option' && String(sourceBlock.kind || '') === 'option_line_delete') {
         return {status: 'guarded_apply', reason: 'A standalone option line can be deleted directly when it has no result fallout.'};
       }
-      if (action === 'remove_option' || action === 'remove_layer' || action === 'reroute_layer' || action === 'add_branch') {
-        return {status: 'advanced_apply', reason: 'Branch, layer, and reroute edits may affect multiple source spans and need advanced review.'};
+      if (action === 'add_branch') {
+        return {status: 'guarded_apply', reason: 'A new follow-up section is a single anchored insertion with a strictly validated body.'};
+      }
+      if (action === 'remove_option' || action === 'remove_layer' || action === 'reroute_layer') {
+        return {status: 'advanced_apply', reason: 'Layer and reroute edits may affect multiple source spans and need advanced review.'};
       }
       return {status: 'manual_review', reason: 'This structure action does not have a supported source operation yet.'};
     }

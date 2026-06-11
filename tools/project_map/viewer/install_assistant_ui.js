@@ -601,6 +601,9 @@
         state.postApplyVerification = null;
       }
       setResult(finalResult);
+      global.document.dispatchEvent(new CustomEvent('ProjectMap:install-result', {
+        detail: {dryRun, ok: Boolean(finalResult && finalResult.ok)}
+      }));
       render();
       await refreshProjectIndexAfterApply(finalResult, {dryRun});
       return finalResult;

@@ -892,6 +892,7 @@
       '    <button type="button" class="guided-tour-curtain-secondary" data-guided-tour-curtain-secondary></button>',
       '    <button type="button" class="primary-action guided-tour-curtain-primary" data-guided-tour-curtain-primary></button>',
       '  </div>',
+      '  <button type="button" class="guided-tour-curtain-extra" data-guided-tour-curtain-extra hidden></button>',
       '</div>'
     ].join('');
     mount.appendChild(curtain);
@@ -903,8 +904,10 @@
       title: curtain.querySelector('[data-guided-tour-curtain-title]'),
       body: curtain.querySelector('[data-guided-tour-curtain-body]'),
       secondary: curtain.querySelector('[data-guided-tour-curtain-secondary]'),
-      primary: curtain.querySelector('[data-guided-tour-curtain-primary]')
+      primary: curtain.querySelector('[data-guided-tour-curtain-primary]'),
+      extra: curtain.querySelector('[data-guided-tour-curtain-extra]')
     };
+    state.curtainEls.extra.addEventListener('click', onCurtainExtra);
     curtain.addEventListener('keydown', onCurtainKeydown);
     curtain.addEventListener('click', function (event) {
       const target = event.target;
@@ -945,6 +948,7 @@
       els.body.textContent = t('tour.intro.body', '');
       els.secondary.textContent = t('tour.intro.later', 'Maybe later');
       els.primary.textContent = t('tour.intro.start', "Let's go");
+      els.extra.hidden = true;
       setCurtainActions(
         function onLater() { markSeenLinear(); closeCurtain(); finishHubLanding(); },
         function onStart() { state.curtainLastFocus = null; closeCurtain(); beginLinearSteps(); }
@@ -956,6 +960,8 @@
       els.body.textContent = t('tour.ending.body', '');
       els.secondary.textContent = t('tour.ending.hints', 'Show hints as I go');
       els.primary.textContent = t('tour.ending.close', 'Start exploring');
+      els.extra.hidden = false;
+      els.extra.textContent = t('quest.intro.title', 'Want to try it hands-on?');
       setCurtainActions(
         function onHints() {
           // The user chose to keep going with hints — a continuation, not an
@@ -1027,6 +1033,26 @@
     }
     closeCurtain();
     finishHubLanding();
+  }
+
+  // The "try it hands-on" invite on the ending curtain hands off to the loose
+  // first-proposal quest. That is a continuation of the tour, not an exit, so we
+  // disarm the Welcome Hub landing without popping it (mirrors the hints choice).
+  function onCurtainExtra() {
+    state.pendingHubLanding = false;
+    state.curtainLastFocus = null;
+    closeCurtain();
+    launchFirstProposalQuest();
+  }
+
+  function launchFirstProposalQuest() {
+    if (global.ProjectMapFirstProposalQuest &&
+        typeof global.ProjectMapFirstProposalQuest.open === 'function') {
+      global.ProjectMapFirstProposalQuest.open();
+      return;
+    }
+    global.document.dispatchEvent(
+      new global.Event(eventName('openFirstProposalQuest', 'ProjectMap:open-first-proposal-quest')));
   }
 
   function isCurtainOpen() {

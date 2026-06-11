@@ -161,7 +161,7 @@ const semanticEventDraft = {
   introParagraphs: ['Opening player text.'],
   options: [
     {id: 'support', label: 'Support the plan', chooseIf: 'public_order >= 1', unavailableText: 'Public order is too low.', effects: [{variable: 'public_order', op: '+=', value: 1}], narrativeParagraphs: ['The plan gains support.'], gotoAfter: 'continue_support', returnTarget: 'root'},
-    {id: 'wait', label: 'Wait', narrativeParagraphs: ['The room waits.'], gotoAfter: 'continue_wait', returnTarget: 'root'}
+    {id: 'wait', label: 'Wait', chooseIf: 'Q.public_order >= 1', narrativeParagraphs: ['The room waits.'], gotoAfter: 'continue_wait', returnTarget: 'root'}
   ]
 };
 const semanticEventModel = canvasModel.buildCanvasModel(cardCanvasIndex, semanticEventDraft);
@@ -183,7 +183,8 @@ assert(semanticEventHtml.includes('data-object-canvas-semantic-section="player_c
 assert(semanticEventHtml.includes('data-semantic-intent="choice_condition"'), 'Object Canvas event editor should render semantic intent markers');
 assert(semanticEventHtml.includes('data-object-canvas-variable-target="option.0.chooseIf"'), 'Object Canvas event editor should render variable picker targets beside condition fields');
 assert(semanticEventHtml.includes('data-object-canvas-semantic-card="condition"'), 'Object Canvas should render conditions as semantic condition cards');
-assert(semanticEventHtml.includes('data-object-canvas-condition-structure="true"'), 'Object Canvas should show simple condition structure without guessing variable meaning');
+assert(semanticEventHtml.includes('data-object-condition-builder="option.0.chooseIf"'), 'Object Canvas should upgrade a flat byte-canonical condition to the editable row builder');
+assert(semanticEventHtml.includes('data-object-canvas-condition-structure="true"'), 'Object Canvas should keep the read-only condition structure preview for conditions outside the flat builder grammar');
 assert(previewObjectEditorSource.includes('function parseCondition('), 'Object Canvas should include a compound condition parser');
 assert(previewObjectEditorSource.includes('function parseConditionClause('), 'Object Canvas should include a clause parser for individual condition terms');
 assert(previewObjectEditorSource.includes('function renderCompoundConditionPreview('), 'Object Canvas should include a compound condition renderer');
@@ -1373,7 +1374,7 @@ const pendingPreviewHtml = previewEditor.renderPreviewPane(pendingStructureModel
 assert(pendingStructureModel.changeState.changedCount === 4, 'existing editor should collect add-option, add-branch, trigger-effect, and option-effect proposals');
 assert(pendingStructureModel.changeState.installPlan.operations.filter((operation) => operation.type === 'manual_snippet').length === 0, 'source-backed option/effect/trigger/branch changes should avoid fake manual review');
 assert(pendingStructureModel.changeState.installPlan.operations.some((operation) => operation.type === 'insert_text' && operation.safety === 'guarded_apply' && operation.content.includes('@negotiate')), 'simple root add-option commands should become guarded inserts');
-assert(pendingStructureModel.changeState.installPlan.operations.some((operation) => operation.type === 'insert_text' && operation.safety === 'advanced_apply' && operation.content.includes('@late_warning')), 'simple source-backed branch commands should become advanced inserts');
+assert(pendingStructureModel.changeState.installPlan.operations.some((operation) => operation.type === 'insert_text' && operation.safety === 'guarded_apply' && operation.content.includes('@late_warning')), 'simple source-backed branch commands should become guarded inserts');
 assert(pendingStructureModel.changeState.installPlan.operations.some((operation) => operation.type === 'insert_text' && operation.safety === 'guarded_apply'), 'simple source-backed option effects should become guarded inserts');
 assert(pendingStructureModel.changeState.installPlan.operations.some((operation) => operation.type === 'replace_text' && operation.safety === 'guarded_apply' && operation.search.includes('on-arrival') && operation.replace.includes('public_order += 2')), 'simple source-backed trigger effects should become guarded on-arrival replacements');
 assert(pendingPreviewHtml.includes('Negotiate settlement.'), 'left preview should materialize a pending new player option');
@@ -1665,6 +1666,11 @@ assert(existingAssetPreviewHtml.includes('data-object-canvas-action="remove_asse
 const existingAssetEditorHtml = previewEditor.render(existingAssetEvent);
 assert(existingAssetEditorHtml.includes('data-object-canvas-asset-replacement="true"'), 'existing event editor should expose exact asset replacement controls in the editing pane');
 assert(existingAssetEditorHtml.includes('data-existing-asset-field="asset_face_image_7"'), 'existing event editor replacement control should carry the source-backed field id');
+// gap #5: existing indexed assets swap to another indexed asset via a catalog <select> bound to the existing field (not just file upload).
+assert(existingAssetEditorHtml.includes('data-object-canvas-asset-swap="true"'), 'existing event editor should expose a catalog swap control for indexed assets');
+assert(/data-object-canvas-asset-swap="true"[\s\S]{0,600}?<select[^>]*data-existing-asset-field="asset_face_image_7"/.test(existingAssetEditorHtml), 'existing asset swap control should bind a catalog <select> to the source-backed existing field id');
+assert(/<select[^>]*data-existing-asset-field="asset_face_image_7"[^>]*data-current-asset-path="/.test(existingAssetEditorHtml), 'existing asset swap select should carry the current asset path so inline references swap in place');
+assert(existingAssetPreviewHtml.includes('data-object-canvas-asset-swap="true"'), 'existing event preview slot should also expose the catalog swap control for the global asset slot');
 const eventReplacementTarget = 'assets/studio/events/asset_directive_event/new-face.png';
 const existingAssetReplacement = canvasModel.buildExistingCanvas(index, 'events', 'asset_directive_event', {
   values: {

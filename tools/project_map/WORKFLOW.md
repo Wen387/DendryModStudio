@@ -77,6 +77,28 @@ npm ci --ignore-scripts
 npm run check:ci
 ```
 
+For quick local previews from the repository root:
+
+```bash
+# Browser preview of the bundled Demo Template
+npm run studio:preview:no-open
+
+# Electron desktop app
+npm run studio:app
+
+# Electron desktop app for a chosen branch (picker; or pass a branch name)
+npm run studio:branch
+
+# Print the browser launch plan only
+npm run studio:preview:plan
+```
+
+The browser preview shortcut opens the bundled Demo Template by default; pass
+`-- --root /path/to/project` to inspect another Dendry project. `studio:branch`
+lists local branches and runs the chosen one's desktop app from an ephemeral
+worktree (the current branch runs in place), never switching your primary
+branch. Use `npm run check:launch` after changing launcher scripts or docs.
+
 `check:ci` is data-driven: `package.json` delegates to
 `tools/project_map/run_checks.js`, which runs the ordered `ciSequence` in
 `tool_registry.json` and stops at the first failure. To add or reorder a check
@@ -104,21 +126,35 @@ npm run check:complexity
 ```
 
 Budget enforcement reads `tools/project_map/source_complexity_budget.json` and
-fails when a new exception-sized file appears, a file grows past its `maxLines`,
-or a `maxLines` ceiling is raised above its committed value. The budget is a
-one-way ratchet: ceilings may only fall. After shrinking a file, run
+fails when:
 
-```bash
-node tools/project_map/check_source_complexity.js --tighten
-```
+- a new exception-sized file appears without a budget entry,
+- a file exceeds its `maxLines`,
+- a frozen ceiling (a budget entry without `"allowRaise": true`) is raised above
+  its committed value, or
+- an already-large (warn/exception) file grows by more than **35 lines** versus
+  its committed (HEAD) version in a single commit.
 
-which lowers each `maxLines` to the current line count and never raises one. If a
-file genuinely must grow, that is a deliberate, reviewed exception: set
-`"allowRaise": true` on its budget entry. `check_source_complexity.js
---enforce-budget` runs as the second step of `check:ci`, so these rules are
-enforced on every CI run (the no-raise comparison is skipped only when git
-history is unavailable). `check_source_complexity_model.js` guards the ratchet
-logic itself.
+The last rule is a **per-file growth gate**: it stops a hot file from absorbing a
+whole feature one commit at a time. To add more than ~35 lines, move the bulk
+into a focused or sibling module. A small, deliberate addition to a hot file is
+fine — set `"allowRaise": true` on its entry and raise `maxLines` with a dated
+reason. Entries without `allowRaise` are frozen: their ceilings may only fall.
+There is no cross-file accounting — growing one file never requires shrinking an
+unrelated one.
+
+One reviewed escape hatch exists for files that *cannot* shed code yet: when
+ARCHITECTURE.md registers a file as extraction-BLOCKED, its budget entry may
+carry a `"growthExemption"` — a reason string with an ISO date (YYYY-MM-DD)
+approving one oversized growth. The exemption only works in the commit that
+writes or rewrites its reason text; once committed it goes stale, and the next
+oversized growth needs a fresh dated re-approval (typically alongside the
+matching `maxLines` raise in the same commit). An exemption on any other file
+fails enforcement — for those, split the file instead. Enforcement also prints an **advisory** list of large-file size
+changes since HEAD (not blocking) for drift visibility. The growth and no-raise
+comparisons are skipped only when git history is unavailable.
+`check_source_complexity.js --enforce-budget` runs as part of `check:ci`;
+`check_source_complexity_model.js` guards the governance logic itself.
 
 Desktop checks after `npm ci` in `tools/project_map/desktop`:
 

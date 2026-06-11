@@ -171,7 +171,7 @@
       parity: {parsed, draft: drafted, roles: roleParity.roles, warnings: roleParity.warnings, blockers},
       diagnostics: blockers.map((blocker) => diagnostic('warning', blocker.code, blocker.message)).concat(roleParity.warnings.map((item) => diagnostic('warning', item.code, item.message))),
       captured: capturedRows(parsed, drafted),
-      notCaptured: blockers.map((blocker) => blocker.message)
+      notCaptured: blockers.concat(roleParity.namedWarnings).map((blocker) => blocker.message)
     });
   }
 
@@ -198,6 +198,8 @@
       cardShape,
       cardKind: scene.flags && scene.flags.isPinnedCard || String(scene.type || '') === 'pinned_card' ? 'advisor_like' : 'action_card',
       tags: ensureArray(scene.tags).map(String),
+      newPage: scene.newPage === undefined ? true : Boolean(scene.newPage),
+      rawEffectsOnTrigger: lineList(scene.rawEffectsOnTrigger || scene.rawOnArrival || scene.onArrival),
       viewIf: String(scene.viewIf || '').trim(),
       priority: numberOrNull(scene.priority),
       frequency: numberOrNull(scene.frequency),
@@ -236,7 +238,7 @@
       parity: {parsed, draft: drafted, roles: roleParity.roles, warnings: roleParity.warnings, blockers},
       diagnostics: blockers.map((blocker) => diagnostic('warning', blocker.code, blocker.message)).concat(roleParity.warnings.map((item) => diagnostic('warning', item.code, item.message))),
       captured: capturedRows(parsed, drafted),
-      notCaptured: blockers.map((blocker) => blocker.message)
+      notCaptured: blockers.concat(roleParity.namedWarnings).map((blocker) => blocker.message)
     });
   }
 
@@ -787,29 +789,55 @@
     const roles = {};
     const blockers = [];
     const warnings = [];
+    const namedWarnings = [];
     uniqueStrings(Object.keys(parsed).concat(Object.keys(drafted))).forEach((key) => {
       const parsedCount = Number(parsed[key] || 0);
       const draftCount = Number(drafted[key] || 0);
       const missing = Math.max(0, parsedCount - draftCount);
+      const missingNames = missing ? namedRoleLosses(key, scene, textRows, draft) : [];
       const row = {
         role: key,
         parsed: parsedCount,
         draft: draftCount,
         missing,
+        missingNames,
         blocking: Boolean(missing && blockingParityRole(key))
       };
       roles[key] = row;
       if (!missing) {
         return;
       }
-      const item = blocker('parsed_to_draft.missing_' + key, 'Parsed ' + roleLabel(key) + ' count is ' + parsedCount + ', but the draft keeps ' + draftCount + '.');
+      const item = blocker('parsed_to_draft.missing_' + key, 'Parsed ' + roleLabel(key) + ' count is ' + parsedCount + ', but the draft keeps ' + draftCount + '.' +
+        (missingNames.length ? ' Missing: ' + missingNames.join('; ') + '.' : ''));
       if (row.blocking) {
         blockers.push(item);
       } else {
         warnings.push(item);
+        if (missingNames.length) {
+          namedWarnings.push(item);
+        }
       }
     });
-    return {parsed, draft: drafted, roles, blockers, warnings};
+    return {parsed, draft: drafted, roles, blockers, warnings, namedWarnings};
+  }
+
+  let lossNamerCache;
+  function namedRoleLosses(role, scene, textRows, draft) {
+    if (lossNamerCache === undefined) {
+      let lossApi = null;
+      if (typeof module !== 'undefined' && module.exports && typeof require === 'function') {
+        try {
+          lossApi = require('./parsed_draft_loss_names.js');
+        } catch (_err) {
+          lossApi = null;
+        }
+      }
+      if (!lossApi && typeof globalThis !== 'undefined') {
+        lossApi = globalThis.ProjectMapParsedDraftLossNames || null;
+      }
+      lossNamerCache = lossApi ? lossApi.createLossNamer({ensureArray, roleOf, hookRows, assetRefsForScene}) : null;
+    }
+    return lossNamerCache ? lossNamerCache.namedRoleLosses(role, scene, textRows, draft) : [];
   }
 
   function parsedRoleCounts(scene, textRows) {

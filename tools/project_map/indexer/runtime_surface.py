@@ -7,6 +7,13 @@ RUNTIME_HTML_ROOT = "out/html"
 RUNTIME_INDEX_REL = "out/html/index.html"
 RUNTIME_FILE_LIMIT = 1024 * 1024
 
+# Mod-owned make-html template source (the eject/adopt target), distinct from
+# the generated out/html output above. Drives the right-sidebar guarded
+# auto-apply decision: Studio only auto-writes the panel when the mod owns one.
+TEMPLATE_HTML_ROOT = "templates/html"
+TEMPLATE_INDEX_NAME = "+index.html"
+TEMPLATE_CSS_NAME = "+game.css"
+
 EVENT_HANDLER_ATTRS = {
     "onclick",
     "onchange",
@@ -680,4 +687,56 @@ def extract_runtime_surface(root: Path) -> dict[str, Any]:
         "readiness": readiness,
         "diagnostics": diagnostics,
         "confidence": CONF_STATIC,
+    }
+
+
+def _template_has_id_token(text: str, ident: str) -> bool:
+    # Quote-tolerant, prefix-safe: ``id='stats_sidebar'`` will not match
+    # ``id='stats_sidebar_right'`` because the closing quote follows the ident.
+    return ("id='" + ident + "'") in text or ('id="' + ident + '"') in text
+
+
+def extract_template_source(root: Path) -> dict[str, Any]:
+    """Detect whether the mod owns an editable make-html template source.
+
+    Scans ``templates/html/*/+index.html`` (the eject/adopt target), NOT the
+    generated ``out/html`` output. This is the evidence the right-sidebar
+    guarded auto-apply uses to decide whether Studio may auto-write the panel
+    (mod-owned template) or must stay manual_review (engine default / unknown).
+    """
+    html_root = root / TEMPLATE_HTML_ROOT
+    dirs: list[str] = []
+    index_path_rel = ""
+    css_path_rel = ""
+    has_anchor = False
+    has_right_panel = False
+    if html_root.is_dir():
+        for child in sorted(html_root.iterdir()):
+            if not child.is_dir():
+                continue
+            index_file = child / TEMPLATE_INDEX_NAME
+            if not index_file.is_file():
+                continue
+            dirs.append(posix_rel(child, root))
+            if index_path_rel:
+                continue
+            index_path_rel = posix_rel(index_file, root)
+            css_file = child / TEMPLATE_CSS_NAME
+            css_path_rel = (
+                posix_rel(css_file, root)
+                if css_file.is_file()
+                else posix_rel(child, root) + "/" + TEMPLATE_CSS_NAME
+            )
+            text = read_text_prefix(index_file, RUNTIME_FILE_LIMIT)
+            has_anchor = _template_has_id_token(text, "stats_sidebar")
+            has_right_panel = _template_has_id_token(text, "stats_sidebar_right")
+    owned = bool(dirs)
+    return {
+        "owned": owned,
+        "dirs": dirs,
+        "indexPath": index_path_rel,
+        "cssPath": css_path_rel,
+        "hasStatsSidebarAnchor": has_anchor,
+        "hasRightPanel": has_right_panel,
+        "confidence": CONF_EXACT if owned else CONF_OPAQUE,
     }

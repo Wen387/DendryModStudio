@@ -40,15 +40,57 @@ Current maintainer map:
 - Generated runtime output, `.git`, and protected build artifacts remain
   protected. Edits must map back to source-backed operations.
 
-## One-command local launch
+## Quick Development Preview
 
-For normal local use, start here:
+Run these commands from the repository root.
+
+Fastest browser preview of the current Studio UI:
 
 ```bash
-python3 tools/project_map/launch_studio.py
+npm run studio:preview
 ```
 
-The launcher:
+Same preview, but print the URL instead of opening a browser automatically:
+
+```bash
+npm run studio:preview:no-open
+```
+
+Preview a real Dendry project instead of the bundled Demo Template:
+
+```bash
+npm run studio:preview -- --root /path/to/project
+```
+
+Inspect the launch plan without generating an index or starting a server:
+
+```bash
+npm run studio:preview:plan
+```
+
+Open the Electron desktop app:
+
+```bash
+npm --prefix tools/project_map/desktop ci
+npm run studio:app
+```
+
+After desktop dependencies are installed once, use only `npm run studio:app` for
+normal desktop launches.
+
+Launch the desktop app for a specific branch (interactive picker, or pass a name):
+
+```bash
+npm run studio:branch
+npm run studio:branch -- main
+npm run studio:branch:list
+```
+
+The current branch runs in place; any other branch runs from an ephemeral
+worktree at its tip that borrows `node_modules` by symlink and is removed when
+the app closes. It never switches your primary branch or edits the working tree.
+
+The browser launcher:
 
 - generates `/tmp/dendry_project_map/project-index.json`;
 - starts a local static viewer server;
@@ -57,22 +99,28 @@ The launcher:
 - keeps browser mode review-only; source writes require desktop Review & Apply
   or the guarded CLI apply path.
 
+`npm run studio:preview` is a root-package shortcut for:
+
+```bash
+python3 tools/project_map/launch_studio.py --root tools/project_map/templates/starter-demo
+```
+
 For review indexes with source excerpts:
 
 ```bash
-python3 tools/project_map/launch_studio.py --include-excerpts
+npm run studio:preview -- --include-excerpts
 ```
 
 If browser auto-open is annoying on your machine:
 
 ```bash
-python3 tools/project_map/launch_studio.py --no-open
+npm run studio:preview:no-open
 ```
 
 To inspect what it would do without generating an index or starting a server:
 
 ```bash
-python3 tools/project_map/launch_studio.py --dry-run --no-open
+npm run studio:preview:plan
 ```
 
 ## Desktop App
@@ -96,20 +144,19 @@ signed public installer yet. The root game package stays untouched.
 First install the shell dependencies:
 
 ```bash
-cd tools/project_map/desktop
-npm ci
+npm --prefix tools/project_map/desktop ci
 ```
 
 Then start the desktop window:
 
 ```bash
-npm run start
+npm run studio:app
 ```
 
 To check the local desktop environment without opening the Electron window:
 
 ```bash
-npm run doctor
+npm run studio:app:doctor
 ```
 
 The desktop shell:

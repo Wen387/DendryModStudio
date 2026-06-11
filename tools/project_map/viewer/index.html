@@ -191,6 +191,7 @@
 
     <div id="studio-welcome-root"></div>
     <div id="studio-guided-tour-root"></div>
+    <div id="studio-first-proposal-quest-root"></div>
     <div id="studio-publish-root"></div>
 
     <div id="studio-tutorial-library" class="tutorial-library-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="tutorial-library-title">
@@ -2325,6 +2326,7 @@ media_reach += 1</textarea>
   </div>
   <script src="../authoring/authoring_dependency_loader.js"></script>
   <script src="../authoring/install_plan.js"></script>
+  <script src="../authoring/parsed_draft_loss_names.js"></script>
   <script src="../authoring/parsed_to_draft.js"></script>
   <script src="../authoring/event_draft.js"></script>
   <script src="../authoring/ownership_matching_model.js"></script>
@@ -2343,7 +2345,7 @@ media_reach += 1</textarea>
   <script src="../authoring/sidebar_status_draft.js"></script>
   <script src="../authoring/election_results_draft.js"></script>
   <script src="../authoring/project_metadata_draft.js"></script>
-  <script src="../authoring/variable_editor_draft.js"></script>
+  <script src="../authoring/variable_editor_draft.js"></script><script src="../authoring/right_sidebar_draft.js"></script>
   <script src="../authoring/draft_extract.js"></script>
   <script src="../authoring/existing_scene_logic_fields.js"></script>
   <script src="../authoring/existing_scene_edit_metadata_fields.js"></script>
@@ -2351,6 +2353,7 @@ media_reach += 1</textarea>
   <script src="../authoring/predicate_runtime_eval.js"></script>
   <script src="../authoring/existing_scene_asset_helpers.js"></script>
   <script src="../authoring/existing_scene_text_block_helpers.js"></script><script src="../authoring/existing_scene_text_block_builder.js"></script>
+  <script src="../authoring/object_opaque_block_edit.js"></script>
   <script src="../authoring/existing_scene_edit_model.js"></script>
   <script src="../authoring/edit_capability_model.js"></script>
   <script src="../authoring/visible_object_coverage_model.js"></script>
@@ -2393,6 +2396,7 @@ media_reach += 1</textarea>
   <script src="../authoring/draft_workspace.js"></script>
   <script src="../authoring/studio_shared_constants.js"></script>
   <script src="../authoring/guided_tour_model.js"></script>
+  <script src="../authoring/first_proposal_quest_model.js"></script>
   <script src="dom_text_utils.js"></script>
   <script src="i18n/en.js"></script>
   <script src="i18n/zh-Hant.js"></script>
@@ -2400,6 +2404,8 @@ media_reach += 1</textarea>
   <script src="i18n/zh-Hant.publish.js"></script>
   <script src="i18n/en.home.js"></script>
   <script src="i18n/zh-Hant.home.js"></script>
+  <script src="i18n/en.runtime-lens.js"></script>
+  <script src="i18n/zh-Hant.runtime-lens.js"></script>
   <script src="desktop_capabilities.js"></script>
   <script src="i18n.js"></script>
   <script src="icons.js"></script>
@@ -2419,6 +2425,9 @@ media_reach += 1</textarea>
   <script src="card_board_perf.js"></script>
   <script src="visible_edit_action_ui.js"></script>
   <script src="visible_text_renderer.js"></script>
+  <script src="object_play_simulator_model.js"></script>
+  <script src="object_play_simulator_ui.js"></script><script src="object_playtest_audio_model.js"></script>
+  <script src="object_playtest_engine_ui.js"></script>
   <script src="lightweight_object_preview.js"></script>
   <script src="preview_object_structure_draft.js"></script>
   <script src="preview_object_structure_ui.js"></script>
@@ -2426,6 +2435,12 @@ media_reach += 1</textarea>
   <script src="preview_object_metadata_ui.js"></script>
   <script src="preview_object_opening_context_ui.js"></script>
   <script src="preview_asset_editor.js"></script>
+  <script src="object_editor_find.js"></script>
+  <script src="object_editor_inserts.js"></script>
+  <script src="object_editor_condition_builder.js"></script>
+  <script src="object_editor_deferred_slice.js"></script>
+  <script src="object_editor_overcap_slice.js"></script>
+  <script src="qdisplay_create_panel.js"></script>
   <script src="preview_object_editor.js"></script>
   <script src="storyboard_workspace_state.js"></script>
   <script src="content_storyboard_surface.js"></script>
@@ -2481,7 +2496,7 @@ media_reach += 1</textarea>
   <script src="project_metadata_ui.js"></script>
   <script src="variable_editor_ui.js"></script>
   <script src="install_review_ui.js"></script>
-  <script src="install_assistant_ui.js"></script>
+  <script src="install_assistant_ui.js"></script><script src="right_sidebar_ui.js"></script>
   <script src="change_tray_ui.js"></script>
   <script src="draft_workspace_ui.js"></script>
   <!-- existing_scene_edit_ui.js removed 2026-05-25 — oldest existing-scene
@@ -2491,6 +2506,7 @@ media_reach += 1</textarea>
   <script src="tutorial_library_ui.js"></script>
   <script src="theme_ui.js"></script>
   <script src="guided_tour_ui.js"></script>
+  <script src="first_proposal_quest_ui.js"></script>
   <script src="publish_ui.js"></script>
   <script src="design_graph_renderer.js"></script>
   <script src="design_interactions.js"></script>

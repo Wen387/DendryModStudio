@@ -91,9 +91,35 @@
     ].join('');
   }
 
+  // Resolve the off-budget insert sibling: browser global, else require() (so Node
+  // check harnesses loading only this module still get the insert chip renderers).
+  function objectEditorInserts() {
+    if (global && global.ProjectMapObjectEditorInserts) { return global.ProjectMapObjectEditorInserts; }
+    try { return require('./object_editor_inserts.js'); } catch (_err) { return null; }
+  }
+
+  // Same resolution for the off-budget flat-condition row builder sibling.
+  function objectEditorConditionBuilder() {
+    if (global && global.ProjectMapObjectEditorConditionBuilder) { return global.ProjectMapObjectEditorConditionBuilder; }
+    try { return require('./object_editor_condition_builder.js'); } catch (_err) { return null; }
+  }
+
+  // Same resolution for the off-budget deferred-row source-slice entry sibling.
+  function objectEditorDeferredSlice() {
+    if (global && global.ProjectMapObjectEditorDeferredSlice) { return global.ProjectMapObjectEditorDeferredSlice; }
+    try { return require('./object_editor_deferred_slice.js'); } catch (_err) { return null; }
+  }
+
+  function objectEditorOvercapSlice() {
+    if (global && global.ProjectMapObjectEditorOvercapSlice) { return global.ProjectMapObjectEditorOvercapSlice; }
+    try { return require('./object_editor_overcap_slice.js'); } catch (_err) { return null; }
+  }
+
   function renderModal(model, options) {
     const opts = options && typeof options === 'object' ? options : {};
     const body = model && model.eventBody || {};
+    const modalInserts = objectEditorInserts();
+    if (modalInserts) { modalInserts.setEventContext(body); }
     const kind = editorKind(model, opts);
     const title = titleText(body, model, kind);
     const source = sourceLabel(model);
@@ -116,8 +142,8 @@
       '</div>',
       '</header>',
       '<div class="object-editing-modal-grid">',
-      '<section class="object-editing-preview-pane" data-object-editing-modal-preview-pane="true">',
-      renderModalPreviewPane(model, opts),
+      '<section class="object-editing-preview-pane" data-object-editing-modal-preview-pane="true" data-preview-pane-mode="preview">',
+      renderPreviewPaneWithPlay(model, opts),
       '</section>',
       '<div class="object-editing-modal-resizer" data-object-canvas-resizer="object_editor" role="separator" aria-orientation="vertical" aria-label="' + escapeAttr(t('previewObjectEditor.resizePanes', 'Resize editor panes')) + '" title="' + escapeAttr(t('previewObjectEditor.resizePanes', 'Resize editor panes')) + '"></div>',
       '<section class="object-editing-fields-pane preview-object-editor" data-preview-object-editor="true" data-preview-object-editor-kind="' + escapeAttr(kind) + '" data-object-canvas-preview-editor="true">',
@@ -132,6 +158,7 @@
       '<dt>' + escapeHtml(t('existingScene.source', 'Source')) + '</dt><dd>' + escapeHtml(source || t('previewObjectEditor.sourceDraft', 'Draft / generated target')) + '</dd>',
       '</dl>',
       '</header>',
+      (global && global.ProjectMapObjectEditorFind ? global.ProjectMapObjectEditorFind.renderFindToolbar(body) : ''),
       renderKindEditor(kind, body, model),
       renderEditorSummary(model, kind),
       renderModalActions(model),
@@ -150,6 +177,21 @@
       return renderLargeEventModalPreview(body, model);
     }
     return renderPreviewPane(model, opts);
+  }
+
+  // ---- play simulator (approximate inline dry-run) ----
+  // Rendering lives in object_play_simulator_ui.js; these thin wrappers keep
+  // this module's public api stable while delegating the markup there.
+
+  function renderPreviewPaneWithPlay(model, options) {
+    const previewHtml = renderModalPreviewPane(model, options && typeof options === 'object' ? options : {});
+    let ui = global && global.ProjectMapObjectPlaySimulatorUi;
+    if (!ui && typeof require === 'function') {
+      try { ui = require('./object_play_simulator_ui.js'); } catch (_err) { ui = null; }
+    }
+    return ui && typeof ui.renderPaneWithPlay === 'function'
+      ? ui.renderPaneWithPlay(previewHtml, model && model.eventBody || {}, model)
+      : previewHtml;
   }
 
   function largeModalEventPlan(body) {
@@ -1598,22 +1640,9 @@
     ].join('');
   }
 
-  // Demystify raw condition syntax for newcomers: offer the variables this layer
-  // already references as one-click insert chips, so editing a condition does not
-  // require recalling exact quality names. The set mirrors the what-if strip
-  // (the variables in play here), keeping the suggestions contextual.
-  function renderConditionalVarInserts(variables) {
-    const names = ensureArray(variables).filter(Boolean);
-    if (!names.length) {
-      return '';
-    }
-    return [
-      '<div class="preview-object-conditional-var-insert" data-conditional-var-insert="true">',
-      '<span class="preview-object-conditional-var-insert-label">' + escapeHtml(t('previewObjectEditor.insertVariable', 'Insert variable')) + '</span>',
-      names.map((name) => '<button type="button" class="preview-object-conditional-var-token" data-conditional-var-token="' + escapeAttr(name) + '">' + escapeHtml(name) + '</button>').join(''),
-      '</div>'
-    ].join('');
-  }
+  // renderConditionalVarInserts (and the prose [+ qdisplay +] inserter) live in the
+  // off-budget sibling object_editor_inserts.js; object_authoring_canvas_ui still
+  // owns the data-conditional-var-token click handler that drives those chips.
 
   function renderConditionalLeafEditor(node, options) {
     if (!node || !node.editable || !node.textFieldId) {
@@ -1636,7 +1665,7 @@
         '<label class="preview-object-conditional-edit-field">',
         '<span>' + escapeHtml(t('previewObjectEditor.editBranchCondition', 'Branch condition')) + '</span>',
         '<input type="text" class="preview-object-conditional-edit-input" value="' + escapeAttr(rawCondition) + '" data-object-canvas-field="' + escapeAttr(node.conditionFieldId) + '" data-object-canvas-original="' + escapeAttr(rawCondition) + '" data-conditional-leaf-input="condition">',
-        renderConditionalVarInserts(opts.conditionVariables),
+        ((m) => m ? m.renderConditionalVarInserts(opts.conditionVariables) : '')(objectEditorInserts()),
         '<small class="preview-object-conditional-edit-note" data-conditional-leaf-note="condition" role="status" aria-live="polite" hidden></small>',
         '</label>'
       );
@@ -1863,9 +1892,46 @@
       renderBranchSectionEditor(branchSections, textOptions, body, renderPlan, model),
       renderAssetEditorPanel(body, 'event', model),
       renderLogicEditor(body, 'event'),
+      renderOpaqueBlocks(body),
       renderEventReviewDetails(body, model),
       '</article>'
     ].join('');
+  }
+
+  // Magic {! … !} blocks (opaque arbitrary JS hooks) — previously invisible in the
+  // object editor. Surfaced as raw-JS textareas bound to 'opaque:<id>' so a save
+  // becomes a guarded replace_section over the block's span (raw-text edit by
+  // policy; Studio never interprets the JS). Oversized/unanchored blocks (model
+  // marks them not editable) render read-only with an IDE escape hint.
+  function renderOpaqueBlocks(body) {
+    const items = ensureArray(body && body.opaqueJsBlocks);
+    if (!items.length) {
+      return '';
+    }
+    const rows = items.map((block) => {
+      const editable = Boolean(block && block.editable && block.id);
+      const writes = ensureArray(block && block.writes);
+      const reads = ensureArray(block && block.reads);
+      const hint = [
+        writes.length ? t('objectCanvas.magicWrites', 'Writes') + ': ' + writes.join(', ') : '',
+        reads.length ? t('objectCanvas.magicReads', 'Reads') + ': ' + reads.join(', ') : '',
+        editable ? '' : t('objectCanvas.magicIdeOnly', 'Large or unanchored block — edit in your IDE.')
+      ].filter(Boolean).join('  ·  ');
+      const field = {
+        id: editable ? 'opaque:' + block.id : '',
+        value: String((editable ? (block.value !== undefined ? block.value : block.rawText) : (block.rawPreview || block.value)) || ''),
+        label: (block && block.hook ? block.hook + ' ' : '') + t('objectCanvas.magicBlock', 'magic {! … !}'),
+        status: editable ? 'guarded' : 'review',
+        readOnly: !editable
+      };
+      const overcapUi = editable ? null : objectEditorOvercapSlice();
+      return '<div class="preview-object-magic-block">' + renderInlineField(field, {role: 'logic', element: 'textarea'})
+        + (hint ? '<small class="preview-object-field-context">' + escapeHtml(hint) + '</small>' : '')
+        + (overcapUi ? overcapUi.renderOvercapEntry(block, {}) : '') + '</div>';
+    }).join('');
+    return '<details class="preview-object-logic-details" data-preview-object-magic="true"><summary>'
+      + escapeHtml(t('objectCanvas.magicBlocks', 'Magic / JS blocks')) + '</summary>'
+      + '<div class="preview-object-magic-blocks">' + rows + '</div></details>';
   }
 
   function branchSectionGroups(body) {
@@ -2389,12 +2455,15 @@
     if (!count) {
       return '';
     }
+    const sliceUi = objectEditorDeferredSlice();
     return [
       '<details class="preview-object-large-deferred" data-preview-object-large-deferred="choices" data-preview-object-deferred-count="' + escapeAttr(String(count)) + '">',
       '<summary>' + escapeHtml(t('previewObjectEditor.largeEventDeferredChoices', '{count} additional choices summarized').replace('{count}', String(count))) + '</summary>',
       '<div class="preview-object-large-deferred-list">',
-      ensureArray(rows).slice(0, 10).map((option, index) => renderDeferredChoiceRow(option, offset + index)).join(''),
-      count > 10 ? '<small>' + escapeHtml(t('previewObjectEditor.largeEventDeferredMore', '{count} more rows').replace('{count}', String(count - 10))) + '</small>' : '',
+      sliceUi
+        ? sliceUi.renderDeferredChoiceList(rows, {renderRow: renderDeferredChoiceRow, offset})
+        : ensureArray(rows).slice(0, 10).map((option, index) => renderDeferredChoiceRow(option, offset + index)).join('') +
+          (count > 10 ? '<small>' + escapeHtml(t('previewObjectEditor.largeEventDeferredMore', '{count} more rows').replace('{count}', String(count - 10))) + '</small>' : ''),
       '</div>',
       '</details>'
     ].join('');
@@ -2418,12 +2487,15 @@
     if (!count) {
       return '';
     }
+    const sliceUi = objectEditorDeferredSlice();
     return [
       '<details class="preview-object-large-deferred" data-preview-object-large-deferred="branches" data-preview-object-deferred-count="' + escapeAttr(String(count)) + '">',
       '<summary>' + escapeHtml(t('previewObjectEditor.largeEventDeferredBranches', '{count} additional text blocks summarized').replace('{count}', String(count))) + '</summary>',
       '<div class="preview-object-large-deferred-list">',
-      ensureArray(rows).slice(0, 10).map(renderDeferredBranchRow).join(''),
-      count > 10 ? '<small>' + escapeHtml(t('previewObjectEditor.largeEventDeferredMore', '{count} more rows').replace('{count}', String(count - 10))) + '</small>' : '',
+      sliceUi
+        ? sliceUi.renderDeferredBranchList(rows, {renderRow: renderDeferredBranchRow})
+        : ensureArray(rows).slice(0, 10).map(renderDeferredBranchRow).join('') +
+          (count > 10 ? '<small>' + escapeHtml(t('previewObjectEditor.largeEventDeferredMore', '{count} more rows').replace('{count}', String(count - 10))) + '</small>' : ''),
       '</div>',
       '</details>'
     ].join('');
@@ -3282,6 +3354,11 @@
     const overview = kind === 'route'
       ? renderSemanticRouteOverview(value, label, field)
       : renderSemanticConditionOverview(value, label);
+    // Editable flat-condition rows when the byte-exact gate passes; the
+    // read-only structure preview keeps covering everything the builder rejects.
+    const conditionBuilderHtml = kind === 'condition'
+      ? ((m) => m ? m.renderConditionBuilder(field, value, {readOnly: readOnly}) : '')(objectEditorConditionBuilder())
+      : '';
     return [
       '<article class="preview-object-semantic-logic-card is-' + escapeAttr(safeClass(kind)) + '" data-object-canvas-semantic-card="' + escapeAttr(kind === 'route' ? 'route_outcome' : 'condition') + '"' + (presentation ? ' data-semantic-intent="' + escapeAttr(presentation.intent || '') + '" data-semantic-group="' + escapeAttr(presentation.group || '') + '"' : '') + '>',
       '<header>',
@@ -3293,7 +3370,7 @@
       '<span>' + escapeHtml(kind === 'route' ? t('previewObjectEditor.semanticRoute.target', 'Target') : (label || rawLabel)) + '</span>',
       control,
       '</label>',
-      kind === 'condition' ? renderConditionStructurePreview(value) : '',
+      conditionBuilderHtml || (kind === 'condition' ? renderConditionStructurePreview(value) : ''),
       kind === 'condition' ? renderFieldVariablePicker(field, presentation, readOnly) : '',
       kind === 'route' ? renderFieldRouteTargetPicker(field, presentation, readOnly) : '',
       renderSemanticLogicEvidence(field),
@@ -3785,6 +3862,7 @@
       suppressFieldDiagnostics || !fieldContextHint(field) ? '' : '<small class="preview-object-field-context">' + escapeHtml(fieldContextHint(field)) + '</small>',
       suppressFieldDiagnostics ? '' : fieldLogicChips(field),
       control,
+      ((m) => m ? m.renderQdisplayInsert(field, {role: opts.role || 'field', fieldId: id}) : '')(objectEditorInserts()),
       suppressFieldDiagnostics ? '' : renderFieldVariablePicker(field, presentation, readOnly),
       renderedPreview,
       field && field.status ? '<small>' + escapeHtml(statusLabel(field.status, readOnly)) + '</small>' : '',

@@ -36,6 +36,13 @@ const SPECIAL_THRESHOLDS = [
   }
 ];
 
+// A single commit may add at most this many lines to an already-large (warn or
+// exception) file versus its committed (HEAD) version. Bigger additions must put
+// their bulk in a focused/sibling module rather than piling onto a hot file. This
+// replaces the retired cross-file aggregate ratchet: the friction is now LOCAL
+// (don't balloon THIS file) with no unrelated-file offset accounting.
+const MAX_SINGLE_COMMIT_GROWTH = 35;
+
 const KNOWN_SPLIT_HINTS = new Map([
   ['tools/project_map/viewer/app.js', 'Split Explore model/list/inspector/edit-actions/assets into focused modules.'],
   ['tools/project_map/viewer/design_ui.js', 'Split graph rendering, inspector, filters, and pointer interactions.'],
@@ -142,18 +149,13 @@ function parseArgs(argv) {
   const args = {
     budgetFile: DEFAULT_BUDGET_FILE,
     enforceBudget: false,
-    printBudgetTemplate: false,
-    tighten: false
+    printBudgetTemplate: false
   };
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--enforce-budget') {
       args.enforceBudget = true;
-      continue;
-    }
-    if (arg === '--tighten') {
-      args.tighten = true;
       continue;
     }
     if (arg === '--budget-file') {
@@ -278,6 +280,10 @@ function loadBudget(filePath) {
     if (entry.allowRaise !== undefined && typeof entry.allowRaise !== 'boolean') {
       throw new Error(label + '.allowRaise must be a boolean when present');
     }
+    if (entry.growthExemption !== undefined
+      && (typeof entry.growthExemption !== 'string' || !/\b\d{4}-\d{2}-\d{2}\b/.test(entry.growthExemption))) {
+      throw new Error(label + '.growthExemption must be a reason string carrying an ISO date (YYYY-MM-DD)');
+    }
     if (exceptions.has(entry.path)) {
       throw new Error('Duplicate budget entry for ' + entry.path);
     }
@@ -333,7 +339,10 @@ function committedBudgetEntries(budgetRelPath) {
   const map = new Map();
   parsed.exceptions.forEach((entry) => {
     if (entry && typeof entry.path === 'string' && Number.isInteger(entry.maxLines)) {
-      map.set(entry.path, entry.maxLines);
+      map.set(entry.path, {
+        maxLines: entry.maxLines,
+        growthExemption: typeof entry.growthExemption === 'string' ? entry.growthExemption : null
+      });
     }
   });
   return map;
@@ -349,100 +358,204 @@ function evaluateNoRaise(budget, committed) {
       return;
     }
     const prior = committed.get(relPath);
-    if (typeof prior === 'number' && entry.maxLines > prior) {
+    if (prior && typeof prior.maxLines === 'number' && entry.maxLines > prior.maxLines) {
       problems.push({
         kind: 'ceiling-raised',
         row: {path: relPath, lines: entry.maxLines},
         entry,
-        from: prior
+        from: prior.maxLines
       });
     }
   });
   return problems.sort((a, b) => a.row.path.localeCompare(b.row.path));
 }
 
-// Aggregate debt ceiling. The per-file no-raise rule (evaluateNoRaise) lets any
-// `allowRaise: true` entry climb forever, so a single flagged orchestrator can
-// grow unbounded one commit at a time. This rule restores the contract's intent
-// ("growth must be paid for by a split", ARCHITECTURE.md): the *sum* of budgeted
-// ceilings over files that already existed in the committed budget may only fall.
-// Raising one entry is then only possible by lowering another by at least as
-// much — i.e. by actually splitting a file. New budget entries (present now but
-// not in the committed budget) are governed by evaluateBudget's new-exception
-// rule instead, so they do not inflate this aggregate.
-function evaluateAggregate(budget, committed) {
-  if (!committed) {
-    return [];
-  }
-  let priorSum = 0;
-  let currentSum = 0;
-  committed.forEach((prior, relPath) => {
-    priorSum += prior;
-    const entry = budget.exceptions.get(relPath);
-    currentSum += entry ? entry.maxLines : 0;
-  });
-  if (currentSum > priorSum) {
-    return [{kind: 'aggregate-raised', priorSum, currentSum}];
-  }
-  return [];
-}
-
-function tightenEntries(exceptions, lineByPath) {
-  const changes = [];
-  exceptions.forEach((entry) => {
-    if (!entry || typeof entry.path !== 'string' || !Number.isInteger(entry.maxLines)) {
+// ARCHITECTURE.md is the registry of extraction-blocked files: a backlog line
+// that names a `path` in backticks and carries the word BLOCKED. Parsed rather
+// than hardcoded so the architecture doc stays the single source of truth for
+// growthExemption eligibility.
+function parseExtractionBlockedPaths(markdown) {
+  const paths = new Set();
+  String(markdown || '').split('\n').forEach((line) => {
+    if (!/\bBLOCKED\b/.test(line)) {
       return;
     }
-    const current = lineByPath.get(entry.path);
-    if (typeof current === 'number' && current < entry.maxLines) {
-      changes.push({path: entry.path, from: entry.maxLines, to: current});
-      entry.maxLines = current;
+    const match = line.match(/`([^`]+\.(?:js|py|css|html))`/);
+    if (match) {
+      paths.add('tools/project_map/' + match[1]);
     }
   });
-  return changes;
+  return paths;
 }
 
-function tightenBudget(budgetFile, rows) {
-  const parsed = JSON.parse(fs.readFileSync(budgetFile, 'utf8'));
-  if (!parsed || !Array.isArray(parsed.exceptions)) {
-    throw new Error('Budget file must contain an exceptions array: ' + displayPath(budgetFile));
+function extractionBlockedPaths() {
+  try {
+    return parseExtractionBlockedPaths(fs.readFileSync(path.join(PROJECT_MAP_ROOT, 'ARCHITECTURE.md'), 'utf8'));
+  } catch (_error) {
+    return new Set();
   }
-  const lineByPath = new Map(rows.map((row) => [row.path, row.lines]));
-  const changes = tightenEntries(parsed.exceptions, lineByPath);
-  if (changes.length) {
-    fs.writeFileSync(budgetFile, JSON.stringify(parsed, null, 2) + '\n', 'utf8');
-  }
-  return changes;
 }
 
-function formatBudgetResult(problems, budgetFile) {
+// A growthExemption is only legitimate on a file the architecture doc registers
+// as extraction-blocked; anywhere else the answer is to split the file, so the
+// entry itself is a budget problem.
+function evaluateExemptionPlacement(budget, blockedPaths) {
+  const problems = [];
+  budget.exceptions.forEach((entry, relPath) => {
+    if (typeof entry.growthExemption !== 'string') {
+      return;
+    }
+    if (!blockedPaths.has(relPath)) {
+      problems.push({
+        kind: 'exemption-not-blocked',
+        row: {path: relPath, lines: entry.maxLines},
+        entry
+      });
+    }
+  });
+  return problems.sort((a, b) => a.row.path.localeCompare(b.row.path));
+}
+
+// Reviewed per-case exemption from the growth gate (the "Option B" escape
+// hatch): a budget entry's growthExemption — a dated reason string — approves
+// ONE oversized growth, and only counts while it is FRESH, i.e. its text
+// differs from the committed budget (it was written or rewritten in this very
+// commit). Once the commit lands the texts match, the exemption goes stale,
+// and the next oversized growth needs a new dated re-approval. This keeps the
+// bypass per-case instead of a standing waiver. Eligibility is restricted to
+// extraction-blocked files via blockedPaths (placement problems are reported
+// separately by evaluateExemptionPlacement).
+function growthExemptionState(budget, committed, blockedPaths) {
+  const state = new Map();
+  budget.exceptions.forEach((entry, relPath) => {
+    if (typeof entry.growthExemption !== 'string' || !blockedPaths.has(relPath)) {
+      return;
+    }
+    const prior = committed ? committed.get(relPath) : null;
+    const priorText = prior && typeof prior.growthExemption === 'string' ? prior.growthExemption : null;
+    state.set(relPath, priorText === entry.growthExemption ? 'stale' : 'fresh');
+  });
+  return state;
+}
+
+// Per-file growth gate. The failure mode this guards is the easy local optimum:
+// cramming a whole new feature into an already-large hot file, ratcheting
+// complexity and coupling up one commit at a time. So
+// any file that is already warn- or exception-sized may grow by at most
+// MAX_SINGLE_COMMIT_GROWTH lines versus its committed (HEAD) version in a single
+// commit; a bigger jump means the bulk belongs in a focused/sibling module. This
+// is deliberately LOCAL — it does not make unrelated files trade budget with each
+// other (the retired aggregate ratchet did, which produced fake offset churn and
+// dead-locked once every pool file was tight). New files (no HEAD version) are
+// governed by evaluateBudget's new-exception rule instead, so they are skipped
+// here. The comparison is skipped entirely when git history is unavailable.
+function headLineCount(relPath) {
+  const result = spawnSync('git', ['show', 'HEAD:' + relPath], {cwd: ROOT, encoding: 'utf8'});
+  if (!result || result.status !== 0 || typeof result.stdout !== 'string') {
+    return null;
+  }
+  const text = result.stdout;
+  if (!text) {
+    return 0;
+  }
+  return text.endsWith('\n') ? text.split('\n').length - 1 : text.split('\n').length;
+}
+
+// Only the large (non-ok) files matter for the gate and the advisory, so limit
+// the git lookups to those (a handful) rather than every source file.
+function collectHeadLineCounts(rows) {
+  const map = new Map();
+  rows
+    .filter((row) => row.status !== 'ok')
+    .forEach((row) => {
+      const head = headLineCount(row.path);
+      if (head !== null) {
+        map.set(row.path, head);
+      }
+    });
+  return map;
+}
+
+// Pure logic (headLineByPath injected) so the model test can exercise it without
+// git. Returns enforced problems plus advisory growth deltas for every changed
+// large file. exemptionState (optional, from growthExemptionState) maps a path
+// to 'fresh' (this commit re-approved an oversized growth: allow it, tag the
+// advisory) or 'stale' (an old exemption exists but was not re-approved: still
+// a problem, with a pointed hint).
+function evaluateGrowth(rows, headLineByPath, maxGrowth, exemptionState) {
+  const problems = [];
+  const growths = [];
+  const state = exemptionState || new Map();
+  rows
+    .filter((row) => row.status !== 'ok')
+    .forEach((row) => {
+      if (!headLineByPath.has(row.path)) {
+        return;
+      }
+      const head = headLineByPath.get(row.path);
+      const delta = row.lines - head;
+      const exempted = delta > maxGrowth && state.get(row.path) === 'fresh';
+      if (delta !== 0) {
+        growths.push({path: row.path, head: head, current: row.lines, delta: delta, exempted: exempted});
+      }
+      if (delta > maxGrowth && !exempted) {
+        problems.push({
+          kind: 'growth-exceeded',
+          row: row,
+          from: head,
+          delta: delta,
+          staleExemption: state.get(row.path) === 'stale'
+        });
+      }
+    });
+  return {problems: problems, growths: growths};
+}
+
+function formatBudgetResult(problems, budgetFile, growths) {
   const lines = ['Budget enforcement:'];
   if (!problems.length) {
-    lines.push('PASS ' + displayPath(budgetFile) + ': no new exception-sized files and no baseline growth.');
-    return lines.join('\n') + '\n';
+    lines.push('PASS ' + displayPath(budgetFile) + ': no new exception-sized files, nothing over its maxLines, no oversized single-commit growth.');
+  } else {
+    lines.push('FAIL ' + displayPath(budgetFile));
+    problems.forEach((problem) => {
+      if (problem.kind === 'new-exception') {
+        lines.push('- NEW EXCEPTION ' + problem.row.lines + ' lines  ' + problem.row.path);
+        if (problem.row.hint) {
+          lines.push('  ' + problem.row.hint);
+        }
+        return;
+      }
+      if (problem.kind === 'ceiling-raised') {
+        lines.push('- CEILING RAISED maxLines ' + problem.entry.maxLines + ' > committed ' + problem.from + '  ' + problem.row.path);
+        lines.push('  This entry is frozen (no "allowRaise": true), so its maxLines may only fall. Split the file, or set "allowRaise": true to record a reviewed exception.');
+        return;
+      }
+      if (problem.kind === 'growth-exceeded') {
+        lines.push('- GREW TOO FAST +' + problem.delta + ' lines this commit (HEAD ' + problem.from + ' -> ' + problem.row.lines + ')  ' + problem.row.path);
+        if (problem.staleExemption) {
+          lines.push('  Its growthExemption is unchanged since HEAD (stale). Each oversized growth needs a fresh approval: rewrite the exemption reason with a new date in this same commit.');
+        } else {
+          lines.push('  A single commit may add at most ' + MAX_SINGLE_COMMIT_GROWTH + ' lines to an already-large file. Move the bulk into a focused/sibling module instead of growing this one.');
+        }
+        return;
+      }
+      if (problem.kind === 'exemption-not-blocked') {
+        lines.push('- EXEMPTION NOT ELIGIBLE growthExemption on ' + problem.row.path);
+        lines.push('  growthExemption applies only to files ARCHITECTURE.md registers as extraction-BLOCKED. Split the file instead, or remove the exemption.');
+        return;
+      }
+      lines.push('- OVER BUDGET ' + problem.row.lines + ' lines > maxLines ' + problem.entry.maxLines + '  ' + problem.row.path);
+    });
   }
 
-  lines.push('FAIL ' + displayPath(budgetFile));
-  problems.forEach((problem) => {
-    if (problem.kind === 'new-exception') {
-      lines.push('- NEW EXCEPTION ' + problem.row.lines + ' lines  ' + problem.row.path);
-      if (problem.row.hint) {
-        lines.push('  ' + problem.row.hint);
-      }
-      return;
-    }
-    if (problem.kind === 'ceiling-raised') {
-      lines.push('- CEILING RAISED maxLines ' + problem.entry.maxLines + ' > committed ' + problem.from + '  ' + problem.row.path);
-      lines.push('  maxLines may only fall. Split the file, or set "allowRaise": true on this entry to record a reviewed exception.');
-      return;
-    }
-    if (problem.kind === 'aggregate-raised') {
-      lines.push('- AGGREGATE DEBT RAISED total maxLines ' + problem.currentSum + ' > committed ' + problem.priorSum);
-      lines.push('  The sum of budgeted exception ceilings may only fall. Pay for any raise (including an "allowRaise" entry) by splitting another file by at least as much.');
-      return;
-    }
-    lines.push('- OVER BUDGET ' + problem.row.lines + ' lines > maxLines ' + problem.entry.maxLines + '  ' + problem.row.path);
-  });
+  const changed = (growths || []).filter((growth) => growth.delta !== 0).sort((a, b) => b.delta - a.delta);
+  if (changed.length) {
+    lines.push('');
+    lines.push('Advisory - large-file size change since HEAD (not enforced):');
+    changed.forEach((growth) => {
+      lines.push('  ' + (growth.delta > 0 ? '+' : '') + growth.delta + '  ' + growth.path + ' (' + growth.head + ' -> ' + growth.current + ')' + (growth.exempted ? '  [growth exemption]' : ''));
+    });
+  }
   return lines.join('\n') + '\n';
 }
 
@@ -467,26 +580,6 @@ function main() {
     return;
   }
 
-  if (args.tighten) {
-    let changes;
-    try {
-      changes = tightenBudget(args.budgetFile, rows);
-    } catch (error) {
-      process.stderr.write('Budget tighten:\nFAIL ' + error.message + '\n');
-      process.exitCode = 1;
-      return;
-    }
-    if (!changes.length) {
-      process.stdout.write('Budget tighten: already tight; no maxLines lowered.\n');
-      return;
-    }
-    process.stdout.write('Budget tighten: lowered ' + changes.length + ' ceiling(s):\n');
-    changes.forEach((change) => {
-      process.stdout.write('- ' + change.path + ': ' + change.from + ' -> ' + change.to + '\n');
-    });
-    return;
-  }
-
   process.stdout.write(formatReport(rows));
 
   if (!args.enforceBudget) {
@@ -503,10 +596,15 @@ function main() {
   }
 
   const committed = committedBudgetEntries(relative(args.budgetFile));
+  const headLines = collectHeadLineCounts(rows);
+  const blockedPaths = extractionBlockedPaths();
+  const exemptionState = growthExemptionState(budget, committed, blockedPaths);
+  const gate = evaluateGrowth(rows, headLines, MAX_SINGLE_COMMIT_GROWTH, exemptionState);
   const problems = evaluateBudget(rows, budget)
     .concat(evaluateNoRaise(budget, committed))
-    .concat(evaluateAggregate(budget, committed));
-  process.stdout.write('\n' + formatBudgetResult(problems, args.budgetFile));
+    .concat(evaluateExemptionPlacement(budget, blockedPaths))
+    .concat(gate.problems);
+  process.stdout.write('\n' + formatBudgetResult(problems, args.budgetFile, gate.growths));
   if (problems.length) {
     process.exitCode = 1;
   }
@@ -521,7 +619,11 @@ module.exports = {
   classify,
   evaluateBudget,
   evaluateNoRaise,
-  evaluateAggregate,
-  tightenEntries,
-  loadBudget
+  evaluateGrowth,
+  collectHeadLineCounts,
+  loadBudget,
+  parseExtractionBlockedPaths,
+  evaluateExemptionPlacement,
+  growthExemptionState,
+  MAX_SINGLE_COMMIT_GROWTH
 };

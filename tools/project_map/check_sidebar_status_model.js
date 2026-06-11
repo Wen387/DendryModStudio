@@ -153,10 +153,24 @@ assert(validation.ok, 'Justice Party sidebar draft should validate: ' + JSON.str
 const bundle = sidebarStatus.buildExportBundle(draft, starterIndex);
 assert(bundle.ok, 'bundle should validate');
 assert(bundle.installPlan.operations.some((op) => op.id === 'sidebar_status_title' && op.type === 'replace_text'), 'plan should replace status scene title');
-assert(bundle.installPlan.operations.some((op) => op.id === 'sidebar_status_section' && op.type === 'replace_section'), 'plan should replace status section');
-assert(bundle.patchPreview.includes('@@ replace section'), 'patch preview should show replace_section');
+// A wholesale rewrite (multi-line paragraph body replaced by new text) cannot
+// be expressed as exact line replacements — it must degrade to manual review,
+// and editing an existing section must NEVER reconstruct it via replace_section.
+assert(!bundle.installPlan.operations.some((op) => op.type === 'replace_section'), 'editing an existing section must never emit a reconstruction replace_section');
+assert(bundle.installPlan.operations.some((op) => op.id === 'sidebar_status_section_manual' && op.safety === 'manual_review'), 'unmappable section rewrites should degrade to manual review');
 assert(bundle.playerPreview.includes('Justice Party Organization'), 'player preview should include changed section heading');
-assert(installPlan.operationSummary(bundle.installPlan).guardedApply >= 2, 'source-backed changes should be guarded');
+
+// Heading-only edit maps onto the exact heading source line (surgical).
+const headingDraft = sidebarStatus.normalizeDraft(Object.assign({}, sidebarStatus.defaultDraft(starterIndex), {
+  sectionId: 'organization',
+  sectionHeading: 'Justice Party Organization'
+}));
+const headingBundle = sidebarStatus.buildExportBundle(headingDraft, starterIndex);
+const headingOps = headingBundle.installPlan.operations;
+assert.strictEqual(headingOps.length, 1, 'heading-only edit should produce exactly one operation: ' + JSON.stringify(headingOps));
+assert(headingOps[0].type === 'replace_text' && headingOps[0].safety === 'guarded_apply', 'heading edit should be a guarded line replacement');
+assert.strictEqual(headingOps[0].search, '= Organization', 'heading edit should anchor on the exact heading line');
+assert.strictEqual(headingOps[0].replace, '= Justice Party Organization', 'heading edit should preserve the heading marker');
 
 const generatedModel = sidebarStatus.buildSidebarModel(syntheticIndex({status: false, generatedSidebar: true}));
 assert(generatedModel.hasGeneratedSidebarOnly, 'generated/custom sidebar evidence should be surfaced');
@@ -184,19 +198,123 @@ assert.strictEqual(installPlan.classifyOperation(createOp).status, 'safe_apply',
 
 const projectRoot = copyTemplate();
 const tempIndex = buildIndex(projectRoot, path.join(os.tmpdir(), 'dms_sidebar_status_apply_index.json'));
-const tempDraft = Object.assign({}, draft, {evidence: sidebarStatus.buildSidebarModel(tempIndex)});
+const beforeStatusText = fs.readFileSync(path.join(projectRoot, 'source', 'scenes', 'status.scene.dry'), 'utf8');
+const tempDraft = sidebarStatus.normalizeDraft(Object.assign({}, sidebarStatus.defaultDraft(tempIndex), {
+  sectionId: 'organization',
+  sectionHeading: 'Justice Party Organization',
+  evidence: sidebarStatus.buildSidebarModel(tempIndex)
+}));
 const tempBundle = sidebarStatus.buildExportBundle(tempDraft, tempIndex);
 const dryRun = installPlan.applyInstallPlan(tempBundle.installPlan, {projectRoot, dryRun: true});
 assert(dryRun.ok, 'dry-run should pass: ' + JSON.stringify(dryRun.diagnostics));
-assert(dryRun.results.some((row) => row.id === 'sidebar_status_section' && row.status === 'would_apply'), 'dry-run should replace the section');
+assert(dryRun.results.some((row) => row.id === 'sidebar_status_section_heading' && row.status === 'would_apply'), 'dry-run should replace the heading line');
 const applied = installPlan.applyInstallPlan(tempBundle.installPlan, {projectRoot, dryRun: false});
 assert(applied.ok, 'apply should pass: ' + JSON.stringify(applied.diagnostics));
 const statusText = fs.readFileSync(path.join(projectRoot, 'source', 'scenes', 'status.scene.dry'), 'utf8');
-assert(statusText.includes('title: Justice Party Status'), 'status title should be changed');
 assert(statusText.includes('= Justice Party Organization'), 'status section heading should be changed');
-assert(statusText.includes('Volunteer teams are active.'), 'conditional sidebar line should be changed');
 assert(statusText.includes('@organization'), 'section anchor should be preserved');
 assert(statusText.includes('@cards'), 'next section anchor should be preserved');
+// Byte-exact acceptance: the heading line is the ONLY changed line.
+const beforeLines = beforeStatusText.split('\n');
+const afterLines = statusText.split('\n');
+assert.strictEqual(afterLines.length, beforeLines.length, 'surgical apply must not add or remove lines');
+const changedLines = beforeLines.map((line, idx) => line !== afterLines[idx] ? idx + 1 : 0).filter(Boolean);
+assert.strictEqual(changedLines.length, 1, 'surgical apply should change exactly one line, changed: ' + JSON.stringify(changedLines));
+assert.strictEqual(beforeLines[changedLines[0] - 1], '= Organization', 'the single changed line should be the section heading');
+
+// ---- S1 regressions (2026-06-10): the three observed destructive-apply failure
+// modes on a section-rich real status scene must stay fixed. Fixture mirrors
+// the real-mod shape: a __main display with INTERIOR "= X" headings (no @anchor)
+// and an over-long status line that the indexer truncates with "...".
+// Token-bearing, non-conditional status line > 180 chars: such lines are
+// captured ONLY via surfaceText, whose originalText passes through the
+// indexer's truncate_excerpt_line (177 chars + "...") — the audited shape.
+const LONG_STATUS_LINE = 'Stability report: [+ demo_support +] ' + 'the coalition holds across every region and ministry while reserves remain funded. '.repeat(4).trim();
+const RICH_STATUS = [
+  'title: Rich Status',
+  'new-page: true',
+  'is-special: true',
+  '',
+  '= Status',
+  '',
+  'Calendar: [+ demo_year +] / [+ demo_month +]',
+  '',
+  '= Government',
+  '',
+  'Cabinet stability: [+ demo_support +]',
+  '',
+  '= Party',
+  '',
+  'Membership: [+ demo_resources +]',
+  '',
+  LONG_STATUS_LINE,
+  '[? if demo_support > 0 : Party morale is high. ?]',
+  '',
+  '@organization',
+  '',
+  '= Organization',
+  '',
+  'Use this section for organization variables.',
+  ''
+].join('\n');
+const richRoot = copyTemplate();
+fs.writeFileSync(path.join(richRoot, 'source', 'scenes', 'status.scene.dry'), RICH_STATUS, 'utf8');
+const richIndex = buildIndex(richRoot, path.join(os.tmpdir(), 'dms_sidebar_status_rich_index.json'));
+const richModel = sidebarStatus.buildSidebarModel(richIndex);
+const richMain = richModel.sections.find((section) => section.id === sidebarStatus.MAIN_SECTION_ID);
+assert(richMain, 'rich fixture should expose the top-level sidebar display');
+
+// Regression 1 (wrong section): the canvas value pipeline pins the DISPLAYED
+// category id; retargeting must rebase untouched fields and the resulting op
+// must anchor on the retargeted section's own heading line.
+const richBase = sidebarStatus.defaultDraft(richIndex);
+assert.notStrictEqual(richBase.sectionId, sidebarStatus.MAIN_SECTION_ID, 'fixture base draft should target a non-main section (mirrors the audited mismatch)');
+const retargeted = sidebarStatus.applyDraftValues(richBase, {
+  'sidebar.sectionId': sidebarStatus.MAIN_SECTION_ID,
+  'sidebar.sectionHeading': 'Status Centre'
+}, {projectIndex: richIndex});
+assert.strictEqual(retargeted.sectionId, sidebarStatus.MAIN_SECTION_ID, 'explicit sectionId should retarget the draft');
+assert.strictEqual(retargeted.sectionBody, richMain.body, 'retargeting should rebase the untouched body onto the displayed section');
+const retargetOps = sidebarStatus.buildInstallPlan(retargeted, richIndex).operations;
+assert.strictEqual(retargetOps.length, 1, 'retargeted heading edit should produce exactly one operation: ' + JSON.stringify(retargetOps));
+assert.strictEqual(retargetOps[0].search, '= Status', 'the edit must land on the displayed section heading, not the previously targeted section');
+
+// Regression 2 (interior-heading loss): a heading-only edit on a section with
+// interior "= X" headings applies as ONE line replacement and leaves every
+// other line byte-identical (the audited apply deleted 3 interior headings).
+const richApply = installPlan.applyInstallPlan(
+  sidebarStatus.buildExportBundle(retargeted, richIndex).installPlan,
+  {projectRoot: richRoot, dryRun: false}
+);
+assert(richApply.ok, 'rich heading apply should pass: ' + JSON.stringify(richApply.diagnostics));
+const richAfter = fs.readFileSync(path.join(richRoot, 'source', 'scenes', 'status.scene.dry'), 'utf8').split('\n');
+const richBefore = RICH_STATUS.split('\n');
+const richChanged = richBefore.map((line, idx) => line !== richAfter[idx] ? idx + 1 : 0).filter(Boolean);
+assert.deepStrictEqual(richChanged, [5], 'only the section heading line may change, changed: ' + JSON.stringify(richChanged));
+assert(richAfter.includes('= Government') && richAfter.includes('= Party'), 'interior headings must survive a heading edit');
+assert.strictEqual(richAfter.length, richBefore.length, 'no lines may be added or removed');
+
+// Regression 3 (truncation write-back): the indexer caps long lines at 180
+// chars with a "..." marker; editing such a line must refuse auto-apply and no
+// auto operation may carry truncated text.
+const truncatedRecord = richMain.statusLineRows.find((row) => row.search.length === 180 && row.search.endsWith('...'));
+assert(truncatedRecord, 'fixture should index the over-long status line as a truncated excerpt');
+const truncatedIdx = richMain.statusLineRows.indexOf(truncatedRecord);
+const editedStatusLines = richMain.statusLines.split('\n');
+editedStatusLines[truncatedIdx] = 'Stability report: [+ demo_support +] rewritten.';
+const truncatedDraft = sidebarStatus.applyDraftValues(richBase, {
+  'sidebar.sectionId': sidebarStatus.MAIN_SECTION_ID,
+  'sidebar.sectionStatusLines': editedStatusLines.join('\n')
+}, {projectIndex: richIndex});
+const truncatedOps = sidebarStatus.buildInstallPlan(truncatedDraft, richIndex).operations;
+assert(!truncatedOps.some((op) => op.safety !== 'manual_review'), 'editing a truncated line must not produce auto-apply operations: ' + JSON.stringify(truncatedOps));
+sidebarStatus.buildInstallPlan(truncatedDraft, richIndex).operations.forEach((op) => {
+  if (op.safety === 'manual_review') {
+    return;
+  }
+  const payload = String(op.replace || '') + '\n' + String(op.content || '');
+  assert(!payload.split('\n').some((line) => line.trim().length === 180 && line.trim().endsWith('...')), 'no auto operation may write truncated excerpt text');
+});
 
 const deleteProjectRoot = copyTemplate();
 const deleteIndex = buildIndex(deleteProjectRoot, path.join(os.tmpdir(), 'dms_sidebar_status_delete_index.json'));

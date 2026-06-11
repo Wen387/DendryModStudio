@@ -11,14 +11,19 @@
   function buildDebugControls(projectIndex, options) {
     const index = isObject(projectIndex) ? projectIndex : {};
     const opts = isObject(options) ? options : {};
+    const focusScope = isObject(opts.focusScope) ? opts.focusScope : null;
+    const selectedSceneId = String(opts.selectedSceneId || (focusScope && focusScope.sceneId) || '');
+    const focusRelevance = focusScope ? computeFocusRelevance(index, focusScope) : null;
+    const scopedOptions = Object.assign({}, opts, {selectedSceneId, focusRelevance});
     return {
       schemaVersion: MODEL_VERSION,
       kind: 'runtime_preview_debug_controls',
       projectName: String(index.project && index.project.name || ''),
-      selectedSceneId: String(opts.selectedSceneId || ''),
-      variables: buildVariableControls(index, opts),
-      scenes: buildSceneControls(index, opts),
-      links: buildLinkControls(index, opts.selectedSceneId, opts),
+      selectedSceneId,
+      focusSceneId: focusRelevance ? focusRelevance.sceneId : '',
+      variables: buildVariableControls(index, scopedOptions),
+      scenes: buildSceneControls(index, scopedOptions),
+      links: buildLinkControls(index, selectedSceneId, scopedOptions),
       diagnostics: []
     };
   }
@@ -29,10 +34,37 @@
       ? suggestions.buildVariableCandidates(index, options || {})
       : ensureArray(index.variables).map(fallbackVariableCandidate);
     const limit = positiveInteger(options && options.variableLimit, DEFAULT_VARIABLE_LIMIT);
+    const relevance = options && options.focusRelevance;
     return candidates
-      .map((candidate) => normalizeVariableControl(candidate))
+      .map((candidate) => annotateVariableRelevance(normalizeVariableControl(candidate), candidate, relevance))
       .filter(Boolean)
       .slice(0, limit);
+  }
+
+  function annotateVariableRelevance(control, candidate, relevance) {
+    if (!control || !relevance) {
+      return control;
+    }
+    const reason = variableRelevanceReason(control.name, candidate, relevance);
+    if (reason) {
+      control.relevant = true;
+      control.relevanceReason = reason;
+    }
+    return control;
+  }
+
+  function variableRelevanceReason(name, candidate, relevance) {
+    if (relevance.gateVariables.has(String(name || ''))) {
+      return 'gate';
+    }
+    const sourcePath = relevance.sourcePath;
+    if (sourcePath) {
+      const locations = ensureArray(candidate && candidate.reads).concat(ensureArray(candidate && candidate.writes));
+      if (locations.some((loc) => loc && String(loc.path || '') === sourcePath)) {
+        return 'local';
+      }
+    }
+    return '';
   }
 
   function normalizeVariableControl(candidate) {
@@ -65,6 +97,8 @@
       name,
       label: name,
       tags,
+      reads,
+      writes,
       sourceHints,
       meaning: inferMeaning(name),
       summary: [inferMeaning(name), sourceHints[0] || ''].filter(Boolean).join(' · ')
@@ -84,9 +118,19 @@
     ensureArray(index.semantic && index.semantic.pinnedCards).forEach((scene) => addSceneControl(rows, scene, 'card'));
     ensureArray(index.semantic && index.semantic.eventPopups).forEach((scene) => addSceneControl(rows, scene, 'event'));
     const limit = positiveInteger(opts.sceneLimit, DEFAULT_SCENE_LIMIT);
-    return Array.from(rows.values())
+    const controls = Array.from(rows.values())
       .sort((a, b) => sceneRank(a) - sceneRank(b) || a.id.localeCompare(b.id))
       .slice(0, limit);
+    const relevance = opts.focusRelevance;
+    if (relevance) {
+      controls.forEach((scene) => {
+        if (relevance.neighborScenes.has(scene.id)) {
+          scene.relevant = true;
+          scene.relevanceReason = scene.id === relevance.sceneId ? 'focus' : 'neighbor';
+        }
+      });
+    }
+    return controls;
   }
 
   function addSceneControl(rows, scene, fallbackType) {
@@ -261,6 +305,78 @@
     if (type === 'hand') return 3;
     if (type === 'deck') return 4;
     return 5;
+  }
+
+  function computeFocusRelevance(index, focusScope) {
+    const sceneId = String(focusScope && focusScope.sceneId || '').trim();
+    const sourcePath = String(focusScope && focusScope.sourcePath || '').trim();
+    const neighborScenes = new Set();
+    if (sceneId) {
+      neighborScenes.add(sceneId);
+    }
+    const predicates = [];
+    ensureArray(index && index.edges).forEach((edge) => {
+      if (!edge) {
+        return;
+      }
+      const from = String(edge.from || '');
+      const to = String(edge.to || '');
+      if (sceneId && to === sceneId) {
+        if (from) { neighborScenes.add(from); }
+        if (edge.condition) { predicates.push(String(edge.condition)); }
+      }
+      if (sceneId && from === sceneId && to) {
+        neighborScenes.add(to);
+      }
+    });
+    collectScenePredicates(sceneById(index, sceneId)).forEach((raw) => predicates.push(raw));
+    const gateVariables = new Set();
+    const dependenciesFor = predicateDependenciesApi();
+    if (dependenciesFor) {
+      predicates.forEach((raw) => {
+        ensureArray(dependenciesFor(raw)).forEach((dep) => {
+          const dependency = String(dep || '');
+          if (dependency) { gateVariables.add(dependency); }
+        });
+      });
+    }
+    return {sceneId, sourcePath, neighborScenes, gateVariables};
+  }
+
+  function collectScenePredicates(scene) {
+    if (!scene) {
+      return [];
+    }
+    const out = [];
+    if (scene.viewIf) { out.push(String(scene.viewIf)); }
+    if (scene.chooseIf) { out.push(String(scene.chooseIf)); }
+    ensureArray(scene.sections).forEach((section) => {
+      if (section && section.viewIf) { out.push(String(section.viewIf)); }
+      if (section && section.chooseIf) { out.push(String(section.chooseIf)); }
+    });
+    return out;
+  }
+
+  function sceneById(index, sceneId) {
+    const id = String(sceneId || '');
+    if (!id) {
+      return null;
+    }
+    return ensureArray(index && index.scenes).find((scene) => scene && String(scene.id || '') === id) || null;
+  }
+
+  function predicateDependenciesApi() {
+    let model = null;
+    if (global && global.ProjectMapPredicateConditionModel) {
+      model = global.ProjectMapPredicateConditionModel;
+    } else if (typeof module !== 'undefined' && module.exports && typeof require === 'function') {
+      try {
+        model = require('./predicate_condition_model.js');
+      } catch (_err) {
+        model = null;
+      }
+    }
+    return model && typeof model.predicateDependencies === 'function' ? model.predicateDependencies : null;
   }
 
   function variableSuggestionsApi() {

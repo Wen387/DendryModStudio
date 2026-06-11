@@ -270,6 +270,16 @@
         reason: 'Generated runtime output cannot be edited in place; Studio treats this as an advanced source mapping edit route.'
       });
     }
+    if (isQdisplayBandSource(source)) {
+      return sourceSliceCapability(item, source, {
+        view: 'surfaceText',
+        installSafety: 'safe_apply',
+        reason: 'qdisplay band lines are simple range→label maps; Studio opens the source slice editor with safe exact-line evidence.',
+        code: 'edit_capability.qdisplay_band',
+        captured: ['qdisplay band range', 'exact band line evidence'],
+        notCaptured: ['formatter catalog']
+      });
+    }
     if (isProtectedRouterPath(source.path) || isSystemUiPath(source.path) || item.owner && item.owner.kind === 'surface_text') {
       return capability({
         routeClass: ROUTE_CLASSES.SYSTEM_UI_WORKSPACE,
@@ -752,6 +762,14 @@
       rel === 'source/scenes/root.scene.dry' ||
       rel.startsWith('source/scenes/status') ||
       rel.startsWith('source/qdisplays/');
+  }
+
+  function isQdisplayBandSource(source) {
+    const ref = sourceRef(source || {});
+    return ref.path.startsWith('source/qdisplays/') &&
+      ref.path.endsWith('.qdisplay.dry') &&
+      Boolean(ref.line) &&
+      Boolean(ref.anchorText);
   }
 
   function isSafeSurfaceSource(path, editability) {

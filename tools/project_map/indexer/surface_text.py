@@ -5,6 +5,10 @@ VARIABLE_TOKEN_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 VARIABLE_NAME_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
+QDISPLAY_BAND_RE = re.compile(r"^\s*\(\s*(\d*)\s*\.\.\s*(\d*)\s*\)\s*(\S.*)$")
+HTML_TAG_RE = re.compile(r"<[^>]+>")
+
+
 def surface_area_for_path(rel: str) -> str:
     if rel.startswith("source/qdisplays/"):
         return "qdisplay"
@@ -185,6 +189,40 @@ def extract_html_surface_labels(line: str) -> list[str]:
     return labels
 
 
+def extract_qdisplay_band_items(rel: str, text: str, variable_names: set[str]) -> list[dict[str, Any]]:
+    """qdisplay files are plain range→label maps; emit one item per band line.
+
+    The item's source carries the verbatim band line as anchorText so the
+    source-slice editor opens with the exact text the install apply will
+    match against. Lines that are not `(a..b) label` bands emit nothing.
+    """
+    stem = rel.rsplit("/", 1)[-1].split(".", 1)[0]
+    items: list[dict[str, Any]] = []
+    for line_num, line in enumerate(text.splitlines(), 1):
+        match = QDISPLAY_BAND_RE.match(line)
+        if not match or (not match.group(1) and not match.group(2)):
+            continue
+        band = "(" + match.group(1) + ".." + match.group(2) + ")"
+        plain = clean_ui_label(HTML_TAG_RE.sub("", match.group(3)))
+        label = clean_ui_label(stem + " " + band + " " + (plain or match.group(3)))
+        source = source_ref(rel, line_num)
+        source["anchorText"] = line
+        item: dict[str, Any] = {
+            "id": stable_surface_id(rel, line_num, label),
+            "label": label,
+            "area": "qdisplay",
+            "source": source,
+            "confidence": CONF_STATIC,
+            "editability": surface_editability_for_path(rel),
+            "reason": surface_reason_for_path(rel),
+            "originalText": truncate_excerpt_line(line.strip()),
+        }
+        if stem in variable_names:
+            item["variableName"] = stem
+        items.append(item)
+    return items
+
+
 def extract_surface_text(root: Path, variables: list[dict[str, Any]]) -> dict[str, Any]:
     items: list[dict[str, Any]] = []
     seen: set[tuple[str, int, str]] = set()
@@ -197,6 +235,16 @@ def extract_surface_text(root: Path, variables: list[dict[str, Any]]) -> dict[st
         try:
             text = read_text_prefix(path, SURFACE_TEXT_MAX_FILE_CHARS)
         except Exception:
+            continue
+        if rel.startswith("source/qdisplays/"):
+            for item in extract_qdisplay_band_items(rel, text, variable_names):
+                key = (rel, int(item["source"].get("line") or 0), item["label"])
+                if key in seen:
+                    continue
+                seen.add(key)
+                items.append(item)
+                if len(items) >= SURFACE_TEXT_MAX_ITEMS:
+                    return {"sources": sources, "items": items, "confidence": CONF_STATIC}
             continue
         html_source = rel.startswith("out/html/")
         include_prose = rel == "source/scenes/root.scene.dry"

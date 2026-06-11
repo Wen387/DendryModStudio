@@ -1817,7 +1817,8 @@
       return changes;
     }, []);
     const structureCommandChanges = structuralCommandChangesFromValues(model, values);
-    const changes = blockChanges.concat(fieldChanges, structureCommandChanges);
+    const opaqueBlockChanges = opaqueBlockChangesFromValues(model, values);
+    const changes = blockChanges.concat(fieldChanges, structureCommandChanges, opaqueBlockChanges);
     const diagnostics = [];
     if (!changes.length) {
       diagnostics.push(diagnostic('warning', 'existing_scene_edit.no_changes', 'No changed fields were found yet.'));
@@ -1891,6 +1892,30 @@
     return change;
   }
 
+  // Magic {! … !} block raw-JS edits -> guarded replace_section changes. The
+  // logic lives in the focused object_opaque_block_edit.js sibling to keep this
+  // orchestrator bounded; see that file for the wrapper guard + change shape.
+  function opaqueBlockEditApi() {
+    if (global && global.ProjectMapObjectOpaqueBlockEdit) {
+      return global.ProjectMapObjectOpaqueBlockEdit;
+    }
+    if (typeof require === 'function') {
+      try {
+        return require('./object_opaque_block_edit.js');
+      } catch (_err) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function opaqueBlockChangesFromValues(model, values) {
+    const api = opaqueBlockEditApi();
+    return api && typeof api.opaqueBlockChangesFromValues === 'function'
+      ? api.opaqueBlockChangesFromValues(model, values)
+      : [];
+  }
+
   function conditionWindowDiagnosticsForScene(scene) {
     const api = conditionDiagnosticsApi();
     return api && typeof api.conditionWindowDiagnosticsForScene === 'function'
@@ -1942,9 +1967,9 @@
       }
     }
     if (String(field && field.structureAction || '') === 'add_branch') {
-      const advanced = advancedAddBranchChange(field, afterText);
-      if (advanced) {
-        return advanced;
+      const guarded = guardedAddBranchChange(field, afterText);
+      if (guarded) {
+        return guarded;
       }
     }
     if (String(field && field.structureAction || '') === 'add_option_effect') {
@@ -2324,7 +2349,7 @@
     return lines;
   }
 
-  function advancedAddBranchChange(field, afterText) {
+  function guardedAddBranchChange(field, afterText) {
     const sourceBlock = isObject(field && field.structureSourceBlock) ? field.structureSourceBlock : {};
     if (String(sourceBlock.kind || '') !== 'branch_insert_anchor') {
       return null;
@@ -2345,7 +2370,7 @@
     }
     const content = renderAddBranchInsert(parsed);
     const change = baseFieldChange(field, '(not present yet)', content);
-    change.editability = 'advanced_source_patch';
+    change.editability = 'guarded_apply';
     change.operationType = 'insert_text';
     change.anchorText = anchor;
     change.position = 'after';
@@ -3316,9 +3341,22 @@
     const value = isObject(block) ? block : {};
     const source = sourceRef(value.source || {});
     const preview = String(value.rawPreview || value.text || value.rawText || '').trim();
+    // Verbatim block text (incl. `hook: {! … !}` wrapper) is the editable value;
+    // rawPreview is reformatted+truncated, display-only. Guard-editable only when
+    // the indexer shipped rawText AND a scene-backed span with both anchors —
+    // oversized/anchor-less blocks fall back to an IDE escape hatch.
+    const rawText = typeof value.rawText === 'string' ? value.rawText : '';
     if (!source.path && !preview) {
       return null;
     }
+    const editable = Boolean(
+      rawText &&
+      source.path.startsWith('source/scenes/') &&
+      source.path.endsWith('.scene.dry') &&
+      !isProtectedRouterPath(source.path) &&
+      source.line && source.endLine && Number(source.endLine) >= Number(source.line) &&
+      source.anchorText && source.endAnchorText
+    );
     return {
       id: String(value.id || 'opaque_js_' + (source.line || 'block')),
       label: String(value.label || (value.hook ? value.hook + ' JS block' : 'JS block')),
@@ -3326,6 +3364,11 @@
       hook: String(value.hook || ''),
       text: preview,
       rawPreview: preview,
+      rawText,
+      original: rawText,
+      value: rawText,
+      editable,
+      editability: editable ? 'guarded_replace_section' : 'ide_escape_hatch',
       lineCount: Number(value.lineCount || 0) || null,
       reads: ensureArray(value.reads).map((item) => String(item || '')).filter(Boolean),
       writes: ensureArray(value.writes).map((item) => String(item || '')).filter(Boolean),

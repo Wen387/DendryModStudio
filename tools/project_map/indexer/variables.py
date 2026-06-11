@@ -1,5 +1,13 @@
 from .common import *
 
+# Bounds for carrying an opaque `{! … !}` block's verbatim source so the object
+# editor can offer a guarded in-place raw-JS edit. Small blocks ship their exact
+# text (incl. wrapper) and become guard-editable; oversized logic blocks omit it
+# and stay IDE-only, which also keeps the index from bloating.
+OPAQUE_BLOCK_EDIT_MAX_CHARS = 2000
+OPAQUE_BLOCK_EDIT_MAX_LINES = 40
+
+
 class VariableScanner:
     ARRAY_LITERAL_RE = re.compile(
         r"""(?:var|let|const)?\s*(?:Q\.)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*\[\s*((?:'[^']*'|"[^"]*"|\s|,)+)\]""",
@@ -44,6 +52,14 @@ class VariableScanner:
                     "source": source_ref(rel),
                     "confidence": CONF_OPAQUE,
                 })
+                # Blocks-only pass: record `{! … !}` hook block spans (anchors,
+                # bounded rawText) WITHOUT variable semantics, so the object
+                # editor can offer a raw source-slice entry. The full scan
+                # stays skipped — no semantic claims about post_event.
+                try:
+                    self.iter_js_blocks(rel, path.read_text(encoding="utf-8").splitlines())
+                except Exception:
+                    pass
                 continue
             try:
                 lines = path.read_text(encoding="utf-8").splitlines()
@@ -347,7 +363,7 @@ class VariableScanner:
             "endAnchorText": lines[-1].strip(),
         })
         block_id = hashlib.sha1(f"{rel}:{start_line}:{end_line}:{raw[:120]}".encode("utf-8")).hexdigest()[:12]
-        self.opaque_js_block_items[rel].append({
+        item = {
             "id": f"opaque_js_{block_id}",
             "hook": hook,
             "scriptKind": "opaque_js",
@@ -360,7 +376,15 @@ class VariableScanner:
             "source": source,
             "reviewBoundary": "manual_review",
             "confidence": CONF_OPAQUE,
-        })
+        }
+        # Verbatim block text (incl. the `hook: {! … !}` wrapper) drives the object
+        # editor's guarded raw-JS edit: replace_section over the recorded span uses
+        # this as the editable value. rawPreview is reformatted+truncated and must
+        # NOT be edited. Bounded so oversized blocks stay IDE-only (no rawText ->
+        # model marks them ide_escape_hatch) and the index does not bloat.
+        if len(raw) <= OPAQUE_BLOCK_EDIT_MAX_CHARS and len(lines) <= OPAQUE_BLOCK_EDIT_MAX_LINES:
+            item["rawText"] = raw
+        self.opaque_js_block_items[rel].append(item)
 
     def variable_names_in_js_block(self, block: list[tuple[int, str]]) -> tuple[list[str], list[str], list[str]]:
         reads: set[str] = set()

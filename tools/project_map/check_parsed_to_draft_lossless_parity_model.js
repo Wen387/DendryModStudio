@@ -3,6 +3,7 @@
 
 const parsedToDraft = require('./authoring/parsed_to_draft.js');
 const eventDraft = require('./authoring/event_draft.js');
+const cardDraft = require('./authoring/card_draft.js');
 const partialRepair = require('./authoring/partial_repair_workflow_model.js');
 const canvasModel = require('./authoring/object_authoring_canvas_model.js');
 const previewEditor = require('./viewer/preview_object_editor.js');
@@ -182,10 +183,62 @@ assert(lossyCanvas.eventBody.eventGraph && lossyCanvas.eventBody.eventGraph.revi
 const lossyHtml = previewEditor.render(lossyCanvas) + previewEditor.renderEventReviewDetailsPanels(lossyCanvas.eventBody || {}, lossyCanvas);
 assert(lossyHtml.includes('data-preview-object-route-map-review="true"') && lossyHtml.includes('data-route-map-review-chip="partial_blocker"'), 'partial draft Route Map should render parity repair chips', lossyHtml);
 
+// Card copy identity keys must survive Create Similar (98.5 R2): pinned flag,
+// new-page, and scene-level on-arrival; every dropped key must be NAMED.
+const pinnedResult = parsedToDraft.buildDraftFromParsed(index, {view: 'cards', itemId: 'sender'});
+assert(pinnedResult.draft.cardKind === 'advisor_like', 'pinned source card should copy as an advisor_like draft', pinnedResult.draft);
+const pinnedScene = cardDraft.renderSceneDry(pinnedResult.draft, index);
+assert(pinnedScene.includes('is-pinned-card: true'), 'copied advisor card should render is-pinned-card: true', pinnedScene);
+assert(!pinnedScene.includes('is-card: true'), 'copied advisor card should not downgrade to is-card', pinnedScene);
+const plainCardResult = parsedToDraft.buildDraftFromParsed(index, {view: 'cards', itemId: 'economic_policy'});
+assert(plainCardResult.draft.cardKind === 'action_card', 'plain card should copy as action_card', plainCardResult.draft);
+assert(cardDraft.renderSceneDry(plainCardResult.draft, index).includes('is-card: true'), 'plain card copy should render is-card: true');
+
+const cardHookIndex = clone(index);
+cardHookIndex.scenes.find((scene) => scene.id === 'economic_policy').onArrival = 'card_timer += 6; month_actions += 1';
+const cardHookResult = parsedToDraft.buildDraftFromParsed(cardHookIndex, {view: 'cards', itemId: 'economic_policy'});
+assert(cardHookResult.draft.rawEffectsOnTrigger.length === 1, 'scene-level on-arrival should be carried as raw hook lines on the card draft', cardHookResult.draft);
+assert(cardHookResult.parity.roles.lifecycleHooks.missing === 0, 'a carried scene-level hook should not count as lifecycle loss', cardHookResult.parity.roles.lifecycleHooks);
+assert(cardHookResult.parity.roles.metadata.missing === 0, 'new-page carry should keep metadata parity lossless', cardHookResult.parity.roles.metadata);
+const cardHookScene = cardDraft.renderSceneDry(cardHookResult.draft, cardHookIndex);
+assert(cardHookScene.includes('on-arrival: card_timer += 6; month_actions += 1'), 'scene-level on-arrival should render verbatim on the copy', cardHookScene);
+
+const cardNoBreakIndex = clone(index);
+cardNoBreakIndex.scenes.find((scene) => scene.id === 'economic_policy').newPage = false;
+const cardNoBreakResult = parsedToDraft.buildDraftFromParsed(cardNoBreakIndex, {view: 'cards', itemId: 'economic_policy'});
+assert(cardNoBreakResult.draft.newPage === false, 'new-page: false should be carried into the card draft', cardNoBreakResult.draft);
+assert(!cardDraft.renderSceneDry(cardNoBreakResult.draft, cardNoBreakIndex).includes('new-page: true'), 'a new-page-false card copy should not force new-page: true');
+
+const cardLossIndex = clone(index);
+cardLossIndex.scenes.find((scene) => scene.id === 'economic_policy').onDisplay = 'Q.preview_flag = 1;';
+const cardLossResult = parsedToDraft.buildDraftFromParsed(cardLossIndex, {view: 'cards', itemId: 'economic_policy'});
+const cardLossHooks = cardLossResult.parity.roles.lifecycleHooks;
+assert(cardLossHooks.missing === 1 && cardLossHooks.missingNames.length === 1 && cardLossHooks.missingNames[0].includes('Q.preview_flag = 1;'), 'an uncarriable hook should be NAMED in role parity', cardLossHooks);
+assert(cardLossResult.notCaptured.some((message) => message.includes('Q.preview_flag = 1;')), 'notCaptured should name the dropped hook line', cardLossResult.notCaptured);
+
+const cardMetaIndex = clone(index);
+cardMetaIndex.scenes.find((scene) => scene.id === 'economic_policy').newPage = true;
+cardMetaIndex.semantic.textCorpus.items.push({
+  id: 'economic_policy_extra_metadata',
+  text: 'unported-directive: 1',
+  role: 'metadata',
+  owner: {kind: 'scene', sceneId: 'economic_policy', sectionId: ''},
+  source: {path: 'source/scenes/cards/economic_policy.scene.dry', line: 3}
+});
+const cardMetaResult = parsedToDraft.buildDraftFromParsed(cardMetaIndex, {view: 'cards', itemId: 'economic_policy'});
+assert(cardMetaResult.status === 'draft', 'a named metadata-only loss should stay non-blocking', cardMetaResult);
+assert(cardMetaResult.notCaptured.some((message) => message.includes('unported-directive: 1')), 'named non-blocking losses should still be visible in notCaptured', cardMetaResult.notCaptured);
+
 process.stdout.write(JSON.stringify({
   ok: true,
   complete: complete.length,
   lossyStatus: lossyResult.status,
   lossyMissing: missingRoles(lossyResult),
-  lossyRepairEntries: repairEntries.length
+  lossyRepairEntries: repairEntries.length,
+  cardIdentity: {
+    pinned: pinnedResult.draft.cardKind,
+    rawHooks: cardHookResult.draft.rawEffectsOnTrigger.length,
+    namedHookLoss: cardLossHooks.missingNames,
+    namedMetadataLoss: cardMetaResult.notCaptured.length
+  }
 }, null, 2) + '\n');

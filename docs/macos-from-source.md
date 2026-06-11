@@ -89,10 +89,9 @@ Open Terminal and paste:
 cd DendryModStudio
 git pull
 npm ci
-cd tools/project_map/desktop
-npm ci
-npm run fetch:python
-npm run start
+npm --prefix tools/project_map/desktop ci
+npm --prefix tools/project_map/desktop run fetch:python
+npm run studio:app
 ```
 
 This downloads the latest changes and reinstalls any dependencies that

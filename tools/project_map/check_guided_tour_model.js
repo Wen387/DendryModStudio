@@ -180,16 +180,18 @@ assert(tourUi.includes('maybeOfferFirstRunIntro'), 'guided tour should offer a f
 assert(tourUi.includes('welcomeDismissed') || tourUi.includes('welcome-dismissed'),
   'guided tour should listen for Welcome Hub dismissal to offer the first-run intro');
 assert(tourUi.includes('hasSeenLinear'), 'first-run offer should respect a seen flag so it never nags');
-// First-run choreography (Option B): the tour greets first on a fresh install,
-// then hands off to the Welcome Hub as the actionable landing.
+// First-run choreography (Option B, Home Hub era): the tour greets first on a
+// fresh install, then hands off to Home — its overview onboarding face carries
+// the old welcome content inline, so the landing routes to the Home pane
+// instead of opening the retired auto-welcome modal.
 assert(tourUi.includes('maybeGreetFirstRun') && tourUi.includes('isFreshFirstRun'),
   'the tour should greet first on a fresh install (onboarding + tour unseen)');
 assert(tourUi.includes('finishHubLanding') && tourUi.includes('openWelcomeHub') && tourUi.includes('pendingHubLanding'),
-  'ending or declining any linear tour should open the Welcome Hub as the landing');
-assert(tourUi.includes('openOnboarding') || tourUi.includes('open-onboarding'),
-  'the first-run landing should reuse the Welcome Hub open event');
-assert(welcomeUi.includes('guidedTourGreetsFirst'),
-  'Welcome Hub should defer its first-run auto-open when the guided tour greets first');
+  'ending or declining any linear tour should open the hub landing');
+assert(tourUi.includes('openHome') || tourUi.includes('open-home'),
+  'the first-run landing should reuse the Home open event');
+assert(welcomeUi.includes('no longer auto-opens') && welcomeUi.includes('shouldAutoOpen'),
+  'the welcome modal must not auto-open on first run (Home overview onboarding face owns the greeting) while keeping shouldAutoOpen for deliberate callers');
 assert(tourUi.includes('playOpening') && tourUi.includes('OPENING_EMOJI'),
   'opening the tour should play a full-screen emoji flourish before the greeting');
 assert(tourUi.includes('prefersReducedMotion'), 'the opening flourish should be skipped under reduced-motion');

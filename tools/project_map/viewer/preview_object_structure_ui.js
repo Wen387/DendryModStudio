@@ -417,6 +417,9 @@
       if (action === 'add_option' && editability === 'guarded_apply') {
         return t('previewObjectEditor.structureGuardedOptionNotice', 'Simple source-backed options can be applied automatically after review.');
       }
+      if (action === 'add_branch' && editability === 'guarded_apply') {
+        return t('previewObjectEditor.structureGuardedNotice', 'This source-backed structural change can be applied automatically after review.');
+      }
       if ((action === 'add_option_effect' || action === 'add_trigger_effect') && editability === 'guarded_apply') {
         return t('previewObjectEditor.structureGuardedEffectNotice', 'Simple source-backed Q effects can be applied automatically after review.');
       }

@@ -10,6 +10,7 @@
     onboardingSeen: 'dendry-mod-studio-onboarding-seen',
     guidedTourSeen: 'dendry-mod-studio-guided-tour-seen',
     surfaceHintsSeenPrefix: 'dendry-mod-studio-surface-hints-seen.',
+    firstProposalQuestProgress: 'dendry-mod-studio-first-proposal-quest.v1',
     theme: 'dendry-mod-studio-theme',
     lastSeenVersion: 'dendry-mod-studio-last-seen-version',
     homeSection: 'dendry-mod-studio-home-section'
@@ -34,7 +35,10 @@
     openHome: 'ProjectMap:open-home',
     homeSectionChanged: 'ProjectMap:home-section-changed',
     boardClosed: 'ProjectMap:board-closed',
-    publishClosed: 'ProjectMap:publish-closed'
+    publishClosed: 'ProjectMap:publish-closed',
+    exploreEntryOpened: 'ProjectMap:explore-entry-opened',
+    installResult: 'ProjectMap:install-result',
+    openFirstProposalQuest: 'ProjectMap:open-first-proposal-quest'
   };
 
   const TEXT_ROLE_LABELS = {

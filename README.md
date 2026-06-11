@@ -157,33 +157,81 @@ Install root dependencies once:
 npm ci
 ```
 
+## Quick Development Preview
+
+From the repository root, the fastest browser preview is:
+
+```bash
+npm run studio:preview
+```
+
+This opens the bundled Demo Template and is the quickest way to check the
+current Studio UI after pulling or editing code. If you want the server URL
+without opening a browser automatically, use:
+
+```bash
+npm run studio:preview:no-open
+```
+
+To preview a real Dendry project instead of the bundled demo:
+
+```bash
+npm run studio:preview -- --root /path/to/project
+```
+
+To open the desktop app from the repository root:
+
+```bash
+npm --prefix tools/project_map/desktop ci
+npm run studio:app
+```
+
+After the desktop dependencies are installed once, `npm run studio:app` is the
+only command needed for normal desktop launches.
+
+To launch the desktop app for a *specific branch* — handy for comparing work in
+progress without switching your own checkout:
+
+```bash
+npm run studio:branch
+```
+
+This lists every local branch and launches the chosen one's latest desktop app.
+The branch you currently have checked out runs in place; any other branch runs
+from a throwaway worktree at its tip (borrowing the installed `node_modules` by
+symlink) that is removed again when you close the app. Your working tree and
+current branch are never touched. Pass a branch name to skip the picker, or list
+the branches as JSON:
+
+```bash
+npm run studio:branch -- main
+npm run studio:branch:list
+```
+
 Run the core checks:
 
 ```bash
 npm run check:ci
 ```
 
-Start the browser viewer:
+Useful launcher checks:
 
 ```bash
-python3 tools/project_map/launch_studio.py --no-open
+npm run studio:preview:plan
+npm run check:launch
 ```
 
-Start the Electron desktop app:
-
-```bash
-cd tools/project_map/desktop
-npm ci
-npm run start
-```
+`studio:preview:plan` prints the launch plan without generating an index or
+starting a server. `check:launch` verifies the launcher shortcuts and read-only
+browser preview contract.
 
 ## Useful Developer Checks
 
 ```bash
 npm run check:ci
-cd tools/project_map/desktop
-npm run smoke
-npm run doctor
+npm run check:launch
+npm run studio:app:smoke
+npm run studio:app:doctor
 ```
 
 Additional engineering notes live in [tools/project_map/README.md](tools/project_map/README.md). Release preparation notes live in [docs/releases/v0.98.1-dev-preview.md](docs/releases/v0.98.1-dev-preview.md), and tester-facing preview notes live in [tools/project_map/RELEASE_NOTES_v0.98.1.md](tools/project_map/RELEASE_NOTES_v0.98.1.md).

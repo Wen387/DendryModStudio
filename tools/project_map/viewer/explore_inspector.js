@@ -102,7 +102,7 @@
         ? workbench
         : renderNewsInspector(selected.item) + preview + visibleEdit + renderEditDraftAction(selected, state) + renderTextProposalAction(selected, state);
     } else if (selected.view === 'surfaceText') {
-      elements.inspector.innerHTML = renderSurfaceTextInspector(selected.item) + preview + visibleEdit + renderEditDraftAction(selected, state) + renderTextProposalAction(selected, state);
+      elements.inspector.innerHTML = renderSurfaceTextInspector(selected.item) + preview + visibleEdit + (global.ProjectMapQdisplayCreatePanel ? global.ProjectMapQdisplayCreatePanel.renderCreatePanel(selected.item) : '') + renderEditDraftAction(selected, state) + renderTextProposalAction(selected, state);
     } else if (selected.view === 'textCorpus') {
       elements.inspector.innerHTML = renderTextCorpusInspector(selected.item, state.model, state, visibleEdit);
     } else if (selected.view === 'assets') {

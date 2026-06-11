@@ -27,6 +27,7 @@ from indexer.effects import attach_scene_effects
 from indexer.graph import GraphBuilder, add_textual_goto_overlay
 from indexer.parser import load_parser_index, run_node_parser
 from indexer.profiles import normalize_parser_scene, score_profiles
+from indexer.runtime_surface import extract_template_source
 from indexer.semantics import classify_semantics
 from indexer.variables import VariableScanner
 
@@ -106,6 +107,7 @@ def build_index(
             "sourceRoots": ["source"],
             "info": info,
             "infoSource": info_source,
+            "templateSource": extract_template_source(root),
             "detection": {
                 "confidence": CONF_PROFILE,
                 "profiles": [

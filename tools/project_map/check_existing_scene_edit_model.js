@@ -763,7 +763,7 @@ assert(addOptionField && addOptionField.inputType === 'textarea', 'existing edit
 assert(addOptionField.editability === 'guarded_apply', 'root add-option structural actions should advertise guarded apply when the insert anchor is exact');
 assert(addOptionField.structureSourceBlock && addOptionField.structureSourceBlock.kind === 'root_option_insert_anchor', 'root add-option structural actions should carry source block insert evidence');
 assert(addBranchField && addBranchField.inputType === 'textarea', 'existing editor should expose an add-branch structural action');
-assert(addBranchField.editability === 'advanced_source_patch', 'source-backed add-branch should advertise advanced source apply when a graph-backed insert anchor exists');
+assert(addBranchField.editability === 'guarded_apply', 'source-backed add-branch should advertise guarded apply when a graph-backed insert anchor exists');
 assert(addBranchField.structureSourceBlock && addBranchField.structureSourceBlock.kind === 'branch_insert_anchor', 'source-backed add-branch should carry branch insert evidence');
 assert(addTriggerEffectField && addTriggerEffectField.role === 'effect', 'existing editor should expose an add trigger effect action');
 assert(addTriggerEffectField.editability === 'guarded_apply', 'source-backed trigger effects should advertise guarded apply when an on-arrival insert anchor is exact');
@@ -786,7 +786,7 @@ const structureProposal = existingEdit.buildProposal(eventModel, {
 assert(structureProposal.changes.length === 8, 'structural edits should become proposal changes, including source-backed bundle deletes');
 assert(structureProposal.changes.filter((change) => change.editability === 'manual_review').length === 0, 'source-backed structural inserts/effects/deletes/condition removals should become guarded or advanced instead of fake manual review');
 assert(structureProposal.changes.some((change) => change.fieldId === addOptionField.id && change.editability === 'guarded_apply' && change.operationType === 'insert_text' && change.after.includes('@public_meeting')), 'simple root add-option proposals should become guarded source inserts');
-assert(structureProposal.changes.some((change) => change.fieldId === addBranchField.id && change.editability === 'advanced_source_patch' && change.operationType === 'insert_text' && change.after.includes('@late_warning')), 'simple source-backed add-branch proposals should become advanced source inserts');
+assert(structureProposal.changes.some((change) => change.fieldId === addBranchField.id && change.editability === 'guarded_apply' && change.operationType === 'insert_text' && change.after.includes('@late_warning')), 'simple source-backed add-branch proposals should become guarded source inserts');
 assert(structureProposal.changes.some((change) => change.fieldId === addTriggerEffectField.id && change.editability === 'guarded_apply' && change.operationType === 'replace_text' && change.before === 'on-arrival: all_quiet_seen = 1' && change.after.includes('public_order += 2')), 'simple source-backed trigger effects should append to existing on-arrival lines');
 assert(structureProposal.changes.some((change) => change.fieldId === addOptionEffectField.id && change.editability === 'guarded_apply' && change.operationType === 'insert_text'), 'simple source-backed option effects should become guarded source inserts');
 assert(structureProposal.changes.some((change) => change.fieldId === removePrereqField.id && change.editability === 'guarded_apply' && change.operationType === 'replace_text' && change.before === 'choose-if: public_order >= 0' && change.after === '' && change.allowEmptyReplace), 'source-backed option prerequisite removal should become a guarded empty replace_text');
@@ -798,7 +798,7 @@ assert(structureProposal.changes.some((change) => change.before.includes('Q.publ
 const structureBundle = existingEdit.buildExportBundle(structureProposal, index);
 assert(structureBundle.installPlan.operations.filter((op) => op.type === 'manual_snippet').length === 0, 'source-backed structural changes should avoid fake manual snippets');
 assert(structureBundle.installPlan.operations.some((op) => op.type === 'insert_text' && op.safety === 'guarded_apply' && op.content.includes('@public_meeting')), 'simple root add-option proposals should produce guarded install operations');
-assert(structureBundle.installPlan.operations.some((op) => op.type === 'insert_text' && op.safety === 'advanced_apply' && op.content.includes('@late_warning')), 'simple source-backed add-branch proposals should produce advanced install operations');
+assert(structureBundle.installPlan.operations.some((op) => op.type === 'insert_text' && op.safety === 'guarded_apply' && op.content.includes('@late_warning')), 'simple source-backed add-branch proposals should produce guarded install operations');
 assert(structureBundle.installPlan.operations.some((op) => op.type === 'replace_text' && op.safety === 'guarded_apply' && op.search === 'on-arrival: all_quiet_seen = 1' && op.replace.includes('public_order += 2')), 'simple trigger effect insertion should produce a guarded on-arrival replacement operation');
 assert(structureBundle.installPlan.operations.some((op) => op.type === 'insert_text' && op.safety === 'guarded_apply' && op.content.includes('Q.public_order -= 1')), 'simple source-backed option-effect insertion should produce a guarded install operation');
 assert(structureBundle.installPlan.operations.some((op) => op.type === 'replace_text' && op.safety === 'guarded_apply' && op.search === 'choose-if: public_order >= 0' && op.replace === ''), 'source-backed prerequisite removal should produce a guarded empty replace_text operation');
@@ -822,6 +822,10 @@ const unsafeBranchProposal = existingEdit.buildProposal(eventModel, {
   [addBranchField.id]: '# q_prefixed_branch\n[? if Q.public_order >= 2 : This source-invalid branch should not auto-apply. ?]'
 });
 assert(unsafeBranchProposal.changes.some((change) => change.fieldId === addBranchField.id && change.editability === 'manual_review' && change.operationType === 'manual_snippet'), 'Q-prefixed branch conditions should fall back to manual review instead of producing invalid source');
+const directiveBranchProposal = existingEdit.buildProposal(eventModel, {
+  [addBranchField.id]: '# gated_branch\nview-if: public_order >= 2\nThis directive-bearing branch must stay manual.'
+});
+assert(directiveBranchProposal.changes.some((change) => change.fieldId === addBranchField.id && change.editability === 'manual_review' && change.operationType === 'manual_snippet'), 'directive-bearing branch bodies (view-if) should stay manual review even though simple prose bodies are guarded');
 const singleLineEffectModel = Object.assign({}, eventModel, {
   fields: [{
     id: 'structure_add_option_effect_inline',
@@ -1334,11 +1338,66 @@ const advancedModel = existingEdit.buildEditModel({
 }, 'events', 'protected_router');
 assert(advancedModel.fields[0].editability === 'advanced_source_patch', 'protected router-backed fields should stay editable through advanced source patch');
 
+// Magic {! !} guarded block editor: in-cap blocks (verbatim rawText + scene span
+// + anchors) become guard-editable raw-JS replace_section edits; oversized blocks
+// (no rawText) escape to the IDE; wrapper-breaking edits downgrade to manual.
+const magicPath = 'source/scenes/events/magic_demo.scene.dry';
+const magicIndex = {
+  scenes: [{
+    id: 'magic_demo',
+    title: 'Magic Demo',
+    sourceSpan: {path: magicPath, startLine: 1, endLine: 67},
+    opaqueJsBlocks: [
+      {
+        id: 'opaque_js_demo1', hook: 'on-arrival', scriptKind: 'opaque_js',
+        label: 'on-arrival JS block', lineCount: 3, rawPreview: 'Q.foo = 1;',
+        rawText: 'on-arrival: {!\n  Q.foo = 1;\n!}',
+        reads: [], writes: ['foo'], dynamicKeyWrites: [],
+        source: {path: magicPath, line: 4, startLine: 4, endLine: 6, anchorText: 'on-arrival: {!', endAnchorText: '!}', rawAnchorText: 'on-arrival: {!', rawEndAnchorText: '!}'},
+        reviewBoundary: 'manual_review', confidence: 'opaque'
+      },
+      {
+        id: 'opaque_js_demo2', hook: 'on-display', scriptKind: 'opaque_js',
+        label: 'on-display JS block', lineCount: 60, rawPreview: 'huge block',
+        reads: [], writes: [], dynamicKeyWrites: [],
+        source: {path: magicPath, line: 8, startLine: 8, endLine: 67, anchorText: 'on-display: {!', endAnchorText: '!}', rawAnchorText: 'on-display: {!', rawEndAnchorText: '!}'},
+        reviewBoundary: 'manual_review', confidence: 'opaque'
+      }
+    ]
+  }],
+  semantic: {textCorpus: {items: []}}
+};
+const magicModel = existingEdit.buildEditModel(magicIndex, 'events', 'magic_demo');
+const magicEditableBlock = magicModel.opaqueJsBlocks.find((block) => block.id === 'opaque_js_demo1');
+const magicIdeBlock = magicModel.opaqueJsBlocks.find((block) => block.id === 'opaque_js_demo2');
+assert(magicEditableBlock && magicEditableBlock.editable === true && magicEditableBlock.editability === 'guarded_replace_section', 'in-cap magic block with verbatim text + anchors should be guard-editable');
+assert(magicEditableBlock.value === 'on-arrival: {!\n  Q.foo = 1;\n!}', 'editable magic block should carry verbatim rawText as its value');
+assert(magicIdeBlock && magicIdeBlock.editable === false && magicIdeBlock.editability === 'ide_escape_hatch', 'oversized magic block without verbatim text should fall back to ide_escape_hatch');
+
+// The value key uses 'opaque:<id>' (matches the UI's data-object-canvas-field
+// binding); the change record's fieldId is sanitized by normalizeProposal, so
+// changes are matched here by role rather than by the colon-keyed value id.
+const magicProposal = existingEdit.buildProposal(magicModel, {'opaque:opaque_js_demo1': 'on-arrival: {!\n  Q.foo = 2;\n!}'});
+const magicChange = magicProposal.changes.find((change) => change.role === 'opaque_js_block');
+assert(magicChange && magicChange.operationType === 'replace_section', 'editing a magic block should produce a guarded replace_section change');
+assert(magicChange.anchorText === 'on-arrival: {!' && magicChange.endAnchorText === '!}' && magicChange.startLine === 4 && magicChange.endLine === 6, 'magic block change should carry the recorded span + anchors');
+const magicBundle = existingEdit.buildExportBundle(magicProposal, magicIndex);
+assert(magicBundle.installPlan.operations.some((op) => op.type === 'replace_section' && op.safety === 'guarded_apply'), 'magic block edit should export a guarded replace_section op');
+
+const magicBreakProposal = existingEdit.buildProposal(magicModel, {'opaque:opaque_js_demo1': 'Q.foo = 2; // dropped the wrapper'});
+const magicBreakChange = magicBreakProposal.changes.find((change) => change.role === 'opaque_js_block');
+assert(magicBreakChange && magicBreakChange.operationType === 'manual_snippet', 'a magic block edit that breaks the {! !} wrapper must downgrade to manual review');
+
+const magicIdeProposal = existingEdit.buildProposal(magicModel, {'opaque:opaque_js_demo2': 'whatever {! !}'});
+assert(!magicIdeProposal.changes.some((change) => change.role === 'opaque_js_block'), 'non-editable (ide_escape_hatch) magic blocks should not produce changes');
+
 console.log(JSON.stringify({
   ok: true,
   eventFields: eventModel.fields.length,
   textBlocks: eventModel.textBlocks.length,
   eventChanges: eventProposal.changes.length,
   cardOptions: cardModel.options.length,
-  advancedEditability: advancedModel.fields[0].editability
+  advancedEditability: advancedModel.fields[0].editability,
+  magicBlockEditable: magicEditableBlock.editable,
+  magicChangeOp: magicChange.operationType
 }, null, 2));

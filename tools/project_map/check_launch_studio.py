@@ -12,7 +12,9 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 LAUNCHER = REPO_ROOT / "tools" / "project_map" / "launch_studio.py"
+BRANCH_LAUNCHER = REPO_ROOT / "tools" / "project_map" / "launch_studio_branch.py"
 PROJECT_ROOT = REPO_ROOT / "tools" / "project_map" / "templates" / "starter-demo"
+PACKAGE_JSON = REPO_ROOT / "package.json"
 
 
 def fail(message: str) -> None:
@@ -25,13 +27,86 @@ def assert_true(condition: bool, message: str) -> None:
         fail(message)
 
 
-def load_launcher():
-    spec = importlib.util.spec_from_file_location("launch_studio", LAUNCHER)
+def load_module(name: str, path: Path):
+    spec = importlib.util.spec_from_file_location(name, path)
     if spec is None or spec.loader is None:
-        fail("could not load launch_studio.py")
+        fail(f"could not load {path.name}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def load_launcher():
+    return load_module("launch_studio", LAUNCHER)
+
+
+def check_branch_launcher() -> None:
+    bl = load_module("launch_studio_branch", BRANCH_LAUNCHER)
+
+    # Live branch listing should at least surface the current branch as current.
+    branches = bl.list_branches()
+    assert_true(len(branches) >= 1, "branch launcher should list at least one local branch")
+    currents = [b for b in branches if b.is_current]
+    assert_true(len(currents) <= 1, "branch launcher should mark at most one current branch")
+
+    # An already-checked-out branch runs in place with no worktree and no symlinks.
+    in_place_info = bl.BranchInfo(
+        name="codex/DevEnvImprove",
+        sha="0" * 40,
+        short_sha="0000000",
+        date="2026-06-10",
+        subject="x",
+        checked_out_at=str(REPO_ROOT),
+        is_current=True,
+    )
+    in_place_plan = bl.build_launch_plan(in_place_info)
+    assert_true(in_place_plan.in_place is True, "checked-out branch should run in place")
+    assert_true(in_place_plan.creates_worktree is False, "checked-out branch should not create a worktree")
+    assert_true(in_place_plan.symlinks == [], "primary checkout already has node_modules, no symlinks needed")
+    assert_true(in_place_plan.run_path == REPO_ROOT, "in-place run path should be the existing checkout")
+
+    # A branch with no existing checkout goes through an ephemeral temp worktree.
+    ephemeral_info = bl.BranchInfo(
+        name="feature/some-branch",
+        sha="1" * 40,
+        short_sha="1111111",
+        date="2026-06-10",
+        subject="y",
+        checked_out_at=None,
+        is_current=False,
+    )
+    eph_plan = bl.build_launch_plan(ephemeral_info)
+    assert_true(eph_plan.creates_worktree is True, "uncheckout branch should create a worktree")
+    assert_true(eph_plan.in_place is False, "uncheckout branch should not run in place")
+    assert_true(str(bl.EPHEMERAL_PARENT) in str(eph_plan.run_path), "ephemeral worktree should live under the temp parent")
+    assert_true(len(eph_plan.symlinks) == 2, "ephemeral worktree should borrow root + desktop node_modules by symlink")
+    assert_true(eph_plan.start_command[:1] == ["npm"], "branch launch should start via npm")
+    assert_true(str(eph_plan.desktop_dir).endswith("tools/project_map/desktop"), "branch launch should target the desktop app dir")
+
+    contract = json.loads(bl.plan_as_json(eph_plan, "plan"))
+    assert_true(contract["writesSource"] is False, "branch launch must not write source")
+    assert_true(contract["touchesOutHtml"] is False, "branch launch must not touch out/html")
+    assert_true(contract["switchesPrimaryBranch"] is False, "branch launch must not switch the primary branch")
+    assert_true(contract["ephemeral"] is True, "branch launch plan should report ephemeral worktree use")
+
+    list_result = subprocess.run(
+        [sys.executable, str(BRANCH_LAUNCHER), "--list"],
+        cwd=REPO_ROOT, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
+    )
+    assert_true(list_result.returncode == 0, "branch launcher --list should exit 0: " + list_result.stderr)
+    listed = json.loads(list_result.stdout)
+    assert_true(isinstance(listed, list) and len(listed) >= 1, "branch launcher --list should emit a non-empty JSON array")
+    assert_true(all("name" in row and "shortSha" in row for row in listed), "each listed branch should carry name + shortSha")
+
+    current_name = next((b.name for b in branches if b.is_current), branches[0].name)
+    plan_result = subprocess.run(
+        [sys.executable, str(BRANCH_LAUNCHER), "--plan", current_name],
+        cwd=REPO_ROOT, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False,
+    )
+    assert_true(plan_result.returncode == 0, "branch launcher --plan should exit 0: " + plan_result.stderr)
+    plan_json = json.loads(plan_result.stdout)
+    assert_true(plan_json["branch"] == current_name, "--plan should report the requested branch")
+    assert_true(plan_json["switchesPrimaryBranch"] is False, "--plan should affirm it never switches the primary branch")
 
 
 def main() -> int:
@@ -113,6 +188,50 @@ def main() -> int:
 
     viewer_app = (REPO_ROOT / "tools" / "project_map" / "viewer" / "app.js").read_text(encoding="utf-8")
     assert_true("loadProjectIndexUrl" in viewer_app, "viewer should support launcher URL autoload")
+
+    package = json.loads(PACKAGE_JSON.read_text(encoding="utf-8"))
+    scripts = package.get("scripts") or {}
+    assert_true(
+        scripts.get("studio:preview")
+        == "python3 tools/project_map/launch_studio.py --root tools/project_map/templates/starter-demo",
+        "root package should expose the browser preview launcher with a runnable default project",
+    )
+    assert_true(
+        scripts.get("studio:preview:no-open")
+        == "python3 tools/project_map/launch_studio.py --root tools/project_map/templates/starter-demo --no-open",
+        "root package should expose a no-open browser preview launcher with a runnable default project",
+    )
+    assert_true(
+        scripts.get("studio:preview:plan")
+        == "python3 tools/project_map/launch_studio.py --root tools/project_map/templates/starter-demo --dry-run --no-open",
+        "root package should expose a dry-run launch plan with a runnable default project",
+    )
+    assert_true(
+        scripts.get("studio:app") == "npm --prefix tools/project_map/desktop run start",
+        "root package should expose the desktop app launcher",
+    )
+    assert_true(
+        scripts.get("studio:app:doctor") == "npm --prefix tools/project_map/desktop run doctor",
+        "root package should expose the desktop doctor",
+    )
+    assert_true(
+        scripts.get("studio:app:smoke") == "npm --prefix tools/project_map/desktop run smoke",
+        "root package should expose the desktop smoke check",
+    )
+    assert_true(
+        scripts.get("studio:branch") == "python3 tools/project_map/launch_studio_branch.py",
+        "root package should expose the per-branch desktop app launcher",
+    )
+    assert_true(
+        scripts.get("studio:branch:list") == "python3 tools/project_map/launch_studio_branch.py --list",
+        "root package should expose the branch listing shortcut",
+    )
+    assert_true(
+        scripts.get("check:launch") == "python3 tools/project_map/check_launch_studio.py",
+        "root package should expose launcher contract checks",
+    )
+
+    check_branch_launcher()
 
     authoring_path = launcher.resolve_authoring_file_path(plan.authoring_dir, "/authoring/news_draft.js")
     assert_true(authoring_path == plan.authoring_dir / "news_draft.js", "launcher should serve viewer authoring modules")

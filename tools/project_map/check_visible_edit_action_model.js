@@ -151,7 +151,9 @@ function fixtureIndex() {
           area: 'sidebar',
           editability: 'draft_exportable',
           owner: {kind: 'surface_text'},
-          source: {path: 'source/qdisplays/resources.qdisplay.dry', line: 1, anchorText: 'Resources', endAnchorText: 'Resources'}
+          // status scene path: keeps open_system_ui_editor coverage — since
+          // 98.5 R5, qdisplay band lines route to the source slice editor.
+          source: {path: 'source/scenes/status.scene.dry', line: 1, anchorText: 'Resources', endAnchorText: 'Resources'}
         }]
       }
     }

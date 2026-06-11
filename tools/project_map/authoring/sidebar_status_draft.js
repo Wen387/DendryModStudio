@@ -134,6 +134,56 @@
     return draft;
   }
 
+  // Applies Canvas field values onto a base draft. When the values explicitly
+  // retarget sectionId (the region editor pins the DISPLAYED category id),
+  // content fields the author did not touch are rebased onto the target
+  // section's current source-backed content instead of inheriting stale text
+  // from the previously targeted section.
+  function applyDraftValues(baseDraft, values, options) {
+    const data = isObject(values) ? values : {};
+    const base = isObject(baseDraft) ? baseDraft : {};
+    const draft = normalizeDraft(base);
+    const explicit = {};
+    [
+      ['id', (value) => safeId(value)],
+      ['title', null],
+      ['statusTitle', null],
+      ['sectionId', (value) => normalizeSectionId(value)],
+      ['sectionHeading', null],
+      ['sectionBody', null],
+      ['sectionStatusLines', null],
+      ['operationMode', null]
+    ].forEach(([key, transform]) => {
+      if (!Object.prototype.hasOwnProperty.call(data, 'sidebar.' + key)) {
+        return;
+      }
+      explicit[key] = true;
+      const raw = String(data['sidebar.' + key] || '').trim();
+      draft[key] = transform ? transform(raw) : raw;
+    });
+    if (Object.prototype.hasOwnProperty.call(data, 'sidebar.deleteConfirm')) {
+      draft.deleteConfirm = booleanValue(data['sidebar.deleteConfirm']);
+    }
+    const baseSectionId = normalizeSectionId(base.sectionId || MAIN_SECTION_ID);
+    if (explicit.sectionId && draft.sectionId !== baseSectionId) {
+      const model = buildSidebarModel(options && options.projectIndex);
+      const section = selectSection(model, draft.sectionId);
+      if (section) {
+        if (!explicit.sectionHeading) {
+          draft.sectionHeading = section.heading;
+        }
+        if (!explicit.sectionBody) {
+          draft.sectionBody = section.body;
+        }
+        if (!explicit.sectionStatusLines) {
+          draft.sectionStatusLines = section.statusLines;
+        }
+        draft.evidence = model;
+      }
+    }
+    return normalizeDraft(draft);
+  }
+
   function validateDraft(input, projectIndex) {
     const draft = normalizeDraft(input);
     const evidence = usableEvidence(draft.evidence) ? draft.evidence : buildSidebarModel(projectIndex);
@@ -274,21 +324,25 @@
           role: 'sidebar_status.delete_section',
           description: 'Selected sidebar category lacks exact delete anchors; review the status scene manually.'
         });
-      } else if (selected && selected.evidence && sectionChanged) {
-        operations.push({
-          id: 'sidebar_status_section',
-          type: 'replace_section',
-          path: selected.evidence.path || statusPath,
-          anchorText: selected.evidence.anchorText,
-          endAnchorText: selected.evidence.endAnchorText,
-          content: renderSidebarSection(draft),
-          dedupeSearch: renderSidebarSection(draft).trim(),
-          startLine: selected.evidence.startLine,
-          endLine: selected.evidence.endLine,
-          safety: 'guarded_apply',
-          role: 'sidebar_status.section',
-          description: 'Replace the source-backed sidebar/status section between exact visible-text anchors.'
-        });
+      } else if (selected && sectionChanged) {
+        // Edits to an existing source-backed section must be expressed as exact
+        // line-level replacements; whole-section reconstruction is lossy on
+        // section-rich real scenes (interior headings, layout, uncaptured
+        // lines) and is never generated for existing scenes.
+        const surgical = buildSurgicalSectionOps(draft, selected, statusPath);
+        if (surgical.ok) {
+          surgical.operations.forEach((operation) => operations.push(operation));
+        } else {
+          operations.push({
+            id: 'sidebar_status_section_manual',
+            type: 'manual_snippet',
+            path: statusPath,
+            content: renderSidebarSection(draft),
+            safety: 'manual_review',
+            role: 'sidebar_status.section',
+            description: 'Sidebar section edit cannot be applied as exact line replacements (' + surgical.reason + '); review the status scene manually.'
+          });
+        }
       } else if (sectionChanged) {
         operations.push({
           id: 'sidebar_status_section_manual',
@@ -329,8 +383,114 @@
       draftKind: SIDEBAR_STATUS_KIND,
       title: draft.title || draft.id,
       project: installApi.projectProvenanceFromIndex ? installApi.projectProvenanceFromIndex(projectIndex) : null,
-      operations
+      operations: enforceTruncationFirewall(operations)
     });
+  }
+
+  function buildSurgicalSectionOps(draft, selected, statusPath) {
+    const operations = [];
+    const path = normalizedPath(selected.path || statusPath);
+    if (draft.sectionHeading !== selected.heading) {
+      const headingRow = selected.headingRow;
+      if (!headingRow || !headingRow.surgical) {
+        return surgicalFailure('the section heading has no exact single-line source anchor');
+      }
+      if (!draft.sectionHeading) {
+        return surgicalFailure('removing the section heading line needs manual review');
+      }
+      const prefix = (headingRow.search.match(/^=+\s*/) || ['= '])[0];
+      operations.push(lineReplaceOperation('sidebar_status_section_heading', path, headingRow, prefix + draft.sectionHeading, 'Replace the sidebar section heading on its exact source line.'));
+    }
+    const bodyEdits = mapLineEdits('sidebar_status_section_body', path, draft.sectionBody, selected.body, selected.bodyRows, 'section body');
+    if (!bodyEdits.ok) {
+      return bodyEdits;
+    }
+    const statusEdits = mapLineEdits('sidebar_status_section_status', path, draft.sectionStatusLines, selected.statusLines, selected.statusLineRows, 'status lines');
+    if (!statusEdits.ok) {
+      return statusEdits;
+    }
+    bodyEdits.operations.forEach((operation) => operations.push(operation));
+    statusEdits.operations.forEach((operation) => operations.push(operation));
+    if (!operations.length) {
+      return surgicalFailure('no exact line-level change could be derived');
+    }
+    return {ok: true, reason: '', operations};
+  }
+
+  function mapLineEdits(idPrefix, path, nextText, prevText, rows, label) {
+    const next = String(nextText || '');
+    const prev = String(prevText || '');
+    if (next === prev) {
+      return {ok: true, reason: '', operations: []};
+    }
+    const nextLines = next.split('\n').map((line) => line.trim());
+    const prevLines = prev ? prev.split('\n') : [];
+    const records = ensureArray(rows);
+    if (!prevLines.length || nextLines.length !== prevLines.length || prevLines.length !== records.length) {
+      return surgicalFailure('the ' + label + ' line count changed, so the edit no longer maps one-to-one onto source lines');
+    }
+    const operations = [];
+    for (let index = 0; index < prevLines.length; index += 1) {
+      if (nextLines[index] === prevLines[index]) {
+        continue;
+      }
+      const record = records[index];
+      if (!record || !record.surgical) {
+        const truncated = record && isTruncatedExcerpt(record.search);
+        return surgicalFailure('an edited ' + label + ' line has no exact single-line source anchor' + (truncated ? ' (the indexed excerpt is truncated)' : ''));
+      }
+      if (!nextLines[index]) {
+        return surgicalFailure('deleting a ' + label + ' line needs manual review');
+      }
+      operations.push(lineReplaceOperation(idPrefix + '_' + (index + 1), path, record, nextLines[index], 'Replace one sidebar ' + label + ' line on its exact source line.'));
+    }
+    return {ok: true, reason: '', operations};
+  }
+
+  function lineReplaceOperation(id, path, record, replace, description) {
+    return {
+      id,
+      type: 'replace_text',
+      path,
+      line: record.line,
+      search: record.search,
+      replace,
+      safety: 'guarded_apply',
+      role: 'sidebar_status.section_line',
+      description
+    };
+  }
+
+  function surgicalFailure(reason) {
+    return {ok: false, reason, operations: []};
+  }
+
+  // Hard rule: no auto-applied operation may write indexer-truncated excerpt
+  // text ("..." cap markers) into source files.
+  function enforceTruncationFirewall(operations) {
+    return ensureArray(operations).map((operation) => {
+      if (String(operation.safety || '') === 'manual_review') {
+        return operation;
+      }
+      const payload = String(operation.replace || '') + '\n' + String(operation.content || '');
+      if (!payload.split('\n').some((line) => isTruncatedExcerpt(line.trim()))) {
+        return operation;
+      }
+      return {
+        id: operation.id,
+        type: 'manual_snippet',
+        path: operation.path,
+        content: String(operation.content || operation.replace || ''),
+        safety: 'manual_review',
+        role: operation.role,
+        description: String(operation.description || '') + ' Blocked from auto-apply: the proposed text contains an indexer-truncated excerpt ("...").'
+      };
+    });
+  }
+
+  function isTruncatedExcerpt(text) {
+    const value = String(text || '');
+    return value.length === 180 && value.endsWith('...');
   }
 
   function sidebarSections(status, statusRows) {
@@ -443,20 +603,52 @@
 
   function sectionFromRows(section, rows) {
     const textRows = ensureArray(rows).sort((a, b) => sourceLine(a.source) - sourceLine(b.source));
-    const heading = firstText(textRows, 'heading') || titleCase(section.label || section.id || 'Status');
-    const body = bodyText(textRows);
-    const statusLines = conditionalStatusLines(textRows);
+    const headingSource = textRows.find((row) => String(row.role || '') === 'heading' && String(row.text || '').trim()) || null;
+    const heading = (headingSource ? cleanSurfaceText(headingSource.text) : '') || titleCase(section.label || section.id || 'Status');
+    const bodyRows = lineEditRows(
+      textRows.filter((row) => !['heading', 'conditional_body', 'status_line'].includes(String(row.role || ''))),
+      (row) => cleanSurfaceText(row.text || row.originalText || '')
+    );
+    const statusLineRows = lineEditRows(
+      textRows.filter((row) => ['conditional_body', 'status_line'].includes(String(row.role || ''))),
+      (row) => sourceAnchor(row)
+    );
     return {
       id: normalizeSectionId(section.id || section.anchorId || MAIN_SECTION_ID),
       anchorId: String(section.anchorId || ''),
       label: String(section.label || heading || section.id || ''),
       heading,
-      body,
-      statusLines,
+      body: bodyRows.map((row) => row.display).join('\n'),
+      statusLines: statusLineRows.map((row) => row.display).join('\n'),
+      headingRow: headingSource ? lineEditRecord(headingSource, cleanSurfaceText(headingSource.text), {heading: true}) : null,
+      bodyRows,
+      statusLineRows,
       path: normalizedPath(section.path || ''),
       line: section.line || null,
       evidence: sectionEvidence(textRows),
       deleteEvidence: deleteSectionEvidence(section, textRows)
+    };
+  }
+
+  function lineEditRows(rows, displayFor) {
+    return ensureArray(rows)
+      .map((row) => lineEditRecord(row, displayFor(row), {}))
+      .filter((record) => record.display);
+  }
+
+  // A section line is only safe for line-level auto-apply when it maps onto a
+  // single source line whose exact anchor text matches what the author saw.
+  function lineEditRecord(row, display, opts) {
+    const source = row && row.source || {};
+    const line = sourceLine(source);
+    const endLine = sourceEndLine(source);
+    const search = sourceAnchor(row);
+    const exact = opts && opts.heading ? cleanSurfaceText(search) === display : search === display;
+    return {
+      display: String(display || ''),
+      line: line || null,
+      search,
+      surgical: Boolean(line && endLine === line && search && exact && !isTruncatedExcerpt(search))
     };
   }
 
@@ -604,27 +796,6 @@
     return ensureArray(scenes).find((scene) => ids.includes(String(scene.id || ''))) || null;
   }
 
-  function firstText(rows, role) {
-    const found = ensureArray(rows).find((row) => String(row.role || '') === role && String(row.text || '').trim());
-    return found ? cleanSurfaceText(found.text) : '';
-  }
-
-  function bodyText(rows) {
-    return ensureArray(rows)
-      .filter((row) => !['heading', 'conditional_body', 'status_line'].includes(String(row.role || '')))
-      .map((row) => cleanSurfaceText(row.text || row.originalText || ''))
-      .filter(Boolean)
-      .join('\n');
-  }
-
-  function conditionalStatusLines(rows) {
-    return ensureArray(rows)
-      .filter((row) => ['conditional_body', 'status_line'].includes(String(row.role || '')))
-      .map((row) => sourceAnchor(row))
-      .filter(Boolean)
-      .join('\n');
-  }
-
   function sourceAnchor(row) {
     const source = row && row.source || {};
     const exact = String(source.anchorText || '').trim();
@@ -725,6 +896,7 @@
     buildSidebarModel,
     defaultDraft,
     normalizeDraft,
+    applyDraftValues,
     validateDraft,
     buildInstallPlan,
     buildExportBundle,

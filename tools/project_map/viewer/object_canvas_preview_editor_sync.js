@@ -9,12 +9,24 @@
     const renderPane = typeof ctx.editor.renderModalPreviewPane === 'function'
       ? ctx.editor.renderModalPreviewPane
       : ctx.editor.renderPreviewPane;
+    const html = renderPane(ctx.model, {
+      template: ctx.state.template,
+      selectedKey: ctx.state.selectedCanvasNode,
+      previewExpanded: ctx.state.objectEditorPreviewExpanded
+    });
     ctx.host.querySelectorAll('[data-object-editing-modal-preview-pane]').forEach((node) => {
-      node.innerHTML = renderPane(ctx.model, {
-        template: ctx.state.template,
-        selectedKey: ctx.state.selectedCanvasNode,
-        previewExpanded: ctx.state.objectEditorPreviewExpanded
-      });
+      // When the Preview/Play toggle is present (the desktop real-engine
+      // play-test wraps the pane in a modes toolbar + a preview panel + a play
+      // panel), replace ONLY the preview panel's content. A whole-pane innerHTML
+      // rewrite here would wipe the toolbar and any in-progress play-test on the
+      // first post-render sync -- which is exactly why the Play tab never showed.
+      // With no toggle (plain browser / unsupported), keep the whole-pane replace.
+      const previewPanel = node.querySelector('[data-preview-mode-panel="preview"]');
+      if (previewPanel) {
+        previewPanel.innerHTML = html;
+      } else {
+        node.innerHTML = html;
+      }
     });
   }
 

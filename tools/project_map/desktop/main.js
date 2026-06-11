@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const {app, BrowserWindow, Menu, dialog, ipcMain, shell} = require('electron');
 const core = require('./studio_core');
+const objectPlaytestHost = require('./object_playtest_host');
 const runtimeSessionCleanup = require('./runtime_session_cleanup');
 const updateNotice = require('./update_notice');
 const templateCatalog = require('./template_catalog');
@@ -643,6 +644,19 @@ ipcMain.handle('dendry:catalog-template-info', async (_event, options) => {
   return info;
 });
 
+ipcMain.handle('dendry:read-source-slice', async (_event, options) => {
+  const projectRoot = chooseProjectRootForOperation(options || {});
+  if (!projectRoot) {
+    return {ok: false, code: 'read_slice.no_project', message: 'Open a project folder before reading source slices.'};
+  }
+  return core.readSourceSlice({
+    root: projectRoot,
+    path: options && options.path,
+    startLine: options && options.startLine,
+    endLine: options && options.endLine
+  });
+});
+
 ipcMain.handle('dendry:install-plan-apply', async (_event, options) => {
   const projectRoot = chooseProjectRootForOperation(options || {});
   if (!projectRoot) {
@@ -666,6 +680,17 @@ ipcMain.handle('dendry:install-plan-apply', async (_event, options) => {
     allowAdvanced: options && options.allowAdvanced === true,
     includeEvidence: options && options.includeEvidence === true
   });
+});
+
+ipcMain.handle('dendry:object-playtest', async (_event, options) => {
+  if (!objectPlaytestHost.isSupported()) {
+    return {ok: false, error: 'unsupported', message: 'The DendryNexus runtime is not available for play-testing.'};
+  }
+  const projectRoot = chooseProjectRootForOperation(options || {});
+  if (!projectRoot) {
+    return {ok: false, error: 'no-project', message: 'Open a project folder before play-testing an object.'};
+  }
+  return objectPlaytestHost.handle(Object.assign({}, options, {projectRoot}));
 });
 
 ipcMain.handle('dendry:runtime-preview-create', async (_event, options) => {

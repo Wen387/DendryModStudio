@@ -1413,7 +1413,7 @@
         action: 'add_branch',
         sceneId,
         source: branchInsertSource || sceneSource,
-        editability: branchInsertSource ? 'advanced_source_patch' : 'manual_review',
+        editability: branchInsertSource ? 'guarded_apply' : 'manual_review',
         sourceBlock: branchInsertSource ? {
           kind: 'branch_insert_anchor',
           anchorText: branchInsertSource.anchorText || '',
