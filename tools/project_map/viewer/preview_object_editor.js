@@ -110,6 +110,11 @@
     try { return require('./object_editor_deferred_slice.js'); } catch (_err) { return null; }
   }
 
+  function objectEditorOvercapSlice() {
+    if (global && global.ProjectMapObjectEditorOvercapSlice) { return global.ProjectMapObjectEditorOvercapSlice; }
+    try { return require('./object_editor_overcap_slice.js'); } catch (_err) { return null; }
+  }
+
   function renderModal(model, options) {
     const opts = options && typeof options === 'object' ? options : {};
     const body = model && model.eventBody || {};
@@ -1919,8 +1924,10 @@
         status: editable ? 'guarded' : 'review',
         readOnly: !editable
       };
+      const overcapUi = editable ? null : objectEditorOvercapSlice();
       return '<div class="preview-object-magic-block">' + renderInlineField(field, {role: 'logic', element: 'textarea'})
-        + (hint ? '<small class="preview-object-field-context">' + escapeHtml(hint) + '</small>' : '') + '</div>';
+        + (hint ? '<small class="preview-object-field-context">' + escapeHtml(hint) + '</small>' : '')
+        + (overcapUi ? overcapUi.renderOvercapEntry(block, {}) : '') + '</div>';
     }).join('');
     return '<details class="preview-object-logic-details" data-preview-object-magic="true"><summary>'
       + escapeHtml(t('objectCanvas.magicBlocks', 'Magic / JS blocks')) + '</summary>'

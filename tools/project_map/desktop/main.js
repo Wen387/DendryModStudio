@@ -644,6 +644,19 @@ ipcMain.handle('dendry:catalog-template-info', async (_event, options) => {
   return info;
 });
 
+ipcMain.handle('dendry:read-source-slice', async (_event, options) => {
+  const projectRoot = chooseProjectRootForOperation(options || {});
+  if (!projectRoot) {
+    return {ok: false, code: 'read_slice.no_project', message: 'Open a project folder before reading source slices.'};
+  }
+  return core.readSourceSlice({
+    root: projectRoot,
+    path: options && options.path,
+    startLine: options && options.startLine,
+    endLine: options && options.endLine
+  });
+});
+
 ipcMain.handle('dendry:install-plan-apply', async (_event, options) => {
   const projectRoot = chooseProjectRootForOperation(options || {});
   if (!projectRoot) {

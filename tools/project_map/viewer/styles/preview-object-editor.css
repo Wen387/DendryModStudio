@@ -1933,6 +1933,38 @@ input.preview-object-control[type="checkbox"] {
   background: color-mix(in srgb, var(--studio-accent) 22%, var(--surface));
 }
 
+.preview-object-magic-block .preview-object-overcap-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.preview-object-magic-block .preview-object-overcap-slice {
+  padding: 3px 9px;
+  border: 1px solid color-mix(in srgb, var(--studio-accent) 45%, var(--border));
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--studio-accent) 12%, var(--surface));
+  color: var(--studio-accent-strong);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.preview-object-magic-block .preview-object-overcap-slice:hover {
+  background: color-mix(in srgb, var(--studio-accent) 22%, var(--surface));
+}
+
+.preview-object-magic-block .preview-object-overcap-slice:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.preview-object-magic-block .preview-object-overcap-note {
+  font-size: 11px;
+  color: var(--muted);
+}
+
 .preview-object-inline-add summary::-webkit-details-marker {
   display: none;
 }

@@ -105,6 +105,7 @@ contextBridge.exposeInMainWorld('dendryDesktop', {
     return result;
   },
   applyInstallPlan: (options) => ipcRenderer.invoke('dendry:install-plan-apply', options || {}),
+  readSourceSlice: (options) => ipcRenderer.invoke('dendry:read-source-slice', options || {}),
   objectPlaytest: (options) => ipcRenderer.invoke('dendry:object-playtest', options || {}),
   createRuntimePreview: (options) => ipcRenderer.invoke('dendry:runtime-preview-create', options || {}),
   closeRuntimePreview: (options) => ipcRenderer.invoke('dendry:runtime-preview-close', options || {}),

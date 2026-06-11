@@ -22,6 +22,7 @@ function requireInstallPlan() {
 const installPlan = requireInstallPlan();
 const runtimePreview = require('./runtime_preview');
 const runtimeLens = require('./runtime_lens');
+const sourceSliceRead = require('./source_slice_read.js');
 const STARTER_DEMO_ID = 'starter-demo';
 const STARTER_DEMO_TEMPLATE_MARKER = '.dendry-studio-template.json';
 const PYTHON_CHECK_TIMEOUT_MS = 10 * 1000;
@@ -1402,6 +1403,23 @@ function applyInstallPlan(options) {
   });
 }
 
+// Bounded source-slice read (over-cap magic block entry); the path/range
+// validation and hashing live in the focused source_slice_read.js sibling —
+// this wrapper only resolves the project root the same way installs do.
+function readSourceSlice(options) {
+  const opts = options || {};
+  const validated = validateProjectRoot(opts.root);
+  if (!validated.ok) {
+    return {ok: false, code: 'read_slice.no_project', message: validated.message || 'Open a project folder first.', path: String(opts.path || '')};
+  }
+  return sourceSliceRead.readSourceSlice({
+    root: validated.root,
+    path: opts.path,
+    startLine: opts.startLine,
+    endLine: opts.endLine
+  });
+}
+
 function createRuntimePreview(options) {
   const opts = options || {};
   return runtimePreview.createRuntimePreview({
@@ -1523,6 +1541,7 @@ module.exports = {
   pruneIndexCache,
   loadStarterDemoIndex,
   applyInstallPlan,
+  readSourceSlice,
   createRuntimePreview,
   createRuntimeLens,
   recordRuntimePreviewHistory,

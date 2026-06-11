@@ -52,6 +52,14 @@ class VariableScanner:
                     "source": source_ref(rel),
                     "confidence": CONF_OPAQUE,
                 })
+                # Blocks-only pass: record `{! … !}` hook block spans (anchors,
+                # bounded rawText) WITHOUT variable semantics, so the object
+                # editor can offer a raw source-slice entry. The full scan
+                # stays skipped — no semantic claims about post_event.
+                try:
+                    self.iter_js_blocks(rel, path.read_text(encoding="utf-8").splitlines())
+                except Exception:
+                    pass
                 continue
             try:
                 lines = path.read_text(encoding="utf-8").splitlines()
