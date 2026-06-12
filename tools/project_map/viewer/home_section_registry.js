@@ -515,7 +515,20 @@
     slot.textContent = t('publish.sync.checking', 'Checking GitHub…');
     Promise.resolve(publish.getStatusSnapshot())
       .then((snap) => applyPublishStatus(host, snap))
-      .catch(() => applyPublishStatus(host, null));
+      // A thrown snapshot is a real check failure (bridge/network), not the
+      // "no bridge / browser" case applyPublishStatus(null) hides. Show a brief
+      // muted hint so the slot doesn't silently vanish.
+      .catch(() => showPublishStatusError(host));
+  }
+
+  function showPublishStatusError(host) {
+    const slot = host && host.querySelector('[data-publish-status]');
+    if (!slot) {
+      return;
+    }
+    slot.classList.remove('hidden');
+    slot.innerHTML = statusTextMarkup('home.publish.statusOffline');
+    localizeAndDecorate(slot);
   }
 
   function applyPublishStatus(host, snap) {
@@ -610,9 +623,11 @@
       return;
     }
     const data = whatsNewData();
-    const release = data && typeof data.latestRelease === 'function'
-      ? data.latestRelease()
-      : null;
+    // Absent data is a module race (the What's New data script hasn't loaded
+    // yet), NOT "all caught up". Track it so we render a distinct loading/
+    // unavailable line rather than implying the user has seen everything.
+    const dataLoaded = Boolean(data && typeof data.latestRelease === 'function');
+    const release = dataLoaded ? data.latestRelease() : null;
     const items = release && Array.isArray(release.items) ? release.items : [];
     const versionLabel = release && release.version ? 'v' + release.version : '';
     const parts = [
@@ -629,6 +644,12 @@
         '<ul class="home-whatsnew-list">' +
         items.map(whatsNewItemMarkup).join('') +
         '</ul>'
+      );
+    } else if (!dataLoaded) {
+      // Data-absent: release notes module not ready (or unavailable). Distinct
+      // from "all caught up", which only applies once data has actually loaded.
+      parts.push(
+        '<p class="home-whatsnew-empty" data-i18n="home.whatsnew.unavailable">Release notes are unavailable right now.</p>'
       );
     } else {
       parts.push(

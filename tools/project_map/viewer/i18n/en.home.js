@@ -33,6 +33,7 @@
       'home.whatsnew.lead': 'After an update, this is where new features are introduced.',
       'home.whatsnew.title': 'What\'s new',
       'home.whatsnew.empty': 'You\'re all caught up.',
+      'home.whatsnew.unavailable': 'Release notes are unavailable right now.',
       'home.whatsnew.band.title': 'New in this version',
       'home.whatsnew.band.body': 'See what changed in this update.',
       'home.whatsnew.band.cta': 'See what\'s new',
@@ -50,7 +51,18 @@
       'home.dash.browserHint': 'Publishing and notices are available in the desktop app.',
       'topbar.templateHub': 'Template Hub',
       'topbar.publish': 'Publish to GitHub',
-      'topbar.announcements': 'Notice Preview'
+      'topbar.announcements': 'Notice Preview',
+      // V3 state-safety empty/ready strings. These belong to non-home surfaces
+      // (playtest, storyboard, card board, workspace layout, route map) but are
+      // parked in this off-budget split catalog because the main en.js/zh-Hant.js
+      // is at its line ceiling. Keys keep their own namespace prefix; the catalog
+      // merge is flat so the call sites resolve them normally.
+      'playSim.ready': 'Ready — pick a scene to begin.',
+      'storyboard.empty.title': 'No events on the storyboard yet',
+      'storyboard.empty.hint': 'Add a story event from the palette, or load a project with dated events to see them here.',
+      'cardBoard.empty.board': 'No cards yet — open a project with card objects to see them here.',
+      'workspaceLayout.readinessEmpty': 'Load a ProjectIndex to check workspace anchors.',
+      'previewObjectEditor.routeMapEmpty': 'No route map yet — add an option to see routing.'
     }
   };
 

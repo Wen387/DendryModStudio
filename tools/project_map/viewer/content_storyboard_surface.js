@@ -176,6 +176,24 @@
     const laneGap = 38;
     const laneColumns = 3;
     const lanes = storyboard.timeline && storyboard.timeline.lanes || [];
+    const undated = storyboard.timeline && storyboard.timeline.undated || [];
+    // An empty timeline used to render an empty, scrollable blank canvas that
+    // looked broken. Show a centered empty-state with a hint instead (the
+    // canvas controls/palette still render so the author can add events).
+    if (!lanes.length && !undated.length) {
+      return [
+        '<section class="content-storyboard-canvas" data-content-storyboard-canvas="true" data-storyboard-kind="timeline" data-storyboard-drop-target="canvas" style="--content-storyboard-width: 1180px; --content-storyboard-height: 720px;">',
+        renderCanvasControls(),
+        renderPalette(storyboard),
+        '<div class="content-storyboard-board" data-content-storyboard-board="true" data-object-canvas-graph-board="true" data-content-storyboard-empty="true">',
+        '<div class="content-storyboard-empty" style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; text-align:center; padding:24px; color:var(--muted);">',
+        '<strong style="color:var(--text); font-size:15px;">' + escapeHtml(t('storyboard.empty.title', 'No events on the storyboard yet')) + '</strong>',
+        '<span style="max-width:360px; font-size:13px;">' + escapeHtml(t('storyboard.empty.hint', 'Add a story event from the palette, or load a project with dated events to see them here.')) + '</span>',
+        '</div>',
+        '</div>',
+        '</section>'
+      ].join('');
+    }
     const width = Math.max(1180, lanes.length * (laneWidth + laneGap) + 96);
     const maxCards = lanes.reduce((count, lane) => Math.max(count, lane.cards.length), 1);
     const maxRows = Math.max(1, Math.ceil(maxCards / laneColumns));

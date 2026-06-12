@@ -373,6 +373,14 @@
       return;
     }
     const rows = state.layoutModel && state.layoutModel.readiness || [];
+    // With no index loaded the checklist was blank white space. Render a single
+    // placeholder row so the panel explains what it needs instead.
+    if (!rows.length) {
+      elements.readiness.innerHTML = '<div class="entry-playability-item is-warning">' +
+        '<small>' + escapeHtml(t('workspaceLayout.readinessEmpty', 'Load a ProjectIndex to check workspace anchors.')) + '</small>' +
+        '</div>';
+      return;
+    }
     elements.readiness.innerHTML = rows.map((row) => {
       const status = row.status === 'ready' ? t('entry.ready', 'Ready') : t('entry.needsReview', 'Needs review');
       return '<div class="entry-playability-item is-' + escapeAttr(row.status || 'warning') + '">' +

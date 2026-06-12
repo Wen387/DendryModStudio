@@ -1419,3 +1419,17 @@
 .install-result-details pre {
   margin-top: 6px;
 }
+
+/* Retry affordance under a failed apply result (thrown apply). */
+.install-result-actions {
+  margin-top: 10px;
+}
+
+/* Long patch diffs were viewport-tall (the shared .code-preview cap scales with
+   the window). Bound the install patch preview to a fixed scroll region so a big
+   diff stays a readable, contained panel instead of pushing the page. */
+#install-patch-preview,
+#install-verified-diff {
+  max-height: 320px;
+  overflow-y: auto;
+}

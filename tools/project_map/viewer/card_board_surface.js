@@ -81,6 +81,18 @@
     const lanes = laneMap(board.lanes);
     const deckPools = laneGroup(board.lanes, 'deck_pool');
     const advisorControllers = laneGroup(board.lanes, 'advisor_controller');
+    // When every lane is empty (no project loaded, or a project with no card
+    // objects) the six lane sections render as a wall of empty headers that
+    // reads as broken. Replace them with one clear placeholder; keep the search/
+    // filter chrome so the author can still act once cards exist.
+    if (boardIsEmpty(board)) {
+      return [
+        '<section class="card-board-canvas" data-card-board-canvas="true" data-card-board-empty="true">',
+        renderFilters(board),
+        '<p class="card-board-empty card-board-board-empty">' + escapeHtml(t('cardBoard.empty.board', 'No cards yet — open a project with card objects to see them here.')) + '</p>',
+        '</section>'
+      ].join('');
+    }
     return [
       '<section class="card-board-canvas" data-card-board-canvas="true">',
       renderFilters(board),
@@ -228,6 +240,25 @@
       out[lane.key] = lane;
     });
     return out;
+  }
+
+  // True only when the project genuinely has no card-board objects (any kind),
+  // not when a search/type filter merely hid them. The metrics here count the
+  // full card set (model uses `cards`, not the filtered list), and a non-empty
+  // query is treated as "has content" so the placeholder never replaces a board
+  // the author is actively searching.
+  function boardIsEmpty(board) {
+    if (board && String(board.query || '').trim()) {
+      return false;
+    }
+    const lanes = ensureArray(board && board.lanes);
+    const laneCards = lanes.reduce((sum, lane) => sum + ensureArray(lane && lane.cards).length, 0);
+    const metrics = board && board.metrics || {};
+    const metricTotal = Number(metrics.cardCount || 0)
+      + Number(metrics.advisorCount || 0)
+      + Number(metrics.unwiredCount || 0)
+      + Number(metrics.draftCount || 0);
+    return laneCards === 0 && metricTotal === 0;
   }
 
   function laneGroup(lanes, group) {

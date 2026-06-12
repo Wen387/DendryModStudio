@@ -115,6 +115,15 @@
     ].join('');
   }
 
+  // Initial, not-yet-started state: the run hasn't been claimed/started, so
+  // there is no view and no error. A neutral invitation (reuses the existing
+  // play-note styling) instead of an engine error.
+  function renderReady() {
+    return '<p class="object-editing-play-note" data-play-engine-ready="true">' +
+      escapeHtml(t('playSim.ready', 'Ready — pick a scene to begin.')) +
+      '</p>';
+  }
+
   function renderBadges(opts) {
     const badges = [];
     if (opts.edited) {
@@ -321,7 +330,14 @@
   function renderNode(view, opts) {
     const options = opts && typeof opts === 'object' ? opts : {};
     if (!view) {
-      return renderError(options.error || {error: 'engine-error'});
+      // No view AND no error means we simply have not started a run yet (the
+      // first IPC start response hasn't landed). Show an inviting "ready"
+      // placeholder rather than the scary engine-error card, which used to
+      // appear in the initial state and read like a failure.
+      if (!options.error) {
+        return renderReady();
+      }
+      return renderError(options.error);
     }
     const choices = Array.isArray(view.choices) ? view.choices : [];
     const title = view.title

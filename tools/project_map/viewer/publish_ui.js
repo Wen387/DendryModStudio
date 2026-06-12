@@ -242,11 +242,16 @@
     if (!cachedRoot) { renderNoProject(); return; }
     const c = caps();
     let status = null;
+    // A THROW is a reachability/bridge failure, not "not connected" — keep it
+    // distinct so we don't show the token form as if the user never connected.
+    let probeThrew = false;
     try {
       status = c && typeof c.publishAuthStatus === 'function' ? await c.publishAuthStatus() : null;
     } catch (_err) {
+      probeThrew = true;
       status = null;
     }
+    if (probeThrew) { renderUnreachable(); return; }
     if (!status || !status.connected) { renderConnect(); return; }
 
     // Connected: decide first-publish vs update/sync from the folder's real git
@@ -281,6 +286,28 @@
       '  <p class="publish-muted" data-i18n="publish.noProject.body"></p>',
       '</div>'
     ].join(''));
+  }
+
+  // Shared error step: title + message + action buttons ({label, on, primary}).
+  // Used by every "failed, here's what to do" screen so markup stays in one place.
+  function renderErrorPanel(message, buttons) {
+    setBody('<div class="publish-step"><h3 data-i18n="publish.error.title"></h3><p class="publish-error-text"></p><div class="publish-actions"></div></div>');
+    bodyEl.querySelector('.publish-error-text').textContent = message || '';
+    const actions = bodyEl.querySelector('.publish-actions');
+    (buttons || []).forEach(function (spec) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = spec.primary === false ? 'publish-secondary' : 'publish-primary';
+      btn.textContent = spec.label;
+      btn.addEventListener('click', spec.on);
+      actions.appendChild(btn);
+    });
+  }
+
+  // Auth-probe threw (unreachable): explicit error + retry, not the connect form.
+  function renderUnreachable() {
+    renderErrorPanel(t('publish.sync.offline', 'Could not reach GitHub. Check your connection and try again.'),
+      [{label: t('publish.error.retry', 'Try again'), on: renderAuto}]);
   }
 
   function renderConnect() {
@@ -388,6 +415,11 @@
   async function loadPreview() {
     const listEl = bodyEl.querySelector('[data-publish-preview]');
     if (!listEl) { return; }
+    // Spinner + locked submit while the dry-run loads, so nobody publishes
+    // against a stale/empty preview.
+    const submitBtn = bodyEl.querySelector('[data-publish-submit]');
+    if (submitBtn) { submitBtn.disabled = true; }
+    listEl.innerHTML = '<span class="publish-preview-loading"><span class="publish-spinner publish-spinner-sm" aria-hidden="true"></span><span class="publish-muted">' + escapeHtml(t('publish.form.previewLoading', 'Reading files...')) + '</span></span>';
     let res = null;
     try {
       res = await caps().publishMod({ projectRoot: currentProjectRoot(), dryRun: true });
@@ -396,9 +428,11 @@
     }
     if (!bodyEl || !bodyEl.contains(listEl)) { return; }
     if (!res || !res.ok || !res.manifest) {
-      listEl.innerHTML = '<span class="publish-muted">' + escapeHtml((res && res.message) || '') + '</span>';
+      // Distinct error styling (not a muted line); leave submit disabled.
+      listEl.innerHTML = '<span class="publish-error-text">' + escapeHtml((res && res.message) || t('publish.sync.offline', 'Could not reach GitHub. Check your connection and try again.')) + '</span>';
       return;
     }
+    if (submitBtn) { submitBtn.disabled = false; }
     const included = res.manifest.included || [];
     const warnings = res.manifest.warnings || [];
     const summary = included.length + ' ' + t('publish.form.previewCount', 'files') + ' · ' + formatBytes(res.manifest.totalBytes);
@@ -785,8 +819,15 @@
       flashThenRefresh('success', forced
         ? t('publish.sync.forcedBody', 'GitHub now matches the copy on your computer.')
         : t('publish.sync.updatedBody', 'Your changes are now on GitHub.'));
-    } else {
+    } else if (res && (res.code === 'remote_ahead' || res.code === 'nothing_to_commit')) {
+      // State conflicts aren't transient — re-push won't help, so flash + refresh.
       flashThenRefresh('error', updateErrorMessage(res));
+    } else {
+      // Recoverable: persistent inline error + Try again that re-runs the SAME push.
+      renderErrorPanel(updateErrorMessage(res), [
+        {label: t('publish.error.retry', 'Try again'), on: function () { onUpdate(message, extraOpts); }},
+        {label: t('publish.sync.refresh', 'Check again'), on: renderAuto, primary: false}
+      ]);
     }
   }
 
@@ -1203,17 +1244,7 @@
   }
 
   function renderError(res) {
-    setBody([
-      '<div class="publish-step">',
-      '  <h3 data-i18n="publish.error.title"></h3>',
-      '  <p class="publish-error-text"></p>',
-      '  <div class="publish-actions">',
-      '    <button type="button" class="publish-primary" data-publish-retry data-i18n="publish.error.retry"></button>',
-      '  </div>',
-      '</div>'
-    ].join(''));
-    bodyEl.querySelector('.publish-error-text').textContent = errorMessage(res);
-    bodyEl.querySelector('[data-publish-retry]').addEventListener('click', renderForm);
+    renderErrorPanel(errorMessage(res), [{label: t('publish.error.retry', 'Try again'), on: renderForm}]);
   }
 
   function wireButton() {

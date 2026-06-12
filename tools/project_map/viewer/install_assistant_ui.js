@@ -608,9 +608,36 @@
       await refreshProjectIndexAfterApply(finalResult, {dryRun});
       return finalResult;
     } catch (err) {
+      // A thrown apply (bridge/IO failure) used to dead-end as a bare message
+      // with no way forward. Keep the result report, then offer a Try again
+      // that re-runs the SAME apply (dryRun + advanced flag preserved).
       setResult({ok: false, dryRun, message: err && err.message ? err.message : String(err)});
+      appendApplyRetry({dryRun, allowAdvanced});
       return state.lastResult;
     }
+  }
+
+  // Adds a "Try again" affordance under the error result card and wires it to
+  // re-invoke applyLoadedPlan with the identical options. Used only on a thrown
+  // apply (recoverable transport/IO failure), not on a validation refusal.
+  function appendApplyRetry(options) {
+    if (!elements || !elements.result) {
+      return;
+    }
+    const actions = global.document.createElement('div');
+    actions.className = 'install-result-actions';
+    const retry = global.document.createElement('button');
+    retry.type = 'button';
+    retry.className = 'primary-action';
+    retry.setAttribute('data-install-result-retry', 'true');
+    // Reuse the globally-merged publish retry label ("Try again") rather than
+    // grow the at-ceiling main install catalog for one generic word.
+    retry.textContent = t('publish.error.retry', 'Try again');
+    retry.addEventListener('click', () => {
+      applyLoadedPlan({dryRun: options.dryRun, allowAdvanced: options.allowAdvanced});
+    });
+    actions.appendChild(retry);
+    elements.result.appendChild(actions);
   }
 
   async function verifyPostApply(applyResult, options) {

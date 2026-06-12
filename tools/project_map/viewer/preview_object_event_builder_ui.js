@@ -55,7 +55,14 @@
 
   function renderEventGraphSummary(graph, model) {
     if (!graph || !ensureArray(graph.nodes).length) {
-      return '';
+      // An event with no routed nodes used to render nothing here, leaving a
+      // silent gap. Show a short hint instead. Deliberately NOT tagged with the
+      // populated route-map markers so contract checks that look for a real
+      // route map only match the genuine one below.
+      return '<section class="preview-object-event-graph preview-object-route-map-empty" data-preview-object-route-map-empty="true">' +
+        '<p class="preview-object-route-map-empty-hint">' +
+        escapeHtml(t('previewObjectEditor.routeMapEmpty', 'No route map yet — add an option to see routing.')) +
+        '</p></section>';
     }
     const nodes = ensureArray(graph.nodes);
     const edges = ensureArray(graph.edges);
