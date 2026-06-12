@@ -302,7 +302,7 @@
     const items = ensureArray(domMap.items).slice(0, 8);
     const status = String(domMap.status || 'partial');
     return [
-      '<details class="runtime-lens-dom-map" data-runtime-lens-dom-map-status="' + escapeAttr(status) + '" open>',
+      '<details class="runtime-lens-dom-map" data-runtime-lens-dom-map-status="' + escapeAttr(status) + '">',
       '<summary><strong>' + escapeHtml(t('runtimeLens.domMap', 'DOM source map')) + ' - ' + escapeHtml(status) + '</strong> ' +
         escapeHtml('Mapped ' + Number(summary.mappedCount || 0) + '/' + Number(summary.visibleCount || 0) + ', source-backed ' + Number(summary.sourceBackedCount || 0) + ', manual review ' + Number(summary.manualReviewCount || 0)) + '</summary>',
       diagnostics.length ? '<p>' + diagnostics.map((diag) => escapeHtml(diag.message || diag.code || '')).join('<br>') + '</p>' : '',
@@ -328,7 +328,7 @@
     const candidates = ensureArray(visualSurface.candidates).slice(0, 8);
     const status = String(visualSurface.status || 'partial');
     return [
-      '<details class="runtime-lens-visual-surface" data-runtime-lens-visual-surface-status="' + escapeAttr(status) + '" open>',
+      '<details class="runtime-lens-visual-surface" data-runtime-lens-visual-surface-status="' + escapeAttr(status) + '">',
       '<summary><strong>' + escapeHtml(t('runtimeLens.visualSurface', 'Editable visual surfaces')) + ' - ' + escapeHtml(status) + '</strong> ' +
         escapeHtml(Number(summary.draftableCount || 0) + ' draftable, ' + Number(summary.proposalOnlyCount || 0) + ' proposal-only, ' + Number(summary.manualReviewCount || 0) + ' manual review, ' + Number(summary.generatedOnlyCount || 0) + ' generated-only') + '</summary>',
       diagnostics.length ? '<p>' + diagnostics.map((diag) => escapeHtml(diag.message || diag.code || '')).join('<br>') + '</p>' : '',

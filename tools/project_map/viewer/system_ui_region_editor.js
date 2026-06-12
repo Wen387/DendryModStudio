@@ -481,10 +481,14 @@
   }
 
   function renderDiagnostics(screen) {
+    const rows = ensureArray(screen.diagnostics).filter((row) => row && String(row.value || '').trim() !== '');
+    if (!rows.length) {
+      return '';
+    }
     return [
       '<section class="content-storyboard-detail system-screen-diagnostics" data-system-screen-diagnostics="true">',
       '<div class="template-eyebrow">' + escapeHtml(t('systemUi.previewIntent', 'Preview intent')) + '</div>',
-      ensureArray(screen.diagnostics).map((row) => '<div><span>' + escapeHtml(t(row.labelKey, row.label)) + '</span><strong>' + escapeHtml(row.value) + '</strong></div>').join(''),
+      rows.map((row) => '<div><span>' + escapeHtml(t(row.labelKey, row.label)) + '</span><strong>' + escapeHtml(row.value) + '</strong></div>').join(''),
       '</section>'
     ].join('');
   }

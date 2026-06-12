@@ -261,7 +261,7 @@
     }
     return [
       '<div class="preview-object-route-understanding" data-preview-object-route-understanding="true">',
-      eventChain.length ? renderRouteUnderstandingGroup('event_chain', t('previewObjectEditor.routeUnderstandingEventChain', 'Event chain'), eventChain.map(renderEventChainItem).join(''), eventChain.length, true) : '',
+      eventChain.length ? renderRouteUnderstandingGroup('event_chain', t('previewObjectEditor.routeUnderstandingEventChain', 'Event chain'), eventChain.map(renderEventChainItem).join(''), eventChain.length, false) : '',
       scheduler.length ? renderRouteUnderstandingGroup('scheduler', t('previewObjectEditor.routeUnderstandingScheduler', 'Scheduler context'), scheduler.map(renderSchedulerContextItem).join(''), scheduler.length, false) : '',
       utilities.length ? renderRouteUnderstandingGroup('utility', t('previewObjectEditor.routeUnderstandingUtility', 'Utility calls'), utilities.map(renderUtilityCallItem).join(''), utilities.length, false) : '',
       dependencies.length ? renderRouteUnderstandingGroup('state_dependency', t('previewObjectEditor.routeUnderstandingState', 'State dependencies'), dependencies.map(renderStateDependencyItem).join(''), dependencies.length, false) : '',
