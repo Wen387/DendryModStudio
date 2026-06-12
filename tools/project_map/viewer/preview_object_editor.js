@@ -623,19 +623,19 @@
       return '';
     }
     return [
-      '<div class="object-editing-preview-effects" data-object-editing-preview-effects="true">',
-      '<span class="object-editing-preview-group-label">' + escapeHtml(t('previewObjectEditor.effectsAndImpact', 'Effects and impact')) + ' <b>' + escapeHtml(String(rows.length)) + '</b></span>',
+      '<details class="object-editing-preview-effects" data-object-editing-preview-effects="true">',
+      '<summary class="object-editing-preview-group-label">' + escapeHtml(t('previewObjectEditor.effectsAndImpact', 'Effects and impact')) + ' <b>' + escapeHtml(String(rows.length)) + '</b></summary>',
       '<ul>',
       rows.map((row) => [
         '<li data-preview-effect-kind="' + escapeAttr(row.kind || 'effect') + '"' + renderedEntryAttrs(row.action, 'effect', t('previewObjectEditor.editRenderedEffect', 'Edit effect')) + '>',
-        '<strong>' + escapeHtml(row.label) + '</strong>',
+        '<strong>' + escapeHtml(((m) => m && m.stripInlineMarkup ? m.stripInlineMarkup(row.label) : row.label)(global.ProjectMapDisplayText)) + '</strong>',
         '<code>' + escapeHtml(row.value) + '</code>',
         row.context ? '<small>' + escapeHtml(row.context) + '</small>' : '',
         renderActionContextLens(row.action, 'effect'),
         '</li>'
       ].join('')).join(''),
       '</ul>',
-      '</div>'
+      '</details>'
     ].join('');
   }
 
@@ -1747,7 +1747,7 @@
         ? '<span class="preview-object-conditional-editable-count" data-conditional-editable-count="' + escapeAttr(String(editableCount)) + '">' + escapeHtml(t('previewObjectEditor.editableBranchCount', '{n} editable').replace('{n}', String(editableCount))) + '</span>'
         : '';
       return [
-        '<details class="preview-object-conditional-alternatives preview-object-conditional-tree' + (readOnly ? ' is-readonly' : '') + '" open data-preview-object-conditional-alternatives="true" data-preview-object-conditional-tree="true"' + (whatIf ? ' data-conditional-whatif-scope="true"' : '') + '>',
+        '<details class="preview-object-conditional-alternatives preview-object-conditional-tree' + (readOnly ? ' is-readonly' : '') + '" data-preview-object-conditional-alternatives="true" data-preview-object-conditional-tree="true"' + (whatIf ? ' data-conditional-whatif-scope="true"' : '') + '>',
         '<summary><span class="preview-object-conditional-summary-label">' + escapeHtml(t('previewObjectEditor.conditionalLayers', 'Conditional layers')) + '</span>' + editableChip + '</summary>',
         readOnly ? '' : strip,
         readOnly ? '' : renderConditionalFilterToolbar(tree, whatIf),
@@ -1760,7 +1760,7 @@
       return '';
     }
     return [
-      '<details class="preview-object-conditional-alternatives" open data-preview-object-conditional-alternatives="true">',
+      '<details class="preview-object-conditional-alternatives" data-preview-object-conditional-alternatives="true">',
       '<summary>' + escapeHtml(t('previewObjectEditor.conditionalAlternatives', 'Conditional alternatives')) + '</summary>',
       rows.slice(0, 8).map((item) => [
         '<article>',
@@ -2533,7 +2533,7 @@
     }
     if (pureEvent) {
       return [
-        '<details class="preview-object-logic-details" open data-preview-object-logic="true" data-event-archetype="pure_event">',
+        '<details class="preview-object-logic-details" data-preview-object-logic="true" data-event-archetype="pure_event">',
         '<summary>' + escapeHtml(t('previewObjectEditor.textEventLogic', 'Text event conditions and effects')) + '</summary>',
         renderGroupedTriggerEffects(triggerEffects, triggerActions, body),
         meta.length
@@ -2552,7 +2552,7 @@
       ].join('');
     }
     return [
-      '<details class="preview-object-logic-details" open data-preview-object-logic="true">',
+      '<details class="preview-object-logic-details" data-preview-object-logic="true">',
       '<summary>' + escapeHtml(t('previewObjectEditor.logic', 'Conditions, routes, and effects')) + '</summary>',
       meta.length
         ? '<section class="preview-object-logic-section"><h4>' + escapeHtml(t('previewObjectEditor.conditions', 'Conditions and scheduling')) + '</h4>' + meta.map((field) => renderInlineField(field, {
@@ -3305,6 +3305,17 @@
     if (!html) {
       return '';
     }
+    if (kind === 'effects') {
+      // State-change inventories run to dozens of per-assignment editors on
+      // dense events; fold them behind a summary so the choice card stays
+      // readable at rest (the gate/route groups remain visible).
+      return [
+        '<details class="preview-object-choice-logic-group is-effects" data-preview-object-choice-logic-group="effects">',
+        '<summary><strong>' + escapeHtml(label || '') + '</strong></summary>',
+        html,
+        '</details>'
+      ].join('');
+    }
     return [
       '<div class="preview-object-choice-logic-group is-' + escapeAttr(safeClass(kind || 'logic')) + '" data-preview-object-choice-logic-group="' + escapeAttr(kind || 'logic') + '">',
       '<strong>' + escapeHtml(label || '') + '</strong>',
@@ -3865,7 +3876,6 @@
       ((m) => m ? m.renderQdisplayInsert(field, {role: opts.role || 'field', fieldId: id}) : '')(objectEditorInserts()),
       suppressFieldDiagnostics ? '' : renderFieldVariablePicker(field, presentation, readOnly),
       renderedPreview,
-      field && field.status ? '<small>' + escapeHtml(statusLabel(field.status, readOnly)) + '</small>' : '',
       '</label>'
     ].join('');
   }
@@ -3884,10 +3894,8 @@
     const title = source && source !== String(label || '').trim()
       ? ' title="' + escapeAttr(source) + '"'
       : '';
-    const group = semanticGroupDisplay(presentation);
     return [
       '<span class="preview-object-field-label" data-preview-object-field-label="true"' + title + (presentation ? ' data-preview-object-field-intent="' + escapeAttr(presentation.intent || '') + '"' : '') + '>',
-      '<em>' + escapeHtml(group || t('previewObjectEditor.editorField', 'Editor field')) + '</em>',
       '<b>' + escapeHtml(((m) => m && m.fieldLabel ? m.fieldLabel(label || '') : label || '')(global.ProjectMapDisplayText)) + '</b>',
       '<i class="visible-edit-affordance" data-visible-edit-affordance="object-canvas-preview">' + escapeHtml(t('visibleEdit.action', 'Edit')) + '</i>',
       '</span>'
@@ -3899,6 +3907,11 @@
       return '';
     }
     const kind = readOnly ? 'read_only' : String(presentation.statusKind || 'editable');
+    if (kind === 'editable' || kind === 'source_backed') {
+      // Default states carry no badge; only exceptions (read-only / advanced /
+      // manual) earn chrome, so they stay visible against a quiet baseline.
+      return '';
+    }
     const label = readOnly ? t('previewObjectEditor.semanticStatus.readOnly', 'Read only') : semanticStatusDisplay(presentation);
     if (!label) {
       return '';
@@ -3989,13 +4002,6 @@
       return semantic;
     }
     return current;
-  }
-
-  function semanticGroupDisplay(presentation) {
-    if (!presentation || !presentation.group) {
-      return '';
-    }
-    return t('previewObjectEditor.semanticGroup.' + presentation.group, presentation.groupLabel || presentation.group || 'Field');
   }
 
   function semanticStatusDisplay(presentation) {
@@ -4581,19 +4587,6 @@
       deck_pool: t('previewObjectEditor.intent.deckPool', 'Manage which cards belong to this deck pool while keeping source-backed routing evidence visible.'),
       'text-replacement': t('previewObjectEditor.intent.text', 'Edit replacement text with before, after, and source context.')
     }[kind] || t('previewObjectEditor.intent.default', 'Edit visible player-facing text in place.');
-  }
-
-  function statusLabel(status, readOnly) {
-    if (readOnly) {
-      return t('previewObjectEditor.readonly', 'Read only');
-    }
-    return {
-      guarded: t('editing.summary.guarded', 'Guarded'),
-      guarded_apply: t('editing.summary.guarded', 'Guarded'),
-      safe: t('editing.summary.safe', 'safe'),
-      manual: t('editing.summary.manual', 'manual'),
-      read_only: t('previewObjectEditor.readonly', 'Read only')
-    }[String(status || '')] || String(status || '');
   }
 
   function statusFromEditability(editability) {
