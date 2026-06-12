@@ -481,8 +481,8 @@
   user-select: none;
   -webkit-user-select: none;
   background:
-    linear-gradient(rgba(221, 215, 198, 0.72) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(221, 215, 198, 0.72) 1px, transparent 1px),
+    linear-gradient(color-mix(in srgb, var(--border) 72%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--border) 72%, transparent) 1px, transparent 1px),
     radial-gradient(circle at 44% 32%, var(--surface) 0%, var(--atelier-bg) 68%);
   background-size: 32px 32px, 32px 32px, auto;
 }
@@ -510,7 +510,7 @@
 }
 
 .design-graph-edges path {
-  stroke: rgba(166, 75, 42, 0.34);
+  stroke: color-mix(in srgb, var(--accent) 34%, transparent);
   stroke-width: 3;
   fill: none;
   cursor: pointer;
@@ -556,7 +556,7 @@
 
 .design-node.is-selected {
   border-color: var(--atelier-accent);
-  box-shadow: 0 0 0 3px rgba(166, 75, 42, 0.18), 0 10px 26px rgba(31, 29, 24, 0.12);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent), 0 10px 26px rgba(31, 29, 24, 0.12);
 }
 
 .design-node.is-missing {
@@ -638,7 +638,7 @@
 
 .design-list-item.is-selected {
   border-color: var(--atelier-accent);
-  box-shadow: 0 0 0 2px rgba(166, 75, 42, 0.18);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 .design-list-kind {
@@ -774,7 +774,7 @@
 }
 
 .dot.opaque {
-  background: #b082c4;
+  background: var(--violet);
 }
 
 .design-inspector {

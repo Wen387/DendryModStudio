@@ -214,7 +214,7 @@
   align-items: stretch;
   gap: 14px;
   padding: 12px 18px;
-  background: rgba(247, 246, 238, 0.96);
+  background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
 
@@ -452,14 +452,14 @@
 .system-screen-region:hover,
 .system-screen-region:focus-visible,
 .system-screen-region.is-recipe-focus {
-  border-color: rgba(166, 75, 42, 0.36);
-  background: rgba(255, 254, 250, 0.7);
+  border-color: color-mix(in srgb, var(--accent) 36%, transparent);
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
 }
 
 .system-screen-region.is-selected {
   border-color: var(--accent);
   background: var(--surface);
-  box-shadow: 0 0 0 3px rgba(166, 75, 42, 0.14);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
 .system-screen-region.is-selected::after {
@@ -469,7 +469,7 @@
   right: 6px;
   width: 10px;
   height: 10px;
-  border: 1px solid rgba(166, 75, 42, 0.28);
+  border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
   border-radius: 999px;
   background: var(--surface);
 }
@@ -945,7 +945,7 @@
 
 .object-inline-field.is-focused .object-inline-input {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(166, 75, 42, 0.14);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent);
 }
 
 .system-ui-field-help {
@@ -1061,7 +1061,7 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--lift) 60%, transparent);
 }
 
 .system-ui-region {

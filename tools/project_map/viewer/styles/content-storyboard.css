@@ -351,8 +351,8 @@
   user-select: none;
   border-right: 1px solid var(--border);
   background:
-    linear-gradient(rgba(221, 215, 198, 0.7) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(221, 215, 198, 0.7) 1px, transparent 1px),
+    linear-gradient(color-mix(in srgb, var(--border) 70%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--border) 70%, transparent) 1px, transparent 1px),
     radial-gradient(circle at 50% 28%, var(--surface) 0%, var(--surface-alt) 70%);
   background-size: 32px 32px, 32px 32px, auto;
 }
@@ -507,13 +507,13 @@
 }
 
 .content-storyboard-card.is-current {
-  border-color: rgba(166, 75, 42, 0.62);
-  box-shadow: 0 0 0 3px rgba(166, 75, 42, 0.14), 0 12px 28px rgba(31, 29, 24, 0.13);
+  border-color: color-mix(in srgb, var(--accent) 62%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent), 0 12px 28px rgba(31, 29, 24, 0.13);
 }
 
 .content-storyboard-card.is-current[style*="--storyboard-card-edge"] {
   border-left-color: var(--storyboard-card-edge);
-  box-shadow: inset 5px 0 0 var(--storyboard-card-edge), 0 0 0 3px rgba(166, 75, 42, 0.14), 0 12px 28px rgba(31, 29, 24, 0.13);
+  box-shadow: inset 5px 0 0 var(--storyboard-card-edge), 0 0 0 3px color-mix(in srgb, var(--accent) 14%, transparent), 0 12px 28px rgba(31, 29, 24, 0.13);
 }
 
 .content-storyboard-card.is-draft {
@@ -1113,7 +1113,7 @@
   z-index: 0;
   top: 0;
   bottom: 0;
-  border-left: 3px solid var(--group-marker-color, rgba(166, 75, 42, 0.18));
+  border-left: 3px solid var(--group-marker-color, color-mix(in srgb, var(--accent) 18%, transparent));
   pointer-events: none;
 }
 
@@ -1126,7 +1126,7 @@
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--group-marker-color, rgba(166, 75, 42, 0.42));
+  color: var(--group-marker-color, color-mix(in srgb, var(--accent) 42%, transparent));
   white-space: nowrap;
   writing-mode: vertical-lr;
   text-orientation: mixed;

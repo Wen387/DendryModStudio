@@ -7,8 +7,8 @@
   padding: 24px;
   background:
     linear-gradient(rgba(31, 29, 24, 0.28), rgba(31, 29, 24, 0.32)),
-    radial-gradient(circle at 20% 10%, rgba(166, 75, 42, 0.18), transparent 28%),
-    radial-gradient(circle at 78% 16%, rgba(49, 93, 152, 0.15), transparent 30%),
+    radial-gradient(circle at 20% 10%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 28%),
+    radial-gradient(circle at 78% 16%, color-mix(in srgb, var(--info) 15%, transparent), transparent 30%),
     rgba(31, 29, 24, 0.22);
 }
 
@@ -797,9 +797,9 @@
   height: 68px;
   border-radius: 10px;
   background: linear-gradient(90deg,
-    rgba(200, 195, 185, 0.22) 0%,
-    rgba(200, 195, 185, 0.42) 40%,
-    rgba(200, 195, 185, 0.22) 60%
+    color-mix(in srgb, var(--lift) 22%, transparent) 0%,
+    color-mix(in srgb, var(--lift) 42%, transparent) 40%,
+    color-mix(in srgb, var(--lift) 22%, transparent) 60%
   );
   background-size: 200% 100%;
   animation: catalog-shimmer 1.5s ease-in-out infinite;

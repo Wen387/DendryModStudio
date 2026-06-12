@@ -18,7 +18,7 @@
   position: fixed;
   display: none;
   border-radius: 8px;
-  box-shadow: 0 0 0 9999px rgba(20, 18, 14, 0.55);
+  box-shadow: 0 0 0 9999px var(--scrim);
   outline: 2px solid var(--accent);
   outline-offset: 3px;
   pointer-events: none;
@@ -232,7 +232,7 @@
 .guided-tour-curtain-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(20, 18, 14, 0.62);
+  background: var(--scrim);
 }
 
 .guided-tour-curtain-card {
@@ -396,7 +396,7 @@
 .guided-tour-opening-wash {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 50% 42%, rgba(194, 112, 64, 0.20), rgba(20, 18, 14, 0) 62%);
+  background: radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 62%);
   animation: guided-tour-wash 3.6s ease both;
 }
 
