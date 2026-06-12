@@ -157,7 +157,7 @@
     '        <p data-i18n="welcome.action.demo.body">Use a writable sandbox to practice the full loop before touching real project files.</p>',
     '        <button id="onboarding-load-demo" class="primary-action" type="button">',
     '          <span data-ui-icon="play"></span>',
-    '          <span data-i18n="welcome.action.demo.cta">Start with Demo</span>',
+    '          <span data-i18n="welcome.action.demo.cta">Load demo sandbox</span>',
     '        </button>',
     '      </article>',
     '      <article class="welcome-action-card">',

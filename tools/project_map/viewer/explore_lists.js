@@ -565,7 +565,6 @@
       '<code>' + escapeHtml(item.targetPath || '') + '</code>',
       '<span class="badge-line">',
       renderBadge(item.type || 'asset', item.type || ''),
-      renderBadge('copy_asset_file', 'manual_review'),
       renderBadge('manual_review', 'manual_review'),
       '</span>',
       '</article>'

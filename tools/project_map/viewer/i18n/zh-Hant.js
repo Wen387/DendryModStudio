@@ -169,7 +169,7 @@
       'welcome.actionsAria': '開始選項',
       'welcome.action.demo.title': '從 Demo 開始',
       'welcome.action.demo.body': '使用可寫入的沙盒環境，先練習一次完整流程，不必碰到真正的專案檔。',
-      'welcome.action.demo.cta': '從 Demo 開始',
+      'welcome.action.demo.cta': '載入 Demo 沙盒',
       'welcome.action.open.title': '開啟專案',
       'welcome.action.open.body': '桌面版可以直接開啟專案資料夾；瀏覽器版可以載入從別處產生的 ProjectIndex JSON。',
       'welcome.action.openProject.cta': '開啟專案',

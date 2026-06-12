@@ -334,7 +334,7 @@
       '<span>' + escapeHtml(shortDate(item.updatedAt)) + '</span>',
       '</div>',
       previewText ? '<div class="draft-workspace-item-preview">' + escapeHtml(previewText) + '</div>' : '',
-      renderInstallSummary(item.installSummary),
+      item.installPlan ? renderInstallSummary(item.installSummary) : '',
       renderInstallCue(item),
       renderWarnings(item.warnings),
       '</div>',

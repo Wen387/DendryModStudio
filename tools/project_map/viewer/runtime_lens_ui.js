@@ -164,7 +164,9 @@
     return [
       '<div class="runtime-lens-summary">',
       '<div><span>' + escapeHtml(t('runtimeLens.focus', 'Focus')) + '</span><strong title="' + escapeAttr(focusTitle.raw) + '">' + escapeHtml(focusTitle.display) + '</strong></div>',
-      '<div><span>' + escapeHtml(t('runtimeLens.target', 'Target')) + '</span><strong title="' + escapeAttr(targetTitle.raw) + '">' + escapeHtml(targetTitle.display) + '</strong></div>',
+      (targetTitle.display && targetTitle.display !== focusTitle.display)
+        ? '<div><span>' + escapeHtml(t('runtimeLens.target', 'Target')) + '</span><strong title="' + escapeAttr(targetTitle.raw) + '">' + escapeHtml(targetTitle.display) + '</strong></div>'
+        : '',
       '<p data-runtime-lens-message="true">' + escapeHtml(message) + '</p>',
       (opts.isDesktop && !opts.stale && (status === 'ready' || status === 'partial') && (opts.quickFallback || opts.previewMode === 'quick'))
         ? '<p class="runtime-lens-quick-note" data-runtime-lens-quick-note="true">' + escapeHtml(opts.quickFallback ? t('runtimeLens.quickFallbackFull', 'No reusable build was found, so a temporary Full Build was used.') : t('runtimeLens.quickModeNote', 'Showing the last generated build. Unbuilt edits are not included; use Full Build to apply this change.')) + '</p>'

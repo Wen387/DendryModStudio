@@ -169,7 +169,7 @@
       'welcome.actionsAria': 'Start options',
       'welcome.action.demo.title': 'Start with Demo',
       'welcome.action.demo.body': 'Use a writable sandbox to practice the full loop before touching real project files.',
-      'welcome.action.demo.cta': 'Start with Demo',
+      'welcome.action.demo.cta': 'Load demo sandbox',
       'welcome.action.open.title': 'Open Project',
       'welcome.action.open.body': 'Desktop users can open a project folder directly. Browser users can load a ProjectIndex JSON produced elsewhere.',
       'welcome.action.openProject.cta': 'Open Project',
