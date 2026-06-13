@@ -41,7 +41,7 @@
       'playEngine.mute': '靜音',
       'playEngine.unmute': '取消靜音',
       'topbar.subtitle.default': '分支型 Dendry 專案的 Mod 編輯工作區',
-      'topbar.version': 'Dendry Mod Studio v0.98.5 dev preview',
+      'topbar.version': 'Dendry Mod Studio v0.98.51 dev preview',
       'topbar.author': '作者 Awen',
       'topbar.language': '語言',
       'topbar.language.auto': '跟隨系統',

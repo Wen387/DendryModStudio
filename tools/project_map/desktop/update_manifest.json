@@ -1,27 +1,50 @@
 {
   "schemaVersion": 1,
   "channel": "dev-preview",
-  "latestVersion": "0.98.5",
+  "latestVersion": "0.98.51",
   "minimumRecommendedVersion": "0.98.0",
   "severity": "info",
-  "noticeId": "v0.98.5-preview-announcement-2026-06-13",
-  "title": "Dendry Mod Studio v0.98.5 — Home Hub, in-app publishing, and a steadier editor",
+  "noticeId": "v0.98.51-patch-2026-06-14",
+  "title": "Dendry Mod Studio v0.98.51 — a small bug-fix patch",
   "titleLocalized": {
-    "en": "Dendry Mod Studio v0.98.5 — Home Hub, in-app publishing, and a steadier editor",
-    "zh-Hant": "Dendry Mod Studio v0.98.5 — Home Hub、應用內發布，與更穩的編輯器"
+    "en": "Dendry Mod Studio v0.98.51 — a small bug-fix patch",
+    "zh-Hant": "Dendry Mod Studio v0.98.51 — 小型修復補丁"
   },
-  "body": "v0.98.5 brings a full-screen Home Hub, an illustrated What's New panel, in-app GitHub publishing, dark mode, and an editor that now covers more real authoring workflows, with clearer boundaries. Internal formats may still change between previews — keep backups of real projects.",
+  "body": "v0.98.51 is a patch on the v0.98.5 preview: the guided tour and opening splash now appear consistently, the progress overlay shows when you switch or reopen a project, play-test starting values accept true/false and quality names, and the system-UI title/author region opens the Game Info editor.",
   "bodyLocalized": {
-    "en": "v0.98.5 brings a full-screen Home Hub, an illustrated What's New panel, in-app GitHub publishing, dark mode, and an editor that now covers more real authoring workflows, with clearer boundaries. Internal formats may still change between previews — keep backups of real projects.",
-    "zh-Hant": "v0.98.5 帶來全螢幕 Home Hub、附圖的 What's New 面板、應用內 GitHub 發布、深色模式，以及涵蓋更多真實創作流程、能力邊界也更清楚的編輯器。預覽版之間內部格式仍可能變動——請為正式專案保留備份。"
+    "en": "v0.98.51 is a patch on the v0.98.5 preview: the guided tour and opening splash now appear consistently, the progress overlay shows when you switch or reopen a project, play-test starting values accept true/false and quality names, and the system-UI title/author region opens the Game Info editor.",
+    "zh-Hant": "v0.98.51 是 v0.98.5 預覽版上的補丁：導覽精靈與開場過場的出現時機更一致、切換或重開專案時會顯示重建進度、試玩起始值可輸入 true/false 與變數名，系統 UI 的標題／作者區點擊會開啟 Game Info 編輯器。"
   },
-  "details": "Key changes in v0.98.5:\n\n• Home Hub — a full-screen home page gathering overview, publishing, announcements, templates, recent projects, and an illustrated What's New panel.\n\n• Broader authoring coverage — a navigable conditional tree with a what-if simulator, a directly editable system-UI sidebar, in-place play-test on the real Dendry engine, and five smaller source-only gaps closed.\n\n• Publish to GitHub — publish, update, and sync from inside the Studio, with a management dashboard and safe retry.\n\n• Dark mode & polish — light / dark / auto, large events open roughly 5x faster, default-collapsed sections, empty / loading / error states with retry, and a persistent back control.\n\nThis is still an unsigned preview build. Internal representations may change between versions, so mods edited now are not guaranteed to be forward-compatible. Keep backups and review install plans before applying changes.",
+  "details": "Fixes in v0.98.51:\n\n• Guided tour & opening splash — now appear consistently on first launch and after an update; a patch update no longer replays the tour, while a minor update still does.\n\n• Project reopen progress — switching or reloading a project now shows the rebuild progress overlay for the whole scan, not only on first open.\n\n• Play-test starting state — quality inputs accept text: true/false become booleans, numbers stay numbers, and a name is kept as a reference, instead of silently becoming 0.\n\n• System-UI title/author — clicking the screen-header game title/author region now opens the Game Info (project metadata) editor with title and author fields.\n\nThis remains an unsigned developer preview.",
   "detailsLocalized": {
-    "en": "Key changes in v0.98.5:\n\n• Home Hub — a full-screen home page gathering overview, publishing, announcements, templates, recent projects, and an illustrated What's New panel.\n\n• Broader authoring coverage — a navigable conditional tree with a what-if simulator, a directly editable system-UI sidebar, in-place play-test on the real Dendry engine, and five smaller source-only gaps closed.\n\n• Publish to GitHub — publish, update, and sync from inside the Studio, with a management dashboard and safe retry.\n\n• Dark mode & polish — light / dark / auto, large events open roughly 5x faster, default-collapsed sections, empty / loading / error states with retry, and a persistent back control.\n\nThis is still an unsigned preview build. Internal representations may change between versions, so mods edited now are not guaranteed to be forward-compatible. Keep backups and review install plans before applying changes.",
-    "zh-Hant": "v0.98.5 主要變化：\n\n• Home Hub——全螢幕首頁，整合總覽、發布、公告、範本、最近的專案，以及附圖的 What's New 面板。\n\n• 更廣的創作涵蓋面——可導覽的條件樹搭配 what-if 模擬器、可直接編輯的系統 UI 側欄、用真正的 Dendry 引擎原地試玩，並補上五個原本只能回原始碼處理的較小缺口。\n\n• 發布到 GitHub——在 Studio 內完成發布、更新與同步，附管理儀表板與安全重試。\n\n• 深色模式與打磨——亮／暗／自動三段、大型事件開啟速度約快 5 倍、結構區段預設收合、空／載入／錯誤狀態附重試，以及常駐返回鍵。\n\n這仍是未簽署的預覽版。版本之間內部表示可能變動，因此現在編輯的 mod 不保證向前相容。請保留備份，並在套用修改前檢查 install plan。"
+    "en": "Fixes in v0.98.51:\n\n• Guided tour & opening splash — now appear consistently on first launch and after an update; a patch update no longer replays the tour, while a minor update still does.\n\n• Project reopen progress — switching or reloading a project now shows the rebuild progress overlay for the whole scan, not only on first open.\n\n• Play-test starting state — quality inputs accept text: true/false become booleans, numbers stay numbers, and a name is kept as a reference, instead of silently becoming 0.\n\n• System-UI title/author — clicking the screen-header game title/author region now opens the Game Info (project metadata) editor with title and author fields.\n\nThis remains an unsigned developer preview.",
+    "zh-Hant": "v0.98.51 修復：\n\n• 導覽精靈與開場過場——首次啟動與更新後出現時機一致；補丁更新不再重播導覽，次版更新仍會。\n\n• 重開專案進度——切換或重載入專案時，重建進度浮層會全程顯示，不再只有第一次開啟才有。\n\n• 試玩起始狀態——品質輸入框接受文字：true/false 轉成布林、數字維持數字、變數名原樣保留，不再被靜默轉成 0。\n\n• 系統 UI 標題／作者——點擊標頭的遊戲標題／作者區，會開啟 Game Info（專案資訊）編輯器的標題與作者欄位。\n\n本版仍為未簽署的開發預覽。"
   },
   "announcementOnly": true,
   "notices": [
+    {
+      "noticeId": "v0.98.51-update-2026-06-14",
+      "kind": "release",
+      "severity": "info",
+      "title": "Dendry Mod Studio v0.98.51 — a small bug-fix patch",
+      "titleLocalized": {
+        "en": "Dendry Mod Studio v0.98.51 — a small bug-fix patch",
+        "zh-Hant": "Dendry Mod Studio v0.98.51 — 小型修復補丁"
+      },
+      "body": "v0.98.51 is a patch on the v0.98.5 preview: the guided tour and opening splash now appear consistently, the progress overlay shows when you switch or reopen a project, play-test starting values accept true/false and quality names, and the system-UI title/author region opens the Game Info editor.",
+      "bodyLocalized": {
+        "en": "v0.98.51 is a patch on the v0.98.5 preview: the guided tour and opening splash now appear consistently, the progress overlay shows when you switch or reopen a project, play-test starting values accept true/false and quality names, and the system-UI title/author region opens the Game Info editor.",
+        "zh-Hant": "v0.98.51 是 v0.98.5 預覽版上的補丁：導覽精靈與開場過場的出現時機更一致、切換或重開專案時會顯示重建進度、試玩起始值可輸入 true/false 與變數名，系統 UI 的標題／作者區點擊會開啟 Game Info 編輯器。"
+      },
+      "details": "Fixes in v0.98.51:\n\n• Guided tour & opening splash — now appear consistently on first launch and after an update; a patch update no longer replays the tour, while a minor update still does.\n\n• Project reopen progress — switching or reloading a project now shows the rebuild progress overlay for the whole scan, not only on first open.\n\n• Play-test starting state — quality inputs accept text: true/false become booleans, numbers stay numbers, and a name is kept as a reference, instead of silently becoming 0.\n\n• System-UI title/author — clicking the screen-header game title/author region now opens the Game Info (project metadata) editor with title and author fields.\n\nThis remains an unsigned developer preview.",
+      "detailsLocalized": {
+        "en": "Fixes in v0.98.51:\n\n• Guided tour & opening splash — now appear consistently on first launch and after an update; a patch update no longer replays the tour, while a minor update still does.\n\n• Project reopen progress — switching or reloading a project now shows the rebuild progress overlay for the whole scan, not only on first open.\n\n• Play-test starting state — quality inputs accept text: true/false become booleans, numbers stay numbers, and a name is kept as a reference, instead of silently becoming 0.\n\n• System-UI title/author — clicking the screen-header game title/author region now opens the Game Info (project metadata) editor with title and author fields.\n\nThis remains an unsigned developer preview.",
+        "zh-Hant": "v0.98.51 修復：\n\n• 導覽精靈與開場過場——首次啟動與更新後出現時機一致；補丁更新不再重播導覽，次版更新仍會。\n\n• 重開專案進度——切換或重載入專案時，重建進度浮層會全程顯示，不再只有第一次開啟才有。\n\n• 試玩起始狀態——品質輸入框接受文字：true/false 轉成布林、數字維持數字、變數名原樣保留，不再被靜默轉成 0。\n\n• 系統 UI 標題／作者——點擊標頭的遊戲標題／作者區，會開啟 Game Info（專案資訊）編輯器的標題與作者欄位。\n\n本版仍為未簽署的開發預覽。"
+      },
+      "downloadUrl": "https://github.com/Wen387/DendryModStudio/releases",
+      "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.98.51.md",
+      "publishedAt": "2026-06-14"
+    },
     {
       "noticeId": "v0.98.5-update-2026-06-13",
       "kind": "release",
@@ -218,6 +241,6 @@
     }
   ],
   "downloadUrl": "https://github.com/Wen387/DendryModStudio/releases",
-  "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.98.5.md",
-  "publishedAt": "2026-05-25"
+  "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.98.51.md",
+  "publishedAt": "2026-06-14"
 }

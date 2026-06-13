@@ -77,6 +77,12 @@ and a dark theme. Desktop packaging is unchanged from v0.97.6: it keeps the
 `deps-in-asar` Windows layout and bundles the Python `indexer/` package beside
 `build_project_map.py`.
 
+2026-06-14 version note: the preview package version was advanced to v0.98.51,
+a small bug-fix patch on the v0.98.5 preview — guided-tour / opening-splash
+timing, the project-reopen progress overlay, play-test starting-state text
+input, and the system-UI title/author Game Info route. Desktop packaging is
+unchanged from the v0.98 line.
+
 2026-05-10 Windows install performance experiment: branch
 `exp-windows-install-performance` adds a non-release `fast-install` Windows
 builder config and measurement helpers. The experiment identified loose root

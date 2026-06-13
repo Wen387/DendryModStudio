@@ -41,7 +41,7 @@
       'playEngine.mute': 'Mute audio',
       'playEngine.unmute': 'Unmute audio',
       'topbar.subtitle.default': 'Studio workspace for branching Dendry projects',
-      'topbar.version': 'Dendry Mod Studio v0.98.5 dev preview',
+      'topbar.version': 'Dendry Mod Studio v0.98.51 dev preview',
       'topbar.author': 'by Awen',
       'topbar.language': 'Language',
       'topbar.language.auto': 'Auto',
