@@ -1583,6 +1583,8 @@
     "tools/project_map/check_localization_surface.js",
     "tools/project_map/check_meaning_layer_model.js",
     "tools/project_map/check_menu_card_builder_model.js",
+    "tools/project_map/check_model_purity.js",
+    "tools/project_map/check_module_layering.js",
     "tools/project_map/check_navigation_history_model.js",
     "tools/project_map/check_news_wizard_model.js",
     "tools/project_map/check_no_ide_fallback_for_visible_content.js",
@@ -1971,6 +1973,8 @@
     "node tools/project_map/check_release_links_model.js",
     "node tools/project_map/check_template_catalog_model.js",
     "node tools/project_map/check_publish_manifest_model.js",
-    "node tools/project_map/check_source_complexity_model.js"
+    "node tools/project_map/check_source_complexity_model.js",
+    "node tools/project_map/check_model_purity.js",
+    "node tools/project_map/check_module_layering.js"
   ]
 }
