@@ -860,7 +860,15 @@
       applyDesktopProjectIndex(event.detail || {}, state, elements);
     });
     global.addEventListener('ProjectMap:desktop-scan-progress', (event) => {
-      setDesktopProgress(elements, event.detail || {});
+      const detail = event.detail || {};
+      setDesktopProgress(elements, detail);
+      // A terminal failure frame (e.g. a Home reopen whose folder moved) has no
+      // index-loaded follow-up to clear the overlay, so fade it the same way
+      // finishDesktopFailure does. Idempotent: clearDesktopProgressSoon resets
+      // any pending timer first.
+      if (detail.error || detail.stage === 'failed') {
+        clearDesktopProgressSoon(elements, 2600);
+      }
     });
 
     if (elements.desktopRunDoctor) {

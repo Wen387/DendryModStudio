@@ -143,6 +143,23 @@
     renderHosts();
   }
 
+  // Drive the shared desktop progress overlay by re-emitting the exact event
+  // the preload dispatches during a scan, so app.js's existing listener shows,
+  // animates, and clears it with no new wiring. The folder picker pre-shows the
+  // overlay synchronously before its scan (app.js openDesktopProject); a reopen
+  // calls scanProject directly, so without this the overlay only reacts to late
+  // backend events and the rebuild looks frozen with no "why is this slow" cue.
+  function signalScanProgress(detail) {
+    if (!global || typeof global.dispatchEvent !== 'function' || typeof global.CustomEvent !== 'function') {
+      return;
+    }
+    try {
+      global.dispatchEvent(new global.CustomEvent('ProjectMap:desktop-scan-progress', {detail}));
+    } catch (_err) {
+      // best effort only — a missing overlay must never block the reopen.
+    }
+  }
+
   // Reopen rides the standard pipeline; success re-records via the loaded
   // event. Failure (folder moved/renamed, scan error) marks the card with an
   // inline hint and leaves the entry so the user can remove it deliberately.
@@ -154,15 +171,31 @@
     state.busy = true;
     state.failedRoot = '';
     renderHosts();
+    // Pre-show the overlay from t=0 so the from-scratch rebuild is visible the
+    // same way the folder picker makes it visible.
+    signalScanProgress({
+      stage: 'starting',
+      percent: 1,
+      label: t('desktop.buildingProjectIndex', 'Building project index...')
+    });
+    // On failure no index-loaded event fires, so the overlay would hang at the
+    // starting frame; emit a terminal error frame instead (app.js fades it).
+    const markFailed = function () {
+      state.failedRoot = root;
+      signalScanProgress({
+        stage: 'failed',
+        percent: 100,
+        label: t('home.recent.openFailed', 'Could not open this folder — it may have moved or been renamed.'),
+        error: true
+      });
+    };
     Promise.resolve(bridge.scanProject({root}))
       .then(function (result) {
         if (!result || result.ok !== true) {
-          state.failedRoot = root;
+          markFailed();
         }
       })
-      .catch(function () {
-        state.failedRoot = root;
-      })
+      .catch(markFailed)
       .then(function () {
         state.busy = false;
         renderHosts();
