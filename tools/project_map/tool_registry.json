@@ -336,6 +336,7 @@
   },
   "tools": {
     "tool-registry": {
+      "description": "Verifies the tool registry is internally consistent: every check file is classified (known + routed or exempt), task tool references resolve, and no tool path is registered twice.",
       "path": "tools/project_map/check_tool_registry.js",
       "command": "node tools/project_map/check_tool_registry.js",
       "kind": "contract",
@@ -353,6 +354,7 @@
       "when": "Tool registry, check bundles, or check file inventory changed."
     },
     "source-structure-graph": {
+      "description": "Verifies the source-structure graph model — how scenes, options, branches, and assets parse into a graph with source-backed evidence for safe structural edits.",
       "path": "tools/project_map/check_source_structure_graph_model.js",
       "command": "node tools/project_map/check_source_structure_graph_model.js",
       "kind": "fast-model",
@@ -372,6 +374,7 @@
       "when": "Route, option, branch, or source-structure graph behavior changed."
     },
     "existing-scene-edit": {
+      "description": "Verifies the Existing Scene Editor model: field/action extraction from source and conversion of edits into install-plan operations.",
       "path": "tools/project_map/check_existing_scene_edit_model.js",
       "command": "node tools/project_map/check_existing_scene_edit_model.js",
       "kind": "fast-model",
@@ -390,6 +393,7 @@
       "when": "Existing Scene Editor field/action/install-plan conversion changed."
     },
     "route-editor-workflow": {
+      "description": "Verifies the route editor workflow model end to end.",
       "path": "tools/project_map/check_route_editor_workflow_model.js",
       "command": "node tools/project_map/check_route_editor_workflow_model.js",
       "kind": "fast-model",
@@ -407,6 +411,7 @@
       "when": "Route editor workflow behavior changed."
     },
     "route-script-intelligence": {
+      "description": "Verifies route evidence classification, script impact mapping, guided script edits, and script-aware trial-run behavior.",
       "path": "tools/project_map/check_route_script_intelligence_model.js",
       "command": "node tools/project_map/check_route_script_intelligence_model.js",
       "kind": "fast-model",
@@ -426,6 +431,7 @@
       "when": "Route evidence classification, script impact mapping, guided script edits, or script-aware trial-run behavior changed."
     },
     "route-understanding": {
+      "description": "Verifies the Route Understanding model: event-chain, scheduler, utility-call, and state-dependency evidence.",
       "path": "tools/project_map/check_route_understanding_model.js",
       "command": "node tools/project_map/check_route_understanding_model.js",
       "kind": "fast-model",
@@ -445,6 +451,7 @@
       "when": "Route Understanding event-chain, scheduler, utility call, or state-dependency evidence changed."
     },
     "guided-route-edit": {
+      "description": "Verifies guided route editors: utility-call pairs, route-table bindings, and explicit fallback helpers.",
       "path": "tools/project_map/check_guided_route_edit_model.js",
       "command": "node tools/project_map/check_guided_route_edit_model.js",
       "kind": "fast-model",
@@ -463,6 +470,7 @@
       "when": "Guided route editors, utility call pairs, route table bindings, or explicit fallback helpers changed."
     },
     "route-semantics-audit": {
+      "description": "Verifies route semantics auditing: parser-coverage reconciliation and compiled-vs-runtime route comparison.",
       "path": "tools/project_map/check_route_semantics_audit_model.js",
       "command": "node tools/project_map/check_route_semantics_audit_model.js",
       "kind": "fast-model",
@@ -482,6 +490,7 @@
       "when": "Route semantics audit reporting, parser coverage reconciliation, or compiled/runtime route comparison changed."
     },
     "effect-clause-workflow": {
+      "description": "Verifies the Effect Clause Editor model: multi-effect lines and hook-prefixed effect syntax.",
       "path": "tools/project_map/check_effect_clause_editor_workflow_model.js",
       "command": "node tools/project_map/check_effect_clause_editor_workflow_model.js",
       "kind": "fast-model",
@@ -500,6 +509,7 @@
       "when": "Effect Clause Editor behavior, multi-effect lines, or hook-prefixed effect syntax changed."
     },
     "install-plan": {
+      "description": "Verifies install-plan generation, validation, and apply — the compute-then-commit core that turns reviewed edits into file operations.",
       "path": "tools/project_map/check_install_plan_model.js",
       "command": "node tools/project_map/check_install_plan_model.js",
       "kind": "fast-model",
@@ -517,6 +527,7 @@
       "when": "Install-plan operation generation, validation, or apply behavior changed."
     },
     "object-authoring-canvas": {
+      "description": "Verifies the Object Canvas model: rendered entries, structure actions, and the draft authoring flow.",
       "path": "tools/project_map/check_object_authoring_canvas_model.js",
       "command": "node tools/project_map/check_object_authoring_canvas_model.js",
       "kind": "fast-model",
@@ -536,6 +547,7 @@
       "when": "Object Canvas rendered entries, structure actions, or draft flow changed."
     },
     "card-board-model": {
+      "description": "Verifies the Card Board model: card option focus, copy-as-draft, and lane context.",
       "path": "tools/project_map/check_card_board_model.js",
       "command": "node tools/project_map/check_card_board_model.js",
       "kind": "fast-model",
@@ -555,6 +567,7 @@
       "when": "Card Board model, card option focus, copy-as-draft, or lane context behavior changed."
     },
     "deck-pool-model": {
+      "description": "Verifies Deck Pool semantic extraction and Card Board named deck-pool lanes.",
       "path": "tools/project_map/check_deck_pool_model.js",
       "command": "node tools/project_map/check_deck_pool_model.js",
       "kind": "fast-model",
@@ -574,6 +587,7 @@
       "when": "Deck Pool semantic extraction or Card Board named deck pool lanes changed."
     },
     "deck-object-canvas": {
+      "description": "Verifies Deck Pool Object Canvas fields and membership install operations.",
       "path": "tools/project_map/check_deck_object_canvas_model.js",
       "command": "node tools/project_map/check_deck_object_canvas_model.js",
       "kind": "fast-model",
@@ -594,6 +608,7 @@
       "when": "Deck Pool Object Canvas fields or membership install operations changed."
     },
     "advisor-controller-model": {
+      "description": "Verifies Advisor Controller semantic extraction.",
       "path": "tools/project_map/check_advisor_controller_model.js",
       "command": "node tools/project_map/check_advisor_controller_model.js",
       "kind": "fast-model",
@@ -613,6 +628,7 @@
       "when": "Advisor Controller semantic extraction changed."
     },
     "advisor-controller-object-canvas": {
+      "description": "Verifies Advisor Controller Object Canvas fields and roster install operations.",
       "path": "tools/project_map/check_advisor_controller_object_canvas_model.js",
       "command": "node tools/project_map/check_advisor_controller_object_canvas_model.js",
       "kind": "fast-model",
@@ -633,6 +649,7 @@
       "when": "Advisor Controller Object Canvas fields or roster install operations changed."
     },
     "card-wizard-model": {
+      "description": "Verifies CardDraft export, Card Wizard compatibility, and card lane-aware install generation.",
       "path": "tools/project_map/check_card_wizard_model.js",
       "command": "node tools/project_map/check_card_wizard_model.js",
       "kind": "fast-model",
@@ -651,6 +668,7 @@
       "when": "CardDraft export, Card Wizard compatibility, or card lane-aware install generation changed."
     },
     "menu-card-builder": {
+      "description": "Verifies menu-card parsed-to-draft conversion, Object Canvas section options, and CardDraft rendering.",
       "path": "tools/project_map/check_menu_card_builder_model.js",
       "command": "node tools/project_map/check_menu_card_builder_model.js",
       "kind": "fast-model",
@@ -670,6 +688,7 @@
       "when": "Menu card parsed-to-draft, Object Canvas section options, or CardDraft rendering changed."
     },
     "pinned-text-card-builder": {
+      "description": "Verifies pinned/advisor text-card parsing, editing, and install behavior.",
       "path": "tools/project_map/check_pinned_text_card_builder_model.js",
       "command": "node tools/project_map/check_pinned_text_card_builder_model.js",
       "kind": "fast-model",
@@ -688,6 +707,7 @@
       "when": "Pinned/advisor text card parsing, editing, or install behavior changed."
     },
     "parsed-to-draft-entry-unification": {
+      "description": "Verifies parsed-to-draft entry routing and copy-as-draft parity across entry kinds.",
       "path": "tools/project_map/check_parsed_to_draft_entry_unification_model.js",
       "command": "node tools/project_map/check_parsed_to_draft_entry_unification_model.js",
       "kind": "fast-model",
@@ -707,6 +727,7 @@
       "when": "Parsed-to-draft entry routing or copy-as-draft parity changed."
     },
     "existing-draft-extraction": {
+      "description": "Verifies extraction of source-backed drafts from existing objects, including partial-boundary handling.",
       "path": "tools/project_map/check_existing_draft_extraction_model.js",
       "command": "node tools/project_map/check_existing_draft_extraction_model.js",
       "kind": "fast-model",
@@ -725,6 +746,7 @@
       "when": "Existing source-backed draft extraction or partial-boundary behavior changed."
     },
     "install-operation-contracts": {
+      "description": "Verifies install-operation safety contracts: guarded apply, anchors, and dedupe.",
       "path": "tools/project_map/check_install_operation_contracts_model.js",
       "command": "node tools/project_map/check_install_operation_contracts_model.js",
       "kind": "contract",
@@ -743,6 +765,7 @@
       "when": "Install operation safety, guarded apply, anchor, or dedupe contracts changed."
     },
     "install-review-ui": {
+      "description": "Verifies the Install Review UI model: checklist, guarded apply, and Review & Apply controls.",
       "path": "tools/project_map/check_install_review_ui_model.js",
       "command": "node tools/project_map/check_install_review_ui_model.js",
       "kind": "fast-model",
@@ -761,6 +784,7 @@
       "when": "Install review UI, checklist, guarded apply, or Review & Apply controls changed."
     },
     "workflow-entry-contract": {
+      "description": "Verifies authoring entrypoints and workflow routing stay wired to their surfaces.",
       "path": "tools/project_map/check_workflow_entry_contract.js",
       "command": "node tools/project_map/check_workflow_entry_contract.js",
       "kind": "contract",
@@ -778,6 +802,7 @@
       "when": "Authoring entrypoint or workflow routing changed."
     },
     "canvas-interaction-contracts": {
+      "description": "Verifies interaction contracts across Canvas, Object Canvas, Storyboard, Runtime Lens, and Review & Apply controls.",
       "path": "tools/project_map/check_canvas_interaction_contracts.js",
       "command": "node tools/project_map/check_canvas_interaction_contracts.js",
       "kind": "contract",
@@ -796,6 +821,7 @@
       "when": "Canvas, Object Canvas, Storyboard, Runtime Lens, or Review & Apply controls changed."
     },
     "localization-surface": {
+      "description": "Verifies every visible Studio string has en / zh-Hant parity and is sourced from the localization catalogs.",
       "path": "tools/project_map/check_localization_surface.js",
       "command": "node tools/project_map/check_localization_surface.js",
       "kind": "contract",
@@ -813,6 +839,7 @@
       "when": "Visible Studio text changed."
     },
     "starter-demo-model": {
+      "description": "Verifies the bundled Starter Demo template and profile behavior.",
       "path": "tools/project_map/check_starter_demo_model.js",
       "command": "node tools/project_map/check_starter_demo_model.js",
       "kind": "fixture",
@@ -831,6 +858,7 @@
       "when": "Starter Demo template or profile behavior changed."
     },
     "starter-demo-complex-event-create": {
+      "description": "Verifies the new complex-event create/edit/apply/reopen roundtrip on a Starter Demo temp copy.",
       "path": "tools/project_map/check_starter_demo_complex_event_create_model.js",
       "command": "node tools/project_map/check_starter_demo_complex_event_create_model.js",
       "kind": "fixture",
@@ -851,6 +879,7 @@
       "when": "New complex-event create/edit/apply/reopen flow changed."
     },
     "complex-event-authoring-flow": {
+      "description": "Verifies complete choice units, consequence grouping, continuation summaries, and lightweight event trial-run.",
       "path": "tools/project_map/check_complex_event_authoring_flow_model.js",
       "command": "node tools/project_map/check_complex_event_authoring_flow_model.js",
       "kind": "fast-model",
@@ -871,6 +900,7 @@
       "when": "Complete choice units, consequence grouping, continuation summaries, or lightweight event trial-run behavior changed."
     },
     "visible-object-coverage": {
+      "description": "Verifies visible-object coverage and deferred-coverage accounting.",
       "path": "tools/project_map/check_visible_object_coverage_model.js",
       "command": "node tools/project_map/check_visible_object_coverage_model.js",
       "kind": "fast-model",
@@ -888,6 +918,7 @@
       "when": "Visible object coverage or deferred coverage behavior changed."
     },
     "visible-means-editable": {
+      "description": "Verifies the contract that visible, player-facing content is editable.",
       "path": "tools/project_map/check_visible_means_editable_model.js",
       "command": "node tools/project_map/check_visible_means_editable_model.js",
       "kind": "fast-model",
@@ -904,6 +935,7 @@
       "when": "Visible content editability contract changed."
     },
     "visible-edit-action": {
+      "description": "Verifies the visible edit-action UI/model.",
       "path": "tools/project_map/check_visible_edit_action_model.js",
       "command": "node tools/project_map/check_visible_edit_action_model.js",
       "kind": "fast-model",
@@ -921,6 +953,7 @@
       "when": "Visible edit action UI/model changed."
     },
     "edit-capability": {
+      "description": "Verifies edit-capability routing (which edit path a field is offered).",
       "path": "tools/project_map/check_edit_capability_model.js",
       "command": "node tools/project_map/check_edit_capability_model.js",
       "kind": "fast-model",
@@ -938,6 +971,7 @@
       "when": "Edit capability routing changed."
     },
     "source-slice-editor": {
+      "description": "Verifies the Source Slice fallback editor behavior.",
       "path": "tools/project_map/check_source_slice_editor_model.js",
       "command": "node tools/project_map/check_source_slice_editor_model.js",
       "kind": "fast-model",
@@ -955,6 +989,7 @@
       "when": "Source Slice fallback behavior changed."
     },
     "no-ide-fallback-visible-content": {
+      "description": "Verifies visible content never falls back to a raw IDE edit when a structured edit should be offered.",
       "path": "tools/project_map/check_no_ide_fallback_for_visible_content.js",
       "command": "node tools/project_map/check_no_ide_fallback_for_visible_content.js",
       "kind": "contract",
@@ -972,6 +1007,7 @@
       "when": "Visible content fallback/edit routing changed."
     },
     "project-map-fixture": {
+      "description": "Golden ProjectIndex gate: verifies exact scene/edge/variable/event counts for the generic-mini and sdaah-mini fixtures (requires python).",
       "path": "tools/project_map/check_project_map_fixture.js",
       "command": "node tools/project_map/check_project_map_fixture.js",
       "kind": "fixture",
@@ -989,6 +1025,7 @@
       "when": "ProjectIndex fixture assumptions changed. Golden indexer-output gate: exact scene/edge/variable/event counts for generic-mini and sdaah-mini."
     },
     "studio-contract": {
+      "description": "Verifies the Studio shared-constants contract model.",
       "path": "tools/project_map/check_studio_shared_constants_model.js",
       "command": "node tools/project_map/check_studio_shared_constants_model.js",
       "kind": "contract",
@@ -1005,6 +1042,7 @@
       "when": "Studio contract model assumptions changed."
     },
     "parser-editability": {
+      "description": "Verifies parser-backed editability classification.",
       "path": "tools/project_map/check_parser_editability_model.js",
       "command": "node tools/project_map/check_parser_editability_model.js",
       "kind": "fast-model",
@@ -1022,6 +1060,7 @@
       "when": "Parser-backed editability changed."
     },
     "parser-renderer-confidence": {
+      "description": "Verifies parser/renderer confidence scoring.",
       "path": "tools/project_map/check_parser_renderer_confidence_model.js",
       "command": "node tools/project_map/check_parser_renderer_confidence_model.js",
       "kind": "fast-model",
@@ -1039,6 +1078,7 @@
       "when": "Parser/renderer confidence changed."
     },
     "parser-semantic-evidence": {
+      "description": "Verifies parser-derived semantic evidence.",
       "path": "tools/project_map/check_parser_semantic_evidence_model.js",
       "command": "node tools/project_map/check_parser_semantic_evidence_model.js",
       "kind": "fast-model",
@@ -1056,6 +1096,7 @@
       "when": "Parser semantic evidence changed."
     },
     "generalized-semantic-evidence": {
+      "description": "Verifies the generalized semantic-evidence model.",
       "path": "tools/project_map/check_generalized_semantic_evidence_model.js",
       "command": "node tools/project_map/check_generalized_semantic_evidence_model.js",
       "kind": "fast-model",
@@ -1072,6 +1113,7 @@
       "when": "Generalized semantic evidence changed."
     },
     "semantic-ownership-graph": {
+      "description": "Verifies the semantic ownership graph.",
       "path": "tools/project_map/check_semantic_ownership_graph_model.js",
       "command": "node tools/project_map/check_semantic_ownership_graph_model.js",
       "kind": "fast-model",
@@ -1088,6 +1130,7 @@
       "when": "Semantic ownership graph changed."
     },
     "studio-performance": {
+      "description": "Verifies project-loading and deferred-coverage performance behavior.",
       "path": "tools/project_map/check_studio_performance_model.js",
       "command": "node tools/project_map/check_studio_performance_model.js",
       "kind": "fast-model",
@@ -1105,6 +1148,7 @@
       "when": "Project loading or deferred coverage behavior changed."
     },
     "desktop-shell": {
+      "description": "Verifies the Electron desktop shell, preload, and studio-core wiring (also the desktop smoke check).",
       "path": "tools/project_map/check_desktop_shell.js",
       "command": "node tools/project_map/check_desktop_shell.js",
       "kind": "desktop",
@@ -1122,6 +1166,7 @@
       "when": "Desktop shell/preload/studio core behavior changed."
     },
     "v067-remaining": {
+      "description": "Verifies install-mode UI, coverage safety tiers, card-to-install-plan wiring, and desktop dry-run no-mutation (historical name; assertions are current).",
       "path": "tools/project_map/check_v067_remaining_model.js",
       "command": "node tools/project_map/check_v067_remaining_model.js",
       "kind": "fast-model",
@@ -1140,6 +1185,7 @@
       "when": "Install mode UI, coverage safety tiers, card-to-install-plan wiring, or desktop dry-run no-mutation behavior changes. (Name is historical; the assertions are current.)"
     },
     "runtime-preview-sandbox": {
+      "description": "Verifies the Runtime Preview sandbox model.",
       "path": "tools/project_map/check_runtime_preview_sandbox_model.js",
       "command": "node tools/project_map/check_runtime_preview_sandbox_model.js",
       "kind": "runtime",
@@ -1157,6 +1203,7 @@
       "when": "Runtime Preview sandbox behavior changed."
     },
     "runtime-lens": {
+      "description": "Verifies the Runtime Lens model.",
       "path": "tools/project_map/check_runtime_lens_model.js",
       "command": "node tools/project_map/check_runtime_lens_model.js",
       "kind": "runtime",
@@ -1173,6 +1220,7 @@
       "when": "Runtime Lens model behavior changed."
     },
     "runtime-lens-ui": {
+      "description": "Verifies the Runtime Lens UI model.",
       "path": "tools/project_map/check_runtime_lens_ui_model.js",
       "command": "node tools/project_map/check_runtime_lens_ui_model.js",
       "kind": "runtime",
@@ -1190,6 +1238,7 @@
       "when": "Runtime Lens UI behavior changed."
     },
     "runtime-lifecycle": {
+      "description": "Verifies runtime preview/lens lifecycle behavior.",
       "path": "tools/project_map/check_runtime_lifecycle_model.js",
       "command": "node tools/project_map/check_runtime_lifecycle_model.js",
       "kind": "runtime",
@@ -1207,6 +1256,7 @@
       "when": "Runtime lifecycle behavior changed."
     },
     "runtime-surface": {
+      "description": "Verifies the runtime surface model.",
       "path": "tools/project_map/check_runtime_surface_model.js",
       "command": "node tools/project_map/check_runtime_surface_model.js",
       "kind": "runtime",
@@ -1224,6 +1274,7 @@
       "when": "Runtime surface behavior changed."
     },
     "runtime-snapshot": {
+      "description": "Verifies the runtime snapshot model.",
       "path": "tools/project_map/check_runtime_snapshot_model.js",
       "command": "node tools/project_map/check_runtime_snapshot_model.js",
       "kind": "runtime",
@@ -1241,6 +1292,7 @@
       "when": "Runtime snapshot behavior changed."
     },
     "runtime-dom-map": {
+      "description": "Verifies the runtime DOM-map model.",
       "path": "tools/project_map/check_runtime_dom_map_model.js",
       "command": "node tools/project_map/check_runtime_dom_map_model.js",
       "kind": "runtime",
@@ -1258,6 +1310,7 @@
       "when": "Runtime DOM map behavior changed."
     },
     "runtime-visual-surface": {
+      "description": "Verifies the runtime visual-surface model.",
       "path": "tools/project_map/check_runtime_visual_surface_model.js",
       "command": "node tools/project_map/check_runtime_visual_surface_model.js",
       "kind": "runtime",
@@ -1275,6 +1328,7 @@
       "when": "Runtime visual surface behavior changed."
     },
     "runtime-visual-asset-draft": {
+      "description": "Verifies the runtime visual asset-draft model.",
       "path": "tools/project_map/check_runtime_visual_asset_draft_model.js",
       "command": "node tools/project_map/check_runtime_visual_asset_draft_model.js",
       "kind": "runtime",
@@ -1292,6 +1346,7 @@
       "when": "Runtime visual asset draft behavior changed."
     },
     "asset-contract": {
+      "description": "Verifies asset slot roles, directives, local-file install requests, and Object Canvas asset contracts.",
       "path": "tools/project_map/check_asset_contract_model.js",
       "command": "node tools/project_map/check_asset_contract_model.js",
       "kind": "fast-model",
@@ -1310,6 +1365,7 @@
       "when": "Asset slot roles, directives, local file install requests, or Object Canvas asset contracts changed."
     },
     "desktop-packaging": {
+      "description": "Verifies desktop packaging metadata (electron-builder configuration).",
       "path": "tools/project_map/check_desktop_packaging.js",
       "command": "node tools/project_map/check_desktop_packaging.js",
       "kind": "packaging",
@@ -1327,6 +1383,7 @@
       "when": "Desktop packaging metadata changed."
     },
     "desktop-deb": {
+      "description": "Verifies Linux .deb packaging metadata.",
       "path": "tools/project_map/check_desktop_deb.js",
       "command": "node tools/project_map/check_desktop_deb.js",
       "kind": "packaging",
@@ -1344,6 +1401,7 @@
       "when": "Linux deb packaging metadata changed."
     },
     "public-export": {
+      "description": "Verifies the public-export boundary: local-only agent/memory/workflow paths never leak into tracked or exported files.",
       "path": "tools/project_map/check_public_export.js",
       "command": "node tools/project_map/check_public_export.js",
       "kind": "release",
@@ -1360,6 +1418,7 @@
       "when": "Public export boundary changed."
     },
     "update-notice": {
+      "description": "Verifies the in-app update notice / manifest model.",
       "path": "tools/project_map/check_update_notice_model.js",
       "command": "node tools/project_map/check_update_notice_model.js",
       "kind": "release",
@@ -1376,6 +1435,7 @@
       "when": "Update notice or manifest behavior changed."
     },
     "release-links": {
+      "description": "Verifies release docs and artifact links resolve.",
       "path": "tools/project_map/check_release_links_model.js",
       "command": "node tools/project_map/check_release_links_model.js",
       "kind": "release",
@@ -1392,6 +1452,7 @@
       "when": "Release docs or artifact links changed."
     },
     "dynamic-mod-audit": {
+      "description": "Deep Dynamic/SDAAH audit (opt-in, slow; requires an external or bundled fixture).",
       "path": "tools/project_map/check_dynamic_mod_audit.js",
       "command": "node tools/project_map/check_dynamic_mod_audit.js",
       "kind": "realworld",
@@ -1410,6 +1471,7 @@
       "when": "Deep Dynamic/SDAAH audit is explicitly requested."
     },
     "large-event-pressure": {
+      "description": "Pressure-tests a few large real Dynamic/SDAAH events through editor, route/script intelligence, trial-run, and render surfaces (opt-in).",
       "path": "tools/project_map/check_large_event_pressure_model.js",
       "command": "node tools/project_map/check_large_event_pressure_model.js",
       "kind": "realworld",
@@ -1430,6 +1492,7 @@
       "when": "A few large real Dynamic/SDAAH events should be pressure-tested through Event editor, route/script intelligence, trial-run, and render surfaces."
     },
     "sdaah-install-write-smoke": {
+      "description": "SDAAH install write-smoke test against an external fixture (opt-in).",
       "path": "tools/project_map/check_sdaah_install_write_smoke.js",
       "command": "node tools/project_map/check_sdaah_install_write_smoke.js",
       "kind": "realworld",
@@ -1448,6 +1511,7 @@
       "when": "SDAAH install write smoke is explicitly requested."
     },
     "sdaah-surface-assets": {
+      "description": "Verifies SDAAH surface asset behavior.",
       "path": "tools/project_map/check_sdaah_surface_assets_model.js",
       "command": "node tools/project_map/check_sdaah_surface_assets_model.js",
       "kind": "realworld",
@@ -1465,6 +1529,7 @@
       "when": "SDAAH surface asset behavior changed."
     },
     "realworld-quick-matrix": {
+      "description": "Verifies the real-workflow support matrix and existing/new-event roundtrips on bundled + synthetic fixtures.",
       "path": "tools/project_map/check_realworld_quick_matrix.js",
       "command": "node tools/project_map/check_realworld_quick_matrix.js",
       "kind": "realworld",
@@ -1483,6 +1548,7 @@
       "when": "Real workflow support matrix, existing-event roundtrip, or new-event roundtrip behavior changed."
     },
     "existing-event-roundtrip": {
+      "description": "Verifies the existing-event edit/apply/re-index/reopen workflow.",
       "path": "tools/project_map/check_existing_event_roundtrip_model.js",
       "command": "node tools/project_map/check_existing_event_roundtrip_model.js",
       "kind": "realworld",
@@ -1501,6 +1567,7 @@
       "when": "Existing-event edit/apply/re-index/reopen workflow changed."
     },
     "check-ci-command": {
+      "description": "Runs the full check:ci sequence (run_checks.js) for broad repository confidence.",
       "path": "package.json",
       "command": "npm run check:ci",
       "kind": "contract",
