@@ -9,6 +9,7 @@
     designInspectorWidth: 'dendry-mod-studio-design-inspector-width',
     onboardingSeen: 'dendry-mod-studio-onboarding-seen',
     guidedTourSeen: 'dendry-mod-studio-guided-tour-seen',
+    guidedTourSeenVersion: 'dendry-mod-studio-guided-tour-seen-version',
     surfaceHintsSeenPrefix: 'dendry-mod-studio-surface-hints-seen.',
     firstProposalQuestProgress: 'dendry-mod-studio-first-proposal-quest.v1',
     theme: 'dendry-mod-studio-theme',

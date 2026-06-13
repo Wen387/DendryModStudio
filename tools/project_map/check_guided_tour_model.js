@@ -39,6 +39,8 @@ const VALID_REQUIRES = ['', 'project-loaded'];
 // --- Centralized constants -------------------------------------------------
 assert(contracts.STORAGE_KEYS.guidedTourSeen === 'dendry-mod-studio-guided-tour-seen',
   'guided tour seen storage key should be centralized');
+assert(contracts.STORAGE_KEYS.guidedTourSeenVersion === 'dendry-mod-studio-guided-tour-seen-version',
+  'guided tour seen-version storage key should be centralized');
 assert(contracts.STORAGE_KEYS.surfaceHintsSeenPrefix === 'dendry-mod-studio-surface-hints-seen.',
   'surface hints seen prefix should be centralized');
 assert(contracts.EVENT_NAMES.openGuidedTour === 'ProjectMap:open-guided-tour',
@@ -191,6 +193,8 @@ assert(tourUi.includes('hasSeenLinear'), 'first-run offer should respect a seen 
 // instead of opening the retired auto-welcome modal.
 assert(tourUi.includes('maybeGreetFirstRun') && tourUi.includes('isFreshFirstRun'),
   'the tour should greet first on a fresh install (onboarding + tour unseen)');
+assert(tourUi.includes('minorVersionKey') && tourUi.includes('guidedTourSeenVersion'),
+  'the tour should be version-aware: re-greet on a minor/major update, not on a patch');
 assert(tourUi.includes('finishHubLanding') && tourUi.includes('openWelcomeHub') && tourUi.includes('pendingHubLanding'),
   'ending or declining any linear tour should open the hub landing');
 assert(tourUi.includes('openHome') || tourUi.includes('open-home'),

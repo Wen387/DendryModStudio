@@ -87,6 +87,41 @@
     }
   }
 
+  function currentVersion() {
+    const data = global && global.ProjectMapWhatsNewData;
+    return data && typeof data.latest === 'function' ? (data.latest() || '') : '';
+  }
+
+  // Major.minor key ("0.98.5"/"0.98.51" -> "0.98"): the tour re-greets on a
+  // minor/major update, not on a patch (the splash tracks the full version).
+  function minorVersionKey(version) {
+    return String(version || '').split('.').slice(0, 2).join('.');
+  }
+
+  function tourVersionKey() {
+    return storageKey('guidedTourSeenVersion', 'dendry-mod-studio-guided-tour-seen-version');
+  }
+
+  function stampTourSeenVersion() {
+    const storage = safeStorage();
+    const version = currentVersion();
+    if (storage && typeof storage.setItem === 'function' && version) {
+      try { storage.setItem(tourVersionKey(), version); } catch (_err) { /* best effort */ }
+    }
+  }
+
+  // One-time backfill for users who saw the tour before version tracking existed
+  // (guidedTourSeen='1', no stamp): stamp the current version so this patch never
+  // re-greets them, while a later minor update still does.
+  function reconcileTourSeenVersion() {
+    const storage = safeStorage();
+    if (!storage || typeof storage.getItem !== 'function') return;
+    try {
+      const tour = storageKey('guidedTourSeen', 'dendry-mod-studio-guided-tour-seen');
+      if (storage.getItem(tour) === '1' && !storage.getItem(tourVersionKey())) stampTourSeenVersion();
+    } catch (_err) { /* best effort */ }
+  }
+
   // The tour's guide, "Tour Fairy" (導遊仙子), shown as kaomoji faces. Plain text
   // so they render in any font with no asset, no SVG, and no new dependency.
   // Different faces for different moments so it is not always the same look:
@@ -191,6 +226,9 @@
     // On a truly fresh install the tour is the warm first thing the user sees;
     // the Welcome Hub (a toolbox/board, not an intro) is deferred until the tour
     // ends or is declined, where it lands as the "what next" surface.
+    // Backfill the seen-version for pre-tracking users before any first-run
+    // decision, so the patch that introduces tracking never re-greets.
+    reconcileTourSeenVersion();
     maybeGreetFirstRun();
   }
 
@@ -205,7 +243,17 @@
     try {
       const onboarding = storageKey('onboardingSeen', 'dendry-mod-studio-onboarding-seen');
       const tour = storageKey('guidedTourSeen', 'dendry-mod-studio-guided-tour-seen');
-      return storage.getItem(onboarding) !== '1' && storage.getItem(tour) !== '1';
+      const tourSeen = storage.getItem(tour) === '1';
+      // Truly fresh install: neither onboarding nor the tour has been seen.
+      if (storage.getItem(onboarding) !== '1' && !tourSeen) {
+        return true;
+      }
+      // Returning user re-greeted after a minor/major update, not a patch (a
+      // legacy unstamped seen-version is backfilled to the current minor on boot).
+      const seenVersion = storage.getItem(tourVersionKey()) || '';
+      const version = currentVersion();
+      return tourSeen && Boolean(seenVersion) && Boolean(version) &&
+        minorVersionKey(seenVersion) !== minorVersionKey(version);
     } catch (_err) {
       return false;
     }
@@ -811,7 +859,7 @@
 
   function recordSeen() {
     if (state.mode === 'linear') {
-      markSeen(storageKey('guidedTourSeen', 'dendry-mod-studio-guided-tour-seen'));
+      markSeenLinear();
     } else if (state.mode === 'hints' && state.surface) {
       const prefix = storageKey('surfaceHintsSeenPrefix', 'dendry-mod-studio-surface-hints-seen.');
       markSeen(prefix + state.surface);
@@ -1128,7 +1176,17 @@
       return false;
     }
     try {
-      return storage.getItem(storageKey('guidedTourSeen', 'dendry-mod-studio-guided-tour-seen')) === '1';
+      if (storage.getItem(storageKey('guidedTourSeen', 'dendry-mod-studio-guided-tour-seen')) !== '1') {
+        return false;
+      }
+      // Version-aware: a tour seen at an older minor counts as unseen so a
+      // minor/major update re-greets. No stamp / no version info -> seen.
+      const seenVersion = storage.getItem(tourVersionKey()) || '';
+      const version = currentVersion();
+      if (!seenVersion || !version) {
+        return true;
+      }
+      return minorVersionKey(seenVersion) === minorVersionKey(version);
     } catch (_err) {
       return false;
     }
@@ -1136,5 +1194,6 @@
 
   function markSeenLinear() {
     markSeen(storageKey('guidedTourSeen', 'dendry-mod-studio-guided-tour-seen'));
+    stampTourSeenVersion();
   }
 })(typeof window !== 'undefined' ? window : globalThis);
