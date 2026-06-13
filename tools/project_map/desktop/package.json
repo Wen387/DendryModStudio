@@ -54,6 +54,7 @@
       "runtime_lens.js",
       "runtime_session_cleanup.js",
       "runtime_preview_debug_bridge.js",
+      "object_playtest_host.js",
       "update_notice.js",
       "update_manifest.json",
       "package.json",
@@ -93,7 +94,8 @@
         "from": "..",
         "to": "project_map",
         "filter": [
-          "parse_dry_project.js"
+          "parse_dry_project.js",
+          "object_playtest_engine_model.js"
         ]
       },
       {

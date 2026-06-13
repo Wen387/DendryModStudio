@@ -25,11 +25,27 @@ const path = require('path');
 const crypto = require('crypto');
 const url = require('url');
 
-const model = require('../object_playtest_engine_model.js');
+// Resolve project_map-level modules across dev (sibling ../) and packaged
+// (electron-builder maps them under <asar root>/project_map/) layouts, mirroring
+// the candidate-path pattern in studio_core.js.
+function requireProjectMapModule(...relParts) {
+  const candidates = [
+    path.join(__dirname, '..', ...relParts),
+    path.join(__dirname, 'project_map', ...relParts)
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return require(candidate);
+    }
+  }
+  throw new Error('Module not found in desktop resources: ' + relParts.join('/'));
+}
+
+const model = requireProjectMapModule('object_playtest_engine_model.js');
 
 let installPlan = null;
 try {
-  installPlan = require('../authoring/install_plan.js');
+  installPlan = requireProjectMapModule('authoring', 'install_plan.js');
 } catch (err) {
   installPlan = null;
 }
