@@ -1115,46 +1115,37 @@
   overflow: auto;
 }
 
-/* System UI Create entry -- group the six categories under three plain buckets. */
-.template-switch[data-authoring-template-group="system_ui"] {
-  grid-template-columns: 1fr;
-  gap: 8px;
-  text-align: left;
-}
-
-.authoring-bucket-intro {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.8rem;
-  line-height: 1.4;
+/* System UI Create entry -- a single menu-bar row. Inline labels group the
+   templates by source-of-truth layer; the layer blurb lives in the label's
+   hover tooltip so the bar stays as flat as the other template groups. */
+/* Scoped to .is-active: the bare attribute selector would tie with the
+   generic .authoring-template-group:not(.is-active) hide rule and, loading
+   later, un-hide this group inside the other workspaces. */
+.template-switch[data-authoring-template-group="system_ui"].is-active {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px 12px;
 }
 
 .authoring-bucket {
-  display: grid;
-  gap: 5px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px;
 }
 
-.authoring-bucket-head {
-  display: grid;
-  gap: 2px;
-}
-
-.authoring-bucket-title {
-  font-size: 0.72rem;
+.authoring-bucket-label {
+  padding: 0 2px 0 6px;
+  font-size: 0.68rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text);
-}
-
-.authoring-bucket-blurb {
-  font-size: 0.75rem;
-  line-height: 1.35;
   color: var(--muted);
+  cursor: help;
 }
 
-.authoring-bucket-items {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
-  gap: 3px;
+.template-switch[data-authoring-template-group="system_ui"] .template-button {
+  flex: 0 0 auto;
+  padding: 0 10px;
 }

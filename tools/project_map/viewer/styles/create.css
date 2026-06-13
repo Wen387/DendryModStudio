@@ -23,9 +23,14 @@
 }
 
 .create-workspace.is-object-authoring .authoring-workspace-nav {
-  grid-template-columns: minmax(280px, 0.92fr) minmax(320px, 1.08fr);
+  grid-template-columns: minmax(280px, 0.78fr) minmax(360px, 1.22fr);
   align-items: center;
   gap: 6px;
+  /* The nav is a menu bar, not a flexible pane: cap it so wide windows do not
+     stretch the switch and template buttons into long flat bars. */
+  width: 100%;
+  max-width: 960px;
+  justify-self: end;
 }
 
 .create-workspace.is-object-authoring .authoring-workspace-switch,
