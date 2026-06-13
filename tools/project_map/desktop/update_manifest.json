@@ -3,25 +3,48 @@
   "channel": "dev-preview",
   "latestVersion": "0.98.5",
   "minimumRecommendedVersion": "0.98.0",
-  "severity": "warning",
-  "noticeId": "v0.98-preview-announcement-2026-05-25",
-  "title": "Dendry Mod Studio v0.98 — major feature update",
+  "severity": "info",
+  "noticeId": "v0.98.5-preview-announcement-2026-06-13",
+  "title": "Dendry Mod Studio v0.98.5 — Home Hub, in-app publishing, and a steadier editor",
   "titleLocalized": {
-    "en": "Dendry Mod Studio v0.98 — major feature update",
-    "zh-Hant": "Dendry Mod Studio v0.98 — 大型功能更新"
+    "en": "Dendry Mod Studio v0.98.5 — Home Hub, in-app publishing, and a steadier editor",
+    "zh-Hant": "Dendry Mod Studio v0.98.5 — Home Hub、應用內發布，與更穩的編輯器"
   },
-  "body": "v0.98 is a major feature update. Music asset management, Canvas storyboard zoom and card stacking, significantly faster project loading, better performance, and improved complex conditional logic support. Projects edited with older Studio versions may not load correctly — please keep backups.",
+  "body": "v0.98.5 brings a full-screen Home Hub, an illustrated What's New panel, in-app GitHub publishing, dark mode, and an editor that now covers more real authoring workflows, with clearer boundaries. Internal formats may still change between previews — keep backups of real projects.",
   "bodyLocalized": {
-    "en": "v0.98 is a major feature update. Music asset management, Canvas storyboard zoom and card stacking, significantly faster project loading, better performance, and improved complex conditional logic support. Projects edited with older Studio versions may not load correctly — please keep backups.",
-    "zh-Hant": "v0.98 是一次大型功能更新。新增音樂資產管理、Canvas 故事板縮放與卡牌堆疊、大幅提升專案載入速度與整體效能，並改善了對複雜條件判斷的支援。使用舊版 Studio 編輯過的專案可能無法正確載入——請務必保留備份。"
+    "en": "v0.98.5 brings a full-screen Home Hub, an illustrated What's New panel, in-app GitHub publishing, dark mode, and an editor that now covers more real authoring workflows, with clearer boundaries. Internal formats may still change between previews — keep backups of real projects.",
+    "zh-Hant": "v0.98.5 帶來全螢幕 Home Hub、附圖的 What's New 面板、應用內 GitHub 發布、深色模式，以及涵蓋更多真實創作流程、能力邊界也更清楚的編輯器。預覽版之間內部格式仍可能變動——請為正式專案保留備份。"
   },
-  "details": "This is the largest feature update since the initial preview. Key changes:\n\n• Music asset management — browse, preview, and edit set-music directives with audio modifier badges directly in the Object Canvas and Explore gallery.\n\n• Canvas storyboard improvements — 4-level zoom with Level of Detail that keeps cards readable from 10% bird's-eye to full detail, and drag-to-snap card stacking that lets you organize cards like real playing cards on a desk.\n\n• Performance — faster project indexing and rendering, smoother zoom animation, and reduced memory use during canvas editing.\n\n• Complex conditionals — better support for multi-branch routing states, nested conditions, and conditional route editing in the Route Map and Semantic Logic panels.\n\n⚠️ Breaking change: projects that were edited with v0.97.x or earlier may not load correctly in v0.98. Always keep backups of your source files before updating.\n\n⚠️ This is a large feature update and new bugs are expected. If something breaks, please report it — your feedback directly shapes what gets fixed next.\n\nThis is still an unsigned preview build. Please review install plans before applying changes.",
+  "details": "Key changes in v0.98.5:\n\n• Home Hub — a full-screen home page gathering overview, publishing, announcements, templates, recent projects, and an illustrated What's New panel.\n\n• Broader authoring coverage — a navigable conditional tree with a what-if simulator, a directly editable system-UI sidebar, in-place play-test on the real Dendry engine, and five smaller source-only gaps closed.\n\n• Publish to GitHub — publish, update, and sync from inside the Studio, with a management dashboard and safe retry.\n\n• Dark mode & polish — light / dark / auto, large events open roughly 5x faster, default-collapsed sections, empty / loading / error states with retry, and a persistent back control.\n\nThis is still an unsigned preview build. Internal representations may change between versions, so mods edited now are not guaranteed to be forward-compatible. Keep backups and review install plans before applying changes.",
   "detailsLocalized": {
-    "en": "This is the largest feature update since the initial preview. Key changes:\n\n• Music asset management — browse, preview, and edit set-music directives with audio modifier badges directly in the Object Canvas and Explore gallery.\n\n• Canvas storyboard improvements — 4-level zoom with Level of Detail that keeps cards readable from 10% bird's-eye to full detail, and drag-to-snap card stacking that lets you organize cards like real playing cards on a desk.\n\n• Performance — faster project indexing and rendering, smoother zoom animation, and reduced memory use during canvas editing.\n\n• Complex conditionals — better support for multi-branch routing states, nested conditions, and conditional route editing in the Route Map and Semantic Logic panels.\n\n⚠️ Breaking change: projects that were edited with v0.97.x or earlier may not load correctly in v0.98. Always keep backups of your source files before updating.\n\n⚠️ This is a large feature update and new bugs are expected. If something breaks, please report it — your feedback directly shapes what gets fixed next.\n\nThis is still an unsigned preview build. Please review install plans before applying changes.",
-    "zh-Hant": "這是自首次預覽以來最大的功能更新。主要變化：\n\n• 音樂資產管理——在 Object Canvas 和 Explore 素材庫中直接瀏覽、預聽和編輯 set-music 指令，搭配音訊修飾符標記。\n\n• Canvas 故事板改進——4 級縮放搭配自動細節層次，從 10% 鳥瞰圖到完整細節都保持卡牌可讀；拖拽磁吸卡牌堆疊讓你像整理桌上撲克牌一樣組織故事卡牌。\n\n• 效能提升——更快的專案索引與渲染、更流暢的縮放動畫、Canvas 編輯時更低的記憶體佔用。\n\n• 複雜條件判斷——Route Map 和 Semantic Logic 面板對多分支路由狀態、巢狀條件和條件路由編輯有更好的支援。\n\n⚠️ 相容性提醒：使用 v0.97.x 或更早版本編輯過的專案可能無法在 v0.98 中正確載入。更新前請務必保留 source 檔案備份。\n\n⚠️ 這是一次大型功能更新，預期會有新的 Bug 出現。如果發現問題，請回報——你的回饋直接決定下一步修什麼。\n\n這仍是未簽署的預覽版。套用修改前請先檢查 install plan。"
+    "en": "Key changes in v0.98.5:\n\n• Home Hub — a full-screen home page gathering overview, publishing, announcements, templates, recent projects, and an illustrated What's New panel.\n\n• Broader authoring coverage — a navigable conditional tree with a what-if simulator, a directly editable system-UI sidebar, in-place play-test on the real Dendry engine, and five smaller source-only gaps closed.\n\n• Publish to GitHub — publish, update, and sync from inside the Studio, with a management dashboard and safe retry.\n\n• Dark mode & polish — light / dark / auto, large events open roughly 5x faster, default-collapsed sections, empty / loading / error states with retry, and a persistent back control.\n\nThis is still an unsigned preview build. Internal representations may change between versions, so mods edited now are not guaranteed to be forward-compatible. Keep backups and review install plans before applying changes.",
+    "zh-Hant": "v0.98.5 主要變化：\n\n• Home Hub——全螢幕首頁，整合總覽、發布、公告、範本、最近的專案，以及附圖的 What's New 面板。\n\n• 更廣的創作涵蓋面——可導覽的條件樹搭配 what-if 模擬器、可直接編輯的系統 UI 側欄、用真正的 Dendry 引擎原地試玩，並補上五個原本只能回原始碼處理的較小缺口。\n\n• 發布到 GitHub——在 Studio 內完成發布、更新與同步，附管理儀表板與安全重試。\n\n• 深色模式與打磨——亮／暗／自動三段、大型事件開啟速度約快 5 倍、結構區段預設收合、空／載入／錯誤狀態附重試，以及常駐返回鍵。\n\n這仍是未簽署的預覽版。版本之間內部表示可能變動，因此現在編輯的 mod 不保證向前相容。請保留備份，並在套用修改前檢查 install plan。"
   },
   "announcementOnly": true,
   "notices": [
+    {
+      "noticeId": "v0.98.5-update-2026-06-13",
+      "kind": "release",
+      "severity": "info",
+      "title": "v0.98.5 — Home Hub, in-app publishing, dark mode, and a more capable editor",
+      "titleLocalized": {
+        "en": "v0.98.5 — Home Hub, in-app publishing, dark mode, and a more capable editor",
+        "zh-Hant": "v0.98.5 — Home Hub、應用內發布、深色模式，與更有能力的編輯器"
+      },
+      "body": "A full-screen Home Hub with an illustrated What's New panel, publish / update / sync to GitHub from inside the Studio, dark mode, large events about 5x faster, and broader editor coverage of real authoring workflows.",
+      "bodyLocalized": {
+        "en": "A full-screen Home Hub with an illustrated What's New panel, publish / update / sync to GitHub from inside the Studio, dark mode, large events about 5x faster, and broader editor coverage of real authoring workflows.",
+        "zh-Hant": "全螢幕 Home Hub 搭配附圖的 What's New 面板、在 Studio 內發布／更新／同步到 GitHub、深色模式、大型事件開啟約快 5 倍，以及對真實創作流程涵蓋更廣的編輯器。"
+      },
+      "details": "Key changes in v0.98.5:\n\n• Home Hub — a full-screen home page gathering overview, publishing, announcements, templates, recent projects, and an illustrated What's New panel.\n\n• Broader authoring coverage — a navigable conditional tree with a what-if simulator, a directly editable system-UI sidebar, in-place play-test on the real Dendry engine, and five smaller source-only gaps closed.\n\n• Publish to GitHub — publish, update, and sync from inside the Studio, with a management dashboard and safe retry.\n\n• Dark mode & polish — light / dark / auto, large events open roughly 5x faster, default-collapsed sections, empty / loading / error states with retry, and a persistent back control.\n\nThis is still an unsigned preview build. Internal representations may change between versions, so mods edited now are not guaranteed to be forward-compatible. Keep backups and review install plans before applying changes.",
+      "detailsLocalized": {
+        "en": "Key changes in v0.98.5:\n\n• Home Hub — a full-screen home page gathering overview, publishing, announcements, templates, recent projects, and an illustrated What's New panel.\n\n• Broader authoring coverage — a navigable conditional tree with a what-if simulator, a directly editable system-UI sidebar, in-place play-test on the real Dendry engine, and five smaller source-only gaps closed.\n\n• Publish to GitHub — publish, update, and sync from inside the Studio, with a management dashboard and safe retry.\n\n• Dark mode & polish — light / dark / auto, large events open roughly 5x faster, default-collapsed sections, empty / loading / error states with retry, and a persistent back control.\n\nThis is still an unsigned preview build. Internal representations may change between versions, so mods edited now are not guaranteed to be forward-compatible. Keep backups and review install plans before applying changes.",
+        "zh-Hant": "v0.98.5 主要變化：\n\n• Home Hub——全螢幕首頁，整合總覽、發布、公告、範本、最近的專案，以及附圖的 What's New 面板。\n\n• 更廣的創作涵蓋面——可導覽的條件樹搭配 what-if 模擬器、可直接編輯的系統 UI 側欄、用真正的 Dendry 引擎原地試玩，並補上五個原本只能回原始碼處理的較小缺口。\n\n• 發布到 GitHub——在 Studio 內完成發布、更新與同步，附管理儀表板與安全重試。\n\n• 深色模式與打磨——亮／暗／自動三段、大型事件開啟速度約快 5 倍、結構區段預設收合、空／載入／錯誤狀態附重試，以及常駐返回鍵。\n\n這仍是未簽署的預覽版。版本之間內部表示可能變動，因此現在編輯的 mod 不保證向前相容。請保留備份，並在套用修改前檢查 install plan。"
+      },
+      "downloadUrl": "https://github.com/Wen387/DendryModStudio/releases",
+      "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.98.5.md",
+      "publishedAt": "2026-06-13"
+    },
     {
       "noticeId": "v0.98.1-update-2026-05-30",
       "kind": "release",
