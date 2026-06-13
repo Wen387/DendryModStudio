@@ -1,0 +1,249 @@
+{
+  "note": "Baseline ratchet for var / loose-equality in first-party JS. Fail only on NEW additions; clean up and re-run with --update-baseline to tighten. Counts may only fall.",
+  "counts": {
+    "authoring/advisor_controller_model.js": {
+      "var": 0,
+      "looseEq": 1
+    },
+    "authoring/asset_contract_model.js": {
+      "var": 4,
+      "looseEq": 0
+    },
+    "authoring/complex_event_authoring_model.js": {
+      "var": 0,
+      "looseEq": 4
+    },
+    "authoring/content_storyboard_model.js": {
+      "var": 13,
+      "looseEq": 0
+    },
+    "authoring/event_workbench_model.js": {
+      "var": 0,
+      "looseEq": 1
+    },
+    "authoring/existing_scene_condition_diagnostics.js": {
+      "var": 0,
+      "looseEq": 2
+    },
+    "authoring/music_state_model.js": {
+      "var": 50,
+      "looseEq": 0
+    },
+    "authoring/news_draft.js": {
+      "var": 0,
+      "looseEq": 2
+    },
+    "authoring/object_field_presentation_model.js": {
+      "var": 1,
+      "looseEq": 0
+    },
+    "authoring/object_semantic_operations_model.js": {
+      "var": 1,
+      "looseEq": 0
+    },
+    "authoring/predicate_condition_model.js": {
+      "var": 0,
+      "looseEq": 4
+    },
+    "authoring/predicate_runtime_eval.js": {
+      "var": 0,
+      "looseEq": 2
+    },
+    "authoring/route_guided_edit_model.js": {
+      "var": 0,
+      "looseEq": 6
+    },
+    "authoring/route_runtime_semantics_model.js": {
+      "var": 0,
+      "looseEq": 1
+    },
+    "authoring/route_runtime_trial_model.js": {
+      "var": 0,
+      "looseEq": 2
+    },
+    "authoring/route_script_intelligence_model.js": {
+      "var": 0,
+      "looseEq": 4
+    },
+    "authoring/runtime_preview_debug_model.js": {
+      "var": 7,
+      "looseEq": 0
+    },
+    "authoring/variable_editor_draft.js": {
+      "var": 0,
+      "looseEq": 2
+    },
+    "check_authoring_workspace_model.js": {
+      "var": 0,
+      "looseEq": 6
+    },
+    "check_content_storyboard_model.js": {
+      "var": 0,
+      "looseEq": 3
+    },
+    "check_dynamic_semantic_workbench_model.js": {
+      "var": 0,
+      "looseEq": 2
+    },
+    "check_election_results_model.js": {
+      "var": 6,
+      "looseEq": 0
+    },
+    "check_existing_scene_edit_model.js": {
+      "var": 0,
+      "looseEq": 25
+    },
+    "check_existing_scene_helpers_model.js": {
+      "var": 0,
+      "looseEq": 1
+    },
+    "check_guided_route_edit_model.js": {
+      "var": 0,
+      "looseEq": 2
+    },
+    "check_large_event_pressure_model.js": {
+      "var": 0,
+      "looseEq": 4
+    },
+    "check_news_wizard_model.js": {
+      "var": 1,
+      "looseEq": 2
+    },
+    "check_object_authoring_canvas_model.js": {
+      "var": 0,
+      "looseEq": 2
+    },
+    "check_object_editor_condition_builder.js": {
+      "var": 0,
+      "looseEq": 8
+    },
+    "check_object_editor_inserts.js": {
+      "var": 1,
+      "looseEq": 0
+    },
+    "check_object_playtest_engine_model.js": {
+      "var": 1,
+      "looseEq": 0
+    },
+    "check_predicate_runtime_eval_model.js": {
+      "var": 0,
+      "looseEq": 4
+    },
+    "check_route_semantics_audit_model.js": {
+      "var": 0,
+      "looseEq": 2
+    },
+    "check_route_state_model.js": {
+      "var": 0,
+      "looseEq": 2
+    },
+    "check_route_understanding_model.js": {
+      "var": 0,
+      "looseEq": 3
+    },
+    "check_runtime_lens_model.js": {
+      "var": 1,
+      "looseEq": 0
+    },
+    "check_runtime_lens_ui_model.js": {
+      "var": 0,
+      "looseEq": 2
+    },
+    "check_semantic_ownership_graph_model.js": {
+      "var": 0,
+      "looseEq": 2
+    },
+    "check_source_hygiene.js": {
+      "var": 0,
+      "looseEq": 6
+    },
+    "desktop/main.js": {
+      "var": 24,
+      "looseEq": 0
+    },
+    "desktop/runtime_lens.js": {
+      "var": 29,
+      "looseEq": 0
+    },
+    "desktop/runtime_preview.js": {
+      "var": 17,
+      "looseEq": 1
+    },
+    "desktop/runtime_preview_debug_bridge.js": {
+      "var": 177,
+      "looseEq": 0
+    },
+    "desktop/studio_core.js": {
+      "var": 1,
+      "looseEq": 0
+    },
+    "desktop/template_catalog.js": {
+      "var": 98,
+      "looseEq": 0
+    },
+    "viewer/content_storyboard_interactions.js": {
+      "var": 31,
+      "looseEq": 0
+    },
+    "viewer/desktop_capabilities.js": {
+      "var": 14,
+      "looseEq": 0
+    },
+    "viewer/draft_workspace_ui.js": {
+      "var": 2,
+      "looseEq": 0
+    },
+    "viewer/explore_lists.js": {
+      "var": 1,
+      "looseEq": 0
+    },
+    "viewer/object_authoring_canvas_ui.js": {
+      "var": 8,
+      "looseEq": 0
+    },
+    "viewer/object_canvas_viewport.js": {
+      "var": 3,
+      "looseEq": 0
+    },
+    "viewer/object_editor_condition_builder.js": {
+      "var": 0,
+      "looseEq": 6
+    },
+    "viewer/object_playtest_audio_model.js": {
+      "var": 18,
+      "looseEq": 0
+    },
+    "viewer/preview_asset_editor.js": {
+      "var": 22,
+      "looseEq": 0
+    },
+    "viewer/preview_object_editor.js": {
+      "var": 14,
+      "looseEq": 2
+    },
+    "viewer/preview_object_structure_ui.js": {
+      "var": 5,
+      "looseEq": 0
+    },
+    "viewer/shell_navigation.js": {
+      "var": 1,
+      "looseEq": 0
+    },
+    "viewer/storyboard_card_renderer.js": {
+      "var": 21,
+      "looseEq": 0
+    },
+    "viewer/storyboard_workspace_state.js": {
+      "var": 20,
+      "looseEq": 0
+    },
+    "viewer/tutorial_library_ui.js": {
+      "var": 1,
+      "looseEq": 0
+    },
+    "viewer/welcome_surface_ui.js": {
+      "var": 55,
+      "looseEq": 0
+    }
+  }
+}
