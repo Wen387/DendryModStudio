@@ -175,6 +175,21 @@
     ].join('');
   }
 
+  // Coerce a starting-state input the way the play-test engine's setter expects:
+  // booleans for flags (true/false), numbers for numeric qualities, any other
+  // text passed through (e.g. a quality name). Replaces the old Number()-only
+  // path that silently turned every flag or reference into 0.
+  function parsePlayVarValue(raw) {
+    const text = String(raw == null ? '' : raw).trim();
+    if (/^(true|false)$/i.test(text)) {
+      return text.toLowerCase() === 'true';
+    }
+    if (/^[-+]?\d+(?:\.\d+)?$/.test(text)) {
+      return Number(text);
+    }
+    return text;
+  }
+
   function renderStatePanel(variables, startState) {
     const names = Array.isArray(variables) ? variables : [];
     if (!names.length) {
@@ -191,7 +206,7 @@
         return [
           '<label class="object-editing-play-var">',
           '<span>Q.' + escapeHtml(name) + '</span>',
-          '<input type="number" step="1" value="' + escapeAttr(String(val)) + '" data-play-var="' + escapeAttr(name) + '" aria-label="' + escapeAttr('Q.' + name) + '">',
+          '<input type="text" value="' + escapeAttr(String(val)) + '" data-play-var="' + escapeAttr(name) + '" aria-label="' + escapeAttr('Q.' + name) + '" title="' + escapeAttr(t('playSim.varInputHint', 'Number, true/false, or a quality name')) + '">',
           '</label>'
         ].join('');
       }).join(''),
@@ -1096,8 +1111,7 @@
       return false;
     }
     const sess = ensureSession(depEntryScene(deps));
-    const num = Number(varInput.value);
-    sess.startState[name] = Number.isFinite(num) ? num : 0;
+    sess.startState[name] = parsePlayVarValue(varInput.value);
     startSession(deps, container, true);
     return true;
   }

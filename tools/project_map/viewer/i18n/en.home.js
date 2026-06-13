@@ -81,6 +81,7 @@
       // is at its line ceiling. Keys keep their own namespace prefix; the catalog
       // merge is flat so the call sites resolve them normally.
       'playSim.ready': 'Ready — pick a scene to begin.',
+      'playSim.varInputHint': 'Number, true/false, or a quality name',
       'storyboard.empty.title': 'No events on the storyboard yet',
       'storyboard.empty.hint': 'Add a story event from the palette, or load a project with dated events to see them here.',
       'cardBoard.empty.board': 'No cards yet — open a project with card objects to see them here.',

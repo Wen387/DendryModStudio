@@ -80,6 +80,7 @@
       // 已達行數上限，所以暫存在這個不計入預算的拆分目錄裡。鍵名仍保留各自的
       // 命名空間前綴；目錄合併是平面的，呼叫端能照常解析。
       'playSim.ready': '準備就緒——挑一個場景開始。',
+      'playSim.varInputHint': '數字、true/false，或一個變數名',
       'storyboard.empty.title': '故事板上還沒有任何事件',
       'storyboard.empty.hint': '從調色盤新增一個故事事件，或載入帶有日期事件的專案，它們就會出現在這裡。',
       'cardBoard.empty.board': '還沒有任何卡牌——開啟一個含有卡牌物件的專案就會顯示在這裡。',

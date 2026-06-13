@@ -69,6 +69,8 @@ function main() {
 
   // Starting-state inputs + reset.
   assert(/data-play-var="demo_resources"/.test(html), 'starting-state should expose a quality input');
+  assert(/<input type="text"[^>]*data-play-var="demo_resources"/.test(html),
+    'starting-state quality input should accept text (numbers, true/false, or a name), not be number-locked');
   assert(/data-play-action="engine-restart"/.test(html), 'the panel should expose an engine restart/reset control');
 
   // Re-roll: a controls row exposes a fresh-randomness restart. Because deck/card
