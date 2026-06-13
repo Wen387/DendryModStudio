@@ -30,14 +30,14 @@
       {
         version: '0.98.5',
         items: [
-          {icon: 'map', titleKey: 'home.whatsnew.v0981.home.title', bodyKey: 'home.whatsnew.v0981.home.body', image: 'assets/whatsnew/0.98.5/home-hub.png', imageAltKey: 'home.whatsnew.v0981.home.alt'},
-          {icon: 'book', titleKey: 'home.whatsnew.v0981.tour.title', bodyKey: 'home.whatsnew.v0981.tour.body', image: 'assets/whatsnew/0.98.5/tour-fairy.png', imageAltKey: 'home.whatsnew.v0981.tour.alt'},
-          {icon: 'save', titleKey: 'home.whatsnew.v0981.publish.title', bodyKey: 'home.whatsnew.v0981.publish.body'},
-          {icon: 'play', titleKey: 'home.whatsnew.v0981.playtest.title', bodyKey: 'home.whatsnew.v0981.playtest.body', image: 'assets/whatsnew/0.98.5/playtest.png', imageAltKey: 'home.whatsnew.v0981.playtest.alt'},
-          {icon: 'edit', titleKey: 'home.whatsnew.v0981.editor.title', bodyKey: 'home.whatsnew.v0981.editor.body'},
-          {icon: 'settings', titleKey: 'home.whatsnew.v0981.darkmode.title', bodyKey: 'home.whatsnew.v0981.darkmode.body', image: 'assets/whatsnew/0.98.5/dark-mode.png', imageAltKey: 'home.whatsnew.v0981.darkmode.alt'},
-          {icon: 'text', titleKey: 'home.whatsnew.v0981.systemui.title', bodyKey: 'home.whatsnew.v0981.systemui.body'},
-          {icon: 'spark', titleKey: 'home.whatsnew.v0981.polish.title', bodyKey: 'home.whatsnew.v0981.polish.body'}
+          {icon: 'map', titleKey: 'home.whatsnew.v0985.home.title', bodyKey: 'home.whatsnew.v0985.home.body', image: 'assets/whatsnew/0.98.5/home-hub.png', imageAltKey: 'home.whatsnew.v0985.home.alt'},
+          {icon: 'book', titleKey: 'home.whatsnew.v0985.tour.title', bodyKey: 'home.whatsnew.v0985.tour.body', image: 'assets/whatsnew/0.98.5/tour-fairy.png', imageAltKey: 'home.whatsnew.v0985.tour.alt'},
+          {icon: 'save', titleKey: 'home.whatsnew.v0985.publish.title', bodyKey: 'home.whatsnew.v0985.publish.body'},
+          {icon: 'play', titleKey: 'home.whatsnew.v0985.playtest.title', bodyKey: 'home.whatsnew.v0985.playtest.body', image: 'assets/whatsnew/0.98.5/playtest.png', imageAltKey: 'home.whatsnew.v0985.playtest.alt'},
+          {icon: 'edit', titleKey: 'home.whatsnew.v0985.editor.title', bodyKey: 'home.whatsnew.v0985.editor.body'},
+          {icon: 'settings', titleKey: 'home.whatsnew.v0985.darkmode.title', bodyKey: 'home.whatsnew.v0985.darkmode.body', image: 'assets/whatsnew/0.98.5/dark-mode.png', imageAltKey: 'home.whatsnew.v0985.darkmode.alt'},
+          {icon: 'text', titleKey: 'home.whatsnew.v0985.systemui.title', bodyKey: 'home.whatsnew.v0985.systemui.body'},
+          {icon: 'spark', titleKey: 'home.whatsnew.v0985.polish.title', bodyKey: 'home.whatsnew.v0985.polish.body'}
         ]
       }
     ]

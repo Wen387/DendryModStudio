@@ -29,35 +29,60 @@ must be rebuilt and retested before sharing.
 
 ## What Changed Since v0.98.1
 
-<!-- DRAFT: the items below are placeholders summarizing the broad themes of the
-accumulated work. Replace each with finalized, verified release copy before
-publishing. Do not ship this section as-is. -->
+### Home Hub
 
-### Home Hub — TODO
+The welcome popup has been replaced by a persistent, full-screen Home Hub.
+Overview, publishing, announcements, templates, and a What's New reading
+panel share a single scrolling page; recent projects reopen with one click;
+and the wordmark in the top-left corner returns you here from anywhere in
+the tool. The first-run guided tour and its hands-on task now launch from
+the Home Hub, giving newcomers one clear starting point.
 
-A full-screen Home dashboard now unifies Studio status, announcements,
-templates, publish, and a "What's New" reading panel. _(TODO: finalize copy.)_
+### What's New panel and version introduction
 
-### What's New panel and version ceremony — TODO
+A dedicated What's New panel presents each release as an illustrated
+walkthrough — one block per feature, with screenshots — in place of a dense
+changelog. The first launch after a version update plays a short visual
+introduction before the panel opens automatically; you can reopen it any
+time from the Home Hub.
 
-A dedicated What's New reading panel and an opening ceremony that plays once per
-version update. _(TODO: finalize copy.)_
+### Authoring coverage at text-editor parity
 
-### Authoring coverage at text-editor parity — TODO
+The editor now handles the real authoring workflows I identified by auditing
+production mods, closing the gap with hand-editing the source. Three changes
+are structural: nested inline conditionals render as a navigable layered
+tree, with a what-if simulator that resolves which branches a given state
+would reach; the system-UI sidebar is now a directly editable surface whose
+changes apply precisely to the underlying template; and you can play-test an
+event in place using the real Dendry engine — scene art and music included,
+startable from any upstream scene, re-rollable with a different seed.
 
-The editor now covers the real authoring workflows audited on production mods
-(system-UI sidebar apply, over-cap magic blocks, qdisplay, deferred branches,
-card "Create Similar"). _(TODO: finalize copy.)_
+A second group of additions closes smaller gaps that previously required
+switching to the source file: over-cap magic blocks, qdisplay insertion,
+asset replacement, long-event search, and a "Create Similar" action on
+cards.
 
-### UI/UX baseline and density pass — TODO
+### UI/UX baseline
 
-A broad UI/UX pass: density tightening, default-collapsed structural sections,
-empty/loading/error states with retry, display purification, and dark-mode
-token adaptation. _(TODO: finalize copy.)_
+A broad pass across the full interface. Dark mode ships with three settings —
+light, dark, and auto. The dark theme applies a warm charcoal palette to the
+Studio shell; the content preview deliberately keeps its paper-toned
+appearance so it stays true to the published look. Performance: large events
+open roughly 5x faster than before. Throughout, the interface is tighter and
+more predictable: structural sections collapse by default, empty / loading /
+error states include retry affordances, duplicate signals have been removed,
+and a persistent back control sits in the top bar.
 
 ## Known Limitations
 
-- This is still an unsigned preview build. Please keep backups of real
-  projects, review install plans before applying changes, and report any
+- In-place play-test runs the real engine over your current edits, but it
+  does not replace a full build: when you start mid-route, state from
+  skipped upstream scenes is approximated, not replayed. Treat play-test
+  results as directional, not authoritative.
+- This is still an unsigned developer preview. Keep backups of real
+  projects, review the install plan before applying changes, and report
   confusing editor behavior or broken preview output.
-- _(TODO: confirm the limitations list for v0.98.5 before publishing.)_
+- The release workflow produces Windows and Linux builds only; on macOS,
+  run Studio from source.
+- Dark mode restyles the Studio shell only. The content preview keeps your
+  mod's own look and does not follow the dark theme.
