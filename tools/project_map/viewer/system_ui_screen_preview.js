@@ -367,7 +367,13 @@
     const route = slot && slot.route || {};
     const actionAttrs = slot && slot.actionKind === 'open_content_scene'
       ? ' data-object-canvas-action="open_system_content_scene" data-system-ui-content-scene-id="' + escapeAttr(route.sceneId || '') + '" data-system-ui-content-section-id="' + escapeAttr(route.sectionId || '') + '"'
-      : '';
+      // The header shows the game's title + author — real game metadata, not a
+      // scene field. Open the Game Info editor directly (like scene slots open
+      // the content editor); the inline identity_title task could only ever
+      // resolve a scene-title fallback, never the actual game metadata.
+      : key === 'screen_header'
+        ? ' data-object-canvas-action="open_project_metadata"'
+        : '';
     return '<button type="button" class="' + className + '" data-object-canvas-graph-node="ui:' + escapeAttr(key) + '"' + actionAttrs + ' data-system-ui-visible-slot="' + escapeAttr(slot && slot.id || '') + '" data-system-ui-slot-screen="' + escapeAttr(slot && slot.screen || '') + '" data-system-ui-slot-action="' + escapeAttr(slot && slot.actionKind || '') + '" data-system-ui-source-state="' + escapeAttr(slot && slot.sourceState || '') + '" data-system-ui-region="' + escapeAttr(key) + '" data-system-screen-region="' + escapeAttr(key) + '" data-system-screen-family="' + escapeAttr(region.family || '') + '" data-system-screen-owner-template="' + escapeAttr(owner) + '" data-system-ui-runtime-state="' + escapeAttr(capability.runtimeEvidenceState || '') + '" data-system-ui-install-safety="' + escapeAttr(capability.installSafety || '') + '" aria-pressed="' + (selected ? 'true' : 'false') + '">' + inner + '</button>';
   }
 

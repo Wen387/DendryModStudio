@@ -3678,6 +3678,10 @@
       global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
       openSystemContentScene(target);
       return;
+    } else if (action === 'open_project_metadata') {
+      global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
+      openProjectMetadataEditor();
+      return;
     } else if (action === 'sidebar_delete_category') {
       global.__DMS_LAST_OBJECT_CANVAS_ACTION__ = action;
       prepareSidebarCategoryDelete(target);
@@ -3773,6 +3777,18 @@
       focusDraftField(focusFieldId);
     }
     return true;
+  }
+
+  // The System UI header shows the game's title + author — real game metadata,
+  // not a scene field. Route a header click to the Game Info editor (the
+  // screen_header region's declared owner template = project), which edits
+  // gameTitle/author/ifid as proper fields. openTemplate sets the status and
+  // shows the workspace itself, so this just opens it with the current draft.
+  function openProjectMetadataEditor() {
+    return openTemplate('project', safeDefaultDraftForTemplate('project'), {
+      source: 'system_ui_game_identity',
+      actionKind: 'open_project_metadata'
+    });
   }
 
   function prepareSidebarCategoryDelete(target) {
