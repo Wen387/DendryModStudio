@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "channel": "dev-preview",
-  "latestVersion": "0.98.1",
+  "latestVersion": "0.98.5",
   "minimumRecommendedVersion": "0.98.0",
   "severity": "warning",
   "noticeId": "v0.98-preview-announcement-2026-05-25",
@@ -195,6 +195,6 @@
     }
   ],
   "downloadUrl": "https://github.com/Wen387/DendryModStudio/releases",
-  "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.98.1.md",
+  "releaseNotesUrl": "https://raw.githubusercontent.com/Wen387/DendryModStudio/main/tools/project_map/RELEASE_NOTES_v0.98.5.md",
   "publishedAt": "2026-05-25"
 }
