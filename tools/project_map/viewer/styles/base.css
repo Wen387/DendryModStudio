@@ -14,10 +14,18 @@
   --surface: var(--studio-surface);
   --surface-alt: var(--studio-surface-alt);
   --border: var(--studio-border);
+  /* Softer hairline for inner dividers (panel header/footer rules, What's New
+     block separators). The dark theme + paper block define this; the light
+     root had omitted it, so every var(--border-soft) silently fell back to an
+     invalid border in light mode until now. */
+  --border-soft: var(--studio-border-soft);
   --text: var(--studio-ink);
   --muted: var(--studio-muted);
   --accent: var(--studio-accent);
   --accent-strong: var(--studio-accent-strong);
+  /* Soft accent fill for chips/badges (e.g. release-band link, publish "ahead"
+     badge); resolves to the dark variant via the dark --studio-accent-soft. */
+  --accent-soft: var(--studio-accent-soft);
   --danger: #b42318;
   --warn: #9a5b00;
   --info: #315d98;
@@ -109,7 +117,8 @@
   /* Wire the semantic soft-border alias only on dark: ~179 `var(--border-soft)`
      borders are invalid-at-computed-value-time (invisible) in the shipped
      light theme, so defining it here adds gentle panel separation on the dark
-     surface without touching the light look. (`--accent-soft` is unused.) */
+     surface without touching the light look. (`--accent-soft` IS aliased at
+     :root — chips/badges use it in both themes.) */
   --border-soft: var(--studio-border-soft);
   --studio-ink: #ece7db;
   --studio-muted: #a59c87;
