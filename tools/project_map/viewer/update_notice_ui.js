@@ -168,6 +168,10 @@
     boardOpen: false,
     boardDocked: false,
     boardHomeParent: null,
+    // A dock requested before start() wired state.elements (home_ui.js mounts
+    // its sections from an earlier-firing DOMContentLoaded handler); start()
+    // completes it once the element refs exist.
+    pendingDockContainer: null,
     activeCategory: 'updates',
     categoryTouched: false,
     detailNotice: null
@@ -314,6 +318,12 @@
       renderBoard();
       renderNoticeDetail();
     });
+    // Complete a dock requested before this module initialized (see mountBoard).
+    if (state.pendingDockContainer) {
+      const pending = state.pendingDockContainer;
+      state.pendingDockContainer = null;
+      mountBoard(pending, {skipCheck: true});
+    }
     checkForNotice(false);
   }
 
@@ -482,8 +492,17 @@
   // #announcement-board node and swapping its modal chrome for an inline region
   // (mirrors ProjectMapWelcomeSurface.dock/undock). The board's wired listeners
   // move with the node, so tabs / refresh / mark-read keep working inline.
-  function mountBoard(container) {
-    if (!state.elements || !state.elements.board || !container) {
+  function mountBoard(container, opts) {
+    if (!container) {
+      return false;
+    }
+    // home_ui.js mounts its sections from a DOMContentLoaded handler that runs
+    // before this module's start() (it loads earlier in index.html), so the
+    // first dock can arrive before state.elements is wired. Stash it and let
+    // start() finish — otherwise the 公告 section stays empty until a later
+    // click/scroll redock, which is the "won't auto-load" bug.
+    if (!state.elements || !state.elements.board) {
+      state.pendingDockContainer = container;
       return false;
     }
     const board = state.elements.board;
@@ -499,7 +518,10 @@
       container.appendChild(board);
     }
     renderBoard();
-    if (!state.lastResult) {
+    // skipCheck = the dock was completed from start(), whose own quiet launch
+    // check (checkForNotice(false)) will populate the board; a manual check
+    // here would pop a spurious "no update right now" banner on launch.
+    if (!state.lastResult && !(opts && opts.skipCheck)) {
       checkForNotice(true);
     }
     return true;

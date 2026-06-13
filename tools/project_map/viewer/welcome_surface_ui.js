@@ -281,6 +281,11 @@
   }
 
   function start(document) {
+    // Idempotent: dockCatalog may boot us on demand before our own
+    // DOMContentLoaded callback fires, and double-wiring events is not safe.
+    if (state.elements && state.elements.dialog) {
+      return;
+    }
     ensureWelcomeMarkup(document);
     state.elements = {
       dialog: document.getElementById('studio-welcome'),
@@ -717,10 +722,26 @@
   // undockCatalog() in openDialog, then the Home 模板 section re-docks it after the
   // modal closes (on the welcomeDismissed event).
   function dockCatalog(container) {
+    // Home mounts its 模板 section at boot, which can land BEFORE this module's
+    // own DOMContentLoaded callback has built the welcome elements (script
+    // order puts us after home_ui). Build them on demand so the first dock
+    // does not silently fail and leave the section empty.
+    if (!state.elements || !state.elements.catalogSection) {
+      start(global.document);
+    }
     if (!state.elements || !state.elements.catalogSection || !container) {
       return false;
     }
     const section = state.elements.catalogSection;
+    // Already living in this container WITH rendered cards: nothing to move,
+    // nothing to reload. (The one-page Home's scrollspy re-pings dock on every
+    // pass-by; without this short-circuit the catalog visibly re-fetches while
+    // scrolling.) A hidden or empty catalog falls through on purpose — if the
+    // boot-time populate lost a race, the next ping becomes the recovery path.
+    if (state.catalogDocked && section.parentNode === container &&
+        !section.hidden && section.querySelector('.welcome-catalog-card')) {
+      return true;
+    }
     if (!state.catalogHomeParent) {
       state.catalogHomeParent = section.parentNode;
       state.catalogHomeNext = section.nextSibling;
