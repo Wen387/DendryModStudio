@@ -152,7 +152,7 @@
         "en": "Screenshots are very helpful for layout or preview problems. For editing bugs, source paths and the generated install plan are even better because they make the issue reproducible.",
         "zh-Hant": "如果是版面或預覽問題，截圖很有幫助。如果是編輯錯誤，source 路徑和生成的 install plan 更有價值，因為它們能讓問題被重現。"
       },
-      "actionUrl": "https://github.com/Wen387/DendryModStudio/issues/new?title=%5Bv0.98%20Playtest%5D%20",
+      "actionUrl": "https://github.com/Wen387/DendryModStudio/issues/new?title=%5Bv0.98.5%20Playtest%5D%20",
       "actionLabel": "Share playtest feedback",
       "actionLabelLocalized": {
         "en": "Share playtest feedback",
@@ -180,7 +180,7 @@
         "en": "A good bug report includes your operating system, Studio version, whether you used browser or desktop mode, the project or mod name, the exact action, and any diagnostics or error text shown by Studio.",
         "zh-Hant": "好的問題回報會包含：作業系統、Studio 版本、使用瀏覽器或桌面模式、專案或 Mod 名稱、實際操作步驟，以及 Studio 顯示的診斷或錯誤文字。"
       },
-      "actionUrl": "https://github.com/Wen387/DendryModStudio/issues/new?title=%5Bv0.98%20Bug%5D%20",
+      "actionUrl": "https://github.com/Wen387/DendryModStudio/issues/new?title=%5Bv0.98.5%20Bug%5D%20",
       "actionLabel": "Report issue",
       "actionLabelLocalized": {
         "en": "Report issue",
