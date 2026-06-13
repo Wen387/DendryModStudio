@@ -20,17 +20,24 @@
   // targetId  — id of the existing control the launcher delegates to
   // desktopOnly — section depends on the desktop bridge (gated like its menu peer)
   // note      — render an informational card with no launch button
+  // Order = the one-page reading order, top to bottom: overview first, then the
+  // ambient reading sections, with the action-shaped publish flow as the page's
+  // closing block.
   const SECTIONS = [
     {
       key: 'overview',
       icon: 'map'
     },
     {
-      key: 'publish',
-      icon: 'save',
-      leadKey: 'home.publish.lead',
-      ctaKey: 'home.publish.cta',
-      targetId: 'studio-open-publish',
+      key: 'whatsnew',
+      icon: 'spark'
+    },
+    {
+      key: 'templates',
+      icon: 'book',
+      leadKey: 'home.templates.lead',
+      ctaKey: 'home.templates.cta',
+      targetId: 'studio-open-template-hub',
       desktopOnly: true
     },
     {
@@ -42,16 +49,12 @@
       desktopOnly: true
     },
     {
-      key: 'templates',
-      icon: 'book',
-      leadKey: 'home.templates.lead',
-      ctaKey: 'home.templates.cta',
-      targetId: 'studio-open-template-hub',
+      key: 'publish',
+      icon: 'save',
+      leadKey: 'home.publish.lead',
+      ctaKey: 'home.publish.cta',
+      targetId: 'studio-open-publish',
       desktopOnly: true
-    },
-    {
-      key: 'whatsnew',
-      icon: 'spark'
     }
   ];
 
@@ -222,7 +225,14 @@
     renderReleaseBand();
   }
 
+  // Opening goes to the reading panel (which stamps the seen version itself
+  // and announces it via the whats-new-seen event); only if the panel module
+  // is somehow absent do we fall back to scrolling to the digest section.
   function openWhatsNew() {
+    const panel = global && global.ProjectMapWhatsNewPanel;
+    if (panel && typeof panel.open === 'function' && panel.open()) {
+      return;
+    }
     markWhatsNewSeen();
     const homeUi = global && global.ProjectMapHomeUi;
     if (homeUi && typeof homeUi.setSection === 'function') {
@@ -275,12 +285,6 @@
       return;
     }
     overview.panel = container;
-    // Both faces carry their own heading, so the generic section <h2> the shell
-    // builds is redundant here.
-    const heading = container.querySelector('h2');
-    if (heading) {
-      heading.classList.add('hidden');
-    }
     // The release band host is appended first so it sits ABOVE the two faces.
     if (!container.querySelector('.home-release-band')) {
       const band = document.createElement('div');
@@ -323,6 +327,12 @@
     document.addEventListener(
       eventName('welcomeDismissed', 'ProjectMap:welcome-dismissed'),
       () => renderOverview()
+    );
+    // The reading panel stamps the seen version when it opens (including the
+    // once-per-update auto-open) — flip the band to its quiet link in step.
+    document.addEventListener(
+      eventName('whatsNewSeen', 'ProjectMap:whats-new-seen'),
+      () => renderReleaseBand()
     );
   }
 
@@ -396,15 +406,40 @@
   function renderOnboardingFace(host) {
     host.classList.remove('is-dashboard');
     host.classList.add('is-onboarding');
-    // Drop any dashboard markup, but keep the welcome node if it is already here.
+    // Drop any dashboard markup, but keep the welcome node and the recent-
+    // projects slot if they are already here.
     Array.from(host.children).forEach((child) => {
-      if (child.id !== 'studio-welcome') {
+      if (child.id !== 'studio-welcome' &&
+          !(child.classList && child.classList.contains('home-recent-slot'))) {
         child.remove();
       }
     });
+    // Returning user without a project: the fastest way back to work sits
+    // ABOVE the onboarding content.
+    renderRecentSlot(host, {prepend: true});
     const welcome = welcomeSurface();
     if (welcome && typeof welcome.dock === 'function') {
       welcome.dock(host);
+    }
+  }
+
+  // Ensure a .home-recent-slot exists in the host and hand it to the
+  // recent-projects module (which renders nothing in a browser or when the
+  // history is empty — the slot collapses via CSS :empty).
+  function renderRecentSlot(host, opts) {
+    let slot = host.querySelector('.home-recent-slot');
+    if (!slot) {
+      slot = document.createElement('div');
+      slot.className = 'home-recent-slot';
+      if (opts && opts.prepend && host.firstChild) {
+        host.insertBefore(slot, host.firstChild);
+      } else {
+        host.appendChild(slot);
+      }
+    }
+    const recent = global && global.ProjectMapHomeRecentProjects;
+    if (recent && typeof recent.render === 'function') {
+      recent.render(slot);
     }
   }
 
@@ -453,7 +488,13 @@
     // dashboard face skips its own "welcome back" header and leads straight with
     // the publish / announcement cards (no double greeting, no repeated name).
     return [
+      // A small label keeps these launcher cards from reading as the "new
+      // features" the release band above announces — they are standing entry
+      // points, not release content.
+      '<h3 class="home-dash-cards-label" data-i18n="home.dash.quickActions">Quick actions</h3>',
       '<div class="home-dash-cards">' + dashboardCardsMarkup() + '</div>',
+      // Other recently opened projects — switch without the folder picker.
+      '<div class="home-recent-slot"></div>',
       // Secondary "learning" entries, grouped as a footer row so both read as a
       // pair and stay easy to spot. The first re-opens the getting-started guide
       // (welcome surface); the second clicks the shared Tutorial Library opener
@@ -492,6 +533,7 @@
         }
       });
     }
+    renderRecentSlot(host, {prepend: false});
     renderPublishStatus(host);
   }
 
@@ -587,21 +629,15 @@
   }
 
   // ---- What's New section ----
-  // The dedicated "新功能" tab. Always available (no desktop gating, no version
-  // gating) so the user can revisit the current release's highlights any time.
-  // Content comes from the bundled whats_new_data.js (latest release) and is
-  // rendered as note-style cards (icon + title + body, no button), mirroring the
-  // welcome surface's action-card shape.
+  // The "新功能" block on the one-page Home is a slim DIGEST: version stamp,
+  // lead line, feature TITLES only, and a "see the full introduction" button.
+  // The full release introduction (bodies + optional screenshots) lives in the
+  // reading panel (whats_new_panel.js) so images and long prose never disturb
+  // the page's scroll rhythm. Always available — no desktop or version gating.
 
   function mountWhatsNew(container) {
     if (!container || !document) {
       return;
-    }
-    // The section renders its own version-stamped header, so the generic <h2>
-    // the shell builds is redundant.
-    const heading = container.querySelector('h2');
-    if (heading) {
-      heading.classList.add('hidden');
     }
     if (!container.querySelector('.home-whatsnew')) {
       const host = document.createElement('div');
@@ -630,20 +666,22 @@
     const release = dataLoaded ? data.latestRelease() : null;
     const items = release && Array.isArray(release.items) ? release.items : [];
     const versionLabel = release && release.version ? 'v' + release.version : '';
+    // The shell's section band already names this block, so the local header
+    // carries only the version stamp beside the lead line.
     const parts = [
-      '<header class="home-whatsnew-header">',
-      '<h2 class="home-whatsnew-title" data-i18n="home.whatsnew.title">What\'s new</h2>',
       versionLabel
-        ? '<span class="home-whatsnew-version">' + escapeHtml(versionLabel) + '</span>'
+        ? '<header class="home-whatsnew-header">' +
+          '<span class="home-whatsnew-version">' + escapeHtml(versionLabel) + '</span>' +
+          '</header>'
         : '',
-      '</header>',
       '<p class="home-whatsnew-lead" data-i18n="home.whatsnew.lead"></p>'
     ];
     if (items.length) {
       parts.push(
         '<ul class="home-whatsnew-list">' +
         items.map(whatsNewItemMarkup).join('') +
-        '</ul>'
+        '</ul>',
+        '<button type="button" class="home-whatsnew-cta" data-whatsnew-open="true" data-i18n="home.whatsnew.digest.cta">See the full introduction</button>'
       );
     } else if (!dataLoaded) {
       // Data-absent: release notes module not ready (or unavailable). Distinct
@@ -657,20 +695,21 @@
       );
     }
     host.innerHTML = parts.join('');
+    host.querySelectorAll('[data-whatsnew-open]').forEach((el) => {
+      el.addEventListener('click', () => openWhatsNew());
+    });
     localizeAndDecorate(host);
   }
 
+  // Digest rows carry the icon and TITLE only — the body copy belongs to the
+  // reading panel, keeping this section's height steady on the one-page Home.
   function whatsNewItemMarkup(item) {
     const icon = item && item.icon ? item.icon : 'spark';
     const titleKey = item && item.titleKey ? item.titleKey : '';
-    const bodyKey = item && item.bodyKey ? item.bodyKey : '';
     return [
       '<li class="home-whatsnew-item">',
       '<span class="home-whatsnew-icon" data-ui-icon="' + escapeHtml(icon) + '" aria-hidden="true"></span>',
-      '<div class="home-whatsnew-text">',
       '<h3 class="home-whatsnew-item-title" data-i18n="' + escapeHtml(titleKey) + '"></h3>',
-      '<p class="home-whatsnew-item-body" data-i18n="' + escapeHtml(bodyKey) + '"></p>',
-      '</div>',
       '</li>'
     ].join('');
   }
@@ -690,11 +729,6 @@
       mountSection(cfg, container);
       return;
     }
-    // The board carries its own header, so the generic section <h2> is redundant.
-    const heading = container && container.querySelector('h2');
-    if (heading) {
-      heading.classList.add('hidden');
-    }
     announce.container = container;
     notice.mountBoard(container);
     bindAnnouncementsRedock();
@@ -706,10 +740,6 @@
         typeof notice.unmountBoard === 'function') {
       notice.unmountBoard();
     }
-    const heading = container && container.querySelector('h2');
-    if (heading) {
-      heading.classList.remove('hidden');
-    }
   }
 
   function bindAnnouncementsRedock() {
@@ -719,9 +749,15 @@
     announce.bound = true;
     const redock = () => {
       const notice = updateNotice();
-      if (notice && typeof notice.mountBoard === 'function' && announce.container) {
-        notice.mountBoard(announce.container);
+      if (!notice || typeof notice.mountBoard !== 'function' || !announce.container) {
+        return;
       }
+      // The one-page scrollspy pings section-changed on every pass-by; only
+      // re-dock when a modal session actually borrowed the board node.
+      if (typeof notice.isBoardDocked === 'function' && notice.isBoardDocked()) {
+        return;
+      }
+      notice.mountBoard(announce.container);
     };
     document.addEventListener(
       eventName('homeSectionChanged', 'ProjectMap:home-section-changed'),
@@ -749,12 +785,6 @@
       mountSection(cfg, container);
       return;
     }
-    // The catalog carries its own "Template Hub" header, so the generic section
-    // <h2> is redundant.
-    const heading = container && container.querySelector('h2');
-    if (heading) {
-      heading.classList.add('hidden');
-    }
     templates.container = container;
     welcome.mountCatalog(container);
     bindTemplatesRedock();
@@ -766,10 +796,6 @@
         typeof welcome.unmountCatalog === 'function') {
       welcome.unmountCatalog();
     }
-    const heading = container && container.querySelector('h2');
-    if (heading) {
-      heading.classList.remove('hidden');
-    }
   }
 
   function bindTemplatesRedock() {
@@ -779,9 +805,14 @@
     templates.bound = true;
     const redock = () => {
       const welcome = welcomeSurface();
-      if (welcome && typeof welcome.mountCatalog === 'function' && templates.container) {
-        welcome.mountCatalog(templates.container);
+      if (!welcome || typeof welcome.mountCatalog !== 'function' || !templates.container) {
+        return;
       }
+      // No docked-state guard here: mountCatalog itself short-circuits when the
+      // catalog is already rendered in place, and deliberately falls through
+      // when it is hidden/empty so a failed boot-time load can recover on the
+      // next pill click or scroll pass-by.
+      welcome.mountCatalog(templates.container);
     };
     // After a welcome/catalog-only modal session borrows the catalog node, snap
     // it back into the 模板 section.
@@ -818,12 +849,6 @@
       mountSection(cfg, container);
       return;
     }
-    // The publish dialog carries its own header, so the generic section <h2> is
-    // redundant.
-    const heading = container && container.querySelector('h2');
-    if (heading) {
-      heading.classList.add('hidden');
-    }
     publishEmbed.container = container;
     publish.mount(container);
     bindPublishRedock();
@@ -835,10 +860,6 @@
         typeof publish.unmount === 'function') {
       publish.unmount();
     }
-    const heading = container && container.querySelector('h2');
-    if (heading) {
-      heading.classList.remove('hidden');
-    }
   }
 
   function bindPublishRedock() {
@@ -848,9 +869,14 @@
     publishEmbed.bound = true;
     const redock = () => {
       const publish = publishUi();
-      if (publish && typeof publish.mount === 'function' && publishEmbed.container) {
-        publish.mount(publishEmbed.container);
+      if (!publish || typeof publish.mount !== 'function' || !publishEmbed.container) {
+        return;
       }
+      // Same scroll-pass-by protection as the board/catalog redocks.
+      if (typeof publish.isDocked === 'function' && publish.isDocked()) {
+        return;
+      }
+      publish.mount(publishEmbed.container);
     };
     document.addEventListener(
       eventName('homeSectionChanged', 'ProjectMap:home-section-changed'),

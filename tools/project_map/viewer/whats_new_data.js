@@ -13,27 +13,31 @@
   // `latest` and PREPEND a { version, items } entry (newest first). If you do
   // not author an entry, `latest` stays put and nothing fires — there is simply
   // nothing to announce.
+  //
+  // An item may also carry an optional screenshot for the reading panel
+  // (whats_new_panel.js): `image` is a viewer-relative path (convention:
+  // assets/whatsnew/<version>/<name>.png — the whole viewer dir ships with the
+  // desktop build, so images ride along) and `imageAltKey` is the i18n key for
+  // its alt text. Items without `image` render as text-only blocks; the Home
+  // digest never shows images either way.
+  // The 0.98.5 introduction covers everything since the last public push (the
+  // 123-commit backlog), one block per theme, ordered by user impact. Copy is
+  // a reviewed draft awaiting the author's final pass; screenshots go in via
+  // the optional image/imageAltKey fields described above.
   const DATA = {
-    latest: '0.98.1',
+    latest: '0.98.5',
     releases: [
       {
-        version: '0.98.1',
+        version: '0.98.5',
         items: [
-          {
-            icon: 'map',
-            titleKey: 'home.whatsnew.v0981.home.title',
-            bodyKey: 'home.whatsnew.v0981.home.body'
-          },
-          {
-            icon: 'spark',
-            titleKey: 'home.whatsnew.v0981.overview.title',
-            bodyKey: 'home.whatsnew.v0981.overview.body'
-          },
-          {
-            icon: 'book',
-            titleKey: 'home.whatsnew.v0981.sections.title',
-            bodyKey: 'home.whatsnew.v0981.sections.body'
-          }
+          {icon: 'map', titleKey: 'home.whatsnew.v0981.home.title', bodyKey: 'home.whatsnew.v0981.home.body', image: 'assets/whatsnew/0.98.5/home-hub.png', imageAltKey: 'home.whatsnew.v0981.home.alt'},
+          {icon: 'book', titleKey: 'home.whatsnew.v0981.tour.title', bodyKey: 'home.whatsnew.v0981.tour.body', image: 'assets/whatsnew/0.98.5/tour-fairy.png', imageAltKey: 'home.whatsnew.v0981.tour.alt'},
+          {icon: 'save', titleKey: 'home.whatsnew.v0981.publish.title', bodyKey: 'home.whatsnew.v0981.publish.body'},
+          {icon: 'play', titleKey: 'home.whatsnew.v0981.playtest.title', bodyKey: 'home.whatsnew.v0981.playtest.body', image: 'assets/whatsnew/0.98.5/playtest.png', imageAltKey: 'home.whatsnew.v0981.playtest.alt'},
+          {icon: 'edit', titleKey: 'home.whatsnew.v0981.editor.title', bodyKey: 'home.whatsnew.v0981.editor.body'},
+          {icon: 'settings', titleKey: 'home.whatsnew.v0981.darkmode.title', bodyKey: 'home.whatsnew.v0981.darkmode.body', image: 'assets/whatsnew/0.98.5/dark-mode.png', imageAltKey: 'home.whatsnew.v0981.darkmode.alt'},
+          {icon: 'text', titleKey: 'home.whatsnew.v0981.systemui.title', bodyKey: 'home.whatsnew.v0981.systemui.body'},
+          {icon: 'spark', titleKey: 'home.whatsnew.v0981.polish.title', bodyKey: 'home.whatsnew.v0981.polish.body'}
         ]
       }
     ]

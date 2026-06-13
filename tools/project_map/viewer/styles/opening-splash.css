@@ -1,0 +1,106 @@
+/* Opening splash — the version-ceremony title card (opening_splash.js).
+   A warm-ink veil over the whole shell; the brand mark and wordmark rise
+   through a soft rust glow, then the version/author line, then the veil lifts.
+   Every color is mixed from tokens or keywords (no raw literals), and the veil
+   is deliberately the SAME warm ink in both themes: a title card is its own
+   little night, whatever the app's theme. Reduced-motion users never see this
+   layer (the module refuses to build it; the media rule below is the belt). */
+
+.opening-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  overflow: hidden;
+  background: color-mix(in srgb, black 93%, var(--accent) 7%);
+  cursor: pointer;
+  animation: opening-splash-in 240ms ease both;
+}
+
+.opening-splash.is-leaving {
+  animation: opening-splash-out 400ms ease both;
+}
+
+@keyframes opening-splash-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes opening-splash-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* Three concentric discs of the brand rust, blooming gently behind the mark.
+   Flat fills at low opacity (no gradients) keep the glow soft and cheap. */
+.opening-splash-glow {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0;
+}
+
+.opening-splash-glow-1 { width: 30rem; height: 30rem; animation: opening-splash-glow-1 1s 0.30s ease both; }
+.opening-splash-glow-2 { width: 20rem; height: 20rem; animation: opening-splash-glow-2 1s 0.45s ease both; }
+.opening-splash-glow-3 { width: 11rem; height: 11rem; animation: opening-splash-glow-3 1s 0.60s ease both; }
+
+@keyframes opening-splash-glow-1 { to { opacity: 0.05; } }
+@keyframes opening-splash-glow-2 { to { opacity: 0.08; } }
+@keyframes opening-splash-glow-3 { to { opacity: 0.12; } }
+
+/* The mark, wordmark, and meta line surface in sequence. */
+.opening-splash-mark,
+.opening-splash-word,
+.opening-splash-meta {
+  position: relative;
+  opacity: 0;
+}
+
+.opening-splash-mark { animation: opening-splash-rise 1s 0.70s both; }
+.opening-splash-word { animation: opening-splash-rise 1s 0.95s both; }
+.opening-splash-meta { animation: opening-splash-rise 0.9s 1.90s both; }
+
+@keyframes opening-splash-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+
+.opening-splash-mark svg {
+  width: 52px;
+  height: 52px;
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 75%, white 25%);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.opening-splash-word {
+  font-size: 1.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: color-mix(in srgb, white 90%, var(--accent) 10%);
+}
+
+.opening-splash-word span {
+  color: color-mix(in srgb, var(--accent) 65%, white 35%);
+}
+
+.opening-splash-meta {
+  font-size: 0.85rem;
+  letter-spacing: 0.18em;
+  color: color-mix(in srgb, white 52%, var(--accent) 48%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .opening-splash {
+    display: none;
+  }
+}

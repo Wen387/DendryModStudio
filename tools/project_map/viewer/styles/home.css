@@ -1,8 +1,9 @@
 /* Home pane — the Studio's full-screen home/dashboard surface. Shares the
    shell's `.mode-pane` slot (grid-row 3) like the other work modes; this file
-   owns only the in-pane layout: a top sub-nav band over a scrollable content
-   column. Section content is mounted by home_section_registry.js. Colors are
-   token-only so the hardcoded-color baseline stays flat. */
+   owns only the in-pane layout: a top sub-nav band over ONE scrolling column of
+   stacked sections (the sub-nav is a table of contents, not a tab bar). Section
+   content is mounted by home_section_registry.js. Colors are token-only so the
+   hardcoded-color baseline stays flat. */
 
 .home-workspace {
   min-height: 0;
@@ -150,10 +151,43 @@
   align-content: start;
 }
 
-.home-panel > h2 {
-  margin: 0;
-  font-size: 1.15rem;
-  color: var(--text);
+/* Generous air between stacked sections — together with the band below, this is
+   what keeps the one-page layout reading as clearly separated blocks. */
+.home-panel + .home-panel {
+  margin-top: 44px;
+}
+
+/* Section band — the kicker that opens every section: a small hue-tinted icon
+   chip plus the section name, underlined by a wash of the same hue. It is the
+   uniform anchor/delimiter; embeds keep their own larger headers below it. */
+.home-section-band {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--section-hue) 30%, transparent);
+}
+
+.home-section-band-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--section-hue) 22%, var(--surface));
+  color: var(--section-hue);
+}
+
+.home-section-band-icon .ui-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.home-section-band-label {
+  font-weight: 700;
+  font-size: 0.98rem;
+  color: var(--section-ink);
 }
 
 .home-launch {
@@ -238,21 +272,107 @@
   align-content: start;
 }
 
-.home-dash-header {
-  display: grid;
-  gap: 4px;
+/* One-page seam: the docked welcome surface ships its own Template Hub block,
+   but the 模板 section now lives further down the SAME page — hide the inline
+   copy so the catalog appears exactly once and the column's height stays stable
+   when the 模板 section adopts the catalog node. */
+.home-overview .welcome-surface.is-docked .welcome-catalog {
+  display: none;
 }
 
-.home-dash-title {
-  margin: 0;
-  font-size: 1.4rem;
+/* Recent projects — one-click reopen rows (desktop only). The slot collapses
+   entirely when the module renders nothing (browser mode, empty history). */
+.home-recent-slot:empty {
+  display: none;
+}
+
+.home-recent-title {
+  margin: 0 0 10px;
+  font-weight: 700;
+  font-size: 0.95rem;
   color: var(--text);
 }
 
-.home-dash-project {
-  margin: 0;
+.home-recent-list {
+  display: grid;
+  gap: 8px;
+}
+
+.home-recent-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--section-hue) 4%, var(--surface));
+  box-shadow: var(--home-elev-rest);
+  overflow: hidden;
+  transition: border-color var(--motion-fast) var(--motion-ease),
+    box-shadow var(--motion-fast) var(--motion-ease);
+}
+
+.home-recent-card:hover {
+  border-color: color-mix(in srgb, var(--section-hue) 30%, var(--border-soft));
+  box-shadow: var(--home-elev-hover);
+}
+
+.home-recent-card.is-failed {
+  border-color: var(--warn-border);
+  background: var(--warn-soft);
+}
+
+.home-recent-open {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: none;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.home-recent-open:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.home-recent-open:focus-visible,
+.home-recent-remove:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.home-recent-name {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.home-recent-path {
   color: var(--muted);
-  font-size: 0.95rem;
+  font-size: 0.82rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.home-recent-error {
+  color: var(--warn-text);
+  font-size: 0.85rem;
+}
+
+.home-recent-remove {
+  padding: 0 14px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.home-recent-remove:hover {
+  color: var(--accent-strong);
 }
 
 .home-dash-cards {
@@ -380,12 +500,6 @@
   gap: 10px;
 }
 
-.home-whatsnew-title {
-  margin: 0;
-  font-size: 1.4rem;
-  color: var(--text);
-}
-
 .home-whatsnew-version {
   padding: 2px 8px;
   border-radius: 999px;
@@ -403,21 +517,26 @@
 .home-whatsnew-list {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 0 4px 0 0;
   display: grid;
   gap: 12px;
+  /* Past a comfortable reading height the digest scrolls inside itself instead
+     of stretching the section (large releases can list many themes). */
+  max-height: 300px;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
+/* Digest rows: icon + TITLE only, single line. The body copy and screenshots
+   live in the reading panel, so these stay compact and steady in height. */
 .home-whatsnew-item {
   display: grid;
   grid-template-columns: auto 1fr;
-  align-items: start;
-  gap: 12px 16px;
-  padding: 18px 20px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
   border: 1px solid var(--border-soft);
-  border-radius: 16px;
-  /* Note-style cards (no actions), so they carry the soft elevation + hue wash
-     for warmth but skip the hover lift — nothing here is clickable. */
+  border-radius: 12px;
   background: color-mix(in srgb, var(--section-hue) 4%, var(--surface));
   box-shadow: var(--home-elev-rest);
 }
@@ -426,36 +545,52 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
   background: color-mix(in srgb, var(--section-hue) 24%, var(--surface));
   color: var(--section-hue);
 }
 
 .home-whatsnew-icon .ui-icon {
-  width: 22px;
-  height: 22px;
-}
-
-.home-whatsnew-text {
-  display: grid;
-  gap: 4px;
+  width: 18px;
+  height: 18px;
 }
 
 .home-whatsnew-item-title {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.95rem;
   color: var(--text);
 }
 
-.home-whatsnew-item-body {
-  margin: 0;
-  color: var(--muted);
+.home-whatsnew-cta {
+  justify-self: start;
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.home-whatsnew-cta:hover {
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 .home-whatsnew-empty {
   margin: 0;
+  color: var(--muted);
+}
+
+/* Labels the dashboard launcher cards as standing entry points, so they are
+   not misread as the new features the release band above announces. */
+.home-dash-cards-label {
+  margin: 0 0 -6px;
+  font-size: 0.85rem;
+  font-weight: 600;
   color: var(--muted);
 }
 
@@ -473,8 +608,11 @@
   gap: 12px 16px;
   padding: 14px 18px;
   border: 1px solid var(--accent);
+  /* A solid accent edge + a warm wash make the band read as its own notice
+     block, clearly apart from the standing launcher cards below it. */
+  border-left: 4px solid var(--accent);
   border-radius: 12px;
-  background: var(--surface-alt);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
 }
 
 .home-release-icon {
@@ -562,20 +700,25 @@
   outline-offset: 2px;
 }
 
+/* Seen state: a small soft color block (not a bare text link), so the
+   release entry stays visually set apart from the launcher cards below. */
 .home-release-link {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px;
-  border: none;
-  background: none;
-  color: var(--accent);
+  padding: 6px 14px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
 }
 
 .home-release-link:hover {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface));
   color: var(--accent-strong);
 }
 
@@ -625,21 +768,21 @@ body[data-mode="home"] .wordmark[role="button"] {
 [data-dash-hue="publish"] { --section-hue: var(--success); --section-ink: var(--success-text); }
 [data-dash-hue="announcements"] { --section-hue: var(--info); --section-ink: var(--info-text); }
 
-/* Micro-interaction: a section's content drifts gently up into place when it
-   becomes visible. The panel toggles between display:none (.hidden / [hidden])
-   and shown, so the animation re-fires on each switch. Fully waived when the user
-   prefers reduced motion — every transform/transition below is stilled. */
+/* Micro-interaction: the section column drifts gently up into place whenever
+   the Home pane is shown (the pane's display toggle restarts the animation).
+   Fully waived when the user prefers reduced motion — every transform/transition
+   below is stilled. */
 @keyframes home-section-in {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: none; }
 }
 
-.home-panel:not(.hidden) {
+.home-panel {
   animation: home-section-in var(--motion-medium) var(--motion-ease) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .home-panel:not(.hidden) { animation: none; }
+  .home-panel { animation: none; }
   .home-nav-item,
   .home-nav-item .ui-icon,
   .home-launch,

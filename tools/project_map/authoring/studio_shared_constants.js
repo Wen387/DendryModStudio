@@ -13,7 +13,9 @@
     firstProposalQuestProgress: 'dendry-mod-studio-first-proposal-quest.v1',
     theme: 'dendry-mod-studio-theme',
     lastSeenVersion: 'dendry-mod-studio-last-seen-version',
-    homeSection: 'dendry-mod-studio-home-section'
+    homeSection: 'dendry-mod-studio-home-section',
+    recentProjects: 'dendry-mod-studio-recent-projects',
+    splashSeenVersion: 'dendry-mod-studio-splash-seen-version'
   };
 
   const THEME_VALUES = ['auto', 'light', 'dark'];
@@ -38,7 +40,9 @@
     publishClosed: 'ProjectMap:publish-closed',
     exploreEntryOpened: 'ProjectMap:explore-entry-opened',
     installResult: 'ProjectMap:install-result',
-    openFirstProposalQuest: 'ProjectMap:open-first-proposal-quest'
+    openFirstProposalQuest: 'ProjectMap:open-first-proposal-quest',
+    openingSplashDone: 'ProjectMap:opening-splash-done',
+    whatsNewSeen: 'ProjectMap:whats-new-seen'
   };
 
   const TEXT_ROLE_LABELS = {

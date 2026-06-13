@@ -7,7 +7,9 @@
       "label": "Authoring Structural Quick Bundle",
       "summary": "Source-backed existing-object structure edits: options, effects, branches, routes, and install-plan conversion.",
       "expectedDuration": "fast",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "confidence": "Focused model confidence for source-backed structural editor behavior.",
       "boundaries": [
         "Does not prove real project fixture coverage by itself.",
@@ -25,13 +27,19 @@
         "canvas-interaction-contracts",
         "localization-surface"
       ],
-      "followUps": ["realworld-quick", "check-ci"]
+      "followUps": [
+        "realworld-quick",
+        "check-ci"
+      ]
     },
     "authoring-create": {
       "label": "Authoring Create Roundtrip Bundle",
       "summary": "New event/card/object authoring and reopen-after-install confidence.",
       "expectedDuration": "fast-medium",
-      "requires": ["node", "python"],
+      "requires": [
+        "node",
+        "python"
+      ],
       "confidence": "Bundled-demo confidence that new content can be created, structurally edited, applied, re-indexed, and reopened.",
       "boundaries": [
         "Does not replace broader external fixture sweeps."
@@ -45,13 +53,18 @@
         "install-plan",
         "workflow-entry-contract"
       ],
-      "followUps": ["realworld-quick", "check-ci"]
+      "followUps": [
+        "realworld-quick",
+        "check-ci"
+      ]
     },
     "visible-edit": {
       "label": "Visible Edit Bundle",
       "summary": "Visible player-facing content edit entries, fallback boundaries, and UI interaction contracts.",
       "expectedDuration": "fast",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "confidence": "Focused confidence that rendered visible content exposes edit actions and preserves interaction/localization contracts.",
       "boundaries": [
         "Does not prove runtime rendering."
@@ -66,13 +79,18 @@
         "canvas-interaction-contracts",
         "localization-surface"
       ],
-      "followUps": ["runtime-preview"]
+      "followUps": [
+        "runtime-preview"
+      ]
     },
     "index-contract": {
       "label": "Index And Contract Bundle",
       "summary": "ProjectIndex, parser, semantic evidence, and compatibility contract confidence.",
       "expectedDuration": "medium",
-      "requires": ["node", "python"],
+      "requires": [
+        "node",
+        "python"
+      ],
       "confidence": "Repository and fixture confidence for parser/index assumptions and protected-boundary behavior.",
       "boundaries": [
         "External SDAAH fixture coverage remains opt-in."
@@ -86,13 +104,18 @@
         "generalized-semantic-evidence",
         "semantic-ownership-graph"
       ],
-      "followUps": ["realworld-full", "check-ci"]
+      "followUps": [
+        "realworld-full",
+        "check-ci"
+      ]
     },
     "load-performance": {
       "label": "Load Performance Bundle",
       "summary": "Project loading, deferred coverage, shell startup, and surface regressions.",
       "expectedDuration": "fast-medium",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "confidence": "Focused confidence for project loading and startup behavior.",
       "boundaries": [
         "Desktop smoke should be added when native shell behavior changes."
@@ -105,13 +128,17 @@
         "canvas-interaction-contracts",
         "localization-surface"
       ],
-      "followUps": ["desktop"]
+      "followUps": [
+        "desktop"
+      ]
     },
     "runtime-preview": {
       "label": "Runtime Preview And Lens Bundle",
       "summary": "Runtime Preview/Lens models, sandbox behavior, DOM map, snapshots, and visual asset draft checks.",
       "expectedDuration": "medium",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "confidence": "Model confidence for temporary runtime preview/lens behavior.",
       "boundaries": [
         "Does not build release packages.",
@@ -128,13 +155,18 @@
         "runtime-visual-surface",
         "runtime-visual-asset-draft"
       ],
-      "followUps": ["desktop"]
+      "followUps": [
+        "desktop"
+      ]
     },
     "desktop": {
       "label": "Desktop Shell Bundle",
       "summary": "Electron shell and desktop package smoke confidence.",
       "expectedDuration": "medium-slow",
-      "requires": ["node", "desktop dependencies"],
+      "requires": [
+        "node",
+        "desktop dependencies"
+      ],
       "confidence": "Native shell confidence for desktop behavior.",
       "boundaries": [
         "Run from tools/project_map/desktop when using desktop npm commands.",
@@ -157,13 +189,19 @@
           "purpose": "Desktop environment doctor"
         }
       ],
-      "followUps": ["release"]
+      "followUps": [
+        "release"
+      ]
     },
     "realworld-quick": {
       "label": "Real Workflow Quick Matrix",
       "summary": "Bounded real-workflow support report for existing and new content roundtrips.",
       "expectedDuration": "fast-medium",
-      "requires": ["node", "python", "temporary copy"],
+      "requires": [
+        "node",
+        "python",
+        "temporary copy"
+      ],
       "confidence": "Practical workflow confidence: supported operations, boundaries, temp-copy apply, re-index, and reopen signals.",
       "boundaries": [
         "Not a full external fixture sweep.",
@@ -182,13 +220,21 @@
         "object-authoring-canvas",
         "install-plan"
       ],
-      "followUps": ["realworld-full", "check-ci"]
+      "followUps": [
+        "realworld-full",
+        "check-ci"
+      ]
     },
     "realworld-full": {
       "label": "Real Workflow Full Sweep",
       "summary": "Opt-in deeper external fixture validation for broad real-project coverage.",
       "expectedDuration": "slow-deep",
-      "requires": ["node", "python", "external fixture", "temporary copy"],
+      "requires": [
+        "node",
+        "python",
+        "external fixture",
+        "temporary copy"
+      ],
       "confidence": "Exploratory/deep real-world coverage, not an everyday gate.",
       "boundaries": [
         "Run only when explicitly requested.",
@@ -200,13 +246,18 @@
         "sdaah-install-write-smoke",
         "sdaah-surface-assets"
       ],
-      "followUps": ["check-ci"]
+      "followUps": [
+        "check-ci"
+      ]
     },
     "release": {
       "label": "Release And Packaging Bundle",
       "summary": "Public export, update notice, release links, and package surface checks.",
       "expectedDuration": "medium-slow",
-      "requires": ["node", "desktop dependencies"],
+      "requires": [
+        "node",
+        "desktop dependencies"
+      ],
       "confidence": "Release-preparation confidence only.",
       "boundaries": [
         "Do not run or edit release surfaces unless the task explicitly targets release preparation."
@@ -231,7 +282,9 @@
       "label": "Authoring Cards Bundle",
       "summary": "Card Board, CardDraft, Object Canvas card editing, lane-aware install, archetype coverage, and Runtime Lens routing confidence.",
       "expectedDuration": "fast-medium",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "confidence": "Focused confidence for Card Board as a context surface and Object Canvas as the detailed card editor.",
       "boundaries": [
         "Does not replace broad runtime playthrough coverage.",
@@ -258,18 +311,26 @@
         "runtime-lens-ui",
         "visible-means-editable"
       ],
-      "followUps": ["runtime-preview", "check-ci"]
+      "followUps": [
+        "runtime-preview",
+        "check-ci"
+      ]
     },
     "check-ci": {
       "label": "Full CI Check",
       "summary": "Broad repository confidence gate.",
       "expectedDuration": "medium-slow",
-      "requires": ["node", "python"],
+      "requires": [
+        "node",
+        "python"
+      ],
       "confidence": "Broad confidence across public export, contracts, UI, parser, authoring, runtime, starter demo, and release-link checks.",
       "boundaries": [
         "Sandboxed runs can hit python spawn restrictions; rerun with approved escalation when needed."
       ],
-      "tools": ["check-ci-command"],
+      "tools": [
+        "check-ci-command"
+      ],
       "followUps": []
     }
   },
@@ -278,10 +339,15 @@
       "path": "tools/project_map/check_tool_registry.js",
       "command": "node tools/project_map/check_tool_registry.js",
       "kind": "contract",
-      "domain": ["tooling", "routing"],
+      "domain": [
+        "tooling",
+        "routing"
+      ],
       "fixture": "repository",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Tool registry, check bundles, or check file inventory changed."
@@ -290,10 +356,17 @@
       "path": "tools/project_map/check_source_structure_graph_model.js",
       "command": "node tools/project_map/check_source_structure_graph_model.js",
       "kind": "fast-model",
-      "domain": ["authoring", "source-structure", "routes", "branches"],
+      "domain": [
+        "authoring",
+        "source-structure",
+        "routes",
+        "branches"
+      ],
       "fixture": "synthetic",
       "writes": "temp",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Route, option, branch, or source-structure graph behavior changed."
@@ -302,10 +375,16 @@
       "path": "tools/project_map/check_existing_scene_edit_model.js",
       "command": "node tools/project_map/check_existing_scene_edit_model.js",
       "kind": "fast-model",
-      "domain": ["authoring", "existing-edit", "install-plan"],
+      "domain": [
+        "authoring",
+        "existing-edit",
+        "install-plan"
+      ],
       "fixture": "synthetic",
       "writes": "temp",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Existing Scene Editor field/action/install-plan conversion changed."
@@ -314,10 +393,15 @@
       "path": "tools/project_map/check_route_editor_workflow_model.js",
       "command": "node tools/project_map/check_route_editor_workflow_model.js",
       "kind": "fast-model",
-      "domain": ["authoring", "routes"],
+      "domain": [
+        "authoring",
+        "routes"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Route editor workflow behavior changed."
@@ -326,10 +410,17 @@
       "path": "tools/project_map/check_route_script_intelligence_model.js",
       "command": "node tools/project_map/check_route_script_intelligence_model.js",
       "kind": "fast-model",
-      "domain": ["authoring", "routes", "scripts", "trial-run"],
+      "domain": [
+        "authoring",
+        "routes",
+        "scripts",
+        "trial-run"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Route evidence classification, script impact mapping, guided script edits, or script-aware trial-run behavior changed."
@@ -338,10 +429,17 @@
       "path": "tools/project_map/check_route_understanding_model.js",
       "command": "node tools/project_map/check_route_understanding_model.js",
       "kind": "fast-model",
-      "domain": ["authoring", "routes", "scripts", "semantic-workbench"],
+      "domain": [
+        "authoring",
+        "routes",
+        "scripts",
+        "semantic-workbench"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Route Understanding event-chain, scheduler, utility call, or state-dependency evidence changed."
@@ -350,10 +448,16 @@
       "path": "tools/project_map/check_guided_route_edit_model.js",
       "command": "node tools/project_map/check_guided_route_edit_model.js",
       "kind": "fast-model",
-      "domain": ["authoring", "routes", "semantic-workbench"],
+      "domain": [
+        "authoring",
+        "routes",
+        "semantic-workbench"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Guided route editors, utility call pairs, route table bindings, or explicit fallback helpers changed."
@@ -362,10 +466,17 @@
       "path": "tools/project_map/check_route_semantics_audit_model.js",
       "command": "node tools/project_map/check_route_semantics_audit_model.js",
       "kind": "fast-model",
-      "domain": ["authoring", "routes", "parser-coverage", "runtime-semantics"],
+      "domain": [
+        "authoring",
+        "routes",
+        "parser-coverage",
+        "runtime-semantics"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Route semantics audit reporting, parser coverage reconciliation, or compiled/runtime route comparison changed."
@@ -374,10 +485,16 @@
       "path": "tools/project_map/check_effect_clause_editor_workflow_model.js",
       "command": "node tools/project_map/check_effect_clause_editor_workflow_model.js",
       "kind": "fast-model",
-      "domain": ["authoring", "effects", "semantic-logic"],
+      "domain": [
+        "authoring",
+        "effects",
+        "semantic-logic"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Effect Clause Editor behavior, multi-effect lines, or hook-prefixed effect syntax changed."
@@ -386,10 +503,15 @@
       "path": "tools/project_map/check_install_plan_model.js",
       "command": "node tools/project_map/check_install_plan_model.js",
       "kind": "fast-model",
-      "domain": ["install-plan", "review-apply"],
+      "domain": [
+        "install-plan",
+        "review-apply"
+      ],
       "fixture": "synthetic",
       "writes": "temp",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Install-plan operation generation, validation, or apply behavior changed."
@@ -398,10 +520,17 @@
       "path": "tools/project_map/check_object_authoring_canvas_model.js",
       "command": "node tools/project_map/check_object_authoring_canvas_model.js",
       "kind": "fast-model",
-      "domain": ["authoring", "object-canvas", "create", "edit"],
+      "domain": [
+        "authoring",
+        "object-canvas",
+        "create",
+        "edit"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Object Canvas rendered entries, structure actions, or draft flow changed."
@@ -410,10 +539,17 @@
       "path": "tools/project_map/check_card_board_model.js",
       "command": "node tools/project_map/check_card_board_model.js",
       "kind": "fast-model",
-      "domain": ["authoring", "cards", "card-board", "object-canvas"],
+      "domain": [
+        "authoring",
+        "cards",
+        "card-board",
+        "object-canvas"
+      ],
       "fixture": "starter-demo-and-synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Card Board model, card option focus, copy-as-draft, or lane context behavior changed."
@@ -422,10 +558,17 @@
       "path": "tools/project_map/check_deck_pool_model.js",
       "command": "node tools/project_map/check_deck_pool_model.js",
       "kind": "fast-model",
-      "domain": ["authoring", "cards", "deck-pool", "semantic-model"],
+      "domain": [
+        "authoring",
+        "cards",
+        "deck-pool",
+        "semantic-model"
+      ],
       "fixture": "dynamicrepo",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Deck Pool semantic extraction or Card Board named deck pool lanes changed."
@@ -434,10 +577,18 @@
       "path": "tools/project_map/check_deck_object_canvas_model.js",
       "command": "node tools/project_map/check_deck_object_canvas_model.js",
       "kind": "fast-model",
-      "domain": ["authoring", "cards", "deck-pool", "object-canvas", "install-plan"],
+      "domain": [
+        "authoring",
+        "cards",
+        "deck-pool",
+        "object-canvas",
+        "install-plan"
+      ],
       "fixture": "dynamicrepo",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Deck Pool Object Canvas fields or membership install operations changed."
@@ -446,10 +597,17 @@
       "path": "tools/project_map/check_advisor_controller_model.js",
       "command": "node tools/project_map/check_advisor_controller_model.js",
       "kind": "fast-model",
-      "domain": ["authoring", "cards", "advisor-controller", "semantic-model"],
+      "domain": [
+        "authoring",
+        "cards",
+        "advisor-controller",
+        "semantic-model"
+      ],
       "fixture": "dynamicrepo",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Advisor Controller semantic extraction changed."
@@ -458,10 +616,18 @@
       "path": "tools/project_map/check_advisor_controller_object_canvas_model.js",
       "command": "node tools/project_map/check_advisor_controller_object_canvas_model.js",
       "kind": "fast-model",
-      "domain": ["authoring", "cards", "advisor-controller", "object-canvas", "install-plan"],
+      "domain": [
+        "authoring",
+        "cards",
+        "advisor-controller",
+        "object-canvas",
+        "install-plan"
+      ],
       "fixture": "dynamicrepo",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Advisor Controller Object Canvas fields or roster install operations changed."
@@ -470,10 +636,16 @@
       "path": "tools/project_map/check_card_wizard_model.js",
       "command": "node tools/project_map/check_card_wizard_model.js",
       "kind": "fast-model",
-      "domain": ["authoring", "cards", "install-plan"],
+      "domain": [
+        "authoring",
+        "cards",
+        "install-plan"
+      ],
       "fixture": "synthetic",
       "writes": "temp",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "CardDraft export, Card Wizard compatibility, or card lane-aware install generation changed."
@@ -482,10 +654,17 @@
       "path": "tools/project_map/check_menu_card_builder_model.js",
       "command": "node tools/project_map/check_menu_card_builder_model.js",
       "kind": "fast-model",
-      "domain": ["authoring", "cards", "menu-card", "object-canvas"],
+      "domain": [
+        "authoring",
+        "cards",
+        "menu-card",
+        "object-canvas"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Menu card parsed-to-draft, Object Canvas section options, or CardDraft rendering changed."
@@ -494,10 +673,16 @@
       "path": "tools/project_map/check_pinned_text_card_builder_model.js",
       "command": "node tools/project_map/check_pinned_text_card_builder_model.js",
       "kind": "fast-model",
-      "domain": ["authoring", "cards", "pinned-card"],
+      "domain": [
+        "authoring",
+        "cards",
+        "pinned-card"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Pinned/advisor text card parsing, editing, or install behavior changed."
@@ -506,10 +691,17 @@
       "path": "tools/project_map/check_parsed_to_draft_entry_unification_model.js",
       "command": "node tools/project_map/check_parsed_to_draft_entry_unification_model.js",
       "kind": "fast-model",
-      "domain": ["authoring", "parsed-to-draft", "cards", "events"],
+      "domain": [
+        "authoring",
+        "parsed-to-draft",
+        "cards",
+        "events"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Parsed-to-draft entry routing or copy-as-draft parity changed."
@@ -518,10 +710,16 @@
       "path": "tools/project_map/check_existing_draft_extraction_model.js",
       "command": "node tools/project_map/check_existing_draft_extraction_model.js",
       "kind": "fast-model",
-      "domain": ["authoring", "existing-object", "parsed-to-draft"],
+      "domain": [
+        "authoring",
+        "existing-object",
+        "parsed-to-draft"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Existing source-backed draft extraction or partial-boundary behavior changed."
@@ -530,10 +728,16 @@
       "path": "tools/project_map/check_install_operation_contracts_model.js",
       "command": "node tools/project_map/check_install_operation_contracts_model.js",
       "kind": "contract",
-      "domain": ["install-plan", "review-apply", "operations"],
+      "domain": [
+        "install-plan",
+        "review-apply",
+        "operations"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Install operation safety, guarded apply, anchor, or dedupe contracts changed."
@@ -542,10 +746,16 @@
       "path": "tools/project_map/check_install_review_ui_model.js",
       "command": "node tools/project_map/check_install_review_ui_model.js",
       "kind": "fast-model",
-      "domain": ["install-plan", "review-apply", "ui"],
+      "domain": [
+        "install-plan",
+        "review-apply",
+        "ui"
+      ],
       "fixture": "source",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Install review UI, checklist, guarded apply, or Review & Apply controls changed."
@@ -554,10 +764,15 @@
       "path": "tools/project_map/check_workflow_entry_contract.js",
       "command": "node tools/project_map/check_workflow_entry_contract.js",
       "kind": "contract",
-      "domain": ["workflow", "entrypoints"],
+      "domain": [
+        "workflow",
+        "entrypoints"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Authoring entrypoint or workflow routing changed."
@@ -566,10 +781,16 @@
       "path": "tools/project_map/check_canvas_interaction_contracts.js",
       "command": "node tools/project_map/check_canvas_interaction_contracts.js",
       "kind": "contract",
-      "domain": ["ui", "canvas", "interaction"],
+      "domain": [
+        "ui",
+        "canvas",
+        "interaction"
+      ],
       "fixture": "source",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Canvas, Object Canvas, Storyboard, Runtime Lens, or Review & Apply controls changed."
@@ -578,10 +799,15 @@
       "path": "tools/project_map/check_localization_surface.js",
       "command": "node tools/project_map/check_localization_surface.js",
       "kind": "contract",
-      "domain": ["ui", "localization"],
+      "domain": [
+        "ui",
+        "localization"
+      ],
       "fixture": "source",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Visible Studio text changed."
@@ -590,10 +816,16 @@
       "path": "tools/project_map/check_starter_demo_model.js",
       "command": "node tools/project_map/check_starter_demo_model.js",
       "kind": "fixture",
-      "domain": ["starter-demo", "project-index"],
+      "domain": [
+        "starter-demo",
+        "project-index"
+      ],
       "fixture": "bundled-demo",
       "writes": "temp",
-      "requires": ["node", "python"],
+      "requires": [
+        "node",
+        "python"
+      ],
       "duration": "fast-medium",
       "gate": "focused",
       "when": "Starter Demo template or profile behavior changed."
@@ -602,10 +834,18 @@
       "path": "tools/project_map/check_starter_demo_complex_event_create_model.js",
       "command": "node tools/project_map/check_starter_demo_complex_event_create_model.js",
       "kind": "fixture",
-      "domain": ["authoring", "create", "starter-demo", "roundtrip"],
+      "domain": [
+        "authoring",
+        "create",
+        "starter-demo",
+        "roundtrip"
+      ],
       "fixture": "bundled-demo-temp-copy",
       "writes": "temp",
-      "requires": ["node", "python"],
+      "requires": [
+        "node",
+        "python"
+      ],
       "duration": "fast-medium",
       "gate": "focused",
       "when": "New complex-event create/edit/apply/reopen flow changed."
@@ -614,10 +854,18 @@
       "path": "tools/project_map/check_complex_event_authoring_flow_model.js",
       "command": "node tools/project_map/check_complex_event_authoring_flow_model.js",
       "kind": "fast-model",
-      "domain": ["authoring", "events", "trial-run", "routes", "effects"],
+      "domain": [
+        "authoring",
+        "events",
+        "trial-run",
+        "routes",
+        "effects"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Complete choice units, consequence grouping, continuation summaries, or lightweight event trial-run behavior changed."
@@ -626,10 +874,15 @@
       "path": "tools/project_map/check_visible_object_coverage_model.js",
       "command": "node tools/project_map/check_visible_object_coverage_model.js",
       "kind": "fast-model",
-      "domain": ["visible-edit", "coverage"],
+      "domain": [
+        "visible-edit",
+        "coverage"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Visible object coverage or deferred coverage behavior changed."
@@ -638,10 +891,14 @@
       "path": "tools/project_map/check_visible_means_editable_model.js",
       "command": "node tools/project_map/check_visible_means_editable_model.js",
       "kind": "fast-model",
-      "domain": ["visible-edit"],
+      "domain": [
+        "visible-edit"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Visible content editability contract changed."
@@ -650,10 +907,15 @@
       "path": "tools/project_map/check_visible_edit_action_model.js",
       "command": "node tools/project_map/check_visible_edit_action_model.js",
       "kind": "fast-model",
-      "domain": ["visible-edit", "ui"],
+      "domain": [
+        "visible-edit",
+        "ui"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Visible edit action UI/model changed."
@@ -662,10 +924,15 @@
       "path": "tools/project_map/check_edit_capability_model.js",
       "command": "node tools/project_map/check_edit_capability_model.js",
       "kind": "fast-model",
-      "domain": ["visible-edit", "capability"],
+      "domain": [
+        "visible-edit",
+        "capability"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Edit capability routing changed."
@@ -674,10 +941,15 @@
       "path": "tools/project_map/check_source_slice_editor_model.js",
       "command": "node tools/project_map/check_source_slice_editor_model.js",
       "kind": "fast-model",
-      "domain": ["source-slice", "fallback"],
+      "domain": [
+        "source-slice",
+        "fallback"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Source Slice fallback behavior changed."
@@ -686,10 +958,15 @@
       "path": "tools/project_map/check_no_ide_fallback_for_visible_content.js",
       "command": "node tools/project_map/check_no_ide_fallback_for_visible_content.js",
       "kind": "contract",
-      "domain": ["visible-edit", "source-fallback"],
+      "domain": [
+        "visible-edit",
+        "source-fallback"
+      ],
       "fixture": "source",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Visible content fallback/edit routing changed."
@@ -698,10 +975,15 @@
       "path": "tools/project_map/check_project_map_fixture.js",
       "command": "node tools/project_map/check_project_map_fixture.js",
       "kind": "fixture",
-      "domain": ["project-index"],
+      "domain": [
+        "project-index"
+      ],
       "fixture": "studio-contract",
       "writes": "temp",
-      "requires": ["node", "python"],
+      "requires": [
+        "node",
+        "python"
+      ],
       "duration": "medium",
       "gate": "ci",
       "when": "ProjectIndex fixture assumptions changed. Golden indexer-output gate: exact scene/edge/variable/event counts for generic-mini and sdaah-mini."
@@ -710,10 +992,14 @@
       "path": "tools/project_map/check_studio_shared_constants_model.js",
       "command": "node tools/project_map/check_studio_shared_constants_model.js",
       "kind": "contract",
-      "domain": ["studio-contract"],
+      "domain": [
+        "studio-contract"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Studio contract model assumptions changed."
@@ -722,10 +1008,15 @@
       "path": "tools/project_map/check_parser_editability_model.js",
       "command": "node tools/project_map/check_parser_editability_model.js",
       "kind": "fast-model",
-      "domain": ["parser", "editability"],
+      "domain": [
+        "parser",
+        "editability"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Parser-backed editability changed."
@@ -734,10 +1025,15 @@
       "path": "tools/project_map/check_parser_renderer_confidence_model.js",
       "command": "node tools/project_map/check_parser_renderer_confidence_model.js",
       "kind": "fast-model",
-      "domain": ["parser", "renderer-confidence"],
+      "domain": [
+        "parser",
+        "renderer-confidence"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Parser/renderer confidence changed."
@@ -746,10 +1042,15 @@
       "path": "tools/project_map/check_parser_semantic_evidence_model.js",
       "command": "node tools/project_map/check_parser_semantic_evidence_model.js",
       "kind": "fast-model",
-      "domain": ["parser", "semantic-evidence"],
+      "domain": [
+        "parser",
+        "semantic-evidence"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Parser semantic evidence changed."
@@ -758,10 +1059,14 @@
       "path": "tools/project_map/check_generalized_semantic_evidence_model.js",
       "command": "node tools/project_map/check_generalized_semantic_evidence_model.js",
       "kind": "fast-model",
-      "domain": ["semantic-evidence"],
+      "domain": [
+        "semantic-evidence"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Generalized semantic evidence changed."
@@ -770,10 +1075,14 @@
       "path": "tools/project_map/check_semantic_ownership_graph_model.js",
       "command": "node tools/project_map/check_semantic_ownership_graph_model.js",
       "kind": "fast-model",
-      "domain": ["semantic-ownership"],
+      "domain": [
+        "semantic-ownership"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Semantic ownership graph changed."
@@ -782,10 +1091,15 @@
       "path": "tools/project_map/check_studio_performance_model.js",
       "command": "node tools/project_map/check_studio_performance_model.js",
       "kind": "fast-model",
-      "domain": ["performance", "project-load"],
+      "domain": [
+        "performance",
+        "project-load"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Project loading or deferred coverage behavior changed."
@@ -794,10 +1108,15 @@
       "path": "tools/project_map/check_desktop_shell.js",
       "command": "node tools/project_map/check_desktop_shell.js",
       "kind": "desktop",
-      "domain": ["desktop", "shell"],
+      "domain": [
+        "desktop",
+        "shell"
+      ],
       "fixture": "source",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Desktop shell/preload/studio core behavior changed."
@@ -806,10 +1125,16 @@
       "path": "tools/project_map/check_v067_remaining_model.js",
       "command": "node tools/project_map/check_v067_remaining_model.js",
       "kind": "fast-model",
-      "domain": ["install", "coverage", "regression"],
+      "domain": [
+        "install",
+        "coverage",
+        "regression"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "ci",
       "when": "Install mode UI, coverage safety tiers, card-to-install-plan wiring, or desktop dry-run no-mutation behavior changes. (Name is historical; the assertions are current.)"
@@ -818,10 +1143,15 @@
       "path": "tools/project_map/check_runtime_preview_sandbox_model.js",
       "command": "node tools/project_map/check_runtime_preview_sandbox_model.js",
       "kind": "runtime",
-      "domain": ["runtime-preview", "sandbox"],
+      "domain": [
+        "runtime-preview",
+        "sandbox"
+      ],
       "fixture": "synthetic",
       "writes": "temp",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast-medium",
       "gate": "focused",
       "when": "Runtime Preview sandbox behavior changed."
@@ -830,10 +1160,14 @@
       "path": "tools/project_map/check_runtime_lens_model.js",
       "command": "node tools/project_map/check_runtime_lens_model.js",
       "kind": "runtime",
-      "domain": ["runtime-lens"],
+      "domain": [
+        "runtime-lens"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Runtime Lens model behavior changed."
@@ -842,10 +1176,15 @@
       "path": "tools/project_map/check_runtime_lens_ui_model.js",
       "command": "node tools/project_map/check_runtime_lens_ui_model.js",
       "kind": "runtime",
-      "domain": ["runtime-lens", "ui"],
+      "domain": [
+        "runtime-lens",
+        "ui"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Runtime Lens UI behavior changed."
@@ -854,10 +1193,15 @@
       "path": "tools/project_map/check_runtime_lifecycle_model.js",
       "command": "node tools/project_map/check_runtime_lifecycle_model.js",
       "kind": "runtime",
-      "domain": ["runtime", "lifecycle"],
+      "domain": [
+        "runtime",
+        "lifecycle"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Runtime lifecycle behavior changed."
@@ -866,10 +1210,15 @@
       "path": "tools/project_map/check_runtime_surface_model.js",
       "command": "node tools/project_map/check_runtime_surface_model.js",
       "kind": "runtime",
-      "domain": ["runtime", "surface"],
+      "domain": [
+        "runtime",
+        "surface"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Runtime surface behavior changed."
@@ -878,10 +1227,15 @@
       "path": "tools/project_map/check_runtime_snapshot_model.js",
       "command": "node tools/project_map/check_runtime_snapshot_model.js",
       "kind": "runtime",
-      "domain": ["runtime", "snapshot"],
+      "domain": [
+        "runtime",
+        "snapshot"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Runtime snapshot behavior changed."
@@ -890,10 +1244,15 @@
       "path": "tools/project_map/check_runtime_dom_map_model.js",
       "command": "node tools/project_map/check_runtime_dom_map_model.js",
       "kind": "runtime",
-      "domain": ["runtime", "dom-map"],
+      "domain": [
+        "runtime",
+        "dom-map"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Runtime DOM map behavior changed."
@@ -902,10 +1261,15 @@
       "path": "tools/project_map/check_runtime_visual_surface_model.js",
       "command": "node tools/project_map/check_runtime_visual_surface_model.js",
       "kind": "runtime",
-      "domain": ["runtime", "visual"],
+      "domain": [
+        "runtime",
+        "visual"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Runtime visual surface behavior changed."
@@ -914,10 +1278,15 @@
       "path": "tools/project_map/check_runtime_visual_asset_draft_model.js",
       "command": "node tools/project_map/check_runtime_visual_asset_draft_model.js",
       "kind": "runtime",
-      "domain": ["runtime", "visual-assets"],
+      "domain": [
+        "runtime",
+        "visual-assets"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Runtime visual asset draft behavior changed."
@@ -926,10 +1295,16 @@
       "path": "tools/project_map/check_asset_contract_model.js",
       "command": "node tools/project_map/check_asset_contract_model.js",
       "kind": "fast-model",
-      "domain": ["authoring", "assets", "object-canvas"],
+      "domain": [
+        "authoring",
+        "assets",
+        "object-canvas"
+      ],
       "fixture": "synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Asset slot roles, directives, local file install requests, or Object Canvas asset contracts changed."
@@ -938,10 +1313,15 @@
       "path": "tools/project_map/check_desktop_packaging.js",
       "command": "node tools/project_map/check_desktop_packaging.js",
       "kind": "packaging",
-      "domain": ["desktop", "packaging"],
+      "domain": [
+        "desktop",
+        "packaging"
+      ],
       "fixture": "source",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "desktop",
       "when": "Desktop packaging metadata changed."
@@ -950,10 +1330,15 @@
       "path": "tools/project_map/check_desktop_deb.js",
       "command": "node tools/project_map/check_desktop_deb.js",
       "kind": "packaging",
-      "domain": ["desktop", "deb"],
+      "domain": [
+        "desktop",
+        "deb"
+      ],
       "fixture": "source",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "desktop",
       "when": "Linux deb packaging metadata changed."
@@ -962,10 +1347,14 @@
       "path": "tools/project_map/check_public_export.js",
       "command": "node tools/project_map/check_public_export.js",
       "kind": "release",
-      "domain": ["public-export"],
+      "domain": [
+        "public-export"
+      ],
       "fixture": "source",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "release",
       "when": "Public export boundary changed."
@@ -974,10 +1363,14 @@
       "path": "tools/project_map/check_update_notice_model.js",
       "command": "node tools/project_map/check_update_notice_model.js",
       "kind": "release",
-      "domain": ["update-notice"],
+      "domain": [
+        "update-notice"
+      ],
       "fixture": "source",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "release",
       "when": "Update notice or manifest behavior changed."
@@ -986,10 +1379,14 @@
       "path": "tools/project_map/check_release_links_model.js",
       "command": "node tools/project_map/check_release_links_model.js",
       "kind": "release",
-      "domain": ["release-links"],
+      "domain": [
+        "release-links"
+      ],
       "fixture": "source",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "release",
       "when": "Release docs or artifact links changed."
@@ -998,10 +1395,16 @@
       "path": "tools/project_map/check_dynamic_mod_audit.js",
       "command": "node tools/project_map/check_dynamic_mod_audit.js",
       "kind": "realworld",
-      "domain": ["dynamic", "audit"],
+      "domain": [
+        "dynamic",
+        "audit"
+      ],
       "fixture": "external-or-bundled",
       "writes": "temp",
-      "requires": ["node", "python"],
+      "requires": [
+        "node",
+        "python"
+      ],
       "duration": "slow-deep",
       "gate": "exploratory",
       "when": "Deep Dynamic/SDAAH audit is explicitly requested."
@@ -1010,10 +1413,18 @@
       "path": "tools/project_map/check_large_event_pressure_model.js",
       "command": "node tools/project_map/check_large_event_pressure_model.js",
       "kind": "realworld",
-      "domain": ["dynamic", "events", "authoring", "pressure"],
+      "domain": [
+        "dynamic",
+        "events",
+        "authoring",
+        "pressure"
+      ],
       "fixture": "external-or-bundled",
       "writes": "temp",
-      "requires": ["node", "python"],
+      "requires": [
+        "node",
+        "python"
+      ],
       "duration": "slow-deep",
       "gate": "exploratory",
       "when": "A few large real Dynamic/SDAAH events should be pressure-tested through Event editor, route/script intelligence, trial-run, and render surfaces."
@@ -1022,10 +1433,16 @@
       "path": "tools/project_map/check_sdaah_install_write_smoke.js",
       "command": "node tools/project_map/check_sdaah_install_write_smoke.js",
       "kind": "realworld",
-      "domain": ["sdaah", "install"],
+      "domain": [
+        "sdaah",
+        "install"
+      ],
       "fixture": "external",
       "writes": "temp",
-      "requires": ["node", "python"],
+      "requires": [
+        "node",
+        "python"
+      ],
       "duration": "slow-deep",
       "gate": "exploratory",
       "when": "SDAAH install write smoke is explicitly requested."
@@ -1034,10 +1451,15 @@
       "path": "tools/project_map/check_sdaah_surface_assets_model.js",
       "command": "node tools/project_map/check_sdaah_surface_assets_model.js",
       "kind": "realworld",
-      "domain": ["sdaah", "assets"],
+      "domain": [
+        "sdaah",
+        "assets"
+      ],
       "fixture": "external-or-synthetic",
       "writes": "none",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "medium",
       "gate": "exploratory",
       "when": "SDAAH surface asset behavior changed."
@@ -1046,10 +1468,16 @@
       "path": "tools/project_map/check_realworld_quick_matrix.js",
       "command": "node tools/project_map/check_realworld_quick_matrix.js",
       "kind": "realworld",
-      "domain": ["real-workflow", "matrix"],
+      "domain": [
+        "real-workflow",
+        "matrix"
+      ],
       "fixture": "synthetic-and-bundled-demo",
       "writes": "temp",
-      "requires": ["node", "python"],
+      "requires": [
+        "node",
+        "python"
+      ],
       "duration": "fast-medium",
       "gate": "focused",
       "when": "Real workflow support matrix, existing-event roundtrip, or new-event roundtrip behavior changed."
@@ -1058,10 +1486,16 @@
       "path": "tools/project_map/check_existing_event_roundtrip_model.js",
       "command": "node tools/project_map/check_existing_event_roundtrip_model.js",
       "kind": "realworld",
-      "domain": ["real-workflow", "existing-event", "roundtrip"],
+      "domain": [
+        "real-workflow",
+        "existing-event",
+        "roundtrip"
+      ],
       "fixture": "synthetic-temp-copy",
       "writes": "temp",
-      "requires": ["node"],
+      "requires": [
+        "node"
+      ],
       "duration": "fast",
       "gate": "focused",
       "when": "Existing-event edit/apply/re-index/reopen workflow changed."
@@ -1070,10 +1504,15 @@
       "path": "package.json",
       "command": "npm run check:ci",
       "kind": "contract",
-      "domain": ["ci"],
+      "domain": [
+        "ci"
+      ],
       "fixture": "repository",
       "writes": "temp",
-      "requires": ["node", "python"],
+      "requires": [
+        "node",
+        "python"
+      ],
       "duration": "medium-slow",
       "gate": "ci",
       "when": "Final broad repository confidence is needed."
@@ -1154,6 +1593,9 @@
     "tools/project_map/check_object_editor_deferred_slice.js",
     "tools/project_map/check_object_editor_overcap_slice.js",
     "tools/project_map/check_qdisplay_editability.js",
+    "tools/project_map/check_home_recent_projects.js",
+    "tools/project_map/check_opening_splash.js",
+    "tools/project_map/check_whats_new_panel.js",
     "tools/project_map/check_object_play_simulator_model.js",
     "tools/project_map/check_object_playtest_audio_model.js",
     "tools/project_map/check_object_playtest_engine_model.js",
@@ -1496,6 +1938,9 @@
     "node tools/project_map/check_object_editor_deferred_slice.js",
     "node tools/project_map/check_object_editor_overcap_slice.js",
     "node tools/project_map/check_qdisplay_editability.js",
+    "node tools/project_map/check_home_recent_projects.js",
+    "node tools/project_map/check_opening_splash.js",
+    "node tools/project_map/check_whats_new_panel.js",
     "node tools/project_map/check_object_play_simulator_model.js",
     "node tools/project_map/check_object_playtest_audio_model.js",
     "node tools/project_map/check_object_playtest_engine_model.js",

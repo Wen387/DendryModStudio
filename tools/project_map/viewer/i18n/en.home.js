@@ -4,8 +4,9 @@
   // Home Hub catalog, split out of en.js so the home.* surface stays off the
   // at-ceiling main catalog. Loaded AFTER en.js (which sets the base object),
   // then merged in. Keys must stay in lockstep with zh-Hant.home.js.
-  // NOTE: the home.whatsnew.v0981.* feature copy is placeholder release text
-  // describing the Home Hub; finalize the prose once Home is feature-complete.
+  // NOTE: the home.whatsnew.v0981.* copy is a reviewed draft (one block per
+  // release theme, from the 123-commit backlog survey) awaiting the author's
+  // final pass before release.
   const CATALOG = {
     en: {
       'home.navAria': 'Home sections',
@@ -39,16 +40,38 @@
       'home.whatsnew.band.cta': 'See what\'s new',
       'home.whatsnew.band.dismiss': 'Got it',
       'home.whatsnew.link': 'What\'s new in this version',
-      'home.whatsnew.v0981.home.title': 'A real Home base',
-      'home.whatsnew.v0981.home.body': 'Click the wordmark any time to return to Home — your Studio dashboard, separate from the four work modes.',
-      'home.whatsnew.v0981.overview.title': 'An Overview that adapts',
-      'home.whatsnew.v0981.overview.body': 'Before a project loads you get onboarding; once one is open, a welcome-back dashboard takes its place.',
-      'home.whatsnew.v0981.sections.title': 'Studio tools, gathered',
-      'home.whatsnew.v0981.sections.body': 'Publish, notices, templates and What\'s New are moving under Home, one section at a time.',
+      'home.whatsnew.digest.cta': 'See the full introduction',
+      'home.whatsnew.panel.title': 'What\'s new in this version',
+      'home.whatsnew.panel.close': 'Close',
+      'home.whatsnew.panel.done': 'Start exploring',
+      'home.whatsnew.v0981.home.title': 'A brand-new Home Hub',
+      'home.whatsnew.v0981.home.body': 'The welcome popup grew into a real home page: overview, publish, notices, templates and What\'s New on one page, recent projects one click away, and a once-per-version opening ceremony. The wordmark brings you back any time.',
+      'home.whatsnew.v0981.home.alt': 'The Home Hub overview page showing quick actions, recent projects, and the What\'s New section.',
+      'home.whatsnew.v0981.tour.title': 'A guided tour to get you started',
+      'home.whatsnew.v0981.tour.body': 'A spotlight walkthrough with the Tour Fairy, one-time hints on key surfaces, and a hands-on quest that walks you through your first edit proposal.',
+      'home.whatsnew.v0981.tour.alt': 'The Tour Fairy welcome dialog offering an optional guided walkthrough of the Studio.',
+      'home.whatsnew.v0981.publish.title': 'Publish straight to GitHub',
+      'home.whatsnew.v0981.publish.body': 'First publish, update pushes and sync pulls all inside Studio; the management dashboard shows commit history, edits visibility and description, and an interrupted publish retries safely.',
+      'home.whatsnew.v0981.playtest.title': 'Play-test inside the Object Editor',
+      'home.whatsnew.v0981.playtest.body': 'Play your event on the real Dendry engine without a separate build — scene art and music included, starting from any upstream scene, with a fresh-seed re-roll for randomness.',
+      'home.whatsnew.v0981.playtest.alt': 'An event open in the Object Editor with the inline play-test controls running on the real Dendry engine.',
+      'home.whatsnew.v0981.editor.title': 'Conditionals and authoring, upgraded',
+      'home.whatsnew.v0981.editor.body': 'Nested inline conditionals render as a navigable layered tree with a live what-if simulator; magic blocks, qdisplay inserts, asset swaps and a long-event find toolbar close six authoring gaps.',
+      'home.whatsnew.v0981.darkmode.title': 'Dark mode arrives',
+      'home.whatsnew.v0981.darkmode.body': 'Light, dark or auto — a warm-charcoal workspace, while your content previews keep their paper palette so WYSIWYG stays intact.',
+      'home.whatsnew.v0981.darkmode.alt': 'The Studio in dark mode — the Explore overview and project stats on a warm-charcoal background.',
+      'home.whatsnew.v0981.systemui.title': 'System UI authoring, made intuitive',
+      'home.whatsnew.v0981.systemui.body': 'The create entry now uses three intuitive buckets, the right sidebar is a real selectable, editable region, and changes apply surgically to your template without touching other fields.',
+      'home.whatsnew.v0981.polish.title': 'A faster, quieter Studio',
+      'home.whatsnew.v0981.polish.body': 'Large events now open in under 10 seconds instead of around 89; plus a full polish pass — empty and error states with retry, fewer duplicate signals, and an always-available back button.',
       'home.dash.welcomeBack': 'Welcome back',
+      'home.dash.quickActions': 'Quick actions',
       'home.dash.openOnboarding': 'View the getting-started guide',
       'home.dash.openTutorialLibrary': 'Open Tutorial Library',
       'home.dash.browserHint': 'Publishing and notices are available in the desktop app.',
+      'home.recent.title': 'Recent projects',
+      'home.recent.remove': 'Remove from list',
+      'home.recent.openFailed': 'Could not open this folder — it may have moved or been renamed.',
       'topbar.templateHub': 'Template Hub',
       'topbar.publish': 'Publish to GitHub',
       'topbar.announcements': 'Notice Preview',
@@ -62,7 +85,11 @@
       'storyboard.empty.hint': 'Add a story event from the palette, or load a project with dated events to see them here.',
       'cardBoard.empty.board': 'No cards yet — open a project with card objects to see them here.',
       'workspaceLayout.readinessEmpty': 'Load a ProjectIndex to check workspace anchors.',
-      'previewObjectEditor.routeMapEmpty': 'No route map yet — add an option to see routing.'
+      'previewObjectEditor.routeMapEmpty': 'No route map yet — add an option to see routing.',
+      // Guided-tour step introducing Home itself. Parked here for the same
+      // ceiling reason as the block above; placeholder copy pending final prose.
+      'tour.linear.home.title': 'Home — your home base',
+      'tour.linear.home.body': 'This is Home: announcements, templates, publishing, and what changed in each version all gather here. Click the Dendry Mod Studio wordmark in the corner any time to come back.'
     }
   };
 
