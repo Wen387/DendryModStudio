@@ -110,14 +110,6 @@
     return '<span class="guided-tour-mascot-face">' + (face || MASCOT_FACES.idle) + '</span>';
   }
 
-  // A warm full-screen flourish that washes across before the fairy greeting,
-  // used when opening the orientation tour (and on the first-run offer). A wave
-  // of plain emoji drifts across the background — no asset, no dependency.
-  // Skipped under reduced-motion. Laid out as a grid so it reads as a tide.
-  const OPENING_EMOJI = ['✨', '🗺️', '📖', '🌿', '⭐', '💡', '🎈', '🍀', '🪄', '💫', '🌸', '🎐'];
-  const OPENING_ROWS = 5;
-  const OPENING_COLS = 10;
-
   const state = {
     running: false,
     mode: 'linear',
@@ -135,10 +127,6 @@
     curtainLastFocus: null,
     curtainSecondaryFn: null,
     curtainPrimaryFn: null,
-    openingEl: null,
-    openingActive: false,
-    openingTimer: 0,
-    openingDoneTimer: 0,
     // Armed when a linear tour's intro curtain shows: when that tour ends or is
     // declined we hand off to the Welcome Hub as the actionable landing.
     pendingHubLanding: false
@@ -227,19 +215,33 @@
     if (!isFreshFirstRun()) {
       return;
     }
-    // A short beat so the shell paints before the flourish.
-    global.setTimeout(function () {
-      if (isWelcomeOpen() || state.running || isCurtainOpen() || state.openingActive || hasSeenLinear()) {
-        return;
-      }
-      const started = openIntro();
-      if (started === false) {
-        // The tour could not start (no mount/model) — fall back to the hub so
-        // the user is never stranded on a blank shell. (openIntro normally sets
-        // the pending-landing flag itself once the intro curtain shows.)
-        openWelcomeHub();
-      }
-    }, 400);
+    // A short beat so the shell paints before the greeting.
+    global.setTimeout(greetWhenClear, 400);
+  }
+
+  // On a fresh install the version-ceremony splash (opening_splash.js) owns the
+  // first full-screen moment; the fairy greets right as its veil lifts, so the
+  // two read as one continuous welcome instead of stacking.
+  function greetWhenClear() {
+    const splash = global.ProjectMapOpeningSplash;
+    if (splash && typeof splash.isActive === 'function' && splash.isActive()) {
+      global.document.addEventListener(
+        eventName('openingSplashDone', 'ProjectMap:opening-splash-done'),
+        function () { greetWhenClear(); },
+        {once: true}
+      );
+      return;
+    }
+    if (isWelcomeOpen() || state.running || isCurtainOpen() || hasSeenLinear()) {
+      return;
+    }
+    const started = openIntro();
+    if (started === false) {
+      // The tour could not start (no mount/model) — fall back to the hub so
+      // the user is never stranded on a blank shell. (openIntro normally sets
+      // the pending-landing flag itself once the intro curtain shows.)
+      openWelcomeHub();
+    }
   }
 
   function openWelcomeHub() {
@@ -287,6 +289,13 @@
   }
 
   function isWelcomeOpen() {
+    // Docked inline in the Home overview (the landing page) the welcome surface
+    // is ambient content, not an open dialog — it must not block the first-run
+    // greeting or surface hints. Only the standalone modal counts as "open".
+    const welcome = global.ProjectMapWelcomeSurface;
+    if (welcome && typeof welcome.isDocked === 'function' && welcome.isDocked()) {
+      return false;
+    }
     const el = global.document.getElementById('studio-welcome');
     return Boolean(el && !el.classList.contains('hidden'));
   }
@@ -355,13 +364,14 @@
     if (!global || !global.document) {
       return false;
     }
-    // A full-screen welcome flourish (emoji streak + warm wash), then the fairy
-    // greeting curtain — instead of dropping straight into the spotlight.
+    // Open on the fairy greeting curtain — never straight into the spotlight.
+    // (The full-screen opening moment belongs to the version-ceremony splash
+    // now; manual replays skip ceremony and go straight to the greeting.)
     return openIntro();
   }
 
   function openIntro() {
-    return playOpening(function () { showCurtain('intro'); });
+    return showCurtain('intro');
   }
 
   function beginLinearSteps() {
@@ -890,9 +900,11 @@
       '  <p class="guided-tour-curtain-body" data-guided-tour-curtain-body></p>',
       '  <div class="guided-tour-curtain-actions">',
       '    <button type="button" class="guided-tour-curtain-secondary" data-guided-tour-curtain-secondary></button>',
+      // The hands-on quest invite sits IN the action row as a peer button —
+      // it is the warmest next step for a newcomer, not a footnote.
+      '    <button type="button" class="guided-tour-curtain-extra" data-guided-tour-curtain-extra hidden></button>',
       '    <button type="button" class="primary-action guided-tour-curtain-primary" data-guided-tour-curtain-primary></button>',
       '  </div>',
-      '  <button type="button" class="guided-tour-curtain-extra" data-guided-tour-curtain-extra hidden></button>',
       '</div>'
     ].join('');
     mount.appendChild(curtain);
@@ -1101,93 +1113,13 @@
   // dismissed. Gated so it never stacks on the Welcome Hub or an active tour,
   // and never reappears once seen.
   function maybeOfferFirstRunIntro() {
-    if (state.running || state.openingActive || isCurtainOpen() || isWelcomeOpen()) {
+    if (state.running || isCurtainOpen() || isWelcomeOpen()) {
       return;
     }
     if (hasSeenLinear()) {
       return;
     }
-    // The first run gets the full welcome flourish too — this is meant to feel
-    // warmer than landing on a plain page.
     openIntro();
-  }
-
-  // --- Opening flourish -----------------------------------------------------
-  // A brief full-screen layer: emoji streak diagonally across over a warm wash,
-  // and the fairy greeting curtain rises in while they are still clearing.
-
-  function ensureOpeningLayer(document) {
-    if (state.openingEl) {
-      return;
-    }
-    const mount = document.getElementById('studio-guided-tour-root') || document.body;
-    if (!mount) {
-      return;
-    }
-    const layer = document.createElement('div');
-    layer.id = 'studio-guided-tour-opening';
-    layer.className = 'guided-tour-opening hidden';
-    layer.setAttribute('aria-hidden', 'true');
-    mount.appendChild(layer);
-    state.openingEl = layer;
-  }
-
-  function buildOpeningMarkup() {
-    const wash = '<div class="guided-tour-opening-wash"></div>';
-    // A full grid of emoji so it reads as a tide washing across the background
-    // rather than a thin line. Delay is mostly column-driven (a left-to-right
-    // sweep) with a small per-row offset so the front edge is staggered, not a
-    // rigid wall. The CSS streak runs ~2s; the latest cell starts ~1.1s in, so
-    // the whole wave clears around 3.1s — before playOpening tears the layer
-    // down, which is what stops it from vanishing mid-screen.
-    const cells = [];
-    let n = 0;
-    for (let row = 0; row < OPENING_ROWS; row += 1) {
-      for (let col = 0; col < OPENING_COLS; col += 1) {
-        const glyph = OPENING_EMOJI[n % OPENING_EMOJI.length];
-        const top = ((row + 0.5) / OPENING_ROWS) * 92 + (col % 2 ? -3.2 : 3.2);
-        const size = 24 + ((n * 5) % 20);
-        const delay = (col * 0.11 + row * 0.04).toFixed(2);
-        cells.push('<span class="guided-tour-opening-emoji" style="top:' + top.toFixed(1) +
-          '%;font-size:' + size + 'px;animation-delay:' + delay + 's">' + glyph + '</span>');
-        n += 1;
-      }
-    }
-    return wash + cells.join('');
-  }
-
-  function playOpening(onDone) {
-    if (prefersReducedMotion() || !global || !global.document) {
-      return onDone();
-    }
-    if (state.openingActive) {
-      return true;
-    }
-    ensureOpeningLayer(global.document);
-    if (!state.openingEl) {
-      return onDone();
-    }
-    const layer = state.openingEl;
-    layer.innerHTML = buildOpeningMarkup();
-    layer.classList.remove('hidden');
-    state.openingActive = true;
-    if (state.openingDoneTimer) { global.clearTimeout(state.openingDoneTimer); }
-    if (state.openingTimer) { global.clearTimeout(state.openingTimer); }
-    // Bring the fairy greeting in as the wave is exiting (most cells past
-    // center, only the rightmost columns still clearing), then tear the layer
-    // down once every cell has finished its ~2s streak. Keeping teardown after
-    // the last cell finishes is what fixes the "vanishes mid-screen" bug.
-    state.openingDoneTimer = global.setTimeout(function () {
-      state.openingActive = false;
-      onDone();
-    }, 2800);
-    state.openingTimer = global.setTimeout(function () {
-      if (state.openingEl) {
-        state.openingEl.classList.add('hidden');
-        state.openingEl.innerHTML = '';
-      }
-    }, 3500);
-    return true;
   }
 
   function hasSeenLinear() {

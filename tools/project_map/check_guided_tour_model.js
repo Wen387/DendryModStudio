@@ -65,6 +65,8 @@ assert(linear.some((step) => step.id === 'preview' && step.anchor === '#install-
   'linear tour should cover Runtime Preview (playtest a change safely)');
 assert(linear.some((step) => step.id === 'mode' && step.anchor === ''),
   'linear tour should explain desktop app vs browser capabilities');
+assert(linear.some((step) => step.id === 'home' && step.surface === 'home' && step.anchor === '.wordmark'),
+  'linear tour should introduce Home (the first-run landing) and point at the wordmark way back');
 
 const surfaces = model.surfaces();
 ['explore', 'create', 'install'].forEach((surface) => {
@@ -119,6 +121,7 @@ model.referencedI18nKeys().forEach((key) => {
 // --- Anchor targets exist in the shell -------------------------------------
 [
   'class="mode-switch"',
+  'class="wordmark"',
   'id="mode-explore"',
   'id="mode-create"',
   'id="mode-install"',
@@ -166,6 +169,8 @@ assert(tourUi.includes('anchorResolves'), 'hint mode should filter to steps whos
 assert(tourUi.includes('ProjectMap:mode-changed'), 'guided tour should auto-fire surface hints on a workspace change');
 assert(tourUi.includes('hasSeenSurface'), 'auto-fire should respect a per-surface seen flag');
 assert(tourUi.includes('isWelcomeOpen'), 'auto-fire should not stack on the Welcome Hub');
+assert(tourUi.includes('isDocked'),
+  'the docked (Home-inline) welcome must not count as an open dialog, or the first-run greeting never fires');
 // Phase 3 behaviours: mascot, landing/ending curtain, first-run offer.
 assert(tourUi.includes('guided-tour-mascot-face') && tourUi.includes('MASCOT_FACES'),
   'guided tour should render the kaomoji mascot face');
@@ -192,9 +197,13 @@ assert(tourUi.includes('openHome') || tourUi.includes('open-home'),
   'the first-run landing should reuse the Home open event');
 assert(welcomeUi.includes('no longer auto-opens') && welcomeUi.includes('shouldAutoOpen'),
   'the welcome modal must not auto-open on first run (Home overview onboarding face owns the greeting) while keeping shouldAutoOpen for deliberate callers');
-assert(tourUi.includes('playOpening') && tourUi.includes('OPENING_EMOJI'),
-  'opening the tour should play a full-screen emoji flourish before the greeting');
-assert(tourUi.includes('prefersReducedMotion'), 'the opening flourish should be skipped under reduced-motion');
+// The full-screen opening moment belongs to the version-ceremony splash now
+// (opening_splash.js, checked separately); the tour defers its fresh-run
+// greeting until the splash lifts, and manual replays open on the curtain.
+assert(tourUi.includes('ProjectMapOpeningSplash') && tourUi.includes('opening-splash-done'),
+  'the fresh-run greeting should wait for the opening splash to lift');
+assert(!tourUi.includes('OPENING_EMOJI'),
+  'the retired emoji flourish should not linger in the tour UI');
 
 // --- Deep create hints reference real, dynamically-rendered anchors --------
 const createHints = model.surfaceHints('create');
@@ -216,7 +225,6 @@ assert(tourCss.includes('.guided-tour-spotlight'), 'guided tour styles should de
 assert(tourCss.includes('box-shadow'), 'guided tour spotlight should dim via box-shadow');
 assert(tourCss.includes('.guided-tour-curtain'), 'guided tour styles should define the landing/ending curtain');
 assert(tourCss.includes('.guided-tour-mascot'), 'guided tour styles should define the mascot');
-assert(tourCss.includes('.guided-tour-opening'), 'guided tour styles should define the opening flourish');
 assert(tourCss.includes('guided-tour-wave'), 'guided tour styles should define the mascot wave');
 assert(tourCss.includes('prefers-reduced-motion'), 'guided tour styles should respect reduced-motion');
 

@@ -17,7 +17,9 @@
 
   const ADVANCE_MODES = ['next', 'click-anchor', 'event'];
   const PLACEMENTS = ['auto', 'top', 'bottom', 'left', 'right'];
-  const SURFACES = ['explore', 'create', 'install'];
+  // 'home' is a valid step surface (the linear tour visits the Home pane) but
+  // deliberately has no per-surface hint subset: Home is self-describing chrome.
+  const SURFACES = ['explore', 'create', 'install', 'home'];
 
   function asString(value) {
     return value === undefined || value === null ? '' : String(value);
@@ -75,6 +77,20 @@
       titleFallback: 'Welcome — a quick lay of the land',
       bodyKey: 'tour.linear.intro.body',
       bodyFallback: 'Studio has a few workspaces along the top. This short tour points out what each one is for. You can leave any time with Esc.',
+      advanceOn: 'next',
+      placement: 'bottom'
+    }),
+    step({
+      // The tour begins where a fresh install lands: Home. Introducing it
+      // before touring the workspaces closes the gap where the tour used to
+      // end by dropping the user onto a pane it had never explained.
+      id: 'home',
+      surface: 'home',
+      anchor: '.wordmark',
+      titleKey: 'tour.linear.home.title',
+      titleFallback: 'Home — your home base',
+      bodyKey: 'tour.linear.home.body',
+      bodyFallback: 'This is Home: announcements, templates, publishing, and what changed in each version all gather here. Click the Dendry Mod Studio wordmark in the corner any time to come back.',
       advanceOn: 'next',
       placement: 'bottom'
     }),

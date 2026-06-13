@@ -321,20 +321,24 @@
   border: 1px solid var(--accent-strong);
 }
 
-/* The "try it hands-on" invite below the ending curtain's main actions: a quiet
-   text link that hands off to the loose first-proposal quest. */
+/* The "try it hands-on" invite sits IN the ending curtain's action row as a
+   real, accent-outlined button: the first-proposal quest is the warmest next
+   step for a newcomer, so it reads as a peer of "Start exploring", not a
+   footnote under it. */
 .guided-tour-curtain-extra {
-  margin-top: 12px;
-  padding: 4px 8px;
-  background: none;
-  border: none;
-  color: var(--accent-strong);
-  font-size: 13px;
+  border-radius: 8px;
+  padding: 9px 18px;
+  font-size: 14px;
   cursor: pointer;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  color: var(--accent-strong);
+  font-weight: 600;
 }
 
 .guided-tour-curtain-extra:hover {
-  text-decoration: underline;
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 .guided-tour-curtain-extra[hidden] {
@@ -378,50 +382,6 @@
   to { opacity: 1; }
 }
 
-/* Opening flourish: a brief full-screen layer of emoji streaking across over a
-   warm wash, played before the fairy greeting when the tour opens. Decorative
-   and click-through; the UI tears it down after it finishes. */
-.guided-tour-opening {
-  position: fixed;
-  inset: 0;
-  z-index: 220;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.guided-tour-opening.hidden {
-  display: none;
-}
-
-.guided-tour-opening-wash {
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 62%);
-  animation: guided-tour-wash 3.6s ease both;
-}
-
-.guided-tour-opening-emoji {
-  position: absolute;
-  left: 0;
-  line-height: 1;
-  filter: drop-shadow(0 2px 6px rgba(20, 18, 14, 0.22));
-  animation: guided-tour-streak 2s ease-in-out both;
-}
-
-@keyframes guided-tour-wash {
-  0% { opacity: 0; }
-  20% { opacity: 1; }
-  70% { opacity: 1; }
-  100% { opacity: 0; }
-}
-
-@keyframes guided-tour-streak {
-  0% { transform: translateX(-16vw) translateY(0) rotate(-6deg) scale(0.7); opacity: 0; }
-  12% { opacity: 1; }
-  88% { opacity: 1; }
-  100% { transform: translateX(116vw) translateY(-5vh) rotate(6deg) scale(1.05); opacity: 0; }
-}
-
 /* The fairy waves: a gentle rotation pivoting from its base. Used on the greeting
    and sign-off curtain after the pop settles. */
 .guided-tour-mascot-face {
@@ -449,9 +409,7 @@
   .guided-tour-curtain.is-open .guided-tour-mascot--hero,
   .guided-tour-curtain.is-open .guided-tour-mascot--hero .guided-tour-mascot-face,
   .guided-tour-overlay--entering .guided-tour-spotlight,
-  .guided-tour-overlay--entering .guided-tour-bubble,
-  .guided-tour-opening-wash,
-  .guided-tour-opening-emoji {
+  .guided-tour-overlay--entering .guided-tour-bubble {
     animation: none;
   }
 
